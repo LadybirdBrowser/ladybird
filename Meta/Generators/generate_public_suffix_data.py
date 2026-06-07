@@ -16,6 +16,7 @@ def generate_header_file(output_path: Path) -> None:
 #include <AK/Forward.h>
 #include <AK/Trie.h>
 #include <AK/Variant.h>
+#include <LibURL/Forward.h>
 
 namespace URL {
 
@@ -36,8 +37,11 @@ public:
     }
 
     bool is_matching_public_suffix(StringView host);
+    bool is_matching_public_suffix(Host const& host);
     Optional<String> find_matching_public_suffix(StringView string);
+    Optional<String> find_matching_public_suffix(Host const& host);
     Optional<String> find_matching_registrable_domain(StringView string);
+    Optional<String> find_matching_registrable_domain(Host const& host);
 
 };
 
@@ -49,10 +53,27 @@ public:
         f.write(content)
 
 
+def canonicalize_public_suffix_rule(rule: str) -> str:
+    def canonicalize_label(label: str) -> str:
+        if label == "*":
+            return label
+
+        prefix = ""
+        if label.startswith("!"):
+            prefix = "!"
+            label = label[1:]
+
+        return prefix + label.encode("idna").decode("ascii").lower()
+
+    return ".".join(canonicalize_label(label) for label in rule.split("."))
+
+
 def generate_implementation_file(input_path: Path, output_path: Path) -> None:
     content = """#include <AK/String.h>
 #include <AK/BinarySearch.h>
 #include <AK/Vector.h>
+#include <LibURL/Host.h>
+#include <LibURL/Parser.h>
 #include <LibURL/PublicSuffixData.h>
 
 namespace URL {
@@ -67,6 +88,7 @@ static constexpr auto s_public_suffixes = Array {"""
             if line.startswith("//") or not line:
                 continue
 
+            line = canonicalize_public_suffix_rule(line)
             reversed_line = ".".join(line.split(".")[::-1])
             reversed_lines.append(reversed_line)
 
@@ -87,7 +109,15 @@ static bool is_reversed_public_suffix(StringView reversed_host)
     return binary_search(s_public_suffixes, reversed_host);
 }
 
-bool PublicSuffixData::is_matching_public_suffix(StringView host)
+static Optional<StringView> serialized_domain(Host const& host)
+{
+    if (!host.is_domain())
+        return OptionalNone {};
+
+    return host.get<String>().bytes_as_string_view();
+}
+
+static bool is_matching_public_suffix_impl(StringView host)
 {
     // Empty labels are kept so that inputs such as "com." do not match the bare "com" entry.
     auto labels = host.split_view('.', SplitBehavior::KeepEmpty);
@@ -99,7 +129,28 @@ bool PublicSuffixData::is_matching_public_suffix(StringView host)
     return is_reversed_public_suffix(reversed_host.string_view());
 }
 
-Optional<String> PublicSuffixData::find_matching_public_suffix(StringView string)
+bool PublicSuffixData::is_matching_public_suffix(StringView host)
+{
+    if (host.is_empty())
+        return false;
+
+    auto parsed_host = Parser::parse_host(host);
+    if (!parsed_host.has_value())
+        return false;
+
+    return is_matching_public_suffix(*parsed_host);
+}
+
+bool PublicSuffixData::is_matching_public_suffix(Host const& host)
+{
+    auto domain = serialized_domain(host);
+    if (!domain.has_value())
+        return false;
+
+    return is_matching_public_suffix_impl(*domain);
+}
+
+static Optional<String> find_matching_public_suffix_impl(StringView string)
 {
     auto input = string.split_view('.');
     input.reverse();
@@ -140,11 +191,32 @@ Optional<String> PublicSuffixData::find_matching_public_suffix(StringView string
     return MUST(return_string_builder.to_string());
 }
 
+Optional<String> PublicSuffixData::find_matching_public_suffix(StringView string)
+{
+    if (string.is_empty())
+        return {};
+
+    auto parsed_host = Parser::parse_host(string);
+    if (!parsed_host.has_value())
+        return {};
+
+    return find_matching_public_suffix(*parsed_host);
+}
+
+Optional<String> PublicSuffixData::find_matching_public_suffix(Host const& host)
+{
+    auto domain = serialized_domain(host);
+    if (!domain.has_value())
+        return {};
+
+    return find_matching_public_suffix_impl(*domain);
+}
+
 // https://github.com/publicsuffix/list/wiki/Format#algorithm
-Optional<String> PublicSuffixData::find_matching_registrable_domain(StringView host)
+static Optional<String> find_matching_registrable_domain_impl(StringView host)
 {
     // The registered or registrable domain is the public suffix plus one additional label.
-    auto public_suffix = find_matching_public_suffix(host);
+    auto public_suffix = find_matching_public_suffix_impl(host);
     if (!public_suffix.has_value() || !host.ends_with(*public_suffix))
         return {};
 
@@ -162,6 +234,27 @@ Optional<String> PublicSuffixData::find_matching_registrable_domain(StringView h
         start_index = *index + 1;
 
     return MUST(String::from_utf8(host.substring_view(start_index)));
+}
+
+Optional<String> PublicSuffixData::find_matching_registrable_domain(StringView string)
+{
+    if (string.is_empty())
+        return {};
+
+    auto parsed_host = Parser::parse_host(string);
+    if (!parsed_host.has_value())
+        return {};
+
+    return find_matching_registrable_domain(*parsed_host);
+}
+
+Optional<String> PublicSuffixData::find_matching_registrable_domain(Host const& host)
+{
+    auto domain = serialized_domain(host);
+    if (!domain.has_value())
+        return {};
+
+    return find_matching_registrable_domain_impl(*domain);
 }
 
 }
