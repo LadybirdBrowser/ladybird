@@ -35,8 +35,8 @@ public:
         return s_the;
     }
 
-    bool is_public_suffix(StringView host);
-    Optional<String> get_public_suffix(StringView string);
+    bool is_matching_public_suffix(StringView host);
+    Optional<String> find_matching_public_suffix(StringView string);
 
 };
 
@@ -86,7 +86,7 @@ static bool is_reversed_public_suffix(StringView reversed_host)
     return binary_search(s_public_suffixes, reversed_host);
 }
 
-bool PublicSuffixData::is_public_suffix(StringView host)
+bool PublicSuffixData::is_matching_public_suffix(StringView host)
 {
     // Empty labels are kept so that inputs such as "com." do not match the bare "com" entry.
     auto labels = host.split_view('.', SplitBehavior::KeepEmpty);
@@ -98,7 +98,7 @@ bool PublicSuffixData::is_public_suffix(StringView host)
     return is_reversed_public_suffix(reversed_host.string_view());
 }
 
-Optional<String> PublicSuffixData::get_public_suffix(StringView string)
+Optional<String> PublicSuffixData::find_matching_public_suffix(StringView string)
 {
     auto input = string.split_view('.');
     input.reverse();
