@@ -82,6 +82,23 @@ def parse_dry_run_output(output):
     return tests
 
 
+def changed_files_in_test_root(repo_root, base_ref):
+    output = run_git(repo_root, "diff", "--name-only", base_ref, "--", TEST_ROOT_RELATIVE.as_posix())
+    prefix = TEST_ROOT_RELATIVE.as_posix() + "/"
+    return [line[len(prefix) :] for line in output.splitlines() if line.startswith(prefix)]
+
+
+def find_modified_tests(repo_root, base_ref, pr_tests):
+    tests_by_input_path = {}
+    for test in pr_tests:
+        tests_by_input_path.setdefault(test.partition("?")[0], set()).add(test)
+
+    modified_tests = set()
+    for relative_path in changed_files_in_test_root(repo_root, base_ref):
+        modified_tests.update(tests_by_input_path.get(relative_path, ()))
+    return modified_tests
+
+
 def dry_run_tests(test_web_binary, test_root, python_executable, results_dir):
     command = [
         str(test_web_binary),
@@ -115,7 +132,11 @@ def discover_candidates(args, repo_root, test_web_binary, base_worktree, scratch
     base_tests = dry_run_tests(test_web_binary, base_test_root, args.python_executable, scratch_dir / "dry-run-base")
     log(f"  {len(base_tests)} tests discovered.")
 
-    return sorted(pr_tests - base_tests)
+    new_tests = pr_tests - base_tests
+    modified_tests = find_modified_tests(repo_root, args.base_ref, pr_tests) - new_tests
+    log(f"  {len(new_tests)} new and {len(modified_tests)} modified test(s) found.")
+
+    return sorted(new_tests) + sorted(modified_tests)
 
 
 def parse_concurrency_levels(spec):
@@ -288,7 +309,7 @@ def main(argv):
         cleanup_worktree(repo_root, base_worktree_path, scratch_dir)
 
     if not candidates:
-        log("No new tests: nothing to check.")
+        log("No new or modified tests: nothing to check.")
         return 0
 
     log(f"{len(candidates)} candidate test(s) to check at parallelism levels {levels}.")
