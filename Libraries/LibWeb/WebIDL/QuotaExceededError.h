@@ -21,8 +21,8 @@ public:
 
     static ExceptionOr<GC::Ref<QuotaExceededError>> construct_impl(JS::Realm&, Utf16String const& message, Bindings::QuotaExceededErrorOptions const&);
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
 
     // https://webidl.spec.whatwg.org/#dom-quotaexceedederror-quota
     Optional<double> const& quota() const { return m_quota; }

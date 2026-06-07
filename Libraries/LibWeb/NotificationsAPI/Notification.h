@@ -36,7 +36,7 @@ struct ConceptNotification {
     String body;
     Optional<URL::URL> navigation_url;
     String tag;
-    HTML::SerializationRecord data;
+    HTML::StorageSerializationRecord data;
     HighResolutionTime::EpochTimeStamp timestamp;
     URL::Origin origin = URL::Origin({}); // FIXME: Is this a hack ? There is no default constructor to URL::Origin and the value for `origin` is set in `create-a-notification-with-a-settings-object`
     bool renotify_preference;

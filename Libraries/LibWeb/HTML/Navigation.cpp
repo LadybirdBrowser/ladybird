@@ -55,7 +55,7 @@ static void report_session_history_update_for_navigation_api_state_change(DOM::D
 NavigationAPIMethodTracker::NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,
     Optional<String> key,
     JS::Value info,
-    Optional<SerializationRecord> serialized_state,
+    Optional<StorageSerializationRecord> serialized_state,
     GC::Ptr<NavigationHistoryEntry> committed_to_entry,
     GC::Ref<WebIDL::Promise> committed_promise,
     GC::Ref<WebIDL::Promise> finished_promise)
@@ -541,7 +541,7 @@ Bindings::NavigationResult navigation_api_method_tracker_derived_result(GC::Ref<
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#upcoming-non-traverse-api-method-tracker
-GC::Ref<NavigationAPIMethodTracker> Navigation::maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<SerializationRecord> serialized_state)
+GC::Ref<NavigationAPIMethodTracker> Navigation::maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<StorageSerializationRecord> serialized_state)
 {
     auto& realm = relevant_realm(*this);
     auto& vm = this->vm();
@@ -1061,7 +1061,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     GC::Ptr<DOM::Element> source_element,
     Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
     Optional<String> download_request_filename,
-    Optional<SerializationRecord> classic_history_api_state)
+    Optional<StorageSerializationRecord> classic_history_api_state)
 {
     // NOTE: Specification assumes that ongoing navigation event is cancelled before dispatching next navigation event.
     if (m_ongoing_navigate_event)
@@ -1414,8 +1414,8 @@ bool Navigation::fire_a_push_replace_reload_navigate_event(
     UserNavigationInvolvement user_involvement,
     GC::Ptr<DOM::Element> source_element,
     Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
-    Optional<SerializationRecord> navigation_api_state,
-    Optional<SerializationRecord> classic_history_api_state)
+    Optional<StorageSerializationRecord> navigation_api_state,
+    Optional<StorageSerializationRecord> classic_history_api_state)
 {
     auto& realm = relevant_realm(*this);
     auto& vm = this->vm();

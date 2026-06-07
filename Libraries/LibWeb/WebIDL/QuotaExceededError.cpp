@@ -77,10 +77,10 @@ ExceptionOr<GC::Ref<QuotaExceededError>> QuotaExceededError::construct_impl(JS::
 }
 
 // https://webidl.spec.whatwg.org/#ref-for-quotaexceedederror⑦
-WebIDL::ExceptionOr<void> QuotaExceededError::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> QuotaExceededError::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
     // 1. Run the DOMException serialization steps given value and serialized.
-    MUST(DOMException::serialization_steps(serialized, for_storage, memory));
+    TRY(DOMException::serialization_steps(serialized, for_storage, memory));
 
     // 2. Set serialized.[[Quota]] to value’s quota.
     serialized.encode(m_quota);
@@ -92,16 +92,18 @@ WebIDL::ExceptionOr<void> QuotaExceededError::serialization_steps(HTML::Transfer
 }
 
 // https://webidl.spec.whatwg.org/#ref-for-quotaexceedederror⑦
-WebIDL::ExceptionOr<void> QuotaExceededError::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> QuotaExceededError::deserialization_steps(HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory& memory)
 {
+    auto& realm = this->realm();
+
     // 1. Run the DOMException deserialization steps given serialized and value.
-    MUST(DOMException::deserialization_steps(serialized, memory));
+    TRY(DOMException::deserialization_steps(serialized, memory));
 
     // 2. Set value’s quota to serialized.[[Quota]].
-    m_quota = serialized.decode<Optional<double>>();
+    m_quota = TRY(HTML::decode_or_throw_data_clone_error<Optional<double>>(realm, serialized));
 
     // 3. Set value’s requested to serialized.[[Requested]].
-    m_requested = serialized.decode<Optional<double>>();
+    m_requested = TRY(HTML::decode_or_throw_data_clone_error<Optional<double>>(realm, serialized));
 
     return {};
 }

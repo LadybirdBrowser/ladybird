@@ -366,8 +366,8 @@ ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> IPC::decode(Decoder& decoder)
     auto step = TRY(decoder.decode<i32>());
     auto url = TRY(decoder.decode<URL::URL>());
     auto document_state = TRY(decoder.decode<Web::HTML::SessionHistoryDocumentStateDescriptor>());
-    auto classic_history_api_state = TRY(decoder.decode<Web::HTML::SerializationRecord>());
-    auto navigation_api_state = TRY(decoder.decode<Web::HTML::SerializationRecord>());
+    auto classic_history_api_state = TRY(decoder.decode<Web::HTML::StorageSerializationRecord>());
+    auto navigation_api_state = TRY(decoder.decode<Web::HTML::StorageSerializationRecord>());
     auto navigation_api_key = TRY(decoder.decode<String>());
     auto navigation_api_id = TRY(decoder.decode<String>());
     auto scroll_restoration_mode = TRY(decoder.decode<Web::HTML::ScrollRestorationMode>());

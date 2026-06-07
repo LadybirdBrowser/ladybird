@@ -7,9 +7,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
+#include <AK/BitCast.h>
+#include <AK/Checked.h>
+#include <AK/Debug.h>
+#include <AK/Endian.h>
+#include <AK/LEB128.h>
 #include <AK/StdLibExtras.h>
 #include <AK/String.h>
+#include <AK/UnicodeUtils.h>
+#include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/Color.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -69,53 +79,27 @@
 
 namespace Web::HTML {
 
-enum class ValueTag : u8 {
-    Empty, // Unused, for ease of catching bugs.
-
-    UndefinedPrimitive,
-    NullPrimitive,
-    BooleanPrimitive,
-    NumberPrimitive,
-    StringPrimitive,
-    BigIntPrimitive,
-
-    BooleanObject,
-    NumberObject,
-    StringObject,
-    BigIntObject,
-    DateObject,
-    RegExpObject,
-    MapObject,
-    SetObject,
-    ArrayObject,
-    ErrorObject,
-    Object,
-    ObjectReference,
-
-    GrowableSharedArrayBuffer,
-    SharedArrayBuffer,
-    ResizeableArrayBuffer,
-    ArrayBuffer,
-    ArrayBufferView,
-
-    SerializableObject,
-
-    Int32Primitive,
-
-    // TODO: Define many more types
-
-    // Object/Array property-list terminator. Reserved at the top of the range so value tags can keep growing
-    // upward without ever colliding with it.
-    EndObject = 0xFF,
-};
-
-enum ErrorType {
+enum class ErrorType : u8 {
     Error,
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
     ClassName,
     JS_ENUMERATE_NATIVE_ERRORS
 #undef __JS_ENUMERATE
 };
+
+static ErrorOr<StringView> error_type_to_name(ErrorType type)
+{
+    switch (type) {
+    case ErrorType::Error:
+        return "Error"sv;
+#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
+    case ErrorType::ClassName:                                                           \
+        return #ClassName##sv;
+        JS_ENUMERATE_NATIVE_ERRORS
+#undef __JS_ENUMERATE
+    }
+    return Error::from_string_literal("Invalid structured serialize error type");
+}
 
 static ErrorType error_name_to_type(Utf16View name)
 {
@@ -124,11 +108,937 @@ static ErrorType error_name_to_type(Utf16View name)
         return ErrorType::ClassName;
     JS_ENUMERATE_NATIVE_ERRORS
 #undef __JS_ENUMERATE
-    return Error;
+    return ErrorType::Error;
+}
+
+// Text storage uses Utf16String; converting back enforces String's strict-UTF-8 invariant.
+static ErrorOr<String> utf16_to_utf8_text(Utf16String const& text)
+{
+    return text.utf16_view().to_utf8(AK::UnicodeUtils::AllowLonelySurrogates::No);
+}
+
+// Explicit return types keep these non-capturing lambdas function-pointer compatible.
+static constexpr Array<SerializableRegistryEntry, 15> s_serializable_storage_registry { {
+    { Bindings::InterfaceName::Blob, "Blob"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return FileAPI::Blob::create(realm); } },
+    { Bindings::InterfaceName::File, "File"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return FileAPI::File::create(realm); } },
+    { Bindings::InterfaceName::FileList, "FileList"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return FileAPI::FileList::create(realm); } },
+    { Bindings::InterfaceName::DOMException, "DOMException"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return WebIDL::DOMException::create(realm); } },
+    { Bindings::InterfaceName::DOMMatrixReadOnly, "DOMMatrixReadOnly"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return Geometry::DOMMatrixReadOnly::create(realm); } },
+    { Bindings::InterfaceName::DOMMatrix, "DOMMatrix"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return Geometry::DOMMatrix::create(realm); } },
+    { Bindings::InterfaceName::DOMPointReadOnly, "DOMPointReadOnly"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return Geometry::DOMPointReadOnly::create(realm); } },
+    { Bindings::InterfaceName::DOMPoint, "DOMPoint"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return Geometry::DOMPoint::create(realm); } },
+    { Bindings::InterfaceName::DOMRectReadOnly, "DOMRectReadOnly"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return Geometry::DOMRectReadOnly::create(realm); } },
+    { Bindings::InterfaceName::DOMRect, "DOMRect"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return Geometry::DOMRect::create(realm); } },
+    { Bindings::InterfaceName::CryptoKey, "CryptoKey"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return Crypto::CryptoKey::create(realm); } },
+    { Bindings::InterfaceName::DOMQuad, "DOMQuad"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return Geometry::DOMQuad::create(realm); } },
+    { Bindings::InterfaceName::ImageData, "ImageData"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return ImageData::create(realm); } },
+    { Bindings::InterfaceName::ImageBitmap, "ImageBitmap"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return ImageBitmap::create(realm); } },
+    { Bindings::InterfaceName::QuotaExceededError, "QuotaExceededError"sv, [](JS::Realm& realm) -> GC::Ref<Bindings::PlatformObject> { return WebIDL::QuotaExceededError::create(realm); } },
+} };
+
+ReadonlySpan<SerializableRegistryEntry> serializable_storage_registry()
+{
+    return s_serializable_storage_registry.span();
+}
+
+static ErrorOr<StringView> serializable_interface_name_to_storage_identifier(Bindings::InterfaceName interface_name)
+{
+    for (auto const& entry : s_serializable_storage_registry) {
+        if (entry.interface_name == interface_name)
+            return entry.identifier;
+    }
+    return Error::from_string_literal("Invalid structured serialize interface name");
+}
+
+static ErrorOr<Bindings::InterfaceName> storage_identifier_to_serializable_interface_name(StringView identifier)
+{
+    for (auto const& entry : s_serializable_storage_registry) {
+        if (entry.identifier == identifier)
+            return entry.interface_name;
+    }
+    return Error::from_string_literal("Unknown structured serialize interface name");
+}
+
+static ErrorOr<StringView> key_type_to_storage_identifier(Bindings::KeyType key_type)
+{
+    switch (key_type) {
+    case Bindings::KeyType::Public:
+        return "public"sv;
+    case Bindings::KeyType::Private:
+        return "private"sv;
+    case Bindings::KeyType::Secret:
+        return "secret"sv;
+    }
+    return Error::from_string_literal("Invalid structured serialize key type");
+}
+
+static ErrorOr<Bindings::KeyType> storage_identifier_to_key_type(StringView identifier)
+{
+    if (identifier == "public"sv)
+        return Bindings::KeyType::Public;
+    if (identifier == "private"sv)
+        return Bindings::KeyType::Private;
+    if (identifier == "secret"sv)
+        return Bindings::KeyType::Secret;
+    return Error::from_string_literal("Unknown structured serialize key type");
+}
+
+static ErrorOr<StringView> key_usage_to_storage_identifier(Bindings::KeyUsage key_usage)
+{
+    switch (key_usage) {
+    case Bindings::KeyUsage::Encrypt:
+        return "encrypt"sv;
+    case Bindings::KeyUsage::Decrypt:
+        return "decrypt"sv;
+    case Bindings::KeyUsage::Sign:
+        return "sign"sv;
+    case Bindings::KeyUsage::Verify:
+        return "verify"sv;
+    case Bindings::KeyUsage::Derivekey:
+        return "deriveKey"sv;
+    case Bindings::KeyUsage::Derivebits:
+        return "deriveBits"sv;
+    case Bindings::KeyUsage::Wrapkey:
+        return "wrapKey"sv;
+    case Bindings::KeyUsage::Unwrapkey:
+        return "unwrapKey"sv;
+    case Bindings::KeyUsage::Encapsulatekey:
+        return "encapsulateKey"sv;
+    case Bindings::KeyUsage::Encapsulatebits:
+        return "encapsulateBits"sv;
+    case Bindings::KeyUsage::Decapsulatekey:
+        return "decapsulateKey"sv;
+    case Bindings::KeyUsage::Decapsulatebits:
+        return "decapsulateBits"sv;
+    }
+    return Error::from_string_literal("Invalid structured serialize key usage");
+}
+
+static ErrorOr<Bindings::KeyUsage> storage_identifier_to_key_usage(StringView identifier)
+{
+    if (identifier == "encrypt"sv)
+        return Bindings::KeyUsage::Encrypt;
+    if (identifier == "decrypt"sv)
+        return Bindings::KeyUsage::Decrypt;
+    if (identifier == "sign"sv)
+        return Bindings::KeyUsage::Sign;
+    if (identifier == "verify"sv)
+        return Bindings::KeyUsage::Verify;
+    if (identifier == "deriveKey"sv)
+        return Bindings::KeyUsage::Derivekey;
+    if (identifier == "deriveBits"sv)
+        return Bindings::KeyUsage::Derivebits;
+    if (identifier == "wrapKey"sv)
+        return Bindings::KeyUsage::Wrapkey;
+    if (identifier == "unwrapKey"sv)
+        return Bindings::KeyUsage::Unwrapkey;
+    if (identifier == "encapsulateKey"sv)
+        return Bindings::KeyUsage::Encapsulatekey;
+    if (identifier == "encapsulateBits"sv)
+        return Bindings::KeyUsage::Encapsulatebits;
+    if (identifier == "decapsulateKey"sv)
+        return Bindings::KeyUsage::Decapsulatekey;
+    if (identifier == "decapsulateBits"sv)
+        return Bindings::KeyUsage::Decapsulatebits;
+    return Error::from_string_literal("Unknown structured serialize key usage");
+}
+
+static ErrorOr<StringView> color_space_to_storage_identifier(Bindings::PredefinedColorSpace color_space)
+{
+    switch (color_space) {
+    case Bindings::PredefinedColorSpace::Srgb:
+        return "srgb"sv;
+    case Bindings::PredefinedColorSpace::SrgbLinear:
+        return "srgb-linear"sv;
+    case Bindings::PredefinedColorSpace::DisplayP3:
+        return "display-p3"sv;
+    case Bindings::PredefinedColorSpace::DisplayP3Linear:
+        return "display-p3-linear"sv;
+    }
+    return Error::from_string_literal("Invalid structured serialize color space");
+}
+
+static ErrorOr<Bindings::PredefinedColorSpace> storage_identifier_to_color_space(StringView identifier)
+{
+    if (identifier == "srgb"sv)
+        return Bindings::PredefinedColorSpace::Srgb;
+    if (identifier == "srgb-linear"sv)
+        return Bindings::PredefinedColorSpace::SrgbLinear;
+    if (identifier == "display-p3"sv)
+        return Bindings::PredefinedColorSpace::DisplayP3;
+    if (identifier == "display-p3-linear"sv)
+        return Bindings::PredefinedColorSpace::DisplayP3Linear;
+    return Error::from_string_literal("Unknown structured serialize color space");
+}
+
+static ErrorOr<StringView> bitmap_format_to_storage_identifier(Gfx::BitmapFormat format)
+{
+    switch (format) {
+    case Gfx::BitmapFormat::Invalid:
+        break;
+    case Gfx::BitmapFormat::BGRx8888:
+        return "BGRx8888"sv;
+    case Gfx::BitmapFormat::BGRA8888:
+        return "BGRA8888"sv;
+    case Gfx::BitmapFormat::RGBx8888:
+        return "RGBx8888"sv;
+    case Gfx::BitmapFormat::RGBA8888:
+        return "RGBA8888"sv;
+    }
+    return Error::from_string_literal("Invalid structured serialize bitmap format");
+}
+
+static ErrorOr<Gfx::BitmapFormat> storage_identifier_to_bitmap_format(StringView identifier)
+{
+    if (identifier == "BGRx8888"sv)
+        return Gfx::BitmapFormat::BGRx8888;
+    if (identifier == "BGRA8888"sv)
+        return Gfx::BitmapFormat::BGRA8888;
+    if (identifier == "RGBx8888"sv)
+        return Gfx::BitmapFormat::RGBx8888;
+    if (identifier == "RGBA8888"sv)
+        return Gfx::BitmapFormat::RGBA8888;
+    return Error::from_string_literal("Unknown structured serialize bitmap format");
+}
+
+static ErrorOr<StringView> alpha_type_to_storage_identifier(Gfx::AlphaType alpha_type)
+{
+    switch (alpha_type) {
+    case Gfx::AlphaType::Premultiplied:
+        return "premultiplied"sv;
+    case Gfx::AlphaType::Unpremultiplied:
+        return "unpremultiplied"sv;
+    }
+    return Error::from_string_literal("Invalid structured serialize alpha type");
+}
+
+static ErrorOr<Gfx::AlphaType> storage_identifier_to_alpha_type(StringView identifier)
+{
+    if (identifier == "premultiplied"sv)
+        return Gfx::AlphaType::Premultiplied;
+    if (identifier == "unpremultiplied"sv)
+        return Gfx::AlphaType::Unpremultiplied;
+    return Error::from_string_literal("Unknown structured serialize alpha type");
+}
+
+static constexpr Array<u8, 4> storage_format_magic = { 'L', 'B', 'S', 'C' };
+
+// Flags are for optional envelope features (e.g. compression); changes to the value encoding bump the version instead.
+static constexpr u64 storage_format_flags = 0;
+
+class StructuredSerializeDataEncoder {
+public:
+    virtual ~StructuredSerializeDataEncoder() = default;
+
+    virtual SerializationType type() const = 0;
+
+    virtual void encode(bool) = 0;
+    virtual void encode(u8) = 0;
+    virtual void encode(u16) = 0;
+    virtual void encode(i32) = 0;
+    virtual void encode(u32) = 0;
+    virtual void encode(i64) = 0;
+    virtual void encode(u64) = 0;
+    virtual void encode(double) = 0;
+    virtual void encode(Utf16String const&) = 0;
+    virtual void encode(ByteBuffer const&) = 0;
+    virtual void encode(ReadonlyBytes) = 0;
+
+    virtual void append(IPCSerializationRecord&&) { VERIFY_NOT_REACHED(); }
+    virtual IPCSerializationRecord take_ipc_record() { VERIFY_NOT_REACHED(); }
+    virtual StorageSerializationRecord take_storage_record() { VERIFY_NOT_REACHED(); }
+};
+
+class StructuredSerializeDataDecoder {
+public:
+    virtual ~StructuredSerializeDataDecoder() = default;
+
+    virtual SerializationType type() const = 0;
+
+    // True once all input has been consumed. Only the storage path checks this (to reject trailing bytes).
+    virtual bool is_at_end() const { return true; }
+
+    virtual ErrorOr<void> decode(bool&) = 0;
+    virtual ErrorOr<void> decode(u8&) = 0;
+    virtual ErrorOr<void> decode(u16&) = 0;
+    virtual ErrorOr<void> decode(i32&) = 0;
+    virtual ErrorOr<void> decode(u32&) = 0;
+    virtual ErrorOr<void> decode(i64&) = 0;
+    virtual ErrorOr<void> decode(u64&) = 0;
+    virtual ErrorOr<void> decode(double&) = 0;
+    virtual ErrorOr<void> decode(Utf16String&) = 0;
+    virtual ErrorOr<void> decode(ByteBuffer&) = 0;
+};
+
+class IPCStructuredSerializeDataEncoder final : public StructuredSerializeDataEncoder {
+public:
+    virtual SerializationType type() const override { return SerializationType::IPC; }
+
+    virtual void encode(bool value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(u8 value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(u16 value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(i32 value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(u32 value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(i64 value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(u64 value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(double value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(Utf16String const& value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(ByteBuffer const& value) override { MUST(m_encoder.encode(value)); }
+    virtual void encode(ReadonlyBytes value) override { MUST(m_encoder.encode(value)); }
+
+    virtual void append(IPCSerializationRecord&& record) override
+    {
+        m_encoder.append(move(record));
+    }
+
+    virtual IPCSerializationRecord take_ipc_record() override
+    {
+        return IPCSerializationRecord { m_encoder.take_buffer().take_data() };
+    }
+
+private:
+    TransferDataEncoder m_encoder;
+};
+
+class IPCStructuredSerializeDataDecoder final : public StructuredSerializeDataDecoder {
+public:
+    explicit IPCStructuredSerializeDataDecoder(IPCSerializationRecord const& record)
+        : m_decoder(record)
+    {
+    }
+
+    explicit IPCStructuredSerializeDataDecoder(TransferDataEncoder&& data_holder)
+        : m_decoder(move(data_holder))
+    {
+    }
+
+    virtual SerializationType type() const override { return SerializationType::IPC; }
+
+    virtual ErrorOr<void> decode(bool& value) override { return decode_from_ipc(value); }
+    virtual ErrorOr<void> decode(u8& value) override { return decode_from_ipc(value); }
+    virtual ErrorOr<void> decode(u16& value) override { return decode_from_ipc(value); }
+    virtual ErrorOr<void> decode(i32& value) override { return decode_from_ipc(value); }
+    virtual ErrorOr<void> decode(u32& value) override { return decode_from_ipc(value); }
+    virtual ErrorOr<void> decode(i64& value) override { return decode_from_ipc(value); }
+    virtual ErrorOr<void> decode(u64& value) override { return decode_from_ipc(value); }
+    virtual ErrorOr<void> decode(double& value) override { return decode_from_ipc(value); }
+    virtual ErrorOr<void> decode(Utf16String& value) override { return decode_from_ipc(value); }
+    virtual ErrorOr<void> decode(ByteBuffer& value) override
+    {
+        value = TRY(m_decoder.decode<ByteBuffer>());
+        return {};
+    }
+
+private:
+    template<typename T>
+    ErrorOr<void> decode_from_ipc(T& value)
+    {
+        value = TRY(m_decoder.decode<T>());
+        return {};
+    }
+
+    TransferDataDecoder m_decoder;
+};
+
+class StorageStructuredSerializeDataEncoder final : public StructuredSerializeDataEncoder {
+public:
+    StorageStructuredSerializeDataEncoder()
+    {
+        m_data.append(storage_format_magic.data(), storage_format_magic.size());
+        encode(storage_format_version);
+        encode(storage_format_flags);
+    }
+
+    virtual SerializationType type() const override { return SerializationType::Storage; }
+
+    virtual void encode(bool value) override { encode(static_cast<u8>(value ? 1 : 0)); }
+
+    virtual void encode(u8 value) override { m_data.append(value); }
+
+    virtual void encode(u16 value) override { append_leb128(value); }
+
+    virtual void encode(u32 value) override { append_leb128(value); }
+
+    virtual void encode(i32 value) override { append_leb128(value); }
+
+    virtual void encode(u64 value) override { append_leb128(value); }
+
+    virtual void encode(i64 value) override { append_leb128(value); }
+
+    virtual void encode(double value) override { append_little_endian(bit_cast<u64>(value)); }
+
+    virtual void encode(Utf16String const& string) override
+    {
+        auto view = string.utf16_view();
+        auto length = view.length_in_code_units();
+        encode((static_cast<u64>(length) << 1) | (view.has_ascii_storage() ? 1u : 0u));
+        if (view.has_ascii_storage()) {
+            m_data.append(view.bytes());
+        } else if constexpr (AK::HostIsLittleEndian) {
+            m_data.append(reinterpret_cast<u8 const*>(view.utf16_span().data()), length * sizeof(char16_t));
+        } else {
+            for (char16_t code_unit : view.utf16_span())
+                append_little_endian(static_cast<u16>(code_unit));
+        }
+    }
+
+    virtual void encode(ByteBuffer const& buffer) override
+    {
+        encode(buffer.bytes());
+    }
+
+    virtual void encode(ReadonlyBytes bytes) override
+    {
+        encode(static_cast<u64>(bytes.size()));
+        m_data.append(bytes.data(), bytes.size());
+    }
+
+    virtual StorageSerializationRecord take_storage_record() override
+    {
+        return StorageSerializationRecord { move(m_data) };
+    }
+
+private:
+    template<typename T>
+    void append_leb128(T value)
+    {
+        LEB128<T>::append_to(m_data, value);
+    }
+
+    template<typename T>
+    void append_little_endian(T value)
+    {
+        AK::LittleEndian<T> const little_endian { value };
+        m_data.append(reinterpret_cast<u8 const*>(&little_endian), sizeof(little_endian));
+    }
+
+    ByteBuffer m_data;
+};
+
+class StorageStructuredSerializeDataDecoder final : public StructuredSerializeDataDecoder {
+public:
+    explicit StorageStructuredSerializeDataDecoder(StorageSerializationRecord const& record)
+        : m_stream(record.data.span())
+    {
+        auto magic = read_bytes(sizeof(storage_format_magic));
+        if (magic.is_error()) {
+            m_error = magic.release_error();
+            return;
+        }
+        if (magic.value() != storage_format_magic) {
+            m_error = Error::from_string_literal("Invalid structured serialize storage magic");
+            return;
+        }
+
+        u64 version = 0;
+        if (auto result = decode(version); result.is_error()) {
+            m_error = result.release_error();
+            return;
+        }
+        if (version != storage_format_version) {
+            m_error = Error::from_string_literal("Unsupported structured serialize storage version");
+            return;
+        }
+
+        u64 flags = 0;
+        if (auto result = decode(flags); result.is_error()) {
+            m_error = result.release_error();
+            return;
+        }
+        if (flags != storage_format_flags)
+            m_error = Error::from_string_literal("Unsupported structured serialize storage flags");
+    }
+
+    virtual SerializationType type() const override { return SerializationType::Storage; }
+    virtual bool is_at_end() const override { return m_stream.is_eof(); }
+
+    virtual ErrorOr<void> decode(bool& result) override
+    {
+        u8 value = 0;
+        TRY(decode(value));
+        if (value > 1)
+            return Error::from_string_literal("Invalid structured serialize bool");
+        result = value != 0;
+        return {};
+    }
+
+    virtual ErrorOr<void> decode(u8& value) override
+    {
+        auto bytes = TRY(read_bytes(sizeof(u8)));
+        value = bytes[0];
+        return {};
+    }
+
+    virtual ErrorOr<void> decode(u16& value) override { return read_leb128(value); }
+
+    virtual ErrorOr<void> decode(u32& value) override { return read_leb128(value); }
+
+    virtual ErrorOr<void> decode(i32& value) override { return read_leb128(value); }
+
+    virtual ErrorOr<void> decode(u64& value) override { return read_leb128(value); }
+
+    virtual ErrorOr<void> decode(i64& value) override { return read_leb128(value); }
+
+    virtual ErrorOr<void> decode(double& value) override
+    {
+        u64 raw_value = 0;
+        TRY(read_little_endian(raw_value));
+        value = bit_cast<double>(raw_value);
+        return {};
+    }
+
+    virtual ErrorOr<void> decode(Utf16String& string) override
+    {
+        u64 header = 0;
+        TRY(decode(header));
+        bool is_ascii = (header & 1) != 0;
+        size_t length = TRY(host_size_from_stable_size(header >> 1));
+        if (length == 0) {
+            string = {};
+            return {};
+        }
+        // Validate the byte count before try_resize(), which multiplies length without an overflow check.
+        Checked<size_t> byte_count = length;
+        if (!is_ascii)
+            byte_count *= sizeof(u16);
+        if (byte_count.has_overflow() || byte_count.value() > m_stream.remaining())
+            return Error::from_string_literal("Truncated structured serialize storage record");
+        auto bytes = TRY(read_bytes(byte_count.value()));
+        if (is_ascii) {
+            if (!StringView { bytes }.is_ascii())
+                return Error::from_string_literal("Invalid ASCII in structured serialize storage record");
+            string = Utf16String::from_ascii_without_validation(bytes);
+            return {};
+        }
+        // The stream offset can be odd, so the bytes cannot be viewed as char16_t in place.
+        Vector<char16_t> code_units;
+        TRY(code_units.try_resize(length));
+        if constexpr (AK::HostIsLittleEndian) {
+            memcpy(code_units.data(), bytes.data(), byte_count.value());
+        } else {
+            for (size_t i = 0; i < length; ++i)
+                code_units[i] = static_cast<char16_t>(bytes[2 * i] | (bytes[2 * i + 1] << 8));
+        }
+        string = Utf16String::from_utf16({ code_units.data(), code_units.size() });
+        return {};
+    }
+
+    virtual ErrorOr<void> decode(ByteBuffer& buffer) override
+    {
+        auto length = TRY(decode_size());
+        auto bytes = TRY(read_bytes(length));
+        buffer = TRY(ByteBuffer::copy(bytes));
+        return {};
+    }
+
+private:
+    ErrorOr<void> fail_if_error() const
+    {
+        if (m_error.has_value())
+            return Error::copy(m_error.value());
+        return {};
+    }
+
+    static ErrorOr<size_t> host_size_from_stable_size(u64 size)
+    {
+        if (!AK::is_within_range<size_t>(size))
+            return Error::from_string_literal("Structured serialize storage size does not fit on this platform");
+        return static_cast<size_t>(size);
+    }
+
+    ErrorOr<size_t> decode_size()
+    {
+        u64 size = 0;
+        TRY(decode(size));
+        return host_size_from_stable_size(size);
+    }
+
+    ErrorOr<ReadonlyBytes> read_bytes(size_t size)
+    {
+        TRY(fail_if_error());
+        return m_stream.read_in_place<u8 const>(size);
+    }
+
+    template<typename T>
+    ErrorOr<void> read_leb128(T& value)
+    {
+        TRY(fail_if_error());
+        value = TRY(m_stream.read_value<LEB128<T>>());
+        return {};
+    }
+
+    template<typename T>
+    ErrorOr<void> read_little_endian(T& value)
+    {
+        TRY(fail_if_error());
+        value = TRY(m_stream.read_value<AK::LittleEndian<T>>());
+        return {};
+    }
+
+    FixedMemoryStream m_stream;
+    Optional<AK::Error> m_error;
+};
+
+StructuredSerializeWriter StructuredSerializeWriter::create_ipc()
+{
+    return StructuredSerializeWriter { make<IPCStructuredSerializeDataEncoder>() };
+}
+
+StructuredSerializeWriter StructuredSerializeWriter::create_storage()
+{
+    return StructuredSerializeWriter { make<StorageStructuredSerializeDataEncoder>() };
+}
+
+StructuredSerializeWriter::StructuredSerializeWriter(NonnullOwnPtr<StructuredSerializeDataEncoder> encoder)
+    : m_encoder(move(encoder))
+{
+}
+
+StructuredSerializeWriter::~StructuredSerializeWriter() = default;
+
+SerializationType StructuredSerializeWriter::type() const
+{
+    return m_encoder->type();
+}
+
+static void encode_value(StructuredSerializeDataEncoder& encoder, ValueTag value)
+{
+    encoder.encode(to_underlying(value));
+}
+
+template<typename T>
+static void encode_value(StructuredSerializeDataEncoder& encoder, T const& value)
+requires requires { encoder.encode(value); }
+{
+    encoder.encode(value);
+}
+
+static void encode_value(StructuredSerializeDataEncoder& encoder, int value)
+{
+    VERIFY(AK::is_within_range<i32>(value));
+    encoder.encode(static_cast<i32>(value));
+}
+
+static void encode_value(StructuredSerializeDataEncoder& encoder, ErrorType value)
+{
+    auto identifier = MUST(error_type_to_name(value));
+    if (encoder.type() == SerializationType::IPC)
+        encoder.encode(to_underlying(value));
+    else
+        encoder.encode(Utf16String::from_utf8(identifier));
+}
+
+static void encode_value(StructuredSerializeDataEncoder& encoder, Bindings::InterfaceName value)
+{
+    if (encoder.type() == SerializationType::IPC)
+        encoder.encode(to_underlying(value));
+    else
+        encoder.encode(Utf16String::from_utf8(MUST(serializable_interface_name_to_storage_identifier(value))));
+}
+
+static void encode_value(StructuredSerializeDataEncoder& encoder, Bindings::KeyType value)
+{
+    auto identifier = MUST(key_type_to_storage_identifier(value));
+    if (encoder.type() == SerializationType::IPC)
+        encoder.encode(to_underlying(value));
+    else
+        encoder.encode(Utf16String::from_utf8(identifier));
+}
+
+static void encode_value(StructuredSerializeDataEncoder& encoder, Bindings::KeyUsage value)
+{
+    auto identifier = MUST(key_usage_to_storage_identifier(value));
+    if (encoder.type() == SerializationType::IPC)
+        encoder.encode(to_underlying(value));
+    else
+        encoder.encode(Utf16String::from_utf8(identifier));
+}
+
+static void encode_value(StructuredSerializeDataEncoder& encoder, Bindings::PredefinedColorSpace value)
+{
+    auto identifier = MUST(color_space_to_storage_identifier(value));
+    if (encoder.type() == SerializationType::IPC)
+        encoder.encode(to_underlying(value));
+    else
+        encoder.encode(Utf16String::from_utf8(identifier));
+}
+
+static void encode_value(StructuredSerializeDataEncoder& encoder, Gfx::BitmapFormat value)
+{
+    auto identifier = MUST(bitmap_format_to_storage_identifier(value));
+    if (encoder.type() == SerializationType::IPC)
+        encoder.encode(to_underlying(value));
+    else
+        encoder.encode(Utf16String::from_utf8(identifier));
+}
+
+static void encode_value(StructuredSerializeDataEncoder& encoder, Gfx::AlphaType value)
+{
+    auto identifier = MUST(alpha_type_to_storage_identifier(value));
+    if (encoder.type() == SerializationType::IPC)
+        encoder.encode(to_underlying(value));
+    else
+        encoder.encode(Utf16String::from_utf8(identifier));
+}
+
+template<typename T>
+static void encode_value(StructuredSerializeDataEncoder& encoder, Vector<T> const& value)
+{
+    encoder.encode(static_cast<u64>(value.size()));
+    for (auto const& element : value)
+        encode_value(encoder, element);
+}
+
+template<typename T>
+static void encode_value(StructuredSerializeDataEncoder& encoder, Optional<T> const& value)
+{
+    encoder.encode(value.has_value());
+    if (value.has_value())
+        encode_value(encoder, value.value());
+}
+
+template<typename T>
+void StructuredSerializeWriter::encode(T const& value)
+{
+    encode_value(*m_encoder, value);
+}
+
+void StructuredSerializeWriter::append(IPCSerializationRecord&& record)
+{
+    m_encoder->append(move(record));
+}
+
+IPCSerializationRecord StructuredSerializeWriter::take_ipc_record()
+{
+    return m_encoder->take_ipc_record();
+}
+
+StorageSerializationRecord StructuredSerializeWriter::take_storage_record()
+{
+    return m_encoder->take_storage_record();
+}
+
+StructuredSerializeReader::StructuredSerializeReader(IPCSerializationRecord const& record)
+    : m_decoder(make<IPCStructuredSerializeDataDecoder>(record))
+{
+}
+
+StructuredSerializeReader::StructuredSerializeReader(StorageSerializationRecord const& record)
+    : m_decoder(make<StorageStructuredSerializeDataDecoder>(record))
+{
+}
+
+StructuredSerializeReader::StructuredSerializeReader(TransferDataEncoder&& data_holder)
+    : m_decoder(make<IPCStructuredSerializeDataDecoder>(move(data_holder)))
+{
+}
+
+StructuredSerializeReader::~StructuredSerializeReader() = default;
+
+SerializationType StructuredSerializeReader::type() const
+{
+    return m_decoder->type();
+}
+
+bool StructuredSerializeReader::is_at_end() const
+{
+    return m_decoder->is_at_end();
+}
+
+template<typename T>
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, T& value)
+requires requires { decoder.decode(value); }
+{
+    return decoder.decode(value);
+}
+
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, int& value)
+{
+    i32 decoded = 0;
+    TRY(decoder.decode(decoded));
+    if (!AK::is_within_range<int>(decoded))
+        return Error::from_string_literal("Structured serialize i32 does not fit in int");
+    value = static_cast<int>(decoded);
+    return {};
+}
+
+static ErrorOr<String> decode_utf8_text(StructuredSerializeDataDecoder& decoder)
+{
+    Utf16String text;
+    TRY(decoder.decode(text));
+    return utf16_to_utf8_text(text);
+}
+
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, ErrorType& value)
+{
+    if (decoder.type() == SerializationType::IPC) {
+        u8 decoded = 0;
+        TRY(decoder.decode(decoded));
+        auto type = static_cast<ErrorType>(decoded);
+        TRY(error_type_to_name(type));
+        value = type;
+        return {};
+    }
+
+    Utf16String name;
+    TRY(decoder.decode(name));
+    value = error_name_to_type(name.utf16_view());
+    return {};
+}
+
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Bindings::InterfaceName& value)
+{
+    if (decoder.type() == SerializationType::IPC) {
+        u16 decoded = 0;
+        TRY(decoder.decode(decoded));
+        auto interface_name = static_cast<Bindings::InterfaceName>(decoded);
+        TRY(serializable_interface_name_to_storage_identifier(interface_name));
+        value = interface_name;
+        return {};
+    }
+
+    auto identifier = TRY(decode_utf8_text(decoder));
+    value = TRY(storage_identifier_to_serializable_interface_name(identifier.bytes_as_string_view()));
+    return {};
+}
+
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Bindings::KeyType& value)
+{
+    if (decoder.type() == SerializationType::IPC) {
+        u8 decoded = 0;
+        TRY(decoder.decode(decoded));
+        auto key_type = static_cast<Bindings::KeyType>(decoded);
+        TRY(key_type_to_storage_identifier(key_type));
+        value = key_type;
+        return {};
+    }
+
+    auto identifier = TRY(decode_utf8_text(decoder));
+    value = TRY(storage_identifier_to_key_type(identifier.bytes_as_string_view()));
+    return {};
+}
+
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Bindings::KeyUsage& value)
+{
+    if (decoder.type() == SerializationType::IPC) {
+        u8 decoded = 0;
+        TRY(decoder.decode(decoded));
+        auto key_usage = static_cast<Bindings::KeyUsage>(decoded);
+        TRY(key_usage_to_storage_identifier(key_usage));
+        value = key_usage;
+        return {};
+    }
+
+    auto identifier = TRY(decode_utf8_text(decoder));
+    value = TRY(storage_identifier_to_key_usage(identifier.bytes_as_string_view()));
+    return {};
+}
+
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Bindings::PredefinedColorSpace& value)
+{
+    if (decoder.type() == SerializationType::IPC) {
+        u8 decoded = 0;
+        TRY(decoder.decode(decoded));
+        auto color_space = static_cast<Bindings::PredefinedColorSpace>(decoded);
+        TRY(color_space_to_storage_identifier(color_space));
+        value = color_space;
+        return {};
+    }
+
+    auto identifier = TRY(decode_utf8_text(decoder));
+    value = TRY(storage_identifier_to_color_space(identifier.bytes_as_string_view()));
+    return {};
+}
+
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Gfx::BitmapFormat& value)
+{
+    if (decoder.type() == SerializationType::IPC) {
+        u32 decoded = 0;
+        TRY(decoder.decode(decoded));
+        auto format = static_cast<Gfx::BitmapFormat>(decoded);
+        TRY(bitmap_format_to_storage_identifier(format));
+        value = format;
+        return {};
+    }
+
+    auto identifier = TRY(decode_utf8_text(decoder));
+    value = TRY(storage_identifier_to_bitmap_format(identifier.bytes_as_string_view()));
+    return {};
+}
+
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Gfx::AlphaType& value)
+{
+    if (decoder.type() == SerializationType::IPC) {
+        u32 decoded = 0;
+        TRY(decoder.decode(decoded));
+        auto alpha_type = static_cast<Gfx::AlphaType>(decoded);
+        TRY(alpha_type_to_storage_identifier(alpha_type));
+        value = alpha_type;
+        return {};
+    }
+
+    auto identifier = TRY(decode_utf8_text(decoder));
+    value = TRY(storage_identifier_to_alpha_type(identifier.bytes_as_string_view()));
+    return {};
+}
+
+template<typename T>
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Vector<T>& value)
+{
+    u64 size = 0;
+    TRY(decoder.decode(size));
+    value.clear_with_capacity();
+    for (u64 i = 0; i < size; ++i) {
+        T element {};
+        TRY(decode_value(decoder, element));
+        TRY(value.try_append(move(element)));
+    }
+    return {};
+}
+
+template<typename T>
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Optional<T>& value)
+{
+    bool has_value = false;
+    TRY(decoder.decode(has_value));
+    if (!has_value) {
+        value = OptionalNone {};
+        return {};
+    }
+
+    T decoded {};
+    TRY(decode_value(decoder, decoded));
+    value = move(decoded);
+    return {};
+}
+
+template<typename T>
+ErrorOr<T> StructuredSerializeReader::decode()
+{
+    T value {};
+    TRY(decode_value(*m_decoder, value));
+    return value;
+}
+
+WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm& realm, AK::Error const& error)
+{
+    dbgln_if(STRUCTURED_SERIALIZE_DEBUG, "Rejecting structured serialized data: {}", error);
+    return WebIDL::Exception { WebIDL::DataCloneError::create(realm, "Unable to process structured serialized data"_utf16) };
+}
+
+WebIDL::ExceptionOr<String> decode_utf8_text_or_throw_data_clone_error(JS::Realm& realm, StructuredSerializeReader& reader)
+{
+    auto text = reader.decode<Utf16String>();
+    if (text.is_error())
+        return data_clone_error_from_serialization_error(realm, text.release_error());
+    auto utf8 = utf16_to_utf8_text(text.value());
+    if (utf8.is_error())
+        return data_clone_error_from_serialization_error(realm, utf8.release_error());
+    return utf8.release_value();
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, TransferDataEncoder& data_holder, JS::ArrayBuffer const& array_buffer, bool for_storage)
+static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSerializeWriter& data_holder, JS::ArrayBuffer const& array_buffer, bool for_storage)
 {
     // 13. Otherwise, if value has an [[ArrayBufferData]] internal slot, then:
 
@@ -151,7 +1061,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, TransferData
             //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
             data_holder.encode(ValueTag::GrowableSharedArrayBuffer);
             data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
-            data_holder.encode(array_buffer.max_byte_length());
+            data_holder.encode(static_cast<u64>(array_buffer.max_byte_length()));
         } else {
             // 4. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
             //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]],
@@ -181,7 +1091,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, TransferData
         if (!array_buffer.is_fixed_length()) {
             data_holder.encode(ValueTag::ResizeableArrayBuffer);
             data_holder.encode(MUST(data_copy.copy_to_byte_buffer()));
-            data_holder.encode(array_buffer.max_byte_length());
+            data_holder.encode(static_cast<u64>(array_buffer.max_byte_length()));
         }
         // 6. Otherwise, set serialized to { [[Type]]: "ArrayBuffer", [[ArrayBufferData]]: dataCopy, [[ArrayBufferByteLength]]: size }.
         else {
@@ -194,7 +1104,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, TransferData
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
 template<OneOf<JS::TypedArrayBase, JS::DataView> ViewType>
-static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, TransferDataEncoder& data_holder, ViewType const& view, bool for_storage, SerializationMemory& memory)
+static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, StructuredSerializeWriter& data_holder, ViewType const& view, bool for_storage, SerializationMemory& memory)
 {
     // 14. Otherwise, if value has a [[ViewedArrayBuffer]] internal slot, then:
 
@@ -212,16 +1122,6 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Trans
     // 2. Let buffer be the value of value's [[ViewedArrayBuffer]] internal slot.
     JS::Value buffer = view.viewed_array_buffer();
 
-    // 3. Let bufferSerialized be ? StructuredSerializeInternal(buffer, forStorage, memory).
-    auto buffer_serialized = TRY(structured_serialize_internal(vm, buffer, for_storage, memory));
-
-    // 4. Assert: bufferSerialized.[[Type]] is "ArrayBuffer", "ResizableArrayBuffer", "SharedArrayBuffer", or "GrowableSharedArrayBuffer".
-    // NOTE: Object reference + memory check is required when ArrayBuffer is transferred.
-    auto tag = TransferDataDecoder { buffer_serialized }.decode<ValueTag>();
-
-    VERIFY(first_is_one_of(tag, ValueTag::ArrayBuffer, ValueTag::ResizeableArrayBuffer, ValueTag::SharedArrayBuffer, ValueTag::GrowableSharedArrayBuffer)
-        || (tag == ValueTag::ObjectReference && memory.contains(buffer)));
-
     auto serialize_byte_length = [&](JS::ByteLength byte_length) {
         VERIFY(!byte_length.is_detached());
 
@@ -234,8 +1134,9 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Trans
     //    [[ArrayBufferSerialized]]: bufferSerialized, [[ByteLength]]: value.[[ByteLength]], [[ByteOffset]]: value.[[ByteOffset]] }.
     if constexpr (IsSame<ViewType, JS::DataView>) {
         data_holder.encode(ValueTag::ArrayBufferView);
-        data_holder.append(move(buffer_serialized)); // [[ArrayBufferSerialized]]
-        data_holder.encode("DataView"_utf16);        // [[Constructor]]
+        // 3. Let bufferSerialized be ? StructuredSerializeInternal(buffer, forStorage, memory).
+        TRY(structured_serialize_internal(vm, data_holder, buffer, for_storage, memory)); // [[ArrayBufferSerialized]]
+        data_holder.encode("DataView"_utf16);                                             // [[Constructor]]
         serialize_byte_length(view.byte_length());
         data_holder.encode(view.byte_offset());
     }
@@ -247,8 +1148,8 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Trans
         //    [[ArrayBufferSerialized]]: bufferSerialized, [[ByteLength]]: value.[[ByteLength]],
         //    [[ByteOffset]]: value.[[ByteOffset]], [[ArrayLength]]: value.[[ArrayLength]] }.
         data_holder.encode(ValueTag::ArrayBufferView);
-        data_holder.append(move(buffer_serialized));               // [[ArrayBufferSerialized]]
-        data_holder.encode(view.element_name().to_utf16_string()); // [[Constructor]]
+        TRY(structured_serialize_internal(vm, data_holder, buffer, for_storage, memory)); // [[ArrayBufferSerialized]]
+        data_holder.encode(view.element_name().to_utf16_string());                        // [[Constructor]]
         serialize_byte_length(view.byte_length());
         data_holder.encode(view.byte_offset());
         serialize_byte_length(view.array_length());
@@ -262,26 +1163,27 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Trans
 // 2. Translate all the references into the appropriate form
 class Serializer {
 public:
-    Serializer(JS::VM& vm, SerializationMemory& memory, bool for_storage)
+    Serializer(JS::VM& vm, StructuredSerializeWriter& serialized, SerializationMemory& memory, bool for_storage)
         : m_vm(vm)
+        , m_serialized(serialized)
         , m_memory(memory)
         , m_for_storage(for_storage)
     {
     }
 
     // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-    WebIDL::ExceptionOr<SerializationRecord> serialize(JS::Value value)
+    WebIDL::ExceptionOr<void> serialize(JS::Value value)
     {
         if (m_vm.did_reach_stack_space_limit())
             return m_vm.throw_completion<JS::InternalError>(JS::ErrorType::CallStackSizeExceeded);
 
-        TransferDataEncoder serialized;
+        auto& serialized = m_serialized;
 
         // 2. If memory[value] exists, then return memory[value].
         if (m_memory.contains(value)) {
-            serialized.encode(ValueTag::ObjectReference);
-            serialized.encode(m_memory.get(value).value());
-            return serialized.take_buffer().take_data();
+            encode(ValueTag::ObjectReference);
+            encode(m_memory.get(value).value());
+            return {};
         }
 
         // 3. Let deep be false.
@@ -291,30 +1193,30 @@ public:
         bool return_primitive_type = true;
 
         if (value.is_undefined()) {
-            serialized.encode(ValueTag::UndefinedPrimitive);
+            encode(ValueTag::UndefinedPrimitive);
         } else if (value.is_null()) {
-            serialized.encode(ValueTag::NullPrimitive);
+            encode(ValueTag::NullPrimitive);
         } else if (value.is_boolean()) {
-            serialized.encode(ValueTag::BooleanPrimitive);
-            serialized.encode(value.as_bool());
+            encode(ValueTag::BooleanPrimitive);
+            encode(value.as_bool());
         } else if (value.is_int32()) {
-            serialized.encode(ValueTag::Int32Primitive);
-            serialized.encode(value.as_i32());
+            encode(ValueTag::Int32Primitive);
+            encode(value.as_i32());
         } else if (value.is_number()) {
-            serialized.encode(ValueTag::NumberPrimitive);
-            serialized.encode(value.as_double());
+            encode(ValueTag::NumberPrimitive);
+            encode(value.as_double());
         } else if (value.is_bigint()) {
-            serialized.encode(ValueTag::BigIntPrimitive);
-            serialized.encode(MUST(value.as_bigint().big_integer().to_base(10)));
+            encode(ValueTag::BigIntPrimitive);
+            encode_signed_big_integer(m_serialized, value.as_bigint().big_integer());
         } else if (value.is_string()) {
-            serialized.encode(ValueTag::StringPrimitive);
-            serialized.encode(value.as_string().utf16_string());
+            encode(ValueTag::StringPrimitive);
+            encode(value.as_string().utf16_string());
         } else {
             return_primitive_type = false;
         }
 
         if (return_primitive_type)
-            return serialized.take_buffer().take_data();
+            return {};
 
         // 5. If value is a Symbol, then throw a "DataCloneError" DOMException.
         if (value.is_symbol())
@@ -325,32 +1227,32 @@ public:
         if (auto object = value.as_if<JS::Object>()) {
             // 7. If value has a [[BooleanData]] internal slot, then set serialized to { [[Type]]: "Boolean", [[BooleanData]]: value.[[BooleanData]] }.
             if (auto const* boolean_object = as_if<JS::BooleanObject>(*object)) {
-                serialized.encode(ValueTag::BooleanObject);
-                serialized.encode(boolean_object->boolean());
+                encode(ValueTag::BooleanObject);
+                encode(boolean_object->boolean());
             }
 
             // 8. Otherwise, if value has a [[NumberData]] internal slot, then set serialized to { [[Type]]: "Number", [[NumberData]]: value.[[NumberData]] }.
             else if (auto const* number_object = as_if<JS::NumberObject>(*object)) {
-                serialized.encode(ValueTag::NumberObject);
-                serialized.encode(number_object->number());
+                encode(ValueTag::NumberObject);
+                encode(number_object->number());
             }
 
             // 9. Otherwise, if value has a [[BigIntData]] internal slot, then set serialized to { [[Type]]: "BigInt", [[BigIntData]]: value.[[BigIntData]] }.
             else if (auto const* big_int_object = as_if<JS::BigIntObject>(*object)) {
-                serialized.encode(ValueTag::BigIntObject);
-                serialized.encode(MUST(big_int_object->bigint().big_integer().to_base(10)));
+                encode(ValueTag::BigIntObject);
+                encode_signed_big_integer(m_serialized, big_int_object->bigint().big_integer());
             }
 
             // 10. Otherwise, if value has a [[StringData]] internal slot, then set serialized to { [[Type]]: "String", [[StringData]]: value.[[StringData]] }.
             else if (auto const* string_object = as_if<JS::StringObject>(*object)) {
-                serialized.encode(ValueTag::StringObject);
-                serialized.encode(string_object->primitive_string().utf16_string());
+                encode(ValueTag::StringObject);
+                encode(string_object->primitive_string().utf16_string());
             }
 
             // 11. Otherwise, if value has a [[DateValue]] internal slot, then set serialized to { [[Type]]: "Date", [[DateValue]]: value.[[DateValue]] }.
             else if (auto const* date = as_if<JS::Date>(*object)) {
-                serialized.encode(ValueTag::DateObject);
-                serialized.encode(date->date_value());
+                encode(ValueTag::DateObject);
+                encode(date->date_value());
             }
 
             // 12. Otherwise, if value has a [[RegExpMatcher]] internal slot, then set serialized to
@@ -360,9 +1262,9 @@ public:
                 // NOTE: ECMAScriptRegex is perfectly happy to be reconstructed with just the source+flags.
                 //       In the future, we could optimize the work being done on the deserialize step by serializing
                 //       more of the internal state (the [[RegExpMatcher]] internal slot).
-                serialized.encode(ValueTag::RegExpObject);
-                serialized.encode(reg_exp_object->pattern());
-                serialized.encode(reg_exp_object->flags());
+                encode(ValueTag::RegExpObject);
+                encode(reg_exp_object->pattern());
+                encode(reg_exp_object->flags());
             }
 
             // 13. Otherwise, if value has an [[ArrayBufferData]] internal slot, then:
@@ -380,7 +1282,7 @@ public:
             // 15. Otherwise, if value has a [[MapData]] internal slot, then:
             else if (is<JS::Map>(*object)) {
                 // 1. Set serialized to { [[Type]]: "Map", [[MapData]]: a new empty List }.
-                serialized.encode(ValueTag::MapObject);
+                encode(ValueTag::MapObject);
 
                 // 2. Set deep to true.
                 deep = true;
@@ -389,7 +1291,7 @@ public:
             // 16. Otherwise, if value has a [[SetData]] internal slot, then:
             else if (is<JS::Set>(*object)) {
                 // 1. Set serialized to { [[Type]]: "Set", [[SetData]]: a new empty List }.
-                serialized.encode(ValueTag::SetObject);
+                encode(ValueTag::SetObject);
 
                 // 2. Set deep to true.
                 deep = true;
@@ -424,10 +1326,10 @@ public:
 
                 // 5. Set serialized to { [[Type]]: "Error", [[Name]]: name, [[Message]]: message }.
                 // FIXME: 6. User agents should attach a serialized representation of any interesting accompanying data which are not yet specified, notably the stack property, to serialized.
-                serialized.encode(ValueTag::ErrorObject);
-                serialized.encode(type);
-                serialized.encode(message);
-                serialized.encode(cause);
+                encode(ValueTag::ErrorObject);
+                encode(type);
+                encode(message);
+                encode(cause);
             }
 
             // 18. Otherwise, if value is an Array exotic object, then:
@@ -438,8 +1340,8 @@ public:
                 u64 length = MUST(JS::length_of_array_like(m_vm, *object));
 
                 // 3. Set serialized to { [[Type]]: "Array", [[Length]]: valueLen, [[Properties]]: a new empty List }.
-                serialized.encode(ValueTag::ArrayObject);
-                serialized.encode(length);
+                encode(ValueTag::ArrayObject);
+                encode(length);
 
                 // 4. Set deep to true.
                 deep = true;
@@ -451,8 +1353,11 @@ public:
 
                 // 2. Let typeString be the identifier of the primary interface of value.
                 // 3. Set serialized to { [[Type]]: typeString }.
-                serialized.encode(ValueTag::SerializableObject);
-                serialized.encode(as<Bindings::PlatformObject>(serializable)->interface_name());
+                encode(ValueTag::SerializableObject);
+                encode(as<Bindings::PlatformObject>(serializable)->interface_name());
+
+                if (serialized.type() == SerializationType::Storage)
+                    serialized.encode(serializable->serialization_version());
 
                 // 4. Set deep to true
                 deep = true;
@@ -475,7 +1380,7 @@ public:
             // 24. Otherwise:
             else {
                 // 1. Set serialized to { [[Type]]: "Object", [[Properties]]: a new empty List }.
-                serialized.encode(ValueTag::Object);
+                encode(ValueTag::Object);
 
                 // 2. Set deep to true.
                 deep = true;
@@ -504,16 +1409,15 @@ public:
                     copied_list.append(entry.value);
                 }
 
-                serialized.encode(map->map_size());
+                encode(static_cast<u64>(map->map_size()));
 
                 // 3. For each Record { [[Key]], [[Value]] } entry of copiedList:
                 for (auto copied_value : copied_list) {
                     // 1. Let serializedKey be ? StructuredSerializeInternal(entry.[[Key]], forStorage, memory).
                     // 2. Let serializedValue be ? StructuredSerializeInternal(entry.[[Value]], forStorage, memory).
-                    auto serialized_value = TRY(structured_serialize_internal(m_vm, copied_value, m_for_storage, m_memory));
+                    TRY(structured_serialize_internal(m_vm, serialized, copied_value, m_for_storage, m_memory));
 
                     // 3. Append { [[Key]]: serializedKey, [[Value]]: serializedValue } to serialized.[[MapData]].
-                    serialized.append(move(serialized_value));
                 }
             }
 
@@ -529,15 +1433,14 @@ public:
                     copied_list.append(entry);
                 }
 
-                serialized.encode(set->set_size());
+                encode(static_cast<u64>(set->set_size()));
 
                 // 3. For each entry of copiedList:
                 for (auto copied_value : copied_list) {
                     // 1. Let serializedEntry be ? StructuredSerializeInternal(entry, forStorage, memory).
-                    auto serialized_value = TRY(structured_serialize_internal(m_vm, copied_value, m_for_storage, m_memory));
+                    TRY(structured_serialize_internal(m_vm, serialized, copied_value, m_for_storage, m_memory));
 
                     // 2. Append serializedEntry to serialized.[[SetData]].
-                    serialized.append(move(serialized_value));
                 }
             }
 
@@ -557,31 +1460,37 @@ public:
                         auto input_value = TRY(object.internal_get(property_key, value));
 
                         // 2. Let outputValue be ? StructuredSerializeInternal(inputValue, forStorage, memory).
-                        auto output_value = TRY(structured_serialize_internal(m_vm, input_value, m_for_storage, m_memory));
+                        TRY(structured_serialize_internal(m_vm, serialized, input_value, m_for_storage, m_memory));
 
                         // 3. Append { [[Key]]: key, [[Value]]: outputValue } to serialized.[[Properties]].
-                        serialized.append(move(output_value));
-                        serialized.encode(key.as_string().utf16_string());
+                        encode(key.as_string().utf16_string());
                     }
                 }
 
-                serialized.encode(ValueTag::EndObject);
+                encode(ValueTag::EndObject);
             }
         }
 
         // 27. Return serialized.
-        return serialized.take_buffer().take_data();
+        return {};
     }
 
 private:
+    template<typename T>
+    void encode(T const& value)
+    {
+        m_serialized.encode(value);
+    }
+
     JS::VM& m_vm;
+    StructuredSerializeWriter& m_serialized;
     SerializationMemory& m_memory; // JS value -> index
     bool m_for_storage { false };
 };
 
 class Deserializer {
 public:
-    Deserializer(JS::VM& vm, TransferDataDecoder& serialized, JS::Realm& target_realm, DeserializationMemory& memory)
+    Deserializer(JS::VM& vm, StructuredSerializeReader& serialized, JS::Realm& target_realm, DeserializationMemory& memory)
         : m_vm(vm)
         , m_serialized(serialized)
         , m_memory(memory)
@@ -592,21 +1501,30 @@ public:
     // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
     WebIDL::ExceptionOr<JS::Value> deserialize()
     {
-        return deserialize_value(m_serialized.decode<ValueTag>());
+        return deserialize_value(TRY(decode<u8>()));
     }
 
-    WebIDL::ExceptionOr<JS::Value> deserialize_value(ValueTag tag)
+    // The Object/Array property loop is the only caller allowed to pre-read EndObject.
+    WebIDL::ExceptionOr<JS::Value> deserialize_value(u8 raw_tag)
     {
         if (m_vm.did_reach_stack_space_limit())
             return m_vm.throw_completion<JS::InternalError>(JS::ErrorType::CallStackSizeExceeded);
 
         auto& realm = *m_vm.current_realm();
 
+        auto tag = static_cast<ValueTag>(raw_tag);
+
+        // EndObject is handled by the Object/Array property loop, not here.
+        if (!value_tag_is_decodable(tag))
+            return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Unexpected structured serialize value tag"));
+
         // 2. If memory[serialized] exists, then return memory[serialized].
         if (tag == ValueTag::ObjectReference) {
-            auto index = m_serialized.decode<u32>();
+            auto index = TRY(decode<u32>());
             if (index == NumericLimits<u32>::max())
                 return JS::Object::create(*m_vm.current_realm(), nullptr);
+            if (index >= m_memory.size())
+                return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Object reference index out of range"));
             return m_memory[index];
         }
 
@@ -618,19 +1536,13 @@ public:
 
         auto is_primitive = false;
 
-        auto decode_string = [&]() {
-            auto string = m_serialized.decode<Utf16String>();
+        auto decode_string = [&]() -> WebIDL::ExceptionOr<GC::Ref<JS::PrimitiveString>> {
+            auto string = TRY(decode<Utf16String>());
             return JS::PrimitiveString::create(m_vm, string);
         };
 
-        auto decode_utf16_string = [&]() {
-            auto string = m_serialized.decode<Utf16String>();
-            return JS::PrimitiveString::create(m_vm, string);
-        };
-
-        auto decode_big_int = [&]() {
-            auto string = m_serialized.decode<String>();
-            return JS::BigInt::create(m_vm, MUST(::Crypto::SignedBigInteger::from_base(10, string)));
+        auto decode_big_int = [&]() -> WebIDL::ExceptionOr<GC::Ref<JS::BigInt>> {
+            return JS::BigInt::create(m_vm, TRY(decode_signed_big_integer(m_serialized, realm)));
         };
 
         switch (tag) {
@@ -644,58 +1556,61 @@ public:
             is_primitive = true;
             break;
         case ValueTag::BooleanPrimitive:
-            value = JS::Value { m_serialized.decode<bool>() };
+            value = JS::Value { TRY(decode<bool>()) };
             is_primitive = true;
             break;
         case ValueTag::Int32Primitive:
-            value = JS::Value { m_serialized.decode<i32>() };
+            value = JS::Value { TRY(decode<i32>()) };
             is_primitive = true;
             break;
         case ValueTag::NumberPrimitive:
-            value = JS::Value { m_serialized.decode<double>() };
+            value = JS::Value { TRY(decode<double>()) };
             is_primitive = true;
             break;
         case ValueTag::BigIntPrimitive:
-            value = decode_big_int();
+            value = TRY(decode_big_int());
             is_primitive = true;
             break;
         case ValueTag::StringPrimitive:
-            value = decode_string();
+            value = TRY(decode_string());
             is_primitive = true;
             break;
 
         // 6. Otherwise, if serialized.[[Type]] is "Boolean", then set value to a new Boolean object in targetRealm whose [[BooleanData]] internal slot value is serialized.[[BooleanData]].
         case ValueTag::BooleanObject:
-            value = JS::BooleanObject::create(realm, m_serialized.decode<bool>());
+            value = JS::BooleanObject::create(realm, TRY(decode<bool>()));
             break;
 
         // 7. Otherwise, if serialized.[[Type]] is "Number", then set value to a new Number object in targetRealm whose [[NumberData]] internal slot value is serialized.[[NumberData]].
         case ValueTag::NumberObject:
-            value = JS::NumberObject::create(realm, m_serialized.decode<double>());
+            value = JS::NumberObject::create(realm, TRY(decode<double>()));
             break;
 
         // 8. Otherwise, if serialized.[[Type]] is "BigInt", then set value to a new BigInt object in targetRealm whose [[BigIntData]] internal slot value is serialized.[[BigIntData]].
         case ValueTag::BigIntObject:
-            value = JS::BigIntObject::create(realm, decode_big_int());
+            value = JS::BigIntObject::create(realm, TRY(decode_big_int()));
             break;
 
         // 9. Otherwise, if serialized.[[Type]] is "String", then set value to a new String object in targetRealm whose [[StringData]] internal slot value is serialized.[[StringData]].
         case ValueTag::StringObject:
-            value = JS::StringObject::create(realm, decode_string(), realm.intrinsics().string_prototype());
+            value = JS::StringObject::create(realm, TRY(decode_string()), realm.intrinsics().string_prototype());
             break;
 
         // 10. Otherwise, if serialized.[[Type]] is "Date", then set value to a new Date object in targetRealm whose [[DateValue]] internal slot value is serialized.[[DateValue]].
         case ValueTag::DateObject:
-            value = JS::Date::create(realm, m_serialized.decode<double>());
+            value = JS::Date::create(realm, TRY(decode<double>()));
             break;
 
         // 11. Otherwise, if serialized.[[Type]] is "RegExp", then set value to a new RegExp object in targetRealm whose [[RegExpMatcher]] internal slot value is serialized.[[RegExpMatcher]],
         //     whose [[OriginalSource]] internal slot value is serialized.[[OriginalSource]], and whose [[OriginalFlags]] internal slot value is serialized.[[OriginalFlags]].
         case ValueTag::RegExpObject: {
-            auto pattern = decode_utf16_string();
-            auto flags = decode_utf16_string();
+            auto pattern = TRY(decode_string());
+            auto flags = TRY(decode_string());
 
-            value = MUST(JS::regexp_create(m_vm, pattern, flags));
+            auto regexp = JS::regexp_create(m_vm, pattern, flags);
+            if (regexp.is_error())
+                return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Invalid RegExp pattern or flags"));
+            value = regexp.release_value();
             break;
         }
 
@@ -705,7 +1620,7 @@ public:
 
             // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]]
             //    and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
-            auto buffer = TRY(m_serialized.decode_buffer(realm));
+            auto buffer = TRY(decode<ByteBuffer>());
             value = JS::ArrayBuffer::create(realm, move(buffer), JS::DataBlock::Shared::Yes);
             break;
         }
@@ -717,8 +1632,8 @@ public:
             // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]],
             //    whose [[ArrayBufferByteLengthData]] internal slot value is serialized.[[ArrayBufferByteLengthData]],
             //    and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
-            auto buffer = TRY(m_serialized.decode_buffer(realm));
-            auto max_byte_length = m_serialized.decode<size_t>();
+            auto buffer = TRY(decode<ByteBuffer>());
+            auto max_byte_length = TRY(decode_max_byte_length());
 
             auto data = JS::ArrayBuffer::create(realm, move(buffer), JS::DataBlock::Shared::Yes);
             data->set_max_byte_length(max_byte_length);
@@ -729,15 +1644,15 @@ public:
 
         // 14. Otherwise, if serialized.[[Type]] is "ArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
         case ValueTag::ArrayBuffer: {
-            auto buffer = TRY(m_serialized.decode_buffer(realm));
+            auto buffer = TRY(decode<ByteBuffer>());
             value = JS::ArrayBuffer::create(realm, move(buffer));
             break;
         }
 
         // 15. Otherwise, if serialized.[[Type]] is "ResizableArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]], and whose [[ArrayBufferMaxByteLength]] internal slot value is a serialized.[[ArrayBufferMaxByteLength]].
         case ValueTag::ResizeableArrayBuffer: {
-            auto buffer = TRY(m_serialized.decode_buffer(realm));
-            auto max_byte_length = m_serialized.decode<size_t>();
+            auto buffer = TRY(decode<ByteBuffer>());
+            auto max_byte_length = TRY(decode_max_byte_length());
 
             auto data = JS::ArrayBuffer::create(realm, move(buffer));
             data->set_max_byte_length(max_byte_length);
@@ -749,25 +1664,39 @@ public:
         // 16. Otherwise, if serialized.[[Type]] is "ArrayBufferView", then:
         case ValueTag::ArrayBufferView: {
             auto array_buffer_value = TRY(deserialize());
-            auto& array_buffer = as<JS::ArrayBuffer>(array_buffer_value.as_object());
+            if (!array_buffer_value.is_object() || !is<JS::ArrayBuffer>(array_buffer_value.as_object()))
+                return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("ArrayBufferView is not backed by an ArrayBuffer"));
+            auto& array_buffer = static_cast<JS::ArrayBuffer&>(array_buffer_value.as_object());
 
-            auto deserialize_byte_length = [&]() -> JS::ByteLength {
-                auto is_auto = m_serialized.decode<bool>();
+            auto deserialize_byte_length = [&]() -> WebIDL::ExceptionOr<JS::ByteLength> {
+                auto is_auto = TRY(decode<bool>());
                 if (is_auto)
                     return JS::ByteLength::auto_();
 
-                auto length = m_serialized.decode<u32>();
+                auto length = TRY(decode<u32>());
                 return length;
             };
 
-            auto constructor_name = m_serialized.decode<Utf16String>();
-            auto byte_length = deserialize_byte_length();
-            auto byte_offset = m_serialized.decode<u32>();
+            auto constructor_name = TRY(decode<Utf16String>());
+            auto byte_length = TRY(deserialize_byte_length());
+            auto byte_offset = TRY(decode<u32>());
+
+            // Validate in 64 bits; the engine's element-access check works in u32.
+            auto length_fits_buffer = [&](JS::ByteLength const& length, u64 element_size) {
+                if (length.is_auto())
+                    return !array_buffer.is_fixed_length() && byte_offset <= array_buffer.byte_length();
+                Checked<u64> end = length.length();
+                end *= element_size;
+                end += byte_offset;
+                return !end.has_overflow() && end.value() <= array_buffer.byte_length();
+            };
 
             if (constructor_name == "DataView"sv) {
+                if (!length_fits_buffer(byte_length, 1))
+                    return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("DataView does not fit its ArrayBuffer"));
                 value = JS::DataView::create(realm, &array_buffer, byte_length, byte_offset);
             } else {
-                auto array_length = deserialize_byte_length();
+                auto array_length = TRY(deserialize_byte_length());
 
                 GC::Ptr<JS::TypedArrayBase> typed_array;
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
@@ -777,7 +1706,20 @@ public:
 #undef __JS_ENUMERATE
 #undef CREATE_TYPED_ARRAY
 
-                VERIFY(typed_array); // FIXME: Handle errors better here? Can a fuzzer put weird stuff in the buffer?
+                if (!typed_array)
+                    return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Unknown ArrayBufferView constructor"));
+
+                auto element_size = typed_array->element_size();
+
+                // Reject combinations a real typed array could not produce.
+                auto consistent_slots = byte_length.is_auto() == array_length.is_auto() && byte_offset % element_size == 0;
+                if (consistent_slots && !array_length.is_auto()) {
+                    Checked<u64> expected_byte_length = array_length.length();
+                    expected_byte_length *= element_size;
+                    consistent_slots = !expected_byte_length.has_overflow() && byte_length.length() == expected_byte_length.value();
+                }
+                if (!consistent_slots || !length_fits_buffer(array_length, element_size))
+                    return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("ArrayBufferView does not fit its ArrayBuffer"));
 
                 typed_array->set_array_length(array_length);
                 typed_array->set_byte_length(byte_length);
@@ -811,7 +1753,11 @@ public:
         case ValueTag::ArrayObject: {
             // 1. Let outputProto be targetRealm.[[Intrinsics]].[[%Array.prototype%]].
             // 2. Set value to ! ArrayCreate(serialized.[[Length]], outputProto).
-            value = MUST(JS::Array::create(realm, m_serialized.decode<u64>(), realm.intrinsics().array_prototype()));
+            auto length = TRY(decode<u64>());
+            auto array = JS::Array::create(realm, length, realm.intrinsics().array_prototype());
+            if (array.is_error())
+                return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Array length out of range"));
+            value = array.release_value();
 
             // 3. Set deep to true.
             deep = true;
@@ -830,9 +1776,9 @@ public:
 
         // 21. Otherwise, if serialized.[[Type]] is "Error", then:
         case ValueTag::ErrorObject: {
-            auto type = m_serialized.decode<ErrorType>();
-            auto message = m_serialized.decode<Optional<Utf16String>>();
-            auto cause = m_serialized.decode<Optional<Utf16String>>();
+            auto type = TRY(decode<ErrorType>());
+            auto message = TRY(decode<Optional<Utf16String>>());
+            auto cause = TRY(decode<Optional<Utf16String>>());
 
             GC::Ptr<JS::Error> error;
 
@@ -848,6 +1794,7 @@ public:
 #undef __JS_ENUMERATE
             }
 
+            // decode<ErrorType> validated type, and every ErrorType has a case above, so error is set.
             VERIFY(error);
 
             if (message.has_value())
@@ -862,10 +1809,15 @@ public:
 
         // 22. Otherwise:
         default:
-            VERIFY(tag == ValueTag::SerializableObject);
+            if (tag != ValueTag::SerializableObject)
+                return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Unexpected structured serialize value tag"));
 
             // 1. Let interfaceName be serialized.[[Type]].
-            auto interface_name = m_serialized.decode<Bindings::InterfaceName>();
+            auto interface_name = TRY(decode<Bindings::InterfaceName>());
+
+            Optional<u64> version;
+            if (m_serialized.type() == SerializationType::Storage)
+                version = TRY(decode<u64>());
 
             // 2. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
             if (!is_exposed(interface_name, realm))
@@ -873,6 +1825,12 @@ public:
 
             // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
             value = create_serialized_type(interface_name, realm);
+
+            if (version.has_value()) {
+                auto supported_version = as<Bindings::Serializable>(value.as_object()).serialization_version();
+                if (*version == 0 || *version != supported_version)
+                    return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Unsupported serializable payload version"));
+            }
 
             // 4. Set deep to true.
             deep = true;
@@ -888,7 +1846,7 @@ public:
             // 1. If serialized.[[Type]] is "Map", then:
             if (tag == ValueTag::MapObject) {
                 auto& map = as<JS::Map>(value.as_object());
-                auto length = m_serialized.decode<u64>();
+                auto length = TRY(decode<u64>());
 
                 // 1. For each Record { [[Key]], [[Value]] } entry of serialized.[[MapData]]:
                 for (u64 i = 0u; i < length; ++i) {
@@ -906,7 +1864,7 @@ public:
             // 2. Otherwise, if serialized.[[Type]] is "Set", then:
             else if (tag == ValueTag::SetObject) {
                 auto& set = as<JS::Set>(value.as_object());
-                auto length = m_serialized.decode<u64>();
+                auto length = TRY(decode<u64>());
 
                 // 1. For each entry of serialized.[[SetData]]:
                 for (u64 i = 0u; i < length; ++i) {
@@ -923,21 +1881,18 @@ public:
                 auto& object = value.as_object();
 
                 // 1. For each Record { [[Key]], [[Value]] } entry of serialized.[[Properties]]:
+                // EndObject ends the list; any other tag begins a property whose value precedes its untagged key.
                 while (true) {
-                    auto property_tag = m_serialized.decode<ValueTag>();
-                    if (property_tag == ValueTag::EndObject)
+                    auto raw_property_tag = TRY(decode<u8>());
+                    if (raw_property_tag == to_underlying(ValueTag::EndObject))
                         break;
-
-                    // 1. Let deserializedValue be ? StructuredDeserialize(entry.[[Value]], targetRealm, memory).
-                    auto deserialized_value = TRY(deserialize_value(property_tag));
-
-                    auto key = m_serialized.decode<Utf16String>();
+                    auto deserialized_value = TRY(deserialize_value(raw_property_tag));
+                    auto key = TRY(decode<Utf16String>());
 
                     // 2. Let result be ! CreateDataProperty(value, entry.[[Key]], deserializedValue).
-                    auto result = MUST(object.create_data_property(key, deserialized_value));
-
-                    // 3. Assert: result is true.
-                    VERIFY(result);
+                    auto result = object.create_data_property(key, deserialized_value);
+                    if (result.is_error() || !result.release_value())
+                        return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Invalid serialized property"));
                 }
             }
 
@@ -954,48 +1909,32 @@ public:
     }
 
 private:
+    template<typename T>
+    WebIDL::ExceptionOr<T> decode()
+    {
+        return decode_or_throw_data_clone_error<T>(*m_vm.current_realm(), m_serialized);
+    }
+
+    WebIDL::ExceptionOr<size_t> decode_max_byte_length()
+    {
+        auto value = TRY(decode<u64>());
+        if (!AK::is_within_range<size_t>(value))
+            return data_clone_error_from_serialization_error(*m_vm.current_realm(), AK::Error::from_string_literal("Max byte length does not fit on this platform"));
+        return static_cast<size_t>(value);
+    }
+
     static GC::Ref<Bindings::PlatformObject> create_serialized_type(Bindings::InterfaceName serialize_type, JS::Realm& realm)
     {
-        switch (serialize_type) {
-        case Bindings::InterfaceName::Blob:
-            return FileAPI::Blob::create(realm);
-        case Bindings::InterfaceName::File:
-            return FileAPI::File::create(realm);
-        case Bindings::InterfaceName::FileList:
-            return FileAPI::FileList::create(realm);
-        case Bindings::InterfaceName::DOMException:
-            return WebIDL::DOMException::create(realm);
-        case Bindings::InterfaceName::DOMMatrixReadOnly:
-            return Geometry::DOMMatrixReadOnly::create(realm);
-        case Bindings::InterfaceName::DOMMatrix:
-            return Geometry::DOMMatrix::create(realm);
-        case Bindings::InterfaceName::DOMPointReadOnly:
-            return Geometry::DOMPointReadOnly::create(realm);
-        case Bindings::InterfaceName::DOMPoint:
-            return Geometry::DOMPoint::create(realm);
-        case Bindings::InterfaceName::DOMRectReadOnly:
-            return Geometry::DOMRectReadOnly::create(realm);
-        case Bindings::InterfaceName::DOMRect:
-            return Geometry::DOMRect::create(realm);
-        case Bindings::InterfaceName::CryptoKey:
-            return Crypto::CryptoKey::create(realm);
-        case Bindings::InterfaceName::DOMQuad:
-            return Geometry::DOMQuad::create(realm);
-        case Bindings::InterfaceName::ImageData:
-            return ImageData::create(realm);
-        case Bindings::InterfaceName::ImageBitmap:
-            return ImageBitmap::create(realm);
-        case Bindings::InterfaceName::QuotaExceededError:
-            return WebIDL::QuotaExceededError::create(realm);
-        case Bindings::InterfaceName::Unknown:
-        default:
-            VERIFY_NOT_REACHED();
+        for (auto const& entry : serializable_storage_registry()) {
+            if (entry.interface_name == serialize_type)
+                return entry.create(realm);
         }
+        VERIFY_NOT_REACHED();
     }
 
     JS::VM& m_vm;
-    TransferDataDecoder& m_serialized;
-    GC::RootVector<JS::Value> m_memory;
+    StructuredSerializeReader& m_serialized;
+    DeserializationMemory& m_memory;
 };
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializewithtransfer
@@ -1028,7 +1967,9 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
     }
 
     // 3. Let serialized be ? StructuredSerializeInternal(value, false, memory).
-    auto serialized = TRY(structured_serialize_internal(vm, value, false, memory));
+    auto serialized = StructuredSerializeWriter::create_ipc();
+    TRY(structured_serialize_internal(vm, serialized, value, false, memory));
+    auto serialized_record = serialized.take_ipc_record();
 
     // 4. Let transferDataHolders be a new empty List.
     Vector<TransferDataEncoder> transfer_data_holders;
@@ -1050,7 +1991,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         }
 
         // 3. Let dataHolder be memory[transferable].
-        // IMPLEMENTATION DEFINED: We just create a data holder here, our memory holds indices into the SerializationRecord
+        // IMPLEMENTATION DEFINED: We just create a data holder here, our memory holds indices into the serialized record.
         TransferDataEncoder data_holder;
 
         // 4. If transferable has an [[ArrayBufferData]] internal slot, then:
@@ -1060,23 +2001,23 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
             if (!array_buffer->is_fixed_length()) {
                 // 1. Set dataHolder.[[Type]] to "ResizableArrayBuffer".
-                data_holder.encode(TransferType::ResizableArrayBuffer);
+                MUST(data_holder.encode(TransferType::ResizableArrayBuffer));
 
                 // 2. Set dataHolder.[[ArrayBufferData]] to transferable.[[ArrayBufferData]].
                 // 3. Set dataHolder.[[ArrayBufferByteLength]] to transferable.[[ArrayBufferByteLength]].
-                data_holder.encode(buffer_data);
+                MUST(data_holder.encode(buffer_data));
 
                 // 4. Set dataHolder.[[ArrayBufferMaxByteLength]] to transferable.[[ArrayBufferMaxByteLength]].
-                data_holder.encode(array_buffer->max_byte_length());
+                MUST(data_holder.encode(array_buffer->max_byte_length()));
             }
             // 2. Otherwise:
             else {
                 // 1. Set dataHolder.[[Type]] to "ArrayBuffer".
-                data_holder.encode(TransferType::ArrayBuffer);
+                MUST(data_holder.encode(TransferType::ArrayBuffer));
 
                 // 2. Set dataHolder.[[ArrayBufferData]] to transferable.[[ArrayBufferData]].
                 // 3. Set dataHolder.[[ArrayBufferByteLength]] to transferable.[[ArrayBufferByteLength]].
-                data_holder.encode(buffer_data);
+                MUST(data_holder.encode(buffer_data));
             }
 
             // 3. Perform ? DetachArrayBuffer(transferable).
@@ -1093,7 +2034,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
             auto interface_name = transferable_object.primary_interface();
 
             // 3. Set dataHolder.[[Type]] to interfaceName.
-            data_holder.encode(interface_name);
+            MUST(data_holder.encode(interface_name));
 
             // 4. Perform the appropriate transfer steps for the interface identified by interfaceName, given transferable and dataHolder.
             TRY(transferable_object.transfer_steps(data_holder));
@@ -1107,7 +2048,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
     }
 
     // 6. Return { [[Serialized]]: serialized, [[TransferDataHolders]]: transferDataHolders }.
-    return SerializedTransferRecord { .serialized = move(serialized), .transfer_data_holders = move(transfer_data_holders) };
+    return SerializedTransferRecord { .serialized = move(serialized_record), .transfer_data_holders = move(transfer_data_holders) };
 }
 
 static bool is_transferable_interface_exposed_on_target_realm(TransferType name, JS::Realm& realm)
@@ -1207,7 +2148,7 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
 //         It's primarily useful for an object's transfer receiving steps to deserialize a nested value.
 WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(TransferDataDecoder& decoder, JS::Realm& target_realm)
 {
-    auto type = decoder.decode<TransferType>();
+    auto type = TRY(decode_or_throw_data_clone_error<TransferType>(target_realm, decoder));
 
     // 1. Let value be an uninitialized value.
     JS::Value value;
@@ -1220,7 +2161,7 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(Tra
     //       [[ArrayBufferData]] is instead just getting transferred into the new ArrayBuffer. This could be true, for example,
     //       when both the source and target realms are in the same process.
     if (type == TransferType::ArrayBuffer) {
-        auto buffer = TRY(decoder.decode_buffer(target_realm));
+        auto buffer = TRY(decode_or_throw_data_clone_error<ByteBuffer>(target_realm, decoder));
         value = JS::ArrayBuffer::create(target_realm, move(buffer));
     }
 
@@ -1230,8 +2171,8 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(Tra
     //     [[ArrayBufferMaxByteLength]] internal slot value is transferDataHolder.[[ArrayBufferMaxByteLength]].
     // NOTE: For the same reason as the previous step, this step is also unlikely to throw an exception.
     else if (type == TransferType::ResizableArrayBuffer) {
-        auto buffer = TRY(decoder.decode_buffer(target_realm));
-        auto max_byte_length = decoder.decode<size_t>();
+        auto buffer = TRY(decode_or_throw_data_clone_error<ByteBuffer>(target_realm, decoder));
+        auto max_byte_length = TRY(decode_or_throw_data_clone_error<size_t>(target_realm, decoder));
 
         auto data = JS::ArrayBuffer::create(target_realm, move(buffer));
         data->set_max_byte_length(max_byte_length);
@@ -1255,47 +2196,68 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(Tra
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserialize
-WebIDL::ExceptionOr<SerializationRecord> structured_serialize(JS::VM& vm, JS::Value value)
+WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS::Value value)
 {
     // 1. Return ? StructuredSerializeInternal(value, false).
     SerializationMemory memory = {};
-    return structured_serialize_internal(vm, value, false, memory);
+    auto serialized = StructuredSerializeWriter::create_ipc();
+    TRY(structured_serialize_internal(vm, serialized, value, false, memory));
+    return serialized.take_ipc_record();
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeforstorage
-WebIDL::ExceptionOr<SerializationRecord> structured_serialize_for_storage(JS::VM& vm, JS::Value value)
+WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM& vm, JS::Value value)
 {
     // 1. Return ? StructuredSerializeInternal(value, true).
     SerializationMemory memory = {};
-    return structured_serialize_internal(vm, value, true, memory);
+    auto serialized = StructuredSerializeWriter::create_storage();
+    TRY(structured_serialize_internal(vm, serialized, value, true, memory));
+    return serialized.take_storage_record();
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-WebIDL::ExceptionOr<SerializationRecord> structured_serialize_internal(JS::VM& vm, JS::Value value, bool for_storage, SerializationMemory& memory)
+WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM& vm, StructuredSerializeWriter& serialized, JS::Value value, bool for_storage, SerializationMemory& memory)
 {
     // 1. If memory was not supplied, let memory be an empty map.
     // IMPLEMENTATION DEFINED: We move this requirement up to the callers to make recursion easier
 
-    Serializer serializer(vm, memory, for_storage);
+    Serializer serializer(vm, serialized, memory, for_storage);
     return serializer.serialize(value);
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
-WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, SerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory)
+WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory)
 {
     TemporaryExecutionContext execution_context { target_realm };
 
     if (!memory.has_value())
         memory = DeserializationMemory {};
 
-    TransferDataDecoder decoder { serialized };
+    StructuredSerializeReader decoder { serialized };
     return structured_deserialize_internal(vm, decoder, target_realm, *memory);
 }
 
-WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM& vm, TransferDataDecoder& serialized, JS::Realm& target_realm, DeserializationMemory& memory)
+WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, StorageSerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory)
+{
+    TemporaryExecutionContext execution_context { target_realm };
+
+    if (!memory.has_value())
+        memory = DeserializationMemory {};
+
+    StructuredSerializeReader decoder { serialized };
+    return structured_deserialize_internal(vm, decoder, target_realm, *memory, CheckFullyConsumed::Yes);
+}
+
+WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM& vm, StructuredSerializeReader& serialized, JS::Realm& target_realm, DeserializationMemory& memory, CheckFullyConsumed check_fully_consumed)
 {
     Deserializer deserializer(vm, serialized, target_realm, memory);
-    return deserializer.deserialize();
+    auto value = TRY(deserializer.deserialize());
+
+    // Nested sub-value decodes legitimately stop mid-record.
+    if (check_fully_consumed == CheckFullyConsumed::Yes && serialized.type() == SerializationType::Storage && !serialized.is_at_end())
+        return data_clone_error_from_serialization_error(target_realm, AK::Error::from_string_literal("Trailing data after structured serialize storage record"));
+
+    return value;
 }
 
 TransferDataEncoder::TransferDataEncoder()
@@ -1321,10 +2283,10 @@ IPC::MessageBuffer TransferDataEncoder::take_buffer() const
     return move(m_buffer);
 }
 
-void TransferDataEncoder::append(SerializationRecord&& record)
+void TransferDataEncoder::append(IPCSerializationRecord&& record)
 {
     VERIFY(!m_buffer_has_been_taken);
-    MUST(m_buffer.append_data(record.data(), record.size()));
+    MUST(m_buffer.append_data(record.data.data(), record.data.size()));
 }
 
 void TransferDataEncoder::extend(Vector<TransferDataEncoder> data_holders)
@@ -1333,8 +2295,8 @@ void TransferDataEncoder::extend(Vector<TransferDataEncoder> data_holders)
         MUST(m_buffer.extend(data_holder.take_buffer()));
 }
 
-TransferDataDecoder::TransferDataDecoder(SerializationRecord const& record)
-    : m_stream(record.span())
+TransferDataDecoder::TransferDataDecoder(IPCSerializationRecord const& record)
+    : m_stream(record.data.span())
     , m_decoder(m_stream, m_attachments)
 {
 }
@@ -1348,30 +2310,79 @@ TransferDataDecoder::TransferDataDecoder(TransferDataEncoder&& data_holder)
         m_attachments.enqueue(move(attachment));
 }
 
-WebIDL::ExceptionOr<ByteBuffer> TransferDataDecoder::decode_buffer(JS::Realm& realm)
-{
-    auto buffer = m_decoder.decode<ByteBuffer>();
+template WEB_API void StructuredSerializeWriter::encode<bool>(bool const&);
+template WEB_API void StructuredSerializeWriter::encode<int>(int const&);
+template WEB_API void StructuredSerializeWriter::encode<u32>(u32 const&);
+template WEB_API void StructuredSerializeWriter::encode<u64>(u64 const&);
+template WEB_API void StructuredSerializeWriter::encode<i64>(i64 const&);
+template WEB_API void StructuredSerializeWriter::encode<double>(double const&);
+template WEB_API void StructuredSerializeWriter::encode<Utf16String>(Utf16String const&);
+template WEB_API void StructuredSerializeWriter::encode<ByteBuffer>(ByteBuffer const&);
+template WEB_API void StructuredSerializeWriter::encode<ReadonlyBytes>(ReadonlyBytes const&);
+template WEB_API void StructuredSerializeWriter::encode<Bindings::InterfaceName>(Bindings::InterfaceName const&);
+template WEB_API void StructuredSerializeWriter::encode<Bindings::KeyType>(Bindings::KeyType const&);
+template WEB_API void StructuredSerializeWriter::encode<Bindings::KeyUsage>(Bindings::KeyUsage const&);
+template WEB_API void StructuredSerializeWriter::encode<Bindings::PredefinedColorSpace>(Bindings::PredefinedColorSpace const&);
+template WEB_API void StructuredSerializeWriter::encode<Gfx::BitmapFormat>(Gfx::BitmapFormat const&);
+template WEB_API void StructuredSerializeWriter::encode<Gfx::AlphaType>(Gfx::AlphaType const&);
+template WEB_API void StructuredSerializeWriter::encode<u8>(u8 const&);
+template WEB_API void StructuredSerializeWriter::encode<u16>(u16 const&);
+template WEB_API void StructuredSerializeWriter::encode<Optional<double>>(Optional<double> const&);
+template WEB_API void StructuredSerializeWriter::encode<Optional<Utf16String>>(Optional<Utf16String> const&);
+template WEB_API void StructuredSerializeWriter::encode<Optional<bool>>(Optional<bool> const&);
+template WEB_API void StructuredSerializeWriter::encode<Vector<Bindings::KeyUsage>>(Vector<Bindings::KeyUsage> const&);
+template WEB_API void StructuredSerializeWriter::encode<Optional<Vector<int>>>(Optional<Vector<int>> const&);
 
-    if (buffer.is_error()) {
-        VERIFY(buffer.error().code() == ENOMEM);
-        return WebIDL::DataCloneError::create(realm, "Unable to allocate memory for transferred buffer"_utf16);
-    }
+template WEB_API ErrorOr<bool> StructuredSerializeReader::decode<bool>();
+template WEB_API ErrorOr<int> StructuredSerializeReader::decode<int>();
+template WEB_API ErrorOr<u32> StructuredSerializeReader::decode<u32>();
+template WEB_API ErrorOr<u64> StructuredSerializeReader::decode<u64>();
+template WEB_API ErrorOr<i64> StructuredSerializeReader::decode<i64>();
+template WEB_API ErrorOr<double> StructuredSerializeReader::decode<double>();
+template WEB_API ErrorOr<Utf16String> StructuredSerializeReader::decode<Utf16String>();
+template WEB_API ErrorOr<ByteBuffer> StructuredSerializeReader::decode<ByteBuffer>();
+template WEB_API ErrorOr<Bindings::InterfaceName> StructuredSerializeReader::decode<Bindings::InterfaceName>();
+template WEB_API ErrorOr<Bindings::KeyType> StructuredSerializeReader::decode<Bindings::KeyType>();
+template WEB_API ErrorOr<Bindings::KeyUsage> StructuredSerializeReader::decode<Bindings::KeyUsage>();
+template WEB_API ErrorOr<Bindings::PredefinedColorSpace> StructuredSerializeReader::decode<Bindings::PredefinedColorSpace>();
+template WEB_API ErrorOr<Gfx::BitmapFormat> StructuredSerializeReader::decode<Gfx::BitmapFormat>();
+template WEB_API ErrorOr<Gfx::AlphaType> StructuredSerializeReader::decode<Gfx::AlphaType>();
+template WEB_API ErrorOr<u8> StructuredSerializeReader::decode<u8>();
+template WEB_API ErrorOr<u16> StructuredSerializeReader::decode<u16>();
+template WEB_API ErrorOr<Optional<double>> StructuredSerializeReader::decode<Optional<double>>();
+template WEB_API ErrorOr<Optional<Utf16String>> StructuredSerializeReader::decode<Optional<Utf16String>>();
+template WEB_API ErrorOr<Optional<bool>> StructuredSerializeReader::decode<Optional<bool>>();
+template WEB_API ErrorOr<Vector<Bindings::KeyUsage>> StructuredSerializeReader::decode<Vector<Bindings::KeyUsage>>();
+template WEB_API ErrorOr<Optional<Vector<int>>> StructuredSerializeReader::decode<Optional<Vector<int>>>();
 
-    return buffer.release_value();
-}
-
-void TransferDataEncoder::encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const& value)
+void encode_unsigned_big_integer(StructuredSerializeWriter& writer, ::Crypto::UnsignedBigInteger const& value)
 {
     auto buffer = MUST(ByteBuffer::create_zeroed(value.byte_length()));
     auto written = value.export_data(buffer.bytes());
     VERIFY(written.size() == buffer.size());
-    encode(buffer);
+    writer.encode(buffer);
 }
 
-WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> TransferDataDecoder::decode_unsigned_big_integer(JS::Realm& realm)
+WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> decode_unsigned_big_integer(StructuredSerializeReader& reader, JS::Realm& realm)
 {
-    auto buffer = TRY(decode_buffer(realm));
+    auto buffer = TRY(decode_or_throw_data_clone_error<ByteBuffer>(realm, reader));
     return ::Crypto::UnsignedBigInteger::import_data(buffer);
+}
+
+void encode_signed_big_integer(StructuredSerializeWriter& writer, ::Crypto::SignedBigInteger const& value)
+{
+    auto buffer = MUST(ByteBuffer::create_zeroed(value.byte_length()));
+    auto written = value.export_data(buffer.bytes());
+    VERIFY(written.size() == buffer.size());
+    writer.encode(buffer);
+}
+
+WebIDL::ExceptionOr<::Crypto::SignedBigInteger> decode_signed_big_integer(StructuredSerializeReader& reader, JS::Realm& realm)
+{
+    auto buffer = TRY(decode_or_throw_data_clone_error<ByteBuffer>(realm, reader));
+    if (buffer.is_empty())
+        return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Invalid BigInt"));
+    return ::Crypto::SignedBigInteger::import_data(buffer);
 }
 
 }
@@ -1396,7 +2407,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::TransferDataEncoder const& dat
 template<>
 ErrorOr<Web::HTML::TransferDataEncoder> decode(Decoder& decoder)
 {
-    auto data = TRY(decoder.decode<Web::HTML::SerializationRecord>());
+    auto data = TRY(decoder.decode<MessageDataType>());
     auto attachment_count = TRY(decoder.decode<u32>());
 
     Vector<Attachment> attachments;
@@ -1406,6 +2417,34 @@ ErrorOr<Web::HTML::TransferDataEncoder> decode(Decoder& decoder)
 
     IPC::MessageBuffer buffer { move(data), move(attachments) };
     return Web::HTML::TransferDataEncoder { move(buffer) };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::IPCSerializationRecord const& record)
+{
+    TRY(encoder.encode(record.data));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::IPCSerializationRecord> decode(Decoder& decoder)
+{
+    auto data = TRY(decoder.decode<MessageDataType>());
+    return Web::HTML::IPCSerializationRecord { move(data) };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::StorageSerializationRecord const& record)
+{
+    TRY(encoder.encode(record.data));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::StorageSerializationRecord> decode(Decoder& decoder)
+{
+    auto data = TRY(decoder.decode<ByteBuffer>());
+    return Web::HTML::StorageSerializationRecord { move(data) };
 }
 
 template<>
@@ -1419,7 +2458,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedTransferRecord const
 template<>
 ErrorOr<Web::HTML::SerializedTransferRecord> decode(Decoder& decoder)
 {
-    auto serialized = TRY(decoder.decode<Web::HTML::SerializationRecord>());
+    auto serialized = TRY(decoder.decode<Web::HTML::IPCSerializationRecord>());
     auto transfer_data_holders = TRY(decoder.decode<Vector<Web::HTML::TransferDataEncoder>>());
 
     return Web::HTML::SerializedTransferRecord { move(serialized), move(transfer_data_holders) };

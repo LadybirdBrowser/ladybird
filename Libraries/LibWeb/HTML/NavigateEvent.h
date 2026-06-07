@@ -55,12 +55,12 @@ public:
     GC::Ref<DOM::AbortController> abort_controller() const { return *m_abort_controller; }
     InterceptionState interception_state() const { return m_interception_state; }
     Vector<NavigationInterceptHandler> const& navigation_handler_list() const { return m_navigation_handler_list; }
-    Optional<SerializationRecord> classic_history_api_state() const { return m_classic_history_api_state; }
+    Optional<StorageSerializationRecord> classic_history_api_state() const { return m_classic_history_api_state; }
     bool has_started_navigate_event_intercept_commit_handler_steps() const { return m_has_started_navigate_event_intercept_commit_handler_steps; }
 
     void set_abort_controller(GC::Ref<DOM::AbortController> c) { m_abort_controller = c; }
     void set_interception_state(InterceptionState s) { m_interception_state = s; }
-    void set_classic_history_api_state(Optional<SerializationRecord> r) { m_classic_history_api_state = move(r); }
+    void set_classic_history_api_state(Optional<StorageSerializationRecord> r) { m_classic_history_api_state = move(r); }
     void set_has_started_navigate_event_intercept_commit_handler_steps() { m_has_started_navigate_event_intercept_commit_handler_steps = true; }
 
     void finish(bool did_fulfill);
@@ -94,7 +94,7 @@ private:
     GC::Ptr<DOM::AbortController> m_abort_controller = { nullptr };
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-classic-history-api-state
-    Optional<SerializationRecord> m_classic_history_api_state = {};
+    Optional<StorageSerializationRecord> m_classic_history_api_state = {};
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-navigationtype
     Bindings::NavigationType m_navigation_type = { Bindings::NavigationType::Push };

@@ -48,31 +48,33 @@ void FileList::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_files);
 }
 
-WebIDL::ExceptionOr<void> FileList::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> FileList::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
     auto& vm = this->vm();
 
     // 1. Set serialized.[[Files]] to an empty list.
     // 2. For each file in value, append the sub-serialization of file to serialized.[[Files]].
-    serialized.encode(m_files.size());
+    serialized.encode(static_cast<u64>(m_files.size()));
 
     for (auto file : m_files)
-        serialized.append(TRY(HTML::structured_serialize_internal(vm, file, for_storage, memory)));
+        TRY(HTML::structured_serialize_internal(vm, serialized, file, for_storage, memory));
 
     return {};
 }
 
-WebIDL::ExceptionOr<void> FileList::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> FileList::deserialization_steps(HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory& memory)
 {
     auto& vm = this->vm();
     auto& realm = this->realm();
 
     // 1. For each file of serialized.[[Files]], add the sub-deserialization of file to value.
-    auto size = serialized.decode<size_t>();
+    auto size = TRY(HTML::decode_or_throw_data_clone_error<u64>(realm, serialized));
 
-    for (size_t i = 0; i < size; ++i) {
-        auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
-        m_files.append(as<File>(deserialized.as_object()));
+    for (u64 i = 0; i < size; ++i) {
+        auto file = TRY(HTML::deserialize_nested_as<File>(vm, serialized, realm, memory));
+        // AD-HOC: A hostile count cannot be trusted; grow fallibly so it fails cleanly rather than aborting.
+        if (auto result = m_files.try_append(file); result.is_error())
+            return HTML::data_clone_error_from_serialization_error(realm, result.release_error());
     }
 
     return {};

@@ -38,8 +38,8 @@ public:
     virtual ~ImageBitmap() override;
 
     // ^Web::Bindings::Serializable
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
 
     // ^Web::Bindings::Transferable
     virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;

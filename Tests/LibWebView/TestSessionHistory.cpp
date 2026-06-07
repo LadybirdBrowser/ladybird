@@ -36,11 +36,9 @@ static URL::URL parse_url(StringView url)
     return parsed_url.release_value();
 }
 
-static Web::HTML::SerializationRecord state_record(u8 byte)
+static Web::HTML::StorageSerializationRecord state_record(u8 byte)
 {
-    Web::HTML::SerializationRecord record;
-    record.append(byte);
-    return record;
+    return Web::HTML::StorageSerializationRecord { MUST(ByteBuffer::copy({ &byte, 1 })) };
 }
 
 static Web::HTML::SessionHistoryEntryDescriptor create_test_entry(i32 step, URL::URL url)

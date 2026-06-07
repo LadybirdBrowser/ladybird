@@ -33,7 +33,7 @@ public:
     // Setters are not available to JS, but expected in many spec algorithms
     void set_url(URL::URL const& url) { m_url = url; }
     void set_entry(GC::Ptr<NavigationHistoryEntry> entry) { m_entry = entry; }
-    void set_state(SerializationRecord state) { m_state = move(state); }
+    void set_state(StorageSerializationRecord state) { m_state = move(state); }
     void set_is_same_document(bool b) { m_is_same_document = b; }
 
     virtual ~NavigationDestination() override;
@@ -53,7 +53,7 @@ private:
     GC::Ptr<NavigationHistoryEntry> m_entry;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationdestination-state
-    SerializationRecord m_state;
+    StorageSerializationRecord m_state;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationdestination-samedocument
     bool m_is_same_document { false };

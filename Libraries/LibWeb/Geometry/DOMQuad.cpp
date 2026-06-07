@@ -116,34 +116,33 @@ GC::Ref<DOMRect> DOMQuad::get_bounds() const
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
     auto& vm = this->vm();
 
     // 1. Set serialized.[[P1]] to the sub-serialization of value’s point 1.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p1, for_storage, memory)));
+    TRY(HTML::structured_serialize_internal(vm, serialized, m_p1, for_storage, memory));
 
     // 2. Set serialized.[[P2]] to the sub-serialization of value’s point 2.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p2, for_storage, memory)));
+    TRY(HTML::structured_serialize_internal(vm, serialized, m_p2, for_storage, memory));
 
     // 3. Set serialized.[[P3]] to the sub-serialization of value’s point 3.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p3, for_storage, memory)));
+    TRY(HTML::structured_serialize_internal(vm, serialized, m_p3, for_storage, memory));
 
     // 4. Set serialized.[[P4]] to the sub-serialization of value’s point 4.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p4, for_storage, memory)));
+    TRY(HTML::structured_serialize_internal(vm, serialized, m_p4, for_storage, memory));
 
     return {};
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory& memory)
 {
     auto& vm = this->vm();
     auto& realm = this->realm();
 
     auto deserialize_dom_point = [&](GC::Ref<DOMPoint>& storage) -> WebIDL::ExceptionOr<void> {
-        auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
-        storage = as<DOMPoint>(deserialized.as_object());
+        storage = TRY(HTML::deserialize_nested_as<DOMPoint>(vm, serialized, realm, memory));
         return {};
     };
 

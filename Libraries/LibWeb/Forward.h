@@ -854,6 +854,8 @@ class SharedResourceRequest;
 class SharedWorker;
 class SharedWorkerGlobalScope;
 class Storage;
+class StructuredSerializeReader;
+class StructuredSerializeWriter;
 class SubmitEvent;
 class TextMetrics;
 class TextTrack;

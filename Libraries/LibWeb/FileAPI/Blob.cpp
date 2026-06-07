@@ -6,6 +6,7 @@
  */
 
 #include <AK/GenericLexer.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -155,13 +156,13 @@ void Blob::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
 {
     //  FIXME: 1. Set serialized.[[SnapshotState]] to value’s snapshot state.
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be serialized, although
     //               to be conformant with other browsers this needs to be serialized.
-    serialized.encode(m_type);
+    serialized.encode(Utf16String::from_utf8(m_type));
 
     // 2. Set serialized.[[ByteSequence]] to value’s underlying byte sequence.
     serialized.encode(m_byte_buffer);
@@ -169,7 +170,7 @@ WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::TransferDataEncoder& s
     return {};
 }
 
-WebIDL::ExceptionOr<void> Blob::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> Blob::deserialization_steps(HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
 {
     auto& realm = this->realm();
 
@@ -177,10 +178,10 @@ WebIDL::ExceptionOr<void> Blob::deserialization_steps(HTML::TransferDataDecoder&
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be deserialized, although
     //               to be conformant with other browsers this needs to be deserialized.
-    m_type = serialized.decode<String>();
+    m_type = TRY(HTML::decode_utf8_text_or_throw_data_clone_error(realm, serialized));
 
     // 2. Set value’s underlying byte sequence to serialized.[[ByteSequence]].
-    m_byte_buffer = TRY(serialized.decode_buffer(realm));
+    m_byte_buffer = TRY(HTML::decode_or_throw_data_clone_error<ByteBuffer>(realm, serialized));
 
     return {};
 }

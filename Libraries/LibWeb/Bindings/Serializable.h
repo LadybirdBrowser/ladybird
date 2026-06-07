@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <AK/Types.h>
 #include <LibWeb/Bindings/IntrinsicDefinitions.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -18,10 +20,13 @@ public:
     virtual ~Serializable() = default;
 
     // https://html.spec.whatwg.org/multipage/structured-data.html#serialization-steps
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) = 0;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) = 0;
+
+    // Version of this type's storage body shape; starts at 1, with 0 reserved.
+    virtual u64 serialization_version() const { return 1; }
 
     // https://html.spec.whatwg.org/multipage/structured-data.html#deserialization-steps
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) = 0;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) = 0;
 };
 
 }

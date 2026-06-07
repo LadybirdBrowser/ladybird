@@ -18,9 +18,9 @@ namespace Web::IndexedDB {
 // https://w3c.github.io/IndexedDB/#object-store-record
 struct ObjectStoreRecord {
     GC::Ref<Key> key;
-    OwnPtr<HTML::SerializationRecord> value;
+    OwnPtr<HTML::StorageSerializationRecord> value;
 
-    ObjectStoreRecord(GC::Ref<Key> key, NonnullOwnPtr<HTML::SerializationRecord> value)
+    ObjectStoreRecord(GC::Ref<Key> key, NonnullOwnPtr<HTML::StorageSerializationRecord> value)
         : key(key)
         , value(move(value))
     {
@@ -28,7 +28,7 @@ struct ObjectStoreRecord {
 
     ObjectStoreRecord(ObjectStoreRecord const& other)
         : key(other.key)
-        , value(make<HTML::SerializationRecord>(*other.value))
+        , value(make<HTML::StorageSerializationRecord>(*other.value))
     {
     }
 

@@ -68,7 +68,7 @@ bool Index::has_record_with_key(GC::Ref<Key> key)
 }
 
 // https://w3c.github.io/IndexedDB/#index-referenced-value
-HTML::SerializationRecord const& Index::referenced_value(IndexRecord const& index_record) const
+HTML::StorageSerializationRecord const& Index::referenced_value(IndexRecord const& index_record) const
 {
     // Records in an index are said to have a referenced value.
     // This is the value of the record in the index’s referenced object store which has a key equal to the index’s record’s value.

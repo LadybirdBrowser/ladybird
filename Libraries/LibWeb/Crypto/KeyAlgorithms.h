@@ -12,6 +12,7 @@
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Crypto/CryptoAlgorithms.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Crypto {
@@ -45,7 +46,8 @@ private:
 };
 
 // https://w3c.github.io/webcrypto/#RsaKeyAlgorithm-dictionary
-class RsaKeyAlgorithm : public KeyAlgorithm {
+// WEB_API-exported so tests can fabricate an encode-only RsaKeyAlgorithm.
+class WEB_API RsaKeyAlgorithm : public KeyAlgorithm {
     JS_OBJECT(RsaKeyAlgorithm, KeyAlgorithm);
     GC_DECLARE_ALLOCATOR(RsaKeyAlgorithm);
 
@@ -100,7 +102,8 @@ private:
 };
 
 // https://w3c.github.io/webcrypto/#EcKeyAlgorithm-dictionary
-class EcKeyAlgorithm : public KeyAlgorithm {
+// WEB_API-exported so tests can inspect decoded named_curve().
+class WEB_API EcKeyAlgorithm : public KeyAlgorithm {
     JS_OBJECT(EcKeyAlgorithm, KeyAlgorithm);
     GC_DECLARE_ALLOCATOR(EcKeyAlgorithm);
 

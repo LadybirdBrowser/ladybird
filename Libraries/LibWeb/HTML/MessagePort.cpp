@@ -119,20 +119,20 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(HTML::TransferDataEncoder&
     // Drain any incoming transport state into this port before serializing it so received messages and
     // a pending shutdown move with the transferred port instead of being left behind on the old transport.
     drain_transport();
-    data_holder.encode(m_pending_incoming_messages);
-    data_holder.encode(m_pending_outgoing_messages);
-    data_holder.encode(m_should_shutdown_on_enable);
+    TRY(encode_or_throw_data_clone_error(realm(), data_holder, m_pending_incoming_messages));
+    TRY(encode_or_throw_data_clone_error(realm(), data_holder, m_pending_outgoing_messages));
+    TRY(encode_or_throw_data_clone_error(realm(), data_holder, m_should_shutdown_on_enable));
 
     if (has_remote_port_handle) {
         m_transport.clear();
 
         // 2. Set dataHolder.[[RemotePort]] to remotePort.
-        data_holder.encode(IPC_FILE_TAG);
-        data_holder.encode(remote_port_handle);
+        TRY(encode_or_throw_data_clone_error(realm(), data_holder, IPC_FILE_TAG));
+        TRY(encode_or_throw_data_clone_error(realm(), data_holder, remote_port_handle));
     }
     // 4. Otherwise, set dataHolder.[[RemotePort]] to null.
     else {
-        data_holder.encode<u8>(0);
+        TRY(encode_or_throw_data_clone_error(realm(), data_holder, static_cast<u8>(0)));
     }
 
     return {};
@@ -146,15 +146,15 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
     // 2. Move all the tasks that are to fire message events in dataHolder.[[PortMessageQueue]] to the port message queue of value,
     //    if any, leaving value's port message queue in its initial disabled state, and, if value's relevant global object is a Window,
     //    associating the moved tasks with value's relevant global object's associated Document.
-    m_pending_incoming_messages = data_holder.decode<Vector<SerializedTransferRecord>>();
-    m_pending_outgoing_messages = data_holder.decode<Vector<SerializedTransferRecord>>();
-    m_should_shutdown_on_enable = data_holder.decode<bool>();
-    auto fd_tag = data_holder.decode<u8>();
+    m_pending_incoming_messages = TRY(decode_or_throw_data_clone_error<Vector<SerializedTransferRecord>>(realm(), data_holder));
+    m_pending_outgoing_messages = TRY(decode_or_throw_data_clone_error<Vector<SerializedTransferRecord>>(realm(), data_holder));
+    m_should_shutdown_on_enable = TRY(decode_or_throw_data_clone_error<bool>(realm(), data_holder));
+    auto fd_tag = TRY(decode_or_throw_data_clone_error<u8>(realm(), data_holder));
 
     // 3. If dataHolder.[[RemotePort]] is not null, then entangle dataHolder.[[RemotePort]] and value.
     //     (This will disentangle dataHolder.[[RemotePort]] from the original port that was transferred.)
     if (fd_tag == IPC_FILE_TAG) {
-        auto handle = data_holder.decode<IPC::TransportHandle>();
+        auto handle = TRY(decode_or_throw_data_clone_error<IPC::TransportHandle>(realm(), data_holder));
         m_transport = MUST(handle.create_transport());
 
         m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {

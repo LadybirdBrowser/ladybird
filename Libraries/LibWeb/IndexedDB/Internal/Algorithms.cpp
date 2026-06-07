@@ -1481,7 +1481,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
     // 4. Store a record in store containing key as its key and ! StructuredSerializeForStorage(value) as its value.
     //    The record is stored in the object store’s list of records such that the list is sorted according to the key of the records in ascending order.
-    ObjectStoreRecord record { *key, make<HTML::SerializationRecord>(MUST(HTML::structured_serialize_for_storage(realm.vm(), value))) };
+    ObjectStoreRecord record { *key, make<HTML::StorageSerializationRecord>(MUST(HTML::structured_serialize_for_storage(realm.vm(), value))) };
     store->store_a_record(move(record));
 
     // 5. For each index which references store:
@@ -1942,10 +1942,10 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
 
         // 1. Let serialized be found record’s value if source is an object store, or found record’s referenced value otherwise.
         auto const& serialized = source.visit(
-            [&](GC::Ref<ObjectStore>) -> HTML::SerializationRecord const& {
+            [&](GC::Ref<ObjectStore>) -> HTML::StorageSerializationRecord const& {
                 return *found_record.get<ObjectStoreRecord>().value;
             },
-            [&](GC::Ref<Index> index) -> HTML::SerializationRecord const& {
+            [&](GC::Ref<Index> index) -> HTML::StorageSerializationRecord const& {
                 return index->referenced_value(found_record.get<IndexRecord>());
             });
 

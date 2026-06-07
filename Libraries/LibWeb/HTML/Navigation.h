@@ -24,7 +24,7 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
     NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,
         Optional<String> key,
         JS::Value info,
-        Optional<SerializationRecord> serialized_state,
+        Optional<StorageSerializationRecord> serialized_state,
         GC::Ptr<NavigationHistoryEntry> committed_to_entry,
         GC::Ref<WebIDL::Promise> committed_promise,
         GC::Ref<WebIDL::Promise> finished_promise);
@@ -34,7 +34,7 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
     GC::Ref<Navigation> navigation;
     Optional<String> key;
     JS::Value info;
-    Optional<SerializationRecord> serialized_state;
+    Optional<StorageSerializationRecord> serialized_state;
     GC::Ptr<NavigationHistoryEntry> committed_to_entry;
     GC::Ref<WebIDL::Promise> committed_promise;
     GC::Ref<WebIDL::Promise> finished_promise;
@@ -92,8 +92,8 @@ public:
         UserNavigationInvolvement = UserNavigationInvolvement::None,
         GC::Ptr<DOM::Element> source_element = {},
         Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list = {},
-        Optional<SerializationRecord> navigation_api_state = {},
-        Optional<SerializationRecord> classic_history_api_state = {});
+        Optional<StorageSerializationRecord> navigation_api_state = {},
+        Optional<StorageSerializationRecord> classic_history_api_state = {});
     bool fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename);
 
     void initialize_the_navigation_api_entries_for_a_new_document(Vector<NonnullRefPtr<SessionHistoryEntry>> const& new_shes, NonnullRefPtr<SessionHistoryEntry> initial_she);
@@ -121,7 +121,7 @@ private:
     using AnyException = decltype(declval<WebIDL::ExceptionOr<void>>().exception());
     Bindings::NavigationResult early_error_result(AnyException);
 
-    GC::Ref<NavigationAPIMethodTracker> maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<SerializationRecord>);
+    GC::Ref<NavigationAPIMethodTracker> maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<StorageSerializationRecord>);
     GC::Ref<NavigationAPIMethodTracker> add_an_upcoming_traverse_api_method_tracker(String destination_key, JS::Value info);
     WebIDL::ExceptionOr<Bindings::NavigationResult> perform_a_navigation_api_traversal(String key, Bindings::NavigationOptions const&);
     void promote_an_upcoming_api_method_tracker_to_ongoing(Optional<String> destination_key);
@@ -138,7 +138,7 @@ private:
         GC::Ptr<DOM::Element> source_element,
         Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
         Optional<String> download_request_filename,
-        Optional<SerializationRecord> classic_history_api_state);
+        Optional<StorageSerializationRecord> classic_history_api_state);
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-entry-list
     // Each Navigation has an associated entry list, a list of NavigationHistoryEntry objects, initially empty.

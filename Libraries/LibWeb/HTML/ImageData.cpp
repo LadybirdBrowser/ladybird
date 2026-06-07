@@ -209,13 +209,12 @@ JS::Uint8ClampedArray const* ImageData::data() const
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:serialization-steps
-WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
     auto& vm = this->vm();
 
     // 1. Set serialized.[[Data]] to the sub-serialization of the value of value's data attribute.
-    auto serialized_data = TRY(structured_serialize_internal(vm, m_data, for_storage, memory));
-    serialized.append(move(serialized_data));
+    TRY(structured_serialize_internal(vm, serialized, m_data, for_storage, memory));
 
     // 2. Set serialized.[[Width]] to the value of value's width attribute.
     serialized.encode(m_width);
@@ -232,23 +231,22 @@ WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::TransferDataEncod
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:deserialization-steps
-WebIDL::ExceptionOr<void> ImageData::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> ImageData::deserialization_steps(HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory& memory)
 {
     auto& vm = this->vm();
     auto& realm = this->realm();
 
     // 1. Initialize value's data attribute to the sub-deserialization of serialized.[[Data]].
-    auto deserialized = TRY(structured_deserialize_internal(vm, serialized, realm, memory));
-    m_data = as<JS::Uint8ClampedArray>(deserialized.as_object());
+    m_data = TRY(deserialize_nested_as<JS::Uint8ClampedArray>(vm, serialized, realm, memory));
 
     // 2. Initialize value's width attribute to serialized.[[Width]].
-    m_width = serialized.decode<u32>();
+    m_width = TRY(HTML::decode_or_throw_data_clone_error<u32>(realm, serialized));
 
     // 3. Initialize value's height attribute to serialized.[[Height]].
-    m_height = serialized.decode<u32>();
+    m_height = TRY(HTML::decode_or_throw_data_clone_error<u32>(realm, serialized));
 
     // 4. Initialize value's colorSpace attribute to serialized.[[ColorSpace]].
-    m_color_space = serialized.decode<Bindings::PredefinedColorSpace>();
+    m_color_space = TRY(HTML::decode_or_throw_data_clone_error<Bindings::PredefinedColorSpace>(realm, serialized));
 
     // FIXME: 5. Initialize value's pixelFormat attribute to serialized.[[PixelFormat]].
 

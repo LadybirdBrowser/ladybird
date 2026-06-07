@@ -65,7 +65,7 @@ static String serialize_key_path(KeyPath const& key_path)
         });
 }
 
-static String serialize_record_value(JS::Realm& realm, HTML::SerializationRecord const& record)
+static String serialize_record_value(JS::Realm& realm, HTML::StorageSerializationRecord const& record)
 {
     HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 

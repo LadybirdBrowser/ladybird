@@ -29,7 +29,7 @@ ErrorOr<Web::HTML::BroadcastChannelMessage> decode(Decoder& decoder)
     auto storage_key = TRY(decoder.decode<Web::StorageAPI::StorageKey>());
     auto channel_name = TRY(decoder.decode<String>());
     auto source_origin = TRY(decoder.decode<URL::Origin>());
-    auto serialized_message = TRY(decoder.decode<Web::HTML::SerializationRecord>());
+    auto serialized_message = TRY(decoder.decode<Web::HTML::IPCSerializationRecord>());
     auto source_process_id = TRY(decoder.decode<i32>());
     auto source_channel_id = TRY(decoder.decode<u64>());
 

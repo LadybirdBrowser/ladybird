@@ -94,7 +94,7 @@ private:
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
     // serialized abort reason (default null)
     //     Null or a Record (result of StructuredSerialize).
-    Optional<HTML::SerializationRecord> m_serialized_abort_reason;
+    Optional<HTML::IPCSerializationRecord> m_serialized_abort_reason;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-next-manual-redirect-steps
     // next manual redirect steps (default null)

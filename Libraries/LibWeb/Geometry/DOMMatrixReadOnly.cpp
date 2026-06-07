@@ -707,7 +707,7 @@ WebIDL::ExceptionOr<String> DOMMatrixReadOnly::to_string() const
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMMatrixReadOnly::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> DOMMatrixReadOnly::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
 {
     serialized.encode(m_is_2d);
 
@@ -770,22 +770,28 @@ WebIDL::ExceptionOr<void> DOMMatrixReadOnly::serialization_steps(HTML::TransferD
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMMatrixReadOnly::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> DOMMatrixReadOnly::deserialization_steps(HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
 {
-    bool is_2d = serialized.decode<bool>();
+    auto& realm = this->realm();
+
+    auto decode_double = [&]() {
+        return HTML::decode_or_throw_data_clone_error<double>(realm, serialized);
+    };
+
+    bool is_2d = TRY(HTML::decode_or_throw_data_clone_error<bool>(realm, serialized));
 
     // 1. If serialized.[[Is2D]] is true:
     if (is_2d) {
         // 1. Set value’s m11 element to serialized.[[M11]].
-        auto m11 = serialized.decode<double>();
+        auto m11 = TRY(decode_double());
         // 2. Set value’s m12 element to serialized.[[M12]].
-        auto m12 = serialized.decode<double>();
+        auto m12 = TRY(decode_double());
         // 3. Set value’s m13 element to 0.
         // 4. Set value’s m14 element to 0.
         // 5. Set value’s m21 element to serialized.[[M21]].
-        auto m21 = serialized.decode<double>();
+        auto m21 = TRY(decode_double());
         // 6. Set value’s m22 element to serialized.[[M22]].
-        auto m22 = serialized.decode<double>();
+        auto m22 = TRY(decode_double());
         // 7. Set value’s m23 element to 0.
         // 8. Set value’s m24 element to 0.
         // 9. Set value’s m31 element to 0.
@@ -793,9 +799,9 @@ WebIDL::ExceptionOr<void> DOMMatrixReadOnly::deserialization_steps(HTML::Transfe
         // 11. Set value’s m33 element to 1.
         // 12. Set value’s m34 element to 0.
         // 13. Set value’s m41 element to serialized.[[M41]].
-        auto m41 = serialized.decode<double>();
+        auto m41 = TRY(decode_double());
         // 14 Set value’s m42 element to serialized.[[M42]].
-        auto m42 = serialized.decode<double>();
+        auto m42 = TRY(decode_double());
         // 15. Set value’s m43 element to 0.
         // 16. Set value’s m44 element to 1.
         // 17. Set value’s is 2D to true.
@@ -805,37 +811,37 @@ WebIDL::ExceptionOr<void> DOMMatrixReadOnly::deserialization_steps(HTML::Transfe
     // 2. Otherwise:
     else {
         // 1. Set value’s m11 element to serialized.[[M11]].
-        auto m11 = serialized.decode<double>();
+        auto m11 = TRY(decode_double());
         // 2. Set value’s m12 element to serialized.[[M12]].
-        auto m12 = serialized.decode<double>();
+        auto m12 = TRY(decode_double());
         // 3. Set value’s m13 element to serialized.[[M13]].
-        auto m13 = serialized.decode<double>();
+        auto m13 = TRY(decode_double());
         // 4. Set value’s m14 element to serialized.[[M14]].
-        auto m14 = serialized.decode<double>();
+        auto m14 = TRY(decode_double());
         // 5. Set value’s m21 element to serialized.[[M21]].
-        auto m21 = serialized.decode<double>();
+        auto m21 = TRY(decode_double());
         // 6. Set value’s m22 element to serialized.[[M22]].
-        auto m22 = serialized.decode<double>();
+        auto m22 = TRY(decode_double());
         // 7. Set value’s m23 element to serialized.[[M23]].
-        auto m23 = serialized.decode<double>();
+        auto m23 = TRY(decode_double());
         // 8. Set value’s m24 element to serialized.[[M24]].
-        auto m24 = serialized.decode<double>();
+        auto m24 = TRY(decode_double());
         // 9. Set value’s m31 element to serialized.[[M31]].
-        auto m31 = serialized.decode<double>();
+        auto m31 = TRY(decode_double());
         // 10. Set value’s m32 element to serialized.[[M32]].
-        auto m32 = serialized.decode<double>();
+        auto m32 = TRY(decode_double());
         // 11. Set value’s m33 element to serialized.[[M33]].
-        auto m33 = serialized.decode<double>();
+        auto m33 = TRY(decode_double());
         // 12. Set value’s m34 element to serialized.[[M34]].
-        auto m34 = serialized.decode<double>();
+        auto m34 = TRY(decode_double());
         // 13. Set value’s m41 element to serialized.[[M41]].
-        auto m41 = serialized.decode<double>();
+        auto m41 = TRY(decode_double());
         // 14. Set value’s m42 element to serialized.[[M42]].
-        auto m42 = serialized.decode<double>();
+        auto m42 = TRY(decode_double());
         // 15. Set value’s m43 element to serialized.[[M43]].
-        auto m43 = serialized.decode<double>();
+        auto m43 = TRY(decode_double());
         // 16. Set value’s m44 element to serialized.[[M44]].
-        auto m44 = serialized.decode<double>();
+        auto m44 = TRY(decode_double());
         // 17. Set value’s is 2D to false.
 
         initialize_from_create_3d_matrix(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44);

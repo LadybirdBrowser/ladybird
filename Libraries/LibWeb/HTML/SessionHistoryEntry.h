@@ -74,8 +74,8 @@ struct SessionHistoryEntryDescriptor {
     i32 step { 0 };
     URL::URL url;
     SessionHistoryDocumentStateDescriptor document_state;
-    SerializationRecord classic_history_api_state;
-    SerializationRecord navigation_api_state;
+    StorageSerializationRecord classic_history_api_state;
+    StorageSerializationRecord navigation_api_state;
     String navigation_api_key;
     String navigation_api_id;
     ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
@@ -115,11 +115,11 @@ public:
     [[nodiscard]] RefPtr<HTML::DocumentState> document_state() const;
     void set_document_state(RefPtr<HTML::DocumentState>);
 
-    [[nodiscard]] SerializationRecord const& classic_history_api_state() const { return m_classic_history_api_state; }
-    void set_classic_history_api_state(SerializationRecord classic_history_api_state) { m_classic_history_api_state = move(classic_history_api_state); }
+    [[nodiscard]] StorageSerializationRecord const& classic_history_api_state() const { return m_classic_history_api_state; }
+    void set_classic_history_api_state(StorageSerializationRecord classic_history_api_state) { m_classic_history_api_state = move(classic_history_api_state); }
 
-    [[nodiscard]] SerializationRecord const& navigation_api_state() const { return m_navigation_api_state; }
-    void set_navigation_api_state(SerializationRecord navigation_api_state) { m_navigation_api_state = move(navigation_api_state); }
+    [[nodiscard]] StorageSerializationRecord const& navigation_api_state() const { return m_navigation_api_state; }
+    void set_navigation_api_state(StorageSerializationRecord navigation_api_state) { m_navigation_api_state = move(navigation_api_state); }
 
     [[nodiscard]] String const& navigation_api_key() const { return m_navigation_api_key; }
     void set_navigation_api_key(String navigation_api_key) { m_navigation_api_key = move(navigation_api_key); }
@@ -147,11 +147,11 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-classic-history-api-state
     // classic history API state, which is serialized state, initially StructuredSerializeForStorage(null).
-    SerializationRecord m_classic_history_api_state;
+    StorageSerializationRecord m_classic_history_api_state;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-navigation-api-state
     // navigation API state, which is a serialized state, initially StructuredSerializeForStorage(undefined).
-    SerializationRecord m_navigation_api_state;
+    StorageSerializationRecord m_navigation_api_state;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-navigation-api-key
     // navigation API key, which is a string, initially set to the result of generating a random UUID.

@@ -67,7 +67,7 @@ void DOMPointReadOnly::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-WebIDL::ExceptionOr<void> DOMPointReadOnly::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> DOMPointReadOnly::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
 {
     // 1. Set serialized.[[X]] to value’s x coordinate.
     serialized.encode(m_x);
@@ -84,19 +84,21 @@ WebIDL::ExceptionOr<void> DOMPointReadOnly::serialization_steps(HTML::TransferDa
     return {};
 }
 
-WebIDL::ExceptionOr<void> DOMPointReadOnly::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> DOMPointReadOnly::deserialization_steps(HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
 {
+    auto& realm = this->realm();
+
     // 1. Set value’s x coordinate to serialized.[[X]].
-    m_x = serialized.decode<double>();
+    m_x = TRY(HTML::decode_or_throw_data_clone_error<double>(realm, serialized));
 
     // 2. Set value’s y coordinate to serialized.[[Y]].
-    m_y = serialized.decode<double>();
+    m_y = TRY(HTML::decode_or_throw_data_clone_error<double>(realm, serialized));
 
     // 3. Set value’s z coordinate to serialized.[[Z]].
-    m_z = serialized.decode<double>();
+    m_z = TRY(HTML::decode_or_throw_data_clone_error<double>(realm, serialized));
 
     // 4. Set value’s w coordinate to serialized.[[W]].
-    m_w = serialized.decode<double>();
+    m_w = TRY(HTML::decode_or_throw_data_clone_error<double>(realm, serialized));
 
     return {};
 }

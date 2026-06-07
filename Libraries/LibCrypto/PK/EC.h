@@ -83,8 +83,8 @@ public:
         return Curves::SECPxxxr1Point::scalar_to_bytes(m_d, m_scalar_size);
     }
 
-    Optional<Vector<int> const&> parameters() const { return m_parameters; }
-    Optional<ECPublicKey const&> public_key() const { return m_public_key; }
+    Optional<Vector<int>> const& parameters() const { return m_parameters; }
+    Optional<ECPublicKey> const& public_key() const { return m_public_key; }
 
     ErrorOr<ByteBuffer> export_as_der() const;
 
