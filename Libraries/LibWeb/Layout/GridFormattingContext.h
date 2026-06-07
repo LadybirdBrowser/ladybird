@@ -26,7 +26,7 @@ struct GridPosition {
 };
 
 struct GridItem {
-    GC::Ref<Box const> box;
+    Box const& box;
     LayoutState::UsedValues& used_values;
 
     // Position and span are empty if the item is auto-placed which could only be the case for abspos items
@@ -62,7 +62,7 @@ struct GridItem {
 
     CSS::ComputedValues const& computed_values() const
     {
-        return box->computed_values();
+        return box.computed_values();
     }
 
     CSS::Size const& minimum_size(GridDimension dimension) const

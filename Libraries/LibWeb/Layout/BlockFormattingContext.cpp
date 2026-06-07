@@ -773,7 +773,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             auto static_position_x = CSSPixels(0);
             auto static_position_y = m_y_offset_of_current_block_container.value();
             if (box.display_before_box_type_transformation().is_inline_outside()) {
-                auto const* sibling = as_if<Box>(box.previous_sibling());
+                auto sibling_ref = box.previous_sibling();
+                auto const* sibling = as_if<Box>(sibling_ref.ptr());
                 if (sibling && sibling->is_anonymous() && sibling->children_are_inline()) {
                     auto const& sibling_state = m_state.get(*sibling);
                     if (auto const& inline_end_static_position_rect = sibling_state.inline_end_static_position_rect(); inline_end_static_position_rect.has_value()) {
@@ -1576,7 +1577,7 @@ BlockFormattingContext::SpaceUsedAndContainingMarginForFloats BlockFormattingCon
                 + floating_box.used_values.content_width()
                 + floating_box.used_values.margin_box_right();
             space_and_containing_margin.left_total_containing_margin = offset_from_containing_block_chain_margins_between_here_and_root;
-            space_and_containing_margin.matching_left_float_box = floating_box.box;
+            space_and_containing_margin.matching_left_float_box = &floating_box.box;
             break;
         }
     }
@@ -1593,7 +1594,7 @@ BlockFormattingContext::SpaceUsedAndContainingMarginForFloats BlockFormattingCon
             space_and_containing_margin.right_used_space = floating_box.offset_from_edge
                 + floating_box.used_values.margin_box_left();
             space_and_containing_margin.right_total_containing_margin = offset_from_containing_block_chain_margins_between_here_and_root;
-            space_and_containing_margin.matching_right_float_box = floating_box.box;
+            space_and_containing_margin.matching_right_float_box = &floating_box.box;
             break;
         }
     }
@@ -1648,7 +1649,7 @@ CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
             CSSPixels extra_width_from_left_floats = 0;
             for (auto& left_float : m_left_floats.all_boxes) {
                 // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
-                if (left_float->box->containing_block() != &box)
+                if (left_float->box.containing_block() != &box)
                     continue;
                 if (line_top < left_float->bottom_margin_edge && line_bottom > left_float->top_margin_edge) {
                     extra_width_from_left_floats = max(extra_width_from_left_floats, left_float->offset_from_edge + left_float->used_values.content_width() + left_float->used_values.margin_box_right());
@@ -1657,7 +1658,7 @@ CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
             CSSPixels extra_width_from_right_floats = 0;
             for (auto& right_float : m_right_floats.all_boxes) {
                 // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
-                if (right_float->box->containing_block() != &box)
+                if (right_float->box.containing_block() != &box)
                     continue;
                 if (line_top < right_float->bottom_margin_edge && line_bottom > right_float->top_margin_edge) {
                     extra_width_from_right_floats = max(extra_width_from_right_floats, right_float->offset_from_edge + right_float->used_values.margin_box_left());

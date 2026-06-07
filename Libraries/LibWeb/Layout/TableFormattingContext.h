@@ -150,7 +150,7 @@ private:
     };
 
     struct ConflictingEdge {
-        GC::Ptr<Node const> element;
+        Node const* element { nullptr };
         Painting::PaintableBox::ConflictingElementKind element_kind;
         ConflictingSide side;
         Optional<size_t> row;
@@ -177,20 +177,20 @@ private:
         void collect_column_group_conflicting_edges(Vector<ConflictingEdge>&, Cell const&, ConflictingSide) const;
         void collect_table_box_conflicting_edges(Vector<ConflictingEdge>&, Cell const&, ConflictingSide) const;
 
-        GC::Ptr<Node const> get_col_element(size_t index) const
+        Node const* get_col_element(size_t index) const
         {
             if (index >= m_col_elements_by_index.size())
-                return {};
+                return nullptr;
             return m_col_elements_by_index[index];
         }
 
         struct RowGroupInfo {
-            GC::Ptr<Node const> row_group;
+            Node const* row_group { nullptr };
             size_t start_index;
             size_t row_count;
         };
 
-        Vector<GC::Ptr<Node const>> m_col_elements_by_index;
+        Vector<Node const*> m_col_elements_by_index;
         Vector<Optional<RowGroupInfo>> m_row_group_elements_by_index;
         TableFormattingContext const* m_context;
     };

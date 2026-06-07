@@ -328,8 +328,8 @@ public:
     Layout::Node const* layout_node() const;
     Layout::Node* layout_node();
 
-    Layout::Node const* unsafe_layout_node() const { return m_layout_node; }
-    Layout::Node* unsafe_layout_node() { return m_layout_node; }
+    Layout::Node const* unsafe_layout_node() const { return m_layout_node.ptr(); }
+    Layout::Node* unsafe_layout_node() { return m_layout_node.ptr(); }
 
     RefPtr<Painting::PaintableBox const> paintable_box() const;
     RefPtr<Painting::PaintableBox> paintable_box();
@@ -348,7 +348,7 @@ public:
     void set_needs_layout_update(SetNeedsLayoutReason);
 
     void clear_layout_node_and_paintable(Badge<Document>);
-    void set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node>);
+    void set_layout_node(Badge<Layout::Node>, Layout::Node&);
     void detach_layout_node(Badge<Layout::TreeBuilder>);
 
     virtual bool is_child_allowed(Node const&) const { return true; }
@@ -507,7 +507,7 @@ protected:
     virtual size_t external_memory_size() const override;
 
     GC::Ptr<Document> m_document;
-    GC::Ptr<Layout::Node> m_layout_node;
+    WeakPtr<Layout::Node> m_layout_node;
     WeakPtr<Painting::Paintable> m_paintable;
     NodeType m_type { NodeType::INVALID };
     bool m_needs_layout_tree_update { false };

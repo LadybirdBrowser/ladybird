@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class ListItemBox final : public BlockContainer {
-    GC_CELL(ListItemBox, BlockContainer);
-    GC_DECLARE_ALLOCATOR(ListItemBox);
+    LAYOUT_NODE(ListItemBox, BlockContainer);
 
 public:
     ListItemBox(DOM::Document&, DOM::Element*, CSS::ComputedProperties const&);
@@ -23,14 +22,12 @@ public:
     DOM::Element const& dom_node() const { return static_cast<DOM::Element const&>(*BlockContainer::dom_node()); }
 
     ListItemMarkerBox const* marker() const { return m_marker; }
-    void set_marker(GC::Ptr<ListItemMarkerBox>);
+    void set_marker(ListItemMarkerBox*);
 
 private:
     virtual bool is_list_item_box() const override { return true; }
 
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    GC::Ptr<ListItemMarkerBox> m_marker;
+    WeakPtr<ListItemMarkerBox> m_marker;
 };
 
 template<>

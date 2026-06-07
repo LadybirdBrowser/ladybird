@@ -14,8 +14,7 @@
 namespace Web::Layout {
 
 class FieldSetBox final : public BlockContainer {
-    GC_CELL(FieldSetBox, BlockContainer);
-    GC_DECLARE_ALLOCATOR(FieldSetBox);
+    LAYOUT_NODE(FieldSetBox, BlockContainer);
 
 public:
     FieldSetBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties const&);

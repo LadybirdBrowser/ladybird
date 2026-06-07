@@ -194,8 +194,8 @@ protected:
         // Each block in the containing chain adds its own margin and we store the total here.
         CSSPixels left_total_containing_margin;
         CSSPixels right_total_containing_margin;
-        GC::Ptr<Box const> matching_left_float_box;
-        GC::Ptr<Box const> matching_right_float_box;
+        Box const* matching_left_float_box { nullptr };
+        Box const* matching_right_float_box { nullptr };
     };
 
     struct ShrinkToFitResult {
@@ -239,7 +239,7 @@ protected:
     LayoutMode m_layout_mode;
 
     FormattingContext* m_parent { nullptr };
-    GC::Ref<Box const> m_context_box;
+    Box const& m_context_box;
 
     LayoutState& m_state;
 };
@@ -253,7 +253,7 @@ public:
         for (int i = 0; i < s_depth; ++i)
             indent_builder.append("| "sv);
         auto intrinsic_marker = fc.m_layout_mode == LayoutMode::IntrinsicSizing ? " [intrinsic]"sv : ""sv;
-        dbgln("{}|- {} <{}> run({}){}", indent_builder.string_view(), FormattingContext::type_name(fc.m_type), fc.m_context_box->debug_description(), available_space, intrinsic_marker);
+        dbgln("{}|- {} <{}> run({}){}", indent_builder.string_view(), FormattingContext::type_name(fc.m_type), fc.m_context_box.debug_description(), available_space, intrinsic_marker);
         ++s_depth;
     }
 

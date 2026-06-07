@@ -239,9 +239,9 @@ void HTMLCanvasElement::attribute_changed(FlyString const& local_name, Optional<
     }
 }
 
-GC::Ptr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::CanvasBox>(document(), *this, style);
+    return make_ref_counted<Layout::CanvasBox>(document(), *this, style);
 }
 
 void HTMLCanvasElement::adjust_computed_style(CSS::ComputedProperties& style)

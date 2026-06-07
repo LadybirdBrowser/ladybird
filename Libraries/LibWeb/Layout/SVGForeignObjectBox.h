@@ -14,8 +14,7 @@
 namespace Web::Layout {
 
 class SVGForeignObjectBox final : public BlockContainer {
-    GC_CELL(SVGForeignObjectBox, BlockContainer);
-    GC_DECLARE_ALLOCATOR(SVGForeignObjectBox);
+    LAYOUT_NODE(SVGForeignObjectBox, BlockContainer);
 
 public:
     SVGForeignObjectBox(DOM::Document&, SVG::SVGForeignObjectElement&, CSS::ComputedProperties const&);

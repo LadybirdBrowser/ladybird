@@ -55,11 +55,9 @@ public:
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
-    void add_contained_abspos_child(GC::Ref<Node> child) { m_contained_abspos_children.append(child); }
+    void add_contained_abspos_child(Node& child) { m_contained_abspos_children.append(child.make_weak_ptr()); }
     void clear_contained_abspos_children() { m_contained_abspos_children.clear(); }
-    Vector<GC::Ref<Node>> const& contained_abspos_children() const { return m_contained_abspos_children; }
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    Vector<WeakPtr<Node>> const& contained_abspos_children() const { return m_contained_abspos_children; }
 
     IntrinsicSizes& cached_intrinsic_sizes() const
     {
@@ -69,15 +67,16 @@ public:
     }
     void reset_cached_intrinsic_sizes() const { m_cached_intrinsic_sizes.clear(); }
 
-protected:
     Box(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
+
+protected:
     virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const { return natural_size(); }
 
 private:
     virtual bool is_box() const final { return true; }
 
-    Vector<GC::Ref<Node>> m_contained_abspos_children;
+    Vector<WeakPtr<Node>> m_contained_abspos_children;
 
     OwnPtr<IntrinsicSizes> mutable m_cached_intrinsic_sizes;
 };

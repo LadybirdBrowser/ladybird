@@ -23,9 +23,9 @@ void SVGTextElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-GC::Ptr<Layout::Node> SVGTextElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGTextElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::SVGTextBox>(document(), *this, style);
+    return make_ref_counted<Layout::SVGTextBox>(document(), *this, style);
 }
 
 }

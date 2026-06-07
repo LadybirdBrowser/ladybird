@@ -79,7 +79,7 @@ void InlineLevelIterator::enter_node_with_box_model_metrics(Layout::NodeWithStyl
     // Now's our chance to resolve the inset properties for this node.
     m_inline_formatting_context.compute_inset(node, m_inline_formatting_context.content_box_rect(m_containing_block_used_values).size());
 
-    m_box_model_node_stack.append(node);
+    m_box_model_node_stack.append(&node);
 }
 
 void InlineLevelIterator::exit_node_with_box_model_metrics()
@@ -87,7 +87,7 @@ void InlineLevelIterator::exit_node_with_box_model_metrics()
     if (!m_extra_trailing_metrics.has_value())
         m_extra_trailing_metrics = ExtraBoxMetrics {};
 
-    auto& node = m_box_model_node_stack.last();
+    auto& node = *m_box_model_node_stack.last();
     auto& used_values = m_layout_state.get_mutable(node);
 
     m_extra_trailing_metrics->margin += used_values.margin_right;
@@ -136,7 +136,7 @@ void InlineLevelIterator::compute_next()
     if (m_next_node == nullptr)
         return;
     do {
-        m_next_node = next_inline_node_in_pre_order(*m_next_node, m_containing_block);
+        m_next_node = next_inline_node_in_pre_order(*m_next_node, &m_containing_block);
         if (m_next_node && m_next_node->is_svg_mask_box()) {
             // NOTE: It is possible to encounter SVGMaskBox nodes while doing layout of formatting context established by <foreignObject> with a mask.
             //       We should skip and let SVGFormattingContext take care of them.
@@ -206,7 +206,7 @@ Gfx::GlyphRun::TextType InlineLevelIterator::resolve_text_direction_from_context
     auto last_known_direction = m_text_node_context->last_known_direction;
 
     if (last_known_direction.has_value() && next_known_direction.has_value() && *last_known_direction != *next_known_direction) {
-        switch (m_containing_block->computed_values().direction()) {
+        switch (m_containing_block.computed_values().direction()) {
         case CSS::Direction::Ltr:
             return Gfx::GlyphRun::TextType::Ltr;
         case CSS::Direction::Rtl:

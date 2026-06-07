@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
+#include <AK/WeakPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/TextLayout.h>
@@ -20,7 +22,11 @@ class LineBoxFragment {
 public:
     LineBoxFragment(Node const& layout_node, size_t start, size_t length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction, CSS::WritingMode, RefPtr<Gfx::GlyphRun>);
 
-    Node const& layout_node() const { return m_layout_node; }
+    Node const& layout_node() const
+    {
+        VERIFY(m_layout_node);
+        return *m_layout_node;
+    }
     size_t start() const { return m_start; }
     size_t length_in_code_units() const { return m_length_in_code_units; }
 
@@ -65,7 +71,7 @@ private:
     void append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
     void append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
 
-    GC::Ref<Node const> m_layout_node;
+    WeakPtr<Node const> m_layout_node;
     size_t m_start { 0 };
     size_t m_length_in_code_units { 0 };
     CSSPixels m_inline_offset;

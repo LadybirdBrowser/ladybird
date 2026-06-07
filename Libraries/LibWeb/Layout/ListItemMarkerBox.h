@@ -13,8 +13,7 @@
 namespace Web::Layout {
 
 class ListItemMarkerBox final : public Box {
-    GC_CELL(ListItemMarkerBox, Box);
-    GC_DECLARE_ALLOCATOR(ListItemMarkerBox);
+    LAYOUT_NODE(ListItemMarkerBox, Box);
 
 public:
     static bool counter_style_is_rendered_with_custom_image(RefPtr<CSS::CounterStyle const> const& counter_style);
@@ -32,14 +31,12 @@ public:
     CSSPixels relative_size() const;
 
 private:
-    virtual void visit_edges(Cell::Visitor&) override;
-
     virtual bool is_list_item_marker_box() const final { return true; }
     virtual bool can_have_children() const override { return false; }
 
     CSS::ListStyleType m_list_style_type;
     CSS::ListStylePosition m_list_style_position { CSS::ListStylePosition::Outside };
-    GC::Ref<DOM::Element> m_list_item_element;
+    GC::Weak<DOM::Element> m_list_item_element;
 };
 
 template<>

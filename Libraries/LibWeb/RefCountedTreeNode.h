@@ -8,6 +8,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/IterationDecision.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/WeakPtr.h>
@@ -105,6 +106,70 @@ public:
         return const_cast<RefCountedTreeNode&>(*this).previous_sibling();
     }
 
+    size_t index() const
+    {
+        size_t index = 0;
+        for (auto node = previous_sibling(); node; node = node->previous_sibling())
+            ++index;
+        return index;
+    }
+
+    T& root()
+    {
+        auto root = RefPtr<T> { static_cast<T&>(*this) };
+        while (auto parent = root->parent())
+            root = parent;
+        return *root;
+    }
+    T const& root() const { return const_cast<RefCountedTreeNode*>(this)->root(); }
+
+    bool is_ancestor_of(RefCountedTreeNode const& other) const
+    {
+        for (auto ancestor = other.parent(); ancestor; ancestor = ancestor->parent()) {
+            if (ancestor.ptr() == static_cast<T const*>(this))
+                return true;
+        }
+        return false;
+    }
+
+    bool is_inclusive_ancestor_of(RefCountedTreeNode const& other) const
+    {
+        return &other == this || is_ancestor_of(other);
+    }
+
+    bool contains(T const* other) const
+    {
+        return other && other->is_inclusive_descendant_of(*this);
+    }
+
+    bool is_descendant_of(RefCountedTreeNode const& other) const
+    {
+        return other.is_ancestor_of(*this);
+    }
+
+    bool is_inclusive_descendant_of(RefCountedTreeNode const& other) const
+    {
+        return other.is_inclusive_ancestor_of(*this);
+    }
+
+    bool is_following(RefCountedTreeNode const& other) const
+    {
+        for (auto* node = previous_in_pre_order(); node; node = node->previous_in_pre_order()) {
+            if (node == &other)
+                return true;
+        }
+        return false;
+    }
+
+    bool is_parent_of(RefCountedTreeNode const& other) const
+    {
+        for (auto child = first_child(); child; child = child->next_sibling()) {
+            if (child.ptr() == static_cast<T const*>(&other))
+                return true;
+        }
+        return false;
+    }
+
     void append_child(NonnullRefPtr<T> node)
     {
         VERIFY(!node->parent());
@@ -122,11 +187,54 @@ public:
             m_first_child = move(node);
     }
 
+    void prepend_child(NonnullRefPtr<T> node)
+    {
+        VERIFY(!node->parent());
+        VERIFY(!node->next_sibling());
+        VERIFY(!node->previous_sibling());
+
+        if (m_first_child)
+            m_first_child->m_previous_sibling = node;
+        node->m_next_sibling = m_first_child;
+        node->m_parent = static_cast<T&>(*this);
+        m_first_child = move(node);
+        if (!m_last_child)
+            m_last_child = m_first_child;
+    }
+
+    void insert_before(NonnullRefPtr<T> node, T* child)
+    {
+        if (!child)
+            return append_child(move(node));
+
+        VERIFY(!node->parent());
+        VERIFY(!node->next_sibling());
+        VERIFY(!node->previous_sibling());
+        VERIFY(static_cast<RefCountedTreeNode<T>*>(child)->parent().ptr() == static_cast<T*>(this));
+
+        auto previous_sibling = child->previous_sibling();
+        node->m_previous_sibling = previous_sibling;
+        node->m_next_sibling = *child;
+        node->m_parent = static_cast<T&>(*this);
+
+        if (previous_sibling)
+            previous_sibling->m_next_sibling = node;
+        else
+            m_first_child = node;
+
+        child->m_previous_sibling = move(node);
+    }
+
+    void insert_before(NonnullRefPtr<T> node, T& child)
+    {
+        insert_before(move(node), &child);
+    }
+
     void remove_child(T& node)
     {
         RefPtr<T> self = static_cast<T&>(*this);
         RefPtr<T> child_to_remove = node;
-        VERIFY(node.parent() == self);
+        VERIFY(static_cast<RefCountedTreeNode<T>&>(node).parent() == self);
 
         auto previous_sibling = node.previous_sibling();
         auto next_sibling = node.next_sibling();
@@ -149,6 +257,37 @@ public:
         node.m_next_sibling.clear();
         node.m_previous_sibling.clear();
         node.m_parent.clear();
+    }
+
+    void replace_child(NonnullRefPtr<T> new_child, T& old_child)
+    {
+        VERIFY(&old_child != new_child.ptr());
+        VERIFY(static_cast<RefCountedTreeNode<T>&>(old_child).parent().ptr() == static_cast<T*>(this));
+        VERIFY(!new_child->parent());
+        VERIFY(!new_child->next_sibling());
+        VERIFY(!new_child->previous_sibling());
+
+        auto previous_sibling = old_child.previous_sibling();
+        auto next_sibling = old_child.next_sibling();
+        RefPtr<T> old_child_ref = old_child;
+
+        new_child->m_parent = static_cast<T&>(*this);
+        new_child->m_previous_sibling = previous_sibling;
+        new_child->m_next_sibling = next_sibling;
+
+        if (previous_sibling)
+            previous_sibling->m_next_sibling = new_child;
+        else
+            m_first_child = new_child;
+
+        if (next_sibling)
+            next_sibling->m_previous_sibling = new_child;
+        else
+            m_last_child = new_child;
+
+        old_child_ref->m_next_sibling.clear();
+        old_child_ref->m_previous_sibling.clear();
+        old_child_ref->m_parent.clear();
     }
 
     void remove()
@@ -264,19 +403,168 @@ public:
     }
 
     template<typename U>
-    RefPtr<U const> first_ancestor_of_type() const
+    U const* next_sibling_of_type() const
+    {
+        return const_cast<RefCountedTreeNode*>(this)->template next_sibling_of_type<U>();
+    }
+
+    template<typename U>
+    U* next_sibling_of_type()
+    {
+        for (auto sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
+            if (auto* sibling_of_type = as_if<U>(*sibling))
+                return sibling_of_type;
+        }
+        return nullptr;
+    }
+
+    template<typename U>
+    U const* previous_sibling_of_type() const
+    {
+        return const_cast<RefCountedTreeNode*>(this)->template previous_sibling_of_type<U>();
+    }
+
+    template<typename U>
+    U* previous_sibling_of_type()
+    {
+        for (auto sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
+            if (auto* sibling_of_type = as_if<U>(*sibling))
+                return sibling_of_type;
+        }
+        return nullptr;
+    }
+
+    template<typename U>
+    bool has_child_of_type() const
+    {
+        return first_child_of_type<U>() != nullptr;
+    }
+
+    template<typename U>
+    U const* first_child_of_type() const
+    {
+        return const_cast<RefCountedTreeNode*>(this)->template first_child_of_type<U>();
+    }
+
+    template<typename U>
+    U const* last_child_of_type() const
+    {
+        return const_cast<RefCountedTreeNode*>(this)->template last_child_of_type<U>();
+    }
+
+    template<typename U>
+    U* first_child_of_type()
+    {
+        for (auto child = first_child(); child; child = child->next_sibling()) {
+            if (auto* child_of_type = as_if<U>(*child))
+                return child_of_type;
+        }
+        return nullptr;
+    }
+
+    template<typename U>
+    U* last_child_of_type()
+    {
+        for (auto child = last_child(); child; child = child->previous_sibling()) {
+            if (auto* child_of_type = as_if<U>(*child))
+                return child_of_type;
+        }
+        return nullptr;
+    }
+
+    template<typename U>
+    U const* first_ancestor_of_type() const
     {
         return const_cast<RefCountedTreeNode&>(*this).template first_ancestor_of_type<U>();
     }
 
     template<typename U>
-    RefPtr<U> first_ancestor_of_type()
+    U* first_ancestor_of_type()
     {
         for (auto ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
             if (auto* ancestor_of_type = as_if<U>(*ancestor))
-                return *ancestor_of_type;
+                return ancestor_of_type;
         }
         return nullptr;
+    }
+
+    template<typename Callback>
+    void for_each_ancestor(Callback callback) const
+    {
+        for (auto ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+            if (callback(*ancestor) == IterationDecision::Break)
+                return;
+        }
+    }
+
+    T* next_in_pre_order()
+    {
+        if (auto child = first_child())
+            return child.ptr();
+
+        auto* node = static_cast<T*>(this);
+        while (node) {
+            if (auto next = node->next_sibling())
+                return next.ptr();
+            auto parent = static_cast<RefCountedTreeNode<T>*>(node)->parent();
+            node = parent.ptr();
+        }
+        return nullptr;
+    }
+
+    T* next_in_pre_order(T const* stay_within)
+    {
+        if (auto child = first_child())
+            return child.ptr();
+
+        auto* node = static_cast<T*>(this);
+        while (node) {
+            if (node == stay_within)
+                return nullptr;
+            if (auto next = node->next_sibling())
+                return next.ptr();
+            auto parent = static_cast<RefCountedTreeNode<T>*>(node)->parent();
+            node = parent.ptr();
+        }
+        return nullptr;
+    }
+
+    T const* next_in_pre_order() const
+    {
+        return const_cast<RefCountedTreeNode*>(this)->next_in_pre_order();
+    }
+
+    T const* next_in_pre_order(T const* stay_within) const
+    {
+        return const_cast<RefCountedTreeNode*>(this)->next_in_pre_order(stay_within);
+    }
+
+    T* previous_in_pre_order()
+    {
+        if (auto previous = previous_sibling()) {
+            auto* node = previous.ptr();
+            while (auto last_child = node->last_child())
+                node = last_child.ptr();
+            return node;
+        }
+
+        return parent().ptr();
+    }
+
+    T const* previous_in_pre_order() const
+    {
+        return const_cast<RefCountedTreeNode*>(this)->previous_in_pre_order();
+    }
+
+    bool is_before(RefCountedTreeNode const& other) const
+    {
+        if (this == &other)
+            return false;
+        for (auto* node = static_cast<T const*>(this); node; node = node->next_in_pre_order()) {
+            if (node == &other)
+                return true;
+        }
+        return false;
     }
 
     ~RefCountedTreeNode()

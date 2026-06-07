@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class LegendBox final : public BlockContainer {
-    GC_CELL(LegendBox, BlockContainer);
-    GC_DECLARE_ALLOCATOR(LegendBox);
+    LAYOUT_NODE(LegendBox, BlockContainer);
 
 public:
     LegendBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties const&);

@@ -73,14 +73,14 @@ AbstractElement::TreeCountingFunctionResolutionContext AbstractElement::tree_cou
     };
 }
 
-GC::Ptr<Layout::NodeWithStyle> AbstractElement::layout_node()
+Layout::NodeWithStyle* AbstractElement::layout_node()
 {
     if (m_pseudo_element.has_value())
         return m_element->pseudo_element_layout_node(*m_pseudo_element);
     return m_element->layout_node();
 }
 
-GC::Ptr<Layout::NodeWithStyle> AbstractElement::unsafe_layout_node()
+Layout::NodeWithStyle* AbstractElement::unsafe_layout_node()
 {
     if (m_pseudo_element.has_value())
         return m_element->pseudo_element_unsafe_layout_node(*m_pseudo_element);
@@ -110,7 +110,7 @@ Optional<AbstractElement> AbstractElement::element_to_inherit_style_from() const
 Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_method)
 {
     // NB: Called during style recalculation.
-    GC::Ptr<Layout::Node> node = unsafe_layout_node();
+    Layout::Node* node = unsafe_layout_node();
     if (!node)
         return OptionalNone {};
 

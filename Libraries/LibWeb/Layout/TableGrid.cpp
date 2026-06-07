@@ -37,7 +37,7 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
         // NB: The remaining steps already accomplish the same thing in this case.
 
         // 5. Let current cell be the first td or th element child in the tr element being processed.
-        for (auto* child = row.first_child(); child; child = child->next_sibling()) {
+        for (auto child = row.first_child(); child; child = child->next_sibling()) {
             // NB: This actually applies to children with `display: table-cell`, not just td/th elements.
             if (!child->display().is_table_cell())
                 continue;

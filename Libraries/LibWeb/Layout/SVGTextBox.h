@@ -13,8 +13,7 @@
 namespace Web::Layout {
 
 class SVGTextBox final : public SVGGraphicsBox {
-    GC_CELL(SVGTextBox, SVGGraphicsBox);
-    GC_DECLARE_ALLOCATOR(SVGTextBox);
+    LAYOUT_NODE(SVGTextBox, SVGGraphicsBox);
 
 public:
     SVGTextBox(DOM::Document&, SVG::SVGTextPositioningElement&, CSS::ComputedProperties const&);

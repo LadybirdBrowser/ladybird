@@ -11,8 +11,6 @@
 
 namespace Web::Layout {
 
-GC_DEFINE_ALLOCATOR(CheckBox);
-
 CheckBox::CheckBox(DOM::Document& document, HTML::HTMLInputElement& element, CSS::ComputedProperties const& style)
     : ReplacedBox(document, element, style)
 {

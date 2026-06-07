@@ -68,8 +68,8 @@ public:
 private:
     // TextOffsetMapping is a short-lived stack object, and the layout nodes are kept alive by the document's layout
     // tree for the duration of its use, so there's no need to visit these.
-    GC::RawPtr<TextNode const> m_primary;
-    GC::RawPtr<TextSliceNode const> m_first_letter_slice;
+    TextNode const* m_primary { nullptr };
+    TextSliceNode const* m_first_letter_slice { nullptr };
 };
 
 }

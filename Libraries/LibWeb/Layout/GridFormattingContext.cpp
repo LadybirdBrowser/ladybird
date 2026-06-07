@@ -300,7 +300,7 @@ GridFormattingContext const* GridFormattingContext::parent_grid_formatting_conte
 GridItem const* GridFormattingContext::grid_item_for_box(Box const& box) const
 {
     for (auto const& item : m_grid_items) {
-        if (item.box.ptr() == &box)
+        if (&item.box == &box)
             return &item;
     }
     return nullptr;
@@ -316,7 +316,7 @@ GridItem const* GridFormattingContext::parent_grid_item() const
 
 bool GridFormattingContext::grid_item_is_subgridded_in_axis(GridItem const& item, GridDimension dimension) const
 {
-    if (!item.box->display().is_grid_inside())
+    if (!item.box.display().is_grid_inside())
         return false;
 
     auto const& grid_template = dimension == GridDimension::Column
@@ -1942,7 +1942,7 @@ void GridFormattingContext::place_grid_items()
     // flex items), which are then assigned to predefined areas in the grid. They can be explicitly
     // placed using coordinates through the grid-placement properties or implicitly placed into
     // empty areas using auto-placement.
-    HashMap<int, Vector<GC::Ref<Box const>>> order_item_bucket;
+    HashMap<int, Vector<Box const&>> order_item_bucket;
     grid_container().for_each_child_of_type<Box>([&](Box& child_box) {
         if (can_skip_is_anonymous_text_run(child_box))
             return IterationDecision::Continue;
@@ -1973,7 +1973,7 @@ void GridFormattingContext::place_grid_items()
         auto& boxes_to_place = order_item_bucket.get(key).value();
         for (size_t i = 0; i < boxes_to_place.size(); i++) {
             auto const& child_box = boxes_to_place[i];
-            auto const& computed_values = child_box->computed_values();
+            auto const& computed_values = child_box.computed_values();
             if (is_auto_positioned_track(computed_values.grid_row_start(), computed_values.grid_row_end())
                 || is_auto_positioned_track(computed_values.grid_column_start(), computed_values.grid_column_end()))
                 continue;
@@ -1988,7 +1988,7 @@ void GridFormattingContext::place_grid_items()
         auto& boxes_to_place = order_item_bucket.get(key).value();
         for (size_t i = 0; i < boxes_to_place.size(); i++) {
             auto const& child_box = boxes_to_place[i];
-            auto const& computed_values = child_box->computed_values();
+            auto const& computed_values = child_box.computed_values();
             if (is_auto_positioned_track(computed_values.grid_row_start(), computed_values.grid_row_end()))
                 continue;
             place_item_with_row_position(child_box);
@@ -2037,7 +2037,7 @@ void GridFormattingContext::place_grid_items()
         auto& boxes_to_place = order_item_bucket.get(key).value();
         for (size_t i = 0; i < boxes_to_place.size(); i++) {
             auto const& child_box = boxes_to_place[i];
-            auto const& computed_values = child_box->computed_values();
+            auto const& computed_values = child_box.computed_values();
 
             if (!is_auto_positioned_track(computed_values.grid_column_start(), computed_values.grid_column_end())) {
                 // 4.1.1 / 4.2.1: Item with definite column position.
@@ -2222,7 +2222,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
                 result.margin_start = absorbed_margin_space;
             } else if (end_is_auto) {
                 result.margin_end = absorbed_margin_space;
-            } else if (css_size.is_auto() && !item.box->is_replaced_box()) {
+            } else if (css_size.is_auto() && !item.box.is_replaced_box()) {
                 result.size += free_space_left_for_margins;
             }
 
@@ -2274,15 +2274,15 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
         };
 
         ItemAlignment used_alignment;
-        auto hint = item.box->auto_content_box_size();
+        auto hint = item.box.auto_content_box_size();
         bool has_replaced_size_hint_in_this_axis = false;
         if (dimension == GridDimension::Column) {
-            has_replaced_size_hint_in_this_axis = hint.has_width() || (hint.has_height() && item.box->has_preferred_aspect_ratio());
+            has_replaced_size_hint_in_this_axis = hint.has_width() || (hint.has_height() && item.box.has_preferred_aspect_ratio());
         } else {
-            has_replaced_size_hint_in_this_axis = hint.has_height() || (hint.has_width() && item.box->has_preferred_aspect_ratio());
+            has_replaced_size_hint_in_this_axis = hint.has_height() || (hint.has_width() && item.box.has_preferred_aspect_ratio());
         }
 
-        if (item.box->is_replaced_box() && has_replaced_size_hint_in_this_axis) {
+        if (item.box.is_replaced_box() && has_replaced_size_hint_in_this_axis) {
             auto tentative_size = tentative_size_for_replaced_element(preferred_size);
             used_alignment = try_compute_size(tentative_size, item.preferred_size(dimension));
         } else {
@@ -2303,7 +2303,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
                     .margin_end = item.used_margin_end(dimension),
                     .size = stretched_size
                 };
-            } else if (dimension == GridDimension::Column && is<TableWrapper>(*item.box)) {
+            } else if (dimension == GridDimension::Column && is<TableWrapper>(item.box)) {
                 // CSS Grid lays out each grid item into its grid-area containing block before alignment. For
                 // display:table, the anonymous table wrapper is the grid item, while table layout computes the inner
                 // table's border-box width, so resolve the wrapper width with the same grid-area basis used later.
@@ -2317,11 +2317,11 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
                 CSSPixels fit_content_size;
                 if (dimension == GridDimension::Column) {
                     fit_content_size = calculate_fit_content_width(item.box, available_space);
-                } else if (preferred_size.is_auto() && item.box->has_preferred_aspect_ratio() && *item.box->preferred_aspect_ratio() != 0 && item.used_values.has_definite_width()) {
+                } else if (preferred_size.is_auto() && item.box.has_preferred_aspect_ratio() && *item.box.preferred_aspect_ratio() != 0 && item.used_values.has_definite_width()) {
                     // NB: When the item has a preferred aspect ratio and a definite width, resolve the
                     //     height through the aspect ratio instead of using fit-content sizing, which would
                     //     incorrectly use the available width (grid area width) instead of the item's width.
-                    fit_content_size = item.used_values.content_width() / *item.box->preferred_aspect_ratio();
+                    fit_content_size = item.used_values.content_width() / *item.box.preferred_aspect_ratio();
                 } else {
                     fit_content_size = calculate_fit_content_height(item.box, available_space);
                 }
@@ -2578,7 +2578,7 @@ CSSPixels GridFormattingContext::grid_container_size_for_track_alignment(GridDim
 void GridFormattingContext::resolve_items_box_metrics(GridDimension dimension)
 {
     for (auto& item : m_grid_items) {
-        auto& computed_values = item.box->computed_values();
+        auto& computed_values = item.box.computed_values();
 
         CSSPixels containing_block_width = containing_block_size_for_item(item, GridDimension::Column);
         if (dimension == GridDimension::Column) {
@@ -2688,7 +2688,7 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
     };
 
     auto place_into_track_formed_by_last_line_and_grid_container_padding_edge = [&](GridDimension dimension) {
-        VERIFY(grid_item.box->is_absolutely_positioned());
+        VERIFY(grid_item.box.is_absolutely_positioned());
         auto const& tracks_and_gaps = dimension == GridDimension::Column ? m_grid_columns_and_gaps : m_grid_rows_and_gaps;
         CSSPixels offset = 0;
         for (auto const& row_track : tracks_and_gaps) {
@@ -2784,7 +2784,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
     collapse_auto_fit_tracks_if_needed(GridDimension::Row);
 
     for (auto& item : m_grid_items) {
-        auto& computed_values = item.box->computed_values();
+        auto& computed_values = item.box.computed_values();
 
         // NOTE: As the containing blocks of grid items are created by implicit grid areas that are not present in the
         // layout tree, the initial value of has_definite_width/height computed by LayoutState::UsedValues::set_node
@@ -2844,7 +2844,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
     for (auto& grid_item : m_grid_items) {
         auto const grid_area_rect = get_grid_area_rect(grid_item);
-        if (is<TableWrapper>(*grid_item.box)) {
+        if (is<TableWrapper>(grid_item.box)) {
             // Track spacing can expand the final grid area after the earlier width pass. Recompute the wrapper width
             // against that final area and store it so the real table layout resolves percentages against the grid area.
             resolve_table_wrapper_grid_item_width(grid_item, grid_area_rect.width());
@@ -3417,7 +3417,7 @@ bool GridFormattingContext::should_treat_preferred_size_as_auto_for_intrinsic_co
     // When a non-replaced grid item's percentage preferred size contributes to
     // sizing tracks in the same axis, the percentage is cyclic and behaves as
     // the property's initial value for intrinsic contribution calculations.
-    return !item.box->is_replaced_box() && item.preferred_size(dimension).contains_percentage();
+    return !item.box.is_replaced_box() && item.preferred_size(dimension).contains_percentage();
 }
 
 CSSPixels GridFormattingContext::calculate_min_content_size(GridItem const& item, GridDimension dimension) const
@@ -3448,7 +3448,7 @@ CSSPixels GridFormattingContext::containing_block_size_for_item(GridItem const& 
 Box const& GridFormattingContext::table_box_inside_table_wrapper(GridItem const& item) const
 {
     Optional<Box const&> table_box;
-    item.box->for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
+    item.box.for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
         if (child_box.display().is_table_inside()) {
             table_box = child_box;
             return TraversalDecision::Break;
@@ -3461,7 +3461,7 @@ Box const& GridFormattingContext::table_box_inside_table_wrapper(GridItem const&
 
 void GridFormattingContext::resolve_table_wrapper_grid_item_width(GridItem& item, CSSPixels containing_block_width)
 {
-    VERIFY(is<TableWrapper>(*item.box));
+    VERIFY(is<TableWrapper>(item.box));
 
     auto table_wrapper_containing_block_width = non_cyclic_containing_block_width_for_table_wrapper(item, containing_block_width);
     auto available_space = AvailableSpace {
@@ -3487,7 +3487,7 @@ void GridFormattingContext::resolve_table_wrapper_grid_item_width(GridItem& item
     if (!item.minimum_size(GridDimension::Column).is_auto())
         table_wrapper_width = max(table_wrapper_width, calculate_inner_width(item.box, available_space.width, item.minimum_size(GridDimension::Column)));
 
-    auto const& computed_values = item.box->computed_values();
+    auto const& computed_values = item.box.computed_values();
     item.used_values.margin_left = computed_values.margin().left().to_px_or_zero(grid_container(), table_wrapper_containing_block_width);
     item.used_values.margin_right = computed_values.margin().right().to_px_or_zero(grid_container(), table_wrapper_containing_block_width);
 
@@ -3585,7 +3585,7 @@ CSSPixels GridFormattingContext::calculate_min_content_contribution(GridItem con
         //       width contribution is 0 because its content can overflow and scroll horizontally.
         //       This does NOT apply to the row dimension — scroll containers must still contribute
         //       their content height, otherwise grids with height:min-content collapse rows to 0.
-        if (dimension == GridDimension::Column && item.box->is_scroll_container()) {
+        if (dimension == GridDimension::Column && item.box.is_scroll_container()) {
             min_content_size = 0;
         } else {
             min_content_size = calculate_min_content_size(item, dimension);
@@ -3738,7 +3738,7 @@ Optional<CSSPixels> GridFormattingContext::specified_size_suggestion(GridItem co
     // https://www.w3.org/TR/css-grid-1/#specified-size-suggestion
     // If the item’s preferred size in the relevant axis is definite, then the specified size suggestion is that size.
     // It is otherwise undefined.
-    if (!item.box->is_replaced_box() && item.preferred_size(dimension).contains_percentage())
+    if (!item.box.is_replaced_box() && item.preferred_size(dimension).contains_percentage())
         return {};
 
     auto has_definite_preferred_size = dimension == GridDimension::Column ? item.used_values.has_definite_width() : item.used_values.has_definite_height();
@@ -3757,7 +3757,7 @@ Optional<CSSPixels> GridFormattingContext::transferred_size_suggestion(GridItem 
     // If the item has a preferred aspect ratio and its preferred size in the opposite axis is definite, then the transferred
     // size suggestion is that size (clamped by the opposite-axis minimum and maximum sizes if they are definite), converted
     // through the aspect ratio. It is otherwise undefined.
-    if (!item.box->preferred_aspect_ratio().has_value()) {
+    if (!item.box.preferred_aspect_ratio().has_value()) {
         return {};
     }
 
@@ -3765,7 +3765,7 @@ Optional<CSSPixels> GridFormattingContext::transferred_size_suggestion(GridItem 
     if (preferred_size_in_opposite_axis.is_length()) {
         auto opposite_axis_size = preferred_size_in_opposite_axis.length().to_px(item.box);
         // FIXME: Clamp by opposite-axis minimum and maximum sizes if they are definite
-        return opposite_axis_size * item.box->preferred_aspect_ratio().value();
+        return opposite_axis_size * item.box.preferred_aspect_ratio().value();
     }
 
     return {};
@@ -3823,7 +3823,7 @@ CSSPixels GridFormattingContext::content_based_minimum_size(GridItem const& item
     // against zero (and considered definite).
     // FIXME: "compressible replaced element" includes more elements than is_replaced_box().
     auto const& preferred_size = item.preferred_size(dimension);
-    if (item.box->is_replaced_box() && (preferred_size.is_percentage() || maximum_size.is_percentage())) {
+    if (item.box.is_replaced_box() && (preferred_size.is_percentage() || maximum_size.is_percentage())) {
         // NOTE: Implements "for this purpose, any indefinite percentages in these sizes are resolved
         //       against zero (and considered definite)." part.
         result = 0;
@@ -3854,7 +3854,7 @@ CSSPixels GridFormattingContext::automatic_minimum_size(GridItem const& item, Gr
         if (track.min_track_sizing_function.is_auto(available_size))
             spans_auto_tracks = true;
     }
-    if (spans_auto_tracks && !item.box->is_scroll_container() && (item_track_span == 1 || !spans_flexible_tracks)) {
+    if (spans_auto_tracks && !item.box.is_scroll_container() && (item_track_span == 1 || !spans_flexible_tracks)) {
         return content_based_minimum_size(item, dimension);
     }
 

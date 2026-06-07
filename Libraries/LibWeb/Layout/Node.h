@@ -10,18 +10,29 @@
 #include <AK/DoublyLinkedList.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/RefCounted.h>
 #include <AK/Vector.h>
+#include <AK/WeakPtr.h>
+#include <AK/Weakable.h>
+#include <LibGC/Cell.h>
 #include <LibGC/Weak.h>
-#include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/TreeNode.h>
+#include <LibWeb/RefCountedTreeNode.h>
 
 namespace Web::Layout {
+
+#define LAYOUT_NODE(class_, base_class)            \
+public:                                            \
+    using Base = base_class;                       \
+    virtual StringView class_name() const override \
+    {                                              \
+        return #class_##sv;                        \
+    }
 
 class InlineNode;
 
@@ -37,12 +48,15 @@ enum class LayoutMode {
 };
 
 class WEB_API Node
-    : public JS::Cell
-    , public TreeNode<Node> {
-    GC_CELL(Node, JS::Cell);
+    : public RefCounted<Node>
+    , public Weakable<Node>
+    , public RefCountedTreeNode<Node> {
 
 public:
+    using Base = RefCountedTreeNode<Node>;
+
     virtual ~Node();
+    virtual StringView class_name() const { return "Node"sv; }
 
     bool is_anonymous() const;
     DOM::Node const* dom_node() const;
@@ -60,11 +74,7 @@ public:
     bool is_generated_for_before_pseudo_element() const { return m_generated_for == CSS::PseudoElement::Before; }
     bool is_generated_for_after_pseudo_element() const { return m_generated_for == CSS::PseudoElement::After; }
     bool is_generated_for_backdrop_pseudo_element() const { return m_generated_for == CSS::PseudoElement::Backdrop; }
-    void set_generated_for(CSS::PseudoElement type, DOM::Element& element)
-    {
-        m_generated_for = type;
-        m_pseudo_element_generator = &element;
-    }
+    void set_generated_for(CSS::PseudoElement type, DOM::Element&);
 
     using PaintableList = DoublyLinkedList<NonnullRefPtr<Painting::Paintable>>;
 
@@ -176,15 +186,15 @@ public:
         return true;
     }
 
-    [[nodiscard]] GC::Ptr<Box const> containing_block() const { return m_containing_block; }
-    [[nodiscard]] GC::Ptr<Box> containing_block() { return m_containing_block; }
+    [[nodiscard]] Box const* containing_block() const { return m_containing_block; }
+    [[nodiscard]] Box* containing_block() { return m_containing_block; }
 
     // Returns the inline node that actually establishes the containing block for this absolutely
     // positioned element, if applicable. This is needed because m_containing_block can only hold
     // a Box*, but CSS allows inline elements (like a <span> with position:relative) to establish
     // containing blocks for their absolutely positioned descendants.
     // See the large FIXME comment in FormattingContext.cpp for full context.
-    [[nodiscard]] GC::Ptr<InlineNode const> inline_containing_block_if_applicable() const { return m_inline_containing_block_if_applicable; }
+    [[nodiscard]] InlineNode const* inline_containing_block_if_applicable() const { return m_inline_containing_block_if_applicable; }
 
     void recompute_containing_block(Badge<DOM::Document>);
 
@@ -260,24 +270,22 @@ public:
 protected:
     Node(DOM::Document&, DOM::Node*, AttachToDOMNode = AttachToDOMNode::Yes);
 
-    virtual void visit_edges(Cell::Visitor&) override;
-
 private:
     friend class NodeWithStyle;
 
-    GC::Ref<DOM::Node> m_dom_node;
+    GC::Weak<DOM::Node> m_dom_node;
     PaintableList m_paintable;
 
-    GC::Ptr<Box> m_containing_block;
+    Box* m_containing_block { nullptr };
 
     // For absolutely positioned elements, if there's an inline element (like a <span> with
     // position:relative) that should be the containing block but can't be stored in m_containing_block
     // (because it's not a Box), we store it here. This happens when a block element is inside an
     // inline element - the layout tree restructures so the block becomes a sibling of the inline,
     // but the CSS containing block relationship is based on the DOM structure.
-    GC::Ptr<InlineNode> m_inline_containing_block_if_applicable;
+    InlineNode const* m_inline_containing_block_if_applicable { nullptr };
 
-    GC::Ptr<DOM::Element> m_pseudo_element_generator;
+    GC::Weak<DOM::Element> m_pseudo_element_generator;
 
     bool m_anonymous { false };
     bool m_has_style { false };
@@ -297,12 +305,10 @@ private:
 };
 
 class WEB_API NodeWithStyle : public Node {
-    GC_CELL(NodeWithStyle, Node);
+    LAYOUT_NODE(NodeWithStyle, Node);
 
 public:
-    virtual ~NodeWithStyle() override = default;
-
-    static constexpr bool OVERRIDES_FINALIZE = true;
+    virtual ~NodeWithStyle() override;
 
     class ImageObserver final : public CSS::ImageStyleValue::Client {
     public:
@@ -310,10 +316,9 @@ public:
         virtual ~ImageObserver() override;
 
         virtual void image_style_value_did_update(CSS::ImageStyleValue&) override;
-        void visit_edges(JS::Cell::Visitor&) const;
 
     private:
-        GC::Weak<NodeWithStyle> m_owner;
+        WeakPtr<NodeWithStyle> m_owner;
         NonnullRefPtr<CSS::ImageStyleValue const> m_image;
     };
 
@@ -328,14 +333,12 @@ public:
     CSS::AbstractImageStyleValue const* list_style_image() const { return m_list_style_image; }
     CSS::StyleScope const& style_scope() const;
 
-    GC::Ref<NodeWithStyle> create_anonymous_wrapper() const;
+    NonnullRefPtr<NodeWithStyle> create_anonymous_wrapper() const;
 
     void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues& wrapper_computed_values);
 
     bool is_body() const { return m_is_body; }
     bool is_scroll_container() const;
-
-    virtual void visit_edges(Cell::Visitor& visitor) override;
 
     void set_computed_values(NonnullOwnPtr<CSS::ComputedValues>);
 
@@ -348,7 +351,6 @@ protected:
 
 private:
     virtual bool is_node_with_style() const final { return true; }
-    virtual void finalize() override;
 
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
     void propagate_non_inherit_values(NodeWithStyle& target_node) const;
@@ -366,17 +368,15 @@ template<>
 inline bool Node::fast_is<NodeWithStyle>() const { return is_node_with_style(); }
 
 class NodeWithStyleAndBoxModelMetrics : public NodeWithStyle {
-    GC_CELL(NodeWithStyleAndBoxModelMetrics, NodeWithStyle);
+    LAYOUT_NODE(NodeWithStyleAndBoxModelMetrics, NodeWithStyle);
 
 public:
-    GC::Ptr<NodeWithStyleAndBoxModelMetrics> continuation_of_node() const { return m_continuation_of_node; }
-    void set_continuation_of_node(Badge<TreeBuilder>, GC::Ptr<NodeWithStyleAndBoxModelMetrics> node) { m_continuation_of_node = node; }
+    NodeWithStyleAndBoxModelMetrics* continuation_of_node() const { return m_continuation_of_node.ptr(); }
+    void set_continuation_of_node(Badge<TreeBuilder>, NodeWithStyleAndBoxModelMetrics* node) { m_continuation_of_node = node; }
 
     bool should_create_inline_continuation() const;
 
     void propagate_style_along_continuation(CSS::ComputedProperties const&) const;
-
-    virtual void visit_edges(Cell::Visitor& visitor) override;
 
 protected:
     NodeWithStyleAndBoxModelMetrics(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
@@ -389,7 +389,7 @@ protected:
 private:
     virtual bool is_node_with_style_and_box_model_metrics() const final { return true; }
 
-    GC::Ptr<NodeWithStyleAndBoxModelMetrics> m_continuation_of_node;
+    WeakPtr<NodeWithStyleAndBoxModelMetrics> m_continuation_of_node;
 };
 
 template<>
@@ -430,12 +430,12 @@ inline CSS::ImmutableComputedValues const& Node::computed_values() const
 
 inline NodeWithStyle const* Node::parent() const
 {
-    return static_cast<NodeWithStyle const*>(TreeNode<Node>::parent());
+    return static_cast<NodeWithStyle const*>(Base::parent().ptr());
 }
 
 inline NodeWithStyle* Node::parent()
 {
-    return static_cast<NodeWithStyle*>(TreeNode<Node>::parent());
+    return static_cast<NodeWithStyle*>(Base::parent().ptr());
 }
 
 inline Gfx::Font const& NodeWithStyle::first_available_font() const

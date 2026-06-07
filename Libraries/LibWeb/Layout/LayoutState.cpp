@@ -425,7 +425,7 @@ static void build_paint_tree(Node& node, RefPtr<Painting::Paintable> parent_pain
         if (node.dom_node())
             node.dom_node()->set_paintable(paintable);
     }
-    for (auto* child = node.first_child(); child; child = child->next_sibling()) {
+    for (auto child = node.first_child(); child; child = child->next_sibling()) {
         build_paint_tree(*child, node.first_paintable());
     }
 }
@@ -744,8 +744,8 @@ void LayoutState::commit(Box& root)
         auto const* box = as_if<Box>(used_values.node());
         if (!box || !box->paintable_box())
             return;
-        if (auto containing_block = box->containing_block())
-            contained_boxes_map.ensure(containing_block.ptr()).append(box);
+        if (auto const* containing_block = box->containing_block())
+            contained_boxes_map.ensure(containing_block).append(box);
     });
 
     // Measure overflow in scroll containers.

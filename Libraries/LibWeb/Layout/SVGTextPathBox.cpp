@@ -9,8 +9,6 @@
 
 namespace Web::Layout {
 
-GC_DEFINE_ALLOCATOR(SVGTextPathBox);
-
 SVGTextPathBox::SVGTextPathBox(DOM::Document& document, SVG::SVGTextPathElement& element, CSS::ComputedProperties const& style)
     : SVGGraphicsBox(document, element, style)
 {

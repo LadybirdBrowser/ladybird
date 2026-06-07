@@ -26,9 +26,9 @@ void SVGGElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-GC::Ptr<Layout::Node> SVGGElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGGElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, style);
+    return make_ref_counted<Layout::SVGGraphicsBox>(document(), *this, style);
 }
 
 }

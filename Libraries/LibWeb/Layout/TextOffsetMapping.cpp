@@ -13,7 +13,7 @@ namespace Web::Layout {
 TextOffsetMapping::TextOffsetMapping(DOM::Text const& text)
 {
     m_primary = as_if<TextNode>(text.unsafe_layout_node());
-    if (auto* primary_slice = as_if<TextSliceNode>(m_primary.ptr()))
+    if (auto* primary_slice = as_if<TextSliceNode>(m_primary))
         m_first_letter_slice = primary_slice->first_letter_slice();
 }
 

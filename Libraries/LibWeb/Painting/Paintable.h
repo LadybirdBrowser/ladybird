@@ -10,7 +10,6 @@
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
 #include <LibGC/Ptr.h>
-#include <LibGC/Weak.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/Export.h>
@@ -151,8 +150,14 @@ protected:
     Optional<WeakPtr<PaintableBox>> mutable m_containing_block;
 
 private:
+    void detach_from_layout_node(Badge<Layout::Node>)
+    {
+        m_containing_block.clear();
+        m_layout_node.clear();
+    }
+
     GC::Weak<DOM::Node> m_dom_node;
-    GC::Weak<Layout::Node const> m_layout_node;
+    WeakPtr<Layout::Node const> m_layout_node;
 
     SelectionState m_selection_state { SelectionState::None };
 

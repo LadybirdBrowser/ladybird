@@ -13,8 +13,7 @@
 namespace Web::Layout {
 
 class SVGGeometryBox final : public SVGGraphicsBox {
-    GC_CELL(SVGGeometryBox, SVGGraphicsBox);
-    GC_DECLARE_ALLOCATOR(SVGGeometryBox);
+    LAYOUT_NODE(SVGGeometryBox, SVGGraphicsBox);
 
 public:
     SVGGeometryBox(DOM::Document&, SVG::SVGGeometryElement&, CSS::ComputedProperties const&);

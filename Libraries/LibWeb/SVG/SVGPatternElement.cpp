@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/SVGPatternElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/SVGPatternBox.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Painting/DisplayList.h>

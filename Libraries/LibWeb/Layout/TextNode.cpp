@@ -19,8 +19,6 @@
 
 namespace Web::Layout {
 
-GC_DEFINE_ALLOCATOR(TextNode);
-
 TextNode::TextNode(DOM::Document& document, DOM::Text& text)
     : Node(document, &text)
 {
@@ -48,8 +46,6 @@ bool TextNode::is_password_input() const
     return dom_node().is_password_input();
 }
 
-GC_DEFINE_ALLOCATOR(GeneratedTextNode);
-
 GeneratedTextNode::GeneratedTextNode(DOM::Document& document, Utf16String text)
     : TextNode(document)
     , m_text(move(text))
@@ -67,8 +63,6 @@ DOM::Element const* GeneratedTextNode::parent_element_for_text_transform() const
     return nullptr;
 }
 
-GC_DEFINE_ALLOCATOR(TextSliceNode);
-
 TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node, size_t dom_start_offset, size_t dom_length)
     : TextNode(document, text, attach_to_dom_node)
     , m_dom_start_offset(dom_start_offset)
@@ -77,12 +71,6 @@ TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToD
 }
 
 TextSliceNode::~TextSliceNode() = default;
-
-void TextSliceNode::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_first_letter_slice);
-}
 
 // https://w3c.github.io/mathml-core/#new-text-transform-values
 static Utf16String apply_math_auto_text_transform(Utf16String const& string)

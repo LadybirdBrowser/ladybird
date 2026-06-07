@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class SVGTextPathBox final : public SVGGraphicsBox {
-    GC_CELL(SVGTextPathBox, SVGGraphicsBox);
-    GC_DECLARE_ALLOCATOR(SVGTextPathBox);
+    LAYOUT_NODE(SVGTextPathBox, SVGGraphicsBox);
 
 public:
     SVGTextPathBox(DOM::Document&, SVG::SVGTextPathElement&, CSS::ComputedProperties const&);

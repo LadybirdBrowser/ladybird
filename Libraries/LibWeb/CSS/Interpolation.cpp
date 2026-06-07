@@ -1426,9 +1426,8 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
 
     // NB: Called during style interpolation.
     ColorResolutionContext color_resolution_context {};
-    if (auto node = element.unsafe_layout_node()) {
-        color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*element.unsafe_layout_node());
-    }
+    if (auto* node = element.unsafe_layout_node())
+        color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*node);
 
     for (size_t i = 0; i < from_shadows.size(); i++) {
         auto const& from_shadow = from_shadows[i]->as_shadow();
@@ -1740,9 +1739,8 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
     case StyleValue::Type::Color: {
         // NB: Called during style interpolation.
         ColorResolutionContext color_resolution_context {};
-        if (auto node = element.unsafe_layout_node()) {
-            color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*element.unsafe_layout_node());
-        }
+        if (auto* node = element.unsafe_layout_node())
+            color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*node);
 
         if (auto interpolated = interpolate_color(from, to, delta, {}, color_resolution_context))
             return interpolated;

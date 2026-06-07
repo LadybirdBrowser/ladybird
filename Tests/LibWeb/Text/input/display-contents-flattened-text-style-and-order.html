@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font-size: 10px;
+    }
+
+    #styled-contents {
+        display: contents;
+        font-size: 40px;
+    }
+
+    #normal-text {
+        font-size: 10px;
+    }
+
+    #pre-space {
+        display: contents;
+        white-space: pre;
+        font-size: 40px;
+    }
+
+    #pseudo-container {
+        display: inline-block;
+        font-family: monospace;
+        font-size: 20px;
+    }
+
+    #pseudo-contents {
+        display: contents;
+    }
+
+    #pseudo-contents::before {
+        display: contents;
+        content: "XXXXXXXXXX";
+    }
+</style>
+<div id="style-target"><span id="styled-contents">Styled text</span><span id="normal-text">Styled text</span></div>
+<div id="order-target">A<span id="contents-insertion" style="display: contents"></span><i>C</i></div>
+<div id="pre-space-target">A<span id="pre-space">   </span>B</div>
+<span id="normal-space"> </span>
+<div id="pseudo-container"><span id="pseudo-contents"></span></div>
+<span id="single-char" style="font-family: monospace; font-size: 20px">A</span>
+<script>
+    function rectForTextNode(textNode) {
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        return range.getBoundingClientRect();
+    }
+
+    test(() => {
+        const styledContents = document.getElementById("styled-contents");
+        const normalText = document.getElementById("normal-text");
+        const contentsInsertion = document.getElementById("contents-insertion");
+        const orderTarget = document.getElementById("order-target");
+        const preSpace = document.getElementById("pre-space");
+        const normalSpace = document.getElementById("normal-space");
+        const pseudoContainer = document.getElementById("pseudo-container");
+        const pseudoContents = document.getElementById("pseudo-contents");
+        const singleChar = document.getElementById("single-char");
+
+        const styledRect = rectForTextNode(styledContents.firstChild);
+        const normalRect = rectForTextNode(normalText.firstChild);
+        println(`direct text inherited contents font: ${styledRect.width > normalRect.width * 2}`);
+
+        contentsInsertion.append("B");
+        document.body.offsetWidth;
+
+        const aRect = rectForTextNode(orderTarget.firstChild);
+        const bRect = rectForTextNode(contentsInsertion.firstChild);
+        const cRect = rectForTextNode(orderTarget.lastChild.firstChild);
+        println(`dynamic insertion preserves flattened order: ${aRect.left < bRect.left && bRect.left < cRect.left}`);
+
+        const preSpaceRect = rectForTextNode(preSpace.firstChild);
+        const normalSpaceRect = rectForTextNode(normalSpace.firstChild);
+        println(`significant whitespace inherited contents style: ${preSpaceRect.width > normalSpaceRect.width * 5}`);
+
+        const pseudoWidthBefore = pseudoContainer.getBoundingClientRect().width;
+        const singleCharWidth = singleChar.getBoundingClientRect().width;
+        pseudoContents.append("A");
+        document.body.offsetWidth;
+        const pseudoWidthAfter = pseudoContainer.getBoundingClientRect().width;
+        println(`dynamic child update avoids duplicate pseudo: ${pseudoWidthAfter - pseudoWidthBefore < singleCharWidth * 2}`);
+    });
+</script>

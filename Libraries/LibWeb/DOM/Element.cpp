@@ -806,7 +806,7 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
     return elements;
 }
 
-GC::Ptr<Layout::Node> Element::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> Element::create_layout_node(CSS::ComputedProperties const& style)
 {
     if (local_name() == "noscript" && document().is_scripting_enabled())
         return nullptr;
@@ -815,23 +815,26 @@ GC::Ptr<Layout::Node> Element::create_layout_node(CSS::ComputedProperties const&
     return create_layout_node_for_display_type(document(), display, style, this);
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::ComputedProperties const& style, Element* element)
+RefPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::ComputedProperties const& style, Element* element)
 {
     if (display.is_none())
         return {};
 
+    if (display.is_contents())
+        return {};
+
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
-        return document.heap().allocate<Layout::Box>(document, element, style);
+        return make_ref_counted<Layout::Box>(document, element, style);
 
     if (display.is_list_item())
-        return document.heap().allocate<Layout::ListItemBox>(document, element, style);
+        return make_ref_counted<Layout::ListItemBox>(document, element, style);
 
     if (display.is_table_cell())
-        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
+        return make_ref_counted<Layout::BlockContainer>(document, element, style);
 
     if (display.is_table_column() || display.is_table_column_group() || display.is_table_caption()) {
         // FIXME: This is just an incorrect placeholder until we improve table layout support.
-        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
+        return make_ref_counted<Layout::BlockContainer>(document, element, style);
     }
 
     if (display.is_math_inside()) {
@@ -839,35 +842,35 @@ GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM:
         // MathML elements with a computed display value equal to block math or inline math control box generation
         // and layout according to their tag name, as described in the relevant sections.
         // FIXME: Figure out what kind of node we should make for them. For now, we'll stick with a generic Box.
-        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
+        return make_ref_counted<Layout::BlockContainer>(document, element, style);
     }
 
     if (display.is_inline_outside()) {
         if (display.is_flow_root_inside())
-            return document.heap().allocate<Layout::BlockContainer>(document, element, style);
+            return make_ref_counted<Layout::BlockContainer>(document, element, style);
         if (display.is_flow_inside())
-            return document.heap().allocate<Layout::InlineNode>(document, element, style);
+            return make_ref_counted<Layout::InlineNode>(document, element, style);
         if (display.is_flex_inside())
-            return document.heap().allocate<Layout::Box>(document, element, style);
+            return make_ref_counted<Layout::Box>(document, element, style);
         if (display.is_grid_inside())
-            return document.heap().allocate<Layout::Box>(document, element, style);
+            return make_ref_counted<Layout::Box>(document, element, style);
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Support display: {}", display.to_string());
-        return document.heap().allocate<Layout::InlineNode>(document, element, style);
+        return make_ref_counted<Layout::InlineNode>(document, element, style);
     }
 
     if (display.is_flex_inside() || display.is_grid_inside())
-        return document.heap().allocate<Layout::Box>(document, element, style);
+        return make_ref_counted<Layout::Box>(document, element, style);
 
-    if (display.is_flow_inside() || display.is_flow_root_inside() || display.is_contents())
-        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
+    if (display.is_flow_inside() || display.is_flow_root_inside())
+        return make_ref_counted<Layout::BlockContainer>(document, element, style);
 
     dbgln("FIXME: CSS display '{}' not implemented yet.", display.to_string());
 
     // FIXME: We don't actually support `display: block ruby`, this is just a hack to prevent a crash
     if (display.is_ruby_inside())
-        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
+        return make_ref_counted<Layout::BlockContainer>(document, element, style);
 
-    return document.heap().allocate<Layout::InlineNode>(document, element, style);
+    return make_ref_counted<Layout::InlineNode>(document, element, style);
 }
 
 void Element::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
@@ -1844,7 +1847,7 @@ void Element::children_changed(ChildrenChangedMetadata const& metadata)
     }
 }
 
-void Element::set_synthetic_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement pseudo_element, GC::Ptr<Layout::NodeWithStyle> pseudo_element_node)
+void Element::set_synthetic_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::PseudoElement pseudo_element, Layout::NodeWithStyle* pseudo_element_node)
 {
     auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element);
     if (!existing_pseudo_element.has_value() && !pseudo_element_node)
@@ -1857,14 +1860,14 @@ void Element::set_synthetic_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS:
     ensure_synthetic_pseudo_element(pseudo_element).set_layout_node(move(pseudo_element_node));
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::pseudo_element_layout_node(CSS::PseudoElement pseudo_element) const
+Layout::NodeWithStyle* Element::pseudo_element_layout_node(CSS::PseudoElement pseudo_element) const
 {
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
         return element_data->layout_node();
     return nullptr;
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::pseudo_element_unsafe_layout_node(CSS::PseudoElement pseudo_element) const
+Layout::NodeWithStyle* Element::pseudo_element_unsafe_layout_node(CSS::PseudoElement pseudo_element) const
 {
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
         return element_data->unsafe_layout_node();
@@ -2041,6 +2044,8 @@ void Element::clear_synthetic_pseudo_element_layout_nodes()
                 return TraversalDecision::Continue;
             });
             layout_node->prepare_subtree_for_detach_from_layout_tree();
+            if (layout_node->parent())
+                layout_node->remove();
         }
         pseudo_element.set_layout_node(nullptr);
     });
@@ -3607,22 +3612,22 @@ void Element::for_each_attribute(Function<void(FlyString const&, String const&)>
     });
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::layout_node()
+Layout::NodeWithStyle* Element::layout_node()
 {
     return static_cast<Layout::NodeWithStyle*>(Node::layout_node());
 }
 
-GC::Ptr<Layout::NodeWithStyle const> Element::layout_node() const
+Layout::NodeWithStyle const* Element::layout_node() const
 {
     return static_cast<Layout::NodeWithStyle const*>(Node::layout_node());
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::unsafe_layout_node()
+Layout::NodeWithStyle* Element::unsafe_layout_node()
 {
     return static_cast<Layout::NodeWithStyle*>(Node::unsafe_layout_node());
 }
 
-GC::Ptr<Layout::NodeWithStyle const> Element::unsafe_layout_node() const
+Layout::NodeWithStyle const* Element::unsafe_layout_node() const
 {
     return static_cast<Layout::NodeWithStyle const*>(Node::unsafe_layout_node());
 }

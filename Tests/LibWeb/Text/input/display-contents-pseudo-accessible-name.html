@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #target::before {
+        content: "before ";
+        display: contents;
+    }
+
+    #target::after {
+        content: " after";
+        display: contents;
+    }
+</style>
+<div id="target" role="button">content</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+        println(internals.getComputedLabel(target));
+    });
+</script>

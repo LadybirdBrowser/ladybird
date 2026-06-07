@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <AK/WeakPtr.h>
 #include <LibGfx/TextLayout.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/Enums.h>
@@ -22,8 +23,7 @@ class GeneratedTextNode;
 class TextSliceNode;
 
 class TextNode : public Node {
-    GC_CELL(TextNode, Node);
-    GC_DECLARE_ALLOCATOR(TextNode);
+    LAYOUT_NODE(TextNode, Node);
 
 public:
     TextNode(DOM::Document&, DOM::Text&);
@@ -155,8 +155,7 @@ private:
 };
 
 class GeneratedTextNode final : public TextNode {
-    GC_CELL(GeneratedTextNode, TextNode);
-    GC_DECLARE_ALLOCATOR(GeneratedTextNode);
+    LAYOUT_NODE(GeneratedTextNode, TextNode);
 
 public:
     GeneratedTextNode(DOM::Document&, Utf16String);
@@ -173,8 +172,7 @@ private:
 };
 
 class TextSliceNode final : public TextNode {
-    GC_CELL(TextSliceNode, TextNode);
-    GC_DECLARE_ALLOCATOR(TextSliceNode);
+    LAYOUT_NODE(TextSliceNode, TextNode);
 
 public:
     TextSliceNode(DOM::Document&, DOM::Text&, AttachToDOMNode, size_t dom_start_offset, size_t dom_length);
@@ -185,18 +183,17 @@ public:
 
     // Only meaningful on a remainder slice. Returns the first-letter slice that renders the leading
     // sub-range of the same DOM::Text, or nullptr if first-letter is not active for this DOM::Text.
-    TextSliceNode const* first_letter_slice() const { return m_first_letter_slice; }
-    TextSliceNode* first_letter_slice() { return m_first_letter_slice; }
+    TextSliceNode const* first_letter_slice() const { return m_first_letter_slice.ptr(); }
+    TextSliceNode* first_letter_slice() { return m_first_letter_slice.ptr(); }
 
     void set_first_letter_slice(TextSliceNode& slice) { m_first_letter_slice = slice; }
 
 private:
     virtual bool is_text_slice_node() const override { return true; }
-    virtual void visit_edges(Cell::Visitor&) override;
 
     size_t m_dom_start_offset { 0 };
     size_t m_dom_length_in_code_units { 0 };
-    GC::Ptr<TextSliceNode> m_first_letter_slice;
+    WeakPtr<TextSliceNode> m_first_letter_slice;
 };
 
 template<>

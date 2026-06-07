@@ -7,6 +7,7 @@
 
 #include <LibWeb/Bindings/SVGMaskElement.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 
@@ -27,7 +28,7 @@ void SVGMaskElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-GC::Ptr<Layout::Node> SVGMaskElement::create_layout_node(CSS::ComputedProperties const&)
+RefPtr<Layout::Node> SVGMaskElement::create_layout_node(CSS::ComputedProperties const&)
 {
     // Masks are handled as a special case in the TreeBuilder.
     return nullptr;

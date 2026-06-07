@@ -20,9 +20,13 @@ void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 
-    visitor.visit(m_layout_node);
     if (m_counters_set)
         m_counters_set->visit_edges(visitor);
+}
+
+void SyntheticPseudoElement::set_layout_node(Layout::NodeWithStyle* value)
+{
+    m_layout_node = value;
 }
 
 Optional<CSS::CountersSet const&> SyntheticPseudoElement::counters_set() const
@@ -50,12 +54,12 @@ void SyntheticPseudoElementTreeNode::visit_edges(JS::Cell::Visitor& visitor)
     TreeNode::visit_edges(visitor);
 }
 
-GC::Ptr<Layout::NodeWithStyle> ElementReferencePseudoElement::layout_node() const
+Layout::NodeWithStyle* ElementReferencePseudoElement::layout_node() const
 {
     return m_referenced_element->layout_node();
 }
 
-GC::Ptr<Layout::NodeWithStyle> ElementReferencePseudoElement::unsafe_layout_node() const
+Layout::NodeWithStyle* ElementReferencePseudoElement::unsafe_layout_node() const
 {
     return m_referenced_element->unsafe_layout_node();
 }

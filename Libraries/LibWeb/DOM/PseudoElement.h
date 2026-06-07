@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/OwnPtr.h>
+#include <AK/WeakPtr.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -23,8 +24,8 @@ class WEB_API PseudoElement : public JS::Cell {
     GC_DECLARE_ALLOCATOR(PseudoElement);
 
 public:
-    virtual GC::Ptr<Layout::NodeWithStyle> layout_node() const = 0;
-    virtual GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const = 0;
+    virtual Layout::NodeWithStyle* layout_node() const = 0;
+    virtual Layout::NodeWithStyle* unsafe_layout_node() const = 0;
 
     virtual RefPtr<CSS::ComputedProperties> computed_properties() const = 0;
 
@@ -36,9 +37,9 @@ class WEB_API SyntheticPseudoElement : public PseudoElement {
     GC_CELL(SyntheticPseudoElement, PseudoElement);
     GC_DECLARE_ALLOCATOR(SyntheticPseudoElement);
 
-    GC::Ptr<Layout::NodeWithStyle> layout_node() const override { return m_layout_node; }
-    GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const override { return m_layout_node; }
-    void set_layout_node(GC::Ptr<Layout::NodeWithStyle> value) { m_layout_node = value; }
+    Layout::NodeWithStyle* layout_node() const override { return m_layout_node.ptr(); }
+    Layout::NodeWithStyle* unsafe_layout_node() const override { return m_layout_node.ptr(); }
+    void set_layout_node(Layout::NodeWithStyle*);
 
     RefPtr<CSS::ComputedProperties> computed_properties() const override { return m_computed_properties; }
     void set_computed_properties(RefPtr<CSS::ComputedProperties> value) { m_computed_properties = value; }
@@ -57,7 +58,7 @@ class WEB_API SyntheticPseudoElement : public PseudoElement {
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    GC::Ptr<Layout::NodeWithStyle> m_layout_node;
+    WeakPtr<Layout::NodeWithStyle> m_layout_node;
     RefPtr<CSS::ComputedProperties> m_computed_properties;
     RefPtr<CSS::CustomPropertyData const> m_custom_property_data;
     OwnPtr<CSS::CountersSet> m_counters_set;
@@ -84,8 +85,8 @@ class WEB_API ElementReferencePseudoElement : public PseudoElement {
     {
     }
 
-    GC::Ptr<Layout::NodeWithStyle> layout_node() const override;
-    GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const override;
+    Layout::NodeWithStyle* layout_node() const override;
+    Layout::NodeWithStyle* unsafe_layout_node() const override;
 
     RefPtr<CSS::ComputedProperties> computed_properties() const override;
 

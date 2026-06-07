@@ -14,6 +14,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
@@ -316,8 +317,8 @@ public:
 
     void set_highlighted_node(GC::Ptr<Node>, Optional<CSS::PseudoElement>);
     GC::Ptr<Node const> highlighted_node() const { return m_highlighted_node; }
-    GC::Ptr<Layout::Node> highlighted_layout_node();
-    GC::Ptr<Layout::Node const> highlighted_layout_node() const { return const_cast<Document*>(this)->highlighted_layout_node(); }
+    Layout::Node* highlighted_layout_node();
+    Layout::Node const* highlighted_layout_node() const { return const_cast<Document*>(this)->highlighted_layout_node(); }
     void set_flexbox_highlighted_node(GC::Ptr<Node>, Painting::FlexboxInspectorOverlayOptions);
     void clear_flexbox_highlighted_node(GC::Ptr<Node>);
     void set_grid_highlighted_node(GC::Ptr<Node>, Painting::GridInspectorOverlayOptions);
@@ -1221,7 +1222,7 @@ private:
 
     GC::Ptr<HTML::Window> m_window;
 
-    GC::Ptr<Layout::Viewport> m_layout_root;
+    RefPtr<Layout::Viewport> m_layout_root;
 
     GC::Ptr<Node> m_hovered_node;
     GC::Ptr<Node> m_inspected_node;
@@ -1360,7 +1361,7 @@ private:
 
     bool m_is_running_update_layout { false };
 
-    HashTable<GC::Ref<Layout::SVGSVGBox>> m_svg_roots_needing_relayout;
+    HashTable<WeakPtr<Layout::SVGSVGBox>> m_svg_roots_needing_relayout;
 
     bool m_needs_animated_style_update { false };
 
