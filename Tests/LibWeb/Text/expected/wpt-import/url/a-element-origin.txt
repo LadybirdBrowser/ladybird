@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 394 tests
+Found 402 tests
 
-394 Pass
+402 Pass
 Pass	Loading data…
 Pass	Parsing origin: <http://example	.
 org> against <http://example.org/foo/bar>
@@ -46,6 +46,8 @@ Pass	Parsing origin: <::> against <http://example.org/foo/bar>
 Pass	Parsing origin: <::23> against <http://example.org/foo/bar>
 Pass	Parsing origin: <foo://> against <http://example.org/foo/bar>
 Pass	Parsing origin: <http://a:b@c:29/d> against <http://example.org/foo/bar>
+Pass	Parsing origin: <http://é@é> against <about:blank>
+Pass	Parsing origin: <http://é@example.com> against <about:blank>
 Pass	Parsing origin: <http::@c:29> against <http://example.org/foo/bar>
 Pass	Parsing origin: <http://&a:foo(b]c@d:2/> against <http://example.org/foo/bar>
 Pass	Parsing origin: <http://::@c@d:2> against <http://example.org/foo/bar>
@@ -72,6 +74,7 @@ Pass	Parsing origin: <http://[::127.0.0.1]> against <http://example.org/foo/bar>
 Pass	Parsing origin: <http://[0:0:0:0:0:0:13.1.68.3]> against <http://example.org/foo/bar>
 Pass	Parsing origin: <http://[2001::1]:80> against <http://example.org/foo/bar>
 Pass	Parsing origin: <http:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing origin: <http:/> against <http://example.com/>
 Pass	Parsing origin: <ftp:/example.com/> against <http://example.org/foo/bar>
 Pass	Parsing origin: <https:/example.com/> against <http://example.org/foo/bar>
 Pass	Parsing origin: <madeupscheme:/example.com/> against <http://example.org/foo/bar>
@@ -237,6 +240,8 @@ Pass	Parsing origin: <http://./> against <about:blank>
 Pass	Parsing origin: <http://../> against <about:blank>
 Pass	Parsing origin: <h://.> against <about:blank>
 Pass	Parsing origin: <http://foo:💩@example.com/bar> against <http://other.com/>
+Pass	Parsing origin: <https://localhost?q=🔥> against <about:blank>
+Pass	Parsing origin: <https://localhost#🔥> against <about:blank>
 Pass	Parsing origin: <#> against <test:test>
 Pass	Parsing origin: <#x> against <mailto:x@x.com>
 Pass	Parsing origin: <#x> against <about:blank>
@@ -315,6 +320,9 @@ Pass	Parsing origin: <http://10000000000.com> against <http://other.com/>
 Pass	Parsing origin: <http://4294967295> against <http://other.com/>
 Pass	Parsing origin: <http://0xffffffff> against <http://other.com/>
 Pass	Parsing origin: <https://0x.0x.0> against <about:blank>
+Pass	Parsing origin: <https://0x.0x.0x.0x> against <about:blank>
+Pass	Parsing origin: <https://00.00.00.00> against <about:blank>
+Pass	Parsing origin: <https://0000000000000000000000000000000000000000177.0.0.1> against <about:blank>
 Pass	Parsing origin: <asdf://%43%7C/> against <about:blank>
 Pass	Parsing origin: <http://[1:0::]> against <http://example.net/>
 Pass	Parsing origin: <sc://ñ> against <about:blank>

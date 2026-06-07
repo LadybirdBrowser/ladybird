@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 871 tests
+Found 890 tests
 
-871 Pass
+890 Pass
 Pass	Loading data…
 Pass	Parsing: <http://example	.
 org> against <http://example.org/foo/bar>
@@ -53,6 +53,8 @@ Pass	Parsing: <::> against <http://example.org/foo/bar>
 Pass	Parsing: <::23> against <http://example.org/foo/bar>
 Pass	Parsing: <foo://> against <http://example.org/foo/bar>
 Pass	Parsing: <http://a:b@c:29/d> against <http://example.org/foo/bar>
+Pass	Parsing: <http://é@é> without base
+Pass	Parsing: <http://é@example.com> without base
 Pass	Parsing: <http::@c:29> against <http://example.org/foo/bar>
 Pass	Parsing: <http://&a:foo(b]c@d:2/> against <http://example.org/foo/bar>
 Pass	Parsing: <http://::@c@d:2> against <http://example.org/foo/bar>
@@ -84,6 +86,7 @@ Pass	Parsing: <http://[::127.0.0.1.]> against <http://example.org/foo/bar>
 Pass	Parsing: <http://[0:0:0:0:0:0:13.1.68.3]> against <http://example.org/foo/bar>
 Pass	Parsing: <http://[2001::1]:80> against <http://example.org/foo/bar>
 Pass	Parsing: <http:/example.com/> against <http://example.org/foo/bar>
+Pass	Parsing: <http:/> against <http://example.com/>
 Pass	Parsing: <ftp:/example.com/> against <http://example.org/foo/bar>
 Pass	Parsing: <https:/example.com/> against <http://example.org/foo/bar>
 Pass	Parsing: <madeupscheme:/example.com/> against <http://example.org/foo/bar>
@@ -335,6 +338,8 @@ Pass	Parsing: <http://[::.1]> against <http://other.com/>
 Pass	Parsing: <http://[::%31]> against <http://other.com/>
 Pass	Parsing: <http://%5B::1]> against <http://other.com/>
 Pass	Parsing: <http://foo:💩@example.com/bar> against <http://other.com/>
+Pass	Parsing: <https://localhost?q=🔥> without base
+Pass	Parsing: <https://localhost#🔥> without base
 Pass	Parsing: <#> against <test:test>
 Pass	Parsing: <#x> against <mailto:x@x.com>
 Pass	Parsing: <#x> against <data:,>
@@ -533,10 +538,15 @@ Pass	Parsing: <http://10000000000> against <http://other.com/>
 Pass	Parsing: <http://10000000000.com> against <http://other.com/>
 Pass	Parsing: <http://4294967295> against <http://other.com/>
 Pass	Parsing: <http://4294967296> against <http://other.com/>
+Pass	Parsing: <http://18446744073709551616> against <http://other.com/>
+Pass	Parsing: <http://18446744075840258049> against <http://other.com/>
 Pass	Parsing: <http://0xffffffff> against <http://other.com/>
 Pass	Parsing: <http://0xffffffff1> against <http://other.com/>
 Pass	Parsing: <http://256.256.256.256> against <http://other.com/>
 Pass	Parsing: <https://0x.0x.0> without base
+Pass	Parsing: <https://0x.0x.0x.0x> without base
+Pass	Parsing: <https://00.00.00.00> without base
+Pass	Parsing: <https://0000000000000000000000000000000000000000177.0.0.1> without base
 Pass	Parsing: <https://0x100000000/test> without base
 Pass	Parsing: <https://256.0.0.1/test> without base
 Pass	Parsing: <file:///C%3A/> without base
@@ -596,6 +606,8 @@ Pass	Parsing: </c:/foo/bar> against <file:///c:/baz/qux>
 Pass	Parsing: </c|/foo/bar> against <file:///c:/baz/qux>
 Pass	Parsing: <file:\c:\foo\bar> against <file:///c:/baz/qux>
 Pass	Parsing: </c:/foo/bar> against <file://host/path>
+Pass	Parsing: <..> against <abc://x/y/z/C:/>
+Pass	Parsing: <..> against <file://x/C:/>
 Pass	Parsing: <file://example.net/C:/> without base
 Pass	Parsing: <file://1.2.3.4/C:/> without base
 Pass	Parsing: <file://[1::8]/C:/> without base
@@ -885,4 +897,13 @@ Pass	Parsing: <non-special:\/opaque> without base
 Pass	Parsing: <non-special:/\path> without base
 Pass	Parsing: <non-special://host\a> without base
 Pass	Parsing: <non-special://host/a\b> without base
+Pass	Parsing: <\a> against <foo://foo/a>
+Pass	Parsing: <\/a> against <foo://foo/a>
+Pass	Parsing: <\\a> against <foo://foo/a>
+Pass	Parsing: <data:text/plain,test#<foo> <bar>> without base
+Pass	Parsing: <about:blank#<foo> <bar>> without base
+Pass	Parsing: <data:text/plain,test# 	
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~Éé> without base
+Pass	Parsing: <about:blank# 	
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~Éé> without base
 Pass	Parsing: <http://example.com/U+d800������U+dfff﷐﷏﷯ﷰ￾￿?U+d800������U+dfff﷐﷏﷯ﷰ￾￿> without base
