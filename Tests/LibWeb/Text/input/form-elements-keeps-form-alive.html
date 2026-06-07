@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<body></body>
+<script>
+    // Regression test: a live HTMLFormControlsCollection captures its form in the filter, so the form must stay
+    // alive while the collection is reachable. Previously the form was garbage-collected out from under the live
+    // collection — leaving a dangling pointer in the filter (a use-after-free). See issue #9948.
+    asyncTest(done => {
+        let form = document.createElement("form");
+        form.appendChild(document.createElement("input"));
+        document.body.appendChild(form);
+
+        let collection = form.elements;
+        let weakForm = new WeakRef(form);
+        form.remove();
+        form = null;
+
+        setTimeout(() => {
+            internals.gc();
+            // Churn the heap to dislodge any stale references, then collect again.
+            for (let i = 0; i < 10000; ++i)
+                document.body.appendChild(document.createElement("div"));
+            internals.gc();
+
+            println(`form alive while collection is held: ${weakForm.deref() !== undefined}`);
+            println(`collection.length: ${collection.length}`);
+            done();
+        }, 0);
+    });
+</script>

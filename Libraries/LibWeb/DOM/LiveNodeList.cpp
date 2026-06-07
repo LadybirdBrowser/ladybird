@@ -33,6 +33,7 @@ void LiveNodeList::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);
+    visitor.visit_possible_values(m_filter.raw_capture_range());
 }
 
 GC::RootVector<Node*> LiveNodeList::collection() const

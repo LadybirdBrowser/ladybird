@@ -50,6 +50,8 @@ void HTMLCollection::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);
+    visitor.visit_possible_values(m_filter.raw_capture_range());
+    visitor.visit_possible_values(m_sort.raw_capture_range());
 }
 
 GC::Cell const& HTMLCollection::owner_cell(Badge<GC::Heap>) const
