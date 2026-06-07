@@ -9,6 +9,7 @@ import json
 import pathlib
 import subprocess
 import sys
+import time
 
 META_SOURCE_DIR = pathlib.Path(__file__).resolve().parent.parent
 LADYBIRD_SOURCE_DIR = META_SOURCE_DIR.parent
@@ -53,7 +54,20 @@ def build_vcpkg():
     if platform.libc_name() == "musl":
         arguments.append("-musl")
 
-    subprocess.check_call(args=arguments, cwd=vcpkg_checkout)
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            subprocess.check_call(args=arguments, cwd=vcpkg_checkout)
+            return
+        except subprocess.CalledProcessError:
+            if attempt == max_attempts:
+                raise
+            delay_seconds = 15 * attempt
+            print(
+                f"vcpkg bootstrap failed (attempt {attempt}); retrying in {delay_seconds}s",
+                file=sys.stderr,
+            )
+            time.sleep(delay_seconds)
 
 
 def main():
