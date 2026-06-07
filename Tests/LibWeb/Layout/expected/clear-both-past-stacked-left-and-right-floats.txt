@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div> at [8,158] floating [0+0+0 784 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
         BlockContainer <div> at [8,358] floating [0+0+0 784 0+0+0] [0+0+0 80 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> at [8,438] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
+          GeneratedTextNode <(anonymous)> (not painted)
       BlockContainer <div#after> at [8,438] [0+0+0 784 0+0+0] [0+0+0 10 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,448] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)

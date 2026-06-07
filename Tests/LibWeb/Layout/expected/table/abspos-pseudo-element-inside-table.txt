@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             Box <tr> at [10,10] table-row [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: not-inline
               BlockContainer <(anonymous)> at [10,10] table-cell [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
                 BlockContainer <(anonymous)> at [0,590] positioned [0+0+0 800 0+0+0] [0+0+0 10 0+0+0] [BFC] children: inline
-                  TextNode <#text> (not painted)
+                  GeneratedTextNode <(anonymous)> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x20]

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    #target::before {
+        content: "generated text";
+    }
+    #first-letter::before {
+        content: "generated first letter";
+    }
+    #first-letter::first-letter {
+        color: red;
+    }
+</style>
+<div id="target"></div>
+<div id="first-letter"></div>
+<script>
+    target.getBoundingClientRect();
+    internals.gc();
+    target.style.width = "10px";
+    target.getBoundingClientRect();
+</script>

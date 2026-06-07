@@ -102,7 +102,11 @@ void Viewport::update_text_blocks()
             // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
             // When a node is inert:
             // - The user agent should ignore the node for the purposes of find-in-page.
-            auto& dom_node = const_cast<DOM::Text&>(text_node->dom_node());
+            auto* dom_text = text_node->dom_text();
+            if (!dom_text)
+                return TraversalDecision::Continue;
+
+            auto& dom_node = const_cast<DOM::Text&>(*dom_text);
             if (dom_node.is_inert())
                 return TraversalDecision::Continue;
 

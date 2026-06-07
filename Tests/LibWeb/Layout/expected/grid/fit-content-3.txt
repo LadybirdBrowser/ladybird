@@ -9,9 +9,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             TextNode <#text> (not painted)
           BlockContainer <div.item> at [8,10] [0+0+0 78 0+0+0] [0+0+0 104 0+0+0] [BFC] children: not-inline
             BlockContainer <(anonymous)> at [9,11] floating [0+1+0 50 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
-              TextNode <#text> (not painted)
+              GeneratedTextNode <(anonymous)> (not painted)
             BlockContainer <(anonymous)> at [9,63] floating [0+1+0 50 0+1+0] [0+1+0 50 0+1+0] [BFC] children: inline
-              TextNode <#text> (not painted)
+              GeneratedTextNode <(anonymous)> (not painted)
           BlockContainer <(anonymous)> at [8,10] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
             TextNode <#text> (not painted)
         TextNode <#text> (not painted)

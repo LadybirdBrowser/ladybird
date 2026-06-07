@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "Features"
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [85.625,16.09375] positioned [0+0+0 8 0+0+0] [0+0+0 5 0+0+0] [BFC] children: inline
-        TextNode <#text> (not painted)
+        GeneratedTextNode <(anonymous)> (not painted)
       BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 

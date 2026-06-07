@@ -8,7 +8,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from TextNode start: 0, length: 14, rect: [13,10 414.703125x57] baseline: 43.484375
                 "See more games"
             BlockContainer <(anonymous)> at [9,9] positioned [0+0+0 422.703125 0+0+0] [0+0+0 59 0+0+0] [BFC] children: inline
-              TextNode <#text> (not painted)
+              GeneratedTextNode <(anonymous)> (not painted)
             TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
