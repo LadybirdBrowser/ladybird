@@ -120,14 +120,15 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(Painting::Painta
     return {};
 }
 
-static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC::Ptr<DOM::Node>& node, GC::Ptr<Layout::Node>& layout_node)
+static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC::Ptr<DOM::Node>& node, Layout::Node*& layout_node)
 {
     layout_node = &paintable.layout_node();
     if (layout_node->is_generated_for_backdrop_pseudo_element()
         || layout_node->is_generated_for_after_pseudo_element()
         || layout_node->is_generated_for_before_pseudo_element()) {
         node = layout_node->pseudo_element_generator();
-        layout_node = node->layout_node();
+        if (auto* generator_layout_node = node->layout_node())
+            layout_node = generator_layout_node;
     }
 
     auto* current_ancestor_node = node.ptr();
@@ -214,7 +215,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     // https://www.w3.org/TR/uievents/#topmost-event-target
     // The topmost event target MUST be the element highest in the rendering order which is capable of being an
     // event target.
-    GC::Ptr<Layout::Node> layout_node;
+    Layout::Node* layout_node = nullptr;
     if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
         return EventResult::Dropped;
 
@@ -365,7 +366,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         // https://www.w3.org/TR/uievents/#topmost-event-target
         // The topmost event target MUST be the element highest in the rendering order which is capable of being an
         // event target.
-        GC::Ptr<Layout::Node> layout_node;
+        Layout::Node* layout_node = nullptr;
         bool found_parent_element = parent_element_for_event_dispatch(*paintable, node, layout_node);
 
         if (found_parent_element) {
@@ -492,7 +493,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     // https://www.w3.org/TR/uievents/#topmost-event-target
     // The topmost event target MUST be the element highest in the rendering order which is capable of being an
     // event target.
-    GC::Ptr<Layout::Node> layout_node;
+    Layout::Node* layout_node = nullptr;
     if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
         return EventResult::Dropped;
 
@@ -695,7 +696,7 @@ EventResult EventHandler::dispatch_wheel_event(Painting::Paintable& paintable, C
         return EventResult::Dropped;
 
     // NB: Search for the first parent of the hit target that's an element.
-    GC::Ptr<Layout::Node> layout_node;
+    Layout::Node* layout_node = nullptr;
     if (!parent_element_for_event_dispatch(paintable, node, layout_node))
         return EventResult::Dropped;
 
@@ -824,7 +825,7 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
         return;
     }
 
-    GC::Ptr<Layout::Node> layout_node;
+    Layout::Node* layout_node = nullptr;
     if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
         return;
 

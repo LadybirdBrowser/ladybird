@@ -75,9 +75,9 @@ GC::Ref<DOM::DOMTokenList> SVGAElement::rel_list()
     return *m_rel_list;
 }
 
-GC::Ptr<Layout::Node> SVGAElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGAElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, style);
+    return make_ref_counted<Layout::SVGGraphicsBox>(document(), *this, style);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#links-created-by-a-and-area-elements

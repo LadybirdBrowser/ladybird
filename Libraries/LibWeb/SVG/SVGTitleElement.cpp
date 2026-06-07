@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGTitleElement.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 
@@ -25,7 +26,7 @@ void SVGTitleElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-GC::Ptr<Layout::Node> SVGTitleElement::create_layout_node(CSS::ComputedProperties const&)
+RefPtr<Layout::Node> SVGTitleElement::create_layout_node(CSS::ComputedProperties const&)
 {
     return nullptr;
 }

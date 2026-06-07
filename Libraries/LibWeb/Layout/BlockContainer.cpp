@@ -9,8 +9,6 @@
 
 namespace Web::Layout {
 
-GC_DEFINE_ALLOCATOR(BlockContainer);
-
 BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& style)
     : Box(document, node, style)
 {

@@ -64,9 +64,9 @@ void SVGTextPathElement::visit_edges(Cell::Visitor& visitor)
     SVGURIReferenceMixin::visit_edges(visitor);
 }
 
-GC::Ptr<Layout::Node> SVGTextPathElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGTextPathElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::SVGTextPathBox>(document(), *this, style);
+    return make_ref_counted<Layout::SVGTextPathBox>(document(), *this, style);
 }
 
 };

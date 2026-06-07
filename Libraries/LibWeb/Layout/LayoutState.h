@@ -229,9 +229,9 @@ struct LayoutState {
         }
 
         void add_floating_descendant(Box const& box) { ensure_rare_data().floating_descendants.set(&box); }
-        HashTable<GC::Ptr<Box const>> const& floating_descendants() const
+        HashTable<Box const*> const& floating_descendants() const
         {
-            static auto const& empty = *new HashTable<GC::Ptr<Box const>>;
+            static auto const& empty = *new HashTable<Box const*>;
             return m_rare ? m_rare->floating_descendants : empty;
         }
 
@@ -349,7 +349,7 @@ struct LayoutState {
                     flex_layout_data = make<FlexLayoutData>(*other.flex_layout_data);
             }
 
-            HashTable<GC::Ptr<Box const>> floating_descendants;
+            HashTable<Box const*> floating_descendants;
             Optional<Painting::PaintableBox::TableCellCoordinates> table_cell_coordinates;
             Optional<Gfx::Path> computed_svg_path;
             OwnPtr<GridLayoutData> grid_layout_data;
@@ -370,7 +370,7 @@ struct LayoutState {
             return *m_rare;
         }
 
-        GC::Ptr<Layout::NodeWithStyle const> m_node { nullptr };
+        Layout::NodeWithStyle const* m_node { nullptr };
         UsedValues const* m_containing_block_used_values { nullptr };
         Optional<CSSPixelPoint> m_cumulative_offset;
 
@@ -410,7 +410,7 @@ private:
     void resolve_relative_positions();
 
     PagedStore<UsedValues> m_used_values_store;
-    GC::Ptr<Layout::NodeWithStyle const> m_subtree_root;
+    Layout::NodeWithStyle const* m_subtree_root { nullptr };
     bool m_should_collect_devtools_layout_data { false };
 };
 

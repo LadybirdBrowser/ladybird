@@ -13,8 +13,7 @@
 namespace Web::Layout {
 
 class SVGMaskBox : public SVGGraphicsBox {
-    GC_CELL(SVGMaskBox, SVGGraphicsBox);
-    GC_DECLARE_ALLOCATOR(SVGMaskBox);
+    LAYOUT_NODE(SVGMaskBox, SVGGraphicsBox);
 
 public:
     SVGMaskBox(DOM::Document&, SVG::SVGMaskElement&, CSS::ComputedProperties const&);

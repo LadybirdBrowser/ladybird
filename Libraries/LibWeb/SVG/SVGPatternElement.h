@@ -8,6 +8,7 @@
 
 #include <LibGC/RootHashTable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -46,7 +47,7 @@ public:
 
     Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&, DisplayListRecordingContext&, Layout::Node const& target_layout_node) const;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override { return nullptr; }
+    virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override { return nullptr; }
 
 protected:
     SVGPatternElement(DOM::Document&, DOM::QualifiedName);

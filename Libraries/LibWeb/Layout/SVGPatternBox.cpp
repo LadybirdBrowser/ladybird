@@ -9,8 +9,6 @@
 
 namespace Web::Layout {
 
-GC_DEFINE_ALLOCATOR(SVGPatternBox);
-
 SVGPatternBox::SVGPatternBox(DOM::Document& document, SVG::SVGPatternElement& element, CSS::ComputedProperties const& style)
     : SVGBox(document, element, style)
 {

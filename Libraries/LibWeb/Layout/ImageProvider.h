@@ -39,11 +39,6 @@ public:
     virtual void set_visible_in_viewport(bool) = 0;
     virtual void layout_node_was_detached() const { }
 
-    virtual void image_provider_visit_edges(GC::Cell::Visitor& visitor) const
-    {
-        visitor.visit(to_html_element());
-    }
-
 protected:
     virtual GC::Ptr<DOM::Element const> to_html_element() const = 0;
     static void did_update_alt_text(ImageBox&);

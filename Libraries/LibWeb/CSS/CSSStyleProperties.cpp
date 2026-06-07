@@ -34,6 +34,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
@@ -603,6 +604,11 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             layout_node = abstract_element.layout_node();
         }
 
+        if (auto pseudo_element = abstract_element.pseudo_element(); layout_node && pseudo_element.has_value()) {
+            if (auto pseudo_style = abstract_element.element().computed_properties(*pseudo_element); pseudo_style && pseudo_style->display().is_contents())
+                layout_node = nullptr;
+        }
+
         // FIXME: Somehow get custom properties if there's no layout node.
         if (property_name_and_id.is_custom_property()) {
             if (auto maybe_value = abstract_element.get_custom_property(property_name_and_id.name())) {
@@ -642,6 +648,37 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             // ancestor-dependent selectors still match for no `layout_node`
             // queries (for example `.outer .inner .target`).
             auto style = abstract_element.document().style_computer().compute_style_with_seeded_ancestors(abstract_element);
+            if (first_is_one_of(property_id,
+                    PropertyID::BackgroundColor,
+                    PropertyID::BorderBottomColor,
+                    PropertyID::BorderLeftColor,
+                    PropertyID::BorderRightColor,
+                    PropertyID::BorderTopColor,
+                    PropertyID::CaretColor,
+                    PropertyID::Color,
+                    PropertyID::OutlineColor,
+                    PropertyID::TextDecorationColor)) {
+                auto color_scheme = style->color_scheme(abstract_element.document().page().preferred_color_scheme(), abstract_element.document().supported_color_schemes());
+                ColorResolutionContext color_resolution_context {
+                    .color_scheme = color_scheme,
+                    .current_color = CSS::InitialValues::color(),
+                    .calculation_resolution_context = {},
+                };
+                color_resolution_context.current_color = style->color(PropertyID::Color, color_resolution_context);
+                auto const& value = style->property(property_id);
+                Optional<Color> color;
+                if (property_id == PropertyID::CaretColor && value.is_keyword() && value.to_keyword() == Keyword::Auto)
+                    color = style->color(PropertyID::Color, color_resolution_context);
+                else if (value.has_color())
+                    color = value.to_color(color_resolution_context).value();
+
+                if (color.has_value()) {
+                    return StyleProperty {
+                        .property_id = property_id,
+                        .value = ColorStyleValue::create_from_color(*color, ColorSyntax::Modern),
+                    };
+                }
+            }
             return StyleProperty {
                 .property_id = property_id,
                 .value = style->property(property_id),

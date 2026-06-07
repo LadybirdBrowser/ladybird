@@ -12,8 +12,6 @@
 
 namespace Web::Layout {
 
-GC_DEFINE_ALLOCATOR(ListItemMarkerBox);
-
 ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType style_type, CSS::ListStylePosition style_position, GC::Ref<DOM::Element> list_item_element, CSS::ComputedProperties const& style)
     : Box(document, nullptr, style)
     , m_list_style_type(style_type)
@@ -41,6 +39,8 @@ bool ListItemMarkerBox::counter_style_is_rendered_with_custom_image(RefPtr<CSS::
 
 Optional<String> ListItemMarkerBox::text() const
 {
+    VERIFY(m_list_item_element);
+
     // https://drafts.csswg.org/css-lists-3/#text-markers
     auto index = m_list_item_element->ordinal_value();
 
@@ -61,7 +61,7 @@ Optional<String> ListItemMarkerBox::text() const
                 return {};
 
             // NB: Fallback to decimal if the counter style does not exist is handled within generate_a_counter_representation()
-            auto counter_representation = CSS::generate_a_counter_representation(counter_style, DOM::AbstractElement { m_list_item_element }.style_scope(), index);
+            auto counter_representation = CSS::generate_a_counter_representation(counter_style, DOM::AbstractElement { *m_list_item_element }.style_scope(), index);
 
             if (!counter_style)
                 return MUST(String::formatted("{}. ", counter_representation));
@@ -107,12 +107,6 @@ CSSPixels ListItemMarkerBox::relative_size() const
         return CSSPixels::nearest_value_for(ceilf(font_size * disclosure_marker_image_size_factor));
 
     VERIFY_NOT_REACHED();
-}
-
-void ListItemMarkerBox::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_list_item_element);
 }
 
 }

@@ -80,7 +80,6 @@ void HTMLObjectElement::initialize(JS::Realm& realm)
 void HTMLObjectElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    image_provider_visit_edges(visitor);
     visitor.visit(m_resource_request);
     visitor.visit(m_document_observer);
 }
@@ -194,16 +193,16 @@ void HTMLObjectElement::set_data(String const& data)
     set_attribute_value(HTML::AttributeNames::data, data);
 }
 
-GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::ComputedProperties const& style)
 {
     switch (m_representation) {
     case Representation::Children:
         return NavigableContainer::create_layout_node(style);
     case Representation::ContentNavigable:
-        return heap().allocate<Layout::NavigableContainerViewport>(document(), *this, style);
+        return make_ref_counted<Layout::NavigableContainerViewport>(document(), *this, style);
     case Representation::Image:
         if (image_data())
-            return heap().allocate<Layout::ImageBox>(document(), *this, style, *this);
+            return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
         break;
     default:
         break;

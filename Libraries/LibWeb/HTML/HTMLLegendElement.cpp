@@ -40,9 +40,9 @@ HTMLFormElement* HTMLLegendElement::form()
     return nullptr;
 }
 
-GC::Ptr<Layout::Node> HTMLLegendElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> HTMLLegendElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::LegendBox>(document(), *this, style);
+    return make_ref_counted<Layout::LegendBox>(document(), *this, style);
 }
 
 Layout::LegendBox* HTMLLegendElement::layout_node()

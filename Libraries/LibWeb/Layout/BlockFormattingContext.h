@@ -77,7 +77,7 @@ public:
     void reset_margin_state() { m_margin_state.reset(); }
 
     struct FloatingBox {
-        GC::Ref<Box const> box;
+        Box const& box;
 
         LayoutState::UsedValues& used_values;
 

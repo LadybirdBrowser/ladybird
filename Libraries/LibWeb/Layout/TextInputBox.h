@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class TextInputBox : public BlockContainer {
-    GC_CELL(TextInputBox, BlockContainer);
-    GC_DECLARE_ALLOCATOR(TextInputBox);
+    LAYOUT_NODE(TextInputBox, BlockContainer);
 
 public:
     TextInputBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::ComputedProperties const&);

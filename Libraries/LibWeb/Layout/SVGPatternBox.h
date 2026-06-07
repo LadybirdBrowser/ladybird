@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class SVGPatternBox final : public SVGBox {
-    GC_CELL(SVGPatternBox, SVGBox);
-    GC_DECLARE_ALLOCATOR(SVGPatternBox);
+    LAYOUT_NODE(SVGPatternBox, SVGBox);
 
 public:
     SVGPatternBox(DOM::Document&, SVG::SVGPatternElement&, CSS::ComputedProperties const&);

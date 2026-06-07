@@ -40,9 +40,9 @@ void HTMLIFrameElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-GC::Ptr<Layout::Node> HTMLIFrameElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> HTMLIFrameElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::NavigableContainerViewport>(document(), *this, style);
+    return make_ref_counted<Layout::NavigableContainerViewport>(document(), *this, style);
 }
 
 void HTMLIFrameElement::adjust_computed_style(CSS::ComputedProperties& style)

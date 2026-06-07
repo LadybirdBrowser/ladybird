@@ -10,8 +10,6 @@
 
 namespace Web::Layout {
 
-GC_DEFINE_ALLOCATOR(ListItemBox);
-
 ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, CSS::ComputedProperties const& style)
     : Layout::BlockContainer(document, element, style)
 {
@@ -19,15 +17,9 @@ ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, CSS::Co
 
 ListItemBox::~ListItemBox() = default;
 
-void ListItemBox::visit_edges(Cell::Visitor& visitor)
+void ListItemBox::set_marker(ListItemMarkerBox* marker)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_marker);
-}
-
-void ListItemBox::set_marker(GC::Ptr<ListItemMarkerBox> marker)
-{
-    m_marker = move(marker);
+    m_marker = marker;
 }
 
 }

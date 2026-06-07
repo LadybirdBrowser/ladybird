@@ -10,11 +10,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <foo-a> at [32.171875,8] flex-item [0+0+0 58.15625 0+0+0] [0+0+0 28 0+0+0] [BFC] children: not-inline
           Box <foo-b> at [37.171875,13] flex-container(row) [0+5+0 48.15625 0+5+0] [0+5+0 18 0+5+0] [FFC] children: not-inline
             BlockContainer <(anonymous)> at [37.171875,13] flex-item [0+0+0 48.15625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 9, length: 5, rect: [37.171875,13 48.15625x18] baseline: 13.796875
-                  "Share"
               TextNode <#text> (not painted)
               TextNode <#text> (not painted)
-              TextNode <#text> (not painted)
+              InlineNode <(anonymous)> at [37.171875,13] [0+0+0 48.15625 0+0+0] [0+0+0 18 0+0+0]
+                frag 0 from TextNode start: 9, length: 5, rect: [37.171875,13 48.15625x18] baseline: 13.796875
+                    "Share"
+                TextNode <#text> (not painted)
               TextNode <#text> (not painted)
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
@@ -30,7 +31,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<FOO-A>) [32.171875,8 58.15625x28]
           PaintableBox (Box<FOO-B>) [32.171875,8 58.15625x28]
             PaintableWithLines (BlockContainer(anonymous)) [37.171875,13 48.15625x18]
-              TextPaintable (TextNode<#text>)
+              PaintableWithLines (InlineNode(anonymous)) [37.171875,13 48.15625x18]
+                TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,36 784x0]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

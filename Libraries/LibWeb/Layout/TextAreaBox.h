@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class TextAreaBox : public BlockContainer {
-    GC_CELL(TextAreaBox, BlockContainer);
-    GC_DECLARE_ALLOCATOR(TextAreaBox);
+    LAYOUT_NODE(TextAreaBox, BlockContainer);
 
 public:
     TextAreaBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::ComputedProperties const&);

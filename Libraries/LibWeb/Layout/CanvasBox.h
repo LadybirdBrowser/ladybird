@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class CanvasBox final : public ReplacedBox {
-    GC_CELL(CanvasBox, ReplacedBox);
-    GC_DECLARE_ALLOCATOR(CanvasBox);
+    LAYOUT_NODE(CanvasBox, ReplacedBox);
 
 public:
     CanvasBox(DOM::Document&, HTML::HTMLCanvasElement&, CSS::ComputedProperties const&);

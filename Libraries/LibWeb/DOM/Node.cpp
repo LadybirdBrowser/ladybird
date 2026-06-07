@@ -137,7 +137,6 @@ void Node::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document);
     visitor.visit(m_child_nodes);
 
-    visitor.visit(m_layout_node);
     if (m_registered_observer_list) {
         visitor.visit(*m_registered_observer_list);
     }
@@ -750,7 +749,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
     if (is_connected()) {
         // NB: Called during DOM insertion, layout is not up to date.
-        if (unsafe_layout_node() && unsafe_layout_node()->display().is_contents() && parent_element()) {
+        if (auto* element = as_if<Element>(*this); element && element->computed_properties() && element->computed_properties()->display().is_contents() && parent_element()) {
             parent_element()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBeforeWithDisplayContents);
         }
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
@@ -1673,7 +1672,7 @@ GC::Ptr<Node> Node::editing_host()
     return {};
 }
 
-void Node::set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node> layout_node)
+void Node::set_layout_node(Badge<Layout::Node>, Layout::Node& layout_node)
 {
     m_layout_node = layout_node;
 }
@@ -1758,7 +1757,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             // If the layout node has an anonymous parent, rebuild from the nearest non-anonymous ancestor.
             // FIXME: This is not optimal, and we should figure out how to rebuild a smaller part of the tree.
             if (layout_node->parent() && layout_node->parent()->is_anonymous()) {
-                GC::Ptr<Layout::Node> ancestor = layout_node->parent();
+                auto* ancestor = layout_node->parent();
                 while (ancestor && ancestor->is_anonymous())
                     ancestor = ancestor->parent();
                 if (ancestor)

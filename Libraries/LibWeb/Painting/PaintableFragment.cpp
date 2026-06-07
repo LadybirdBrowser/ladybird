@@ -49,7 +49,7 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment, Li
     , m_writing_mode(fragment.writing_mode())
     , m_has_trailing_whitespace(fragment.has_trailing_whitespace())
 {
-    if (auto const* text_node = as_if<Layout::TextNode>(*m_layout_node))
+    if (auto const* text_node = as_if<Layout::TextNode>(layout_node()))
         m_dom_start_offset_in_node = text_node->dom_start_offset() + m_start_offset;
     else
         m_dom_start_offset_in_node = m_start_offset;

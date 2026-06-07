@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16View.h>
+#include <AK/WeakPtr.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Layout/Node.h>
@@ -26,8 +27,12 @@ class WEB_API PaintableFragment {
 public:
     PaintableFragment(Layout::LineBoxFragment const&, LineBoxData);
 
-    Layout::Node const& layout_node() const { return m_layout_node; }
-    Paintable const& paintable() const { return *m_layout_node->first_paintable(); }
+    Layout::Node const& layout_node() const
+    {
+        VERIFY(m_layout_node);
+        return *m_layout_node;
+    }
+    Paintable const& paintable() const { return *layout_node().first_paintable(); }
 
     size_t start_offset() const { return m_start_offset; }
     size_t length_in_code_units() const { return m_length_in_code_units; }
@@ -92,7 +97,7 @@ public:
 private:
     Optional<SelectionOffsets> compute_selection_offsets(Paintable::SelectionState, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
 
-    GC::Ref<Layout::Node const> m_layout_node;
+    WeakPtr<Layout::Node const> m_layout_node;
     CSSPixelPoint m_offset;
     CSSPixelSize m_size;
     LineBoxData m_line_box_data;

@@ -55,7 +55,11 @@ Node::Node(DOM::Document& document, DOM::Node* node, AttachToDOMNode attach_to_d
         node->set_layout_node({}, *this);
 }
 
-Node::~Node() = default;
+Node::~Node()
+{
+    for (auto& paintable : m_paintable)
+        paintable->detach_from_layout_node({});
+}
 
 static void invalidate_paint_caches(Node& node)
 {
@@ -80,16 +84,6 @@ void Node::prepare_subtree_for_detach_from_layout_tree()
         node.prepare_for_detach_from_layout_tree();
         return TraversalDecision::Continue;
     });
-}
-
-void Node::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_dom_node);
-    visitor.visit(m_containing_block);
-    visitor.visit(m_inline_containing_block_if_applicable);
-    visitor.visit(m_pseudo_element_generator);
-    TreeNode::visit_edges(visitor);
 }
 
 // https://www.w3.org/TR/css-display-3/#out-of-flow
@@ -269,14 +263,14 @@ bool Node::establishes_a_fixed_positioning_containing_block() const
     return false;
 }
 
-static GC::Ptr<Box> nearest_ancestor_capable_of_forming_a_containing_block(Node& node)
+static Box* nearest_ancestor_capable_of_forming_a_containing_block(Node& node)
 {
     for (auto* ancestor = node.parent(); ancestor; ancestor = ancestor->parent()) {
         if (ancestor->is_block_container()
             || ancestor->display().is_flex_inside()
             || ancestor->display().is_grid_inside()
             || ancestor->is_replaced_box_with_children()) {
-            return as<Box>(ancestor);
+            return static_cast<Box*>(ancestor);
         }
     }
     return nullptr;
@@ -357,7 +351,7 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
                     || computed_values.filter().has_filters() || will_change.has_property(CSS::PropertyID::Filter)
                     || computed_values.backdrop_filter().has_filters() || will_change.has_property(CSS::PropertyID::BackdropFilter);
                 if (inline_establishes_cb) {
-                    m_inline_containing_block_if_applicable = const_cast<InlineNode*>(static_cast<InlineNode const*>(layout_node.ptr()));
+                    m_inline_containing_block_if_applicable = &as<InlineNode>(*layout_node);
                     break;
                 }
             }
@@ -655,14 +649,8 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
     }
 }
 
-void NodeWithStyle::ImageObserver::visit_edges(JS::Cell::Visitor& visitor) const
+NodeWithStyle::~NodeWithStyle()
 {
-    (void)visitor;
-}
-
-void NodeWithStyle::finalize()
-{
-    Base::finalize();
     clear_image_observers();
 }
 
@@ -695,11 +683,6 @@ void NodeWithStyle::rebuild_image_observers()
     add_observer_for(computed_values().mask_image().ptr(), new_observers);
 
     m_image_observers = move(new_observers);
-}
-
-void NodeWithStyle::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
 }
 
 void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
@@ -1219,9 +1202,9 @@ bool Node::is_atomic_inline() const
     return display.is_inline_outside() && !display.is_flow_inside();
 }
 
-GC::Ref<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
+NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 {
-    auto wrapper = heap().allocate<BlockContainer>(const_cast<DOM::Document&>(document()), nullptr, computed_values().clone_inherited_values());
+    auto wrapper = adopt_ref(*new BlockContainer(const_cast<DOM::Document&>(document()), nullptr, computed_values().clone_inherited_values()));
     wrapper->mutable_computed_values().set_display(CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow));
     propagate_non_inherit_values(*wrapper);
     // CSS 2.2 9.2.1.1 creates anonymous block boxes, but 9.4.1 states inline-block creates a BFC.
@@ -1354,6 +1337,7 @@ DOM::Node const* Node::dom_node() const
 {
     if (m_anonymous)
         return nullptr;
+    VERIFY(m_dom_node);
     return m_dom_node.ptr();
 }
 
@@ -1361,28 +1345,39 @@ DOM::Node* Node::dom_node()
 {
     if (m_anonymous)
         return nullptr;
+    VERIFY(m_dom_node);
     return m_dom_node.ptr();
 }
 
 DOM::Element const* Node::pseudo_element_generator() const
 {
     VERIFY(m_generated_for.has_value());
+    VERIFY(m_pseudo_element_generator);
     return m_pseudo_element_generator.ptr();
 }
 
 DOM::Element* Node::pseudo_element_generator()
 {
     VERIFY(m_generated_for.has_value());
+    VERIFY(m_pseudo_element_generator);
     return m_pseudo_element_generator.ptr();
+}
+
+void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
+{
+    m_generated_for = type;
+    m_pseudo_element_generator = element;
 }
 
 DOM::Document& Node::document()
 {
+    VERIFY(m_dom_node);
     return m_dom_node->document();
 }
 
 DOM::Document const& Node::document() const
 {
+    VERIFY(m_dom_node);
     return m_dom_node->document();
 }
 
@@ -1612,12 +1607,6 @@ void NodeWithStyleAndBoxModelMetrics::propagate_style_along_continuation(CSS::Co
         continuation = continuation->continuation_of_node();
     if (continuation)
         continuation->apply_style(computed_style);
-}
-
-void NodeWithStyleAndBoxModelMetrics::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_continuation_of_node);
 }
 
 void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason)

@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGClipPathElement.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 
@@ -36,7 +37,7 @@ void SVGClipPathElement::attribute_changed(FlyString const& name, Optional<Strin
         m_clip_path_units = AttributeParser::parse_units(value.value_or(String {}));
 }
 
-GC::Ptr<Layout::Node> SVGClipPathElement::create_layout_node(CSS::ComputedProperties const&)
+RefPtr<Layout::Node> SVGClipPathElement::create_layout_node(CSS::ComputedProperties const&)
 {
     // Clip paths are handled as a special case in the TreeBuilder.
     return nullptr;

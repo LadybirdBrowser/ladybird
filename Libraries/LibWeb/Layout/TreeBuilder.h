@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibGC/Ptr.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefPtr.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Layout {
@@ -15,7 +16,7 @@ class TreeBuilder {
 public:
     TreeBuilder();
 
-    GC::Ptr<Layout::Node> build(DOM::Node&);
+    RefPtr<Layout::Node> build(DOM::Node&);
 
 private:
     struct Context {
@@ -27,17 +28,18 @@ private:
 
     i32 calculate_list_item_index(DOM::Node&);
 
-    void update_layout_tree_before_children(DOM::Node&, GC::Ref<Layout::Node>, Context&, bool element_has_content_visibility_hidden);
-    void update_layout_tree_after_children(DOM::Node&, GC::Ref<Layout::Node>, Context&, bool element_has_content_visibility_hidden);
-    void wrap_in_button_layout_tree_if_needed(DOM::Node&, GC::Ref<Layout::Node>);
+    void update_layout_tree_before_children(DOM::Node&, Layout::Node&, Context&, bool element_has_content_visibility_hidden);
+    void update_layout_tree_after_children(DOM::Node&, Layout::Node&, Context&, bool element_has_content_visibility_hidden);
+    void wrap_in_button_layout_tree_if_needed(DOM::Node&, Layout::Node&);
     enum class MustCreateSubtree {
         No,
         Yes,
     };
     void update_layout_tree(DOM::Node&, Context&, MustCreateSubtree);
+    void update_layout_tree_for_display_contents(DOM::Element&, Context&, MustCreateSubtree, bool should_create_layout_node);
     TraversalDecision clear_stale_layout_and_paint_node(DOM::Node&, DOM::Node const* content_visibility_hidden_root = nullptr);
 
-    void push_parent(Layout::NodeWithStyle& node) { m_ancestor_stack.append(node); }
+    void push_parent(Layout::NodeWithStyle& node) { m_ancestor_stack.append(&node); }
     void pop_parent() { m_ancestor_stack.take_last(); }
 
     template<CSS::DisplayInternal, typename Callback>
@@ -49,20 +51,20 @@ private:
     void fixup_tables(NodeWithStyle& root);
     void remove_irrelevant_boxes(NodeWithStyle& root);
     void generate_missing_child_wrappers(NodeWithStyle& root);
-    Vector<GC::Root<Box>> generate_missing_parents(NodeWithStyle& root);
-    void missing_cells_fixup(Vector<GC::Root<Box>> const&);
+    Vector<NonnullRefPtr<Box>> generate_missing_parents(NodeWithStyle& root);
+    void missing_cells_fixup(Vector<NonnullRefPtr<Box>> const&);
 
     enum class AppendOrPrepend {
         Append,
         Prepend,
     };
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
-    GC::Ptr<NodeWithStyle> create_pseudo_element_if_needed(DOM::Element&, CSS::PseudoElement, Optional<AppendOrPrepend>);
+    RefPtr<NodeWithStyle> create_pseudo_element_if_needed(DOM::Element&, CSS::PseudoElement, Optional<AppendOrPrepend>);
     static void create_first_letter_wrapper_if_needed(DOM::Element&, Layout::BlockContainer&);
     void restructure_block_node_in_inline_parent(NodeWithStyleAndBoxModelMetrics&);
 
-    GC::Ptr<Layout::Node> m_layout_root;
-    Vector<GC::Ref<Layout::NodeWithStyle>> m_ancestor_stack;
+    RefPtr<Layout::Node> m_layout_root;
+    Vector<Layout::NodeWithStyle*> m_ancestor_stack;
 
     u32 m_quote_nesting_level { 0 };
 };

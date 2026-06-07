@@ -41,7 +41,6 @@ void SVGImageElement::initialize(JS::Realm& realm)
 void SVGImageElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    image_provider_visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_x);
     visitor.visit(m_y);
@@ -206,9 +205,9 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     }
 }
 
-GC::Ptr<Layout::Node> SVGImageElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> SVGImageElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::SVGImageBox>(document(), *this, style);
+    return make_ref_counted<Layout::SVGImageBox>(document(), *this, style);
 }
 
 bool SVGImageElement::is_image_available() const

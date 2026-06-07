@@ -1,0 +1,4 @@
+direct text inherited contents font: true
+dynamic insertion preserves flattened order: true
+significant whitespace inherited contents style: true
+dynamic child update avoids duplicate pseudo: true

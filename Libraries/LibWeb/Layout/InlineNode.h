@@ -11,8 +11,7 @@
 namespace Web::Layout {
 
 class InlineNode final : public NodeWithStyleAndBoxModelMetrics {
-    GC_CELL(InlineNode, NodeWithStyleAndBoxModelMetrics);
-    GC_DECLARE_ALLOCATOR(InlineNode);
+    LAYOUT_NODE(InlineNode, NodeWithStyleAndBoxModelMetrics);
 
 public:
     InlineNode(DOM::Document&, DOM::Element*, CSS::ComputedProperties const&);

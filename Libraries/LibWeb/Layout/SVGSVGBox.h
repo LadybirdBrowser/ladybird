@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class SVGSVGBox final : public ReplacedBox {
-    GC_CELL(SVGSVGBox, ReplacedBox);
-    GC_DECLARE_ALLOCATOR(SVGSVGBox);
+    LAYOUT_NODE(SVGSVGBox, ReplacedBox);
 
 public:
     SVGSVGBox(DOM::Document&, SVG::SVGSVGElement&, CSS::ComputedProperties const&);

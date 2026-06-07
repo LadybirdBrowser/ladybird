@@ -12,7 +12,7 @@
 namespace Web::Layout {
 
 class ReplacedBox : public Box {
-    GC_CELL(ReplacedBox, Box);
+    LAYOUT_NODE(ReplacedBox, Box);
 
 public:
     ReplacedBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::ComputedProperties const&);

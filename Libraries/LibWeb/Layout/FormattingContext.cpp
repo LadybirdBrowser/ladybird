@@ -1468,12 +1468,12 @@ static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode co
             }
         }
 
-        for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
+        for (auto child = node.first_child(); child; child = child->next_sibling()) {
             if (child->is_absolutely_positioned() || child->is_floating())
                 continue;
             auto const* child_used_values = state.try_get(*child);
             auto child_offset = child_used_values ? offset + child_used_values->offset : offset;
-            auto const* box_child = as_if<Box>(child);
+            auto const* box_child = as_if<Box>(child.ptr());
             if (box_child && !box_child->is_anonymous()) {
                 auto const* dom = box_child->dom_node();
                 if (!dom || !inline_dom_node->is_inclusive_ancestor_of(*dom))
@@ -1752,6 +1752,8 @@ void FormattingContext::layout_absolutely_positioned_children()
     if (m_layout_mode != LayoutMode::Normal)
         return;
     for (auto& child : context_box().contained_abspos_children()) {
+        if (!child)
+            continue;
         auto& box = as<Box>(*child);
         layout_absolutely_positioned_element(box);
     }
@@ -1879,7 +1881,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
     auto static_position = m_state.get(box).static_position();
     auto const* static_position_cb = box.static_position_containing_block();
     auto actual_containing_block = box.containing_block();
-    if (static_position_cb && static_position_cb != actual_containing_block.ptr()) {
+    if (static_position_cb && static_position_cb != actual_containing_block) {
         auto offset = m_state.get(*static_position_cb).cumulative_offset() - m_state.get(*actual_containing_block).cumulative_offset();
         static_position += offset;
     }
@@ -2535,7 +2537,7 @@ Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box) 
     if (!box.has_children() || box.children_are_inline())
         return nullptr;
     // Find the last in-flow child that has a baseline (either directly via line boxes, or via its descendants).
-    for (auto const* child = box.last_child(); child; child = child->previous_sibling()) {
+    for (auto child = box.last_child(); child; child = child->previous_sibling()) {
         auto const* child_box = as_if<Box>(*child);
         if (!child_box)
             continue;

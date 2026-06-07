@@ -12,8 +12,7 @@
 namespace Web::Layout {
 
 class CheckBox final : public ReplacedBox {
-    GC_CELL(CheckBox, ReplacedBox);
-    GC_DECLARE_ALLOCATOR(CheckBox);
+    LAYOUT_NODE(CheckBox, ReplacedBox);
 
 public:
     CheckBox(DOM::Document&, HTML::HTMLInputElement&, CSS::ComputedProperties const&);

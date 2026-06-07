@@ -133,7 +133,7 @@ static void reset_intrinsic_size_caches_after_image_data_change(Layout::ImageBox
 static void set_needs_layout_update_or_repaint_after_image_data_change(HTMLImageElement& image_element, DOM::SetNeedsLayoutReason reason)
 {
     auto layout_node = image_element.unsafe_layout_node();
-    auto* image_box = as_if<Layout::ImageBox>(layout_node.ptr());
+    auto* image_box = as_if<Layout::ImageBox>(layout_node);
     if (!image_box || image_element_dimensions_may_depend_on_intrinsic_size(*image_box)) {
         image_element.set_needs_layout_update(reason);
         return;
@@ -207,7 +207,6 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
 void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    image_provider_visit_edges(visitor);
     visitor.visit(m_current_request);
     visitor.visit(m_pending_request);
     visitor.visit(m_document_observer);
@@ -296,9 +295,9 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
     }
 }
 
-GC::Ptr<Layout::Node> HTMLImageElement::create_layout_node(CSS::ComputedProperties const& style)
+RefPtr<Layout::Node> HTMLImageElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::ImageBox>(document(), *this, style, *this);
+    return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
 }
 
 void HTMLImageElement::adjust_computed_style(CSS::ComputedProperties& style)

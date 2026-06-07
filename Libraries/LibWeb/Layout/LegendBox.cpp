@@ -8,8 +8,6 @@
 
 namespace Web::Layout {
 
-GC_DEFINE_ALLOCATOR(LegendBox);
-
 LegendBox::LegendBox(DOM::Document& document, DOM::Element& element, CSS::ComputedProperties const& style)
     : BlockContainer(document, &element, style)
 {

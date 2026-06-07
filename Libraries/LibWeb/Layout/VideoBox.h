@@ -16,6 +16,8 @@ class VideoBox final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(VideoBox);
 
 public:
+    VideoBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties const&);
+
     HTML::HTMLVideoElement& dom_node();
     HTML::HTMLVideoElement const& dom_node() const;
 
@@ -24,7 +26,6 @@ public:
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
 private:
-    VideoBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties const&);
     virtual CSS::SizeWithAspectRatio natural_size() const override;
 };
 
