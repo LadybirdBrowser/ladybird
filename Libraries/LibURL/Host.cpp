@@ -238,7 +238,7 @@ Optional<String> Host::registrable_domain() const
         host_without_trailing_dot = host_without_trailing_dot.substring_view(0, host_without_trailing_dot.length() - 1);
 
     // NB: If we do not find a registrable domain via the PSL, use everything after the second to last dot.
-    auto registrable_domain = get_registrable_domain(host_without_trailing_dot);
+    auto registrable_domain = PublicSuffixData::the()->find_matching_registrable_domain(host_without_trailing_dot);
     if (!registrable_domain.has_value()) {
         auto last_dot = host_without_trailing_dot.find_last('.');
         if (last_dot.has_value()) {
