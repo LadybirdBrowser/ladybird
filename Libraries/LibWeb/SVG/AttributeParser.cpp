@@ -38,7 +38,7 @@ Path AttributeParser::parse_path_data(StringView input)
         // Invalid. "A path data segment (if there is one) must begin with a "moveto" command."
         return Path { {} };
     }
-    return Path { parser.m_instructions };
+    return Path { move(parser.m_instructions) };
 }
 
 Optional<float> AttributeParser::parse_coordinate(StringView input)
