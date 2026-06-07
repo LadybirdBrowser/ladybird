@@ -21,6 +21,7 @@ set(TEST_SOURCES
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
     TestSourceHighlighter.cpp
+    TestStructuredSerializeDurability.cpp
     TestStructuredSerializeFormat.cpp
     TestStrings.cpp
     TestWebIDLBuffers.cpp
@@ -43,6 +44,7 @@ target_link_libraries(TestPage PRIVATE LibGC LibJS)
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSessionHistoryEntry PRIVATE LibJS LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
+target_link_libraries(TestStructuredSerializeDurability PRIVATE LibCrypto LibGC LibIPC LibJS)
 target_link_libraries(TestStructuredSerializeFormat PRIVATE LibCrypto LibGC LibGfx LibIPC LibJS)
 target_link_libraries(TestWebIDLBuffers PRIVATE LibGC LibJS)
 target_link_libraries(TestWebGLSpanWithStorage PRIVATE LibGC LibJS)
