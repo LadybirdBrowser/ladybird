@@ -233,30 +233,36 @@ Optional<String> Host::registrable_domain() const
     // 3. Let registrableDomain be the registrable domain determined by running the Public Suffix List algorithm with host as domain. [PSL]
 
     // NB: The PSL algorithm maintains trailing dots, so we strip it here since step 4 expects no trailing dot.
-    auto host_without_trailing_dot = host_string.bytes_as_string_view();
-    if (!trailing_dot.is_empty())
-        host_without_trailing_dot = host_without_trailing_dot.substring_view(0, host_without_trailing_dot.length() - 1);
+    auto without_trailing_dot = [](StringView string) {
+        if (string.ends_with('.'))
+            return string.substring_view(0, string.length() - 1);
+        return string;
+    };
 
-    // NB: If we do not find a registrable domain via the PSL, use everything after the second to last dot.
-    auto registrable_domain = PublicSuffixData::the()->find_matching_registrable_domain(host_without_trailing_dot);
-    if (!registrable_domain.has_value()) {
-        auto last_dot = host_without_trailing_dot.find_last('.');
-        if (last_dot.has_value()) {
-            auto second_last_dot = host_without_trailing_dot.substring_view(0, *last_dot).find_last('.');
-            if (second_last_dot.has_value())
-                registrable_domain = MUST(String::from_utf8(host_without_trailing_dot.substring_view(second_last_dot.value() + 1)));
-        }
-    }
+    auto host_without_trailing_dot = without_trailing_dot(host_string.bytes_as_string_view());
+    auto public_suffix_without_trailing_dot = without_trailing_dot(public_suffix->bytes_as_string_view());
 
-    if (!registrable_domain.has_value())
-        registrable_domain = MUST(String::from_utf8(host_without_trailing_dot));
+    if (!host_without_trailing_dot.ends_with(public_suffix_without_trailing_dot))
+        return OptionalNone {};
+
+    auto subhost = host_without_trailing_dot.substring_view(0, host_without_trailing_dot.length() - public_suffix_without_trailing_dot.length());
+    subhost = subhost.trim("."sv, TrimMode::Right);
+
+    if (subhost.is_empty())
+        return OptionalNone {};
+
+    size_t start_index = 0;
+    if (auto index = subhost.find_last('.'); index.has_value())
+        start_index = *index + 1;
+
+    auto registrable_domain = MUST(String::from_utf8(host_without_trailing_dot.substring_view(start_index)));
 
     // 4. Assert: registrableDomain is an ASCII string that does not end with ".".
-    VERIFY(registrable_domain->is_ascii());
-    VERIFY(!registrable_domain->ends_with('.'));
+    VERIFY(registrable_domain.is_ascii());
+    VERIFY(!registrable_domain.ends_with('.'));
 
     // 5. Return registrableDomain and trailingDot concatenated.
-    return MUST(String::formatted("{}{}", registrable_domain.value(), trailing_dot));
+    return MUST(String::formatted("{}{}", registrable_domain, trailing_dot));
 }
 
 }
