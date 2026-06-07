@@ -247,10 +247,12 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         if (!chunk_opt.has_value()) {
             auto const is_only_chunk = is_first_chunk && is_last_chunk;
             if (is_only_chunk && text_node->text_for_rendering().is_empty()) {
-                if (auto const* shadow_root = as_if<DOM::ShadowRoot>(text_node->dom_node().root()))
-                    if (auto const* form_associated_element = as_if<HTML::FormAssociatedTextControlElement>(shadow_root->host()))
-                        is_empty_editable = form_associated_element->text_control_to_html_element().is_mutable();
-                is_empty_editable |= text_node->dom_node().parent() && text_node->dom_node().parent()->is_editing_host();
+                if (auto const* dom_text = text_node->dom_text()) {
+                    if (auto const* shadow_root = as_if<DOM::ShadowRoot>(dom_text->root()))
+                        if (auto const* form_associated_element = as_if<HTML::FormAssociatedTextControlElement>(shadow_root->host()))
+                            is_empty_editable = form_associated_element->text_control_to_html_element().is_mutable();
+                    is_empty_editable |= dom_text->parent() && dom_text->parent()->is_editing_host();
+                }
             }
 
             if (is_empty_editable) {

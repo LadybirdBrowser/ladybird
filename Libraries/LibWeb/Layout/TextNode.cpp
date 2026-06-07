@@ -31,7 +31,41 @@ TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode att
 {
 }
 
+TextNode::TextNode(DOM::Document& document)
+    : Node(document, nullptr)
+{
+}
+
 TextNode::~TextNode() = default;
+
+DOM::Element const* TextNode::parent_element_for_text_transform() const
+{
+    return dom_node().parent_element();
+}
+
+bool TextNode::is_password_input() const
+{
+    return dom_node().is_password_input();
+}
+
+GC_DEFINE_ALLOCATOR(GeneratedTextNode);
+
+GeneratedTextNode::GeneratedTextNode(DOM::Document& document, Utf16String text)
+    : TextNode(document)
+    , m_text(move(text))
+{
+}
+
+GeneratedTextNode::~GeneratedTextNode() = default;
+
+DOM::Element const* GeneratedTextNode::parent_element_for_text_transform() const
+{
+    if (is_generated_for_pseudo_element())
+        return pseudo_element_generator();
+    if (auto const* parent = this->parent(); parent && parent->is_generated_for_pseudo_element())
+        return parent->pseudo_element_generator();
+    return nullptr;
+}
 
 GC_DEFINE_ALLOCATOR(TextSliceNode);
 
@@ -321,7 +355,7 @@ TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key
     auto text_transform = computed_values().text_transform();
     Optional<String> lang;
     if (first_is_one_of(text_transform, CSS::TextTransform::Uppercase, CSS::TextTransform::Lowercase, CSS::TextTransform::Capitalize)) {
-        if (auto parent_element = dom_node().parent_element())
+        if (auto parent_element = parent_element_for_text_transform())
             lang = parent_element->lang();
     }
 
@@ -329,7 +363,7 @@ TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key
         .text_transform = text_transform,
         .white_space_collapse = computed_values().white_space_collapse(),
         .lang = move(lang),
-        .is_password_input = dom_node().is_password_input(),
+        .is_password_input = is_password_input(),
         .dom_start_offset = dom_start_offset(),
         .dom_length = dom_length(),
     };
@@ -363,8 +397,9 @@ TextNode::TextDependentCache const& TextNode::ensure_text_dependent_cache() cons
 
 Utf16String TextNode::compute_text_for_rendering(TextForRenderingCacheKey const& cache_key) const
 {
+    auto const& text_data = text();
     if (cache_key.is_password_input) {
-        return Utf16String::repeated(u'●', dom_node().data().length_in_code_points());
+        return Utf16String::repeated(u'●', text_data.length_in_code_points());
     }
 
     // Apply text-transform
@@ -372,8 +407,8 @@ Utf16String TextNode::compute_text_for_rendering(TextForRenderingCacheKey const&
     //        resulting paintable fragments' offsets into the original text node data.
     //        See: https://github.com/LadybirdBrowser/ladybird/issues/6177
     auto const lang = cache_key.lang.has_value() ? Optional<StringView> { cache_key.lang->bytes_as_string_view() } : Optional<StringView> {};
-    auto text = apply_text_transform(dom_node().data(), cache_key.text_transform, lang);
-    if (cache_key.dom_start_offset > 0 || cache_key.dom_length < dom_node().data().length_in_code_units())
+    auto text = apply_text_transform(text_data, cache_key.text_transform, lang);
+    if (cache_key.dom_start_offset > 0 || cache_key.dom_length < text_data.length_in_code_units())
         text = Utf16String::from_utf16(text.utf16_view().substring_view(cache_key.dom_start_offset, cache_key.dom_length));
 
     // The logic below deals with converting whitespace characters. If we don't have them, return early.

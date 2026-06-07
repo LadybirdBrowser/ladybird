@@ -2509,7 +2509,7 @@ bool FormattingContext::can_skip_is_anonymous_text_run(Box& box)
     if (box.is_anonymous() && !box.is_generated_for_pseudo_element() && !box.first_child_of_type<BlockContainer>()) {
         bool contains_only_white_space = true;
         box.for_each_in_subtree([&](auto const& node) {
-            if (!is<TextNode>(node) || !static_cast<TextNode const&>(node).dom_node().data().is_ascii_whitespace()) {
+            if (!is<TextNode>(node) || !static_cast<TextNode const&>(node).text().is_ascii_whitespace()) {
                 contains_only_white_space = false;
                 return TraversalDecision::Break;
             }

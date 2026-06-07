@@ -10,7 +10,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                   "See more games"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> at [9,9] positioned [0+0+0 422.703125 0+0+0] [0+0+0 59 0+0+0] [BFC] children: inline
-              TextNode <#text> (not painted)
+              GeneratedTextNode <(anonymous)> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x77]

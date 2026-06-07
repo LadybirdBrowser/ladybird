@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "foobar"
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,26] [0+0+0 50 0+0+734] [0+0+0 50 0+0+0] children: inline
-        TextNode <#text> (not painted)
+        GeneratedTextNode <(anonymous)> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x84]

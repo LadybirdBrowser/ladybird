@@ -12,9 +12,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BreakNode <br> (not painted)
             BreakNode <br> (not painted)
           BlockContainer <(anonymous)> at [0,40] positioned [0+0+0 10 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [0,40 10x20] baseline: 13
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [0,40 10x20] baseline: 13
                 "X"
-            TextNode <#text> (not painted)
+            GeneratedTextNode <(anonymous)> (not painted)
         BlockContainer <(anonymous)> at [0,40] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [0,40] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
@@ -29,7 +29,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (BlockContainer(anonymous)) [0,0 100x40]
             TextPaintable (TextNode<#text>)
           PaintableWithLines (BlockContainer(anonymous)) [0,40 10x20]
-            TextPaintable (TextNode<#text>)
+            TextPaintable (GeneratedTextNode(anonymous))
         PaintableWithLines (BlockContainer(anonymous)) [0,40 800x0]
       PaintableWithLines (BlockContainer(anonymous)) [0,40 800x0]
 

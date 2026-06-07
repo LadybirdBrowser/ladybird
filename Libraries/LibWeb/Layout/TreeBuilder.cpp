@@ -374,7 +374,7 @@ static Optional<FirstLetterTarget> find_first_letter_in_text(TextNode& text_node
             || Unicode::code_point_has_symbol_general_category(code_point);
     };
 
-    auto view = text_node.dom_node().data().utf16_view();
+    auto view = text_node.text().utf16_view();
     auto const code_units = view.length_in_code_units();
 
     // When white-space preserves segment breaks, a newline before any letter puts the letter on a later line, so the
@@ -500,17 +500,27 @@ void TreeBuilder::create_first_letter_wrapper_if_needed(DOM::Element& element, B
         return;
 
     auto& text_node = *target->text_node;
-    auto& dom_text = const_cast<DOM::Text&>(text_node.dom_node());
-    auto const full_length = dom_text.data().length_in_code_units();
+    auto const full_length = text_node.text().length_in_code_units();
 
     auto const letter_end = target->letter_end;
 
     auto& document = element.document();
     auto& heap = document.heap();
 
-    auto remainder_slice = heap.allocate<TextSliceNode>(document, dom_text, Node::AttachToDOMNode::Yes, letter_end, full_length - letter_end);
-    auto first_letter_slice = heap.allocate<TextSliceNode>(document, dom_text, Node::AttachToDOMNode::No, 0, letter_end);
-    remainder_slice->set_first_letter_slice(*first_letter_slice);
+    GC::Ptr<TextNode> remainder_slice;
+    GC::Ptr<TextNode> first_letter_slice;
+    if (auto* dom_text = text_node.dom_text()) {
+        auto& mutable_dom_text = const_cast<DOM::Text&>(*dom_text);
+        auto dom_remainder_slice = heap.allocate<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::Yes, letter_end, full_length - letter_end);
+        auto dom_first_letter_slice = heap.allocate<TextSliceNode>(document, mutable_dom_text, Node::AttachToDOMNode::No, 0, letter_end);
+        dom_remainder_slice->set_first_letter_slice(*dom_first_letter_slice);
+        remainder_slice = dom_remainder_slice;
+        first_letter_slice = dom_first_letter_slice;
+    } else {
+        auto text = text_node.text();
+        remainder_slice = heap.allocate<GeneratedTextNode>(document, Utf16String::from_utf16(text.utf16_view().substring_view(letter_end, full_length - letter_end)));
+        first_letter_slice = heap.allocate<GeneratedTextNode>(document, Utf16String::from_utf16(text.utf16_view().substring_view(0, letter_end)));
+    }
 
     auto first_letter_wrapper = heap.allocate<InlineNode>(document, nullptr, *first_letter_style);
     first_letter_wrapper->set_generated_for(CSS::PseudoElement::FirstLetter, element);
@@ -627,8 +637,7 @@ GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element
             for (auto& item : new_content.data) {
                 GC::Ptr<Layout::Node> layout_node;
                 if (auto const* string = item.get_pointer<String>()) {
-                    auto text = document.realm().create<DOM::Text>(document, Utf16String::from_utf8(*string));
-                    layout_node = document.heap().allocate<TextNode>(document, *text);
+                    layout_node = document.heap().allocate<GeneratedTextNode>(document, Utf16String::from_utf8(*string));
                 } else {
                     auto& image = *item.get<NonnullRefPtr<CSS::ImageStyleValue>>();
                     image.load_any_resources(document);
