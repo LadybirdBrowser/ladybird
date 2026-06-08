@@ -1588,7 +1588,7 @@ static JsonArray serialize_devtools_style_declarations(DOM::Document const& docu
     for (auto const& declaration : declarations) {
         bool inherits = declaration.is_custom_property
             ? custom_property_inherits(document, Utf16FlyString::from_utf8(declaration.name))
-            : PropertyNameAndID::from_name(declaration.name)
+            : PropertyNameAndID::from_name(Utf16FlyString::from_utf8(declaration.name))
                   .map([](auto const& property) { return !property.is_custom_property() && is_inherited_property(property.id()); })
                   .value_or(false);
 
