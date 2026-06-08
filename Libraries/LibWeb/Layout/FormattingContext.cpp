@@ -2045,9 +2045,11 @@ CSSPixels FormattingContext::calculate_fit_content_width(Layout::Box const& box,
     // If the available space in a given axis is definite, equal to clamp(min-content size, stretch-fit size,
     // max-content size) (i.e. max(min-content size, min(max-content size, stretch-fit size))).
     if (available_space.width.is_definite()) {
-        return max(calculate_min_content_width(box),
-            min(calculate_stretch_fit_width(box, available_space.width),
-                calculate_max_content_width(box)));
+        auto stretch_fit_width = calculate_stretch_fit_width(box, available_space.width);
+        auto max_content_width = calculate_max_content_width(box);
+        if (max_content_width <= stretch_fit_width)
+            return max_content_width;
+        return max(calculate_min_content_width(box), stretch_fit_width);
     }
 
     // When sizing under a min-content constraint, equal to the min-content size.
