@@ -89,27 +89,21 @@ void invalidate_structurally_affected_siblings(DOM::Node& node, DOM::StyleInvali
     }
 
     if (is_insertion_or_removal) {
-        // OPTIMIZATION: Only walk previous siblings if the parent has been observed to contain a child that matches a
-        //               pseudo-class whose match result can depend on siblings after that element. Otherwise, no
-        //               previous sibling can possibly need invalidation due to this insertion or removal.
-        if (auto* parent_node = as_if<DOM::ParentNode>(node.parent()); parent_node && parent_node->has_child_affected_by_backward_structural_changes()) {
+        // OPTIMIZATION: :last-child / :only-child can only flip for the element transitioning into or out of the
+        //               trailing position, so handle that directly. Only walk all previous siblings if the parent has
+        //               children affected by selectors whose from-end index can change, such as :nth-last-child.
+        if (auto* parent_node = as_if<DOM::ParentNode>(node.parent()); parent_node && parent_node->has_child_affected_by_last_child_pseudo_class()) {
+            if (last_child_transition_target && last_child_transition_target->affected_by_last_child_pseudo_class())
+                mark_sibling_for_style_update(*last_child_transition_target);
+        }
+        if (auto* parent_node = as_if<DOM::ParentNode>(node.parent()); parent_node && parent_node->has_child_affected_by_backward_positional_pseudo_class()) {
             auto& counters = node.document().style_invalidation_counters();
             for (auto* sibling = node.previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
                 ++counters.previous_sibling_invalidation_walk_visits;
                 auto* element = as_if<DOM::Element>(sibling);
                 if (!element)
                     continue;
-                bool needs_mark = false;
-                if (element->affected_by_backward_positional_pseudo_class()) {
-                    // :nth-last-child / :nth-last-of-type / :last-of-type / :only-of-type all need
-                    // every previous sibling re-evaluated since their from-end indices shift.
-                    needs_mark = true;
-                } else if (element->affected_by_last_child_pseudo_class() && element == last_child_transition_target) {
-                    // :last-child and :only-child only flip for the element transitioning into/out of
-                    // the trailing position.
-                    needs_mark = true;
-                }
-                if (needs_mark)
+                if (element->affected_by_backward_positional_pseudo_class())
                     mark_sibling_for_style_update(*element);
             }
         }

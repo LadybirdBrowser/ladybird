@@ -73,11 +73,18 @@
             };
         });
 
-        // Case 4: A backward-structural rule (:last-child) DOES apply to our fixture's children.
-        //         The optimization correctly does not skip the walk — the previously-last child must be re-styled
-        //         when a new last child is appended. This case exists to confirm the optimization does not over-apply.
-        runCase("backward-structural rule on fixture: append DOES invalidate previous siblings", () => {
+        // Case 4: A trailing-position rule (:last-child) DOES apply to our fixture's children.
+        //         The previously-last child must be re-styled when a new last child is appended, but that does not
+        //         require walking all previous siblings.
+        runCase("last-child rule on fixture: append targets previous last child without walking", () => {
             const style = addStyle(document.head, "section > div:last-child { color: rebeccapurple; }");
+            return () => style.remove();
+        });
+
+        // Case 5: A backward-position rule (:nth-last-child) DOES apply to our fixture's children.
+        //         Every previous child must be re-evaluated since each child's from-end index changes.
+        runCase("nth-last-child rule on fixture: append DOES walk previous siblings", () => {
+            const style = addStyle(document.head, "section > div:nth-last-child(odd) { color: rebeccapurple; }");
             return () => style.remove();
         });
     });
