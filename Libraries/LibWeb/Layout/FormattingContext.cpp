@@ -2067,9 +2067,12 @@ CSSPixels FormattingContext::calculate_fit_content_height(Layout::Box const& box
     // equal to clamp(min-content size, stretch-fit size, max-content size)
     // (i.e. max(min-content size, min(max-content size, stretch-fit size))).
     if (available_space.height.is_definite()) {
-        return max(calculate_min_content_height(box, available_space.width.to_px_or_zero()),
-            min(calculate_stretch_fit_height(box, available_space.height),
-                calculate_max_content_height(box, available_space.width.to_px_or_zero())));
+        auto width = available_space.width.to_px_or_zero();
+        auto stretch_fit_height = calculate_stretch_fit_height(box, available_space.height);
+        auto max_content_height = calculate_max_content_height(box, width);
+        if (max_content_height <= stretch_fit_height)
+            return max_content_height;
+        return max(calculate_min_content_height(box, width), stretch_fit_height);
     }
 
     // When sizing under a min-content constraint, equal to the min-content size.
