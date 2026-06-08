@@ -33,6 +33,7 @@ WEB_API JS::Realm& wrapper_realm_for_node(WrapperWorld const& wrapper_world, JS:
 WEB_API GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
 WEB_API JS::Realm& this_value_realm(JS::Realm& fallback_realm, JS::Value);
 WEB_API JS::ThrowCompletionOr<void> set_prototype_of_cached_main_world_wrapper(Wrappable&, JS::Object&);
+WEB_API void preserve_wrapper(Wrappable&, PlatformObject&);
 
 #ifndef WEB_WRAPPABLE
 #    define WEB_WRAPPABLE(class_, base_class)                           \
@@ -100,11 +101,13 @@ private:
     friend WEB_API GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
     friend WEB_API GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
     friend WEB_API JS::ThrowCompletionOr<void> set_prototype_of_cached_main_world_wrapper(Wrappable&, JS::Object&);
+    friend WEB_API void preserve_wrapper(Wrappable&, PlatformObject&);
 
     void set_cached_main_world_wrapper(PlatformObject&);
     void clear_cached_main_world_wrapper(PlatformObject const&);
 
     GC::Weak<PlatformObject> m_main_world_wrapper;
+    Vector<GC::Ptr<PlatformObject>> m_preserved_wrappers;
 };
 
 static_assert(!IsConstructible<JS::Value, Wrappable*>);

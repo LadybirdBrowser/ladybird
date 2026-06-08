@@ -45,6 +45,7 @@ void Wrappable::initialize(JS::Realm& realm)
 void Wrappable::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_preserved_wrappers);
 }
 
 GC::Ref<PlatformObject> Wrappable::create_wrapper(JS::Realm& wrapper_realm)
@@ -131,6 +132,14 @@ JS::ThrowCompletionOr<void> set_prototype_of_cached_main_world_wrapper(Wrappable
     if (auto wrapper = wrappable.cached_main_world_wrapper())
         TRY(wrapper->internal_set_prototype_of(&prototype));
     return {};
+}
+
+void preserve_wrapper(Wrappable& wrappable, PlatformObject& wrapper)
+{
+    if (wrappable.m_preserved_wrappers.contains_slow(GC::Ptr { wrapper }))
+        return;
+
+    wrappable.m_preserved_wrappers.append(wrapper);
 }
 
 void cache_global_object_wrapper(JS::Realm& realm)
