@@ -1971,8 +1971,10 @@ Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration con
     auto value = parse_css_value(property->id(), value_token_stream, declaration.original_value_text);
     if (value.is_error()) {
         if (value.error() == ParseError::SyntaxError) {
+            auto property_name = property->name().to_utf16_string();
+            auto property_name_utf8 = property_name.to_utf8_but_should_be_ported_to_utf16();
             ErrorReporter::the().report(InvalidPropertyError {
-                .property_name = property->name(),
+                .property_name = MUST(FlyString::from_utf8(property_name_utf8.bytes_as_string_view())),
                 .value_string = value_token_stream.dump_string(),
                 .description = "Failed to parse."_string,
             });

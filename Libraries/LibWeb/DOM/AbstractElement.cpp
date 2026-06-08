@@ -173,7 +173,7 @@ void AbstractElement::set_custom_property_data(RefPtr<CSS::CustomPropertyData co
     m_element->set_custom_property_data(m_pseudo_element, move(data));
 }
 
-RefPtr<CSS::StyleValue const> AbstractElement::get_custom_property(FlyString const& name) const
+RefPtr<CSS::StyleValue const> AbstractElement::get_custom_property(Utf16FlyString const& name) const
 {
     auto data = custom_property_data();
     if (!data)

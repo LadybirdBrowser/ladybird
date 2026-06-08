@@ -38,7 +38,7 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const override;
 
     virtual bool is_computationally_independent() const override { VERIFY_NOT_REACHED(); }
 

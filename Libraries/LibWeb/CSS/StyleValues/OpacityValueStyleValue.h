@@ -26,7 +26,7 @@ public:
 
     double resolved() const { return m_value->as_number().number(); }
 
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm& realm, FlyString const& associated_property) const override;
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm& realm, Utf16FlyString const& associated_property) const override;
 
     bool properties_equal(OpacityValueStyleValue const& other) const { return m_value == other.m_value; }
 

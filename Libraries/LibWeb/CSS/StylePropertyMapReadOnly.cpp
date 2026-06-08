@@ -151,9 +151,9 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
 
             // Some custom properties set on the element might also be in the registered custom properties set, so we
             // want the size of the union of the two sets.
-            HashTable<FlyString> custom_properties;
+            HashTable<Utf16FlyString> custom_properties;
             if (auto data = element.custom_property_data()) {
-                data->for_each_property([&](FlyString const& name, CSS::StyleProperty const&) {
+                data->for_each_property([&](Utf16FlyString const& name, CSS::StyleProperty const&) {
                     custom_properties.set(name);
                 });
             }

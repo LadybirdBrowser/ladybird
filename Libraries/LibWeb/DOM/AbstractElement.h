@@ -51,7 +51,7 @@ public:
 
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const>);
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data() const;
-    RefPtr<CSS::StyleValue const> get_custom_property(FlyString const& name) const;
+    RefPtr<CSS::StyleValue const> get_custom_property(Utf16FlyString const& name) const;
 
     bool has_non_empty_counters_set() const;
     Optional<CSS::CountersSet const&> counters_set() const;

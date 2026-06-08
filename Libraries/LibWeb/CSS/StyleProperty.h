@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -28,7 +28,7 @@ struct WEB_API StyleProperty {
 
 struct StylePropertyAndName {
     StyleProperty property;
-    FlyString name {};
+    Utf16FlyString name {};
 };
 
 }

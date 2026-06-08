@@ -9198,7 +9198,7 @@ Optional<Vector<CSS::Parser::ComponentValue>> Document::environment_variable_val
     VERIFY_NOT_REACHED();
 }
 
-HashMap<FlyString, CSS::CustomPropertyRegistration>& Document::registered_property_set()
+HashMap<Utf16FlyString, CSS::CustomPropertyRegistration>& Document::registered_property_set()
 {
     return m_registered_property_set;
 }
@@ -9221,7 +9221,7 @@ GC::Ref<DOM::Node> Document::create_ns_resolver(GC::Ref<DOM::Node> node_resolver
 }
 
 // https://drafts.css-houdini.org/css-properties-values-api/#determining-registration
-Optional<CSS::CustomPropertyRegistration const&> Document::get_registered_custom_property(FlyString const& name) const
+Optional<CSS::CustomPropertyRegistration const&> Document::get_registered_custom_property(Utf16FlyString const& name) const
 {
     // If the Document’s [[registeredPropertySet]] slot contains a record with the custom property’s name, the
     // registration is that record.
@@ -9237,7 +9237,7 @@ Optional<CSS::CustomPropertyRegistration const&> Document::get_registered_custom
     return {};
 }
 
-NonnullRefPtr<CSS::StyleValue const> Document::custom_property_initial_value(FlyString const& name) const
+NonnullRefPtr<CSS::StyleValue const> Document::custom_property_initial_value(Utf16FlyString const& name) const
 {
     auto maybe_custom_property = get_registered_custom_property(name);
     if (maybe_custom_property.has_value()) {
@@ -9263,7 +9263,7 @@ void Document::did_change_custom_property_registrations()
 
 void Document::build_registered_properties_cache()
 {
-    HashMap<FlyString, CSS::CustomPropertyRegistration> cached_registered_properties_from_css_property_rules;
+    HashMap<Utf16FlyString, CSS::CustomPropertyRegistration> cached_registered_properties_from_css_property_rules;
     for_each_active_css_style_sheet([&](CSS::CSSStyleSheet const& style_sheet) {
         style_sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSS::CSSRule const& rule) {
             if (auto* property_rule = as_if<CSS::CSSPropertyRule>(rule))

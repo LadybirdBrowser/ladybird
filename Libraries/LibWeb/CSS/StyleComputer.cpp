@@ -714,7 +714,7 @@ void StyleComputer::cascade_declarations(
     }
 }
 
-static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<StyleComputer::ScopedMatchingRule> const& matching_rules, OrderedHashMap<FlyString, StyleProperty>& custom_properties, Important important, bool include_inline_style)
+static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<StyleComputer::ScopedMatchingRule> const& matching_rules, OrderedHashMap<Utf16FlyString, StyleProperty>& custom_properties, Important important, bool include_inline_style)
 {
     size_t needed_capacity = 0;
     for (auto const& matching_rule : matching_rules)
@@ -1501,7 +1501,7 @@ StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Abstr
     return matching_rule_set;
 }
 
-static bool custom_property_inherits(DOM::Document const& document, FlyString const& name)
+static bool custom_property_inherits(DOM::Document const& document, Utf16FlyString const& name)
 {
     // A custom property inherits unless it has been registered with an explicit `inherits: false`.
     auto registration = document.get_registered_custom_property(name);
@@ -1573,7 +1573,7 @@ static JsonArray serialize_devtools_style_declarations(DOM::Document const& docu
 
     for (auto const& custom_property : declaration.custom_properties())
         serialize_property(
-            custom_property.key.to_string(),
+            custom_property.key.to_utf16_string().to_utf8_but_should_be_ported_to_utf16(),
             custom_property.value,
             IsCustomProperty::Yes,
             custom_property_inherits(document, custom_property.key) ? Inherits::Yes : Inherits::No);
@@ -1587,7 +1587,7 @@ static JsonArray serialize_devtools_style_declarations(DOM::Document const& docu
 
     for (auto const& declaration : declarations) {
         bool inherits = declaration.is_custom_property
-            ? custom_property_inherits(document, declaration.name)
+            ? custom_property_inherits(document, Utf16FlyString::from_utf8(declaration.name))
             : PropertyNameAndID::from_name(declaration.name)
                   .map([](auto const& property) { return !property.is_custom_property() && is_inherited_property(property.id()); })
                   .value_or(false);
@@ -2561,7 +2561,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
 
     // Resolve all the CSS custom properties ("variables") for this element:
     if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
-        OrderedHashMap<FlyString, StyleProperty> cascaded_all;
+        OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_all;
 
         auto element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
         auto cascade_inline_style = [&](Important important) {
@@ -2590,7 +2590,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         // Build own_values with only properties that differ from the parent.
         // We build a fresh map instead of removing from cascaded_all,
         // because removing entries doesn't shrink the bucket array.
-        OrderedHashMap<FlyString, StyleProperty> cascaded_own;
+        OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_own;
         for (auto& [name, property] : cascaded_all) {
             if (parent_data) {
                 auto const* parent_property = parent_data->get(name);
@@ -2640,7 +2640,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
     if (did_change_custom_properties.has_value()) {
         auto new_custom_property_data = abstract_element.custom_property_data();
         if (old_custom_property_data.ptr() != new_custom_property_data.ptr()) {
-            static NeverDestroyed<OrderedHashMap<FlyString, StyleProperty>> empty_own_values;
+            static NeverDestroyed<OrderedHashMap<Utf16FlyString, StyleProperty>> empty_own_values;
             auto const& old_own = old_custom_property_data ? old_custom_property_data->own_values() : *empty_own_values;
             auto const& new_own = new_custom_property_data ? new_custom_property_data->own_values() : *empty_own_values;
             if (old_own != new_own)
@@ -3002,7 +3002,7 @@ static Optional<SimplifiedSelectorForBucketing> is_roundabout_selector_bucketabl
     return {};
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
 {
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
@@ -3064,7 +3064,7 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
     if (inherit_from.has_value())
         parent_data = inheritable_custom_property_data(*inherit_from);
 
-    OrderedHashMap<FlyString, StyleProperty> resolved_own;
+    OrderedHashMap<Utf16FlyString, StyleProperty> resolved_own;
     for (auto const& [name, style_property] : data->own_values()) {
         auto resolved_value = compute_value_of_custom_property(abstract_element, name);
         if (parent_data) {
