@@ -12,6 +12,8 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
@@ -154,6 +156,17 @@ bool element_matches_any_invalidation_set_property(DOM::Element const& element, 
                 return element.is_shadow_host();
             case PseudoClass::Required:
             case PseudoClass::Optional:
+                return is<HTML::HTMLInputElement>(element)
+                    || is<HTML::HTMLSelectElement>(element)
+                    || is<HTML::HTMLTextAreaElement>(element);
+            case PseudoClass::Valid:
+            case PseudoClass::Invalid: {
+                auto const* html_element = as_if<HTML::HTMLElement>(element);
+                return (html_element && html_element->is_form_associated_element())
+                    || is<HTML::HTMLFormElement>(element);
+            }
+            case PseudoClass::UserValid:
+            case PseudoClass::UserInvalid:
                 return is<HTML::HTMLInputElement>(element)
                     || is<HTML::HTMLSelectElement>(element)
                     || is<HTML::HTMLTextAreaElement>(element);
