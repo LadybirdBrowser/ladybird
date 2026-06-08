@@ -1050,7 +1050,7 @@ static ErrorOr<void> uncompress_bmp_rle_data(BMPLoadingContext& context, ByteBuf
     // Decoding the RLE data on-the-fly might actually be faster, and avoids this topic entirely.
     u32 buffer_size;
     if (compression == Compression::RLE24) {
-        buffer_size = total_rows * round_up_to_power_of_two(total_columns, 4) * 4;
+        buffer_size = total_rows * round_up_to_power_of_two(total_columns, 4) * 3;
     } else {
         buffer_size = total_rows * round_up_to_power_of_two(total_columns, 4);
     }
@@ -1101,11 +1101,13 @@ static ErrorOr<void> uncompress_bmp_rle_data(BMPLoadingContext& context, ByteBuf
                 row++;
             }
             auto index = get_buffer_index();
-            if (index + 3 >= buffer.size()) {
+            if (index + 2 >= buffer.size()) {
                 dbgln("BMP has badly-formatted RLE data");
                 return Error::from_string_literal("BMP has badly-formatted RLE data");
             }
-            ((u32&)buffer[index]) = color;
+            buffer[index] = color & 0xff;
+            buffer[index + 1] = (color >> 8) & 0xff;
+            buffer[index + 2] = (color >> 16) & 0xff;
             column++;
             return {};
         };
