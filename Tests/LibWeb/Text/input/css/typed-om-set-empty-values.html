@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+    <div id="foo"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            foo.attributeStyleMap.set("width", CSS.px(10));
+            println(`Initial style: ${foo.getAttribute("style")}`);
+
+            try {
+                foo.attributeStyleMap.set("width");
+                println("FAIL: Empty set did not throw");
+            } catch (e) {
+                println(`Empty set threw ${e.name}`);
+            }
+
+            println(`After empty set: ${foo.getAttribute("style")}`);
+        });
+    </script>
+</html>
