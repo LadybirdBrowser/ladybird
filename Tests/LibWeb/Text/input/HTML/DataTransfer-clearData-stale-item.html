@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const dataTransfer = new DataTransfer();
+        const item = dataTransfer.items.add("payload", "text/plain");
+
+        dataTransfer.clearData();
+
+        println(`items.length after clearData = ${dataTransfer.items.length}`);
+
+        // The item is now in the disabled mode, because it is not associated with a drag data store.
+        // DataTransferItem's kind and type should be empty string because we are in disabled mode, but other engines
+        // don't seem to follow the spec here.
+        println(`stale item kind = "${item.kind}"`);
+        println(`stale item type = "${item.type}"`);
+        println(`stale item getAsFile() = ${item.getAsFile()}`);
+    });
+</script>
