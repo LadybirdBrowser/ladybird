@@ -285,16 +285,24 @@ ErrorOr<void> AttributeParser::parse_elliptical_arc()
     parse_whitespace();
 
     while (true) {
-        auto argument = TRY(parse_elliptical_arc_argument());
-        m_instructions.append(EllipticalArcInstruction {
-            argument[0],
-            argument[1],
-            argument[2],
-            absolute,
-            argument[3] != 0,
-            argument[4] != 0,
-            { argument[5], argument[6] },
-        });
+        auto rx = TRY(parse_number());
+        if (match_comma_whitespace())
+            parse_comma_whitespace();
+        auto ry = TRY(parse_number());
+        if (match_comma_whitespace())
+            parse_comma_whitespace();
+        auto x_axis_rotation = TRY(parse_number());
+        if (match_comma_whitespace())
+            parse_comma_whitespace();
+        auto large_arc_flag = TRY(parse_flag());
+        if (match_comma_whitespace())
+            parse_comma_whitespace();
+        auto sweep_flag = TRY(parse_flag());
+        if (match_comma_whitespace())
+            parse_comma_whitespace();
+        auto point = TRY(parse_coordinate_pair());
+
+        m_instructions.append(EllipticalArcInstruction { rx, ry, x_axis_rotation, absolute, large_arc_flag, sweep_flag, point });
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_coordinate())
@@ -405,31 +413,6 @@ ErrorOr<Vector<Gfx::FloatPoint, 3>> AttributeParser::parse_coordinate_pair_tripl
     return coordinates;
 }
 
-ErrorOr<Vector<float>> AttributeParser::parse_elliptical_arc_argument()
-{
-    Vector<float> numbers;
-    numbers.append(TRY(parse_number()));
-    if (match_comma_whitespace())
-        parse_comma_whitespace();
-    numbers.append(TRY(parse_number()));
-    if (match_comma_whitespace())
-        parse_comma_whitespace();
-    numbers.append(TRY(parse_number()));
-    if (match_comma_whitespace())
-        parse_comma_whitespace();
-    numbers.append(TRY(parse_flag()));
-    if (match_comma_whitespace())
-        parse_comma_whitespace();
-    numbers.append(TRY(parse_flag()));
-    if (match_comma_whitespace())
-        parse_comma_whitespace();
-    auto point = TRY(parse_coordinate_pair());
-    numbers.append(point.x());
-    numbers.append(point.y());
-
-    return numbers;
-}
-
 void AttributeParser::parse_whitespace(bool must_match_once)
 {
     bool matched = false;
@@ -476,7 +459,7 @@ ErrorOr<float> AttributeParser::parse_nonnegative_number()
     return parse_result->value;
 }
 
-ErrorOr<float> AttributeParser::parse_flag()
+ErrorOr<bool> AttributeParser::parse_flag()
 {
     if (!match('0') && !match('1'))
         return Error::from_string_literal("Expected flag");
