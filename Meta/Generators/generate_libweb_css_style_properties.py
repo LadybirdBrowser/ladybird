@@ -86,7 +86,7 @@ WebIDL::ExceptionOr<void> GeneratedCSSStyleProperties::set_{name_acceptable_cpp}
 
 String GeneratedCSSStyleProperties::{name_acceptable_cpp}() const
 {{
-    return generated_style_properties_to_css_style_properties().get_property_value("{name}"_fly_string);
+    return generated_style_properties_to_css_style_properties().get_property_value("{name}"_utf16_fly_string);
 }}
 """)
 

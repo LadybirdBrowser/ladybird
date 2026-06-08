@@ -362,19 +362,34 @@ static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowT
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
-String CSSStyleProperties::get_property_value(FlyString const& property_name) const
+String CSSStyleProperties::get_property_value(Utf16FlyString const& property_name) const
 {
-    auto property = PropertyNameAndID::from_name(property_name);
-    if (!property.has_value())
+    if (!property_name.is_ascii())
         return {};
-    if (auto style_property = get_property_internal(property.value()); style_property.has_value()) {
-        return style_property->value->to_string(
-            is_computed() ? SerializationMode::ResolvedValue
-                          : SerializationMode::Normal);
+
+    auto property_name_string = property_name.to_utf16_string();
+    auto property_name_view = property_name_string.ascii_view();
+
+    if (auto property_id = property_id_from_string(property_name_view); property_id.has_value()) {
+        if (*property_id == PropertyID::Custom) {
+            auto custom_property_name = MUST(FlyString::from_utf8(property_name_view));
+            if (auto style_property = custom_property(custom_property_name); style_property.has_value()) {
+                return style_property->value->to_string(
+                    is_computed() ? SerializationMode::ResolvedValue
+                                  : SerializationMode::Normal);
+            }
+            return {};
+        }
+
+        if (auto style_property = get_property_internal(PropertyNameAndID::from_id(*property_id)); style_property.has_value()) {
+            return style_property->value->to_string(
+                is_computed() ? SerializationMode::ResolvedValue
+                              : SerializationMode::Normal);
+        }
     }
+
     return {};
 }
-
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
 StringView CSSStyleProperties::get_property_priority(FlyString const& property_name) const
 {
@@ -1137,7 +1152,7 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property_internal(Optiona
     if (property.has_value()) {
         // 3. Let value be the return value of invoking getPropertyValue() with property as argument.
         // FIXME: Add an overload that takes PropertyNameAndID?
-        value = get_property_value(property->name());
+        value = get_property_value(Utf16FlyString::from_utf8(property->name()));
 
         Function<bool(PropertyNameAndID const&)> remove_declaration = [&](PropertyNameAndID const& property_to_remove) {
             // 4. Let removed be false.
@@ -1186,7 +1201,7 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(PropertyID prope
 String CSSStyleProperties::css_float() const
 {
     // The cssFloat attribute, on getting, must return the result of invoking getPropertyValue() with float as argument.
-    return get_property_value("float"_fly_string);
+    return get_property_value("float"_utf16_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_float(StringView value)

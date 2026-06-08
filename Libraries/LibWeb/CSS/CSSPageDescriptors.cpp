@@ -38,7 +38,7 @@ WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin(StringView value)
 
 String CSSPageDescriptors::margin() const
 {
-    return get_property_value("margin"_fly_string);
+    return get_property_value("margin"_utf16_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin_top(StringView value)
@@ -48,7 +48,7 @@ WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin_top(StringView value)
 
 String CSSPageDescriptors::margin_top() const
 {
-    return get_property_value("margin-top"_fly_string);
+    return get_property_value("margin-top"_utf16_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin_right(StringView value)
@@ -58,7 +58,7 @@ WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin_right(StringView value)
 
 String CSSPageDescriptors::margin_right() const
 {
-    return get_property_value("margin-right"_fly_string);
+    return get_property_value("margin-right"_utf16_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin_bottom(StringView value)
@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin_bottom(StringView value
 
 String CSSPageDescriptors::margin_bottom() const
 {
-    return get_property_value("margin-bottom"_fly_string);
+    return get_property_value("margin-bottom"_utf16_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin_left(StringView value)
@@ -78,7 +78,7 @@ WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin_left(StringView value)
 
 String CSSPageDescriptors::margin_left() const
 {
-    return get_property_value("margin-left"_fly_string);
+    return get_property_value("margin-left"_utf16_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_size(StringView value)
@@ -88,7 +88,7 @@ WebIDL::ExceptionOr<void> CSSPageDescriptors::set_size(StringView value)
 
 String CSSPageDescriptors::size() const
 {
-    return get_property_value("size"_fly_string);
+    return get_property_value("size"_utf16_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_page_orientation(StringView value)
@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<void> CSSPageDescriptors::set_page_orientation(StringView va
 
 String CSSPageDescriptors::page_orientation() const
 {
-    return get_property_value("page-orientation"_fly_string);
+    return get_property_value("page-orientation"_utf16_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_marks(StringView value)
@@ -108,7 +108,7 @@ WebIDL::ExceptionOr<void> CSSPageDescriptors::set_marks(StringView value)
 
 String CSSPageDescriptors::marks() const
 {
-    return get_property_value("marks"_fly_string);
+    return get_property_value("marks"_utf16_fly_string);
 }
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_bleed(StringView value)
@@ -118,7 +118,7 @@ WebIDL::ExceptionOr<void> CSSPageDescriptors::set_bleed(StringView value)
 
 String CSSPageDescriptors::bleed() const
 {
-    return get_property_value("bleed"_fly_string);
+    return get_property_value("bleed"_utf16_fly_string);
 }
 
 }
