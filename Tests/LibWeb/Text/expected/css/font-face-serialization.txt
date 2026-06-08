@@ -5,3 +5,4 @@
 @font-face { font-family: "c2"; font-stretch: 50%; }
 @font-face { font-family: "c3"; font-stretch: extra-condensed; }
 @font-face { font-family: "c4"; font-stretch: 50%; }
+@font-face { font-family: "d1"; }
