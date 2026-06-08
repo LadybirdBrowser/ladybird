@@ -116,7 +116,7 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> normalize_overflow_c
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set
-WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::set(Utf16FlyString property_name, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
 {
     // The set(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -221,7 +221,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Readonl
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-append
-WebIDL::ExceptionOr<void> StylePropertyMap::append(FlyString property_name, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::append(Utf16FlyString property_name, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
 {
     // The append(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -289,7 +289,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::append(FlyString property_name, Read
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-delete
-WebIDL::ExceptionOr<void> StylePropertyMap::delete_(FlyString property)
+WebIDL::ExceptionOr<void> StylePropertyMap::delete_(Utf16FlyString property)
 {
     // The delete(property) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -302,7 +302,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::delete_(FlyString property)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property)) };
 
     // 3. If this’s [[declarations]] internal slot contains property, remove it.
-    TRY(declarations().remove_property(Utf16FlyString::from_utf8(property)));
+    TRY(declarations().remove_property(property));
     return {};
 }
 

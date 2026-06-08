@@ -1,9 +1,9 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap
 [Exposed=Window]
 interface StylePropertyMap : StylePropertyMapReadOnly {
-    undefined set(USVString property, (CSSStyleValue or USVString)... values);
-    undefined append(USVString property, (CSSStyleValue or USVString)... values);
-    undefined delete(USVString property);
+    undefined set(Utf16USVString property, (CSSStyleValue or USVString)... values);
+    undefined append(Utf16USVString property, (CSSStyleValue or USVString)... values);
+    undefined delete(Utf16USVString property);
     undefined clear();
 };
 
