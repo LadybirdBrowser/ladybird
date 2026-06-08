@@ -1411,7 +1411,7 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
             document->update_style();
 
             // computed value of parameter URL variables["property name"] from element's style declarations.
-            if (auto property = Web::CSS::PropertyNameAndID::from_name(name); property.has_value()) {
+            if (auto property = Web::CSS::PropertyNameAndID::from_name(Utf16FlyString::from_utf8(name)); property.has_value()) {
                 if (property->is_custom_property()) {
                     if (auto data = element->custom_property_data({}); data) {
                         if (auto const* style_property = data->get(property->name()))

@@ -42,7 +42,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleProperties);
 
-GC::Ref<CSSStyleProperties> CSSStyleProperties::create(JS::Realm& realm, Vector<StyleProperty> properties, OrderedHashMap<FlyString, StyleProperty> custom_properties)
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create(JS::Realm& realm, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
 {
     // https://drafts.csswg.org/cssom/#dom-cssstylerule-style
     // The style attribute must return a CSSStyleProperties object for the style rule, with the following properties:
@@ -64,10 +64,10 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(JS::Realm&
     //     parent CSS rule: Null.
     //     owner node: obj.
     // AD-HOC: Rather than instantiate with a list of decls, they're generated on demand.
-    return realm.create<CSSStyleProperties>(realm, Computed::Yes, Readonly::Yes, Vector<StyleProperty> {}, OrderedHashMap<FlyString, StyleProperty> {}, move(element_reference));
+    return realm.create<CSSStyleProperties>(realm, Computed::Yes, Readonly::Yes, Vector<StyleProperty> {}, OrderedHashMap<Utf16FlyString, StyleProperty> {}, move(element_reference));
 }
 
-GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM::AbstractElement element_reference, Vector<StyleProperty> properties, OrderedHashMap<FlyString, StyleProperty> custom_properties)
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM::AbstractElement element_reference, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
 {
     // https://drafts.csswg.org/cssom/#dom-elementcssinlinestyle-style
     // The style attribute must return a CSS declaration block object whose readonly flag is unset, whose parent CSS
@@ -76,7 +76,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM:
     return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), move(element_reference));
 }
 
-CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Readonly readonly, Vector<StyleProperty> properties, OrderedHashMap<FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement> owner_node)
+CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Readonly readonly, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement> owner_node)
     : CSSStyleDeclaration(realm, computed, readonly)
     , m_properties(move(properties))
     , m_custom_properties(move(custom_properties))
@@ -156,10 +156,8 @@ String CSSStyleProperties::item(size_t index) const
         return string_from_property_id(property_id).to_string();
     }
 
-    if (index < custom_properties_count) {
-        auto keys = m_custom_properties.keys();
-        return keys[index].to_string();
-    }
+    if (index < custom_properties_count)
+        return m_custom_properties.keys()[index].to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
 
     return CSS::string_from_property_id(m_properties[index - custom_properties_count].property_id).to_string();
 }
@@ -169,7 +167,7 @@ Optional<StyleProperty> CSSStyleProperties::get_property(PropertyID property_id)
     return get_property_internal(PropertyNameAndID::from_id(property_id));
 }
 
-Optional<StyleProperty const&> CSSStyleProperties::custom_property(FlyString const& custom_property_name) const
+Optional<StyleProperty const&> CSSStyleProperties::custom_property(Utf16FlyString const& custom_property_name) const
 {
     if (is_computed()) {
         if (!owner_node().has_value())
@@ -200,17 +198,11 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(Utf16FlyString const&
     if (is_computed())
         return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties in result of getComputedStyle()"_utf16);
 
-    if (!property_name.is_ascii())
-        return {};
-
-    auto property_name_string = property_name.to_utf16_string();
-    auto property_name_view = property_name_string.ascii_view();
-
     // 2. If property is not a custom property, follow these substeps:
     //    1. Let property be property converted to ASCII lowercase.
     //    2. If property is not a case-sensitive match for a supported CSS property, then return.
     // NB: This is handled inside PropertyNameAndID::from_string().
-    auto property = PropertyNameAndID::from_name(MUST(FlyString::from_utf8(property_name_view)));
+    auto property = PropertyNameAndID::from_name(property_name);
     if (!property.has_value())
         return {};
 
@@ -370,28 +362,9 @@ static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowT
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 String CSSStyleProperties::get_property_value(Utf16FlyString const& property_name) const
 {
-    if (!property_name.is_ascii())
-        return {};
-
-    auto property_name_string = property_name.to_utf16_string();
-    auto property_name_view = property_name_string.ascii_view();
-
-    if (auto property_id = property_id_from_string(property_name_view); property_id.has_value()) {
-        if (*property_id == PropertyID::Custom) {
-            auto custom_property_name = MUST(FlyString::from_utf8(property_name_view));
-            if (auto style_property = custom_property(custom_property_name); style_property.has_value()) {
-                return style_property->value->to_string(
-                    is_computed() ? SerializationMode::ResolvedValue
-                                  : SerializationMode::Normal);
-            }
-            return {};
-        }
-
-        if (auto style_property = get_property_internal(PropertyNameAndID::from_id(*property_id)); style_property.has_value()) {
-            return style_property->value->to_string(
-                is_computed() ? SerializationMode::ResolvedValue
-                              : SerializationMode::Normal);
-        }
+    if (auto property = PropertyNameAndID::from_name(property_name); property.has_value()) {
+        if (auto style_property = get_property_internal(*property); style_property.has_value())
+            return style_property->value->to_string(is_computed() ? SerializationMode::ResolvedValue : SerializationMode::Normal);
     }
 
     return {};
@@ -399,22 +372,16 @@ String CSSStyleProperties::get_property_value(Utf16FlyString const& property_nam
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
 StringView CSSStyleProperties::get_property_priority(Utf16FlyString const& property_name) const
 {
-    if (!property_name.is_ascii())
+    auto property = PropertyNameAndID::from_name(property_name);
+    if (!property.has_value())
         return {};
-
-    auto property_name_string = property_name.to_utf16_string();
-    auto property_name_view = property_name_string.ascii_view();
-
-    auto property_id = property_id_from_string(property_name_view);
-    if (!property_id.has_value())
-        return {};
-    if (property_id.value() == PropertyID::Custom) {
-        auto maybe_custom_property = custom_property(MUST(FlyString::from_utf8(property_name_view)));
+    if (property->is_custom_property()) {
+        auto maybe_custom_property = custom_property(property_name);
         if (!maybe_custom_property.has_value())
             return {};
         return maybe_custom_property.value().important == Important::Yes ? "important"sv : ""sv;
     }
-    auto maybe_property = get_property(property_id.value());
+    auto maybe_property = get_property(property->id());
     if (!maybe_property.has_value())
         return {};
     return maybe_property->important == Important::Yes ? "important"sv : ""sv;
@@ -1145,11 +1112,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
 WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(Utf16FlyString const& property_name)
 {
-    if (!property_name.is_ascii())
-        return remove_property_internal({});
-
-    auto property_name_string = property_name.to_utf16_string();
-    return remove_property_internal(PropertyNameAndID::from_name(MUST(FlyString::from_utf8(property_name_string.ascii_view()))));
+    return remove_property_internal(PropertyNameAndID::from_name(property_name));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
@@ -1168,7 +1131,7 @@ WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property_internal(Optiona
     if (property.has_value()) {
         // 3. Let value be the return value of invoking getPropertyValue() with property as argument.
         // FIXME: Add an overload that takes PropertyNameAndID?
-        value = get_property_value(Utf16FlyString::from_utf8(property->name()));
+        value = get_property_value(property->name());
 
         Function<bool(PropertyNameAndID const&)> remove_declaration = [&](PropertyNameAndID const& property_to_remove) {
             // 4. Let removed be false.
@@ -1273,7 +1236,8 @@ String CSSStyleProperties::serialized() const
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.
         // NB: We have to inline this here as the actual implementation does not accept custom properties.
-        String serialized_declaration = serialize_a_css_declaration(property, value, declaration.value.important);
+        auto property_string = property.to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+        String serialized_declaration = serialize_a_css_declaration(property_string, value, declaration.value.important);
 
         // 7. Append serialized declaration to list.
         list.append(move(serialized_declaration));
@@ -1609,7 +1573,7 @@ void CSSStyleProperties::empty_the_declarations()
     m_custom_properties.clear();
 }
 
-void CSSStyleProperties::set_the_declarations(Vector<StyleProperty> properties, OrderedHashMap<FlyString, StyleProperty> custom_properties)
+void CSSStyleProperties::set_the_declarations(Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
 {
     m_properties = convert_declarations_to_specified_order(properties);
     m_custom_properties = move(custom_properties);

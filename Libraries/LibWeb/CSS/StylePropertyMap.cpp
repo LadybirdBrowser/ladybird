@@ -47,7 +47,7 @@ void StylePropertyMap::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-static bool any_have_non_matching_associated_property(FlyString const& property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
+static bool any_have_non_matching_associated_property(Utf16FlyString const& property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
 {
     return any_of(values, [&property](Variant<GC::Ref<CSSStyleValue>, String> const& value) {
         if (auto* style_value = value.get_pointer<GC::Ref<CSSStyleValue>>()) {
@@ -150,7 +150,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Readonl
 
     // 7. If props[property] exists, remove it.
     // FIXME: Avoid converting to string and back.
-    TRY(props.remove_property(Utf16FlyString::from_utf8(property->name())));
+    TRY(props.remove_property(property->name()));
 
     // 8. Let values to set be an empty list.
     StyleValueVector values_to_set;

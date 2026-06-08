@@ -408,7 +408,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
                 dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), style.property(static_cast<Web::CSS::PropertyID>(i)).to_string(Web::CSS::SerializationMode::Normal));
             }
             if (custom_property_data) {
-                custom_property_data->for_each_property([](FlyString const& name, Web::CSS::StyleProperty const& property) {
+                custom_property_data->for_each_property([](Utf16FlyString const& name, Web::CSS::StyleProperty const& property) {
                     dbgln("|  {} = {}", name, property.value->to_string(Web::CSS::SerializationMode::Normal));
                 });
             }
@@ -594,8 +594,8 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
 
         // FIXME: Custom properties are not yet included in ComputedProperties, so add them manually.
         if (auto custom_property_data = element.custom_property_data(pseudo_element)) {
-            custom_property_data->for_each_property([&](FlyString const& name, Web::CSS::StyleProperty const& value) {
-                serialized.set(name, value.value->to_string(Web::CSS::SerializationMode::Normal));
+            custom_property_data->for_each_property([&](Utf16FlyString const& name, Web::CSS::StyleProperty const& value) {
+                serialized.set(name.to_utf16_string().to_utf8_but_should_be_ported_to_utf16(), value.value->to_string(Web::CSS::SerializationMode::Normal));
             });
         }
 

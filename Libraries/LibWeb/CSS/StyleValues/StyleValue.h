@@ -169,7 +169,7 @@ public:
     String to_string(SerializationMode) const;
     virtual void serialize(StringBuilder&, SerializationMode) const = 0;
     virtual Vector<Parser::ComponentValue> tokenize() const;
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const;
+    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
     virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) { }

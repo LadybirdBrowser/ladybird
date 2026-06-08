@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Forward.h>
 
@@ -18,7 +18,7 @@ namespace Web::CSS {
 // like a real property. It’s a struct consisting of:
 struct CustomPropertyRegistration {
     // - a property name (a custom property name string)
-    FlyString property_name;
+    Utf16FlyString property_name;
 
     // - a syntax (a syntax string)
     String syntax;

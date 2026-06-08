@@ -387,7 +387,7 @@ static Vector<ComponentValue> replace_an_inherit_function(DOM::AbstractElement& 
     //    does not contain the guaranteed-invalid value, return that inherited value.
     if (name_token.is(Token::Type::Ident) && is_a_custom_property_name_string(name_token.token().ident()) && first_argument_tokens.is_empty()) {
         if (auto element_to_inherit_style_from = element.element_to_inherit_style_from(); element_to_inherit_style_from.has_value()) {
-            if (auto const& inherited_value = element_to_inherit_style_from->get_custom_property(name_token.token().ident())) {
+            if (auto const& inherited_value = element_to_inherit_style_from->get_custom_property(Utf16FlyString::from_utf8(name_token.token().ident()))) {
                 auto inherited_value_tokens = inherited_value->tokenize();
                 if (!contains_guaranteed_invalid_value(inherited_value_tokens))
                     return inherited_value_tokens;
@@ -430,7 +430,7 @@ static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& eleme
     } else {
         // Look up the value of the custom property
         auto& custom_property_name = name_token.token().ident();
-        auto custom_property_value = StyleComputer::compute_value_of_custom_property(element, custom_property_name, guarded_contexts);
+        auto custom_property_value = StyleComputer::compute_value_of_custom_property(element, Utf16FlyString::from_utf8(custom_property_name), guarded_contexts);
         result = custom_property_value->tokenize();
     }
 

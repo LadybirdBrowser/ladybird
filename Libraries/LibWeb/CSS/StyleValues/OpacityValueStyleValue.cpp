@@ -35,7 +35,7 @@ ValueComparingNonnullRefPtr<StyleValue const> OpacityValueStyleValue::absolutize
     return OpacityValueStyleValue::create(NumberStyleValue::create(clamped_number_value));
 }
 
-GC::Ref<CSSStyleValue> OpacityValueStyleValue::reify(JS::Realm& realm, FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> OpacityValueStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
 {
     return m_value->reify(realm, associated_property);
 }

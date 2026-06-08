@@ -13,7 +13,7 @@ namespace Web::CSS {
 static constexpr u8 max_ancestor_count = 32;
 static constexpr size_t absorb_threshold = 8;
 
-CustomPropertyData::CustomPropertyData(OrderedHashMap<FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, u8 ancestor_count)
+CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, u8 ancestor_count)
     : m_own_values(move(own_values))
     , m_parent(move(parent))
     , m_ancestor_count(ancestor_count)
@@ -21,7 +21,7 @@ CustomPropertyData::CustomPropertyData(OrderedHashMap<FlyString, StyleProperty> 
 }
 
 NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
-    OrderedHashMap<FlyString, StyleProperty> own_values,
+    OrderedHashMap<Utf16FlyString, StyleProperty> own_values,
     RefPtr<CustomPropertyData const> parent)
 {
     if (!parent)
@@ -29,7 +29,7 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
 
     // If parent chain is too deep, flatten by copying all ancestor values into own.
     if (parent->m_ancestor_count >= max_ancestor_count - 1) {
-        parent->for_each_property([&](FlyString const& name, StyleProperty const& property) {
+        parent->for_each_property([&](Utf16FlyString const& name, StyleProperty const& property) {
             own_values.ensure(name, [&] { return property; });
         });
         return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0));
@@ -48,7 +48,7 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
     return adopt_ref(*new CustomPropertyData(move(own_values), move(parent), ancestor_count));
 }
 
-StyleProperty const* CustomPropertyData::get(FlyString const& name) const
+StyleProperty const* CustomPropertyData::get(Utf16FlyString const& name) const
 {
     if (auto it = m_own_values.find(name); it != m_own_values.end())
         return &it->value;
@@ -71,7 +71,7 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document c
     if (m_parent)
         inheritable_parent = m_parent->inheritable(document);
 
-    OrderedHashMap<FlyString, StyleProperty> inheritable_own_values;
+    OrderedHashMap<Utf16FlyString, StyleProperty> inheritable_own_values;
     bool filtered_any_own_values = false;
     for (auto const& [name, property] : m_own_values) {
         auto registration = document.get_registered_custom_property(name);
@@ -104,9 +104,9 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document c
     return m_cached_inheritable_data;
 }
 
-void CustomPropertyData::for_each_property(Function<void(FlyString const&, StyleProperty const&)> callback) const
+void CustomPropertyData::for_each_property(Function<void(Utf16FlyString const&, StyleProperty const&)> callback) const
 {
-    HashTable<FlyString> seen;
+    HashTable<Utf16FlyString> seen;
     for (auto const* node = this; node; node = node->m_parent.ptr()) {
         for (auto const& [name, property] : node->m_own_values) {
             if (seen.set(name) == HashSetResult::KeptExistingEntry)

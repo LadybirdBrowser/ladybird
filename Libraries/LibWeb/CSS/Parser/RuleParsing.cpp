@@ -944,7 +944,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         return {};
     }
 
-    auto const& name = name_token.ident();
+    auto name = Utf16FlyString::from_utf8(name_token.ident());
 
     Optional<FlyString> syntax_maybe;
     Optional<bool> inherits_maybe;
@@ -1016,7 +1016,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         }
     }
 
-    return CSSPropertyRule::create(realm(), name, syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
+    return CSSPropertyRule::create(realm(), move(name), syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
 }
 
 // https://drafts.csswg.org/css-cascade-6/#scope-atrule

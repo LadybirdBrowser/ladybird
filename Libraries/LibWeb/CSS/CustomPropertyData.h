@@ -23,24 +23,24 @@ namespace Web::CSS {
 class WEB_API CustomPropertyData : public RefCounted<CustomPropertyData> {
 public:
     static NonnullRefPtr<CustomPropertyData> create(
-        OrderedHashMap<FlyString, StyleProperty> own_values,
+        OrderedHashMap<Utf16FlyString, StyleProperty> own_values,
         RefPtr<CustomPropertyData const> parent);
 
-    StyleProperty const* get(FlyString const& name) const;
+    StyleProperty const* get(Utf16FlyString const& name) const;
     RefPtr<CustomPropertyData const> inheritable(DOM::Document const&) const;
 
-    OrderedHashMap<FlyString, StyleProperty> const& own_values() const { return m_own_values; }
+    OrderedHashMap<Utf16FlyString, StyleProperty> const& own_values() const { return m_own_values; }
 
-    void for_each_property(Function<void(FlyString const&, StyleProperty const&)> callback) const;
+    void for_each_property(Function<void(Utf16FlyString const&, StyleProperty const&)> callback) const;
 
     RefPtr<CustomPropertyData const> parent() const { return m_parent; }
 
     bool is_empty() const;
 
 private:
-    CustomPropertyData(OrderedHashMap<FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, u8 ancestor_count);
+    CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, u8 ancestor_count);
 
-    OrderedHashMap<FlyString, StyleProperty> m_own_values;
+    OrderedHashMap<Utf16FlyString, StyleProperty> m_own_values;
     RefPtr<CustomPropertyData const> m_parent;
     u8 m_ancestor_count { 0 };
     mutable FlatPtr m_cached_inheritable_document_identity { NumericLimits<FlatPtr>::max() };

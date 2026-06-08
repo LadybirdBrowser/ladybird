@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Serialize.h>
 
@@ -15,15 +15,24 @@ namespace Web::CSS {
 
 class WEB_API PropertyNameAndID {
 public:
-    static Optional<PropertyNameAndID> from_name(FlyString name)
+    static Optional<PropertyNameAndID> from_name(Utf16FlyString name)
     {
         if (is_a_custom_property_name_string(name))
             return PropertyNameAndID(move(name), PropertyID::Custom);
 
-        if (auto property_id = property_id_from_string(name); property_id.has_value())
-            return PropertyNameAndID(string_from_property_id(property_id.value()), property_id.value());
+        if (!name.is_ascii())
+            return {};
+
+        auto name_string = name.to_utf16_string();
+        if (auto property_id = property_id_from_string(name_string.ascii_view()); property_id.has_value())
+            return PropertyNameAndID(Utf16FlyString::from_utf8(string_from_property_id(property_id.value())), property_id.value());
 
         return {};
+    }
+
+    static Optional<PropertyNameAndID> from_name(FlyString const& name)
+    {
+        return from_name(Utf16FlyString::from_utf8(name));
     }
 
     static PropertyNameAndID from_id(PropertyID property_id)
@@ -35,26 +44,26 @@ public:
     bool is_custom_property() const { return m_property_id == PropertyID::Custom; }
     PropertyID id() const { return m_property_id; }
 
-    FlyString const& name() const
+    Utf16FlyString const& name() const
     {
         if (!m_name.has_value())
-            m_name = string_from_property_id(m_property_id);
+            m_name = Utf16FlyString::from_utf8(string_from_property_id(m_property_id));
         return m_name.value();
     }
 
     String to_string() const
     {
-        return serialize_an_identifier(name());
+        return serialize_an_identifier(name().to_utf16_string().to_utf8_but_should_be_ported_to_utf16());
     }
 
 private:
-    PropertyNameAndID(Optional<FlyString> name, PropertyID id)
+    PropertyNameAndID(Optional<Utf16FlyString> name, PropertyID id)
         : m_name(move(name))
         , m_property_id(id)
     {
     }
 
-    mutable Optional<FlyString> m_name;
+    mutable Optional<Utf16FlyString> m_name;
     PropertyID m_property_id;
 };
 

@@ -132,7 +132,7 @@ public:
 
     struct PropertiesAndCustomProperties {
         Vector<StyleProperty> properties;
-        OrderedHashMap<FlyString, StyleProperty> custom_properties;
+        OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties;
     };
     PropertiesAndCustomProperties parse_as_property_declaration_block();
     Vector<DevToolsStyleDeclaration> parse_as_devtools_property_declaration_block();
