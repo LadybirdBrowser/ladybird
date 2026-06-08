@@ -210,6 +210,24 @@ static void append_has_invalidation_metadata(HashMap<Key, Vector<HasInvalidation
         bucket.append(metadata);
 }
 
+template<typename Callback>
+static void for_each_attribute_name_for_invalidation(Selector::SimpleSelector::Attribute const& attribute, Callback callback)
+{
+    auto const& attribute_name = attribute.qualified_name.name.name;
+    callback(attribute_name);
+
+    auto const& lowercase_attribute_name = attribute.qualified_name.name.lowercase_name;
+    if (lowercase_attribute_name != attribute_name)
+        callback(lowercase_attribute_name);
+}
+
+static void collect_attribute_invalidation_properties(Selector::SimpleSelector::Attribute const& attribute, InvalidationSet& property_set)
+{
+    for_each_attribute_name_for_invalidation(attribute, [&](auto const& name) {
+        property_set.set_needs_invalidate_attribute(name);
+    });
+}
+
 static bool selector_contains_featureless_subtree_sensitive_selector(Selector const&);
 
 static bool pseudo_class_can_be_used_as_has_invalidation_feature(PseudoClass pseudo_class)
@@ -241,8 +259,11 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
         break;
     }
     case Selector::SimpleSelector::Type::Attribute: {
-        if (metadata.has_value())
-            append_has_invalidation_metadata(style_invalidation_data.attribute_names_used_in_has_selectors, selector.attribute().qualified_name.name.lowercase_name, *metadata);
+        if (metadata.has_value()) {
+            for_each_attribute_name_for_invalidation(selector.attribute(), [&](auto const& name) {
+                append_has_invalidation_metadata(style_invalidation_data.attribute_names_used_in_has_selectors, name, *metadata);
+            });
+        }
         break;
     }
     case Selector::SimpleSelector::Type::TagName: {
@@ -373,14 +394,18 @@ static Optional<InvalidationSet> build_invalidation_guard_property_set_for_selec
 
 static void collect_guard_properties_for_simple_selector(Selector::SimpleSelector const& selector, InvalidationSet& property_set)
 {
-    // Only class and id selectors are safe to use as coarse guard properties. Tag
-    // and attribute matching depends on document and namespace case-sensitivity.
     switch (selector.type) {
     case Selector::SimpleSelector::Type::Class:
         property_set.set_needs_invalidate_class(selector.name());
         break;
     case Selector::SimpleSelector::Type::Id:
         property_set.set_needs_invalidate_id(selector.name());
+        break;
+    case Selector::SimpleSelector::Type::TagName:
+        property_set.set_needs_invalidate_tag_name(selector.qualified_name().name.lowercase_name);
+        break;
+    case Selector::SimpleSelector::Type::Attribute:
+        collect_attribute_invalidation_properties(selector.attribute(), property_set);
         break;
     case Selector::SimpleSelector::Type::PseudoClass: {
         auto const& pseudo_class = selector.pseudo_class();
@@ -515,7 +540,7 @@ static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSel
         invalidation_set.set_needs_invalidate_tag_name(selector.qualified_name().name.lowercase_name);
         break;
     case Selector::SimpleSelector::Type::Attribute:
-        invalidation_set.set_needs_invalidate_attribute(selector.attribute().qualified_name.name.lowercase_name);
+        collect_attribute_invalidation_properties(selector.attribute(), invalidation_set);
         break;
     case Selector::SimpleSelector::Type::PseudoClass: {
         auto const& pseudo_class = selector.pseudo_class();

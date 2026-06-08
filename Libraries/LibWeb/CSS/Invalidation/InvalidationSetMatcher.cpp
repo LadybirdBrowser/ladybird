@@ -19,6 +19,16 @@
 
 namespace Web::CSS::Invalidation {
 
+static bool element_may_have_attribute_matching_selector(DOM::Element const& element, Selector::SimpleSelector::Attribute const& attribute)
+{
+    auto const& attribute_name = attribute.qualified_name.name.name;
+    if (element.has_attribute(attribute_name))
+        return true;
+
+    auto const& lowercase_attribute_name = attribute.qualified_name.name.lowercase_name;
+    return lowercase_attribute_name != attribute_name && element.has_attribute(lowercase_attribute_name);
+}
+
 static bool compound_may_match_element_impl(DOM::Element const& element, Selector::CompoundSelector const& compound_selector, Optional<PseudoClass> ignored_pseudo_class, bool in_selector_list_argument)
 {
     for (auto const& simple_selector : compound_selector.simple_selectors) {
@@ -47,7 +57,7 @@ static bool compound_may_match_element_impl(DOM::Element const& element, Selecto
                 return false;
             break;
         case Selector::SimpleSelector::Type::Attribute:
-            if (!element.has_attribute(simple_selector.attribute().qualified_name.name.lowercase_name))
+            if (!element_may_have_attribute_matching_selector(element, simple_selector.attribute()))
                 return false;
             break;
         case Selector::SimpleSelector::Type::PseudoClass: {
@@ -100,7 +110,7 @@ bool element_matches_any_invalidation_set_property(DOM::Element const& element, 
         case InvalidationSet::Property::Type::Id:
             return element.id() == property.name();
         case InvalidationSet::Property::Type::TagName:
-            return element.local_name() == property.name();
+            return element.lowercased_local_name() == property.name();
         case InvalidationSet::Property::Type::Attribute:
             return element.has_attribute(property.name()) || element.has_removed_attribute_for_style_invalidation(property.name());
         case InvalidationSet::Property::Type::PseudoClass: {

@@ -26,25 +26,32 @@
     .link-state-guard .target,
     .partial-alternative-guard .target,
     .complex-alternative-guard .target,
+    .tag-hover-guard .target,
     .svg-tag-guard .target,
-    .svg-attribute-guard .target {
+    .svg-attribute-guard .target,
+    .svg-attribute-lowercase-guard .target {
         color: rgb(4, 5, 6);
     }
 
     .link-state-guard a:link:any-link .target,
     .partial-alternative-guard input:where(:first-child, .foo):checked + .target,
     .complex-alternative-guard input:is(.scope *):checked + .target,
+    .tag-hover-guard a:hover .target,
     .svg-tag-guard foreignObject:hover .target,
-    .svg-attribute-guard [viewBox]:hover .target {
+    .svg-attribute-guard [viewBox]:hover .target,
+    .svg-attribute-lowercase-guard [viewbox]:hover .target {
         color: rgb(1, 2, 3);
     }
 
     .svg-tag-guard svg,
     .svg-attribute-guard svg,
+    .svg-attribute-lowercase-guard svg,
     .svg-tag-guard foreignObject,
     .svg-attribute-guard foreignObject,
+    .svg-attribute-lowercase-guard foreignObject,
     .svg-tag-guard .target,
-    .svg-attribute-guard .target {
+    .svg-attribute-guard .target,
+    .svg-attribute-lowercase-guard .target {
         display: block;
         width: 100px;
         height: 30px;
@@ -112,7 +119,7 @@
         printPassWithCounters(label);
     }
 
-    function runHoverColorInvalidationCase(label, className, build) {
+    function runHoverColorInvalidationCase(label, className, build, expectedAfter = MATCH_COLOR) {
         const container = makeElement("section", { className });
         document.getElementById("fixture").appendChild(container);
         const state = build(container);
@@ -123,7 +130,7 @@
         resetStyleCounters();
         hover(state.hoverTarget);
         internals.updateStyle();
-        assertColor(`${label} after hover`, state.target, MATCH_COLOR);
+        assertColor(`${label} after hover`, state.target, expectedAfter);
         printPassWithCounters(label);
     }
 
@@ -140,6 +147,24 @@
         svg.appendChild(foreignObject);
         container.appendChild(svg);
         return { target, hoverTarget: target };
+    }
+
+    function appendSvgAncestorHoverTarget(container, svgAttributes) {
+        const svg = makeSvgElement("svg", { attributes: svgAttributes });
+        const hoverTarget = makeSvgElement("rect", {
+            attributes: { width: "100", height: "10", fill: "black" },
+        });
+        const foreignObject = makeSvgElement("foreignObject", {
+            attributes: { y: "15", width: "100", height: "15" },
+        });
+        const target = makeElement("div", {
+            className: "target",
+            text: "target",
+        });
+        foreignObject.appendChild(target);
+        svg.append(hoverTarget, foreignObject);
+        container.appendChild(svg);
+        return { target, hoverTarget };
     }
 
     test(() => {
@@ -225,6 +250,21 @@
             MATCH_COLOR
         );
 
+        const tagHoverGuard = makeElement("section", { className: "tag-hover-guard" });
+        const unrelatedHoverTarget = makeElement("div");
+        for (let i = 0; i < 60; ++i) {
+            const target = makeElement("span", { className: "target" });
+            unrelatedHoverTarget.appendChild(target);
+        }
+        tagHoverGuard.appendChild(unrelatedHoverTarget);
+        fixture.appendChild(tagHoverGuard);
+
+        internals.updateStyle();
+        resetStyleCounters();
+        hover(unrelatedHoverTarget);
+        internals.updateStyle();
+        assertNoSubtreeRestyle("tag-only :hover descendant invalidation ignores unrelated hover", 3);
+
         runHoverColorInvalidationCase(
             "case-sensitive SVG tag guard updates descendant",
             "svg-tag-guard",
@@ -237,11 +277,22 @@
         runHoverColorInvalidationCase(
             "case-sensitive SVG attribute guard updates descendant",
             "svg-attribute-guard",
-            container => appendSvgHoverTarget(container, {
+            container => appendSvgAncestorHoverTarget(container, {
                 width: "100",
                 height: "30",
                 viewBox: "0 0 100 30",
             })
+        );
+
+        runHoverColorInvalidationCase(
+            "lowercase SVG attribute selector does not match camel-case attribute",
+            "svg-attribute-lowercase-guard",
+            container => appendSvgAncestorHoverTarget(container, {
+                width: "100",
+                height: "30",
+                viewBox: "0 0 100 30",
+            }),
+            BASE_COLOR
         );
     });
 </script>
