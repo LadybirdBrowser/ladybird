@@ -161,7 +161,7 @@ void Element::set_affected_by_last_child_pseudo_class(bool value)
     m_affected_by_last_child_pseudo_class = value;
     if (value) {
         if (auto* parent = as_if<ParentNode>(this->parent()))
-            parent->set_has_child_affected_by_backward_structural_changes(true);
+            parent->set_has_child_affected_by_last_child_pseudo_class(true);
     }
 }
 
@@ -170,7 +170,7 @@ void Element::set_affected_by_backward_positional_pseudo_class(bool value)
     m_affected_by_backward_positional_pseudo_class = value;
     if (value) {
         if (auto* parent = as_if<ParentNode>(this->parent()))
-            parent->set_has_child_affected_by_backward_structural_changes(true);
+            parent->set_has_child_affected_by_backward_positional_pseudo_class(true);
     }
 }
 
