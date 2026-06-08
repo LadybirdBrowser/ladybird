@@ -1582,8 +1582,14 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
         // If the grid container is being sized under a min- or max-content constraint, use the items' limited
         // min-content contributions in place of their minimum contributions here.
         auto item_size_contribution = [&] {
-            if (available_size.is_intrinsic_sizing_constraint())
+            if (available_size.is_intrinsic_sizing_constraint()) {
+                // https://drafts.csswg.org/css-grid-2/#min-size-auto
+                // A grid item's automatic minimum size is zero if its computed overflow is a scrollable
+                // overflow value. Preserve that zero minimum for collapsed zero-flex tracks.
+                if (total_flex == 0 && item.box.is_scroll_container())
+                    return calculate_minimum_contribution(item, dimension);
                 return calculate_limited_min_content_contribution(item, dimension);
+            }
             return calculate_minimum_contribution(item, dimension);
         }();
         // NB: Subtract the space already accounted for by non-flexible spanned tracks (sized in 11.5.3), since only

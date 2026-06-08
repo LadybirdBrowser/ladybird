@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+ul,
+li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    row-gap: 1px;
+    width: 231px;
+}
+
+#outer {
+    position: relative;
+    width: 100%;
+}
+
+#button {
+    height: 34px;
+    min-height: 34px;
+}
+
+#collapsible {
+    display: grid;
+    grid-template-rows: 0fr;
+}
+
+#clip {
+    overflow: hidden;
+}
+
+#list {
+    display: flex;
+    flex-direction: column;
+    margin-top: 1px;
+    overflow: hidden;
+    position: relative;
+    row-gap: 1px;
+}
+
+.item {
+    height: 34px;
+    min-height: 34px;
+}
+</style>
+<ul id="root">
+    <li id="outer">
+        <div id="button"></div>
+        <div id="collapsible">
+            <div id="clip">
+                <ul id="list">
+                    <li class="item"></li>
+                    <li class="item"></li>
+                    <li class="item"></li>
+                </ul>
+            </div>
+        </div>
+    </li>
+    <li id="after"></li>
+</ul>
+<script>
+test(() => {
+    for (const id of ["root", "outer", "button", "collapsible", "clip", "list", "after"]) {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        println(`${id}: top=${rect.top} height=${rect.height}`);
+    }
+});
+</script>

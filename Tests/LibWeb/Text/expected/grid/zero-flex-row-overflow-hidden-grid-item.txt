@@ -1,0 +1,7 @@
+root: top=0 height=35
+outer: top=0 height=34
+button: top=0 height=34
+collapsible: top=34 height=0
+clip: top=34 height=0
+list: top=35 height=104
+after: top=35 height=0
