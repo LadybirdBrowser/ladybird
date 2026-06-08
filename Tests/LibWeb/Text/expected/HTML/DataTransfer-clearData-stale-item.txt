@@ -1,0 +1,4 @@
+items.length after clearData = 0
+stale item kind = ""
+stale item type = ""
+stale item getAsFile() = null

@@ -319,16 +319,11 @@ void DataTransfer::clear_data(Optional<String> maybe_format)
         return;
 
     auto remove_items_from_drag_data_store = [&](Optional<String> const& format = {}) {
-        auto did_remove_item = false;
         for (size_t i = m_associated_drag_data_store->item_list().size(); i > 0; --i) {
             auto const& item = m_associated_drag_data_store->item_list().at(i - 1);
-            if (item.kind == DragDataStoreItem::Kind::Text && (!format.has_value() || item.type_string == *format)) {
-                m_associated_drag_data_store->remove_item_at(i - 1);
-                did_remove_item = true;
-            }
+            if (item.kind == DragDataStoreItem::Kind::Text && (!format.has_value() || item.type_string == *format))
+                remove_item(i - 1);
         }
-        if (did_remove_item)
-            update_data_transfer_types_list();
     };
 
     // 3. If the method was called with no arguments, remove each item in the drag data store item list whose kind is
