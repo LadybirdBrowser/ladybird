@@ -858,6 +858,7 @@ void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList con
 {
     auto& canvas = surface().canvas();
     canvas.save();
+    canvas.clipRect(to_skia_rect(command.rect));
     canvas.translate(command.rect.x(), command.rect.y());
     ScrollStateSnapshot scroll_state_snapshot;
     auto const& nested_display_list = resource_storage().display_list_resource(command.display_list_id);
