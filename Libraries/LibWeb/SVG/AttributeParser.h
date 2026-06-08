@@ -173,11 +173,11 @@ private:
     ErrorOr<float> parse_length();
     ErrorOr<float> parse_coordinate();
     ErrorOr<i32> parse_integer();
-    ErrorOr<Vector<float>> parse_coordinate_pair();
+    ErrorOr<Gfx::FloatPoint> parse_coordinate_pair();
     ErrorOr<Vector<float>> parse_coordinate_sequence();
-    ErrorOr<Vector<Vector<float>>> parse_coordinate_pair_sequence();
-    ErrorOr<Vector<float>> parse_coordinate_pair_double();
-    ErrorOr<Vector<float>> parse_coordinate_pair_triplet();
+    ErrorOr<Vector<Gfx::FloatPoint>> parse_coordinate_pair_sequence();
+    ErrorOr<Vector<Gfx::FloatPoint, 2>> parse_coordinate_pair_double();
+    ErrorOr<Vector<Gfx::FloatPoint, 3>> parse_coordinate_pair_triplet();
     ErrorOr<Vector<float>> parse_elliptical_arc_argument();
     void parse_whitespace(bool must_match_once = false);
     void parse_comma_whitespace();

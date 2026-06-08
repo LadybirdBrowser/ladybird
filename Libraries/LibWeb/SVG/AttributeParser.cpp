@@ -123,20 +123,7 @@ Vector<Gfx::FloatPoint> AttributeParser::parse_points(StringView input)
 
     parser.parse_whitespace();
 
-    auto coordinate_pair_sequence_or_error = parser.parse_coordinate_pair_sequence();
-    if (coordinate_pair_sequence_or_error.is_error())
-        return {};
-
-    auto coordinate_pair_sequence = coordinate_pair_sequence_or_error.release_value();
-
-    // FIXME: This is awkward. Can we return Gfx::FloatPoints from some of these parsing methods instead of Vector<float>?
-    Vector<Gfx::FloatPoint> points;
-    points.ensure_capacity(coordinate_pair_sequence.size());
-
-    for (auto const& pair : coordinate_pair_sequence)
-        points.empend(pair[0], pair[1]);
-
-    return points;
+    return parser.parse_coordinate_pair_sequence().value_or(Vector<Gfx::FloatPoint> {});
 }
 
 ErrorOr<void> AttributeParser::parse_drawto()
@@ -232,12 +219,7 @@ ErrorOr<void> AttributeParser::parse_curveto()
 
     while (true) {
         auto coordinate_pair_triplet = TRY(parse_coordinate_pair_triplet());
-        m_instructions.append(CurveToInstruction {
-            absolute,
-            { coordinate_pair_triplet[0], coordinate_pair_triplet[1] },
-            { coordinate_pair_triplet[2], coordinate_pair_triplet[3] },
-            { coordinate_pair_triplet[4], coordinate_pair_triplet[5] },
-        });
+        m_instructions.append(CurveToInstruction { absolute, coordinate_pair_triplet[0], coordinate_pair_triplet[1], coordinate_pair_triplet[2] });
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_coordinate())
@@ -254,11 +236,7 @@ ErrorOr<void> AttributeParser::parse_smooth_curveto()
 
     while (true) {
         auto coordinate_pair_double = TRY(parse_coordinate_pair_double());
-        m_instructions.append(SmoothCurveToInstruction {
-            absolute,
-            { coordinate_pair_double[0], coordinate_pair_double[1] },
-            { coordinate_pair_double[2], coordinate_pair_double[3] },
-        });
+        m_instructions.append(SmoothCurveToInstruction { absolute, coordinate_pair_double[0], coordinate_pair_double[1] });
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_coordinate())
@@ -275,11 +253,7 @@ ErrorOr<void> AttributeParser::parse_quadratic_bezier_curveto()
 
     while (true) {
         auto coordinate_pair_double = TRY(parse_coordinate_pair_double());
-        m_instructions.append(QuadraticBezierCurveToInstruction {
-            absolute,
-            { coordinate_pair_double[0], coordinate_pair_double[1] },
-            { coordinate_pair_double[2], coordinate_pair_double[3] },
-        });
+        m_instructions.append(QuadraticBezierCurveToInstruction { absolute, coordinate_pair_double[0], coordinate_pair_double[1] });
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_coordinate())
@@ -357,14 +331,13 @@ ErrorOr<i32> AttributeParser::parse_integer()
     return parse_result->value;
 }
 
-ErrorOr<Vector<float>> AttributeParser::parse_coordinate_pair()
+ErrorOr<Gfx::FloatPoint> AttributeParser::parse_coordinate_pair()
 {
-    Vector<float> coordinates;
-    coordinates.append(TRY(parse_coordinate()));
+    auto x = TRY(parse_coordinate());
     if (match_comma_whitespace())
         parse_comma_whitespace();
-    coordinates.append(TRY(parse_coordinate()));
-    return coordinates;
+    auto y = TRY(parse_coordinate());
+    return Gfx::FloatPoint { x, y };
 }
 
 ErrorOr<Vector<float>> AttributeParser::parse_coordinate_sequence()
@@ -388,9 +361,9 @@ ErrorOr<Vector<float>> AttributeParser::parse_coordinate_sequence()
     return sequence;
 }
 
-ErrorOr<Vector<Vector<float>>> AttributeParser::parse_coordinate_pair_sequence()
+ErrorOr<Vector<Gfx::FloatPoint>> AttributeParser::parse_coordinate_pair_sequence()
 {
-    Vector<Vector<float>> sequence;
+    Vector<Gfx::FloatPoint> sequence;
     bool is_first = true;
     while (true) {
         auto coordinate_pair_or_error = parse_coordinate_pair();
@@ -409,26 +382,26 @@ ErrorOr<Vector<Vector<float>>> AttributeParser::parse_coordinate_pair_sequence()
     return sequence;
 }
 
-ErrorOr<Vector<float>> AttributeParser::parse_coordinate_pair_double()
+ErrorOr<Vector<Gfx::FloatPoint, 2>> AttributeParser::parse_coordinate_pair_double()
 {
-    Vector<float> coordinates;
-    coordinates.extend(TRY(parse_coordinate_pair()));
+    Vector<Gfx::FloatPoint, 2> coordinates;
+    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
     if (match_comma_whitespace())
         parse_comma_whitespace();
-    coordinates.extend(TRY(parse_coordinate_pair()));
+    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
     return coordinates;
 }
 
-ErrorOr<Vector<float>> AttributeParser::parse_coordinate_pair_triplet()
+ErrorOr<Vector<Gfx::FloatPoint, 3>> AttributeParser::parse_coordinate_pair_triplet()
 {
-    Vector<float> coordinates;
-    coordinates.extend(TRY(parse_coordinate_pair()));
+    Vector<Gfx::FloatPoint, 3> coordinates;
+    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
     if (match_comma_whitespace())
         parse_comma_whitespace();
-    coordinates.extend(TRY(parse_coordinate_pair()));
+    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
     if (match_comma_whitespace())
         parse_comma_whitespace();
-    coordinates.extend(TRY(parse_coordinate_pair()));
+    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
     return coordinates;
 }
 
@@ -450,7 +423,9 @@ ErrorOr<Vector<float>> AttributeParser::parse_elliptical_arc_argument()
     numbers.append(TRY(parse_flag()));
     if (match_comma_whitespace())
         parse_comma_whitespace();
-    numbers.extend(TRY(parse_coordinate_pair()));
+    auto point = TRY(parse_coordinate_pair());
+    numbers.append(point.x());
+    numbers.append(point.y());
 
     return numbers;
 }

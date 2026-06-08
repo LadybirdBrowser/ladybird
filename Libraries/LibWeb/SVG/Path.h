@@ -18,7 +18,7 @@ namespace Web::SVG {
 
 struct MoveToInstruction {
     bool absolute;
-    Vector<float> point;
+    Gfx::FloatPoint point;
 
     bool operator==(MoveToInstruction const&) const = default;
 };
@@ -29,7 +29,7 @@ struct ClosePathInstruction {
 
 struct LineToInstruction {
     bool absolute;
-    Vector<float> point;
+    Gfx::FloatPoint point;
 
     bool operator==(LineToInstruction const&) const = default;
 };
@@ -50,32 +50,32 @@ struct VerticalLineToInstruction {
 
 struct CurveToInstruction {
     bool absolute;
-    Vector<float> control_point_1;
-    Vector<float> control_point_2;
-    Vector<float> point;
+    Gfx::FloatPoint control_point_1;
+    Gfx::FloatPoint control_point_2;
+    Gfx::FloatPoint point;
 
     bool operator==(CurveToInstruction const&) const = default;
 };
 
 struct SmoothCurveToInstruction {
     bool absolute;
-    Vector<float> control_point_2;
-    Vector<float> point;
+    Gfx::FloatPoint control_point_2;
+    Gfx::FloatPoint point;
 
     bool operator==(SmoothCurveToInstruction const&) const = default;
 };
 
 struct QuadraticBezierCurveToInstruction {
     bool absolute;
-    Vector<float> control_point;
-    Vector<float> point;
+    Gfx::FloatPoint control_point;
+    Gfx::FloatPoint point;
 
     bool operator==(QuadraticBezierCurveToInstruction const&) const = default;
 };
 
 struct SmoothQuadraticBezierCurveToInstruction {
     bool absolute;
-    Vector<float> point;
+    Gfx::FloatPoint point;
 
     bool operator==(SmoothQuadraticBezierCurveToInstruction const&) const = default;
 };
@@ -87,7 +87,7 @@ struct EllipticalArcInstruction {
     bool absolute;
     bool large_arc;
     bool sweep;
-    Vector<float> point;
+    Gfx::FloatPoint point;
 
     bool operator==(EllipticalArcInstruction const&) const = default;
 };
