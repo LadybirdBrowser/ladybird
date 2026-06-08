@@ -89,14 +89,12 @@ static bool scope_has_featureless_sensitive_has_selectors(StyleScope const& scop
     return data && data->has_selectors_sensitive_to_featureless_subtree_changes;
 }
 
-void invalidate_element_if_affected_by_has(DOM::Element& element)
+void invalidate_element_if_affected_by_has(DOM::Element& element, DescendantHasInvalidation descendant_has_invalidation)
 {
     if (element.affected_by_has_pseudo_class_in_subject_position())
         element.set_needs_style_update(true);
-    if (element.affected_by_has_pseudo_class_in_subject_position()
-        || element.affected_by_has_pseudo_class_in_non_subject_position()) {
+    if (descendant_has_invalidation == DescendantHasInvalidation::Yes && element.affected_by_has_pseudo_class_in_non_subject_position())
         element.invalidate_style(DOM::StyleInvalidationReason::Other, { { InvalidationSet::Property::Type::PseudoClass, PseudoClass::Has } }, {});
-    }
 }
 
 static bool is_in_has_scope(DOM::Element const& element)
@@ -193,15 +191,42 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
                     case PseudoClass::LocalLink:
                     case PseudoClass::Required:
                     case PseudoClass::Optional:
-                        saw_concrete_feature = true;
-                        concrete_feature_found_in_mutation_subtree |= mutation_features.may_affect_pseudo_classes
-                            || mutation_features.pseudo_classes.contains(pseudo_class.type);
-                        break;
                     case PseudoClass::Hover:
                     case PseudoClass::Focus:
                     case PseudoClass::FocusVisible:
                     case PseudoClass::FocusWithin:
                     case PseudoClass::Active:
+                    case PseudoClass::Target:
+                    case PseudoClass::Modal:
+                    case PseudoClass::Open:
+                    case PseudoClass::PopoverOpen:
+                    case PseudoClass::Autofill:
+                    case PseudoClass::Default:
+                    case PseudoClass::Fullscreen:
+                    case PseudoClass::Indeterminate:
+                    case PseudoClass::Invalid:
+                    case PseudoClass::Muted:
+                    case PseudoClass::Paused:
+                    case PseudoClass::Playing:
+                    case PseudoClass::ReadOnly:
+                    case PseudoClass::ReadWrite:
+                    case PseudoClass::Seeking:
+                    case PseudoClass::Stalled:
+                    case PseudoClass::Unchecked:
+                    case PseudoClass::UserInvalid:
+                    case PseudoClass::UserValid:
+                    case PseudoClass::Valid:
+                    case PseudoClass::VolumeLocked:
+                    case PseudoClass::Buffering:
+                    case PseudoClass::HighValue:
+                    case PseudoClass::LowValue:
+                    case PseudoClass::OptimalValue:
+                    case PseudoClass::SuboptimalValue:
+                    case PseudoClass::EvenLessGoodValue:
+                        saw_concrete_feature = true;
+                        concrete_feature_found_in_mutation_subtree |= mutation_features.may_affect_pseudo_classes
+                            || mutation_features.pseudo_classes.contains(pseudo_class.type);
+                        break;
                     case PseudoClass::Not:
                     case PseudoClass::Has:
                     default:
@@ -303,7 +328,20 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
 
     ++counters.has_ancestor_walk_invocations;
 
-    GC::RootHashTable<GC::Ref<DOM::Element>> elements_already_invalidated_for_has;
+    GC::RootHashMap<GC::Ref<DOM::Element>, DescendantHasInvalidation> invalidated_elements;
+    auto invalidate_element = [&](GC::Ref<DOM::Element> element, DescendantHasInvalidation descendant_has_invalidation) {
+        auto previous_invalidation = invalidated_elements.find(element);
+        if (previous_invalidation != invalidated_elements.end()) {
+            if (previous_invalidation->value == DescendantHasInvalidation::Yes
+                || descendant_has_invalidation == DescendantHasInvalidation::No) {
+                return false;
+            }
+        }
+        invalidated_elements.set(element, descendant_has_invalidation);
+        invalidate_element_if_affected_by_has(*element, descendant_has_invalidation);
+        return true;
+    };
+
     GC::OrderedRootHashMap<GC::Ref<DOM::Node>, PendingHasInvalidationMutationFeatures> pending_has_invalidations;
     for (auto& [node, features] : style_scope.m_pending_has_invalidations)
         pending_has_invalidations.set(node, features);
@@ -328,17 +366,17 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
         }
 
         for (auto element : has_scope_ancestors) {
-            if (elements_already_invalidated_for_has.contains(element))
+            auto previous_invalidation = invalidated_elements.find(element);
+            if (previous_invalidation != invalidated_elements.end() && previous_invalidation->value == DescendantHasInvalidation::Yes)
                 continue;
 
             ++counters.has_ancestor_walk_visits;
             bool can_skip_unchanged_has_fanout = !element->root().is_shadow_root() && !element->assigned_slot_internal() && !element->is_shadow_host();
-            bool should_invalidate_element = true;
-            if (element->affected_by_has_pseudo_class_in_non_subject_position() && can_skip_unchanged_has_fanout)
-                should_invalidate_element = has_rule_that_may_be_affected_by_mutation(style_scope, element, mutation_features);
-            if (should_invalidate_element) {
-                elements_already_invalidated_for_has.set(element);
-                invalidate_element_if_affected_by_has(*element);
+            bool should_invalidate_descendants = element->affected_by_has_pseudo_class_in_non_subject_position();
+            if (should_invalidate_descendants && can_skip_unchanged_has_fanout)
+                should_invalidate_descendants = has_rule_that_may_be_affected_by_mutation(style_scope, element, mutation_features);
+            if (element->affected_by_has_pseudo_class_in_subject_position() || should_invalidate_descendants) {
+                invalidate_element(element, should_invalidate_descendants ? DescendantHasInvalidation::Yes : DescendantHasInvalidation::No);
             } else {
                 elements_skipped_by_has_feature_filter.set(element);
             }
@@ -359,11 +397,10 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
                     GC::Ref<DOM::Element> ancestor_sibling = ancestor_sibling_element;
                     if (elements_skipped_by_has_feature_filter.contains(ancestor_sibling))
                         return IterationDecision::Continue;
-                    if (elements_already_invalidated_for_has.set(ancestor_sibling) != AK::HashSetResult::InsertedNewEntry)
+                    if (!invalidate_element(ancestor_sibling, DescendantHasInvalidation::Yes))
                         return IterationDecision::Continue;
 
                     ++counters.has_ancestor_walk_visits;
-                    invalidate_element_if_affected_by_has(*ancestor_sibling);
                 }
                 return IterationDecision::Continue;
             });

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .wrapper:has(.flag) {
+        color: rgb(1, 2, 3);
+    }
+
+    .wrapper:has(.needle) .target {
+        --style-invalidation-probe: match;
+    }
+
+    .wrapper:has(dialog:modal) .target {
+        --style-invalidation-probe: match;
+    }
+
+    /* Keep .unrelated in :has() invalidation metadata without matching .wrapper. */
+    .decoy:has(.unrelated) {
+        color: rgb(7, 8, 9);
+    }
+
+    .hover-source,
+    .target {
+        display: block;
+        width: 20px;
+        height: 10px;
+    }
+
+    .hover-source:hover {
+        background: rgb(4, 5, 6);
+    }
+</style>
+<section id="fixture"></section>
+<script>
+    function hover(element) {
+        const rect = element.getBoundingClientRect();
+        internals.mouseMove(Math.floor(rect.left + 1), Math.floor(rect.top + 1));
+        internals.updateStyle();
+    }
+
+    test(() => {
+        {
+            const wrapper = makeElement("section", { className: "wrapper" });
+            const flag = makeElement("span", { className: "flag" });
+            const hoverSource = makeElement("span", { className: "hover-source" });
+            const dialog = makeElement("dialog");
+            wrapper.append(flag, hoverSource, dialog);
+            for (let i = 0; i < 60; ++i)
+                wrapper.appendChild(makeElement("span", { className: "target" }));
+            document.getElementById("fixture").appendChild(wrapper);
+
+            internals.updateStyle();
+            assertEqual("subject :has() rule matches", getComputedStyle(wrapper).color, "rgb(1, 2, 3)");
+            assertEqual("descendant :has() rule does not match", readProbe(wrapper.querySelector(".target")), BASE);
+
+            resetStyleCounters();
+            hover(hoverSource);
+
+            const counters = styleCounters();
+            assertEqual("hover unrelated to descendant :has() fanout is bounded", counters.elementStyleNoopRecomputations < 20, true);
+            printPassWithCounters("subject :has() hover skips descendant fanout");
+        }
+
+        {
+            const wrapper = makeElement("section", { className: "wrapper" });
+            const flag = makeElement("span", { className: "flag" });
+            const unrelated = makeElement("span");
+            const needle = makeElement("span");
+            const target = makeElement("span", { className: "target" });
+            wrapper.append(flag, unrelated, needle, target);
+            document.getElementById("fixture").appendChild(wrapper);
+
+            internals.updateStyle();
+            assertEqual("subject :has() rule matches before batched mutations", getComputedStyle(wrapper).color, "rgb(1, 2, 3)");
+            assertEqual("descendant :has() rule does not match before batched mutations", readProbe(target), BASE);
+
+            resetStyleCounters();
+            unrelated.classList.add("unrelated");
+            needle.classList.add("needle");
+
+            assertEqual("descendant :has() rule matches after batched mutations", readProbe(target), MATCH);
+            const counters = styleCounters();
+            assertEqual("batched mutation applies descendant :has() fanout", counters.elementStyleRecomputations >= 3, true);
+            printPassWithCounters("batched subject-only :has() invalidation upgrades to descendant fanout");
+        }
+    });
+</script>
