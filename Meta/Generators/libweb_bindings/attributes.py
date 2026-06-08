@@ -124,15 +124,18 @@ def define_the_attributes(
         # 1. If attr is not exposed in realm, then continue.
         # NB: This is done at the end of this function.
 
+        # 6. Let id be attr’s identifier.
+        definition.write(f'    auto {cpp_name}_id = "{attribute.name}"_utf16_fly_string;\n')
+
         # 2. Let getter be the result of creating an attribute getter given attr, definition, and realm.
         if "LegacyUnforgeable" in attribute.extended_attributes:
             includes.add("LibWeb/Bindings/Intrinsics.h")
             definition.write(
-                f'    auto {native_getter_name} = host_defined_intrinsics(realm).ensure_web_unforgeable_function("{interface.namespaced_name}"_utf16_fly_string, "{attribute.name}"_utf16_fly_string, {getter_name}, UnforgeableKey::Type::Getter);\n'
+                f'    auto {native_getter_name} = host_defined_intrinsics(realm).ensure_web_unforgeable_function("{interface.namespaced_name}"_utf16_fly_string, {cpp_name}_id, {getter_name}, UnforgeableKey::Type::Getter);\n'
             )
         else:
             definition.write(
-                f'    auto {native_getter_name} = JS::NativeFunction::create(realm, {getter_name}, 0, "{attribute.name}"_utf16_fly_string, &realm, "get"sv);\n'
+                f'    auto {native_getter_name} = JS::NativeFunction::create(realm, {getter_name}, 0, {cpp_name}_id, &realm, "get"sv);\n'
             )
 
         # 3. Let setter be the result of creating an attribute setter given attr, definition, and realm.
@@ -143,11 +146,11 @@ def define_the_attributes(
             if "LegacyUnforgeable" in attribute.extended_attributes:
                 includes.add("LibWeb/Bindings/Intrinsics.h")
                 definition.write(
-                    f'    auto {native_setter_name} = host_defined_intrinsics(realm).ensure_web_unforgeable_function("{interface.namespaced_name}"_utf16_fly_string, "{attribute.name}"_utf16_fly_string, {setter_name}, UnforgeableKey::Type::Setter);\n'
+                    f'    auto {native_setter_name} = host_defined_intrinsics(realm).ensure_web_unforgeable_function("{interface.namespaced_name}"_utf16_fly_string, {cpp_name}_id, {setter_name}, UnforgeableKey::Type::Setter);\n'
                 )
             else:
                 definition.write(
-                    f'    auto {native_setter_name} = JS::NativeFunction::create(realm, {setter_name}, 1, "{attribute.name}"_utf16_fly_string, &realm, "set"sv);\n'
+                    f'    auto {native_setter_name} = JS::NativeFunction::create(realm, {setter_name}, 1, {cpp_name}_id, &realm, "set"sv);\n'
                 )
         definition.write(
             f"""
@@ -155,9 +158,6 @@ def define_the_attributes(
     auto {cpp_name}_attributes = default_attributes;
 
     // 5. Let desc be the PropertyDescriptor{{[[Get]]: getter, [[Set]]: setter, [[Enumerable]]: true, [[Configurable]]: configurable}}.
-
-    // 6. Let id be attr’s identifier.
-    auto {cpp_name}_id = "{attribute.name}"_utf16_fly_string;
 
     // 7. Perform ! DefinePropertyOrThrow(target, id, desc).
     object.define_direct_accessor({cpp_name}_id, {native_getter_name}, {native_setter_name}, {cpp_name}_attributes);
