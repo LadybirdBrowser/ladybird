@@ -20,5 +20,47 @@
 
         div.style.removeProperty("--redcolor");
         println(getComputedStyle(nested).backgroundColor);
+
+        div.style.setProperty("--é", "green");
+        println(`style.getPropertyValue(--é)=${div.style.getPropertyValue("--é")}`);
+        println(`style.cssText=${div.style.cssText}`);
+
+        const style = document.createElement("style");
+        style.textContent = "#non-ascii-custom-property { --é: blue; color: var(--é); }";
+        document.head.appendChild(style);
+
+        const styled = document.createElement("div");
+        styled.id = "non-ascii-custom-property";
+        document.body.appendChild(styled);
+
+        println(getComputedStyle(styled).getPropertyValue("--é"));
+        println(getComputedStyle(styled).color);
+
+        const invalidStyle = document.createElement("style");
+        invalidStyle.textContent = "#invalid-non-ascii-custom-property { --é-invalid: var(); color: green; }";
+        document.head.appendChild(invalidStyle);
+
+        const invalid = document.createElement("div");
+        invalid.id = "invalid-non-ascii-custom-property";
+        document.body.appendChild(invalid);
+
+        println(getComputedStyle(invalid).getPropertyValue("--é-invalid"));
+        println(getComputedStyle(invalid).color);
+
+        CSS.registerProperty({ name: "--é-number", syntax: "<number>", initialValue: "0", inherits: false });
+        CSS.registerProperty({ name: "--é-integer", syntax: "<integer>", initialValue: "0", inherits: false });
+
+        const typed = document.createElement("div");
+        document.body.appendChild(typed);
+
+        let typedNumber = typed.computedStyleMap().get("--é-number");
+        println(`computedStyleMap(--é-number)=${typedNumber}`);
+        println(`computedStyleMap(--é-number).unit=${typedNumber.unit}`);
+        println(`computedStyleMap(--é-number).value=${typedNumber.value}`);
+
+        let typedInteger = typed.computedStyleMap().get("--é-integer");
+        println(`computedStyleMap(--é-integer)=${typedInteger}`);
+        println(`computedStyleMap(--é-integer).unit=${typedInteger.unit}`);
+        println(`computedStyleMap(--é-integer).value=${typedInteger.value}`);
     });
 </script>

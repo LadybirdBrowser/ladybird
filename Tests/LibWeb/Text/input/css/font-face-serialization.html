@@ -18,6 +18,9 @@
             // - font-stretch is a legacy alias for font-width
             "@font-face { font-family: 'c3'; font-stretch: extra-condensed; }",
             "@font-face { font-family: 'c4'; font-stretch: 50%; }",
+
+            // Non-ASCII custom-property-like names are invalid @font-face descriptors.
+            "@font-face { font-family: 'd1'; --é: 1; }",
         ];
         for (let testCase of testCases) {
             let style = document.createElement("style");
