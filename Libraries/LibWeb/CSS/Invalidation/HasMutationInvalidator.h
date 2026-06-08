@@ -18,7 +18,12 @@ class Node;
 
 namespace Web::CSS::Invalidation {
 
-void invalidate_element_if_affected_by_has(DOM::Element&);
+enum class DescendantHasInvalidation {
+    No,
+    Yes,
+};
+
+void invalidate_element_if_affected_by_has(DOM::Element&, DescendantHasInvalidation = DescendantHasInvalidation::Yes);
 void invalidate_style_for_pending_has_mutations(DOM::Document&);
 void schedule_has_invalidation_for_node(DOM::Node&, DOM::StyleInvalidationReason);
 void schedule_has_invalidation_for_same_parent_move(DOM::Node&);

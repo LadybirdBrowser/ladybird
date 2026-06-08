@@ -260,6 +260,10 @@ Vector<HasInvalidationMetadata> const* StyleComputer::has_invalidation_metadata_
 
 static bool scope_selector_matches(Selector const& selector, DOM::Element const& element, DOM::Element const& subject, CSSStyleSheet const& scope_style_sheet, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, GC::Ptr<DOM::ParentNode const> scope)
 {
+    // A scope boundary match can activate or deactivate rules for descendants of the scope root.
+    if (&element == &subject && selector.contains_pseudo_class(PseudoClass::Has))
+        const_cast<DOM::Element&>(element).set_affected_by_has_pseudo_class_in_non_subject_position(true);
+
     SelectorEngine::MatchContext context {
         .style_sheet_for_rule = scope_style_sheet,
         .subject = subject,
