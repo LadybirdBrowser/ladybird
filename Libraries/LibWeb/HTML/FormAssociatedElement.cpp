@@ -8,6 +8,7 @@
 
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Event.h>
@@ -109,6 +110,9 @@ void FormAssociatedElement::set_custom_validity(String& error)
 
     // 2. Set the custom validity error message to error.
     m_custom_validity_error_message = error;
+
+    // AD-HOC: Setting a custom validity error changes which validity pseudo-classes match.
+    CSS::Invalidation::invalidate_style_after_validity_change(form_associated_element_to_html_element());
 }
 
 bool FormAssociatedElement::enabled() const

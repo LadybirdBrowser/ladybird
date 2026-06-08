@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    form { background-color: rgb(255, 0, 0); }
+    form:has(:invalid) { background-color: rgb(0, 0, 255); }
+</style>
+<form>
+    <input id="num" type="number" required>
+</form>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const form = document.querySelector("form");
+        const input = document.getElementById("num");
+        input.focus();
+
+        const formBackground = () => getComputedStyle(form).backgroundColor;
+
+        println(`with invalid child: ${formBackground()}`);
+
+        internals.sendText(input, "5");
+        println(`with valid child: ${formBackground()}`);
+    });
+</script>

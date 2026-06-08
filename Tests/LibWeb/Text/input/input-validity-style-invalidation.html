@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    input:invalid { background-color: rgb(255, 0, 0); }
+    input:valid { background-color: rgb(0, 128, 0); }
+</style>
+<input id="num" type="number" required>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const input = document.getElementById("num");
+        input.focus();
+        const probe = (l) => println(`${l}: bg=${getComputedStyle(input).backgroundColor} valid=${input.matches(':valid')}`);
+        probe("initial");
+        internals.sendText(input, "5");
+        probe("after 5");
+        internals.sendText(input, "x");
+        probe("after x");
+    });
+</script>

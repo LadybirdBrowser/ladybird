@@ -1,0 +1,3 @@
+initial: bg=rgb(255, 0, 0) valid=false
+after 5: bg=rgb(0, 128, 0) valid=true
+after x: bg=rgb(255, 0, 0) valid=false

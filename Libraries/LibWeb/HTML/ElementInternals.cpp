@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/ElementInternals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/ElementInternals.h>
@@ -173,6 +174,9 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityState
 
     // 9. Set element's validation anchor to anchor.
     element->set_face_validation_anchor({}, anchor);
+
+    // AD-HOC: Updating the validity flags changes which validity pseudo-classes match.
+    CSS::Invalidation::invalidate_style_after_validity_change(*element);
     return {};
 }
 

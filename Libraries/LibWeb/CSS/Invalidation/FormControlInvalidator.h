@@ -17,5 +17,6 @@ class Element;
 namespace Web::CSS::Invalidation {
 
 void invalidate_style_after_checked_state_change(DOM::Element&, DOM::StyleInvalidationReason);
+void invalidate_style_after_validity_change(DOM::Element&);
 
 }
