@@ -517,6 +517,11 @@ struct WebContentView::VulkanRenderer {
         return imported_textures[slot].ptr();
     }
 
+    bool can_render(Gfx::SharedImageBuffer const& shared_image_buffer)
+    {
+        return imported_texture_for(shared_image_buffer);
+    }
+
     OwnPtr<ImportedTexture> import_texture(Gfx::LinuxDmaBufHandle const& dmabuf, DmaBufIdentity const& dmabuf_identity)
     {
         auto vk_format = vk_format_from_drm_format(dmabuf.drm_format);
@@ -794,6 +799,19 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
             return;
         }
 
+        auto paintable = m_view.current_paintable();
+        bool can_render = paintable.has_value()
+            && !paintable->bitmap_size.is_empty()
+            && m_renderer.prepare(m_window)
+            && m_renderer.can_render(*paintable->shared_image_buffer);
+        if (!can_render) {
+            if (m_view.m_vulkan_window_container)
+                m_view.m_vulkan_window_container->hide();
+            m_view.update();
+            m_window.frameReady();
+            return;
+        }
+
         auto background_color = m_view.page_background_color();
         VkClearColorValue clear_color {
             {
@@ -825,11 +843,14 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
         };
         vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-        auto paintable = m_view.current_paintable();
-        if (paintable.has_value() && !paintable->bitmap_size.is_empty() && m_renderer.prepare(m_window))
-            m_renderer.render(command_buffer, *paintable->shared_image_buffer, paintable->bitmap_size, target_size);
+        bool rendered = m_renderer.render(command_buffer, *paintable->shared_image_buffer, paintable->bitmap_size, target_size);
 
         vkCmdEndRenderPass(command_buffer);
+        if (!rendered) {
+            if (m_view.m_vulkan_window_container)
+                m_view.m_vulkan_window_container->hide();
+            m_view.update();
+        }
         m_window.frameReady();
     }
 
@@ -885,6 +906,7 @@ void WebContentView::create_vulkan_window()
     m_vulkan_window_container->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
     m_vulkan_window_container->setMouseTracking(true);
     m_vulkan_window_container->setGeometry(rect());
+    m_vulkan_window_container->hide();
     setFocusProxy(m_vulkan_window_container);
 }
 
@@ -905,9 +927,29 @@ void WebContentView::destroy_vulkan_window()
     m_vulkan_window = nullptr;
 }
 
+bool WebContentView::current_paintable_can_use_vulkan_window() const
+{
+    auto paintable = current_paintable();
+    if (!paintable.has_value())
+        return false;
+
+    return paintable->shared_image_buffer->linux_dmabuf_handle();
+}
+
 void WebContentView::schedule_vulkan_window_update()
 {
     if (m_vulkan_window) {
+        if (!current_paintable_can_use_vulkan_window()) {
+            if (m_vulkan_window_container)
+                m_vulkan_window_container->hide();
+            update();
+            return;
+        }
+
+        if (m_vulkan_window_container && !m_vulkan_window_container->isVisible()) {
+            m_vulkan_window_container->setGeometry(rect());
+            m_vulkan_window_container->show();
+        }
         m_vulkan_window->requestUpdate();
         return;
     }

@@ -184,6 +184,7 @@ private:
 
     void create_vulkan_window();
     void destroy_vulkan_window();
+    bool current_paintable_can_use_vulkan_window() const;
     void schedule_vulkan_window_update();
     void update_vulkan_window_geometry();
     void set_vulkan_window_cursor(QCursor const&);
