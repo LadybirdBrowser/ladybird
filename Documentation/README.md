@@ -38,3 +38,4 @@ If you have any questions that are not answered here or in the [FAQ](FAQ.md), yo
 * [How to Add an IDL File](AddNewIDLFile.md)
 * [LibWeb Code Style & Patterns](LibWebPatterns.md)
 * [CSS Generated Files](CSSGeneratedFiles.md)
+* [Media Pipeline Design](MediaPipelineDesign.md)
