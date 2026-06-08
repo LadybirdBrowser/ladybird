@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // Reading a stream whose chunk is a Uint8Array backed by a detached ArrayBuffer must resolve with an empty
+        // result, not crash. (issue #9965)
+        const buffer = new ArrayBuffer(8);
+        const view = new Uint8Array(buffer);
+        view.set([0x41, 0x42, 0x43, 0x44]);
+        buffer.transfer();
+
+        const stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(view);
+                controller.close();
+            },
+        });
+
+        try {
+            const out = await new Response(stream).arrayBuffer();
+            println(`resolved length=${out.byteLength}`);
+        } catch (e) {
+            println(`rejected: ${e.name}: ${e.message}`);
+        }
+        done();
+    });
+</script>

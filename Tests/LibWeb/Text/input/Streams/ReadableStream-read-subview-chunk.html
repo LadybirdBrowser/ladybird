@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // A valid Uint8Array chunk with a non-zero byteOffset must round-trip its exact bytes through
+        // Response.arrayBuffer(). (issue #9965)
+        const backing = new Uint8Array([10, 11, 12, 13, 14, 15]);
+        const view = new Uint8Array(backing.buffer, 2, 3); // bytes [12, 13, 14]
+
+        const stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(view);
+                controller.close();
+            },
+        });
+
+        const out = new Uint8Array(await new Response(stream).arrayBuffer());
+        println(`length=${out.length} bytes=${Array.from(out).join(",")}`);
+        done();
+    });
+</script>
