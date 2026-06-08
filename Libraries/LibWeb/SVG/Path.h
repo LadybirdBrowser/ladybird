@@ -12,34 +12,87 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/Point.h>
 
 namespace Web::SVG {
 
-enum class PathInstructionType : u8 {
-    Move,
-    ClosePath,
-    Line,
-    HorizontalLine,
-    VerticalLine,
-    Curve,
-    SmoothCurve,
-    QuadraticBezierCurve,
-    SmoothQuadraticBezierCurve,
-    EllipticalArc,
-    Invalid,
-};
-
-struct PathInstruction {
-    PathInstructionType type;
+struct MoveToInstruction {
     bool absolute;
-    Vector<float> data;
+    Vector<float> point;
 
-    bool operator==(PathInstruction const&) const = default;
-
-    void serialize(StringBuilder&) const;
-
-    void dump() const;
+    bool operator==(MoveToInstruction const&) const = default;
 };
+
+struct ClosePathInstruction {
+    bool operator==(ClosePathInstruction const&) const = default;
+};
+
+struct LineToInstruction {
+    bool absolute;
+    Vector<float> point;
+
+    bool operator==(LineToInstruction const&) const = default;
+};
+
+struct HorizontalLineToInstruction {
+    bool absolute;
+    float x;
+
+    bool operator==(HorizontalLineToInstruction const&) const = default;
+};
+
+struct VerticalLineToInstruction {
+    bool absolute;
+    float y;
+
+    bool operator==(VerticalLineToInstruction const&) const = default;
+};
+
+struct CurveToInstruction {
+    bool absolute;
+    Vector<float> control_point_1;
+    Vector<float> control_point_2;
+    Vector<float> point;
+
+    bool operator==(CurveToInstruction const&) const = default;
+};
+
+struct SmoothCurveToInstruction {
+    bool absolute;
+    Vector<float> control_point_2;
+    Vector<float> point;
+
+    bool operator==(SmoothCurveToInstruction const&) const = default;
+};
+
+struct QuadraticBezierCurveToInstruction {
+    bool absolute;
+    Vector<float> control_point;
+    Vector<float> point;
+
+    bool operator==(QuadraticBezierCurveToInstruction const&) const = default;
+};
+
+struct SmoothQuadraticBezierCurveToInstruction {
+    bool absolute;
+    Vector<float> point;
+
+    bool operator==(SmoothQuadraticBezierCurveToInstruction const&) const = default;
+};
+
+struct EllipticalArcInstruction {
+    float rx;
+    float ry;
+    float x_axis_rotation;
+    bool absolute;
+    bool large_arc;
+    bool sweep;
+    Vector<float> point;
+
+    bool operator==(EllipticalArcInstruction const&) const = default;
+};
+
+using PathInstruction = Variant<MoveToInstruction, ClosePathInstruction, LineToInstruction, HorizontalLineToInstruction, VerticalLineToInstruction, CurveToInstruction, SmoothCurveToInstruction, QuadraticBezierCurveToInstruction, SmoothQuadraticBezierCurveToInstruction, EllipticalArcInstruction>;
 
 class Path {
 public:
