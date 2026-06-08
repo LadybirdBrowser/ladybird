@@ -139,8 +139,6 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
     auto const& width_value = box.computed_values().width();
     CSSPixels unconstrained_width = 0;
     if (should_treat_width_as_auto(box, *m_available_space)) {
-        auto result = calculate_shrink_to_fit_widths(box);
-
         if (m_available_space->width.is_definite()) {
             auto available_width = m_available_space->width.to_px_or_zero()
                 - box_state.margin_left
@@ -150,11 +148,17 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
                 - box_state.border_right
                 - box_state.margin_right;
 
-            unconstrained_width = min(max(result.preferred_minimum_width, available_width), result.preferred_width);
+            auto preferred_width = calculate_max_content_width(box);
+            if (preferred_width <= available_width) {
+                unconstrained_width = preferred_width;
+            } else {
+                auto preferred_minimum_width = calculate_min_content_width(box);
+                unconstrained_width = min(max(preferred_minimum_width, available_width), preferred_width);
+            }
         } else if (m_available_space->width.is_min_content()) {
-            unconstrained_width = result.preferred_minimum_width;
+            unconstrained_width = calculate_min_content_width(box);
         } else {
-            unconstrained_width = result.preferred_width;
+            unconstrained_width = calculate_max_content_width(box);
         }
     } else {
         if (width_value.contains_percentage() && !m_available_space->width.is_definite()) {
