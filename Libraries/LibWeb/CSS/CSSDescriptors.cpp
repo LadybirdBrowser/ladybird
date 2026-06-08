@@ -38,7 +38,7 @@ String CSSDescriptors::item(size_t index) const
     if (index >= length())
         return {};
 
-    return m_descriptors[index].descriptor_name_and_id.name().to_string();
+    return m_descriptors[index].descriptor_name_and_id.name().to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://drafts.csswg.org/cssom/#set-a-css-declaration
@@ -72,15 +72,12 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& pro
     if (!property.is_ascii())
         return {};
 
-    auto property_string = property.to_utf16_string();
-    auto property_name = MUST(FlyString::from_utf8(property_string.ascii_view()));
-
     // 2. If property is not a custom property, follow these substeps:
     Optional<DescriptorNameAndID> descriptor_name_and_id;
     {
         // 1. Let property be property converted to ASCII lowercase.
         // 2. If property is not a case-sensitive match for a supported CSS property, then return.
-        descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property_name);
+        descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property);
         if (!descriptor_name_and_id.has_value())
             return {};
     }
@@ -144,9 +141,6 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(Utf16FlyString const
     if (!property.is_ascii())
         return String {};
 
-    auto property_string = property.to_utf16_string();
-    auto property_name = MUST(FlyString::from_utf8(property_string.ascii_view()));
-
     // 2. If property is not a custom property, let property be property converted to ASCII lowercase.
     // AD-HOC: We compare names case-insensitively instead.
 
@@ -155,7 +149,7 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(Utf16FlyString const
 
     // 4. Let removed be false.
     bool removed = false;
-    auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property_name);
+    auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property);
 
     // 5. If property is a shorthand property, for each longhand property longhand that property maps to:
     if (descriptor_name_and_id.has_value() && is_shorthand(m_at_rule_id, *descriptor_name_and_id)) {
@@ -187,15 +181,12 @@ String CSSDescriptors::get_property_value(Utf16FlyString const& property) const
     if (!property.is_ascii())
         return {};
 
-    auto property_string = property.to_utf16_string();
-    auto property_name = MUST(FlyString::from_utf8(property_string.ascii_view()));
-
     // 1. If property is not a custom property, follow these substeps: ...
     // NB: These substeps only apply to shorthands, and descriptors cannot be shorthands.
 
     // 2. If property is a case-sensitive match for a property name of a CSS declaration in the declarations, then
     //    return the result of invoking serialize a CSS value of that declaration.
-    auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property_name);
+    auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property);
     if (descriptor_name_and_id.has_value()) {
         auto match = m_descriptors.first_matching([descriptor_name_and_id](Descriptor const& entry) { return entry.descriptor_name_and_id == descriptor_name_and_id; });
         if (match.has_value())
@@ -227,6 +218,7 @@ String CSSDescriptors::serialized() const
     for (auto const& descriptor : m_descriptors) {
         // 1. Let property be declaration’s property name.
         auto property = descriptor.descriptor_name_and_id.name();
+        auto property_string = property.to_utf16_string();
 
         // 2. If property is in already serialized, continue with the steps labeled declaration loop.
         // AD-HOC: Not needed as we don't have shorthands.
@@ -239,7 +231,7 @@ String CSSDescriptors::serialized() const
         auto value = descriptor.value->to_string(SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value, and the important flag set if declaration has its important flag set.
-        auto serialized_declaration = serialize_a_css_declaration(property, value, Important::No);
+        auto serialized_declaration = serialize_a_css_declaration(property_string.ascii_view(), value, Important::No);
 
         // 7. Append serialized declaration to list.
         list.append(serialized_declaration);

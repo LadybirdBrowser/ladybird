@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -14,15 +15,19 @@ namespace Web::CSS {
 
 class DescriptorNameAndID {
 public:
-    static Optional<DescriptorNameAndID> from_name(AtRuleID at_rule_id, FlyString name)
+    static Optional<DescriptorNameAndID> from_name(AtRuleID at_rule_id, Utf16FlyString name)
     {
         if (is_a_custom_property_name_string(name))
             return DescriptorNameAndID(move(name), DescriptorID::Custom);
 
-        if (auto descriptor_id = descriptor_id_from_string(at_rule_id, name); descriptor_id.has_value()) {
+        if (!name.is_ascii())
+            return {};
+
+        auto name_string = name.to_utf16_string();
+        if (auto descriptor_id = descriptor_id_from_string(at_rule_id, name_string.ascii_view()); descriptor_id.has_value()) {
             // NB: We use the serialized ID as the name here instead of the input name to ensure that legacy alias
             //     mapping is reflected
-            return DescriptorNameAndID(CSS::to_string(descriptor_id.value()), descriptor_id.value());
+            return DescriptorNameAndID(Utf16FlyString::from_utf8(CSS::to_string(descriptor_id.value())), descriptor_id.value());
         }
 
         return {};
@@ -31,12 +36,12 @@ public:
     static DescriptorNameAndID from_id(DescriptorID descriptor_id)
     {
         VERIFY(descriptor_id != DescriptorID::Custom);
-        return DescriptorNameAndID(CSS::to_string(descriptor_id), descriptor_id);
+        return DescriptorNameAndID(Utf16FlyString::from_utf8(CSS::to_string(descriptor_id)), descriptor_id);
     }
 
     DescriptorID id() const { return m_id; }
 
-    FlyString const& name() const
+    Utf16FlyString const& name() const
     {
         return m_name;
     }
@@ -47,13 +52,13 @@ public:
     }
 
 private:
-    DescriptorNameAndID(FlyString name, DescriptorID id)
+    DescriptorNameAndID(Utf16FlyString name, DescriptorID id)
         : m_name(move(name))
         , m_id(id)
     {
     }
 
-    FlyString m_name;
+    Utf16FlyString m_name;
     DescriptorID m_id;
 };
 
