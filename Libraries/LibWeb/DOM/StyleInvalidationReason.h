@@ -25,6 +25,7 @@ namespace Web::DOM {
     X(ElementAttributeChange)                       \
     X(ElementSetShadowRoot)                         \
     X(ElementSetActive)                             \
+    X(FormControlValidityChange)                    \
     X(Fullscreen)                                   \
     X(HTMLDialogElementSetIsModal)                  \
     X(HTMLDetailsOrDialogOpenAttributeChange)       \

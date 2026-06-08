@@ -1,0 +1,2 @@
+with invalid child: rgb(0, 0, 255)
+with valid child: rgb(255, 0, 0)

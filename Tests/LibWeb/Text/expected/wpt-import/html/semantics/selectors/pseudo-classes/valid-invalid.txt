@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 30 tests
 
-26 Pass
-4 Fail
+30 Pass
 Pass	':valid' matches elements that satisfy their constraints
 Pass	':valid' matches form elements that are not the form owner of any elements that themselves are candidates for constraint validation but do not satisfy their constraints
 Pass	':valid' matches fieldset elements that have no descendant elements that themselves are candidates for constraint validation but do not satisfy their constraints
@@ -24,13 +23,13 @@ Pass	valid form correctly styled on page-load
 Pass	invalid form correctly styled on page-load
 Pass	programmatically adding valid to empty form results in correct style
 Pass	programmatically adding invalid to empty form results in correct style
-Fail	programmatically-invalidated form correctly styled
-Fail	programmatically-validated form correctly styled
+Pass	programmatically-invalidated form correctly styled
+Pass	programmatically-validated form correctly styled
 Pass	:valid/:invalid styling for <fieldset>
 Pass	empty fieldset correctly styled on page-load
 Pass	valid fieldset correctly styled on page-load
 Pass	invalid fieldset correctly styled on page-load
 Pass	programmatically adding valid to empty fieldset results in correct style
 Pass	programmatically adding invalid to empty fieldset results in correct style
-Fail	programmatically-invalidated fieldset correctly styled
-Fail	programmatically-validated fieldset correctly styled
+Pass	programmatically-invalidated fieldset correctly styled
+Pass	programmatically-validated fieldset correctly styled
