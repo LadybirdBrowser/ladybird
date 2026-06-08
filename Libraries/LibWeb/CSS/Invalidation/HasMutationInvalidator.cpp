@@ -112,6 +112,16 @@ static bool is_in_subtree_of_has_relative_selector_with_sibling_combinator(DOM::
         || element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator();
 }
 
+static bool attribute_may_match_mutation_features(Selector::SimpleSelector::Attribute const& attribute, PendingHasInvalidationMutationFeatures const& mutation_features)
+{
+    auto const& attribute_name = attribute.qualified_name.name.name;
+    if (mutation_features.attribute_names.contains(attribute_name))
+        return true;
+
+    auto const& lowercase_attribute_name = attribute.qualified_name.name.lowercase_name;
+    return lowercase_attribute_name != attribute_name && mutation_features.attribute_names.contains(lowercase_attribute_name);
+}
+
 static bool selector_may_match_mutation_features(Selector const& selector, PendingHasInvalidationMutationFeatures const& mutation_features)
 {
     if (mutation_features.is_conservative)
@@ -160,7 +170,7 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
                     break;
                 case Selector::SimpleSelector::Type::Attribute:
                     saw_concrete_feature = true;
-                    concrete_feature_found_in_mutation_subtree |= mutation_features.attribute_names.contains(simple_selector.attribute().qualified_name.name.lowercase_name);
+                    concrete_feature_found_in_mutation_subtree |= attribute_may_match_mutation_features(simple_selector.attribute(), mutation_features);
                     break;
                 case Selector::SimpleSelector::Type::PseudoClass: {
                     auto const& pseudo_class = simple_selector.pseudo_class();
