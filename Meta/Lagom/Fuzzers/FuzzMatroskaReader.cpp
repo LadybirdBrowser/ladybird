@@ -11,7 +11,12 @@
 extern "C" int LLVMFuzzerTestOneInput(u8 const* data, size_t size)
 {
     AK::set_debug_enabled(false);
-    auto stream = Media::IncrementallyPopulatedStream::create_from_data({ data, size });
+
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    if (size > 0)
+        stream->add_chunk_at(0, { data, size });
+    stream->close();
+
     auto matroska_reader_result = Media::Matroska::Reader::from_stream(stream->create_cursor());
     if (matroska_reader_result.is_error())
         return 0;
