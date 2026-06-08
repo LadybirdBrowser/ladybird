@@ -222,6 +222,10 @@ static bool pseudo_class_can_be_used_as_has_invalidation_feature(PseudoClass pse
         PseudoClass::Checked,
         PseudoClass::Required,
         PseudoClass::Optional,
+        PseudoClass::Valid,
+        PseudoClass::Invalid,
+        PseudoClass::UserValid,
+        PseudoClass::UserInvalid,
         PseudoClass::Link,
         PseudoClass::AnyLink,
         PseudoClass::LocalLink);
@@ -536,6 +540,10 @@ static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSel
         case PseudoClass::LocalLink:
         case PseudoClass::Required:
         case PseudoClass::Optional:
+        case PseudoClass::Valid:
+        case PseudoClass::Invalid:
+        case PseudoClass::UserValid:
+        case PseudoClass::UserInvalid:
         // OPTIMIZATION: Interaction-state pseudo-classes match at most a handful of elements at any
         //               given time (the hovered element, the focused element, and ancestors thereof
         //               for :focus-within). Treating them as targetable lets a stylesheet add or
