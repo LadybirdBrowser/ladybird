@@ -42,7 +42,7 @@ public:
     virtual WebIDL::ExceptionOr<void> set_property(FlyString const& property_name, StringView css_text, StringView priority) override;
     virtual WebIDL::ExceptionOr<String> remove_property(FlyString const& property_name) override;
 
-    virtual String get_property_value(FlyString const& property_name) const override;
+    virtual String get_property_value(Utf16FlyString const& property_name) const override;
     virtual StringView get_property_priority(FlyString const& property_name) const override;
 
     Vector<StyleProperty> const& properties() const { return m_properties; }

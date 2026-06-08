@@ -139,7 +139,7 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(FlyString const& pro
     // AD-HOC: We compare names case-insensitively instead.
 
     // 3. Let value be the return value of invoking getPropertyValue() with property as argument.
-    auto value = get_property_value(property);
+    auto value = get_property_value(Utf16FlyString::from_utf8(property));
 
     // 4. Let removed be false.
     bool removed = false;
@@ -170,14 +170,20 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(FlyString const& pro
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
-String CSSDescriptors::get_property_value(FlyString const& property) const
+String CSSDescriptors::get_property_value(Utf16FlyString const& property) const
 {
+    if (!property.is_ascii())
+        return {};
+
+    auto property_string = property.to_utf16_string();
+    auto property_name = MUST(FlyString::from_utf8(property_string.ascii_view()));
+
     // 1. If property is not a custom property, follow these substeps: ...
     // NB: These substeps only apply to shorthands, and descriptors cannot be shorthands.
 
     // 2. If property is a case-sensitive match for a property name of a CSS declaration in the declarations, then
     //    return the result of invoking serialize a CSS value of that declaration.
-    auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property);
+    auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property_name);
     if (descriptor_name_and_id.has_value()) {
         auto match = m_descriptors.first_matching([descriptor_name_and_id](Descriptor const& entry) { return entry.descriptor_name_and_id == descriptor_name_and_id; });
         if (match.has_value())
