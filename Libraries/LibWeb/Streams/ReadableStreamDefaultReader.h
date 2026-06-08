@@ -48,11 +48,8 @@ public:
     // failureSteps, which is an algorithm accepting a JavaScript value
     using FailureSteps = GC::Function<void(JS::Value error)>;
 
-    // AD-HOC: callback triggered on every chunk received from the stream.
-    using ChunkSteps = GC::Function<void(ByteBuffer)>;
-
 private:
-    ReadLoopReadRequest(JS::Realm&, ReadableStreamDefaultReader&, GC::Ref<SuccessSteps>, GC::Ref<FailureSteps>, GC::Ptr<ChunkSteps> = {});
+    ReadLoopReadRequest(JS::Realm&, ReadableStreamDefaultReader&, GC::Ref<SuccessSteps>, GC::Ref<FailureSteps>);
 
     virtual void visit_edges(Visitor&) override;
 
@@ -65,7 +62,6 @@ private:
     ByteBuffer m_bytes;
     GC::Ref<SuccessSteps> m_success_steps;
     GC::Ref<FailureSteps> m_failure_steps;
-    GC::Ptr<ChunkSteps> m_chunk_steps;
 };
 
 // https://streams.spec.whatwg.org/#readablestreamdefaultreader
@@ -77,16 +73,6 @@ class ReadableStreamDefaultReader final
 
 public:
     static WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> construct_impl(JS::Realm&, GC::Ref<ReadableStream>);
-
-    // AD-HOC: Callback functions for read_all_chunks
-    // successSteps, which is an algorithm accepting a JavaScript value
-    using ReadAllOnSuccessSteps = GC::Function<void()>;
-
-    // failureSteps, which is an algorithm accepting a JavaScript value
-    using ReadAllOnFailureSteps = GC::Function<void(JS::Value error)>;
-
-    // AD-HOC: callback triggered on every chunk received from the stream.
-    using ReadAllOnChunkSteps = GC::Function<void(JS::Value chunk)>;
 
     virtual ~ReadableStreamDefaultReader() override = default;
 
