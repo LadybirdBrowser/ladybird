@@ -60,12 +60,11 @@ void ReadableStreamDefaultReader::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://streams.spec.whatwg.org/#read-loop
-ReadLoopReadRequest::ReadLoopReadRequest(JS::Realm& realm, ReadableStreamDefaultReader& reader, GC::Ref<SuccessSteps> success_steps, GC::Ref<FailureSteps> failure_steps, GC::Ptr<ChunkSteps> chunk_steps)
+ReadLoopReadRequest::ReadLoopReadRequest(JS::Realm& realm, ReadableStreamDefaultReader& reader, GC::Ref<SuccessSteps> success_steps, GC::Ref<FailureSteps> failure_steps)
     : m_realm(realm)
     , m_reader(reader)
     , m_success_steps(success_steps)
     , m_failure_steps(failure_steps)
-    , m_chunk_steps(chunk_steps)
 {
 }
 
@@ -76,7 +75,6 @@ void ReadLoopReadRequest::visit_edges(Visitor& visitor)
     visitor.visit(m_reader);
     visitor.visit(m_success_steps);
     visitor.visit(m_failure_steps);
-    visitor.visit(m_chunk_steps);
 }
 
 // chunk steps, given chunk
@@ -89,15 +87,9 @@ void ReadLoopReadRequest::on_chunk(JS::Value chunk)
     }
 
     auto const& array = static_cast<JS::Uint8Array const&>(chunk.as_object());
-    auto buffer = array.data();
 
     // 2. Append the bytes represented by chunk to bytes.
-    m_bytes.append(buffer);
-
-    if (m_chunk_steps) {
-        // FIXME: Can we move the buffer out of the `chunk`? Unclear if that is safe.
-        m_chunk_steps->function()(MUST(ByteBuffer::copy(buffer)));
-    }
+    m_bytes.append(array.data());
 
     // FIXME: As the spec suggests, implement this non-recursively - instead of directly. It is not too big of a deal currently
     //        as we enqueue the entire blob buffer in one go, meaning that we only recurse a single time. Once we begin queuing
