@@ -199,7 +199,7 @@ Optional<String> Host::public_suffix() const
         host_without_trailing_dot = host_without_trailing_dot.substring_view(0, host_without_trailing_dot.length() - 1);
 
     // FIXME: Unify this logic with registrable domain.
-    auto public_suffix = PublicSuffixData::the()->find_matching_public_suffix(host_without_trailing_dot);
+    auto public_suffix = PublicSuffixData::find_matching_public_suffix(host_without_trailing_dot);
     if (!public_suffix.has_value()) {
         auto last_dot = host_without_trailing_dot.find_last('.');
         if (last_dot.has_value())

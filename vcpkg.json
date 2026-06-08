@@ -99,6 +99,7 @@
       "name": "libproxy",
       "platform": "!(android | bsd)"
     },
+    "libpsl",
     {
       "name": "libedit",
       "platform": "!windows & !android"
@@ -348,6 +349,10 @@
     {
       "name": "libproxy",
       "version": "0.4.18#3"
+    },
+    {
+      "name": "libpsl",
+      "version": "0.21.5#1"
     },
     {
       "name": "libtommath",
