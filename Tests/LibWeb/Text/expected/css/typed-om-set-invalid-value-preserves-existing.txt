@@ -1,0 +1,3 @@
+Initial style: width: 10px;
+Invalid set threw TypeError
+After invalid set: width: 10px;
