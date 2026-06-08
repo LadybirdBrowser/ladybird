@@ -178,12 +178,11 @@ private:
     ErrorOr<Vector<Gfx::FloatPoint>> parse_coordinate_pair_sequence();
     ErrorOr<Vector<Gfx::FloatPoint, 2>> parse_coordinate_pair_double();
     ErrorOr<Vector<Gfx::FloatPoint, 3>> parse_coordinate_pair_triplet();
-    ErrorOr<Vector<float>> parse_elliptical_arc_argument();
     void parse_whitespace(bool must_match_once = false);
     void parse_comma_whitespace();
     ErrorOr<float> parse_number();
     ErrorOr<float> parse_nonnegative_number();
-    ErrorOr<float> parse_flag();
+    ErrorOr<bool> parse_flag();
     // -1 if negative, +1 otherwise
     int parse_sign();
 
