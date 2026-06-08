@@ -63,18 +63,24 @@ bool CSSDescriptors::set_a_css_declaration(DescriptorNameAndID const& descriptor
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-WebIDL::ExceptionOr<void> CSSDescriptors::set_property(FlyString const& property, StringView value, StringView priority)
+WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& property, StringView value, StringView priority)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
         return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
+
+    if (!property.is_ascii())
+        return {};
+
+    auto property_string = property.to_utf16_string();
+    auto property_name = MUST(FlyString::from_utf8(property_string.ascii_view()));
 
     // 2. If property is not a custom property, follow these substeps:
     Optional<DescriptorNameAndID> descriptor_name_and_id;
     {
         // 1. Let property be property converted to ASCII lowercase.
         // 2. If property is not a case-sensitive match for a supported CSS property, then return.
-        descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property);
+        descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property_name);
         if (!descriptor_name_and_id.has_value())
             return {};
     }
@@ -129,21 +135,27 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(FlyString const& property
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
-WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(FlyString const& property)
+WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(Utf16FlyString const& property)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
         return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
+    if (!property.is_ascii())
+        return String {};
+
+    auto property_string = property.to_utf16_string();
+    auto property_name = MUST(FlyString::from_utf8(property_string.ascii_view()));
+
     // 2. If property is not a custom property, let property be property converted to ASCII lowercase.
     // AD-HOC: We compare names case-insensitively instead.
 
     // 3. Let value be the return value of invoking getPropertyValue() with property as argument.
-    auto value = get_property_value(Utf16FlyString::from_utf8(property));
+    auto value = get_property_value(property);
 
     // 4. Let removed be false.
     bool removed = false;
-    auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property);
+    auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property_name);
 
     // 5. If property is a shorthand property, for each longhand property longhand that property maps to:
     if (descriptor_name_and_id.has_value() && is_shorthand(m_at_rule_id, *descriptor_name_and_id)) {
@@ -195,7 +207,7 @@ String CSSDescriptors::get_property_value(Utf16FlyString const& property) const
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
-StringView CSSDescriptors::get_property_priority(FlyString const&) const
+StringView CSSDescriptors::get_property_priority(Utf16FlyString const&) const
 {
     // AD-HOC: It's not valid for descriptors to be !important.
     return {};

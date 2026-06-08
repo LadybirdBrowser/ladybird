@@ -6,11 +6,11 @@ interface CSSStyleDeclaration {
     readonly attribute unsigned long length;
     getter CSSOMString item(unsigned long index);
 
-    CSSOMString getPropertyValue(CSSOMString property);
-    CSSOMString getPropertyPriority(CSSOMString property);
+    CSSOMString getPropertyValue(Utf16CSSOMString property);
+    CSSOMString getPropertyPriority(Utf16CSSOMString property);
 
-    [CEReactions] undefined setProperty(CSSOMString property, [LegacyNullToEmptyString] CSSOMString value, optional [LegacyNullToEmptyString] CSSOMString priority = "");
-    [CEReactions] CSSOMString removeProperty(CSSOMString property);
+    [CEReactions] undefined setProperty(Utf16CSSOMString property, [LegacyNullToEmptyString] CSSOMString value, optional [LegacyNullToEmptyString] CSSOMString priority = "");
+    [CEReactions] CSSOMString removeProperty(Utf16CSSOMString property);
 
     readonly attribute CSSRule? parentRule;
 };
