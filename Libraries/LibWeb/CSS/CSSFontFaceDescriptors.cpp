@@ -39,10 +39,8 @@ WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_property(Utf16FlyString co
     if (!property.is_ascii())
         return {};
 
-    if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr())) {
-        auto property_string = property.to_utf16_string();
-        font_face_rule->handle_descriptor_change(MUST(FlyString::from_utf8(property_string.ascii_view())));
-    }
+    if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
+        font_face_rule->handle_descriptor_change(property);
 
     return {};
 }

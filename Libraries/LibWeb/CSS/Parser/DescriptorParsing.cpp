@@ -22,12 +22,19 @@
 
 namespace Web::CSS::Parser {
 
+static FlyString descriptor_name_to_fly_string(DescriptorNameAndID const& descriptor_name_and_id)
+{
+    auto descriptor_name = descriptor_name_and_id.name().to_utf16_string();
+    auto descriptor_name_utf8 = descriptor_name.to_utf8_but_should_be_ported_to_utf16();
+    return MUST(FlyString::from_utf8(descriptor_name_utf8.bytes_as_string_view()));
+}
+
 Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_value(AtRuleID at_rule_id, DescriptorNameAndID const& descriptor_name_and_id, TokenStream<ComponentValue>& tokens)
 {
     if (!at_rule_supports_descriptor(at_rule_id, descriptor_name_and_id.id())) {
         ErrorReporter::the().report(UnknownPropertyError {
             .rule_name = to_string(at_rule_id),
-            .property_name = descriptor_name_and_id.name(),
+            .property_name = descriptor_name_to_fly_string(descriptor_name_and_id),
         });
         return ParseError::SyntaxError;
     }
@@ -60,8 +67,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
         // NB: Since we are not in a property value context we only allow ASFs if they are explicitly allowed in
         //     Descriptors.json
         if (!metadata.allow_arbitrary_substitution_functions) {
+            auto descriptor_name = descriptor_name_to_fly_string(descriptor_name_and_id);
+            auto value_type = MUST(String::formatted("{}/{}", to_string(at_rule_id), descriptor_name));
             ErrorReporter::the().report(InvalidValueError {
-                .value_type = MUST(String::formatted("{}/{}", to_string(at_rule_id), descriptor_name_and_id.name())),
+                .value_type = MUST(FlyString::from_utf8(value_type.bytes_as_string_view())),
                 .value_string = tokens.dump_string(),
                 .description = "ASFs are not supported in this descriptor"_string,
             });
@@ -423,7 +432,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
     ErrorReporter::the().report(InvalidPropertyError {
         .rule_name = to_string(at_rule_id),
-        .property_name = descriptor_name_and_id.name(),
+        .property_name = descriptor_name_to_fly_string(descriptor_name_and_id),
         .value_string = tokens.dump_string(),
         .description = "Failed to parse."_string,
     });
@@ -433,7 +442,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
 Optional<Descriptor> Parser::convert_to_descriptor(AtRuleID at_rule_id, Declaration const& declaration)
 {
-    auto descriptor_name_and_id = DescriptorNameAndID::from_name(at_rule_id, declaration.name);
+    auto descriptor_name_and_id = DescriptorNameAndID::from_name(at_rule_id, Utf16FlyString::from_utf8(declaration.name));
     if (!descriptor_name_and_id.has_value())
         return {};
 

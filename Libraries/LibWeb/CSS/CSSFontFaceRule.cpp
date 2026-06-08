@@ -155,7 +155,7 @@ void CSSFontFaceRule::visit_edges(Visitor& visitor)
     visitor.visit(m_css_connected_font_face);
 }
 
-void CSSFontFaceRule::handle_descriptor_change(FlyString const& property)
+void CSSFontFaceRule::handle_descriptor_change(Utf16FlyString const& property)
 {
     if (!m_css_connected_font_face)
         return;
@@ -165,7 +165,7 @@ void CSSFontFaceRule::handle_descriptor_change(FlyString const& property)
         return;
     }
 
-    if (property.equals_ignoring_ascii_case("src"sv))
+    if (property.equals_ignoring_ascii_case("src"_utf16_fly_string))
         handle_src_descriptor_change();
 
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
