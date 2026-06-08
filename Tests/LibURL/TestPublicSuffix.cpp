@@ -49,18 +49,16 @@ TEST_CASE(public_suffix_matching_for_psl_rules)
         { "www.xn--55qx5d.cn"sv, false, "xn--55qx5d.cn"sv, "www.xn--55qx5d.cn"sv },
     };
 
-    auto* public_suffix_data = URL::PublicSuffixData::the();
-
     for (auto const& test_case : test_cases) {
-        EXPECT_EQ(public_suffix_data->is_matching_public_suffix(test_case.input), test_case.is_public_suffix);
-        EXPECT_EQ(public_suffix_data->find_matching_public_suffix(test_case.input), test_case.public_suffix);
-        EXPECT_EQ(public_suffix_data->find_matching_registrable_domain(test_case.input), test_case.registrable_domain);
+        EXPECT_EQ(URL::PublicSuffixData::is_matching_public_suffix(test_case.input), test_case.is_public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(test_case.input), test_case.public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(test_case.input), test_case.registrable_domain);
 
         auto host = URL::Parser::parse_host(test_case.input);
         VERIFY(host.has_value());
-        EXPECT_EQ(public_suffix_data->is_matching_public_suffix(*host), test_case.is_public_suffix);
-        EXPECT_EQ(public_suffix_data->find_matching_public_suffix(*host), test_case.public_suffix);
-        EXPECT_EQ(public_suffix_data->find_matching_registrable_domain(*host), test_case.registrable_domain);
+        EXPECT_EQ(URL::PublicSuffixData::is_matching_public_suffix(*host), test_case.is_public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host), test_case.public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host), test_case.registrable_domain);
         EXPECT_EQ(host->public_suffix(), test_case.public_suffix);
         EXPECT_EQ(host->registrable_domain(), test_case.registrable_domain);
     }
@@ -90,18 +88,16 @@ TEST_CASE(public_suffix_matching_without_psl_rule)
         { "sub.example.إختبار"sv, "xn--kgbechtv"sv, "example.xn--kgbechtv"sv },
     };
 
-    auto* public_suffix_data = URL::PublicSuffixData::the();
-
     for (auto const& test_case : test_cases) {
-        EXPECT(!public_suffix_data->is_matching_public_suffix(test_case.input));
-        EXPECT_EQ(public_suffix_data->find_matching_public_suffix(test_case.input), OptionalNone {});
-        EXPECT_EQ(public_suffix_data->find_matching_registrable_domain(test_case.input), OptionalNone {});
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(test_case.input));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(test_case.input), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(test_case.input), OptionalNone {});
 
         auto host = URL::Parser::parse_host(test_case.input);
         VERIFY(host.has_value());
-        EXPECT(!public_suffix_data->is_matching_public_suffix(*host));
-        EXPECT_EQ(public_suffix_data->find_matching_public_suffix(*host), OptionalNone {});
-        EXPECT_EQ(public_suffix_data->find_matching_registrable_domain(*host), OptionalNone {});
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(*host));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host), OptionalNone {});
         EXPECT_EQ(host->public_suffix(), test_case.host_public_suffix);
         EXPECT_EQ(host->registrable_domain(), test_case.host_registrable_domain);
     }
@@ -119,14 +115,12 @@ TEST_CASE(invalid_hosts)
     };
 
     // Above inputs are not valid hosts, so should not be able to be parsed or matched in the PSL.
-    auto* public_suffix_data = URL::PublicSuffixData::the();
-
     for (auto const& input : raw_invalid_inputs) {
         auto host = URL::Parser::parse_host(input);
         EXPECT(!host.has_value());
-        EXPECT(!public_suffix_data->is_matching_public_suffix(input));
-        EXPECT_EQ(public_suffix_data->find_matching_public_suffix(input), OptionalNone {});
-        EXPECT_EQ(public_suffix_data->find_matching_registrable_domain(input), OptionalNone {});
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(input));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(input), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(input), OptionalNone {});
     }
 }
 
@@ -137,18 +131,16 @@ TEST_CASE(public_suffix_matching_for_ip_addresses)
         "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"sv,
     };
 
-    auto* public_suffix_data = URL::PublicSuffixData::the();
-
     for (auto const& input : test_cases) {
-        EXPECT(!public_suffix_data->is_matching_public_suffix(input));
-        EXPECT_EQ(public_suffix_data->find_matching_public_suffix(input), OptionalNone {});
-        EXPECT_EQ(public_suffix_data->find_matching_registrable_domain(input), OptionalNone {});
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(input));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(input), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(input), OptionalNone {});
 
         auto host = URL::Parser::parse_host(input);
         VERIFY(host.has_value());
-        EXPECT(!public_suffix_data->is_matching_public_suffix(*host));
-        EXPECT_EQ(public_suffix_data->find_matching_public_suffix(*host), OptionalNone {});
-        EXPECT_EQ(public_suffix_data->find_matching_registrable_domain(*host), OptionalNone {});
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(*host));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host), OptionalNone {});
         EXPECT_EQ(host->public_suffix(), OptionalNone {});
         EXPECT_EQ(host->registrable_domain(), OptionalNone {});
     }

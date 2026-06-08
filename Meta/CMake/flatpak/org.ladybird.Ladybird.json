@@ -238,6 +238,32 @@
       ]
     },
     {
+      "name": "libpsl",
+      "buildsystem": "meson",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/rockdaboot/libpsl.git",
+          "tag": "0.21.5"
+        },
+        {
+          "type": "file",
+          "url": "https://raw.githubusercontent.com/publicsuffix/list/303b81a2140a3192d336f22af389a28daf6efab6/public_suffix_list.dat",
+          "sha256": "82d4d57e397177be3a627df27f88dc0ab04f54d081bc94c68f82c3e100855e0b",
+          "dest": "list/"
+        }
+      ],
+      "config-opts": [
+        "-Ddocs=false",
+        "-Druntime=libicu",
+        "-Dtests=false",
+        "--libdir=/app/lib"
+      ],
+      "cleanup": [
+        "/bin"
+      ]
+    },
+    {
       "name": "libxml2",
       "buildsystem": "cmake-ninja",
       "sources": [
@@ -727,12 +753,6 @@
       "name": "Ladybird",
       "buildsystem": "cmake-ninja",
       "sources": [
-        {
-          "type": "file",
-          "url": "https://raw.githubusercontent.com/publicsuffix/list/32c68ce9d52e12df5b914b2b248cb893147301f7/public_suffix_list.dat",
-          "dest": "Caches/PublicSuffix/",
-          "sha256": "e79e372bcc6fcdb51f7a31e3c0c504530838432669af2ac544d2491de0a86030"
-        },
         {
           "type": "file",
           "url": "https://raw.githubusercontent.com/chromium/chromium/aa04f175415addb04bb78936b0d8b973fbd8ea61/net/http/transport_security_state_static.json",
