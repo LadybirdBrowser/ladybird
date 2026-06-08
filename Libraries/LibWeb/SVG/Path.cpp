@@ -21,8 +21,8 @@ static void serialize_path_instruction(PathInstruction const& instruction, Strin
             builder.appendff(
                 "{} {} {}",
                 move_to.absolute ? 'M' : 'm',
-                move_to.point[0],
-                move_to.point[1]);
+                move_to.point.x(),
+                move_to.point.y());
         },
         [&](ClosePathInstruction const&) {
             // NB: This is always canonicalized as Z, not z.
@@ -32,8 +32,8 @@ static void serialize_path_instruction(PathInstruction const& instruction, Strin
             builder.appendff(
                 "{} {} {}",
                 line_to.absolute ? 'L' : 'l',
-                line_to.point[0],
-                line_to.point[1]);
+                line_to.point.x(),
+                line_to.point.y());
         },
         [&](HorizontalLineToInstruction const& horizontal_line_to) {
             builder.appendff(
@@ -51,37 +51,37 @@ static void serialize_path_instruction(PathInstruction const& instruction, Strin
             builder.appendff(
                 "{} {} {} {} {} {} {}",
                 curve_to.absolute ? 'C' : 'c',
-                curve_to.control_point_1[0],
-                curve_to.control_point_1[1],
-                curve_to.control_point_2[0],
-                curve_to.control_point_2[1],
-                curve_to.point[0],
-                curve_to.point[1]);
+                curve_to.control_point_1.x(),
+                curve_to.control_point_1.y(),
+                curve_to.control_point_2.x(),
+                curve_to.control_point_2.y(),
+                curve_to.point.x(),
+                curve_to.point.y());
         },
         [&](SmoothCurveToInstruction const& smooth_curve_to) {
             builder.appendff(
                 "{} {} {} {} {}",
                 smooth_curve_to.absolute ? 'S' : 's',
-                smooth_curve_to.control_point_2[0],
-                smooth_curve_to.control_point_2[1],
-                smooth_curve_to.point[0],
-                smooth_curve_to.point[1]);
+                smooth_curve_to.control_point_2.x(),
+                smooth_curve_to.control_point_2.y(),
+                smooth_curve_to.point.x(),
+                smooth_curve_to.point.y());
         },
         [&](QuadraticBezierCurveToInstruction const& quadratic_bezier_curve_to) {
             builder.appendff(
                 "{} {} {} {} {}",
                 quadratic_bezier_curve_to.absolute ? 'Q' : 'q',
-                quadratic_bezier_curve_to.control_point[0],
-                quadratic_bezier_curve_to.control_point[1],
-                quadratic_bezier_curve_to.point[0],
-                quadratic_bezier_curve_to.point[1]);
+                quadratic_bezier_curve_to.control_point.x(),
+                quadratic_bezier_curve_to.control_point.y(),
+                quadratic_bezier_curve_to.point.x(),
+                quadratic_bezier_curve_to.point.y());
         },
         [&](SmoothQuadraticBezierCurveToInstruction const& smooth_quadratic_bezier_curve_to) {
             builder.appendff(
                 "{} {} {}",
                 smooth_quadratic_bezier_curve_to.absolute ? 'T' : 't',
-                smooth_quadratic_bezier_curve_to.point[0],
-                smooth_quadratic_bezier_curve_to.point[1]);
+                smooth_quadratic_bezier_curve_to.point.x(),
+                smooth_quadratic_bezier_curve_to.point.y());
         },
         [&](EllipticalArcInstruction const& elliptical_arc) {
             builder.appendff(
@@ -92,8 +92,8 @@ static void serialize_path_instruction(PathInstruction const& instruction, Strin
                 elliptical_arc.x_axis_rotation,
                 elliptical_arc.large_arc ? 1 : 0,
                 elliptical_arc.sweep ? 1 : 0,
-                elliptical_arc.point[0],
-                elliptical_arc.point[1]);
+                elliptical_arc.point.x(),
+                elliptical_arc.point.y());
         });
 }
 
@@ -102,14 +102,14 @@ static void serialize_path_instruction(PathInstruction const& instruction, Strin
     instruction.visit(
         [](MoveToInstruction const& move_to) {
             dbgln("Move (absolute={})", move_to.absolute);
-            dbgln("    x={}, y={}", move_to.point[0], move_to.point[1]);
+            dbgln("    x={}, y={}", move_to.point.x(), move_to.point.y());
         },
         [](ClosePathInstruction const&) {
             dbgln("ClosePath");
         },
         [](LineToInstruction const& line_to) {
             dbgln("Line (absolute={})", line_to.absolute);
-            dbgln("    x={}, y={}", line_to.point[0], line_to.point[1]);
+            dbgln("    x={}, y={}", line_to.point.x(), line_to.point.y());
         },
         [](HorizontalLineToInstruction const& horizontal_line_to) {
             dbgln("HorizontalLine (absolute={})", horizontal_line_to.absolute);
@@ -121,19 +121,19 @@ static void serialize_path_instruction(PathInstruction const& instruction, Strin
         },
         [](CurveToInstruction const& curve_to) {
             dbgln("Curve (absolute={})", curve_to.absolute);
-            dbgln("    (x1={}, y1={}, x2={}, y2={}), (x={}, y={})", curve_to.control_point_1[0], curve_to.control_point_1[1], curve_to.control_point_2[0], curve_to.control_point_2[1], curve_to.point[0], curve_to.point[1]);
+            dbgln("    (x1={}, y1={}, x2={}, y2={}), (x={}, y={})", curve_to.control_point_1.x(), curve_to.control_point_1.y(), curve_to.control_point_2.x(), curve_to.control_point_2.y(), curve_to.point.x(), curve_to.point.y());
         },
         [](SmoothCurveToInstruction const& smooth_curve_to) {
             dbgln("SmoothCurve (absolute={})", smooth_curve_to.absolute);
-            dbgln("    (x2={}, y2={}), (x={}, y={})", smooth_curve_to.control_point_2[0], smooth_curve_to.control_point_2[1], smooth_curve_to.point[0], smooth_curve_to.point[1]);
+            dbgln("    (x2={}, y2={}), (x={}, y={})", smooth_curve_to.control_point_2.x(), smooth_curve_to.control_point_2.y(), smooth_curve_to.point.x(), smooth_curve_to.point.y());
         },
         [](QuadraticBezierCurveToInstruction const& quadratic_bezier_curve_to) {
             dbgln("QuadraticBezierCurve (absolute={})", quadratic_bezier_curve_to.absolute);
-            dbgln("    (x1={}, y1={}), (x={}, y={})", quadratic_bezier_curve_to.control_point[0], quadratic_bezier_curve_to.control_point[1], quadratic_bezier_curve_to.point[0], quadratic_bezier_curve_to.point[1]);
+            dbgln("    (x1={}, y1={}), (x={}, y={})", quadratic_bezier_curve_to.control_point.x(), quadratic_bezier_curve_to.control_point.y(), quadratic_bezier_curve_to.point.x(), quadratic_bezier_curve_to.point.y());
         },
         [](SmoothQuadraticBezierCurveToInstruction const& smooth_quadratic_bezier_curve_to) {
             dbgln("SmoothQuadraticBezierCurve (absolute={})", smooth_quadratic_bezier_curve_to.absolute);
-            dbgln("    x={}, y={}", smooth_quadratic_bezier_curve_to.point[0], smooth_quadratic_bezier_curve_to.point[1]);
+            dbgln("    x={}, y={}", smooth_quadratic_bezier_curve_to.point.x(), smooth_quadratic_bezier_curve_to.point.y());
         },
         [](EllipticalArcInstruction const& elliptical_arc) {
             dbgln("EllipticalArc (absolute={})", elliptical_arc.absolute);
@@ -143,8 +143,8 @@ static void serialize_path_instruction(PathInstruction const& instruction, Strin
                 elliptical_arc.x_axis_rotation,
                 elliptical_arc.large_arc,
                 elliptical_arc.sweep,
-                elliptical_arc.point[0],
-                elliptical_arc.point[1]);
+                elliptical_arc.point.x(),
+                elliptical_arc.point.y());
         });
 }
 
@@ -166,22 +166,20 @@ Gfx::Path Path::to_gfx_path() const
 
         instruction.visit(
             [&](MoveToInstruction const& move_to_instruction) {
-                Gfx::FloatPoint point = { move_to_instruction.point[0], move_to_instruction.point[1] };
                 if (move_to_instruction.absolute) {
-                    path.move_to(point);
+                    path.move_to(move_to_instruction.point);
                 } else {
-                    path.move_to(point + last_point);
+                    path.move_to(move_to_instruction.point + last_point);
                 }
             },
             [&](ClosePathInstruction const&) {
                 path.close();
             },
             [&](LineToInstruction const& line_to_instruction) {
-                Gfx::FloatPoint point = { line_to_instruction.point[0], line_to_instruction.point[1] };
                 if (line_to_instruction.absolute) {
-                    path.line_to(point);
+                    path.line_to(line_to_instruction.point);
                 } else {
-                    path.line_to(point + last_point);
+                    path.line_to(line_to_instruction.point + last_point);
                 }
             },
             [&](HorizontalLineToInstruction const& horizontal_line_to_instruction) {
@@ -202,24 +200,21 @@ Gfx::Path Path::to_gfx_path() const
                 Gfx::FloatPoint next_point;
 
                 if (elliptical_arc_instruction.absolute)
-                    next_point = { elliptical_arc_instruction.point[0], elliptical_arc_instruction.point[1] };
+                    next_point = elliptical_arc_instruction.point;
                 else
-                    next_point = { elliptical_arc_instruction.point[0] + last_point.x(), elliptical_arc_instruction.point[1] + last_point.y() };
+                    next_point = elliptical_arc_instruction.point + last_point;
 
                 path.elliptical_arc_to(next_point, { elliptical_arc_instruction.rx, elliptical_arc_instruction.ry }, x_axis_rotation, elliptical_arc_instruction.large_arc, elliptical_arc_instruction.sweep);
             },
             [&](QuadraticBezierCurveToInstruction const& quadratic_bezier_curve_to_instruction) {
                 clear_last_control_point = false;
 
-                Gfx::FloatPoint through = { quadratic_bezier_curve_to_instruction.control_point[0], quadratic_bezier_curve_to_instruction.control_point[1] };
-                Gfx::FloatPoint point = { quadratic_bezier_curve_to_instruction.point[0], quadratic_bezier_curve_to_instruction.point[1] };
-
                 if (quadratic_bezier_curve_to_instruction.absolute) {
-                    path.quadratic_bezier_curve_to(through, point);
-                    previous_control_point = through;
+                    path.quadratic_bezier_curve_to(quadratic_bezier_curve_to_instruction.control_point, quadratic_bezier_curve_to_instruction.point);
+                    previous_control_point = quadratic_bezier_curve_to_instruction.control_point;
                 } else {
-                    auto control_point = through + last_point;
-                    path.quadratic_bezier_curve_to(control_point, point + last_point);
+                    auto control_point = quadratic_bezier_curve_to_instruction.control_point + last_point;
+                    path.quadratic_bezier_curve_to(control_point, quadratic_bezier_curve_to_instruction.point + last_point);
                     previous_control_point = control_point;
                 }
             },
@@ -235,12 +230,10 @@ Gfx::Path Path::to_gfx_path() const
                 auto dy_end_control = last_point.dy_relative_to(previous_control_point.value());
                 auto control_point = Gfx::FloatPoint { last_point.x() + dx_end_control, last_point.y() + dy_end_control };
 
-                Gfx::FloatPoint end_point = { smooth_quadratic_bezier_curve_to_instruction.point[0], smooth_quadratic_bezier_curve_to_instruction.point[1] };
-
                 if (smooth_quadratic_bezier_curve_to_instruction.absolute) {
-                    path.quadratic_bezier_curve_to(control_point, end_point);
+                    path.quadratic_bezier_curve_to(control_point, smooth_quadratic_bezier_curve_to_instruction.point);
                 } else {
-                    path.quadratic_bezier_curve_to(control_point, end_point + last_point);
+                    path.quadratic_bezier_curve_to(control_point, smooth_quadratic_bezier_curve_to_instruction.point + last_point);
                 }
 
                 previous_control_point = control_point;
@@ -248,9 +241,9 @@ Gfx::Path Path::to_gfx_path() const
             [&](CurveToInstruction const& curve_to_instruction) {
                 clear_last_control_point = false;
 
-                Gfx::FloatPoint c1 = { curve_to_instruction.control_point_1[0], curve_to_instruction.control_point_1[1] };
-                Gfx::FloatPoint c2 = { curve_to_instruction.control_point_2[0], curve_to_instruction.control_point_2[1] };
-                Gfx::FloatPoint p2 = { curve_to_instruction.point[0], curve_to_instruction.point[1] };
+                Gfx::FloatPoint c1 = curve_to_instruction.control_point_1;
+                Gfx::FloatPoint c2 = curve_to_instruction.control_point_2;
+                Gfx::FloatPoint p2 = curve_to_instruction.point;
 
                 if (!curve_to_instruction.absolute) {
                     p2 += last_point;
@@ -275,8 +268,8 @@ Gfx::Path Path::to_gfx_path() const
                 auto reflected_previous_control_x = last_point.x() - previous_control_point.value().dx_relative_to(last_point);
                 auto reflected_previous_control_y = last_point.y() - previous_control_point.value().dy_relative_to(last_point);
                 Gfx::FloatPoint c1 = Gfx::FloatPoint { reflected_previous_control_x, reflected_previous_control_y };
-                Gfx::FloatPoint c2 = { smooth_curve_to_instruction.control_point_2[0], smooth_curve_to_instruction.control_point_2[1] };
-                Gfx::FloatPoint p2 = { smooth_curve_to_instruction.point[0], smooth_curve_to_instruction.point[1] };
+                Gfx::FloatPoint c2 = smooth_curve_to_instruction.control_point_2;
+                Gfx::FloatPoint p2 = smooth_curve_to_instruction.point;
                 if (!smooth_curve_to_instruction.absolute) {
                     p2 += last_point;
                     c2 += last_point;
