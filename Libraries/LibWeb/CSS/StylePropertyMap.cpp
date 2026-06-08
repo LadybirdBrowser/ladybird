@@ -148,10 +148,6 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Readonl
     // 6. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = declarations();
 
-    // 7. If props[property] exists, remove it.
-    // FIXME: Avoid converting to string and back.
-    TRY(props.remove_property(property->name()));
-
     // 8. Let values to set be an empty list.
     StyleValueVector values_to_set;
 
@@ -167,6 +163,12 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Readonl
 
         values_to_set.append(move(internal_representation));
     }
+
+    // 7. If props[property] exists, remove it.
+    // FIXME: Avoid converting to string and back.
+    // FIXME: We handle this after creating the internal representations (step 9) so that we maintain the original
+    //        value in the case that fails - see https://github.com/w3c/css-houdini-drafts/issues/1175
+    TRY(props.remove_property(property->name()));
 
     // AD-HOC: To match the behavior of our parser we should store values of list-valued longhands as lists even if
     //         there is only one value, except in some rare circumstances.

@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+    <div id="foo"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            foo.attributeStyleMap.set("width", CSS.px(10));
+            println(`Initial style: ${foo.getAttribute("style")}`);
+
+            try {
+                foo.attributeStyleMap.set("width", "not a width");
+                println("FAIL: Invalid set did not throw");
+            } catch (e) {
+                println(`Invalid set threw ${e.name}`);
+            }
+
+            println(`After invalid set: ${foo.getAttribute("style")}`);
+        });
+    </script>
+</html>
