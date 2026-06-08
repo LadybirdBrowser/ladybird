@@ -61,58 +61,49 @@ void PathInstruction::dump() const
     switch (type) {
     case PathInstructionType::Move:
         dbgln("Move (absolute={})", absolute);
-        for (size_t i = 0; i < data.size(); i += 2)
-            dbgln("    x={}, y={}", data[i], data[i + 1]);
+        dbgln("    x={}, y={}", data[0], data[1]);
         break;
     case PathInstructionType::ClosePath:
-        dbgln("ClosePath (absolute={})", absolute);
+        dbgln("ClosePath");
         break;
     case PathInstructionType::Line:
         dbgln("Line (absolute={})", absolute);
-        for (size_t i = 0; i < data.size(); i += 2)
-            dbgln("    x={}, y={}", data[i], data[i + 1]);
+        dbgln("    x={}, y={}", data[0], data[1]);
         break;
     case PathInstructionType::HorizontalLine:
         dbgln("HorizontalLine (absolute={})", absolute);
-        for (size_t i = 0; i < data.size(); ++i)
-            dbgln("    x={}", data[i]);
+        dbgln("    x={}", data[0]);
         break;
     case PathInstructionType::VerticalLine:
         dbgln("VerticalLine (absolute={})", absolute);
-        for (size_t i = 0; i < data.size(); ++i)
-            dbgln("    y={}", data[i]);
+        dbgln("    y={}", data[0]);
         break;
     case PathInstructionType::Curve:
         dbgln("Curve (absolute={})", absolute);
-        for (size_t i = 0; i < data.size(); i += 6)
-            dbgln("    (x1={}, y1={}, x2={}, y2={}), (x={}, y={})", data[i], data[i + 1], data[i + 2], data[i + 3], data[i + 4], data[i + 5]);
+        dbgln("    (x1={}, y1={}, x2={}, y2={}), (x={}, y={})", data[0], data[1], data[2], data[3], data[4], data[5]);
         break;
     case PathInstructionType::SmoothCurve:
         dbgln("SmoothCurve (absolute={})", absolute);
-        for (size_t i = 0; i < data.size(); i += 4)
-            dbgln("    (x2={}, y2={}), (x={}, y={})", data[i], data[i + 1], data[i + 2], data[i + 3]);
+        dbgln("    (x2={}, y2={}), (x={}, y={})", data[0], data[1], data[2], data[3]);
         break;
     case PathInstructionType::QuadraticBezierCurve:
         dbgln("QuadraticBezierCurve (absolute={})", absolute);
-        for (size_t i = 0; i < data.size(); i += 4)
-            dbgln("    (x1={}, y1={}), (x={}, y={})", data[i], data[i + 1], data[i + 2], data[i + 3]);
+        dbgln("    (x1={}, y1={}), (x={}, y={})", data[0], data[1], data[2], data[3]);
         break;
     case PathInstructionType::SmoothQuadraticBezierCurve:
         dbgln("SmoothQuadraticBezierCurve (absolute={})", absolute);
-        for (size_t i = 0; i < data.size(); i += 2)
-            dbgln("    x={}, y={}", data[i], data[i + 1]);
+        dbgln("    x={}, y={}", data[0], data[1]);
         break;
     case PathInstructionType::EllipticalArc:
         dbgln("EllipticalArc (absolute={})", absolute);
-        for (size_t i = 0; i < data.size(); i += 7)
-            dbgln("    (rx={}, ry={}) x-axis-rotation={}, large-arc-flag={}, sweep-flag={}, (x={}, y={})",
-                data[i],
-                data[i + 1],
-                data[i + 2],
-                data[i + 3],
-                data[i + 4],
-                data[i + 5],
-                data[i + 6]);
+        dbgln("    (rx={}, ry={}) x-axis-rotation={}, large-arc-flag={}, sweep-flag={}, (x={}, y={})",
+            data[0],
+            data[1],
+            data[2],
+            data[3],
+            data[4],
+            data[5],
+            data[6]);
         break;
     case PathInstructionType::Invalid:
         dbgln("Invalid");
