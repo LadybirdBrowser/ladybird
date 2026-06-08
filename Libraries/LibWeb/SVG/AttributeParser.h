@@ -174,8 +174,8 @@ private:
     ErrorOr<float> parse_coordinate();
     ErrorOr<i32> parse_integer();
     ErrorOr<Gfx::FloatPoint> parse_coordinate_pair();
-    ErrorOr<Vector<float>> parse_coordinate_sequence();
-    ErrorOr<Vector<Gfx::FloatPoint>> parse_coordinate_pair_sequence();
+    ErrorOr<void> parse_coordinate_sequence(Function<void(float)> const& callback);
+    ErrorOr<void> parse_coordinate_pair_sequence(Function<void(Gfx::FloatPoint)> const& callback);
     ErrorOr<Vector<Gfx::FloatPoint, 2>> parse_coordinate_pair_double();
     ErrorOr<Vector<Gfx::FloatPoint, 3>> parse_coordinate_pair_triplet();
     void parse_whitespace(bool must_match_once = false);
