@@ -34,7 +34,7 @@ Path AttributeParser::parse_path_data(StringView input)
         if (maybe_error.is_error())
             break;
     }
-    if (!parser.m_instructions.is_empty() && parser.m_instructions[0].type != PathInstructionType::Move) {
+    if (!parser.m_instructions.is_empty() && !parser.m_instructions[0].has<MoveToInstruction>()) {
         // Invalid. "A path data segment (if there is one) must begin with a "moveto" command."
         return Path { {} };
     }
@@ -177,8 +177,10 @@ ErrorOr<void> AttributeParser::parse_moveto()
     bool is_first = true;
     for (auto& pair : TRY(parse_coordinate_pair_sequence())) {
         // NOTE: "M 1 2 3 4" is equivalent to "M 1 2 L 3 4".
-        auto type = is_first ? PathInstructionType::Move : PathInstructionType::Line;
-        m_instructions.append({ type, absolute, pair });
+        if (is_first)
+            m_instructions.append(MoveToInstruction { absolute, pair });
+        else
+            m_instructions.append(LineToInstruction { absolute, pair });
         is_first = false;
     }
 
@@ -187,9 +189,10 @@ ErrorOr<void> AttributeParser::parse_moveto()
 
 void AttributeParser::parse_closepath()
 {
-    bool absolute = consume() == 'Z';
+    // NB: Z and z are equivalent
+    consume();
     parse_whitespace();
-    m_instructions.append({ PathInstructionType::ClosePath, absolute, {} });
+    m_instructions.append(ClosePathInstruction {});
 }
 
 ErrorOr<void> AttributeParser::parse_lineto()
@@ -197,7 +200,7 @@ ErrorOr<void> AttributeParser::parse_lineto()
     bool absolute = consume() == 'L';
     parse_whitespace();
     for (auto& pair : TRY(parse_coordinate_pair_sequence()))
-        m_instructions.append({ PathInstructionType::Line, absolute, pair });
+        m_instructions.append(LineToInstruction { absolute, pair });
 
     return {};
 }
@@ -207,7 +210,7 @@ ErrorOr<void> AttributeParser::parse_horizontal_lineto()
     bool absolute = consume() == 'H';
     parse_whitespace();
     for (auto coordinate : TRY(parse_coordinate_sequence()))
-        m_instructions.append({ PathInstructionType::HorizontalLine, absolute, { coordinate } });
+        m_instructions.append(HorizontalLineToInstruction { absolute, coordinate });
 
     return {};
 }
@@ -217,7 +220,7 @@ ErrorOr<void> AttributeParser::parse_vertical_lineto()
     bool absolute = consume() == 'V';
     parse_whitespace();
     for (auto coordinate : TRY(parse_coordinate_sequence()))
-        m_instructions.append({ PathInstructionType::VerticalLine, absolute, { coordinate } });
+        m_instructions.append(VerticalLineToInstruction { absolute, coordinate });
 
     return {};
 }
@@ -228,7 +231,13 @@ ErrorOr<void> AttributeParser::parse_curveto()
     parse_whitespace();
 
     while (true) {
-        m_instructions.append({ PathInstructionType::Curve, absolute, TRY(parse_coordinate_pair_triplet()) });
+        auto coordinate_pair_triplet = TRY(parse_coordinate_pair_triplet());
+        m_instructions.append(CurveToInstruction {
+            absolute,
+            { coordinate_pair_triplet[0], coordinate_pair_triplet[1] },
+            { coordinate_pair_triplet[2], coordinate_pair_triplet[3] },
+            { coordinate_pair_triplet[4], coordinate_pair_triplet[5] },
+        });
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_coordinate())
@@ -244,7 +253,12 @@ ErrorOr<void> AttributeParser::parse_smooth_curveto()
     parse_whitespace();
 
     while (true) {
-        m_instructions.append({ PathInstructionType::SmoothCurve, absolute, TRY(parse_coordinate_pair_double()) });
+        auto coordinate_pair_double = TRY(parse_coordinate_pair_double());
+        m_instructions.append(SmoothCurveToInstruction {
+            absolute,
+            { coordinate_pair_double[0], coordinate_pair_double[1] },
+            { coordinate_pair_double[2], coordinate_pair_double[3] },
+        });
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_coordinate())
@@ -260,7 +274,12 @@ ErrorOr<void> AttributeParser::parse_quadratic_bezier_curveto()
     parse_whitespace();
 
     while (true) {
-        m_instructions.append({ PathInstructionType::QuadraticBezierCurve, absolute, TRY(parse_coordinate_pair_double()) });
+        auto coordinate_pair_double = TRY(parse_coordinate_pair_double());
+        m_instructions.append(QuadraticBezierCurveToInstruction {
+            absolute,
+            { coordinate_pair_double[0], coordinate_pair_double[1] },
+            { coordinate_pair_double[2], coordinate_pair_double[3] },
+        });
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_coordinate())
@@ -276,7 +295,7 @@ ErrorOr<void> AttributeParser::parse_smooth_quadratic_bezier_curveto()
     parse_whitespace();
 
     while (true) {
-        m_instructions.append({ PathInstructionType::SmoothQuadraticBezierCurve, absolute, TRY(parse_coordinate_pair()) });
+        m_instructions.append(SmoothQuadraticBezierCurveToInstruction { absolute, TRY(parse_coordinate_pair()) });
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_coordinate())
@@ -293,7 +312,15 @@ ErrorOr<void> AttributeParser::parse_elliptical_arc()
 
     while (true) {
         auto argument = TRY(parse_elliptical_arc_argument());
-        m_instructions.append({ PathInstructionType::EllipticalArc, absolute, move(argument) });
+        m_instructions.append(EllipticalArcInstruction {
+            argument[0],
+            argument[1],
+            argument[2],
+            absolute,
+            argument[3] != 0,
+            argument[4] != 0,
+            { argument[5], argument[6] },
+        });
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_coordinate())
