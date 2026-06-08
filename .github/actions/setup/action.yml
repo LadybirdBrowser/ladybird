@@ -114,7 +114,8 @@ runs:
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: dtolnay/rust-toolchain@stable
 
-    - name: 'Install wasm-tools'
+    - name: 'Resolve wasm-tools release'
+      id: 'wasm-tools'
       if: ${{ inputs.type == 'build' }}
       shell: bash
       run: |
@@ -131,19 +132,49 @@ runs:
           EXTENSION=tar.gz
         fi
         NAME="wasm-tools-${VERSION}-${ARCH}-${LOWERCASE_OS}"
-        FILENAME="${NAME}.${EXTENSION}"
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+        echo "filename=${NAME}.${EXTENSION}" >> "$GITHUB_OUTPUT"
+        echo "extension=${EXTENSION}" >> "$GITHUB_OUTPUT"
 
-        curl --fail --location --write-out '%{url}' --output "${FILENAME}" \
-          "https://github.com/bytecodealliance/wasm-tools/releases/download/v${VERSION}/${FILENAME}"
+    - name: 'Cache wasm-tools'
+      id: 'wasm-tools-cache'
+      if: ${{ inputs.type == 'build' }}
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/${{ steps.wasm-tools.outputs.name }}
+        key: ${{ steps.wasm-tools.outputs.name }}
 
-        if [ "${EXTENSION}" == 'zip' ]; then
+    - name: 'Install wasm-tools'
+      if: ${{ inputs.type == 'build' && steps.wasm-tools-cache.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        FILENAME="${{ steps.wasm-tools.outputs.filename }}"
+        URL="https://github.com/bytecodealliance/wasm-tools/releases/download/v${{ steps.wasm-tools.outputs.version }}/${FILENAME}"
+
+        delays=(5 15 45)
+        attempt=1
+        until curl --fail --location --output "${FILENAME}" "${URL}"; do
+          if (( attempt > ${#delays[@]} )); then
+            echo "wasm-tools download failed after $(( ${#delays[@]} + 1 )) attempts" >&2
+            exit 1
+          fi
+          echo "wasm-tools download failed; retrying in ${delays[attempt-1]}s" >&2
+          sleep "${delays[attempt-1]}"
+          attempt=$(( attempt + 1 ))
+        done
+
+        if [ "${{ steps.wasm-tools.outputs.extension }}" == 'zip' ]; then
           unzip "${FILENAME}"
         else
           tar -xzf "${FILENAME}"
         fi
         rm "${FILENAME}"
 
-        echo "${GITHUB_WORKSPACE}/${NAME}" >> $GITHUB_PATH
+    - name: 'Add wasm-tools to PATH'
+      if: ${{ inputs.type == 'build' }}
+      shell: bash
+      run: echo "${GITHUB_WORKSPACE}/${{ steps.wasm-tools.outputs.name }}" >> "$GITHUB_PATH"
 
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
