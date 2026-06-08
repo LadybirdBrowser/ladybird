@@ -9,6 +9,7 @@
 
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16FlyString.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/GeneratedCSSNumericFactoryMethods.h>
 #include <LibWeb/Export.h>
@@ -20,7 +21,7 @@ namespace Web::CSS {
 
 WEB_API WebIDL::ExceptionOr<String> escape(JS::VM&, StringView identifier);
 
-WEB_API bool supports(JS::VM&, FlyString const& property, StringView value);
+WEB_API bool supports(JS::VM&, Utf16FlyString const& property, StringView value);
 WEB_API WebIDL::ExceptionOr<bool> supports(JS::VM&, StringView condition_text);
 
 WEB_API WebIDL::ExceptionOr<void> register_property(JS::VM&, Bindings::PropertyDefinition const&);

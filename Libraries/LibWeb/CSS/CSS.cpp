@@ -29,7 +29,7 @@ WebIDL::ExceptionOr<String> escape(JS::VM&, StringView identifier)
 }
 
 // https://www.w3.org/TR/css-conditional-3/#dom-css-supports
-bool supports(JS::VM&, FlyString const& property_name, StringView value)
+bool supports(JS::VM&, Utf16FlyString const& property_name, StringView value)
 {
     // 1. If property is an ASCII case-insensitive match for any defined CSS property that the UA supports, or is a
     //    custom property name string, and value successfully parses according to that property’s grammar, return true.

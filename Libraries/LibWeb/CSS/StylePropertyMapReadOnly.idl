@@ -2,9 +2,9 @@
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface StylePropertyMapReadOnly {
     // FIXME: iterable<USVString, sequence<CSSStyleValue>>;
-    (undefined or CSSStyleValue) get(USVString property);
-    sequence<CSSStyleValue> getAll(USVString property);
-    boolean has(USVString property);
+    (undefined or CSSStyleValue) get(Utf16USVString property);
+    sequence<CSSStyleValue> getAll(Utf16USVString property);
+    boolean has(Utf16USVString property);
     readonly attribute unsigned long size;
 };
 
