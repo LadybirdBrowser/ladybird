@@ -406,8 +406,6 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
     auto compute_width = [&](CSS::LengthOrAuto width) {
         // If 'width' is computed as 'auto', the used value is the "shrink-to-fit" width.
         if (width.is_auto()) {
-            auto result = calculate_shrink_to_fit_widths(box);
-
             if (available_space.width.is_definite()) {
                 // Find the available width: in this case, this is the width of the containing
                 // block minus the used values of 'margin-left', 'border-left-width', 'padding-left',
@@ -416,13 +414,19 @@ void BlockFormattingContext::compute_width_for_floating_box(Box const& box, Avai
                     - margin_left - computed_values.border_left().width - box_state.padding_left
                     - box_state.padding_right - computed_values.border_right().width - margin_right;
                 // Then the shrink-to-fit width is: min(max(preferred minimum width, available width), preferred width).
-                width = CSS::Length::make_px(min(max(result.preferred_minimum_width, available_width), result.preferred_width));
+                auto preferred_width = calculate_max_content_width(box);
+                if (preferred_width <= available_width) {
+                    width = CSS::Length::make_px(preferred_width);
+                } else {
+                    auto preferred_minimum_width = calculate_min_content_width(box);
+                    width = CSS::Length::make_px(min(max(preferred_minimum_width, available_width), preferred_width));
+                }
             } else if (available_space.width.is_indefinite() || available_space.width.is_max_content()) {
                 // Fold the formula for shrink-to-fit width for indefinite and max-content available width.
-                width = CSS::Length::make_px(result.preferred_width);
+                width = CSS::Length::make_px(calculate_max_content_width(box));
             } else {
                 // Fold the formula for shrink-to-fit width for min-content available width.
-                width = CSS::Length::make_px(min(result.preferred_minimum_width, result.preferred_width));
+                width = CSS::Length::make_px(calculate_min_content_width(box));
             }
         }
 
