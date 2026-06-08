@@ -123,7 +123,16 @@ Vector<Gfx::FloatPoint> AttributeParser::parse_points(StringView input)
 
     parser.parse_whitespace();
 
-    return parser.parse_coordinate_pair_sequence().value_or(Vector<Gfx::FloatPoint> {});
+    Vector<Gfx::FloatPoint> points;
+
+    auto result = parser.parse_coordinate_pair_sequence([&](Gfx::FloatPoint point) {
+        points.append(point);
+    });
+
+    if (result.is_error())
+        return {};
+
+    return points;
 }
 
 ErrorOr<void> AttributeParser::parse_drawto()
@@ -162,14 +171,14 @@ ErrorOr<void> AttributeParser::parse_moveto()
     parse_whitespace();
 
     bool is_first = true;
-    for (auto& pair : TRY(parse_coordinate_pair_sequence())) {
+    TRY(parse_coordinate_pair_sequence([&](Gfx::FloatPoint pair) {
         // NOTE: "M 1 2 3 4" is equivalent to "M 1 2 L 3 4".
         if (is_first)
             m_instructions.append(MoveToInstruction { absolute, pair });
         else
             m_instructions.append(LineToInstruction { absolute, pair });
         is_first = false;
-    }
+    }));
 
     return {};
 }
@@ -186,8 +195,9 @@ ErrorOr<void> AttributeParser::parse_lineto()
 {
     bool absolute = consume() == 'L';
     parse_whitespace();
-    for (auto& pair : TRY(parse_coordinate_pair_sequence()))
-        m_instructions.append(LineToInstruction { absolute, pair });
+    TRY(parse_coordinate_pair_sequence([&](Gfx::FloatPoint point) {
+        m_instructions.append(LineToInstruction { absolute, point });
+    }));
 
     return {};
 }
@@ -196,8 +206,9 @@ ErrorOr<void> AttributeParser::parse_horizontal_lineto()
 {
     bool absolute = consume() == 'H';
     parse_whitespace();
-    for (auto coordinate : TRY(parse_coordinate_sequence()))
+    TRY(parse_coordinate_sequence([&](float coordinate) {
         m_instructions.append(HorizontalLineToInstruction { absolute, coordinate });
+    }));
 
     return {};
 }
@@ -206,8 +217,9 @@ ErrorOr<void> AttributeParser::parse_vertical_lineto()
 {
     bool absolute = consume() == 'V';
     parse_whitespace();
-    for (auto coordinate : TRY(parse_coordinate_sequence()))
+    TRY(parse_coordinate_sequence([&](float coordinate) {
         m_instructions.append(VerticalLineToInstruction { absolute, coordinate });
+    }));
 
     return {};
 }
@@ -348,9 +360,8 @@ ErrorOr<Gfx::FloatPoint> AttributeParser::parse_coordinate_pair()
     return Gfx::FloatPoint { x, y };
 }
 
-ErrorOr<Vector<float>> AttributeParser::parse_coordinate_sequence()
+ErrorOr<void> AttributeParser::parse_coordinate_sequence(Function<void(float)> const& callback)
 {
-    Vector<float> sequence;
     bool is_first = true;
     while (true) {
         auto coordinate_or_error = parse_coordinate();
@@ -360,18 +371,17 @@ ErrorOr<Vector<float>> AttributeParser::parse_coordinate_sequence()
             break;
         }
         is_first = false;
-        sequence.append(coordinate_or_error.release_value());
+        callback(coordinate_or_error.release_value());
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_comma_whitespace() && !match_coordinate())
             break;
     }
-    return sequence;
+    return {};
 }
 
-ErrorOr<Vector<Gfx::FloatPoint>> AttributeParser::parse_coordinate_pair_sequence()
+ErrorOr<void> AttributeParser::parse_coordinate_pair_sequence(Function<void(Gfx::FloatPoint)> const& callback)
 {
-    Vector<Gfx::FloatPoint> sequence;
     bool is_first = true;
     while (true) {
         auto coordinate_pair_or_error = parse_coordinate_pair();
@@ -381,13 +391,13 @@ ErrorOr<Vector<Gfx::FloatPoint>> AttributeParser::parse_coordinate_pair_sequence
             break;
         }
         is_first = false;
-        sequence.append(coordinate_pair_or_error.release_value());
+        callback(coordinate_pair_or_error.release_value());
         if (match_comma_whitespace())
             parse_comma_whitespace();
         if (!match_comma_whitespace() && !match_coordinate())
             break;
     }
-    return sequence;
+    return {};
 }
 
 ErrorOr<Vector<Gfx::FloatPoint, 2>> AttributeParser::parse_coordinate_pair_double()
