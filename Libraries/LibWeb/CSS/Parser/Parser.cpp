@@ -1663,7 +1663,7 @@ Vector<DevToolsStyleDeclaration> Parser::parse_as_devtools_property_declaration_
     for (auto const& rule_or_list : declarations_and_at_rules) {
         if (auto* rule_declarations = rule_or_list.get_pointer<Vector<Declaration>>()) {
             for (auto const& declaration : *rule_declarations) {
-                auto property = PropertyNameAndID::from_name(declaration.name);
+                auto property = PropertyNameAndID::from_name(Utf16FlyString::from_utf8(declaration.name));
 
                 StringBuilder value_builder;
                 for (auto const& value : declaration.value)
@@ -1765,7 +1765,7 @@ bool Parser::is_valid_in_the_current_context(Declaration const& declaration) con
         // The <declaration-list> inside of <keyframe-block> accepts any CSS property except those defined in this
         // specification, but does accept the animation-timing-function property and interprets it specially
         // NB: animation-composition is defined in CSS Animations Level 2, so it is not excluded by this rule.
-        auto property = PropertyNameAndID::from_name(declaration.name);
+        auto property = PropertyNameAndID::from_name(Utf16FlyString::from_utf8(declaration.name));
         if (!property.has_value())
             return true;
         switch (property->id()) {
@@ -1957,7 +1957,7 @@ GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declarat
 
 Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration const& declaration)
 {
-    auto property = PropertyNameAndID::from_name(declaration.name);
+    auto property = PropertyNameAndID::from_name(Utf16FlyString::from_utf8(declaration.name));
 
     if (!property.has_value()) {
         if (has_ignored_vendor_prefix(declaration.name)) {

@@ -30,11 +30,6 @@ public:
         return {};
     }
 
-    static Optional<PropertyNameAndID> from_name(FlyString const& name)
-    {
-        return from_name(Utf16FlyString::from_utf8(name));
-    }
-
     static PropertyNameAndID from_id(PropertyID property_id)
     {
         VERIFY(property_id != PropertyID::Custom);
