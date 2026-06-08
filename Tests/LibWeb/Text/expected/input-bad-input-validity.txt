@@ -1,0 +1,12 @@
+number "2026": value="2026" badInput=false
+number "2026 JUN": value="2026" badInput=true
+date "2026-06-08": value="2026-06-08" badInput=false
+date "2026-99-99": value="" badInput=true
+month "2026-06": value="2026-06" badInput=false
+month "2026-13": value="" badInput=true
+week "2026-W23": value="2026-W23" badInput=false
+week "2026-W99": value="" badInput=true
+time "12:30": value="12:30" badInput=false
+time "25:99": value="" badInput=true
+datetime-local "2026-06-08T12:30": value="2026-06-08T12:30" badInput=false
+datetime-local "not a date": value="" badInput=true

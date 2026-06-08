@@ -3802,58 +3802,51 @@ bool HTMLInputElement::is_number_mismatching_step(double number) const
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-bad-input
 bool HTMLInputElement::suffering_from_bad_input() const
 {
+    auto relevant_value = this->relevant_value();
+
     switch (type_state()) {
     case TypeAttributeState::Email:
         // https://html.spec.whatwg.org/multipage/input.html#email-state-(type%3Demail)%3Asuffering-from-bad-input
         // While the user interface is representing input that the user agent cannot convert to punycode, the control is suffering from bad input.
-        // FIXME: Implement this.
+        // FIXME: Implement this once email addresses are converted to punycode.
 
         // https://html.spec.whatwg.org/multipage/input.html#email-state-(type%3Demail)%3Asuffering-from-bad-input-2
         // While the user interface describes a situation where an individual value contains a U+002C COMMA (,) or is representing input that the user agent
         // cannot convert to punycode, the control is suffering from bad input.
-        // FIXME: Implement this.
+        // FIXME: Implement this once email addresses are converted to punycode.
         break;
     case TypeAttributeState::Date:
         // https://html.spec.whatwg.org/multipage/input.html#date-state-(type%3Ddate)%3Asuffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid date string, the control is suffering from bad input.
-        // FIXME: Implement this.
-        break;
+        return !relevant_value.is_empty() && !is_valid_date_string(relevant_value);
     case TypeAttributeState::Month:
         // https://html.spec.whatwg.org/multipage/input.html#month-state-(type%3Dmonth)%3Asuffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid month string, the control is suffering from bad input.
-        // FIXME: Implement this.
-        break;
+        return !relevant_value.is_empty() && !is_valid_month_string(relevant_value);
     case TypeAttributeState::Week:
         // https://html.spec.whatwg.org/multipage/input.html#week-state-(type%3Dweek)%3Asuffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid week string, the control is suffering from bad input.
-        // FIXME: Implement this.
-        break;
+        return !relevant_value.is_empty() && !is_valid_week_string(relevant_value);
     case TypeAttributeState::Time:
         // https://html.spec.whatwg.org/multipage/#time-state-(type=time):suffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid time string, the control is suffering from bad input.
-        // FIXME: Implement this.
-        break;
+        return !relevant_value.is_empty() && !is_valid_time_string(relevant_value);
     case TypeAttributeState::LocalDateAndTime:
         // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type%3Ddatetime-local)%3Asuffering-from-bad-input
-        // While the user interface describes input that the user agent cannot convert to a valid normalized local date and time string, the control is suffering from bad
-        // input.
-        // FIXME: Implement this.
-        break;
+        // While the user interface describes input that the user agent cannot convert to a valid normalized local date and time string, the control is suffering from bad input.
+        return !relevant_value.is_empty() && !is_valid_local_date_and_time_string(relevant_value);
     case TypeAttributeState::Number:
         // https://html.spec.whatwg.org/multipage/input.html#number-state-(type%3Dnumber)%3Asuffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid floating-point number, the control is suffering from bad input.
-        // FIXME: Implement this.
-        break;
+        return !relevant_value.is_empty() && !is_valid_floating_point_number(relevant_value);
     case TypeAttributeState::Range:
         // https://html.spec.whatwg.org/multipage/input.html#range-state-(type%3Drange)%3Asuffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid floating-point number, the control is suffering from bad input.
-        // FIXME: Implement this.
-        break;
+        return !relevant_value.is_empty() && !is_valid_floating_point_number(relevant_value);
     case TypeAttributeState::Color:
         // https://html.spec.whatwg.org/multipage/input.html#color-state-(type%3Dcolor)%3Asuffering-from-bad-input
         // While the element's value is not the empty string and parsing it returns failure, the control is suffering from bad input.
-        // FIXME: Implement this.
-        break;
+        return !relevant_value.is_empty() && !is_valid_simple_color(relevant_value);
     default:
         break;
     }
