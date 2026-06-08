@@ -471,7 +471,14 @@ PaintableBox::~PaintableBox()
 
 void PaintableBox::acquire_cache_references_for_cached_commands(ReadonlyBytes command_bytes) const
 {
-    auto& resource_storage = navigable()->display_list_resource_storage();
+    auto dom_node = this->dom_node();
+    if (!dom_node)
+        return;
+    auto navigable = dom_node->document().navigable();
+    if (!navigable)
+        return;
+
+    auto& resource_storage = navigable->display_list_resource_storage();
     auto referenced_resources = resource_storage.collect_referenced_resources(command_bytes);
     if (referenced_resources.is_empty())
         return;
@@ -480,7 +487,14 @@ void PaintableBox::acquire_cache_references_for_cached_commands(ReadonlyBytes co
 
 void PaintableBox::release_cache_references_for_cached_commands(ReadonlyBytes command_bytes) const
 {
-    auto& resource_storage = navigable()->display_list_resource_storage();
+    auto dom_node = this->dom_node();
+    if (!dom_node)
+        return;
+    auto navigable = dom_node->document().navigable();
+    if (!navigable)
+        return;
+
+    auto& resource_storage = navigable->display_list_resource_storage();
     auto referenced_resources = resource_storage.collect_referenced_resources(command_bytes);
     if (referenced_resources.is_empty())
         return;
