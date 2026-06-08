@@ -2144,9 +2144,11 @@ bool is_indentation_element(GC::Ref<DOM::Node> node)
     return is<HTML::HTMLDivElement>(element)
         && element.has_attribute(HTML::AttributeNames::style)
         && inline_style
-        && (!inline_style->margin().is_empty() || !inline_style->margin_top().is_empty()
-            || !inline_style->margin_right().is_empty() || !inline_style->margin_bottom().is_empty()
-            || !inline_style->margin_left().is_empty());
+        && (!inline_style->get_property_value("margin"_utf16_fly_string).is_empty()
+            || !inline_style->get_property_value("margin-top"_utf16_fly_string).is_empty()
+            || !inline_style->get_property_value("margin-right"_utf16_fly_string).is_empty()
+            || !inline_style->get_property_value("margin-bottom"_utf16_fly_string).is_empty()
+            || !inline_style->get_property_value("margin-left"_utf16_fly_string).is_empty());
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#inline-node
@@ -2490,7 +2492,7 @@ bool is_simple_modifiable_element(GC::Ref<DOM::Node> node)
     if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::font, HTML::TagNames::s,
             HTML::TagNames::span, HTML::TagNames::strike, HTML::TagNames::u)
         && inline_style->has_property(CSS::PropertyID::TextDecoration)) {
-        auto text_decoration = inline_style->text_decoration();
+        auto text_decoration = inline_style->get_property_value("text-decoration"_utf16_fly_string);
         if (first_is_one_of(text_decoration,
                 string_from_keyword(CSS::Keyword::LineThrough),
                 string_from_keyword(CSS::Keyword::Underline),
@@ -3889,7 +3891,7 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
     //     that it sets property to.
     // FIXME: Use property_in_style_attribute once it supports shorthands.
     if (auto inline_style = element->inline_style()) {
-        auto value = inline_style->get_property_value(string_from_property_id(property.value()));
+        auto value = inline_style->get_property_value(Utf16FlyString::from_utf8(string_from_property_id(property.value())));
         if (!value.is_empty())
             return Utf16String::from_utf8_without_validation(value);
     }

@@ -16,8 +16,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom/#cssstyleproperties
 class WEB_API CSSStyleProperties
-    : public CSSStyleDeclaration
-    , public Bindings::GeneratedCSSStyleProperties {
+    : public CSSStyleDeclaration {
     WEB_PLATFORM_OBJECT(CSSStyleProperties, CSSStyleDeclaration);
     GC_DECLARE_ALLOCATOR(CSSStyleProperties);
 
@@ -66,9 +65,6 @@ public:
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
     void set_declarations_from_text(StringView);
-
-    // ^Bindings::GeneratedCSSStyleProperties
-    virtual CSSStyleProperties& generated_style_properties_to_css_style_properties() override { return *this; }
 
 private:
     CSSStyleProperties(JS::Realm&, Computed, Readonly, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement>);

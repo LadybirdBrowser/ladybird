@@ -227,6 +227,9 @@ void {interface.prototype_class}::initialize(JS::Realm& realm)
         global_mixins.write_global_mixin_implementation(out, context, includes, interface)
         return
     attributes.define_the_regular_attributes(out, includes, interface)
+    if interface.name == "CSSStyleProperties":
+        includes.add("LibWeb/CSS/GeneratedCSSStyleProperties.h")
+        out.write("    GeneratedCSSStyleProperties::initialize(realm, object);\n")
     operations.define_the_regular_operations(out, includes, interface)
     operations.define_the_stringifier(out, includes, interface)
     named_and_indexed_properties.define_the_indexed_property_getter(out, includes, interface)
@@ -241,7 +244,7 @@ void {interface.prototype_class}::initialize(JS::Realm& realm)
     constants.define_the_constants(out, context, includes, interface)
     operations.define_unscopable_members(out, includes, interface)
     out.write(
-        f'    object.define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.namespaced_name}"_string), JS::Attribute::Configurable);'
+        f'    object.define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.namespaced_name}"_string), JS::Attribute::Configurable);\n'
     )
     if interface_requires_custom_prototype(interface):
         out.write("    Base::initialize(realm);\n")
