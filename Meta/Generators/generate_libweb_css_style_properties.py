@@ -81,7 +81,7 @@ namespace Web::Bindings {
         out.write(f"""
 WebIDL::ExceptionOr<void> GeneratedCSSStyleProperties::set_{name_acceptable_cpp}(StringView value)
 {{
-    return generated_style_properties_to_css_style_properties().set_property("{name}"_fly_string, value, ""sv);
+    return generated_style_properties_to_css_style_properties().set_property("{name}"_utf16_fly_string, value, ""sv);
 }}
 
 String GeneratedCSSStyleProperties::{name_acceptable_cpp}() const

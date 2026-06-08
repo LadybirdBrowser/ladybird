@@ -194,17 +194,23 @@ Optional<StyleProperty const&> CSSStyleProperties::custom_property(FlyString con
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(FlyString const& property_name, StringView value, StringView priority)
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(Utf16FlyString const& property_name, StringView value, StringView priority)
 {
     // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
     if (is_computed())
         return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties in result of getComputedStyle()"_utf16);
 
+    if (!property_name.is_ascii())
+        return {};
+
+    auto property_name_string = property_name.to_utf16_string();
+    auto property_name_view = property_name_string.ascii_view();
+
     // 2. If property is not a custom property, follow these substeps:
     //    1. Let property be property converted to ASCII lowercase.
     //    2. If property is not a case-sensitive match for a supported CSS property, then return.
     // NB: This is handled inside PropertyNameAndID::from_string().
-    auto property = PropertyNameAndID::from_name(property_name);
+    auto property = PropertyNameAndID::from_name(MUST(FlyString::from_utf8(property_name_view)));
     if (!property.has_value())
         return {};
 
@@ -391,13 +397,19 @@ String CSSStyleProperties::get_property_value(Utf16FlyString const& property_nam
     return {};
 }
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
-StringView CSSStyleProperties::get_property_priority(FlyString const& property_name) const
+StringView CSSStyleProperties::get_property_priority(Utf16FlyString const& property_name) const
 {
-    auto property_id = property_id_from_string(property_name);
+    if (!property_name.is_ascii())
+        return {};
+
+    auto property_name_string = property_name.to_utf16_string();
+    auto property_name_view = property_name_string.ascii_view();
+
+    auto property_id = property_id_from_string(property_name_view);
     if (!property_id.has_value())
         return {};
     if (property_id.value() == PropertyID::Custom) {
-        auto maybe_custom_property = custom_property(property_name);
+        auto maybe_custom_property = custom_property(MUST(FlyString::from_utf8(property_name_view)));
         if (!maybe_custom_property.has_value())
             return {};
         return maybe_custom_property.value().important == Important::Yes ? "important"sv : ""sv;
@@ -1131,9 +1143,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
-WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(FlyString const& property_name)
+WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(Utf16FlyString const& property_name)
 {
-    return remove_property_internal(PropertyNameAndID::from_name(property_name));
+    if (!property_name.is_ascii())
+        return remove_property_internal({});
+
+    auto property_name_string = property_name.to_utf16_string();
+    return remove_property_internal(PropertyNameAndID::from_name(MUST(FlyString::from_utf8(property_name_string.ascii_view()))));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
@@ -1208,7 +1224,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_float(StringView value)
 {
     // On setting, the attribute must invoke setProperty() with float as first argument, as second argument the given value,
     // and no third argument. Any exceptions thrown must be re-thrown.
-    return set_property("float"_fly_string, value, ""sv);
+    return set_property("float"_utf16_fly_string, value, ""sv);
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block

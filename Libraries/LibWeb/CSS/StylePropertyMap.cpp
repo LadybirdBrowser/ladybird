@@ -150,7 +150,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Readonl
 
     // 7. If props[property] exists, remove it.
     // FIXME: Avoid converting to string and back.
-    TRY(props.remove_property(property->name()));
+    TRY(props.remove_property(Utf16FlyString::from_utf8(property->name())));
 
     // 8. Let values to set be an empty list.
     StyleValueVector values_to_set;
@@ -302,7 +302,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::delete_(FlyString property)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property)) };
 
     // 3. If this’s [[declarations]] internal slot contains property, remove it.
-    TRY(declarations().remove_property(property));
+    TRY(declarations().remove_property(Utf16FlyString::from_utf8(property)));
     return {};
 }
 

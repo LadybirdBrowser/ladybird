@@ -1,5 +1,6 @@
 // https://drafts.csswg.org/cssom-1/#cssomstring
 typedef DOMString CSSOMString;
+typedef Utf16DOMString Utf16CSSOMString;
 
 dictionary PropertyDefinition {
     required CSSOMString name;
@@ -13,7 +14,7 @@ dictionary PropertyDefinition {
 namespace CSS {
     CSSOMString escape(CSSOMString ident);
 
-    boolean supports(CSSOMString property, CSSOMString value);
+    boolean supports(Utf16CSSOMString property, CSSOMString value);
     boolean supports(CSSOMString conditionText);
 
     // https://drafts.css-houdini.org/css-properties-values-api-1/#dom-css-registerproperty
