@@ -854,6 +854,15 @@ void SeccompPolicy::allow_file_descriptor_operations()
     append(SECCOMP_LOAD_SYSCALL_NR);
     append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
 
+#ifdef F_DUPFD_QUERY
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_DUPFD_QUERY, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+#endif
+
 #ifdef F_ADD_SEALS
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
     append(SECCOMP_LOAD_ARGUMENT(1));
