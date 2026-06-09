@@ -1,13 +1,21 @@
 const siteSettings = document.querySelector("#site-settings");
 const siteSettingsAdd = document.querySelector("#site-settings-add");
 const siteSettingsClose = document.querySelector("#site-settings-close");
-const siteSettingsGlobal = document.querySelector("#site-settings-global");
+const siteSettingsPolicy = document.querySelector("#site-settings-policy");
 const siteSettingsList = document.querySelector("#site-settings-list");
 const siteSettingsInput = document.querySelector("#site-settings-input");
 const siteSettingsRemoveAll = document.querySelector("#site-settings-remove-all");
 const siteSettingsTitle = document.querySelector("#site-settings-title");
 
 const autoplaySettings = document.querySelector("#autoplay-settings");
+
+const SITE_SETTING_POLICY_OPTIONS = {
+    autoplay: [
+        { value: "allow-audio-and-video", label: "Allow Audio and Video" },
+        { value: "block-audio", label: "Block Audio" },
+        { value: "block-audio-and-video", label: "Block Audio and Video" },
+    ],
+};
 
 let AUTOPLAY_SETTINGS = {};
 
@@ -40,14 +48,29 @@ function currentSiteSetting() {
 }
 
 function showSiteSettings(title, settings) {
+    const setting = title.toLowerCase();
+
     siteSettingsTitle.innerText = title;
-    siteSettingsGlobal.checked = settings.enabledGlobally;
+
+    siteSettingsPolicy.innerHTML = "";
+
+    const policyOptions = SITE_SETTING_POLICY_OPTIONS[setting] ?? [];
+
+    policyOptions.forEach(({ value, label }) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+
+        siteSettingsPolicy.appendChild(option);
+    });
+
+    siteSettingsPolicy.value = settings.policy;
     siteSettingsList.innerHTML = "";
 
-    siteSettingsGlobal.onchange = () => {
-        ladybird.sendMessage("setSiteSettingEnabledGlobally", {
+    siteSettingsPolicy.onchange = () => {
+        ladybird.sendMessage("setSiteSettingPolicy", {
             setting: currentSiteSetting(),
-            enabled: siteSettingsGlobal.checked,
+            policy: siteSettingsPolicy.value,
         });
     };
 

@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/AudioTrackList.h>
+#include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/HTMLAudioElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -531,7 +532,11 @@ GC::Ref<WebIDL::Promise> HTMLMediaElement::play()
 {
     auto& realm = this->realm();
 
-    // FIXME: 1. If the media element is not allowed to play, then return a promise rejected with a "NotAllowedError" DOMException.
+    // 1. If the media element is not allowed to play, then return a promise rejected with a "NotAllowedError" DOMException.
+    if (!is_allowed_to_play()) {
+        auto exception = WebIDL::NotAllowedError::create(realm, "Media playback is not allowed without user interaction"_utf16);
+        return WebIDL::create_rejected_promise_from_exception(realm, exception);
+    }
 
     // 2. If the media element's error attribute is not null and its code is MEDIA_ERR_SRC_NOT_SUPPORTED, then return a promise
     //    rejected with a "NotSupportedError" DOMException.
@@ -612,7 +617,10 @@ void HTMLMediaElement::volume_or_muted_attribute_changed()
         self.dispatch_event(DOM::Event::create(self.realm(), HTML::EventNames::volumechange));
     });
 
-    // FIXME: Then, if the media element is not allowed to play, the user agent must run the internal pause steps for the media element.
+    // Then, if the media element is not allowed to play, the user agent must run the internal pause steps for the
+    // media element.
+    if (!is_allowed_to_play())
+        pause_element();
 
     update_volume();
 }
@@ -2148,7 +2156,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
             return;
 
         // The user agent may run the following substeps:
-        {
+        if (is_allowed_to_play()) {
             // Set the paused attribute to false.
             set_paused(false);
 
@@ -2684,6 +2692,29 @@ bool HTMLMediaElement::is_eligible_for_autoplay() const
 
         // Its node document is allowed to use the "autoplay" feature.
         document().is_allowed_to_use_feature(DOM::PolicyControlledFeature::Autoplay));
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#allowed-to-play
+bool HTMLMediaElement::is_allowed_to_play() const
+{
+    // A media element is said to be allowed to play if the user agent and the system allow media playback in the
+    // current context.
+    // NB: We allow playback once the document has been activated by the user, with an exception for inaudible media.
+    //     Gating on transient activation instead pauses audible media once the activation expires, e.g. between ads,
+    //     or media in a playlist.
+    if (auto window = document().window(); window && window->has_sticky_activation())
+        return true;
+
+    switch (AutoplaySettings::the().decision_for_origin(document(), document().origin())) {
+    case AutoplayDecision::Allowed:
+        return true;
+    case AutoplayDecision::AllowedIfInaudible:
+        return effective_media_volume() == 0.0;
+    case AutoplayDecision::Blocked:
+        return false;
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 HTMLMediaElement::PlaybackDirection HTMLMediaElement::direction_of_playback() const

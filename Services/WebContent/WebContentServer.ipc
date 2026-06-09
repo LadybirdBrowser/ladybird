@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/HTML/AutoplayPolicy.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -131,8 +132,7 @@ endpoint WebContentServer
     find_in_page_previous_match(u64 page_id) =|
 
     set_content_blockers(u64 page_id, Core::AnonymousBuffer patterns) =|
-    set_autoplay_allowed_on_all_websites(u64 page_id) =|
-    set_autoplay_allowlist(u64 page_id, Vector<String> allowlist) =|
+    set_autoplay_settings(u64 page_id, Web::HTML::AutoplayPolicy policy, Vector<String> allowlist) =|
     set_proxy_mappings(u64 page_id, Vector<ByteString> proxies, HashMap<ByteString, size_t> mappings) =|
     set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme color_scheme) =|
     set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast contrast) =|

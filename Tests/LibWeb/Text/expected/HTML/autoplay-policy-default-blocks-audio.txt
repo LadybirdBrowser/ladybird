@@ -1,0 +1,2 @@
+muted video autoplays: true
+audible video autoplays: false

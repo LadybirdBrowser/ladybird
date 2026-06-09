@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Pin the policy here (not via the browser setting test-web inherits) so the result is deterministic
+     regardless of test order on a reused WebContent process. Served over HTTP (see the .headers file)
+     so the file:// carve-out does not apply. With no user gesture, "Block Audio" must keep audible
+     playback from sneaking in: a muted autoplay that is later unmuted pauses, and a scripted play() of
+     audible media is rejected. -->
+<script>internals.setAutoplayPolicy("block-audio");</script>
+<video autoplay muted id="muted" src="../../../Assets/test-webm.webm"></video>
+<video id="scripted" src="../../../Assets/test-webm.webm"></video>
+<script src="../include.js"></script>
+<script>
+  asyncTest(async done => {
+    const muted = document.getElementById("muted");
+    const scripted = document.getElementById("scripted");
+
+    setTimeout(() => {
+      println("FAIL: timeout waiting for muted autoplay");
+      done();
+    }, 15_000);
+
+    if (muted.paused)
+      await new Promise(resolve => muted.addEventListener("playing", resolve, { once: true }));
+    println(`muted autoplay started: ${!muted.paused}`);
+
+    muted.muted = false;
+    println(`paused after unmuting without a gesture: ${muted.paused}`);
+
+    let rejection = "none";
+    try {
+      await scripted.play();
+    } catch (error) {
+      rejection = error.name;
+    }
+    println(`scripted audible play() rejected with: ${rejection}`);
+
+    done();
+  });
+</script>

@@ -16,11 +16,11 @@
 #include <LibMedia/Audio/Loader.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWebView/HelperProcess.h>
@@ -150,8 +150,7 @@ static ErrorOr<void> load_autoplay_allowlist()
         TRY(origins.try_append(move(domain)));
     }
 
-    auto& autoplay_allowlist = Web::PermissionsPolicy::AutoplayAllowlist::the();
-    autoplay_allowlist.enable_for_origins(origins);
+    Web::HTML::AutoplaySettings::the().set_policy(Web::HTML::AutoplayPolicy::BlockAudio, origins);
 
     return {};
 }

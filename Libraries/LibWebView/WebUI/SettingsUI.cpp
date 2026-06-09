@@ -7,6 +7,7 @@
 #include <AK/JsonArray.h>
 #include <AK/Platform.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/HTML/AutoplayPolicy.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/WebUI/SettingsUI.h>
@@ -92,8 +93,8 @@ void SettingsUI::register_interfaces()
     register_interface("loadForciblyEnabledSiteSettings"sv, [this](auto const&) {
         load_forcibly_enabled_site_settings();
     });
-    register_interface("setSiteSettingEnabledGlobally"sv, [this](auto const& data) {
-        set_site_setting_enabled_globally(data);
+    register_interface("setSiteSettingPolicy"sv, [this](auto const& data) {
+        set_site_setting_policy(data);
     });
     register_interface("addSiteSettingFilter"sv, [this](auto const& data) {
         add_site_setting_filter(data);
@@ -316,19 +317,20 @@ void SettingsUI::load_forcibly_enabled_site_settings()
     async_send_message("forciblyEnableSiteSettings"sv, move(site_settings));
 }
 
-void SettingsUI::set_site_setting_enabled_globally(JsonValue const& site_setting)
+void SettingsUI::set_site_setting_policy(JsonValue const& site_setting)
 {
     auto setting = site_setting_type(site_setting);
     if (!setting.has_value())
         return;
 
-    auto enabled = site_setting.as_object().get_bool("enabled"sv);
-    if (!enabled.has_value())
+    auto policy = site_setting.as_object().get_string("policy"sv);
+    if (!policy.has_value())
         return;
 
     switch (*setting) {
     case SiteSettingType::Autoplay:
-        WebView::Application::settings().set_autoplay_enabled_globally(*enabled);
+        if (auto parsed = Web::HTML::autoplay_policy_from_string(*policy); parsed.has_value())
+            WebView::Application::settings().set_autoplay_policy(*parsed);
         break;
     }
 

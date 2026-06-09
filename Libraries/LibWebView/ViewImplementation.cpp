@@ -2373,10 +2373,11 @@ void ViewImplementation::autoplay_settings_changed()
     auto const& autoplay_settings = Application::settings().autoplay_settings();
     auto const& web_content_options = Application::web_content_options();
 
-    if (autoplay_settings.enabled_globally || web_content_options.enable_autoplay == EnableAutoplay::Yes)
-        client().async_set_autoplay_allowed_on_all_websites(page_id());
-    else
-        client().async_set_autoplay_allowlist(page_id(), autoplay_settings.site_filters.values());
+    auto policy = autoplay_settings.policy;
+    if (web_content_options.enable_autoplay == EnableAutoplay::Yes)
+        policy = Web::HTML::AutoplayPolicy::AllowAudioAndVideo;
+
+    client().async_set_autoplay_settings(page_id(), policy, autoplay_settings.site_filters.values());
 }
 
 void ViewImplementation::global_privacy_control_changed()

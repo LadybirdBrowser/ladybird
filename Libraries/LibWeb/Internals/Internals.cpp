@@ -35,6 +35,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
+#include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
@@ -546,6 +547,12 @@ WebIDL::ExceptionOr<void> Internals::set_content_blockers(String const& patterns
 void Internals::set_content_blocking_enabled(bool enabled)
 {
     page().set_content_blocking_enabled(enabled);
+}
+
+void Internals::set_autoplay_policy(String const& policy)
+{
+    if (auto parsed = HTML::autoplay_policy_from_string(policy); parsed.has_value())
+        HTML::AutoplaySettings::the().set_policy(*parsed, {});
 }
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static
