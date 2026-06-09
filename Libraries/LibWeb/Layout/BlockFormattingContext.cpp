@@ -77,6 +77,14 @@ static bool margins_collapse_through(Box const& box, LayoutState& state)
     if (FormattingContext::creates_block_formatting_context(box))
         return false;
 
+    // https://drafts.csswg.org/css-flexbox-1/#flex-containers
+    // [..] the flex container’s margins do not collapse with the margins of its contents.
+    // https://drafts.csswg.org/css-grid-2/#grid-containers
+    // [..] the grid container’s margins do not collapse with the margins of its contents.
+    auto display = box.display();
+    if (display.is_flex_inside() || display.is_grid_inside())
+        return false;
+
     // NB: This should take care of the height and min-height constraints.
     //     ( also see https://github.com/w3c/csswg-drafts/pull/13699#issuecomment-4103045370 for spec ambiguity )
     if (state.get(box).border_box_height() != 0)
