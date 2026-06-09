@@ -390,7 +390,6 @@ void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStat
         return;
     m_last_dispatched_status = status;
     m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), status, seek_id] {
-        Sync::MutexLocker locker { self->m_output_mutex };
         if (self->m_seek_id != seek_id)
             return;
         if (self->m_on_state_changed)
