@@ -7,11 +7,13 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/Span.h>
+#include <AK/StringView.h>
 
 namespace Sandbox {
 
 [[nodiscard]] ErrorOr<void> install_no_new_privileges();
 [[nodiscard]] ErrorOr<void> configure_runtime();
-[[nodiscard]] ErrorOr<void> restrict_filesystem_with_landlock();
+[[nodiscard]] ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<StringView> readable_paths = {});
 
 }

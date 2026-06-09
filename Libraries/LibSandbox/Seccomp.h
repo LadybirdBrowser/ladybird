@@ -17,6 +17,8 @@ public:
     SeccompPolicy();
 
     void deny_readonly_filesystem_probes();
+    void allow_readonly_file_opens();
+    void allow_filesystem_metadata_queries();
     void allow_file_descriptor_operations();
     void allow_ipc();
     void allow_memory_without_executable_mappings();
