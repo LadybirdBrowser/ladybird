@@ -47,7 +47,6 @@ public:
 private:
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
-    RefPtr<Gfx::PaintingSurface> surface(size_t frame_index, Gfx::IntSize) const;
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
     Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const;
     void prune_cached_display_list_resources() const;
