@@ -62,7 +62,10 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(policy, name) \
     IF_DEFINED_##name(SECCOMP_APPEND_ALLOW_SYSCALL(policy, name), (policy).append(SECCOMP_ALLOW_NOTHING))
 
+#define IF_DEFINED_accept(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_accept4(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_access(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_bind(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_brk(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_clock_getres(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_clock_gettime(if_defined, if_not_defined) if_defined
@@ -70,6 +73,7 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_clone(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_clone3(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_close(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_connect(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_dup(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_dup3(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_epoll_create1(if_defined, if_not_defined) if_defined
@@ -81,10 +85,14 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_exit_group(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fcntl(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fcntl64(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_fdatasync(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_flock(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fstat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_fsync(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_ftruncate(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_futex(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_futex_time64(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_getdents64(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_getcpu(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_getegid(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_geteuid(if_defined, if_not_defined) if_defined
@@ -100,6 +108,9 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_gettimeofday(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_getuid(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_ioctl(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_link(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_linkat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_listen(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_lseek(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_madvise(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_membarrier(if_defined, if_not_defined) if_defined
@@ -111,14 +122,22 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_munmap(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_nanosleep(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_newfstatat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_open(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_openat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_pipe2(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_poll(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_pread64(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_ppoll(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_prctl(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_prlimit64(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_pselect6(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_pwrite64(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_read(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_readlink(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_readlinkat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_rename(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_renameat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_renameat2(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_recvfrom(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_recvmmsg(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_recvmsg(if_defined, if_not_defined) if_defined
@@ -129,6 +148,7 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_rt_sigreturn(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sched_getaffinity(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sched_yield(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_sendfile(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sendmmsg(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sendmsg(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sendto(if_defined, if_not_defined) if_defined
@@ -136,17 +156,37 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_set_tid_address(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_setsockopt(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sigaltstack(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_shutdown(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_socket(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_socketpair(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_statx(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sysinfo(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_tgkill(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_unlink(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_unlinkat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_umask(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_uname(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_write(if_defined, if_not_defined) if_defined
 
+#ifndef __NR_accept
+#    undef IF_DEFINED_accept
+#    define IF_DEFINED_accept(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_accept4
 #    undef IF_DEFINED_accept4
 #    define IF_DEFINED_accept4(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_access
+#    undef IF_DEFINED_access
+#    define IF_DEFINED_access(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_bind
+#    undef IF_DEFINED_bind
+#    define IF_DEFINED_bind(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_connect
+#    undef IF_DEFINED_connect
+#    define IF_DEFINED_connect(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_clock_getres
 #    undef IF_DEFINED_clock_getres
@@ -192,13 +232,41 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #    undef IF_DEFINED_fcntl64
 #    define IF_DEFINED_fcntl64(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_fdatasync
+#    undef IF_DEFINED_fdatasync
+#    define IF_DEFINED_fdatasync(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_flock
+#    undef IF_DEFINED_flock
+#    define IF_DEFINED_flock(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_fstat
 #    undef IF_DEFINED_fstat
 #    define IF_DEFINED_fstat(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_fsync
+#    undef IF_DEFINED_fsync
+#    define IF_DEFINED_fsync(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_futex_time64
 #    undef IF_DEFINED_futex_time64
 #    define IF_DEFINED_futex_time64(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_getdents64
+#    undef IF_DEFINED_getdents64
+#    define IF_DEFINED_getdents64(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_link
+#    undef IF_DEFINED_link
+#    define IF_DEFINED_link(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_linkat
+#    undef IF_DEFINED_linkat
+#    define IF_DEFINED_linkat(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_listen
+#    undef IF_DEFINED_listen
+#    define IF_DEFINED_listen(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_getcpu
 #    undef IF_DEFINED_getcpu
@@ -228,9 +296,41 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #    undef IF_DEFINED_newfstatat
 #    define IF_DEFINED_newfstatat(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_open
+#    undef IF_DEFINED_open
+#    define IF_DEFINED_open(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_openat
+#    undef IF_DEFINED_openat
+#    define IF_DEFINED_openat(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_poll
 #    undef IF_DEFINED_poll
 #    define IF_DEFINED_poll(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_pread64
+#    undef IF_DEFINED_pread64
+#    define IF_DEFINED_pread64(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_readlink
+#    undef IF_DEFINED_readlink
+#    define IF_DEFINED_readlink(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_readlinkat
+#    undef IF_DEFINED_readlinkat
+#    define IF_DEFINED_readlinkat(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_rename
+#    undef IF_DEFINED_rename
+#    define IF_DEFINED_rename(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_renameat
+#    undef IF_DEFINED_renameat
+#    define IF_DEFINED_renameat(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_renameat2
+#    undef IF_DEFINED_renameat2
+#    define IF_DEFINED_renameat2(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_ppoll
 #    undef IF_DEFINED_ppoll
@@ -264,13 +364,33 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #    undef IF_DEFINED_sendmmsg
 #    define IF_DEFINED_sendmmsg(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_sendfile
+#    undef IF_DEFINED_sendfile
+#    define IF_DEFINED_sendfile(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_sigaltstack
 #    undef IF_DEFINED_sigaltstack
 #    define IF_DEFINED_sigaltstack(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_socket
+#    undef IF_DEFINED_socket
+#    define IF_DEFINED_socket(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_shutdown
+#    undef IF_DEFINED_shutdown
+#    define IF_DEFINED_shutdown(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_statx
 #    undef IF_DEFINED_statx
 #    define IF_DEFINED_statx(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_unlink
+#    undef IF_DEFINED_unlink
+#    define IF_DEFINED_unlink(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_unlinkat
+#    undef IF_DEFINED_unlinkat
+#    define IF_DEFINED_unlinkat(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_sysinfo
 #    undef IF_DEFINED_sysinfo
@@ -597,8 +717,49 @@ void SeccompPolicy::allow_readonly_file_opens()
 
 void SeccompPolicy::allow_filesystem_metadata_queries()
 {
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, access);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getdents64);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, newfstatat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, readlink);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, readlinkat);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, statx);
+}
+
+void SeccompPolicy::allow_filesystem_writes()
+{
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, open);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, openat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, unlink);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, unlinkat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, link);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, linkat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, rename);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, renameat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, renameat2);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fsync);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fdatasync);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, flock);
+
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_GETLK, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_SETLK, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_SETLKW, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
 }
 
 void SeccompPolicy::allow_file_descriptor_operations()
@@ -612,7 +773,9 @@ void SeccompPolicy::allow_file_descriptor_operations()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, pipe2);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, ftruncate);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, lseek);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, pread64);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, pwrite64);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendfile);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, memfd_create);
 
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
@@ -649,10 +812,25 @@ void SeccompPolicy::allow_file_descriptor_operations()
     append(SECCOMP_ALLOW);
     append(SECCOMP_LOAD_SYSCALL_NR);
     append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, FIONREAD, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, TCGETS, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
 }
 
 void SeccompPolicy::allow_ipc()
 {
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, eventfd2);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, poll);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, ppoll);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, pselect6);
@@ -667,6 +845,17 @@ void SeccompPolicy::allow_ipc()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, setsockopt);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getsockname);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getpeername);
+}
+
+void SeccompPolicy::allow_network()
+{
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, socket);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, connect);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, bind);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, listen);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, accept);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, accept4);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, shutdown);
 }
 
 void SeccompPolicy::allow_memory_without_executable_mappings()
