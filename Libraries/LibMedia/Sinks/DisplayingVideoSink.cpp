@@ -57,6 +57,8 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
         consume_moved_position_signals(status);
         if (!resolves_seek(status))
             return;
+        if (m_current_frame != nullptr && m_seek_status == SeekStatus::None)
+            status = PipelineStatus::HaveData;
         dispatch_state_if_changed(status);
     });
     input->seek(m_time_provider->current_time());
@@ -151,6 +153,16 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
             break;
         m_current_frame = m_next_frame.release_nonnull();
         result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+    }
+
+    if (m_current_frame != nullptr && m_seek_status == SeekStatus::None) {
+        AK::Duration current_frame_end;
+        if (is_terminal(last_status))
+            current_frame_end = m_current_frame->timestamp() + m_current_frame->duration();
+        else
+            current_frame_end = conservative_frame_end(*m_current_frame);
+        if (current_time <= current_frame_end)
+            last_status = PipelineStatus::HaveData;
     }
 
     // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
