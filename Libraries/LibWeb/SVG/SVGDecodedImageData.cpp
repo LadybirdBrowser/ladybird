@@ -306,11 +306,6 @@ Optional<Gfx::IntRect> SVGDecodedImageData::frame_rect(size_t) const
     return {};
 }
 
-RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::surface(size_t, Gfx::IntSize size) const
-{
-    return render_to_surface(size);
-}
-
 void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::ScalingMode) const
 {
     auto display_list = record_display_list(dst_rect.size(), context.display_list_recorder().resource_storage());
