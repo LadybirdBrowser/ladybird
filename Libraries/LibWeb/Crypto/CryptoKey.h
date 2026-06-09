@@ -139,7 +139,6 @@ private:
     explicit CryptoKey(InternalKeyData);
     CryptoKey();
 
-    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     KeyType m_type;

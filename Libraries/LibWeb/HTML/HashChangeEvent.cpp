@@ -35,9 +35,4 @@ HashChangeEvent::HashChangeEvent(FlyString const& event_name, String old_url, St
 {
 }
 
-void HashChangeEvent::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 }

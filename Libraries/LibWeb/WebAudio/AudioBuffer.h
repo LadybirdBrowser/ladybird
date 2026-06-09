@@ -47,7 +47,6 @@ private:
 
     explicit AudioBuffer(AudioBufferOptions const&);
 
-    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-number-of-channels-slot

@@ -28,11 +28,6 @@ CookieChangeEvent::CookieChangeEvent(FlyString const& event_name, CookieChangeEv
 
 CookieChangeEvent::~CookieChangeEvent() = default;
 
-void CookieChangeEvent::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 }
 
 namespace Web::Bindings {

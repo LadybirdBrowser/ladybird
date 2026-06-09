@@ -30,8 +30,6 @@ public:
     explicit ResizeObservation(DOM::Element& target, ObservedBox observed_box);
 
 private:
-    virtual void visit_edges(JS::Cell::Visitor&) override;
-
     GC::Weak<DOM::Element> m_target;
     ObservedBox m_observed_box;
     Vector<ResizeObserverSize::RawSize> m_last_reported_sizes;

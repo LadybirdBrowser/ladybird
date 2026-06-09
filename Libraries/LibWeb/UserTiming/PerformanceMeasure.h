@@ -43,8 +43,6 @@ public:
 private:
     PerformanceMeasure(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, Optional<HTML::SerializationRecord> detail);
 
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
     // https://w3c.github.io/user-timing/#dom-performancemeasure-detail
     Optional<HTML::SerializationRecord> m_detail;
 };

@@ -74,9 +74,4 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
     return {};
 }
 
-void AudioScheduledSourceNode::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 }

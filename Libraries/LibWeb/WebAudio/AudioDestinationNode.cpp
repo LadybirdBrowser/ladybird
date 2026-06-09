@@ -47,11 +47,6 @@ WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> AudioDestinationNode::create(
     return node;
 }
 
-void AudioDestinationNode::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcount
 WebIDL::ExceptionOr<void> AudioDestinationNode::set_channel_count(WebIDL::UnsignedLong channel_count)
 {

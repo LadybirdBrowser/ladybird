@@ -61,11 +61,6 @@ ImageBitmap::ImageBitmap() = default;
 
 ImageBitmap::~ImageBitmap() = default;
 
-void ImageBitmap::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 size_t ImageBitmap::external_memory_size() const
 {
     auto size = Base::external_memory_size();

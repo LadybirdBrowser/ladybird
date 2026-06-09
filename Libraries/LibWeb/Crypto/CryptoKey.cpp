@@ -477,11 +477,6 @@ void CryptoKey::finalize()
         [](auto& data) { secure_zero(reinterpret_cast<u8*>(&data), sizeof(data)); });
 }
 
-void CryptoKey::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 void CryptoKey::set_algorithm(InternalAlgorithmData algorithm)
 {
     m_algorithm = move(algorithm);

@@ -70,8 +70,6 @@ public:
 private:
     FetchTimingInfo();
 
-    virtual void visit_edges(JS::Cell::Visitor&) override;
-
     // https://fetch.spec.whatwg.org/#fetch-timing-info-start-time
     // start time (default 0)
     //     A DOMHighResTimeStamp.

@@ -62,7 +62,6 @@ private:
     // from a different origin. The flag is initially set to true and may be changed to false by the steps of
     // createImageBitmap().
 
-    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     WebIDL::UnsignedLong m_width = 0;

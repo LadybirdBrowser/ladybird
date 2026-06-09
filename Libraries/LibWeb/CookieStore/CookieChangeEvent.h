@@ -41,8 +41,6 @@ public:
 private:
     CookieChangeEvent(FlyString const& event_name, CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
     Vector<CookieListItem> m_changed;
     Vector<CookieListItem> m_deleted;
 };

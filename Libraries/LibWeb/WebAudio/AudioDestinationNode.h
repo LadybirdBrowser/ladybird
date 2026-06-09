@@ -31,7 +31,6 @@ public:
 
 protected:
     AudioDestinationNode(GC::Ref<BaseAudioContext>, WebIDL::UnsignedLong channel_count);
-    virtual void visit_edges(Cell::Visitor&) override;
 };
 
 }

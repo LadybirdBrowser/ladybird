@@ -31,11 +31,6 @@ HTMLBodyElement::HTMLBodyElement(DOM::Document& document, DOM::QualifiedName qua
 
 HTMLBodyElement::~HTMLBodyElement() = default;
 
-void HTMLBodyElement::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 bool HTMLBodyElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))

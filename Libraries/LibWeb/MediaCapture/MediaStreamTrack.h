@@ -74,7 +74,6 @@ public:
 
 private:
     explicit MediaStreamTrack();
-    virtual void visit_edges(Cell::Visitor&) override;
 
     void apply_constraints_impl(Optional<MediaTrackConstraints> constraints);
 

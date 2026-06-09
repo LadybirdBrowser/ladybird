@@ -25,11 +25,6 @@ ResizeObservation::ResizeObservation(DOM::Element& target, ObservedBox observed_
     m_last_reported_sizes.append({});
 }
 
-void ResizeObservation::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 // https://drafts.csswg.org/resize-observer-1/#dom-resizeobservation-isactive
 bool ResizeObservation::is_active()
 {

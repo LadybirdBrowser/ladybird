@@ -28,7 +28,6 @@ public:
 
 private:
     XRWebGLLayer();
-    virtual void visit_edges(JS::Cell::Visitor&) override;
 };
 
 }

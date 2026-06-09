@@ -31,8 +31,6 @@ private:
     HashChangeEvent(FlyString const& event_name, HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
     HashChangeEvent(FlyString const& event_name, String old_url, String new_url, HighResolutionTime::DOMHighResTimeStamp);
 
-    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
-
     String m_old_url;
     String m_new_url;
 };

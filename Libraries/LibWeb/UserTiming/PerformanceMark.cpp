@@ -115,9 +115,4 @@ WebIDL::ExceptionOr<JS::Value> PerformanceMark::detail(JS::Realm& realm) const
     return HTML::structured_deserialize(realm.vm(), m_detail.value(), realm);
 }
 
-void PerformanceMark::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 }

@@ -74,9 +74,4 @@ WebIDL::ExceptionOr<GC::Ref<XRWebGLLayer>> XRWebGLLayer::create(XRSession const&
     return layer;
 }
 
-void XRWebGLLayer::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 }

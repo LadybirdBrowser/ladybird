@@ -21,11 +21,6 @@ GC::Ref<FetchTimingInfo> FetchTimingInfo::create()
     return GC::Heap::the().allocate<FetchTimingInfo>();
 }
 
-void FetchTimingInfo::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 // https://fetch.spec.whatwg.org/#create-an-opaque-timing-info
 GC::Ref<FetchTimingInfo> create_opaque_timing_info(FetchTimingInfo const& timing_info)
 {

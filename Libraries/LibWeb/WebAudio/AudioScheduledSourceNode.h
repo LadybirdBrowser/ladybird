@@ -29,7 +29,6 @@ protected:
 
     bool source_started() const { return m_source_started; }
     void set_source_started(bool started) { m_source_started = started; }
-    virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-source-started-slot

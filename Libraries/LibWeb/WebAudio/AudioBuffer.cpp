@@ -231,11 +231,6 @@ AudioBuffer::AudioBuffer(AudioBufferOptions const& options)
 {
 }
 
-void AudioBuffer::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 size_t AudioBuffer::external_memory_size() const
 {
     auto size = JS::saturating_add_external_memory_size(Base::external_memory_size(), JS::vector_external_memory_size(m_channels));

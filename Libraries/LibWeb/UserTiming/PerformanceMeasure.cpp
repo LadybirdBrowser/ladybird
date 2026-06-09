@@ -43,9 +43,4 @@ WebIDL::ExceptionOr<JS::Value> PerformanceMeasure::detail(JS::Realm& realm) cons
     return HTML::structured_deserialize(realm.vm(), m_detail.value(), realm);
 }
 
-void PerformanceMeasure::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 }

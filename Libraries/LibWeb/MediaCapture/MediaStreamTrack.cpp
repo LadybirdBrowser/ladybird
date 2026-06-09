@@ -68,11 +68,6 @@ void MediaStreamTrack::set_settings(MediaTrackSettings settings)
     m_settings = move(settings);
 }
 
-void MediaStreamTrack::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
 // https://w3c.github.io/mediacapture-main/#dom-mediastreamtrack-stop
 void MediaStreamTrack::stop()
 {
