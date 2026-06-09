@@ -21,4 +21,9 @@ void PlaybackStateHandler::seek(AK::Duration timestamp, SeekMode mode)
     manager().replace_state_handler<SeekingStateHandler>(manager().is_playing(), timestamp, mode);
 }
 
+void PlaybackStateHandler::on_pipeline_status_changed(PipelineStatus status)
+{
+    (void)status;
+}
+
 }

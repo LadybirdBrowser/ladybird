@@ -7,7 +7,6 @@
 #include "StartingStateHandler.h"
 
 #include <LibMedia/PlaybackManager.h>
-#include <LibMedia/PlaybackStates/BufferingStateHandler.h>
 
 namespace Media {
 
@@ -15,13 +14,15 @@ void StartingStateHandler::start()
 {
     m_started = true;
 
-    if (!manager().m_audio_buffering && manager().m_video_tracks_buffering.is_empty())
+    if (!m_pipeline_blocked)
         resume();
 }
 
-void StartingStateHandler::exit_buffering()
+void StartingStateHandler::on_pipeline_status_changed(PipelineStatus status)
 {
-    if (m_started)
+    m_pipeline_blocked = status == PipelineStatus::Blocked;
+
+    if (m_started && !m_pipeline_blocked)
         resume();
 }
 

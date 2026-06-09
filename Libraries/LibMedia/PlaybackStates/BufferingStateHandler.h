@@ -30,14 +30,7 @@ public:
         return AvailableData::Current;
     }
 
-    virtual void enter_buffering() override
-    {
-    }
-
-    virtual void exit_buffering() override
-    {
-        resume();
-    }
+    virtual void on_pipeline_status_changed(PipelineStatus) override;
 };
 
 }

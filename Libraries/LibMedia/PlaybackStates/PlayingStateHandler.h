@@ -7,9 +7,7 @@
 #pragma once
 
 #include <LibMedia/PlaybackManager.h>
-#include <LibMedia/PlaybackStates/BufferingStateHandler.h>
 #include <LibMedia/PlaybackStates/Forward.h>
-#include <LibMedia/PlaybackStates/PausedStateHandler.h>
 
 namespace Media {
 
@@ -31,10 +29,7 @@ public:
     }
 
     virtual void play() override { }
-    virtual void pause() override
-    {
-        manager().replace_state_handler<PausedStateHandler>();
-    }
+    virtual void pause() override;
 
     virtual bool is_playing() override
     {
@@ -49,11 +44,7 @@ public:
         return AvailableData::Future;
     }
 
-    virtual void enter_buffering() override
-    {
-        manager().replace_state_handler<BufferingStateHandler>(true);
-    }
-    virtual void exit_buffering() override { }
+    virtual void on_pipeline_status_changed(PipelineStatus) override;
 };
 
 }

@@ -37,9 +37,6 @@ public:
     {
         return AvailableData::Future;
     }
-
-    virtual void enter_buffering() override { }
-    virtual void exit_buffering() override { }
 };
 
 }
