@@ -19,6 +19,7 @@
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
+#include <RequestServer/Sandbox.h>
 
 namespace RequestServer {
 
@@ -43,6 +44,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView http_disk_cache_mode;
     StringView resource_map_path;
     bool wait_for_debugger = false;
+    bool enable_sandbox = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
@@ -50,6 +52,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(http_disk_cache_mode, "HTTP disk cache mode", "http-disk-cache-mode", 0, "mode");
     args_parser.add_option(resource_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
+    args_parser.add_option(enable_sandbox, "Enable process sandboxing", "enable-sandbox");
     args_parser.parse(arguments);
 
     if (wait_for_debugger)
@@ -96,6 +99,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         else
             disk_cache = cache.release_value();
     }
+
+    if (enable_sandbox)
+        TRY(RequestServer::apply_sandbox(certificates));
 
     // Connections are stored on the stack to ensure they are destroyed before static destruction begins. This prevents
     // crashes from notifiers trying to unregister from already-destroyed thread data during process exit.

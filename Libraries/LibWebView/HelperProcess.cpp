@@ -219,10 +219,13 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::Bindings:
 
 ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
 {
+    auto const& browser_options = Application::browser_options();
     auto const& request_server_options = Application::request_server_options();
 
     Vector<ByteString> arguments;
 
+    if (browser_options.enable_sandbox == EnableSandbox::Yes)
+        arguments.append("--enable-sandbox"sv);
     for (auto const& certificate : request_server_options.certificates)
         arguments.append(ByteString::formatted("--certificate={}", certificate));
 

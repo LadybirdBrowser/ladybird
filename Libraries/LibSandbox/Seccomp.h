@@ -19,8 +19,10 @@ public:
     void deny_readonly_filesystem_probes();
     void allow_readonly_file_opens();
     void allow_filesystem_metadata_queries();
+    void allow_filesystem_writes();
     void allow_file_descriptor_operations();
     void allow_ipc();
+    void allow_network();
     void allow_memory_without_executable_mappings();
     void allow_threads();
     void allow_signals();
