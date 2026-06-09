@@ -17,6 +17,7 @@ namespace Sandbox {
 struct LandlockPath {
     enum class Access {
         ReadOnly,
+        ReadAndExecute,
         ReadWrite,
     };
 

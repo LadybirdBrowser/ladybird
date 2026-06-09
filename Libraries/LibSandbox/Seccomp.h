@@ -21,9 +21,11 @@ public:
     void allow_filesystem_metadata_queries();
     void allow_filesystem_writes();
     void allow_file_descriptor_operations();
+    void allow_process_creation();
     void allow_ipc();
     void allow_network();
     void allow_memory_without_executable_mappings();
+    void allow_executable_memory_mappings();
     void allow_threads();
     void allow_signals();
     void allow_clocks();
