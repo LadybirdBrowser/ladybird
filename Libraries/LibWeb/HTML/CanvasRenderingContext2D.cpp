@@ -29,6 +29,7 @@
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -968,9 +969,9 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
     // An object image is not origin-clean if, switching on image's type:
     return image.visit(
         // HTMLOrSVGImageElement
-        [](GC::Ref<HTMLImageElement>) {
-            // FIXME: image's current request's image data is CORS-cross-origin.
-            return false;
+        [](GC::Ref<HTMLImageElement> image) {
+            // image's current request's image data is CORS-cross-origin.
+            return image->current_request().image_data()->is_cors_cross_origin();
         },
         [](GC::Ref<SVG::SVGImageElement>) {
             // FIXME: image's current request's image data is CORS-cross-origin.
