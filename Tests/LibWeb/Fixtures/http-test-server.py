@@ -4,7 +4,9 @@ import argparse
 import base64
 import hashlib
 import http.server
+import itertools
 import json
+import logging
 import os
 import socket
 import socketserver
@@ -95,6 +97,7 @@ class WPTContext:
         sys.modules["localpaths"] = localpaths
         localpaths.repo_root = os.path.abspath(wpt_directory)
 
+        from wptserve.config import ConfigBuilder
         from wptserve.handlers import FileHandler
         from wptserve.handlers import python_script_handler
         from wptserve.request import Request
@@ -104,7 +107,8 @@ class WPTContext:
         from wptserve.stash import start_server as start_stash_server
         from wptserve.utils import HTTPException
 
-        cast(Any, Server).config = SimpleNamespace(logging={"suppress_handler_traceback": False})
+        self.config_builder_class = ConfigBuilder
+        self.server_class = Server
 
         self.request_class = Request
         self.response_class = Response
@@ -113,6 +117,28 @@ class WPTContext:
         self.http_exception = HTTPException
         self.stash_class = Stash
         self.stash_manager, self.stash_address, self.stash_authkey = start_stash_server()
+
+    def configure_server(self, port):
+        def make_subdomains_product(subdomains, depth=2):
+            return {
+                ".".join(labels)
+                for length in range(1, depth + 1)
+                for labels in itertools.product(subdomains, repeat=length)
+            }
+
+        subdomains = make_subdomains_product({"www", "www1", "www2"})
+        not_subdomains = make_subdomains_product({"nonexistent"})
+        logger = logging.getLogger("test-web-wptserve")
+        with self.config_builder_class(
+            logger,
+            browser_host="web-platform.localhost",
+            alternate_hosts={"alt": "not-localhost.localhost"},
+            ports={"http": [port]},
+            subdomains=subdomains,
+            not_subdomains=not_subdomains,
+            check_subdomains=False,
+        ) as config:
+            cast(Any, self.server_class).config = config
 
     def close(self):
         self.stash_manager.shutdown()
@@ -620,6 +646,7 @@ def start_server(port, static_directory):
     httpd.scheme = "http"
     httpd.router = SimpleNamespace(doc_root=TestHTTPRequestHandler.wpt_directory)
     httpd.wpt = WPTContext(TestHTTPRequestHandler.wpt_directory)
+    httpd.wpt.configure_server(httpd.socket.getsockname()[1])
     httpd.wpt_file_handler = httpd.wpt.file_handler_class(base_path=TestHTTPRequestHandler.wpt_directory)
     httpd.static_file_handler = httpd.wpt.file_handler_class(
         base_path=TestHTTPRequestHandler.static_directory,
