@@ -1,0 +1,3 @@
+muted autoplay started: true
+paused after unmuting without a gesture: true
+scripted audible play() rejected with: NotAllowedError

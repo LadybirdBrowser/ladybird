@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!-- Pin the policy here (not via the browser setting test-web inherits) so the result is deterministic
+     regardless of test order on a reused WebContent process. Served over HTTP (see the .headers file)
+     so the file:// autoplay carve-out does not apply: under "Block Audio", muted media autoplays while
+     audible media does not. -->
+<script>internals.setAutoplayPolicy("block-audio");</script>
+<video autoplay muted id="muted" src="../../../Assets/test-webm.webm"></video>
+<video autoplay id="audible" src="../../../Assets/test-webm.webm"></video>
+<script src="../include.js"></script>
+<script>
+  asyncTest(done => {
+    const results = {};
+    let remaining = 2;
+
+    setTimeout(() => {
+      println("FAIL: timeout waiting for media to load");
+      done();
+    }, 15_000);
+
+    function watch(key, video) {
+      const finish = value => {
+        results[key] = value;
+        if (--remaining === 0) {
+          println(`muted video autoplays: ${results.muted}`);
+          println(`audible video autoplays: ${results.audible}`);
+          done();
+        }
+      };
+
+      video.addEventListener("canplaythrough", () => finish(!video.paused));
+      video.addEventListener("error", () => finish("error"));
+    }
+
+    watch("muted", document.getElementById("muted"));
+    watch("audible", document.getElementById("audible"));
+  });
+</script>

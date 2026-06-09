@@ -15,6 +15,7 @@
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWeb/HTML/AutoplayPolicy.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
@@ -35,10 +36,14 @@ struct BrowsingBehavior {
 };
 
 struct SiteSetting {
-    SiteSetting();
-
-    bool enabled_globally { false };
     OrderedHashTable<String> site_filters;
+
+protected:
+    SiteSetting() = default;
+};
+
+struct AutoplaySiteSetting : public SiteSetting {
+    Web::HTML::AutoplayPolicy policy { Web::HTML::AutoplayPolicy::BlockAudio };
 };
 
 struct BrowsingDataSettings {
@@ -137,8 +142,8 @@ public:
     Optional<AutocompleteEngine> const& autocomplete_engine() const { return m_autocomplete_engine; }
     void set_autocomplete_engine(Optional<StringView> autocomplete_engine_name);
 
-    SiteSetting const& autoplay_settings() const { return m_autoplay; }
-    void set_autoplay_enabled_globally(bool);
+    AutoplaySiteSetting const& autoplay_settings() const { return m_autoplay; }
+    void set_autoplay_policy(Web::HTML::AutoplayPolicy);
     void add_autoplay_site_filter(String const&);
     void remove_autoplay_site_filter(String const&);
     void remove_all_autoplay_site_filters();
@@ -183,7 +188,7 @@ private:
     Optional<SearchEngine> m_search_engine;
     Vector<SearchEngine> m_custom_search_engines;
     Optional<AutocompleteEngine> m_autocomplete_engine;
-    SiteSetting m_autoplay;
+    AutoplaySiteSetting m_autoplay;
     BrowsingDataSettings m_browsing_data_settings;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
     DNSSettings m_dns_settings { SystemDNS() };

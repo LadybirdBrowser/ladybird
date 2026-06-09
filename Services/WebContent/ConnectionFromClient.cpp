@@ -44,6 +44,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -68,7 +69,6 @@
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
-#include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ViewImplementation.h>
@@ -1972,16 +1972,9 @@ void ConnectionFromClient::set_content_blockers(u64 page_id, Core::AnonymousBuff
     }
 }
 
-void ConnectionFromClient::set_autoplay_allowed_on_all_websites(u64)
+void ConnectionFromClient::set_autoplay_settings(u64, Web::HTML::AutoplayPolicy policy, Vector<String> allowlist)
 {
-    auto& autoplay_allowlist = Web::PermissionsPolicy::AutoplayAllowlist::the();
-    autoplay_allowlist.enable_globally();
-}
-
-void ConnectionFromClient::set_autoplay_allowlist(u64, Vector<String> allowlist)
-{
-    auto& autoplay_allowlist = Web::PermissionsPolicy::AutoplayAllowlist::the();
-    autoplay_allowlist.enable_for_origins(allowlist);
+    Web::HTML::AutoplaySettings::the().set_policy(policy, allowlist);
 }
 
 void ConnectionFromClient::set_proxy_mappings(u64, Vector<ByteString> proxies, HashMap<ByteString, size_t> mappings)

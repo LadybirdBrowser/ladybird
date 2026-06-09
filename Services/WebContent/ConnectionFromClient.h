@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/AutoplayPolicy.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Loader/FileRequest.h>
@@ -140,8 +141,7 @@ private:
     virtual void remove_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
 
     virtual void set_content_blockers(u64 page_id, Core::AnonymousBuffer patterns) override;
-    virtual void set_autoplay_allowed_on_all_websites(u64 page_id) override;
-    virtual void set_autoplay_allowlist(u64 page_id, Vector<String> allowlist) override;
+    virtual void set_autoplay_settings(u64 page_id, Web::HTML::AutoplayPolicy policy, Vector<String> allowlist) override;
     virtual void set_proxy_mappings(u64 page_id, Vector<ByteString>, HashMap<ByteString, size_t>) override;
     virtual void set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme) override;
     virtual void set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast) override;

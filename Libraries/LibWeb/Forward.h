@@ -693,6 +693,7 @@ namespace Web::HTML {
 class AnimationFrameCallbackDriver;
 class AudioTrack;
 class AudioTrackList;
+class AutoplaySettings;
 class BarProp;
 class BeforeUnloadEvent;
 class BroadcastChannel;
@@ -1053,12 +1054,6 @@ namespace Web::PerformanceTimeline {
 class PerformanceEntry;
 class PerformanceObserver;
 class PerformanceObserverEntryList;
-
-}
-
-namespace Web::PermissionsPolicy {
-
-class AutoplayAllowlist;
 
 }
 

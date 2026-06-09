@@ -255,6 +255,7 @@ private:
     void update_current_video_frame();
 
     bool is_eligible_for_autoplay() const;
+    bool is_allowed_to_play() const;
 
     enum class PlaybackDirection : u8 {
         Forwards,

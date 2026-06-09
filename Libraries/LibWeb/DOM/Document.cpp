@@ -197,7 +197,6 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
-#include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
@@ -5808,9 +5807,8 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
     // FIXME: This is ad-hoc. Implement the Permissions Policy specification.
     switch (feature) {
     case PolicyControlledFeature::Autoplay:
-        if (PermissionsPolicy::AutoplayAllowlist::the().is_allowed_for_origin(*this, origin()) == PermissionsPolicy::Decision::Enabled)
-            return true;
-        break;
+        // FIXME: Implement allowlist for this.
+        return true;
     case PolicyControlledFeature::Camera:
         // FIXME: Implement allowlist for this.
         return true;

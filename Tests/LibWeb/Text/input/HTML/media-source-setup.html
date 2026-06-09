@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<!-- Allow autoplay so the scripted play() works without a user gesture, independent of the browser's
+     autoplay policy that test-web would otherwise inherit. -->
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
 <video id="video"></video>
 <script src="../include.js"></script>
 <script>

@@ -79,6 +79,7 @@ interface Internals {
     boolean setHttpMemoryCacheEnabled(boolean enabled);
     undefined setContentBlockers(DOMString patterns);
     undefined setContentBlockingEnabled(boolean enabled);
+    undefined setAutoplayPolicy(DOMString policy);
 
     DOMString getComputedRole(Element element);
     DOMString getComputedLabel(Element element);
