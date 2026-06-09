@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 8 tests
 
-7 Pass
-1 Fail
+8 Pass
 Pass	An array
 Pass	A generator
 Pass	An array with an overridden Symbol.iterator
-Fail	An object with an overriden Symbol.iterator
+Pass	An object with an overriden Symbol.iterator
 Pass	An array with an overridden Symbol.iterator on the prototype
 Pass	An array with an overridden %ArrayIterator%.prototype.next
 Pass	A holey array with fallback to an accessor on the prototype
