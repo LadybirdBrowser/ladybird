@@ -743,12 +743,6 @@ def sequence_to_idl_value(
     includes: GeneratedIncludes,
     context: GenerationContext,
 ) -> str:
-    includes.add("LibJS/Runtime/Error.h")
-    includes.add("LibJS/Runtime/Iterator.h")
-    includes.add("LibJS/Runtime/Value.h")
-    includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
-
     element_type = sequence_type.parameters[0]
     element_cpp_type = cpp_type_for_idl_type_details(element_type, context)
     storage_type_name = element_cpp_type.contained_storage_type.value
@@ -761,13 +755,37 @@ def sequence_to_idl_value(
         if (!{value_name}.is_object())
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, {value_name});
 
-        auto iterator_method0 = TRY({value_name}.get_method(vm, vm.well_known_symbol_iterator()));
-        if (!iterator_method0)
+        auto method = TRY({value_name}.get_method(vm, vm.well_known_symbol_iterator()));
+        if (!method)
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, {value_name});
 
+        return TRY({create_sequence_from_iterable(sequence_type, identifier, value_name, "method", includes, context)});
+    }}()"""
+
+
+# 3.2.21.1. Creating a sequence from an iterable, https://webidl.spec.whatwg.org/#create-sequence-from-iterable
+def create_sequence_from_iterable(
+    sequence_type: IDLParameterizedType,
+    identifier: str,
+    value_name: str,
+    iterator_method_name: str,
+    includes: GeneratedIncludes,
+    context: GenerationContext,
+) -> str:
+    includes.add("LibJS/Runtime/Error.h")
+    includes.add("LibJS/Runtime/Iterator.h")
+    includes.add("LibJS/Runtime/Value.h")
+    includes.add("LibJS/Runtime/ValueInlines.h")
+    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+
+    element_type = sequence_type.parameters[0]
+    element_cpp_type = cpp_type_for_idl_type_details(element_type, context)
+    storage_type_name = element_cpp_type.contained_storage_type.value
+
+    return f"""[&]() -> JS::ThrowCompletionOr<{storage_type_name}<{element_cpp_type.name}>> {{
         // To create an IDL value of type sequence<T> given an iterable iterable and an iterator getter method, perform the following steps:
         // 1. Let iteratorRecord be ? GetIteratorFromMethod(iterable, method).
-        auto iterator0 = TRY(JS::get_iterator_from_method(vm, {value_name}, *iterator_method0));
+        auto iterator = TRY(JS::get_iterator_from_method(vm, {value_name}, *{iterator_method_name}));
 
         {storage_type_name}<{element_cpp_type.name}> sequence;
 
@@ -775,7 +793,7 @@ def sequence_to_idl_value(
         // 3. Repeat
         for (;;) {{
             // 1. Let next be ? IteratorStepValue(iteratorRecord).
-            auto next = TRY(JS::iterator_step_value(vm, iterator0));
+            auto next = TRY(JS::iterator_step_value(vm, iterator));
 
             // 2. If next is done, then return an IDL sequence value of type sequence<T> of length i, where the value of the element at index j is Sj.
             if (!next.has_value())
@@ -1045,30 +1063,26 @@ def union_to_idl_value(
     # FIXME: 11.1 If types includes an async sequence type, then
     # 11.2. If types includes a sequence type, then
     if types.sequence_type is not None:
-        sequence_conversion = sequence_to_idl_value(types.sequence_type, identifier, value_name, includes, context)
         append(f"""
             // 1. Let method be ? GetMethod(V, @@iterator).
             auto method = TRY({value_name}.get_method(vm, vm.well_known_symbol_iterator()));
 
             // 2. If method is not undefined, return the result of creating a sequence of that type from V and method.
             if (method) {{
-                auto sequence_union_type = TRY({sequence_conversion});
+                auto sequence_union_type = TRY({create_sequence_from_iterable(types.sequence_type, identifier, value_name, "method", includes, context)});
                 return {variant_type} {{ sequence_union_type }};
             }}
 
 """)
     # 11.3. If types includes a frozen array type, then
     if types.frozen_array_type is not None:
-        frozen_array_conversion = sequence_to_idl_value(
-            types.frozen_array_type, identifier, value_name, includes, context
-        )
         append(f"""
             // 1. Let method be ? GetMethod(V, @@iterator).
             auto frozen_array_method = TRY({value_name}.get_method(vm, vm.well_known_symbol_iterator()));
 
             // 2. If method is not undefined, return the result of creating a frozen array of that type from V and method.
             if (frozen_array_method) {{
-                auto frozen_array_union_type = TRY({frozen_array_conversion});
+                auto frozen_array_union_type = TRY({create_sequence_from_iterable(types.frozen_array_type, identifier, value_name, "frozen_array_method", includes, context)});
                 return {variant_type} {{ frozen_array_union_type }};
             }}
 """)
