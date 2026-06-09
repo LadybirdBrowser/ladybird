@@ -85,6 +85,8 @@ void DisplayingVideoSink::seek(AK::Duration timestamp)
     auto can_resolve_seek_within_cached_frames = [&] {
         if (m_seek_status != SeekStatus::None)
             return false;
+        if (m_cached_frames_are_discontinuous)
+            return false;
         auto available_start = AK::Duration::max();
         auto available_end = AK::Duration::min();
         auto include_frame = [&](RefPtr<VideoFrame> const& frame) {
@@ -150,7 +152,21 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
             break;
         if (m_next_frame->timestamp() > current_time)
             break;
+        if (current_time > conservative_frame_end(*m_next_frame)) {
+            consume_moved_position_signals(last_status);
+            if (m_next_frame == nullptr)
+                continue;
+            if (!is_terminal(last_status)) {
+                if (last_status == PipelineStatus::HaveData) {
+                    m_next_frame.clear();
+                    m_cached_frames_are_discontinuous = true;
+                    continue;
+                }
+                break;
+            }
+        }
         m_current_frame = m_next_frame.release_nonnull();
+        m_cached_frames_are_discontinuous = false;
         result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
     }
 

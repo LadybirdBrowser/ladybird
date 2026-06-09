@@ -49,6 +49,7 @@ private:
 
     RefPtr<VideoFrame> m_next_frame;
     RefPtr<VideoFrame> m_current_frame;
+    bool m_cached_frames_are_discontinuous { false };
 
     enum class SeekStatus : u8 {
         None,
