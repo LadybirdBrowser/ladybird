@@ -11,6 +11,7 @@
 
         let canvas2 = document.createElement("canvas");
         let context2 = canvas2.getContext("webgl2");
+        println(`typeof WebGL2RenderingContext.prototype.texImage2D: ${typeof WebGL2RenderingContext.prototype.texImage2D}`);
         println(`context2 instanceof WebGL2RenderingContext: ${context2 instanceof WebGL2RenderingContext}`);
         println(`context2 is null: ${context2 === null}`);
     });
