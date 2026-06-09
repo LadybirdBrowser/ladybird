@@ -8,5 +8,5 @@ resize: videoWidth=320 videoHeight=240
 seeked: videoWidth=320 videoHeight=240
 --- seek to end ---
 resize: videoWidth=640 videoHeight=480
-ended: videoWidth=640 videoHeight=480
 seeked: videoWidth=640 videoHeight=480
+ended: videoWidth=640 videoHeight=480

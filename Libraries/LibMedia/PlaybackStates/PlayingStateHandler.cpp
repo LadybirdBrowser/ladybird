@@ -8,6 +8,7 @@
 
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/BufferingStateHandler.h>
+#include <LibMedia/PlaybackStates/EndedStateHandler.h>
 #include <LibMedia/PlaybackStates/PausedStateHandler.h>
 
 namespace Media {
@@ -19,8 +20,13 @@ void PlayingStateHandler::pause()
 
 void PlayingStateHandler::on_pipeline_status_changed(PipelineStatus status)
 {
-    if (status == PipelineStatus::Blocked)
+    if (status == PipelineStatus::Blocked) {
         manager().replace_state_handler<BufferingStateHandler>(true);
+        return;
+    }
+
+    if (status == PipelineStatus::EndOfStream)
+        manager().replace_state_handler<EndedStateHandler>();
 }
 
 }

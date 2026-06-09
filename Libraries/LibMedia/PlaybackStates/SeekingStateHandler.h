@@ -60,6 +60,11 @@ public:
         if (!resolves_seek(status))
             return;
 
+        if (status == PipelineStatus::EndOfStream) {
+            PlaybackStateHandler::on_pipeline_status_changed(status);
+            return;
+        }
+
         resume();
     }
 
