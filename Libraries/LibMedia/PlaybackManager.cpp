@@ -401,8 +401,6 @@ void PlaybackManager::pause()
 
 void PlaybackManager::seek(AK::Duration timestamp, SeekMode mode)
 {
-    if (!m_is_in_error_state && current_time() == timestamp)
-        return;
     m_handler->seek(timestamp, mode);
     m_is_in_error_state = false;
 }
