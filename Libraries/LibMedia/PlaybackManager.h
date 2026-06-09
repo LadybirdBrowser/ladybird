@@ -55,7 +55,7 @@ public:
 
     AK::Duration duration() const { return m_duration; }
     void set_duration(AK::Duration duration) { m_duration = duration; }
-    AK::Duration current_time() const { return min(m_time_provider->current_time(), duration()); }
+    AK::Duration current_time() const;
 
     Optional<AK::UnixDateTime> start_time_realtime() const { return m_start_time_realtime; }
 

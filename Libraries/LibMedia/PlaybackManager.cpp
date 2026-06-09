@@ -243,6 +243,12 @@ void PlaybackManager::set_up_producers()
     }
 }
 
+AK::Duration PlaybackManager::current_time() const
+{
+    auto time = m_handler->current_time();
+    return min(time, duration());
+}
+
 void PlaybackManager::on_audio_sink_state_changed(PipelineStatus status)
 {
     m_audio_buffering = status == PipelineStatus::Blocked;

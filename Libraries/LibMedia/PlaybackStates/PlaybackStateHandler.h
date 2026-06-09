@@ -26,6 +26,8 @@ public:
     virtual void on_enter() = 0;
     virtual void on_exit() = 0;
 
+    virtual AK::Duration current_time() const;
+
     virtual void start() { }
     virtual void play() = 0;
     virtual void pause() = 0;

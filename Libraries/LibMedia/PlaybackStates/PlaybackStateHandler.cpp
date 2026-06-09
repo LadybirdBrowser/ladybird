@@ -11,6 +11,11 @@
 
 namespace Media {
 
+AK::Duration PlaybackStateHandler::current_time() const
+{
+    return manager().m_time_provider->current_time();
+}
+
 void PlaybackStateHandler::seek(AK::Duration timestamp, SeekMode mode)
 {
     manager().replace_state_handler<SeekingStateHandler>(manager().is_playing(), timestamp, mode);
