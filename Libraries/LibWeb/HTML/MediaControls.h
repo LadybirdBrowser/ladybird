@@ -57,7 +57,9 @@ private:
 
     void update_play_pause_icon();
     void update_timeline();
+    void set_timeline_progress(double);
     void update_timestamp();
+    void set_timestamp(double time, double duration);
     void request_timeline_update();
     void update_volume_and_mute_indicator();
     void update_fullscreen_icon();
@@ -102,6 +104,8 @@ private:
     MuteIconState m_mute_icon_state { MuteIconState::Empty };
 
     double m_last_timeline_progress { 0.0 };
+    i64 m_last_timestamp_time { -1 };
+    i64 m_last_timestamp_duration { -1 };
 
     struct BufferedRange {
         GC::Weak<DOM::Element> element;
