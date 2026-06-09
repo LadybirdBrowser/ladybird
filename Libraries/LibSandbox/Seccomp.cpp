@@ -110,6 +110,7 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_mremap(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_munmap(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_nanosleep(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_newfstatat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_pipe2(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_poll(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_ppoll(if_defined, if_not_defined) if_defined
@@ -136,6 +137,7 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_setsockopt(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sigaltstack(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_socketpair(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_statx(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_sysinfo(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_tgkill(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_umask(if_defined, if_not_defined) if_defined
@@ -222,6 +224,10 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #    undef IF_DEFINED_pipe2
 #    define IF_DEFINED_pipe2(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_newfstatat
+#    undef IF_DEFINED_newfstatat
+#    define IF_DEFINED_newfstatat(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_poll
 #    undef IF_DEFINED_poll
 #    define IF_DEFINED_poll(if_defined, if_not_defined) if_not_defined
@@ -261,6 +267,10 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #ifndef __NR_sigaltstack
 #    undef IF_DEFINED_sigaltstack
 #    define IF_DEFINED_sigaltstack(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_statx
+#    undef IF_DEFINED_statx
+#    define IF_DEFINED_statx(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_sysinfo
 #    undef IF_DEFINED_sysinfo
@@ -563,6 +573,32 @@ void SeccompPolicy::deny_readonly_filesystem_probes()
     append(SECCOMP_ERRNO(EACCES));
     append(SECCOMP_LOAD_SYSCALL_NR);
 #endif
+}
+
+void SeccompPolicy::allow_readonly_file_opens()
+{
+#ifdef __NR_open
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_open, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~read_only_open_flags));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+#ifdef __NR_openat
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_openat, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~read_only_open_flags));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+}
+
+void SeccompPolicy::allow_filesystem_metadata_queries()
+{
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, newfstatat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, statx);
 }
 
 void SeccompPolicy::allow_file_descriptor_operations()

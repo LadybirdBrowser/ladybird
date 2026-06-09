@@ -43,6 +43,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& font_provider = static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
     if (force_fontconfig)
         font_provider.set_name_but_fixme_should_create_custom_system_font_provider("FontConfig"_string);
+    for (auto const& path : TRY(Gfx::FontDatabase::font_directories()))
+        font_provider.load_all_fonts_from_uri(TRY(String::formatted("file://{}", path)));
+    font_provider.load_all_fonts_from_uri("resource://fonts"sv);
 
     if (!force_cpu_painting)
         Gfx::SkiaBackendContext::initialize_gpu_backend();
