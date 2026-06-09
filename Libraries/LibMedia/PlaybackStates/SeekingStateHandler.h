@@ -42,6 +42,8 @@ public:
         VERIFY(!m_audio_seek_pending);
     }
 
+    virtual AK::Duration current_time() const override { return m_chosen_timestamp; }
+
     virtual void seek(AK::Duration timestamp, SeekMode mode) override
     {
         m_target_timestamp = timestamp;
