@@ -324,19 +324,8 @@ public:
         return delta_alpha * delta_alpha / (2.0f * 255 * 255) + rgb_distance * alpha() * other.alpha() / (255 * 255);
     }
 
-    constexpr u8 luminosity() const
-    {
-        return round_to<u8>(red() * 0.2126f + green() * 0.7152f + blue() * 0.0722f);
-    }
-
-    constexpr float contrast_ratio(Color other)
-    {
-        auto l1 = luminosity();
-        auto l2 = other.luminosity();
-        auto darkest = min(l1, l2) / 255.;
-        auto brightest = max(l1, l2) / 255.;
-        return (brightest + 0.05) / (darkest + 0.05);
-    }
+    double relative_luminance() const;
+    double contrast_ratio(Color other) const;
 
     constexpr Color sepia(float amount = 1.0f) const
     {
@@ -457,10 +446,7 @@ public:
         return Color(out_r, out_g, out_b);
     }
 
-    constexpr Color suggested_foreground_color() const
-    {
-        return luminosity() < 128 ? Color::White : Color::Black;
-    }
+    Color suggested_foreground_color() const;
 
 private:
     constexpr explicit Color(BGRA8888 argb)

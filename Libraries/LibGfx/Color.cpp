@@ -67,6 +67,52 @@ Array<char, 4> format_to_8bit_compatible(u8 value)
 
 }
 
+// https://w3c.github.io/wcag/guidelines/22/#dfn-relative-luminance
+double Color::relative_luminance() const
+{
+    // the relative brightness of any point in a colorspace, normalized to 0 for darkest black and 1 for lightest
+    // white.
+
+    // Note 1:
+    // For the sRGB colorspace, the relative luminance of a color is defined as L = 0.2126 * R + 0.7152 * G +
+    // 0.0722 * B where R, G and B are defined as:
+    //   * if RsRGB <= 0.04045 then R = RsRGB/12.92 else R = ((RsRGB+0.055)/1.055) ^ 2.4
+    //   * if GsRGB <= 0.04045 then G = GsRGB/12.92 else G = ((GsRGB+0.055)/1.055) ^ 2.4
+    //   * if BsRGB <= 0.04045 then B = BsRGB/12.92 else B = ((BsRGB+0.055)/1.055) ^ 2.4
+    // and RsRGB, GsRGB, and BsRGB are defined as:
+    //   * RsRGB = R8bit/255
+    //   * GsRGB = G8bit/255
+    //   * BsRGB = B8bit/255
+    // The "^" character is the exponentiation operator. (Formula taken from [SRGB].)
+    auto linearized_srgb_component = [](u8 component) {
+        auto srgb_component = component / 255.0;
+        if (srgb_component <= 0.04045)
+            return srgb_component / 12.92;
+        return AK::pow((srgb_component + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * linearized_srgb_component(red())
+        + 0.7152 * linearized_srgb_component(green())
+        + 0.0722 * linearized_srgb_component(blue());
+}
+
+// https://w3c.github.io/wcag/guidelines/22/#dfn-contrast-ratio
+double Color::contrast_ratio(Color const other) const
+{
+    // (L1 + 0.05) / (L2 + 0.05), where
+    //   * L1 is the relative luminance of the lighter of the colors, and
+    //   * L2 is the relative luminance of the darker of the colors.
+    auto l1 = relative_luminance();
+    auto l2 = other.relative_luminance();
+    auto darkest = min(l1, l2);
+    auto brightest = max(l1, l2);
+    return (brightest + 0.05) / (darkest + 0.05);
+}
+
+Color Color::suggested_foreground_color() const
+{
+    return contrast_ratio(Black) >= contrast_ratio(White) ? Black : White;
+}
+
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
 void Color::serialize_a_srgb_value(StringBuilder& builder) const
 {

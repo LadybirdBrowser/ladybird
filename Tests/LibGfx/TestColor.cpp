@@ -7,6 +7,34 @@
 #include <LibGfx/Color.h>
 #include <LibTest/TestCase.h>
 
+TEST_CASE(relative_luminance)
+{
+    auto const orange = Color(247, 143, 0);
+
+    EXPECT_APPROXIMATE(Color(Color::NamedColor::Black).relative_luminance(), 0.0);
+    EXPECT_APPROXIMATE(Color(Color::NamedColor::White).relative_luminance(), 1.0);
+    EXPECT_APPROXIMATE_WITH_ERROR(orange.relative_luminance(), 0.394190782, 0.0000005);
+}
+
+TEST_CASE(contrast_ratio)
+{
+    auto const orange = Color(247, 143, 0);
+
+    EXPECT_APPROXIMATE(Color(Color::NamedColor::Black).contrast_ratio(Color::NamedColor::White), 21.0);
+    EXPECT_APPROXIMATE_WITH_ERROR(
+        orange.contrast_ratio(Color::NamedColor::Black), 8.883815642, 0.0000005);
+    EXPECT_APPROXIMATE_WITH_ERROR(
+        orange.contrast_ratio(Color::NamedColor::White), 2.363849144, 0.0000005);
+    EXPECT(orange.contrast_ratio(Color::NamedColor::Black) > orange.contrast_ratio(Color::NamedColor::White));
+}
+
+TEST_CASE(suggested_foreground_color)
+{
+    EXPECT_EQ(Color(Color::NamedColor::White), Color(Color::NamedColor::Black).suggested_foreground_color());
+    EXPECT_EQ(Color(Color::NamedColor::Black), Color(Color::NamedColor::White).suggested_foreground_color());
+    EXPECT_EQ(Color(Color::NamedColor::Black), Color(247, 143, 0).suggested_foreground_color());
+}
+
 TEST_CASE(from_bgrx)
 {
     EXPECT_EQ(Color(0x00, 0x00, 0xff), Color::from_bgrx(0x000000ff));
