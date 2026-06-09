@@ -63,12 +63,12 @@ constexpr PipelineStatus select_combined_pipeline_status(PipelineStatus a, Pipel
         return PipelineStatus::Error;
     if (a == PipelineStatus::Blocked || b == PipelineStatus::Blocked)
         return PipelineStatus::Blocked;
+    if (a == PipelineStatus::Pending || b == PipelineStatus::Pending)
+        return PipelineStatus::Pending;
     if (a == PipelineStatus::HaveData || b == PipelineStatus::HaveData)
         return PipelineStatus::HaveData;
     if (a == PipelineStatus::MovedPosition || b == PipelineStatus::MovedPosition)
         return PipelineStatus::MovedPosition;
-    if (a == PipelineStatus::Pending || b == PipelineStatus::Pending)
-        return PipelineStatus::Pending;
     return PipelineStatus::EndOfStream;
 }
 
