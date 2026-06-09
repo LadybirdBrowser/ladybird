@@ -420,15 +420,17 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
     if (m_last_processed_seek_id == seek_id)
         return false;
 
+    AK::Duration timestamp;
+    bool moved_position = false;
+
     auto handle_error = [&](DecoderError&& error) {
         auto locker = take_lock();
         m_queue.clear();
         enter_halting_state(PipelineStatus::Error, move(error));
         m_last_processed_seek_id = seek_id;
+        if (moved_position)
+            m_moved_position_pending = true;
     };
-
-    AK::Duration timestamp;
-    bool moved_position = false;
 
     while (true) {
         {
