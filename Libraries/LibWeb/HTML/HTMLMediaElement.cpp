@@ -459,11 +459,6 @@ void HTMLMediaElement::set_current_playback_position(double playback_position)
 
     time_marches_on();
 
-    // NOTE: Invoking the following steps is not listed in the spec. Rather, the spec just describes the scenario in
-    //       which these steps should be invoked, which is when we've reached the end of the media playback.
-    if (m_current_playback_position == m_duration)
-        reached_end_of_media_playback();
-
     upon_has_ended_playback_possibly_changed();
     update_natural_dimensions();
 
@@ -2043,6 +2038,8 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     // of text tracks all the media-resource-specific text tracks, then empty the media element's audioTracks attribute's AudioTrackList object, then
     // empty the media element's videoTracks attribute's VideoTrackList object. No events (in particular, no removetrack events) are fired as part of
     // this; the error and emptied events, fired by the algorithms that invoke this one, can be used instead.
+    if (m_playback_manager)
+        m_playback_manager->on_playback_state_change = nullptr;
     m_audio_tracks->remove_all_tracks();
     m_video_tracks->remove_all_tracks();
     m_playback_manager.clear();
@@ -2269,6 +2266,10 @@ void HTMLMediaElement::on_playback_manager_state_change()
     auto state = m_playback_manager->state();
     if (seeking() && state != Media::PlaybackState::Seeking)
         finish_seeking_element();
+    if (state == Media::PlaybackState::Ended && !m_error) {
+        set_current_playback_position(m_duration);
+        reached_end_of_media_playback();
+    }
 
     // NB: Queue the readyState update as a task so that it will never run before the durationchange and loadedmetadata
     //     events are fired. This ensures that readyState has a deterministic value in those events.
@@ -2699,10 +2700,13 @@ bool HTMLMediaElement::has_ended_playback() const
     if (m_ready_state < ReadyState::HaveMetadata)
         return false;
 
+    VERIFY(m_playback_manager != nullptr);
     // Either:
     if (
         // The current playback position is the end of the media resource, and
-        m_current_playback_position == m_duration &&
+        // NB: This is represented by the playback manager's Ended state, which is only entered once the pipeline has
+        //     consumed all real media data.
+        m_playback_manager->state() == Media::PlaybackState::Ended &&
 
         // The direction of playback is forwards, and
         direction_of_playback() == PlaybackDirection::Forwards &&

@@ -5,6 +5,7 @@
  */
 
 #include <LibMedia/PlaybackManager.h>
+#include <LibMedia/PlaybackStates/EndedStateHandler.h>
 #include <LibMedia/PlaybackStates/SeekingStateHandler.h>
 
 #include "PlaybackStateHandler.h"
@@ -23,7 +24,8 @@ void PlaybackStateHandler::seek(AK::Duration timestamp, SeekMode mode)
 
 void PlaybackStateHandler::on_pipeline_status_changed(PipelineStatus status)
 {
-    (void)status;
+    if (status == PipelineStatus::EndOfStream)
+        manager().replace_state_handler<EndedStateHandler>();
 }
 
 }
