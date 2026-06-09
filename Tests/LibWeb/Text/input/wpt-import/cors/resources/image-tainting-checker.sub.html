@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+// Used by image-tainting-in-cross-origin-iframe.sub.html to check that an
+// image resource loaded by the top level frame that is same-origin to the
+// frame isn't treated as a same-origin resource in a cross-origin iframe.
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const img = new Image();
+img.src = 'http://{{host}}:{{ports[http][0]}}/images/blue-png-cachable.py';
+img.onload = () => {
+  ctx.drawImage(img, 0, 0);
+  try {
+    ctx.getImageData(0, 0, 1, 1);
+    parent.postMessage('FAIL: getImageData() didn\'t throw', '*');
+  } catch (e) {
+    parent.postMessage('DONE', '*');
+  }
+};
+</script>
+</body>

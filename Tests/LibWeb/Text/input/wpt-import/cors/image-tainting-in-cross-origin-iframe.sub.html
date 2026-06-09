@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+</body>
+<script>
+async_test(t => {
+  const img = document.createElement('img');
+  img.onload = t.step_func(() => {
+    const iframe = document.createElement('iframe');
+    window.onmessage = t.step_func_done(e => {
+      assert_equals(e.data, 'DONE');
+    });
+    iframe.src = 'http://{{domains[www1]}}:{{ports[http][0]}}/cors/resources/image-tainting-checker.sub.html';
+    document.body.appendChild(iframe);
+  });
+  img.src = '/images/blue-png-cachable.py';
+  document.body.appendChild(img);
+}, 'An image resource that is same-origin to the top-level frame loaded in ' +
+  'the frame is not treated as same-origin for an iframe that is ' +
+  'cross-origin to the top-level frame, and therefore a canvas where the ' +
+  'image is drawn gets tainted.');
+</script>
