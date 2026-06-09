@@ -26,6 +26,7 @@
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::HTML {
 
@@ -281,9 +282,9 @@ void MediaControls::set_up_event_listeners()
                 if (m_media_element->ended()) {
                     auto loop = m_media_element->has_attribute(HTML::AttributeNames::loop);
                     if (loop)
-                        m_media_element->play();
+                        play();
                 } else {
-                    m_media_element->play();
+                    play();
                 }
             }
 
@@ -440,12 +441,17 @@ void MediaControls::set_up_event_listeners()
     request_timeline_update();
 }
 
+void MediaControls::play()
+{
+    WebIDL::mark_promise_as_handled(m_media_element->play());
+}
+
 void MediaControls::toggle_playback()
 {
     if (m_scrubbing_timeline != Scrubbing::No)
         return;
     if (m_media_element->paused())
-        m_media_element->play();
+        play();
     else
         m_media_element->pause();
     show_controls();
