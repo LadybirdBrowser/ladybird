@@ -199,6 +199,8 @@ endif()
 
 if (LINUX)
     add_cxx_compile_definitions(_FILE_OFFSET_BITS=64)
+    add_cxx_link_option_if_supported(LINKER:-z,relro)
+    add_cxx_link_option_if_supported(LINKER:-z,now)
 endif()
 
 if (APPLE)
