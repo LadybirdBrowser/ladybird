@@ -72,6 +72,11 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_close(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_dup(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_dup3(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_epoll_create1(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_epoll_ctl(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_epoll_pwait(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_epoll_wait(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_eventfd2(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_exit(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_exit_group(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fcntl(if_defined, if_not_defined) if_defined
@@ -160,6 +165,26 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #ifndef __NR_dup3
 #    undef IF_DEFINED_dup3
 #    define IF_DEFINED_dup3(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_epoll_create1
+#    undef IF_DEFINED_epoll_create1
+#    define IF_DEFINED_epoll_create1(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_epoll_ctl
+#    undef IF_DEFINED_epoll_ctl
+#    define IF_DEFINED_epoll_ctl(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_epoll_pwait
+#    undef IF_DEFINED_epoll_pwait
+#    define IF_DEFINED_epoll_pwait(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_epoll_wait
+#    undef IF_DEFINED_epoll_wait
+#    define IF_DEFINED_epoll_wait(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_eventfd2
+#    undef IF_DEFINED_eventfd2
+#    define IF_DEFINED_eventfd2(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_fcntl64
 #    undef IF_DEFINED_fcntl64
@@ -679,6 +704,16 @@ void SeccompPolicy::allow_clocks()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, clock_nanosleep);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, nanosleep);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, restart_syscall);
+}
+
+void SeccompPolicy::allow_gpu_device_operations()
+{
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, ioctl);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, eventfd2);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_create1);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_ctl);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_wait);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_pwait);
 }
 
 void SeccompPolicy::allow_process_metadata()

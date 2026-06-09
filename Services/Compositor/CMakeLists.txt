@@ -20,10 +20,16 @@ ladybird_generated_sources(compositorservice)
 
 add_executable(Compositor main.cpp)
 
+if (LINUX)
+    target_sources(Compositor PRIVATE SandboxLinux.cpp)
+else()
+    target_sources(Compositor PRIVATE SandboxUnimplemented.cpp)
+endif()
+
 target_include_directories(compositorservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(compositorservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
-target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibWebView)
+target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSandbox LibWebView)
 target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibIPC LibMedia LibSync LibWeb)
 
 if (APPLE)
