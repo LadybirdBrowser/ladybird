@@ -228,20 +228,20 @@ void MediaControls::set_up_event_listeners()
     }
 
     // Timeline scrubbing
-    static constexpr auto compute_timeline_position = [](UIEvents::MouseEvent const& event, DOM::Element& timeline_element, double duration) -> Optional<double> {
+    static constexpr auto compute_timeline_progress = [](UIEvents::MouseEvent const& event, DOM::Element& timeline_element, double duration) -> Optional<double> {
         if (isnan(duration) || duration == 0.0)
             return {};
         auto rect = timeline_element.get_bounding_client_rect();
-        auto fraction = clamp((event.client_x() - rect.left().to_double()) / rect.width().to_double(), 0.0, 1.0);
-        return fraction * duration;
+        return clamp((event.client_x() - rect.left().to_double()) / rect.width().to_double(), 0.0, 1.0);
     };
 
     add_event_listener(realm, *m_dom->timeline_element, UIEvents::EventNames::mousedown, [this](UIEvents::MouseEvent const& event) {
         VERIFY(m_media_element);
         VERIFY(m_dom->timeline_element);
 
-        auto position = compute_timeline_position(event, *m_dom->timeline_element, m_media_element->duration());
-        if (!position.has_value())
+        auto duration = m_media_element->duration();
+        auto progress = compute_timeline_progress(event, *m_dom->timeline_element, duration);
+        if (!progress.has_value())
             return false;
 
         m_scrubbing_timeline = Scrubbing::WhilePaused;
@@ -250,7 +250,9 @@ void MediaControls::set_up_event_listeners()
             m_scrubbing_timeline = Scrubbing::WhilePlaying;
         }
 
-        set_current_time(*position);
+        set_current_time(*progress * duration);
+        set_timeline_progress(*progress);
+        set_timestamp(*progress * duration, duration);
 
         auto& realm = m_media_element->realm();
         auto& window = as<HTML::Window>(realm.global_object());
@@ -259,11 +261,14 @@ void MediaControls::set_up_event_listeners()
             VERIFY(m_media_element);
             VERIFY(m_dom->timeline_element);
 
-            auto position = compute_timeline_position(event, *m_dom->timeline_element, m_media_element->duration());
-            if (!position.has_value())
+            auto duration = m_media_element->duration();
+            auto progress = compute_timeline_progress(event, *m_dom->timeline_element, duration);
+            if (!progress.has_value())
                 return false;
 
-            set_current_time(*position);
+            set_current_time(*progress * duration);
+            set_timeline_progress(*progress);
+            set_timestamp(*progress * duration, duration);
             return true;
         });
 
@@ -274,9 +279,10 @@ void MediaControls::set_up_event_listeners()
             auto was_playing = m_scrubbing_timeline == Scrubbing::WhilePlaying;
             m_scrubbing_timeline = Scrubbing::No;
 
-            auto position = compute_timeline_position(event, *m_dom->timeline_element, m_media_element->duration());
-            if (position.has_value())
-                set_current_time(*position);
+            auto duration = m_media_element->duration();
+            auto progress = compute_timeline_progress(event, *m_dom->timeline_element, duration);
+            if (progress.has_value())
+                set_current_time(*progress * duration);
 
             if (was_playing) {
                 if (m_media_element->ended()) {
@@ -500,24 +506,24 @@ void MediaControls::update_play_pause_icon()
     MUST(m_dom->play_pause_icon->class_list()->toggle(s_playing_class, !paused));
 }
 
+static String format_percent(double value)
+{
+    return MUST(String::formatted("{}%", value * 100));
+}
+
 void MediaControls::update_timeline()
 {
     VERIFY(m_media_element);
     VERIFY(m_dom->timeline_track);
     VERIFY(m_dom->timeline_fill);
 
-    auto format_percent = [](double value) {
-        return MUST(String::formatted("{}%", value * 100));
-    };
-
     auto duration = m_media_element->duration();
-    double progress = 0.0;
-    if (!isnan(duration) && duration > 0.0)
-        progress = (m_media_element->current_time() / duration);
 
-    if (m_last_timeline_progress != progress) {
-        MUST(m_dom->timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, format_percent(progress)));
-        m_last_timeline_progress = progress;
+    if (m_scrubbing_timeline == Scrubbing::No) {
+        double progress = 0.0;
+        if (!isnan(duration) && duration > 0.0)
+            progress = (m_media_element->current_time() / duration);
+        set_timeline_progress(progress);
     }
 
     auto buffered = m_media_element->buffered();
@@ -557,6 +563,17 @@ void MediaControls::update_timeline()
     }
 }
 
+void MediaControls::set_timeline_progress(double progress)
+{
+    VERIFY(m_dom->timeline_fill);
+
+    if (m_last_timeline_progress == progress)
+        return;
+
+    MUST(m_dom->timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, format_percent(progress)));
+    m_last_timeline_progress = progress;
+}
+
 void MediaControls::request_timeline_update()
 {
     if (m_request_animation_frame_id != 0)
@@ -572,13 +589,25 @@ void MediaControls::request_timeline_update()
 void MediaControls::update_timestamp()
 {
     VERIFY(m_media_element);
+    double time = static_cast<double>(m_last_timestamp_time);
+    if (m_scrubbing_timeline == Scrubbing::No)
+        time = m_media_element->current_time();
+    set_timestamp(time, m_media_element->duration());
+}
+
+void MediaControls::set_timestamp(double time, double duration)
+{
     VERIFY(m_dom->timestamp_element);
 
-    auto current = human_readable_digital_time(round_to<i64>(m_media_element->current_time()));
-    auto duration = m_media_element->duration();
-    auto total = human_readable_digital_time(isnan(duration) ? 0 : round_to<i64>(duration));
+    auto rounded_time = round_to<i64>(time);
+    auto rounded_duration = isnan(duration) ? 0 : round_to<i64>(duration);
 
-    MUST(m_dom->timestamp_element->set_text_content(Utf16String::formatted("{} / {}", current, total)));
+    if (rounded_time == m_last_timestamp_time && rounded_duration == m_last_timestamp_duration)
+        return;
+    m_last_timestamp_time = rounded_time;
+    m_last_timestamp_duration = rounded_duration;
+
+    MUST(m_dom->timestamp_element->set_text_content(Utf16String::formatted("{} / {}", human_readable_digital_time(rounded_time), human_readable_digital_time(rounded_duration))));
 }
 
 void MediaControls::update_volume_and_mute_indicator()
@@ -591,12 +620,10 @@ void MediaControls::update_volume_and_mute_indicator()
     auto has_audio = m_media_element->audio_tracks()->length() > 0;
     auto muted = !has_audio || m_media_element->muted();
 
-    if (muted) {
+    if (muted)
         MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, "0"sv));
-    } else {
-        auto percentage = volume * 100.0;
-        MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
-    }
+    else
+        MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, format_percent(volume)));
 
     auto new_volume_icon_state = [&] {
         if (volume > 0.5)
