@@ -29,11 +29,11 @@ public:
         return AvailableData::None;
     }
 
-    virtual void enter_buffering() override { }
-    virtual void exit_buffering() override;
+    virtual void on_pipeline_status_changed(PipelineStatus) override;
 
 private:
     bool m_started { false };
+    bool m_pipeline_blocked { false };
 };
 
 }

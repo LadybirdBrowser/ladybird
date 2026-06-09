@@ -251,33 +251,46 @@ AK::Duration PlaybackManager::current_time() const
 
 void PlaybackManager::on_audio_sink_state_changed(PipelineStatus status)
 {
-    m_audio_buffering = status == PipelineStatus::Blocked;
-    update_buffering_state();
-    m_handler->on_audio_sink_state_changed(status);
+    m_audio_sink_status = status;
+    update_pipeline_state();
 }
 
 void PlaybackManager::on_video_sink_state_changed(Track const& track, PipelineStatus status)
 {
-    if (status == PipelineStatus::Blocked) {
-        if (m_video_tracks_buffering.set(track) == HashSetResult::InsertedNewEntry)
-            update_buffering_state();
-    } else {
-        if (m_video_tracks_buffering.remove(track))
-            update_buffering_state();
-    }
-    m_handler->on_video_sink_state_changed(track, status);
+    auto& track_data = get_video_data_for_track(track);
+    track_data.sink_status = status;
+    update_pipeline_state();
 }
 
-void PlaybackManager::update_buffering_state()
+PipelineStatus PlaybackManager::combined_pipeline_status() const
 {
-    auto is_buffering = m_audio_buffering || !m_video_tracks_buffering.is_empty();
-    if (is_buffering == m_was_buffering)
-        return;
-    m_was_buffering = is_buffering;
-    if (is_buffering)
-        m_handler->enter_buffering();
-    else
-        m_handler->exit_buffering();
+    auto status = PipelineStatus::EndOfStream;
+
+    if (m_audio_sink != nullptr)
+        status = select_combined_pipeline_status(status, m_audio_sink_status);
+
+    for (auto const& track_data : m_video_track_datas) {
+        if (track_data.display == nullptr)
+            continue;
+        status = select_combined_pipeline_status(status, track_data.sink_status);
+    }
+
+    return status;
+}
+
+void PlaybackManager::update_pipeline_state()
+{
+    m_handler->on_pipeline_status_changed(combined_pipeline_status());
+}
+
+void PlaybackManager::reset_pipeline_state()
+{
+    for (auto& track_data : m_video_track_datas) {
+        if (track_data.display == nullptr)
+            continue;
+        track_data.sink_status = PipelineStatus::Pending;
+    }
+    m_audio_sink_status = m_audio_sink != nullptr ? PipelineStatus::Pending : PipelineStatus::HaveData;
 }
 
 void PlaybackManager::check_for_duration_change(AK::Duration duration)
@@ -317,7 +330,6 @@ void PlaybackManager::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& 
 
 void PlaybackManager::disable_audio()
 {
-    m_audio_buffering = false;
     m_audio_mixer = nullptr;
     m_audio_time_stretch_processor = nullptr;
     m_audio_sink = nullptr;
@@ -329,6 +341,7 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
 {
     auto& track_data = get_video_data_for_track(track);
     if (track_data.display == nullptr) {
+        track_data.sink_status = PipelineStatus::HaveData;
         auto display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider,
             [self = weak(), track](PipelineStatus status) {
                 if (!self)
@@ -337,6 +350,7 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
             }));
         MUST(display->connect_input(track_data.producer));
         track_data.display = move(display);
+        update_pipeline_state();
     }
     return *track_data.display;
 }
@@ -347,29 +361,34 @@ void PlaybackManager::remove_the_displaying_video_sink_for_track(Track const& tr
     VERIFY(track_data.display);
     track_data.display->disconnect_input(track_data.producer);
     track_data.display = nullptr;
-    on_video_sink_state_changed(track, PipelineStatus::EndOfStream);
+    track_data.sink_status = PipelineStatus::HaveData;
+    update_pipeline_state();
 }
 
 void PlaybackManager::enable_an_audio_track(Track const& track)
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(!track_data.enabled);
+    m_audio_sink_status = PipelineStatus::HaveData;
     if (m_audio_mixer) {
         m_audio_mixer->seek(current_time());
         MUST(m_audio_mixer->connect_input(track_data.producer));
     }
     track_data.enabled = true;
+    update_pipeline_state();
 }
 
 void PlaybackManager::disable_an_audio_track(Track const& track)
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(track_data.enabled);
+    m_audio_sink_status = PipelineStatus::HaveData;
     if (m_audio_mixer) {
         m_audio_mixer->seek(current_time());
         m_audio_mixer->disconnect_input(track_data.producer);
     }
     track_data.enabled = false;
+    update_pipeline_state();
 }
 
 bool PlaybackManager::track_is_enabled(Track const& track) const
@@ -401,8 +420,10 @@ void PlaybackManager::pause()
 
 void PlaybackManager::seek(AK::Duration timestamp, SeekMode mode)
 {
+    reset_pipeline_state();
     m_handler->seek(timestamp, mode);
     m_is_in_error_state = false;
+    update_pipeline_state();
 }
 
 bool PlaybackManager::is_playing()

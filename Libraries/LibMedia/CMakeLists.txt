@@ -21,6 +21,8 @@ set(SOURCES
     GenericTimeProvider.cpp
     IncrementallyPopulatedStream.cpp
     PlaybackManager.cpp
+    PlaybackStates/BufferingStateHandler.cpp
+    PlaybackStates/PlayingStateHandler.cpp
     PlaybackStates/StartingStateHandler.cpp
     PlaybackStates/PausedStateHandler.cpp
     PlaybackStates/PlaybackStateHandler.cpp
