@@ -60,6 +60,24 @@ void LineBox::add_fragment(Node const& layout_node, size_t start, size_t length,
     m_block_length = max(m_block_length, content_height + border_box_top + border_box_bottom);
 }
 
+void LineBox::add_static_position_marker(Box const& box)
+{
+    m_static_position_markers.append(StaticPositionMarker {
+        .box = &box,
+        .inline_offset = m_inline_length,
+        .block_offset = 0,
+        .writing_mode = m_writing_mode,
+    });
+}
+
+void LineBox::clamp_static_position_markers_to_inline_length()
+{
+    for (auto& marker : m_static_position_markers) {
+        if (marker.inline_offset > m_inline_length)
+            marker.inline_offset = m_inline_length;
+    }
+}
+
 CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespace should_remove)
 {
     auto should_trim = [](LineBoxFragment* fragment) {
@@ -92,6 +110,7 @@ CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespac
         if (should_remove == RemoveTrailingWhitespace::Yes) {
             m_inline_length -= last_fragment->inline_length();
             m_fragments.remove(fragment_index);
+            clamp_static_position_markers_to_inline_length();
         }
     }
 
@@ -118,6 +137,7 @@ CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespac
             --last_fragment->m_length_in_code_units;
             last_fragment->set_inline_length(last_fragment->inline_length() - last_character_width);
             m_inline_length -= last_character_width;
+            clamp_static_position_markers_to_inline_length();
         }
     }
 

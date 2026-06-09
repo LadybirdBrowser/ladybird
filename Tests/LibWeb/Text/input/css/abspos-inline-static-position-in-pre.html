@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../../Ref/data/fonts/Ahem.ttf");
+}
+
+body {
+    margin: 0;
+}
+
+#container {
+    font: 10px/20px Ahem;
+    position: relative;
+    white-space: pre;
+}
+
+#right-container {
+    font: 10px/20px Ahem;
+    position: relative;
+    text-align: right;
+    white-space: pre;
+    width: 100px;
+}
+
+.a {
+    position: absolute;
+}
+</style>
+<div id="container"><span class="a" id="one">1</span>  fo<span>o</span>
+<span class="a" id="two">2</span>  fo<span>o</span>
+<span class="a" id="three">3</span>  fo<span>o</span></div>
+<div id="right-container"><span class="a" id="right-one">1</span>  fo<span>o</span></div>
+<script>
+promiseTest(async () => {
+    await document.fonts.ready;
+    await animationFrame();
+
+    const containerRect = document.getElementById("container").getBoundingClientRect();
+
+    for (const id of ["one", "two", "three"]) {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        println(`${id}: ${Math.round(rect.x - containerRect.x)},${Math.round(rect.y - containerRect.y)}`);
+    }
+
+    const rightContainerRect = document.getElementById("right-container").getBoundingClientRect();
+    const rightRect = document.getElementById("right-one").getBoundingClientRect();
+    println(`right-one: ${Math.round(rightRect.x - rightContainerRect.x)},${Math.round(rightRect.y - rightContainerRect.y)}`);
+});
+</script>
