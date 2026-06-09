@@ -1492,6 +1492,14 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
     if (m_shadow_root) {
         m_shadow_root->set_host(nullptr);
         m_shadow_root->set_is_connected(false);
+        // NB: We don't need to run the removed steps if the children have already been disconnected (or were never
+        //     connected in the first place)
+        if (is_connected()) {
+            m_shadow_root->for_each_shadow_including_descendant([&](DOM::Node& descendant) {
+                descendant.removed_from(IsSubtreeRoot::No, m_shadow_root, *m_shadow_root);
+                return TraversalDecision::Continue;
+            });
+        }
     }
     m_shadow_root = move(shadow_root);
     if (m_shadow_root) {
