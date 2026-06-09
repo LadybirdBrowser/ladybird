@@ -37,6 +37,7 @@
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
+#include <Services/RendererSandbox.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebContentCompositorHost.h>
@@ -150,6 +151,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool is_headless = false;
     bool disable_scrollbar_painting = false;
     bool disable_async_scrolling = false;
+    bool enable_sandbox = false;
     StringView echo_server_port_string_view {};
     StringView default_time_zone {};
     StringView style_invalidation_counter_dump_interval {};
@@ -172,6 +174,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
     args_parser.add_option(disable_async_scrolling, "Disable async scrolling", "disable-async-scrolling");
+    args_parser.add_option(enable_sandbox, "Enable process sandboxing", "enable-sandbox");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
@@ -255,6 +258,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto maybe_content_blocker_error = load_content_blockers(config_path);
     if (maybe_content_blocker_error.is_error())
         dbgln("Failed to load content blockers: {}", maybe_content_blocker_error.error());
+
+    if (enable_sandbox)
+        TRY(RendererSandbox::apply_sandbox(config_path));
 
 #if defined(AK_OS_MACOS)
     auto browser_port = TRY(Core::MachPort::look_up_from_bootstrap_server(ByteString { mach_server_name }));

@@ -18,8 +18,14 @@ target_link_libraries(webworkerservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
 add_executable(WebWorker main.cpp)
 
+if (LINUX)
+    target_sources(WebWorker PRIVATE ../RendererSandboxLinux.cpp)
+else()
+    target_sources(WebWorker PRIVATE ../RendererSandboxUnimplemented.cpp)
+endif()
+
 target_include_directories(WebWorker PRIVATE ${LADYBIRD_SOURCE_DIR})
-target_link_libraries(WebWorker PRIVATE webworkerservice OpenSSL::Crypto OpenSSL::SSL)
+target_link_libraries(WebWorker PRIVATE webworkerservice LibSandbox OpenSSL::Crypto OpenSSL::SSL)
 
 if(WIN32)
     target_include_directories(WebWorker PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)

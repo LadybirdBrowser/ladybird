@@ -10,10 +10,12 @@
 #include <linux/audit.h>
 #include <linux/sched.h>
 #include <linux/seccomp.h>
+#include <signal.h>
 #include <stddef.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/prctl.h>
+#include <sys/socket.h>
 #include <sys/syscall.h>
 #include <sys/ucontext.h>
 #include <unistd.h>
@@ -40,6 +42,7 @@ static constexpr u32 thread_clone_allowed_flags = thread_clone_required_flags
     | CLONE_CHILD_CLEARTID
     | CLONE_DETACHED
     | CLONE_CHILD_SETTID;
+static constexpr u32 vfork_clone_flags = CLONE_VM | CLONE_VFORK | SIGCHLD;
 
 #ifdef O_LARGEFILE
 static constexpr unsigned read_only_open_flags = O_CLOEXEC | O_LARGEFILE;
@@ -81,6 +84,8 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_epoll_pwait(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_epoll_wait(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_eventfd2(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_execve(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_execveat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_exit(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_exit_group(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fcntl(if_defined, if_not_defined) if_defined
@@ -115,6 +120,8 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_madvise(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_membarrier(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_memfd_create(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_mkdir(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_mkdirat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_mmap(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_mmap2(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_mprotect(if_defined, if_not_defined) if_defined
@@ -142,6 +149,7 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_recvmmsg(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_recvmsg(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_restart_syscall(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_rmdir(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_rseq(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_rt_sigaction(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_rt_sigprocmask(if_defined, if_not_defined) if_defined
@@ -166,6 +174,8 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_unlinkat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_umask(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_uname(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_wait4(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_waitid(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_write(if_defined, if_not_defined) if_defined
 
 #ifndef __NR_accept
@@ -228,6 +238,14 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #    undef IF_DEFINED_eventfd2
 #    define IF_DEFINED_eventfd2(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_execve
+#    undef IF_DEFINED_execve
+#    define IF_DEFINED_execve(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_execveat
+#    undef IF_DEFINED_execveat
+#    define IF_DEFINED_execveat(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_fcntl64
 #    undef IF_DEFINED_fcntl64
 #    define IF_DEFINED_fcntl64(if_defined, if_not_defined) if_not_defined
@@ -284,6 +302,14 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #    undef IF_DEFINED_memfd_create
 #    define IF_DEFINED_memfd_create(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_mkdir
+#    undef IF_DEFINED_mkdir
+#    define IF_DEFINED_mkdir(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_mkdirat
+#    undef IF_DEFINED_mkdirat
+#    define IF_DEFINED_mkdirat(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_mmap2
 #    undef IF_DEFINED_mmap2
 #    define IF_DEFINED_mmap2(if_defined, if_not_defined) if_not_defined
@@ -331,6 +357,10 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #ifndef __NR_renameat2
 #    undef IF_DEFINED_renameat2
 #    define IF_DEFINED_renameat2(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_rmdir
+#    undef IF_DEFINED_rmdir
+#    define IF_DEFINED_rmdir(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_ppoll
 #    undef IF_DEFINED_ppoll
@@ -399,6 +429,14 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #ifndef __NR_umask
 #    undef IF_DEFINED_umask
 #    define IF_DEFINED_umask(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_wait4
+#    undef IF_DEFINED_wait4
+#    define IF_DEFINED_wait4(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_waitid
+#    undef IF_DEFINED_waitid
+#    define IF_DEFINED_waitid(if_defined, if_not_defined) if_not_defined
 #endif
 
 static size_t safe_string_length(char const* string)
@@ -736,6 +774,9 @@ void SeccompPolicy::allow_filesystem_writes()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, rename);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, renameat);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, renameat2);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, mkdir);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, mkdirat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, rmdir);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fsync);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fdatasync);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, flock);
@@ -806,6 +847,31 @@ void SeccompPolicy::allow_file_descriptor_operations()
     append(SECCOMP_LOAD_SYSCALL_NR);
     append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
 
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_DUPFD_CLOEXEC, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+
+#ifdef F_ADD_SEALS
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_ADD_SEALS, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+#endif
+
+#ifdef F_GET_SEALS
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_GET_SEALS, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+#endif
+
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl, 0, 5));
     append(SECCOMP_LOAD_ARGUMENT(1));
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, FIONBIO, 0, 1));
@@ -828,6 +894,23 @@ void SeccompPolicy::allow_file_descriptor_operations()
     append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
 }
 
+void SeccompPolicy::allow_process_creation()
+{
+#ifdef __NR_clone
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_clone, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~vfork_clone_flags));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, execve);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, execveat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, wait4);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, waitid);
+}
+
 void SeccompPolicy::allow_ipc()
 {
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, eventfd2);
@@ -841,6 +924,14 @@ void SeccompPolicy::allow_ipc()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendto);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendmmsg);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, socketpair);
+#ifdef __NR_socket
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socket, 0, 3));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AF_UNIX, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, connect);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getsockopt);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, setsockopt);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getsockname);
@@ -887,6 +978,41 @@ void SeccompPolicy::allow_memory_without_executable_mappings()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, munmap);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, madvise);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, brk);
+}
+
+void SeccompPolicy::allow_executable_memory_mappings()
+{
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mmap, 0, 8));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, PROT_EXEC));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 4, 0));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, PROT_WRITE));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+
+#ifdef __NR_mmap2
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mmap2, 0, 8));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, PROT_EXEC));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 4, 0));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, PROT_WRITE));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mprotect, 0, 8));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, PROT_EXEC));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 4, 0));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, PROT_WRITE));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
 }
 
 void SeccompPolicy::allow_threads()
@@ -961,6 +1087,39 @@ void SeccompPolicy::allow_process_metadata()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sysinfo);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, uname);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, umask);
+
+#ifdef __NR_sched_getscheduler
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sched_getscheduler, 0, 1));
+    append(SECCOMP_ALLOW);
+#endif
+#ifdef __NR_sched_get_priority_max
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sched_get_priority_max, 0, 1));
+    append(SECCOMP_ALLOW);
+#endif
+#ifdef __NR_sched_get_priority_min
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sched_get_priority_min, 0, 1));
+    append(SECCOMP_ALLOW);
+#endif
+#ifdef __NR_getpriority
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_getpriority, 0, 1));
+    append(SECCOMP_ALLOW);
+#endif
+#ifdef __NR_setpriority
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_setpriority, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_sched_setscheduler
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sched_setscheduler, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_sched_setparam
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sched_setparam, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_sched_setaffinity
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sched_setaffinity, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
 }
 
 void SeccompPolicy::allow_common_runtime()

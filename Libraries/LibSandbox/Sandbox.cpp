@@ -131,6 +131,8 @@ ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> paths
 
         landlock_path_beneath_attr path_beneath {};
         path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_READ_DIR;
+        if (landlock_path.access == LandlockPath::Access::ReadAndExecute)
+            path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_EXECUTE;
         if (landlock_path.access == LandlockPath::Access::ReadWrite) {
             path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_WRITE_FILE
                 | LANDLOCK_ACCESS_FS_REMOVE_DIR
