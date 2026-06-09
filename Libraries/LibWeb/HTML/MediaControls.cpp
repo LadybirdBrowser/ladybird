@@ -176,6 +176,10 @@ void MediaControls::set_up_event_listeners()
         update_timestamp();
         return true;
     });
+    add_event_listener(realm, media_element, HTML::EventNames::progress, [this] {
+        update_timeline();
+        return true;
+    });
     add_event_listener(realm, media_element, HTML::EventNames::durationchange, [this] {
         update_timeline();
         update_timestamp();
