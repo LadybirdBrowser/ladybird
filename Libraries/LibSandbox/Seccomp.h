@@ -23,6 +23,7 @@ public:
     void allow_threads();
     void allow_signals();
     void allow_clocks();
+    void allow_gpu_device_operations();
     void allow_process_metadata();
     void allow_common_runtime();
     void allow_prctl();
