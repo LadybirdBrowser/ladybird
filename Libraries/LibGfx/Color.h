@@ -338,12 +338,6 @@ public:
         return (brightest + 0.05) / (darkest + 0.05);
     }
 
-    constexpr Color to_grayscale() const
-    {
-        auto gray = luminosity();
-        return Color(gray, gray, gray, alpha());
-    }
-
     constexpr Color sepia(float amount = 1.0f) const
     {
         auto blend_factor = 1.0f - amount;

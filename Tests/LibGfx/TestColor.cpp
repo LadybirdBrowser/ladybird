@@ -7,14 +7,6 @@
 #include <LibGfx/Color.h>
 #include <LibTest/TestCase.h>
 
-TEST_CASE(color)
-{
-    for (u16 i = 0; i < 256; ++i) {
-        auto const gray = Color(i, i, i);
-        EXPECT_EQ(gray, gray.to_grayscale());
-    }
-}
-
 TEST_CASE(from_bgrx)
 {
     EXPECT_EQ(Color(0x00, 0x00, 0xff), Color::from_bgrx(0x000000ff));
