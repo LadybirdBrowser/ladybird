@@ -1,0 +1,26 @@
+<!doctype html>
+<body></body>
+<script>
+    (async () => {
+        for (let i = 0; i < 30; ++i) {
+            (() => {
+                const input = document.createElement("input");
+                input.type = "number";
+                document.body.appendChild(input);
+
+                // Force layout
+                internals.dumpDisplayList();
+
+                // Rebuild the shadow tree, removing it's elements
+                input.type = "number";
+            })();
+
+            // Force GC of the shadow tree DOM nodes
+            for (let j = 0; j < 10000; ++j) ({ junk: j });
+            internals.gc();
+
+            // Yield, so the event loop's rendering step rebuilds the layout tree and detaches the lingering layout nodes.
+            await new Promise(resolve => setTimeout(resolve));
+        }
+    })();
+</script>
