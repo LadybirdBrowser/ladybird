@@ -97,8 +97,11 @@ def define_the_regular_operations(
     if unforgeable:
         return
 
+    implemented_operation_names = overload_resolution.operation_overload_sets(interface).keys()
     for operation in interface.regular_operations:
         if "FIXME" not in operation.extended_attributes:
+            continue
+        if operation.name in implemented_operation_names:
             continue
         out.write(
             f"""    object.define_direct_property("{operation.name}"_utf16_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
