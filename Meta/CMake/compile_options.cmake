@@ -198,6 +198,7 @@ if(CMAKE_CXX_LINK_PIE_SUPPORTED)
 endif()
 
 if (LINUX)
+    add_cxx_compile_definitions(_FORTIFY_SOURCE=3)
     add_cxx_compile_definitions(_FILE_OFFSET_BITS=64)
     add_cxx_compile_options(-fstack-clash-protection)
     add_cxx_link_option_if_supported(LINKER:-z,relro)
