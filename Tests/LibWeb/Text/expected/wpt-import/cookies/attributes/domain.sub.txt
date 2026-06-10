@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 55 tests
 
-53 Pass
-2 Fail
+54 Pass
+1 Fail
 Pass	Test cookie domain attribute parsing
 Pass	Return cookie for a domain match
 Pass	No cookie returned for domain mismatch (subdomains differ post-redirect)
@@ -51,7 +51,7 @@ Pass	Cookie returned for bare domain attribute following mismatched domain attri
 Pass	No cookie returned for domain mismatch (first attribute is a different subdomain and second is bare)
 Pass	Cookies with same name, path, and domain (differing only in leading '.') overwrite each other ('.' second)
 Pass	Cookies with same name, path, and domain (differing only in leading '.') overwrite each other ('.' first)
-Fail	No cookie returned for domain with single dot ('.') value.
+Pass	No cookie returned for domain with single dot ('.') value.
 Pass	Return cookie with valid domain after domain with single dot ('.') value.
 Pass	Empty domain treated as host cookie 1
 Pass	Empty domain treated as host cookie 2

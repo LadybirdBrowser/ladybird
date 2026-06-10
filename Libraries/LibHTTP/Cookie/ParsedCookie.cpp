@@ -268,7 +268,11 @@ ErrorOr<void> on_domain_attribute(ParsedCookie& parsed_cookie, StringView attrib
     auto cookie_domain = attribute_value;
 
     // 2. If cookie-domain starts with %x2E ("."), let cookie-domain be cookie-domain without its leading %x2E (".").
-    if (cookie_domain.starts_with('.'))
+    // NB: We deliberately keep a lone "." rather than reducing it to "". By the letter of the spec this would
+    //     become an empty domain and be stored as a host cookie, but Chromium, Firefox, WPT (and the spec intent)
+    //     treat an treat `Domain=.` as an invalid domain.
+    //     See: https://github.com/httpwg/http-extensions/issues/1939
+    if (cookie_domain.length() > 1 && cookie_domain.starts_with('.'))
         cookie_domain = cookie_domain.substring_view(1);
 
     // 3. Convert the cookie-domain to lower case.
