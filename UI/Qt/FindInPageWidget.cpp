@@ -12,8 +12,22 @@
 
 #include <QEvent>
 #include <QKeyEvent>
+#include <QStyle>
 
 namespace Ladybird {
+
+static constexpr auto FIND_TEXT_NO_RESULTS_PROPERTY = "noResults";
+
+static void set_dynamic_property_if_needed(QWidget& widget, char const* property, bool value)
+{
+    if (widget.property(property).toBool() == value)
+        return;
+
+    widget.setProperty(property, value);
+    widget.style()->unpolish(&widget);
+    widget.style()->polish(&widget);
+    widget.update();
+}
 
 FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
     : QWidget(static_cast<QWidget*>(tab), Qt::Widget)
@@ -118,6 +132,9 @@ void FindInPageWidget::update_chrome_style()
 void FindInPageWidget::find_text_changed()
 {
     auto query = ak_string_from_qstring(m_find_text->text());
+    if (query.is_empty())
+        set_dynamic_property_if_needed(*m_find_text, FIND_TEXT_NO_RESULTS_PROPERTY, false);
+
     auto case_sensitive = m_match_case->isChecked() ? CaseSensitivity::CaseSensitive : CaseSensitivity::CaseInsensitive;
     m_content_view->find_in_page(query, case_sensitive);
 }
@@ -165,6 +182,8 @@ void FindInPageWidget::hideEvent(QHideEvent*)
 void FindInPageWidget::update_result_label(size_t current_match_index, Optional<size_t> const& total_match_count)
 {
     if (total_match_count.has_value()) {
+        set_dynamic_property_if_needed(*m_find_text, FIND_TEXT_NO_RESULTS_PROPERTY, total_match_count.value() == 0);
+
         auto label_text = "Phrase not found"_string;
         if (total_match_count.value() > 0)
             label_text = MUST(String::formatted("{} of {} matches", current_match_index + 1, total_match_count.value()));
@@ -172,6 +191,7 @@ void FindInPageWidget::update_result_label(size_t current_match_index, Optional<
         m_result_label->setText(qstring_from_ak_string(label_text));
         m_result_label->setVisible(true);
     } else {
+        set_dynamic_property_if_needed(*m_find_text, FIND_TEXT_NO_RESULTS_PROPERTY, false);
         m_result_label->setVisible(false);
     }
 }
