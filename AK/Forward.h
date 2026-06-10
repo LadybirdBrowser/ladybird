@@ -112,7 +112,7 @@ class HashMap;
 template<typename K, typename V, typename KeyTraits = Traits<K>, typename ValueTraits = Traits<V>>
 using OrderedHashMap = HashMap<K, V, KeyTraits, ValueTraits, true>;
 
-template<typename T>
+template<typename... Ts>
 class Badge;
 
 template<typename T>
