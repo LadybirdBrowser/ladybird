@@ -21,6 +21,10 @@ window.test_driver_internal.get_computed_role = async function(element) {
     return await window.internals.getComputedRole(element);
 };
 
+window.test_driver_internal.delete_all_cookies = function(context) {
+    return window.internals.deleteAllCookies();
+};
+
 window.test_driver_internal.action_sequence = function(actions, context) {
     // Modifier key codes from WebDriver spec
     const SHIFT = "\uE008";

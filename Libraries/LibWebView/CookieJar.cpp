@@ -540,6 +540,14 @@ void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
     m_transient_storage.purge_expired_cookies(offset);
 }
 
+void CookieJar::delete_all_cookies(URL::URL const& url)
+{
+    for (auto& cookie : get_all_cookies_webdriver(url)) {
+        cookie.expiry_time = UnixDateTime::earliest();
+        update_cookie(move(cookie));
+    }
+}
+
 void CookieJar::expire_cookies_accessed_since(UnixDateTime since)
 {
     m_transient_storage.expire_and_purge_cookies_accessed_since(since);

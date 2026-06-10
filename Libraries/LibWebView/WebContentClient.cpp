@@ -948,6 +948,12 @@ void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
     Application::cookie_jar().expire_cookies_with_time_offset(offset);
 }
 
+void WebContentClient::did_request_delete_all_cookies(u64 page_id, u64 request_id, URL::URL url)
+{
+    Application::cookie_jar().delete_all_cookies(url);
+    async_did_delete_all_cookies(page_id, request_id);
+}
+
 void WebContentClient::did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
 {
     Application::hsts_store().store_policy(domain, policy);
