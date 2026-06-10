@@ -218,7 +218,7 @@ bool MemoryInstance::grow(size_t size_to_grow, GrowType grow_type, InhibitGrowCa
     if (size_to_grow == 0)
         return true;
     u64 new_size = m_data.size() + size_to_grow;
-    if (new_size >= Constants::page_size * 65536)
+    if (new_size > Constants::page_size * 65536)
         return false;
     if (auto max = m_type.limits().max(); max.has_value()) {
         if (max.value() * Constants::page_size < new_size)
