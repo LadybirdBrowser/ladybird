@@ -142,7 +142,7 @@ void MemoryBuffer::clear()
     m_fallback.clear();
 }
 
-void MemoryBuffer::try_reserve_wasm32_address_space()
+void MemoryBuffer::reserve_wasm32_address_space()
 {
     if (m_mapping_base)
         return;
@@ -152,11 +152,9 @@ void MemoryBuffer::try_reserve_wasm32_address_space()
     auto mapping_size = reserved_capacity * 2;
     auto reservation_size = mapping_size + 2 * host_page_size;
 
-    auto mapping_or_error = Core::System::reserve_address_space(reservation_size);
-    if (mapping_or_error.is_error())
-        return;
+    auto mapping_or_error = MUST(Core::System::reserve_address_space(reservation_size));
 
-    m_mapping_base = mapping_or_error.value();
+    m_mapping_base = mapping_or_error;
     m_data = reinterpret_cast<u8*>(m_mapping_base) + host_page_size;
     m_reserved_capacity = reserved_capacity;
     m_mapping_size = mapping_size;
@@ -210,7 +208,7 @@ MemoryInstance::MemoryInstance(MemoryType const& type)
     : m_type(type)
 {
     if (type.limits().address_type() == AddressType::I32)
-        m_data.try_reserve_wasm32_address_space();
+        m_data.reserve_wasm32_address_space();
 }
 
 bool MemoryInstance::grow(size_t size_to_grow, GrowType grow_type, InhibitGrowCallback inhibit_callback)

@@ -508,7 +508,7 @@ public:
     MemoryBuffer(MemoryBuffer const&) = delete;
     MemoryBuffer& operator=(MemoryBuffer const&) = delete;
 
-    void try_reserve_wasm32_address_space();
+    void reserve_wasm32_address_space();
     ErrorOr<void> try_resize(size_t new_size);
 
     auto size() const { return m_size; }
