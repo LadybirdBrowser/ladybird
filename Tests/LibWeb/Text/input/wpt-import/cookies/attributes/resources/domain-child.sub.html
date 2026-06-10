@@ -1,0 +1,401 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset=utf-8>
+    <title>Test cookie domain attribute parsing</title>
+    <meta name=help href="https://tools.ietf.org/html/rfc6265#section-5.2.3">
+    <meta name="timeout" content="long">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testdriver.js"></script>
+    <script src="../../../resources/testdriver-vendor.js"></script>
+    <script src="../../../cookies/resources/cookie-test.js"></script>
+  </head>
+  <body>
+    <script>
+      const path        = "path=/cookies/attributes"
+      const port        = "{{ports[http][0]}}";
+      const host        = "{{host}}";              // example.org
+      const wwwHost     = "{{domains[www]}}";      // home.example.org
+      const www1Host    = "{{domains[www1]}}";     // sibling.example.org
+      const www2wwwHost = "{{domains[www2.www]}}"; // subdomain.home.example.org
+
+      // naive helper method to return the TLD for a given domain
+      const getTLD = domain => {
+        let match = /\.[a-z]+$/.exec(domain);
+        if (match) {
+          return match[0];
+        } else {
+          throw 'Domain is malformed!';
+        }
+      }
+
+      // helper to take a domain like "www.example.org"
+      // and return a string like "www.eXaMpLe.org"
+      const makeBizarre = domain => {
+        let bizarre = "";
+        let domainArray = domain.split(".");
+        let secondLevel = domainArray[domainArray.length - 2];
+        for (let i in secondLevel) {
+          if (i % 2 == 1) {
+            bizarre += secondLevel[i].toUpperCase();
+          } else {
+            bizarre += secondLevel[i];
+          }
+        }
+        domainArray[domainArray.length - 2] = bizarre;
+        return domainArray.join(".");
+      }
+
+      // helper to change the current TLD to a TLD that doesn't exist, and is
+      // unlikely to exist in the future. (the main point is that the TLD
+      // *changes*, so there is no domain match, but we cant' predict how WPT
+      // servers may be set up in the wild so picking any valid TLD has the risk
+      // of future (unintentional) domain matching.
+      const changeTLD = domain => {
+        let domainArray = domain.split(".");
+        domainArray[domainArray.length - 1] += "zzz";
+        return domainArray.join(".");
+      }
+
+      const domainTests = [
+        {
+          cookie: `test=1; domain=${wwwHost}`,
+          expected: "test=1",
+          name: "Return cookie for a domain match",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=2; domain=${wwwHost}`,
+          expected: "",
+          name: "No cookie returned for domain mismatch (subdomains differ post-redirect)",
+          location: `http://${www1Host}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=3; domain=.${wwwHost}`,
+          expected: "test=3",
+          name: "Return cookie for a domain match with leading '.'",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=4; domain=${wwwHost}`,
+          expected: "test=4",
+          name: "Return cookie for domain match (domain attribute is suffix of the host name and first level subdomain)",
+          location: `http://${www2wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=5; domain=.${wwwHost}`,
+          expected: "test=5",
+          name: "Return cookie for domain match (domain attribute is suffix of the host name and first level subdomain, with leading '.')",
+          location: `http://${www2wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=6; domain=.${wwwHost}`,
+          expected: "",
+          name: "No cookie returned for domain mismatch (subdomains differ, with leading '.')",
+          location: `http://${www1Host}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=7; domain=${www1Host}`,
+          expected: "",
+          name: "No cookie returned for domain mismatch when cookie was created (which would match after the redirect, with one subdomain level)",
+          location: `http://${www1Host}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=8; domain=.${host}`,
+          expected: "test=8",
+          name: "Return cookie for domain match (domain attribute is suffix of the host name, with leading '.')",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=9; domain=${host}`,
+          expected: "test=9",
+          name: "Return cookie for domain match (domain attribute is suffix of the host name)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=10; domain=..${wwwHost}`,
+          expected: "",
+          name: "No cookie returned for domain attribute with double leading '.'",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=11; domain=www..${host}`,
+          expected: "",
+          name: "No cookie returned for domain attribute with subdomain followed by ..",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=12; domain=  .${wwwHost}`,
+          expected: "test=12",
+          name: "Return cookie for a domain match with leading whitespace and '.'",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=13; domain=  .  ${wwwHost}`,
+          expected: "",
+          name: "No cookie returned for domain attribute with whitespace that surrounds a leading '.'",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=14; domain=${wwwHost}.`,
+          expected: "",
+          name: "No cookie returned for domain attribute with trailing '.'",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=15; domain=${wwwHost}..`,
+          expected: "",
+          name: "No cookie returned for domain attribute with trailing '..'",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=16; domain=${wwwHost} .`,
+          expected: "",
+          name: "No cookie returned for domain attribute with trailing whitespace and '.'",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=17; domain=${getTLD(host)}`,
+          expected: "",
+          name: "No cookie returned for domain attribute with TLD as value",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=18; domain=.${getTLD(host)}`,
+          expected: "",
+          name: "No cookie returned for domain attribute with TLD as value, with leading '.'",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=18b; domain=.${getTLD(host)}.`,
+          expected: "",
+          name: "No cookie returned for domain attribute with TLD as value, with leading and trailing '.'",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: [`testA=19; domain=${wwwHost}`, `testB=19; domain=.${wwwHost}`],
+          expected: "testA=19; testB=19",
+          name: "Return multiple cookies that match on domain (without and with leading '.')",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: [`testB=20; domain=.${wwwHost}`, `testA=20; domain=${wwwHost}`],
+          expected: "testB=20; testA=20",
+          name: "Return multiple cookies that match on domain (with and without leading '.')",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=21; domain="${wwwHost}"`,
+          expected: "",
+          name: "No cookie returned for domain attribute value between quotes",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: [`testA=22; domain=${wwwHost}`, `testB=22; domain=.${host}`],
+          expected: "testA=22; testB=22",
+          name: "Return multiple cookies that match on subdomain and domain (without and with leading '.')",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: [`testB=23; domain=.${host}`, `testA=23; domain=${wwwHost}`],
+          expected: "testB=23; testA=23",
+          name: "Return multiple cookies that match on domain and subdomain (with and without leading '.')",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=24; domain=.${host}; domain=${wwwHost}`,
+          expected: "",
+          name: "No cookie returned when domain attribute does not domain-match (and first does)",
+          location: `http://${www1Host}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=25; domain=${wwwHost}; domain=.${host}`,
+          expected: "test=25",
+          name: "Return cookie for domain attribute match (first does not, but second does)",
+          location: `http://${www1Host}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=26; domain=${makeBizarre(wwwHost)}`,
+          expected: "test=26",
+          name: "Return cookie for domain match (with bizarre capitalization for domain attribute value)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=27; domain="${wwwHost}:${port}"`,
+          expected: "",
+          name: "No cookie returned for domain attribute value with port",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=28; domain=${www2wwwHost}`,
+          expected: "",
+          name: "No cookie returned for domain mismatch when cookie was created (which would match after the redirect, with two subdomain levels)",
+          location: `http://${www2wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=29`,
+          expected: "",
+          name: "No cookie returned for cookie set on different domain (with no domain attribute)",
+          location: `http://${www2wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: "test=30; domain=",
+          expected: "test=30",
+          name: "Return cookie set with bare domain= attribute",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=31; domain=${wwwHost}`,
+          expected: "test=31",
+          name: "Return cookie that domain-matches with bizarre-cased URL",
+          location: `http://${makeBizarre(wwwHost)}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=32; domain=${wwwHost}; domain=${changeTLD(wwwHost)}`,
+          expected: "",
+          name: "No cookie returned for domain attribute mismatch (first attribute matches, but second does not)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=33; domain=${changeTLD(wwwHost)}; domain=${wwwHost}`,
+          expected: "test=33",
+          name: "Return cookie for domain match (first attribute doesn't, but second does)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=34; domain=${wwwHost}; domain=${changeTLD(wwwHost)}; domain=${wwwHost}`,
+          expected: "test=34",
+          name: "Return cookie for domain match (first attribute matches, second doesn't, third does)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=35; domain=${changeTLD(wwwHost)}; domain=${wwwHost}; domain=${changeTLD(wwwHost)}`,
+          expected: "",
+          name: "No cookie returned for domain attribute mismatch (first attribute doesn't, second does, third doesn't)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=36; domain=${wwwHost}; domain=${wwwHost}`,
+          expected: "test=36",
+          name: "Return cookie for domain match (with two identical domain attributes)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=37; domain=${wwwHost}; domain=${host}`,
+          expected: "test=37",
+          name: "Return cookie for domain match (with first domain attribute a match for host name and second as suffix of host name)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=38; domain=${host}; domain=${wwwHost}`,
+          expected: "test=38",
+          name: "Return cookie for domain match (with first domain attribute as suffix of host name and second a match for host name)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=39; domain=.${www1Host}`,
+          expected: "",
+          name: "No cookie set on domain mismatch before a (domain matching) redirect",
+          location: `http://${www1Host}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=40; domain=.${www2wwwHost}`,
+          expected: "",
+          name: "No cookie set on domain mismatch before a (domain matching) redirect (for second level subdomain)",
+          location: `http://${www2wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=41; domain=${host}; domain=`,
+          expected: "test=41",
+          name: "Return cookie for domain match (with first domain attribute as suffix of host name and second a bare attribute)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=42; domain=${www1Host}; domain=`,
+          expected: "test=42",
+          name: "Cookie returned for bare domain attribute following mismatched domain attribute (after redirect to same-origin page).",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=43; domain=${www1Host}; domain=`,
+          expected: "",
+          name: "No cookie returned for domain mismatch (first attribute is a different subdomain and second is bare)",
+          location: `http://${www2wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: [`test=not44; domain=${wwwHost}`, `test=44; domain=.${wwwHost}`],
+          expected: "test=44",
+          name: "Cookies with same name, path, and domain (differing only in leading '.') overwrite each other ('.' second)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: [`test=not45; domain=.${wwwHost}`, `test=45; domain=${wwwHost}`],
+          expected: "test=45",
+          name: "Cookies with same name, path, and domain (differing only in leading '.') overwrite each other ('.' first)",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=46; domain=.`,
+          expected: "",
+          name: "No cookie returned for domain with single dot ('.') value.",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: `test=46b; domain=.; domain=${host}`,
+          expected: "test=46b",
+          name: "Return cookie with valid domain after domain with single dot ('.') value.",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: ["test=47", `test=47b; domain=${host}`,`test=47b; domain=${www1Host}; domain=`],
+          expected: "test=47b; test=47b",
+          name: "Empty domain treated as host cookie 1",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: ["test=48", `test=48b; domain=${host}`,`test=48b; domain=${host}; domain=`],
+          expected: "test=48b; test=48b",
+          name: "Empty domain treated as host cookie 2",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: ["test=49", `test=49b; domain=${host}`,`test=49b; domain=`],
+          expected: "test=49b; test=49b",
+          name: "Empty domain treated as host cookie 3",
+          location: `http://${wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: ["test=50", `test=50b; domain=${host}`,`test=50b; domain=${www1Host}; domain=`],
+          expected: "test=50b",
+          name: "No host cookies returned for host cookies after non-host redirect 1",
+          location: `http://${www2wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: ["test=51", `test=51b; domain=${host}`,`test=51b; domain=${host}; domain=`],
+          expected: "test=51b",
+          name: "No host cookies returned for host cookies after non-host redirect 2",
+          location: `http://${www2wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+        {
+          cookie: ["test=52", `test=52b; domain=${host}`,`test=52b; domain=`],
+          expected: "test=52b",
+          name: "No host cookies returned for host cookies after non-host redirect 3",
+          location: `http://${www2wwwHost}:${port}/cookies/attributes/resources/path.html`,
+        },
+      ];
+
+      for (const test of domainTests) {
+        if (Array.isArray(test.cookie)) {
+          for (let i in test.cookie) {
+            test.cookie[i] += `; ${path}`;
+          }
+        } else {
+          test.cookie += `; ${path}`;
+        }
+
+        httpRedirectCookieTest(test.cookie, test.expected, test.name,
+                               test.location);
+      }
+    </script>
+  </body>
+</html>
