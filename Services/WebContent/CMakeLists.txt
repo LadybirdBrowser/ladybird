@@ -40,6 +40,8 @@ add_executable(WebContent main.cpp)
 
 if (LINUX)
     target_sources(WebContent PRIVATE ../RendererSandboxLinux.cpp)
+elseif (APPLE)
+    target_sources(WebContent PRIVATE ../RendererSandboxMacOS.cpp)
 else()
     target_sources(WebContent PRIVATE ../RendererSandboxUnimplemented.cpp)
 endif()
