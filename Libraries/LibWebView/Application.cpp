@@ -1819,6 +1819,14 @@ void Application::traverse_the_history_by_delta(DevTools::TabDescription const& 
         view->traverse_the_history_by_delta(delta);
 }
 
+Vector<HTTP::Cookie::Cookie> Application::cookies(DevTools::TabDescription const& description) const
+{
+    if (!ViewImplementation::find_view_by_id(description.id).has_value())
+        return {};
+
+    return Application::cookie_jar().get_all_cookies();
+}
+
 void Application::inspect_tab(DevTools::TabDescription const& description, OnTabInspectionComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
