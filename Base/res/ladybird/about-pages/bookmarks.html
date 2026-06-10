@@ -6,102 +6,13 @@
         <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
         <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
         <style>
-            @media (prefers-color-scheme: light) {
-                :root {
-                    --tree-hover-color: #e8e8e8;
-                    --tree-selected-color: #d8d8f8;
-                    --empty-text-color: #888;
-                    --url-text-color: #666;
-                    --menu-background-color: #fff;
-                    --menu-border-color: #d8d8d8;
-                    --menu-shadow-color: rgba(0, 0, 0, 0.12);
-                }
-            }
-
-            @media (prefers-color-scheme: dark) {
-                :root {
-                    --tree-hover-color: #2e2e2e;
-                    --tree-selected-color: #35355a;
-                    --empty-text-color: #777;
-                    --url-text-color: #999;
-                    --menu-background-color: #2a2a2a;
-                    --menu-border-color: #4a4a4a;
-                    --menu-shadow-color: rgba(0, 0, 0, 0.4);
-                }
-            }
-
             .header-menu {
                 position: relative;
                 margin-left: auto;
             }
 
-            .menu-toggle {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-
-                width: 32px;
-                height: 32px;
-
-                color: inherit;
-                background: none;
-                border: none;
-                border-radius: 4px;
-
-                cursor: pointer;
-            }
-
-            .menu-toggle:hover {
-                background-color: var(--tree-hover-color);
-            }
-
-            .menu-toggle svg {
-                width: 20px;
-                height: 20px;
-            }
-
-            .menu-dropdown {
-                position: absolute;
-                top: 100%;
-                right: 0;
-                z-index: 10;
-
-                display: flex;
-                flex-direction: column;
-
-                min-width: 200px;
-                padding: 4px;
-                margin-top: 4px;
-
-                background-color: var(--menu-background-color);
-                border: 1px solid var(--menu-border-color);
-                border-radius: 6px;
-                box-shadow: 0 4px 12px var(--menu-shadow-color);
-            }
-
-            .menu-dropdown.hidden {
-                display: none;
-            }
-
-            .menu-item {
-                color: inherit;
-                background: none;
-                border: none;
-                border-radius: 4px;
-
-                padding: 8px 12px;
-                font-size: 14px;
-                text-align: left;
-
-                cursor: pointer;
-            }
-
-            .menu-item:hover {
-                background-color: var(--tree-hover-color);
-            }
-
             .tree-empty {
-                color: var(--empty-text-color);
+                color: var(--secondary-text-color);
 
                 padding: 40px 20px;
 
@@ -127,11 +38,11 @@
             }
 
             .tree-item-row.drag-over-inside {
-                background-color: var(--tree-selected-color);
+                background-color: var(--item-selected-color);
             }
 
             .tree-item-row:hover {
-                background-color: var(--tree-hover-color);
+                background-color: var(--item-hover-color);
             }
 
             .tree-item-row.expandable {
@@ -217,7 +128,7 @@
             }
 
             .item-url {
-                color: var(--url-text-color);
+                color: var(--secondary-text-color);
 
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -229,12 +140,12 @@
 
             .search-highlight {
                 color: inherit;
-                background-color: var(--tree-selected-color);
+                background-color: var(--item-selected-color);
                 border-radius: 2px;
             }
 
             .search-no-results {
-                color: var(--empty-text-color);
+                color: var(--secondary-text-color);
 
                 padding: 40px 20px;
 
