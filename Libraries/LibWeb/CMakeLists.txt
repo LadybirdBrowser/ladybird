@@ -1226,6 +1226,8 @@ generate_css_implementation()
 
 generate_html_implementation()
 
+generate_webgl_implementation()
+
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
     CSS/DefaultStyleSheetSource.cpp
@@ -1252,6 +1254,7 @@ set(GENERATED_SOURCES
     Worker/WebWorkerServerEndpoint.h
     HTML/MediaControlsDOM.cpp
     HTML/Parser/NamedCharacterReferences.cpp
+    WebGL/GLFunctions.cpp
 )
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)

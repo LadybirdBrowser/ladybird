@@ -12,7 +12,6 @@
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
-#define GL_GLEXT_PROTOTYPES 1
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
@@ -36,7 +35,7 @@ GC::Ref<WebGLVertexArrayObjectOES> OESVertexArrayObject::create_vertex_array_oes
     m_context->context().make_current();
 
     GLuint handle = 0;
-    glGenVertexArraysOES(1, &handle);
+    m_context->context().gen_vertex_arrays_oes(1, &handle);
     return WebGLVertexArrayObjectOES::create(realm(), m_context, handle);
 }
 
@@ -54,7 +53,7 @@ void OESVertexArrayObject::delete_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjec
         vertex_array_handle = handle_or_error.release_value();
     }
 
-    glDeleteVertexArraysOES(1, &vertex_array_handle);
+    m_context->context().delete_vertex_arrays_oes(1, &vertex_array_handle);
 }
 
 bool OESVertexArrayObject::is_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object)
@@ -70,7 +69,7 @@ bool OESVertexArrayObject::is_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES
         vertex_array_handle = handle_or_error.release_value();
     }
 
-    return glIsVertexArrayOES(vertex_array_handle) == GL_TRUE;
+    return m_context->context().is_vertex_array_oes(vertex_array_handle) == GL_TRUE;
 }
 
 void OESVertexArrayObject::bind_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object)
@@ -87,7 +86,7 @@ void OESVertexArrayObject::bind_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectO
         vertex_array_handle = handle_or_error.release_value();
     }
 
-    glBindVertexArrayOES(vertex_array_handle);
+    m_context->context().bind_vertex_array_oes(vertex_array_handle);
 }
 
 void OESVertexArrayObject::initialize(JS::Realm& realm)
