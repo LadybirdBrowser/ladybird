@@ -152,8 +152,13 @@ static ErrorOr<Vector<String>> read_static_test_variants(Test const& test)
                 content_attribute = attribute_value;
         }
 
-        if (name_attribute.has_value() && name_attribute->equals_ignoring_ascii_case("variant"sv) && content_attribute.has_value())
-            variants.append(TRY(String::from_utf8(*content_attribute)));
+        if (name_attribute.has_value() && name_attribute->equals_ignoring_ascii_case("variant"sv) && content_attribute.has_value()) {
+            // Only query (?...) variants are expandable; skip anything else
+            if (content_attribute->starts_with('?'))
+                variants.append(TRY(String::from_utf8(*content_attribute)));
+            else
+                warnln("{}: ignoring unsupported variant content '{}'", test.input_path, *content_attribute);
+        }
     }
 
     return variants;
