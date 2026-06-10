@@ -34,6 +34,10 @@ private:
 
     void get_fields(Message const&);
     void get_store_objects(Message const&);
+    void edit_item(Message const&);
+    void add_item(Message const&);
+    void remove_item(Message const&);
+    void remove_all(Message const&);
     void send_store_objects(Message const&, Optional<String> requested_host, Optional<JsonArray> requested_names, JsonObject options, ErrorOr<Vector<DevToolsDelegate::StorageItem>>);
     void send_store_update(DevToolsDelegate::StorageChange const&);
     void send_store_cleared(DevToolsDelegate::StorageChange const&);

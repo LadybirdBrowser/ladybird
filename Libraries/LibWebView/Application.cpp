@@ -1867,6 +1867,14 @@ void Application::stop_listening_for_host_cookie_changes(DevTools::TabDescriptio
         view->stop_listening_for_host_cookie_changes();
 }
 
+static ErrorOr<Optional<String>> storage_set_result_to_error_or_old_value(StorageSetResult result)
+{
+    if (result.has<StorageOperationError>())
+        return Error::from_string_literal("Unable to store more than the storage quota");
+
+    return result.get<Optional<String>>();
+}
+
 void Application::inspect_storage(DevTools::TabDescription const& description, Web::StorageAPI::StorageEndpointType storage_endpoint, OnStorageItemsReceived on_complete) const
 {
     static u64 next_request_id = 0;
@@ -1880,6 +1888,67 @@ void Application::inspect_storage(DevTools::TabDescription const& description, W
     auto request_id = next_request_id++;
     view->on_received_storage_items.set(request_id, move(on_complete));
     view->inspect_storage(storage_endpoint, request_id);
+}
+
+ErrorOr<Optional<String>> Application::set_storage_item(DevTools::TabDescription const& description, Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& key, String const& value) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return Error::from_string_literal("Unable to locate tab");
+
+    if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage) {
+        auto result = view->set_session_storage_item(key, value);
+        if (!result.has_value())
+            return Error::from_string_literal("Unable to locate session storage");
+        return TRY(storage_set_result_to_error_or_old_value(result.release_value()));
+    }
+
+    auto old_value = TRY(storage_set_result_to_error_or_old_value(Application::storage_jar().set_item(storage_endpoint, storage_key, key, value)));
+    if (!old_value.has_value()) {
+        view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Added, key });
+    } else if (*old_value != value) {
+        view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Changed, key });
+    }
+
+    return old_value;
+}
+
+ErrorOr<Optional<String>> Application::remove_storage_item(DevTools::TabDescription const& description, Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& key) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return Error::from_string_literal("Unable to locate tab");
+
+    if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage)
+        return view->remove_session_storage_item(key);
+
+    auto old_value = Application::storage_jar().get_item(storage_endpoint, storage_key, key);
+    if (!old_value.has_value())
+        return Optional<String> {};
+
+    Application::storage_jar().remove_item(storage_endpoint, storage_key, key);
+    view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Deleted, key });
+    return old_value;
+}
+
+ErrorOr<void> Application::clear_storage(DevTools::TabDescription const& description, Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return Error::from_string_literal("Unable to locate tab");
+
+    if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage) {
+        view->clear_session_storage();
+        return {};
+    }
+
+    auto keys = Application::storage_jar().get_all_keys(storage_endpoint, storage_key);
+    if (keys.is_empty())
+        return {};
+
+    Application::storage_jar().clear_storage_key(storage_endpoint, storage_key);
+    view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Cleared, {} });
+    return {};
 }
 
 u64 Application::add_storage_change_listener(DevTools::TabDescription const& description, OnStorageChange on_storage_change) const

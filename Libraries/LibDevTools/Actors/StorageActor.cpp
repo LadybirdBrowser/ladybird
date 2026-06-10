@@ -33,6 +33,19 @@ static JsonObject serialize_storage_item(DevToolsDelegate::StorageItem const& it
     return object;
 }
 
+static Optional<String> string_from_devtools_value(JsonValue const& value)
+{
+    if (value.is_string())
+        return value.as_string();
+    if (value.is_bool())
+        return value.as_bool() ? "true"_string : "false"_string;
+    if (value.is_number())
+        return MUST(String::formatted("{}", value.get_number_with_precision_loss<double>().release_value()));
+    if (value.is_null())
+        return {};
+    return value.serialized();
+}
+
 NonnullRefPtr<StorageActor> StorageActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, Web::StorageAPI::StorageEndpointType storage_endpoint)
 {
     return adopt_ref(*new StorageActor(devtools, move(name), move(tab), storage_endpoint));
@@ -119,6 +132,26 @@ void StorageActor::handle_message(Message const& message)
 
     if (message.type == "getStoreObjects"sv) {
         get_store_objects(message);
+        return;
+    }
+
+    if (message.type == "editItem"sv) {
+        edit_item(message);
+        return;
+    }
+
+    if (message.type == "addItem"sv) {
+        add_item(message);
+        return;
+    }
+
+    if (message.type == "removeItem"sv) {
+        remove_item(message);
+        return;
+    }
+
+    if (message.type == "removeAll"sv) {
+        remove_all(message);
         return;
     }
 
@@ -213,6 +246,163 @@ void StorageActor::send_store_objects(Message const& message, Optional<String> r
     response.set("total"sv, total);
     response.set("data"sv, move(data));
     send_response(message, move(response));
+}
+
+void StorageActor::edit_item(Message const& message)
+{
+    auto data = get_required_parameter<JsonObject>(message, "data"sv);
+    if (!data.has_value())
+        return;
+
+    auto requested_host = data->get_string("host"sv);
+    if (!requested_host.has_value()) {
+        send_missing_parameter_error(message, "host"sv);
+        return;
+    }
+
+    if (!host().has_value() || *host() != *requested_host) {
+        send_response(message, to_storage_operation_result(Error::from_string_literal("Storage host is not available")));
+        return;
+    }
+
+    auto field = data->get_string("field"sv);
+    if (!field.has_value()) {
+        send_missing_parameter_error(message, "field"sv);
+        return;
+    }
+
+    auto items = data->get_object("items"sv);
+    if (!items.has_value()) {
+        send_missing_parameter_error(message, "items"sv);
+        return;
+    }
+
+    auto key = items->get_string("name"sv);
+    if (!key.has_value()) {
+        send_missing_parameter_error(message, "items.name"sv);
+        return;
+    }
+
+    auto value_json = items->get("value"sv);
+    if (!value_json.has_value()) {
+        send_missing_parameter_error(message, "items.value"sv);
+        return;
+    }
+
+    auto value = string_from_devtools_value(*value_json);
+    if (!value.has_value()) {
+        send_response(message, to_storage_operation_result(Error::from_string_literal("Missing storage value")));
+        return;
+    }
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    if (*field == "name"sv) {
+        auto old_value_json = data->get("oldValue"sv);
+        if (!old_value_json.has_value()) {
+            send_missing_parameter_error(message, "oldValue"sv);
+            return;
+        }
+
+        auto old_key = string_from_devtools_value(*old_value_json);
+        if (!old_key.has_value()) {
+            send_response(message, to_storage_operation_result(Error::from_string_literal("Missing old storage key")));
+            return;
+        }
+
+        if (*old_key != *key) {
+            auto remove_result = devtools().delegate().remove_storage_item(tab->description(), m_storage_endpoint, *requested_host, *old_key);
+            if (remove_result.is_error()) {
+                send_response(message, to_storage_operation_result(remove_result.release_error()));
+                return;
+            }
+        }
+    }
+
+    auto result = devtools().delegate().set_storage_item(tab->description(), m_storage_endpoint, *requested_host, *key, *value);
+    if (result.is_error())
+        send_response(message, to_storage_operation_result(result.release_error()));
+    else
+        send_response(message, to_storage_operation_result(ErrorOr<void> {}));
+}
+
+void StorageActor::add_item(Message const& message)
+{
+    auto guid = get_required_parameter<String>(message, "guid"sv);
+    if (!guid.has_value())
+        return;
+
+    auto requested_host = message.data.get_string("host"sv)
+                              .value_or_lazy_evaluated_optional([this] { return host(); });
+    if (!requested_host.has_value()) {
+        send_response(message, to_storage_operation_result(Error::from_string_literal("No storage host is available for this page")));
+        return;
+    }
+
+    if (!host().has_value() || *host() != *requested_host) {
+        send_response(message, to_storage_operation_result(Error::from_string_literal("Storage host is not available")));
+        return;
+    }
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    auto result = devtools().delegate().set_storage_item(tab->description(), m_storage_endpoint, *requested_host, *guid, "value"_string);
+    if (result.is_error())
+        send_response(message, to_storage_operation_result(result.release_error()));
+    else
+        send_response(message, to_storage_operation_result(ErrorOr<void> {}));
+}
+
+void StorageActor::remove_item(Message const& message)
+{
+    auto requested_host = get_required_parameter<String>(message, "host"sv);
+    if (!requested_host.has_value())
+        return;
+
+    auto name = get_required_parameter<String>(message, "name"sv);
+    if (!name.has_value())
+        return;
+
+    if (!host().has_value() || *host() != *requested_host) {
+        send_response(message, {});
+        return;
+    }
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    auto result = devtools().delegate().remove_storage_item(tab->description(), m_storage_endpoint, *requested_host, *name);
+    if (result.is_error())
+        send_response(message, to_storage_operation_result(result.release_error()));
+    else
+        send_response(message, {});
+}
+
+void StorageActor::remove_all(Message const& message)
+{
+    auto requested_host = get_required_parameter<String>(message, "host"sv);
+    if (!requested_host.has_value())
+        return;
+
+    if (!host().has_value() || *host() != *requested_host) {
+        send_response(message, {});
+        return;
+    }
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    auto result = devtools().delegate().clear_storage(tab->description(), m_storage_endpoint, *requested_host);
+    if (result.is_error())
+        send_response(message, to_storage_operation_result(result.release_error()));
+    else
+        send_response(message, {});
 }
 
 void StorageActor::on_storage_changed(DevToolsDelegate::StorageChange change)

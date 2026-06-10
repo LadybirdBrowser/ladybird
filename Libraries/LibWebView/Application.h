@@ -275,6 +275,9 @@ private:
     virtual void listen_for_host_cookie_changes(DevTools::TabDescription const&, OnHostCookieChange) const override;
     virtual void stop_listening_for_host_cookie_changes(DevTools::TabDescription const&) const override;
     virtual void inspect_storage(DevTools::TabDescription const&, Web::StorageAPI::StorageEndpointType, OnStorageItemsReceived) const override;
+    virtual ErrorOr<Optional<String>> set_storage_item(DevTools::TabDescription const&, Web::StorageAPI::StorageEndpointType, String const&, String const&, String const&) const override;
+    virtual ErrorOr<Optional<String>> remove_storage_item(DevTools::TabDescription const&, Web::StorageAPI::StorageEndpointType, String const&, String const&) const override;
+    virtual ErrorOr<void> clear_storage(DevTools::TabDescription const&, Web::StorageAPI::StorageEndpointType, String const&) const override;
     virtual u64 add_storage_change_listener(DevTools::TabDescription const&, OnStorageChange) const override;
     virtual void remove_storage_change_listener(DevTools::TabDescription const&, u64) const override;
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete) const override;

@@ -500,6 +500,21 @@ void ViewImplementation::inspect_storage(Web::StorageAPI::StorageEndpointType st
     client().async_inspect_storage(page_id(), storage_endpoint, request_id);
 }
 
+Optional<StorageSetResult> ViewImplementation::set_session_storage_item(String const& key, String const& value)
+{
+    return client().set_session_storage_item(page_id(), key, value);
+}
+
+Optional<String> ViewImplementation::remove_session_storage_item(String const& key)
+{
+    return client().remove_session_storage_item(page_id(), key);
+}
+
+bool ViewImplementation::clear_session_storage()
+{
+    return client().clear_session_storage(page_id());
+}
+
 void ViewImplementation::inspect_accessibility_tree()
 {
     client().async_inspect_accessibility_tree(page_id());

@@ -604,6 +604,67 @@ void ConnectionFromClient::inspect_storage(u64 page_id, Web::StorageAPI::Storage
     async_did_inspect_storage(page_id, request_id, storage_items.serialized());
 }
 
+static Optional<GC::Ref<Web::HTML::Storage>> active_session_storage_for_page(PageClient& page)
+{
+    auto* document = page.page().top_level_browsing_context().active_document();
+    if (!document || !document->window())
+        return {};
+
+    auto storage_or_error = document->window()->session_storage();
+    if (storage_or_error.is_exception())
+        return {};
+
+    return storage_or_error.release_value();
+}
+
+Messages::WebContentServer::SetSessionStorageItemResponse ConnectionFromClient::set_session_storage_item(u64 page_id, String key, String value)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return Optional<WebView::StorageSetResult> {};
+
+    auto storage = active_session_storage_for_page(*page);
+    if (!storage.has_value())
+        return Optional<WebView::StorageSetResult> {};
+
+    auto old_value = (*storage)->get_item(key);
+    auto result = (*storage)->set_item(key, value);
+    if (result.is_exception())
+        return WebView::StorageSetResult { WebView::StorageOperationError::QuotaExceededError };
+
+    return WebView::StorageSetResult { move(old_value) };
+}
+
+Messages::WebContentServer::RemoveSessionStorageItemResponse ConnectionFromClient::remove_session_storage_item(u64 page_id, String key)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return Optional<String> {};
+
+    auto storage = active_session_storage_for_page(*page);
+    if (!storage.has_value())
+        return Optional<String> {};
+
+    auto old_value = (*storage)->get_item(key);
+    if (old_value.has_value())
+        (*storage)->remove_item(key);
+    return old_value;
+}
+
+Messages::WebContentServer::ClearSessionStorageResponse ConnectionFromClient::clear_session_storage(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return false;
+
+    auto storage = active_session_storage_for_page(*page);
+    if (!storage.has_value() || (*storage)->length() == 0)
+        return false;
+
+    (*storage)->clear();
+    return true;
+}
+
 void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options_value)
 {
     auto page = this->page(page_id);
