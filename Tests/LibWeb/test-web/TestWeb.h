@@ -14,8 +14,9 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
-#include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
+#include <LibCore/Timer.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Forward.h>
 
 namespace TestWeb {
