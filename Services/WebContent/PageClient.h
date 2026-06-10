@@ -112,6 +112,7 @@ public:
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
     void send_current_needs_beforeunload_check();
     void clear_pending_dom_mutations();
+    void did_delete_all_cookies(u64 request_id);
 
 private:
     struct PendingDOMMutation {
@@ -179,6 +180,7 @@ private:
     virtual void page_did_set_cookie(URL::URL const&, HTTP::Cookie::ParsedCookie const&, HTTP::Cookie::Source) override;
     virtual void page_did_update_cookie(HTTP::Cookie::Cookie const&) override;
     virtual void page_did_expire_cookies_with_time_offset(AK::Duration) override;
+    virtual void page_did_delete_all_cookies(URL::URL const&, GC::Ref<Web::WebIDL::Promise>) override;
     virtual void page_did_store_hsts_policy(String const&, HTTP::HSTS::ParsedHSTSPolicy const&) override;
     virtual bool page_did_is_known_hsts_host(String const&) override;
     virtual Optional<String> page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key) override;
@@ -235,6 +237,8 @@ private:
     double m_zoom_level { 1.0 };
     double m_maximum_frames_per_second { 60.0 };
     u64 m_id { 0 };
+    u64 m_next_delete_all_cookies_request_id { 1 };
+    HashMap<u64, GC::Ref<Web::WebIDL::Promise>> m_pending_delete_all_cookies_promises;
     bool m_has_focus { true };
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };

@@ -48,6 +48,7 @@ public:
     Vector<HTTP::Cookie::Cookie> get_all_cookies_cookiestore(URL::URL const& url);
     Optional<HTTP::Cookie::Cookie> get_named_cookie(URL::URL const& url, StringView name);
     void expire_cookies_with_time_offset(AK::Duration);
+    void delete_all_cookies(URL::URL const&);
     void expire_cookies_accessed_since(UnixDateTime since);
     Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 

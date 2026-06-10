@@ -82,6 +82,7 @@ public:
     void simulate_drop(double x, double y);
 
     void expire_cookies_with_time_offset(WebIDL::LongLong seconds);
+    GC::Ref<WebIDL::Promise> delete_all_cookies();
 
     bool set_http_memory_cache_enabled(bool enabled);
     WebIDL::ExceptionOr<void> set_content_blockers(String const& patterns);

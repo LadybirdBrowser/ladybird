@@ -478,6 +478,16 @@ void Internals::expire_cookies_with_time_offset(WebIDL::LongLong seconds)
     page().client().page_did_expire_cookies_with_time_offset(AK::Duration::from_seconds(seconds));
 }
 
+GC::Ref<WebIDL::Promise> Internals::delete_all_cookies()
+{
+    auto& realm = this->realm();
+    auto promise = WebIDL::create_promise(realm);
+    auto const& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+
+    page().client().page_did_delete_all_cookies(document.url(), promise);
+    return promise;
+}
+
 bool Internals::set_http_memory_cache_enabled(bool enabled)
 {
     auto was_enabled = Web::Fetch::Fetching::http_memory_cache_enabled();

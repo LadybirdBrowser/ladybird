@@ -70,6 +70,7 @@ interface Internals {
     undefined simulateDrop(double x, double y);
 
     undefined expireCookiesWithTimeOffset(long long seconds);
+    Promise<undefined> deleteAllCookies();
 
     boolean setHttpMemoryCacheEnabled(boolean enabled);
     undefined setContentBlockers(DOMString patterns);
