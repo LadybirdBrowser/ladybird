@@ -378,8 +378,7 @@ public:
     CSS::StyleScope const& style_scope() const { return const_cast<Node*>(this)->style_scope(); }
     void for_each_style_scope_which_may_observe_the_node(Function<void(CSS::StyleScope&)> const&);
 
-    void set_document(Badge<Document>, Document&);
-    void set_document(Badge<NamedNodeMap>, Document&);
+    void set_document(Badge<Document, NamedNodeMap>, Document&);
 
     virtual EventTarget* get_parent(Event const&) override;
 

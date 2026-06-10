@@ -989,8 +989,7 @@ public:
     GC::Ptr<HTML::Navigable> navigable() const;
     void set_navigable(GC::Ptr<HTML::Navigable>);
 
-    template<OneOf<Node, Painting::Paintable, HTML::Navigable, CSS::VisualViewport, Web::EventHandler> T>
-    void set_needs_repaint(Badge<T>, InvalidateDisplayList should_invalidate_display_list = InvalidateDisplayList::Yes)
+    void set_needs_repaint(Badge<Node, Painting::Paintable, HTML::Navigable, CSS::VisualViewport, Web::EventHandler>, InvalidateDisplayList should_invalidate_display_list = InvalidateDisplayList::Yes)
     {
         set_needs_repaint(should_invalidate_display_list);
     }

@@ -388,8 +388,7 @@ public:
     Layout::NodeWithStyle* pseudo_element_unsafe_layout_node(CSS::PseudoElement) const;
 
     bool has_synthetic_pseudo_elements() const;
-    template<OneOf<Layout::TreeBuilder, Document, Node> T>
-    void clear_synthetic_pseudo_element_layout_nodes(Badge<T>) { clear_synthetic_pseudo_element_layout_nodes(); }
+    void clear_synthetic_pseudo_element_layout_nodes(Badge<Layout::TreeBuilder, Node>) { clear_synthetic_pseudo_element_layout_nodes(); }
 
     void serialize_children_as_json(JsonObjectSerializer<StringBuilder>&) const;
 
