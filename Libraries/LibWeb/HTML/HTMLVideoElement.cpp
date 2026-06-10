@@ -106,8 +106,8 @@ void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> d
     //         dimensions are not available. This matches other browsers.
     if (dimensions.has_value()) {
         // the user agent must queue a media element task given the media element to fire an event named resize at the media element.
-        queue_a_media_element_task([this] {
-            dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::resize));
+        queue_a_media_element_task([](HTMLMediaElement& self) {
+            self.dispatch_event(DOM::Event::create(self.realm(), HTML::EventNames::resize));
         });
     }
 

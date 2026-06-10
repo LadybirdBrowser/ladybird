@@ -63,7 +63,7 @@ void VideoTrack::set_selected(bool selected)
     // VideoTrackList is unselected without a new track being selected in its stead, the user agent must queue a media element
     // task given the media element to fire an event named change at the VideoTrackList object. This task must be queued before
     // the task that fires the resize event, if any.
-    media_element().queue_a_media_element_task([video_track_list = m_video_track_list]() {
+    media_element().queue_a_media_element_task([video_track_list = m_video_track_list](HTMLMediaElement&) {
         video_track_list->dispatch_event(DOM::Event::create(video_track_list->realm(), HTML::EventNames::change));
     });
 
