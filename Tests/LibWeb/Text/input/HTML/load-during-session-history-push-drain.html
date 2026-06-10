@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    asyncTest(done => {
+        if (location.search.includes("loaded")) {
+            println("PASS (didn't crash)");
+            done();
+            return;
+        }
+        document.body.appendChild(document.createElement("iframe"));
+        history.pushState({}, "", "#pushed");
+        const next = new URL(location.href);
+        next.search = "?loaded";
+        next.hash = "";
+        internals.loadURL(next.href);
+    });
+</script>
+</body>

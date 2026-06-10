@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- A stream of same-document pushStates keeps claimed-but-uncommitted steps in flight while the page is loaded again
+     in the same way a request from the UI process loads it. The load used to race the in-flight push machinery in three
+     ways: (1) it could read the pushed entry's still-pending step, (2) it could claim a step number an in-flight push
+     already held, (3) and clearing the forward session history could remove the in-flight push's entry out from under
+     its apply-history-step run. The reloaded page signals completion. The races need the load to land inside another
+     run's window — so this reproduces most readily on slow builds (e.g., Sanitizer builds). -->
+<body>
+<script>
+    asyncTest(done => {
+        if (location.search.includes("loaded")) {
+            println("PASS (didn't crash)");
+            done();
+            return;
+        }
+        let round = 0;
+        (function pump() {
+            if (round++ >= 60)
+                return;
+            for (let i = 0; i < 5; i++)
+                history.pushState({ i }, "", "#s" + round + "-" + i);
+            setTimeout(pump);
+        })();
+        const next = new URL(location.href);
+        next.search = "?loaded";
+        next.hash = "";
+        setTimeout(() => internals.loadURL(next.href), 8);
+    });
+</script>
+</body>

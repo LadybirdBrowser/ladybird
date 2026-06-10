@@ -44,6 +44,13 @@ public:
     virtual bool is_top_level_traversable() const override;
 
     int current_session_history_step() const { return m_current_session_history_step; }
+
+    // Claims the step number for a new push-type session history entry. Claims are tracked separately from the current
+    // step: the current step only advances when an apply-history-step run commits — and several runs can have claimed
+    // steps in flight at once. So, computing a new step from the current step alone can hand out a step number that an
+    // existing entry already holds. A claim is retired when the run that applies it completes.
+    [[nodiscard]] int claim_next_session_history_step();
+    void retire_claimed_session_history_step(int step);
     Vector<NonnullRefPtr<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
     Vector<NonnullRefPtr<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
     struct SessionHistorySnapshot {
@@ -186,6 +193,30 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     int m_current_session_history_step { 0 };
+
+    // Concurrent apply-history-step runs share the step numbering below. Runs are serialized through the session
+    // history traversal queue — but a synchronous navigation can jump the queue while another run is paused (see the
+    // sync navigations jump queue in the spec). So, a nested run mutates this state while an outer run is mid-flight.
+    // The spec describes that concurrency but not the necessary bookkeeping it ends up requiring in implementations.
+    // See https://github.com/whatwg/html/issues/12576.
+    //
+    // Four invariants keep the numbering coherent under that nesting:
+    //
+    //  - uniqueness: a new step number is claimed past every claimed-but-uncommitted step — never just current step + 1
+    //    (claim_next_session_history_step);
+    //
+    //  - ordering: a run commits its target step only if no newer run has committed first — so the current step can't
+    //    move backwards past a newer run's commit (ApplyHistoryStepState::complete);
+    //
+    //  - integrity: clearing the forward session history spares entries whose steps are claimed by runs still in flight
+    //    (clear_the_forward_session_history);
+    //
+    //  - initialization: step numbers are only compared once assigned; a pushed entry is the active session history
+    //    entry before its queued synchronous step assigns its step number (the Push assertion in
+    //    ApplyHistoryStepState::start).
+    u64 m_apply_history_step_generation_counter { 0 };
+    u64 m_committed_apply_history_step_generation { 0 };
+    Vector<int> m_outstanding_claimed_session_history_steps;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<NonnullRefPtr<SessionHistoryEntry>> m_session_history_entries;

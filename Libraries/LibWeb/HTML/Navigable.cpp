@@ -2888,7 +2888,9 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
         traversable->clear_the_forward_session_history();
 
         // 2. Set targetStep to traversable's current session history step + 1.
-        target_step = traversable->current_session_history_step() + 1;
+        // AD-HOC: Claim the step instead — so a step claimed by an apply-history-step run still in flight can't be
+        //         handed out twice. See https://github.com/whatwg/html/issues/12576.
+        target_step = traversable->claim_next_session_history_step();
 
         // 3. Set historyEntry's step to targetStep.
         history_entry->set_step(target_step);
