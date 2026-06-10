@@ -17,6 +17,7 @@
 #include <LibDevTools/Connection.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
+#include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/Header.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibTest/TestCase.h>
@@ -535,6 +536,13 @@ static String cookie_unique_key(StringView name, StringView domain, StringView p
         "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv));
 }
 
+static bool cookie_matches(HTTP::Cookie::Cookie const& cookie, StringView name, StringView domain, StringView path)
+{
+    return cookie.name == name
+        && cookie.domain == domain
+        && cookie.path == path;
+}
+
 class TestDevToolsDelegate final : public DevTools::DevToolsDelegate {
 public:
     virtual Vector<DevTools::TabDescription> tab_list() const override
@@ -572,6 +580,44 @@ public:
     {
         ++cookies_call_count;
         return fixture_cookies;
+    }
+
+    virtual ErrorOr<void> set_cookie(DevTools::TabDescription const&, Optional<HTTP::Cookie::Cookie> old_cookie, HTTP::Cookie::Cookie cookie) const override
+    {
+        ++set_cookie_call_count;
+
+        if (HTTP::Cookie::cookie_contains_invalid_control_character(cookie.name))
+            return Error::from_string_literal("Invalid cookie name");
+
+        auto key_matches_cookie = [](HTTP::Cookie::Cookie const& left, HTTP::Cookie::Cookie const& right) {
+            return left.name == right.name
+                && left.domain == right.domain
+                && left.path == right.path;
+        };
+
+        if (old_cookie.has_value()) {
+            for (auto i = fixture_cookies.size(); i > 0; --i) {
+                if (key_matches_cookie(fixture_cookies[i - 1], *old_cookie))
+                    fixture_cookies.remove(i - 1);
+            }
+        }
+
+        for (auto i = fixture_cookies.size(); i > 0; --i) {
+            if (key_matches_cookie(fixture_cookies[i - 1], cookie))
+                fixture_cookies.remove(i - 1);
+        }
+
+        fixture_cookies.append(cookie);
+
+        if (on_host_cookie_change) {
+            Vector<HTTP::Cookie::Cookie> changed_cookies;
+            if (old_cookie.has_value())
+                changed_cookies.append(*old_cookie);
+            changed_cookies.append(move(cookie));
+            on_host_cookie_change(move(changed_cookies));
+        }
+
+        return {};
     }
 
     virtual void listen_for_host_cookie_changes(DevTools::TabDescription const&, OnHostCookieChange callback) const override
@@ -1007,6 +1053,7 @@ public:
 
     mutable size_t inspect_tab_call_count { 0 };
     mutable size_t cookies_call_count { 0 };
+    mutable size_t set_cookie_call_count { 0 };
     mutable size_t listen_for_cookie_changes_call_count { 0 };
     mutable size_t stop_listening_for_cookie_changes_call_count { 0 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
@@ -1350,6 +1397,36 @@ static JsonArray get_cookie_update_keys(JsonObject const& stores_update, StringV
         ->get_object("cookies"sv)
         ->get_array(host)
         .release_value();
+}
+
+static JsonObject make_cookie_edit_items(HTTP::Cookie::Cookie const& cookie)
+{
+    JsonObject items;
+    items.set("uniqueKey"sv, cookie_unique_key(cookie.name, cookie.domain, cookie.path));
+    items.set("name"sv, cookie.name);
+    items.set("value"sv, cookie.value);
+    items.set("host"sv, cookie.domain);
+    items.set("path"sv, cookie.path);
+    items.set("expires"sv, cookie.persistent ? MUST(cookie.expiry_time.to_string("%a, %d %b %Y %T GMT"sv, UnixDateTime::LocalTime::No)) : "Session"_string);
+    items.set("isSecure"sv, cookie.secure);
+    items.set("isHttpOnly"sv, cookie.http_only);
+    return items;
+}
+
+static JsonObject edit_cookie(ProtocolClient& client, StringView cookies_actor, HTTP::Cookie::Cookie const& cookie, StringView field, JsonValue old_value, JsonValue new_value)
+{
+    JsonObject data;
+    data.set("host"sv, "https://example.test"sv);
+    data.set("field"sv, field);
+    data.set("oldValue"sv, move(old_value));
+    data.set("newValue"sv, move(new_value));
+    data.set("items"sv, make_cookie_edit_items(cookie));
+
+    JsonObject request;
+    request.set("to"sv, cookies_actor);
+    request.set("type"sv, "editItem"sv);
+    request.set("data"sv, move(data));
+    return client.request(move(request));
 }
 
 TEST_CASE(root_actor_and_connection_errors)
@@ -1709,6 +1786,65 @@ TEST_CASE(storage_cookie_change_events)
     auto deleted_keys = get_cookie_update_keys(stores_update, "deleted"sv);
     EXPECT_EQ(deleted_keys.size(), 1u);
     EXPECT_EQ(deleted_keys.at(0).as_string(), cookie_unique_key("alpha"sv, "example.test"sv, "/"sv));
+}
+
+TEST_CASE(storage_cookie_edit_item)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto initial_cookie = make_cookie("alpha"_string, "one"_string, "example.test"_string, "/"_string);
+    session->delegate.fixture_cookies.append(initial_cookie);
+
+    auto cookies_actor = get_cookies_actor(client);
+    auto objects = get_cookie_store_objects(client, cookies_actor);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 1u);
+
+    auto response = edit_cookie(client, cookies_actor, initial_cookie, "value"sv, "one"_string, "two"_string);
+    EXPECT(response.get("errorString"sv).value().is_null());
+    EXPECT_EQ(session->delegate.set_cookie_call_count, 1u);
+    EXPECT_EQ(session->delegate.fixture_cookies.size(), 1u);
+    EXPECT_EQ(session->delegate.fixture_cookies[0].value, "two"sv);
+
+    auto secure_cookie = session->delegate.fixture_cookies[0];
+    response = edit_cookie(client, cookies_actor, secure_cookie, "isSecure"sv, false, true);
+    EXPECT(response.get("errorString"sv).value().is_null());
+    EXPECT_EQ(session->delegate.set_cookie_call_count, 2u);
+    EXPECT(session->delegate.fixture_cookies[0].secure);
+
+    auto persistent_cookie = session->delegate.fixture_cookies[0];
+    response = edit_cookie(client, cookies_actor, persistent_cookie, "expires"sv, 0, 3'000'000);
+    EXPECT(response.get("errorString"sv).value().is_null());
+    EXPECT_EQ(session->delegate.set_cookie_call_count, 3u);
+    EXPECT(session->delegate.fixture_cookies[0].persistent);
+    EXPECT_EQ(session->delegate.fixture_cookies[0].expiry_time.milliseconds_since_epoch(), 3'000'000);
+
+    auto invalid_expiry_cookie = session->delegate.fixture_cookies[0];
+    response = edit_cookie(client, cookies_actor, invalid_expiry_cookie, "expires"sv, 3'000'000, "not a date"_string);
+    EXPECT_EQ(response.get_string("errorString"sv).value(), "Cookie expiry date is invalid"sv);
+    EXPECT_EQ(session->delegate.set_cookie_call_count, 3u);
+    EXPECT_EQ(session->delegate.fixture_cookies[0].expiry_time.milliseconds_since_epoch(), 3'000'000);
+
+    auto session_cookie = session->delegate.fixture_cookies[0];
+    response = edit_cookie(client, cookies_actor, session_cookie, "expires"sv, 3'000'000, "Session"_string);
+    EXPECT(response.get("errorString"sv).value().is_null());
+    EXPECT_EQ(session->delegate.set_cookie_call_count, 4u);
+    EXPECT(!session->delegate.fixture_cookies[0].persistent);
+
+    auto renamed_cookie = session->delegate.fixture_cookies[0];
+    response = edit_cookie(client, cookies_actor, renamed_cookie, "name"sv, "alpha"_string, "gamma"_string);
+    EXPECT(response.get("errorString"sv).value().is_null());
+    EXPECT_EQ(session->delegate.set_cookie_call_count, 5u);
+    EXPECT_EQ(session->delegate.fixture_cookies.size(), 1u);
+    EXPECT(cookie_matches(session->delegate.fixture_cookies[0], "gamma"sv, "example.test"sv, "/"sv));
+
+    auto invalid_cookie = session->delegate.fixture_cookies[0];
+    response = edit_cookie(client, cookies_actor, invalid_cookie, "name"sv, "gamma"_string, "bad\nname"_string);
+    EXPECT_EQ(response.get_string("errorString"sv).value(), "Invalid cookie name"sv);
+    EXPECT_EQ(session->delegate.set_cookie_call_count, 6u);
+    EXPECT_EQ(session->delegate.fixture_cookies.size(), 1u);
+    EXPECT(cookie_matches(session->delegate.fixture_cookies[0], "gamma"sv, "example.test"sv, "/"sv));
 }
 
 TEST_CASE(walker_node_picker)
