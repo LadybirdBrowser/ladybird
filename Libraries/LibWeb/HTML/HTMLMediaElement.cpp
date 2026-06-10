@@ -467,6 +467,15 @@ void HTMLMediaElement::set_current_playback_position(double playback_position)
 
     upon_has_ended_playback_possibly_changed();
     update_natural_dimensions();
+
+    // AD-HOC: Run the SourceBuffer monitoring algorithm to update readyState based on buffered data relative to
+    //         the current playback position. This satisfies the periodic buffer monitoring in MSE:
+    //         https://w3c.github.io/media-source/#buffer-monitoring
+    //         This is queued as a task to ensure that any tasks queued to fire events based on prior ready state
+    //         changes occur before it is changed again.
+    queue_a_media_element_task(GC::weak_callback(*this, [](auto& self) {
+        self.update_ready_state();
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-duration
@@ -2821,11 +2830,6 @@ void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
             queue_a_media_element_task([this]() {
                 dispatch_time_update_event();
             });
-
-            // AD-HOC: Run the SourceBuffer monitoring algorithm to update readyState based on buffered data relative to
-            //         the current playback position. This satisfies the periodic buffer monitoring in MSE:
-            //         https://w3c.github.io/media-source/#buffer-monitoring
-            update_ready_state();
         }
     }
 
