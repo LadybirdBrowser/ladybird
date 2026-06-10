@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define GL_GLEXT_PROTOTYPES 1
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 extern "C" {
@@ -328,7 +327,7 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
 GLenum WebGLRenderingContextBase::get_error_value()
 {
     if (m_error == GL_NO_ERROR)
-        return glGetError();
+        return context().get_error();
 
     auto error = m_error;
     m_error = GL_NO_ERROR;
@@ -340,7 +339,7 @@ void WebGLRenderingContextBase::set_error(GLenum error)
     if (m_error != GL_NO_ERROR)
         return;
 
-    auto context_error = glGetError();
+    auto context_error = context().get_error();
     if (context_error != GL_NO_ERROR)
         m_error = context_error;
     else

@@ -4,6 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+// Define GL_GLEXT_PROTOTYPES before OpenGLContext.h pulls in the GL headers without it.
+#define GL_GLEXT_PROTOTYPES 1
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+extern "C" {
+#include <GLES2/gl2ext_angle.h>
+}
+#include <GLES3/gl3.h>
+
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#define EGL_EGLEXT_PROTOTYPES 1
+extern "C" {
+#include <EGL/eglext_angle.h>
+}
+
 #include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
@@ -13,20 +29,6 @@
 #    include <LibGfx/VulkanImage.h>
 #endif
 #include <LibWeb/WebGL/OpenGLContext.h>
-
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#define EGL_EGLEXT_PROTOTYPES 1
-extern "C" {
-#include <EGL/eglext_angle.h>
-}
-#define GL_GLEXT_PROTOTYPES 1
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-extern "C" {
-#include <GLES2/gl2ext_angle.h>
-}
-#include <GLES3/gl3.h>
 
 // Enable WebGL if we're on MacOS and can use Metal or if we can use shareable Vulkan images
 #if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)

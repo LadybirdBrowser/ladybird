@@ -13,10 +13,11 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/WebGL/GLFunctions.h>
 
 namespace Web::WebGL {
 
-class WEB_API OpenGLContext {
+class WEB_API OpenGLContext : public GLFunctions {
 public:
     enum class WebGLVersion {
         WebGL1,
