@@ -935,7 +935,7 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_reque
 
 void WebContentClient::did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)
 {
-    Application::cookie_jar().set_cookie(url, cookie, source);
+    (void)Application::cookie_jar().set_cookie(url, cookie, source);
 }
 
 void WebContentClient::did_update_cookie(HTTP::Cookie::Cookie cookie)

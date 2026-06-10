@@ -270,6 +270,8 @@ private:
     virtual void reload_tab(DevTools::TabDescription const&, bool) const override;
     virtual void traverse_the_history_by_delta(DevTools::TabDescription const&, int) const override;
     virtual Vector<HTTP::Cookie::Cookie> cookies(DevTools::TabDescription const&) const override;
+    virtual ErrorOr<void> set_cookie(DevTools::TabDescription const&, Optional<HTTP::Cookie::Cookie>, HTTP::Cookie::Cookie) const override;
+    virtual void delete_cookies(DevTools::TabDescription const&, Vector<HTTP::Cookie::Cookie>) const override;
     virtual void listen_for_host_cookie_changes(DevTools::TabDescription const&, OnHostCookieChange) const override;
     virtual void stop_listening_for_host_cookie_changes(DevTools::TabDescription const&) const override;
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete) const override;

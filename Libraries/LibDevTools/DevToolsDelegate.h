@@ -39,6 +39,8 @@ public:
     virtual void reload_tab(TabDescription const&, bool bypass_cache) const { (void)bypass_cache; }
     virtual void traverse_the_history_by_delta(TabDescription const&, int) const { }
     virtual Vector<HTTP::Cookie::Cookie> cookies(TabDescription const&) const { return {}; }
+    virtual ErrorOr<void> set_cookie(TabDescription const&, Optional<HTTP::Cookie::Cookie>, HTTP::Cookie::Cookie) const { return {}; }
+    virtual void delete_cookies(TabDescription const&, Vector<HTTP::Cookie::Cookie>) const { }
     using OnHostCookieChange = Function<void(Vector<HTTP::Cookie::Cookie>)>;
     virtual void listen_for_host_cookie_changes(TabDescription const&, OnHostCookieChange) const { }
     virtual void stop_listening_for_host_cookie_changes(TabDescription const&) const { }
