@@ -1346,9 +1346,15 @@ ParseResult<CodeSection::Code> CodeSection::Code::parse(ConstrainedStream& strea
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Code"sv);
     auto size = TRY_READ(stream, LEB128<u32>, ParseError::InvalidSize);
 
+    // Constrain to the declared size so an invalid entry fails here instead of desyncing the remaining entries in the section.
+    auto code_stream = ConstrainedStream { MaybeOwned<Stream>(stream), size };
+
     // Empirically, if there are `size` bytes to be read, then there's around
     // `size / 2` instructions, so we pass that as our size hint.
-    auto func = TRY(Func::parse(stream, size / 2));
+    auto func = TRY(Func::parse(code_stream, size / 2));
+
+    if (code_stream.remaining() != 0)
+        return ParseError::SectionSizeMismatch;
 
     return Code { size, move(func) };
 }
