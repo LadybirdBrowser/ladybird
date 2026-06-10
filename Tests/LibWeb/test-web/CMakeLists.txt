@@ -1,6 +1,7 @@
 set(SOURCES
     Application.cpp
     CaptureFile.cpp
+    Collection.cpp
     Debug.cpp
     Display.cpp
     Fixture.cpp
