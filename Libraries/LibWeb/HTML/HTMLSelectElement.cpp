@@ -852,11 +852,11 @@ bool HTMLSelectElement::is_focusable() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#placeholder-label-option
 HTMLOptionElement* HTMLSelectElement::placeholder_label_option() const
 {
-    // If a select element has a required attribute specified, does not have a multiple attribute specified, and has a display size of 1;
-    if (has_attribute(HTML::AttributeNames::required) && !has_attribute(HTML::AttributeNames::multiple) && display_size() == 1) {
-        // and if the value of the first option element in the
-        // select element's list of options (if any) is the empty string, and that option element's parent node is the select element (and not an optgroup element), then that option is the
-        // select element's placeholder label option.
+    // If a select element has a required attribute specified, and has a display size of 1;
+    if (has_attribute(HTML::AttributeNames::required) && display_size() == 1) {
+        // and if the value of the first option element in the select element's list of options (if any) is the empty
+        // string, and that option element's parent node is the select element (and not an optgroup element), then that
+        // option is the select element's placeholder label option.
         auto first_option_element = list_of_options()[0];
         if (first_option_element->value().is_empty() && first_option_element->parent() == this)
             return first_option_element;
