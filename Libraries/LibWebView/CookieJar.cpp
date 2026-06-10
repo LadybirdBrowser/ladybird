@@ -565,17 +565,20 @@ void CookieJar::TransientStorage::set_cookie(CookieStorageKey key, HTTP::Cookie:
     if (cookie.expiry_time < now && !m_cookies.contains(key))
         return;
 
-    // We skip notifying about updating expired cookies, as they will be notified as being expired immediately after instead
+    auto cookie_value_changed = true;
     if (cookie.expiry_time >= now) {
-        auto cookie_value_changed = true;
         if (auto old_cookie = m_cookies.get(key); old_cookie.has_value())
             cookie_value_changed = old_cookie->value != cookie.value;
-
-        send_cookie_changed_notifications({ { CookieEntry { {}, cookie } } }, cookie_value_changed);
     }
 
+    auto cookie_for_notification = cookie;
     m_cookies.set(key, cookie);
     m_dirty_cookies.set(move(key), move(cookie));
+
+    // We skip notifying about updating expired cookies, as they will be notified as being
+    // expired immediately after instead.
+    if (cookie_for_notification.expiry_time >= now)
+        send_cookie_changed_notifications({ { CookieEntry { {}, move(cookie_for_notification) } } }, cookie_value_changed);
 }
 
 Optional<HTTP::Cookie::Cookie const&> CookieJar::TransientStorage::get_cookie(CookieStorageKey const& key)
