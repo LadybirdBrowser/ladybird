@@ -1,0 +1,33 @@
+# Web Platform Tests run by the WPT smoke test CI step. Each line is a test
+# path passed to "Meta/WPT.sh run"; every listed test is expected to pass.
+
+# testharness.js tests
+infrastructure/assumptions/ahem.html
+infrastructure/assumptions/cookie.html
+infrastructure/assumptions/html-elements.html
+infrastructure/assumptions/initial-color.html
+
+# Multi-global (.any.js) tests, including workers
+infrastructure/server/context.any.html
+infrastructure/server/context.any.sharedworker.html
+infrastructure/server/context.any.worker.html
+
+# Secure contexts
+infrastructure/server/secure-context.https.any.html
+
+# WPT server features (subdomains, WebSockets)
+infrastructure/server/wpt-server-http.sub.html
+infrastructure/server/wpt-server-websocket.sub.html
+
+# Reftests
+infrastructure/reftest/reftest_fuzzy_1.html
+infrastructure/reftest/reftest_match.html
+infrastructure/reftest/reftest_mismatch.html
+infrastructure/reftest/reftest_wait_TestRendered.html
+
+# Crash tests
+infrastructure/crashtests/example.html
+
+# testdriver.js tests
+infrastructure/testdriver/click.html
+infrastructure/testdriver/send_keys.html
