@@ -754,18 +754,7 @@ public:
     {
     }
 
-    Frame& operator=(Frame&& other)
-    {
-        if (this != &other) {
-            m_owned_locals = move(other.m_owned_locals);
-            m_locals_ptr = other.m_owns_locals ? m_owned_locals.data() : other.m_locals_ptr;
-            m_arity = other.m_arity;
-            m_label_index = other.m_label_index;
-            m_owns_locals = other.m_owns_locals;
-            m_compiled_fn_table = other.m_compiled_fn_table;
-        }
-        return *this;
-    }
+    Frame& operator=(Frame&&) = delete;
 
     Frame(Frame const&) = delete;
     Frame& operator=(Frame const&) = delete;
