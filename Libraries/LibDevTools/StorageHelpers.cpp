@@ -34,4 +34,12 @@ Optional<String> storage_host_for_url(String const& url_string)
     return {};
 }
 
+Optional<String> storage_host_name(String const& storage_host)
+{
+    auto url = URL::Parser::basic_parse(storage_host);
+    if (!url.has_value() || !url->host().has_value())
+        return {};
+    return url->serialized_host();
+}
+
 }

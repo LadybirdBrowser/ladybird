@@ -12,5 +12,6 @@
 namespace DevTools {
 
 Optional<String> storage_host_for_url(String const&);
+Optional<String> storage_host_name(String const&);
 
 }

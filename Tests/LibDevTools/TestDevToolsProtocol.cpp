@@ -512,6 +512,29 @@ static JsonObject make_flexbox_layout()
     return layout;
 }
 
+static HTTP::Cookie::Cookie make_cookie(String name, String value, String domain, String path)
+{
+    HTTP::Cookie::Cookie cookie;
+    cookie.name = move(name);
+    cookie.value = move(value);
+    cookie.domain = move(domain);
+    cookie.path = move(path);
+    cookie.creation_time = UnixDateTime::from_seconds_since_epoch(10);
+    cookie.last_access_time = UnixDateTime::from_seconds_since_epoch(20);
+    return cookie;
+}
+
+static String cookie_unique_key(StringView name, StringView domain, StringView path)
+{
+    return MUST(String::formatted("{}{}{}{}{}{}",
+        name,
+        "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv,
+        domain,
+        "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv,
+        path,
+        "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv));
+}
+
 class TestDevToolsDelegate final : public DevTools::DevToolsDelegate {
 public:
     virtual Vector<DevTools::TabDescription> tab_list() const override
@@ -543,6 +566,12 @@ public:
     {
         ++traverse_the_history_by_delta_call_count;
         last_history_delta = delta;
+    }
+
+    virtual Vector<HTTP::Cookie::Cookie> cookies(DevTools::TabDescription const&) const override
+    {
+        ++cookies_call_count;
+        return fixture_cookies;
     }
 
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete callback) const override
@@ -955,8 +984,10 @@ public:
     mutable Vector<NavigationListener> navigation_listeners;
 
     mutable bool use_navigation_dom_tree { false };
+    mutable Vector<HTTP::Cookie::Cookie> fixture_cookies;
 
     mutable size_t inspect_tab_call_count { 0 };
+    mutable size_t cookies_call_count { 0 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
     mutable size_t listen_for_dom_properties_call_count { 0 };
     mutable size_t stop_listening_for_dom_properties_call_count { 0 };
@@ -1463,6 +1494,118 @@ TEST_CASE(storage_cookie_resource)
     EXPECT_EQ(objects.get_integer<size_t>("offset"sv).value(), 0u);
     EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 0u);
     EXPECT(objects.get_array("data"sv)->is_empty());
+}
+
+TEST_CASE(storage_cookie_store_objects)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto first = make_cookie("alpha"_string, "one"_string, "example.test"_string, "/"_string);
+    first.host_only = true;
+    first.http_only = true;
+    first.secure = true;
+    first.persistent = true;
+    first.expiry_time = UnixDateTime::from_seconds_since_epoch(1000);
+    first.same_site = HTTP::Cookie::SameSite::Lax;
+    session->delegate.fixture_cookies.append(move(first));
+
+    auto second = make_cookie("alpha"_string, "two"_string, "example.test"_string, "/nested"_string);
+    second.persistent = true;
+    second.expiry_time = UnixDateTime::from_seconds_since_epoch(2000);
+    second.same_site = HTTP::Cookie::SameSite::Strict;
+    session->delegate.fixture_cookies.append(move(second));
+
+    auto third = make_cookie("beta"_string, "session"_string, "example.test"_string, "/"_string);
+    third.same_site = HTTP::Cookie::SameSite::Default;
+    session->delegate.fixture_cookies.append(move(third));
+
+    session->delegate.fixture_cookies.append(
+        make_cookie("ignored"_string, "nope"_string, "other.test"_string, "/"_string));
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("cookies"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+
+    auto cookie_resource = read_resource(client, "cookies"sv);
+    auto cookies_actor = actor_from(cookie_resource, "actor"sv);
+
+    JsonObject get_store_objects;
+    get_store_objects.set("to"sv, cookies_actor);
+    get_store_objects.set("type"sv, "getStoreObjects"sv);
+    get_store_objects.set("host"sv, "https://example.test"sv);
+    get_store_objects.set("names"sv, JsonValue {});
+    JsonObject options;
+    options.set("sessionString"sv, "Session"sv);
+    get_store_objects.set("options"sv, move(options));
+    auto objects = client.request(move(get_store_objects));
+    EXPECT_EQ(session->delegate.cookies_call_count, 1u);
+    EXPECT_EQ(objects.get_integer<size_t>("offset"sv).value(), 0u);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 3u);
+
+    auto data = objects.get_array("data"sv).release_value();
+    EXPECT_EQ(data.size(), 3u);
+
+    auto first_row = data.at(0).as_object();
+    EXPECT_EQ(first_row.get_string("uniqueKey"sv).value(), cookie_unique_key("alpha"sv, "example.test"sv, "/"sv));
+    EXPECT_EQ(first_row.get_string("name"sv).value(), "alpha"sv);
+    EXPECT_EQ(first_row.get_string("value"sv).value(), "one"sv);
+    EXPECT_EQ(first_row.get_string("host"sv).value(), "example.test"sv);
+    EXPECT_EQ(first_row.get_string("path"sv).value(), "/"sv);
+    EXPECT_EQ(first_row.get_integer<i64>("expires"sv).value(), 1'000'000);
+    EXPECT_EQ(first_row.get_integer<size_t>("size"sv).value(), 8u);
+    EXPECT(first_row.get_bool("isHttpOnly"sv).value());
+    EXPECT(first_row.get_bool("isSecure"sv).value());
+    EXPECT(first_row.get_bool("hostOnly"sv).value());
+    EXPECT_EQ(first_row.get_string("sameSite"sv).value(), "Lax"sv);
+    EXPECT_EQ(first_row.get_integer<i64>("creationTime"sv).value(), 10'000);
+    EXPECT_EQ(first_row.get_integer<i64>("lastAccessed"sv).value(), 20'000);
+    EXPECT_EQ(first_row.get_integer<i64>("updateTime"sv).value(), 10'000);
+    EXPECT_EQ(first_row.get_string("partitionKey"sv).value(), ""sv);
+
+    auto third_row = data.at(2).as_object();
+    EXPECT_EQ(third_row.get_string("name"sv).value(), "beta"sv);
+    EXPECT_EQ(third_row.get_string("value"sv).value(), "session"sv);
+    EXPECT_EQ(third_row.get_integer<int>("expires"sv).value(), 0);
+    EXPECT_EQ(third_row.get_string("sameSite"sv).value(), ""sv);
+
+    JsonObject paginated_request;
+    paginated_request.set("to"sv, cookies_actor);
+    paginated_request.set("type"sv, "getStoreObjects"sv);
+    paginated_request.set("host"sv, "https://example.test"sv);
+    paginated_request.set("names"sv, JsonValue {});
+    JsonObject paginated_options;
+    paginated_options.set("offset"sv, 1);
+    paginated_options.set("size"sv, 1);
+    paginated_request.set("options"sv, move(paginated_options));
+    auto paginated_objects = client.request(move(paginated_request));
+    EXPECT_EQ(paginated_objects.get_integer<size_t>("offset"sv).value(), 1u);
+    EXPECT_EQ(paginated_objects.get_integer<size_t>("total"sv).value(), 3u);
+    auto paginated_data = paginated_objects.get_array("data"sv).release_value();
+    EXPECT_EQ(paginated_data.size(), 1u);
+    EXPECT_EQ(paginated_data.at(0).as_object().get_string("path"sv).value(), "/nested"sv);
+
+    JsonObject filtered_request;
+    filtered_request.set("to"sv, cookies_actor);
+    filtered_request.set("type"sv, "getStoreObjects"sv);
+    filtered_request.set("host"sv, "https://example.test"sv);
+    JsonArray names;
+    names.must_append(cookie_unique_key("beta"sv, "example.test"sv, "/"sv));
+    filtered_request.set("names"sv, move(names));
+    filtered_request.set("options"sv, JsonObject {});
+    auto filtered_objects = client.request(move(filtered_request));
+    EXPECT_EQ(filtered_objects.get_integer<size_t>("total"sv).value(), 1u);
+    auto filtered_data = filtered_objects.get_array("data"sv).release_value();
+    EXPECT_EQ(filtered_data.size(), 1u);
+    EXPECT_EQ(filtered_data.at(0).as_object().get_string("name"sv).value(), "beta"sv);
 }
 
 TEST_CASE(walker_node_picker)

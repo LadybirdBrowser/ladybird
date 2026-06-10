@@ -6,11 +6,71 @@
 
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <AK/QuickSort.h>
 #include <LibDevTools/Actors/CookiesActor.h>
 #include <LibDevTools/Actors/TabActor.h>
+#include <LibDevTools/DevToolsDelegate.h>
+#include <LibDevTools/DevToolsServer.h>
 #include <LibDevTools/StorageHelpers.h>
+#include <LibHTTP/Cookie/Cookie.h>
+#include <LibURL/Parser.h>
+#include <LibURL/URL.h>
 
 namespace DevTools {
+
+static constexpr auto cookie_unique_key_separator = "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv;
+static constexpr auto max_store_object_count = 50uz;
+
+static bool cookie_matches_storage_host(HTTP::Cookie::Cookie const& cookie, String const& storage_host)
+{
+    auto host_name = storage_host_name(storage_host);
+    if (!host_name.has_value())
+        return false;
+
+    if (cookie.host_only)
+        return cookie.domain == *host_name;
+
+    return HTTP::Cookie::domain_matches(*host_name, cookie.domain);
+}
+
+static String cookie_unique_key(HTTP::Cookie::Cookie const& cookie)
+{
+    return MUST(String::formatted("{}{}{}{}{}{}",
+        cookie.name,
+        cookie_unique_key_separator,
+        cookie.domain,
+        cookie_unique_key_separator,
+        cookie.path,
+        cookie_unique_key_separator));
+}
+
+static String same_site_for_devtools(HTTP::Cookie::SameSite same_site)
+{
+    if (same_site == HTTP::Cookie::SameSite::Default)
+        return {};
+    return MUST(String::from_utf8(HTTP::Cookie::same_site_to_string(same_site)));
+}
+
+static JsonObject serialize_cookie(HTTP::Cookie::Cookie const& cookie)
+{
+    JsonObject object;
+    object.set("uniqueKey"sv, cookie_unique_key(cookie));
+    object.set("name"sv, cookie.name);
+    object.set("value"sv, cookie.value);
+    object.set("host"sv, cookie.domain);
+    object.set("path"sv, cookie.path);
+    object.set("expires"sv, cookie.persistent ? cookie.expiry_time.milliseconds_since_epoch() : 0);
+    object.set("size"sv, cookie.name.bytes().size() + cookie.value.bytes().size());
+    object.set("isHttpOnly"sv, cookie.http_only);
+    object.set("isSecure"sv, cookie.secure);
+    object.set("sameSite"sv, same_site_for_devtools(cookie.same_site));
+    object.set("lastAccessed"sv, cookie.last_access_time.milliseconds_since_epoch());
+    object.set("creationTime"sv, cookie.creation_time.milliseconds_since_epoch());
+    object.set("updateTime"sv, cookie.creation_time.milliseconds_since_epoch());
+    object.set("hostOnly"sv, cookie.host_only);
+    object.set("partitionKey"sv, ""sv);
+    return object;
+}
 
 NonnullRefPtr<CookiesActor> CookiesActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab)
 {
@@ -114,10 +174,63 @@ void CookiesActor::get_fields(Message const& message)
 
 void CookiesActor::get_store_objects(Message const& message)
 {
+    auto host = get_required_parameter<String>(message, "host"sv);
+    if (!host.has_value())
+        return;
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    auto requested_names = message.data.get_array("names"sv);
+
+    Vector<HTTP::Cookie::Cookie> cookies;
+    for (auto& cookie : devtools().delegate().cookies(tab->description())) {
+        if (!cookie_matches_storage_host(cookie, *host))
+            continue;
+
+        if (requested_names.has_value()) {
+            auto unique_key = cookie_unique_key(cookie);
+            auto was_requested = any_of(requested_names->values(), [&](auto const& name) {
+                return name.is_string() && name.as_string() == unique_key;
+            });
+            if (!was_requested)
+                continue;
+        }
+
+        cookies.append(move(cookie));
+    }
+
+    quick_sort(cookies, [](auto const& left, auto const& right) {
+        if (left.name != right.name)
+            return left.name < right.name;
+        if (left.domain != right.domain)
+            return left.domain < right.domain;
+        if (left.path.bytes().size() != right.path.bytes().size())
+            return left.path.bytes().size() < right.path.bytes().size();
+        return cookie_unique_key(left) < cookie_unique_key(right);
+    });
+
+    size_t offset = 0;
+    size_t size = max_store_object_count;
+    if (auto options = message.data.get_object("options"sv); options.has_value()) {
+        offset = options->get_integer<size_t>("offset"sv).value_or(0);
+        size = min(options->get_integer<size_t>("size"sv).value_or(max_store_object_count), max_store_object_count);
+    }
+
+    JsonArray data;
+    if (offset < cookies.size()) {
+        auto end = min(cookies.size(), offset + size);
+        for (size_t i = offset; i < end; ++i)
+            data.must_append(serialize_cookie(cookies[i]));
+    } else {
+        offset = cookies.size();
+    }
+
     JsonObject response;
-    response.set("offset"sv, 0);
-    response.set("total"sv, 0);
-    response.set("data"sv, JsonArray {});
+    response.set("offset"sv, offset);
+    response.set("total"sv, cookies.size());
+    response.set("data"sv, move(data));
     send_response(message, move(response));
 }
 
