@@ -650,14 +650,18 @@ QToolBar#LadybirdBookmarksBar QToolButton:checked {{
 QString find_in_page_style_sheet(QPalette const& palette)
 {
     auto background = style_sheet_color(chrome_background(palette));
-    auto surface = style_sheet_color(chrome_surface(palette));
+    auto surface_color = chrome_surface(palette);
+    auto surface = style_sheet_color(surface_color);
     auto hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto border = style_sheet_color(chrome_border(palette));
-    auto control_border = style_sheet_color(chrome_control_border(palette));
+    auto control_border_color = chrome_control_border(palette);
+    auto control_border = style_sheet_color(control_border_color);
     auto accent = style_sheet_color(chrome_accent(palette));
     auto text = style_sheet_color(chrome_text(palette));
     auto muted = style_sheet_color(chrome_muted_text(palette));
+    auto no_results_background = style_sheet_color(mix(surface_color, chrome_destructive_hover(), is_dark(palette) ? 0.34 : 0.18));
+    auto no_results_border = style_sheet_color(mix(control_border_color, chrome_destructive_hover(), is_dark(palette) ? 0.72 : 0.58));
 
     return qformatted(R"(
 QWidget#LadybirdFindInPageBar {{
@@ -677,6 +681,11 @@ QWidget#LadybirdFindInPageBar QLineEdit {{
 
 QWidget#LadybirdFindInPageBar QLineEdit:focus {{
     border-color: {6};
+}}
+
+QWidget#LadybirdFindInPageBar QLineEdit[noResults="true"] {{
+    background: {9};
+    border-color: {10};
 }}
 
 QWidget#LadybirdFindInPageBar QPushButton {{
@@ -702,7 +711,7 @@ QWidget#LadybirdFindInPageBar QLabel {{
     color: {8};
 }}
 )",
-        background, surface, hover, pressed, border, control_border, accent, text, muted);
+        background, surface, hover, pressed, border, control_border, accent, text, muted, no_results_background, no_results_border);
 }
 
 QString devtools_banner_style_sheet(QPalette const& palette)
