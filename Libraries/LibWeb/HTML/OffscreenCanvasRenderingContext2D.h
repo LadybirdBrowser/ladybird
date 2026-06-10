@@ -11,7 +11,6 @@
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -125,7 +124,7 @@ public:
     void set_size(Gfx::IntSize const&);
 
 protected:
-    [[nodiscard]] Gfx::Painter* painter() override;
+    [[nodiscard]] Gfx::CanvasCommandList* canvas_command_list() override;
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() override { return m_canvas; }
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() const override { return m_canvas; }
     JS::Realm& my_realm() override { return realm(); }

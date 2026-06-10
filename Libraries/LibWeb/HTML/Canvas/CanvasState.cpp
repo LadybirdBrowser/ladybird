@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Painter.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -22,8 +21,8 @@ void CanvasState::save()
     // The save() method steps are to push a copy of the current drawing state onto the drawing state stack.
     m_drawing_state_stack.append(m_drawing_state);
 
-    if (auto* painter = this->painter())
-        painter->save();
+    if (auto* canvas_command_list = this->canvas_command_list())
+        canvas_command_list->append(Gfx::CanvasCommands::Save {});
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-restore
@@ -34,8 +33,8 @@ void CanvasState::restore()
         return;
     m_drawing_state = m_drawing_state_stack.take_last();
 
-    if (auto* painter = this->painter())
-        painter->restore();
+    if (auto* canvas_command_list = this->canvas_command_list())
+        canvas_command_list->append(Gfx::CanvasCommands::Restore {});
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-reset

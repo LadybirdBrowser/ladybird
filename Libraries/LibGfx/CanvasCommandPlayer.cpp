@@ -37,6 +37,11 @@ void CanvasCommandPlayer::play(CanvasCommandList const& command_list)
         command.visit([&](auto const& command) { play_command(command); });
 }
 
+void CanvasCommandPlayer::prune_caches()
+{
+    m_painter->prune_caches();
+}
+
 void CanvasCommandPlayer::play_command(CanvasCommands::ClearRect const& command)
 {
     m_painter->clear_rect(command.rect, command.color);

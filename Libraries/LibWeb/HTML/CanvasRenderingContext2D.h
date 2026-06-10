@@ -9,8 +9,8 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -81,7 +81,7 @@ public:
     virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height) override;
-    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Gfx::Painter&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
+    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Gfx::CanvasCommandList&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
 
     virtual void reset_to_default_state() override;
 
@@ -123,11 +123,11 @@ public:
     void set_size(Gfx::IntSize const&);
     void present();
 
-    RefPtr<Gfx::PaintingSurface> surface() { return m_surface; }
+    RefPtr<Gfx::PaintingSurface> surface();
     void allocate_painting_surface_if_needed();
 
 protected:
-    [[nodiscard]] Gfx::Painter* painter() override;
+    [[nodiscard]] Gfx::CanvasCommandList* canvas_command_list() override;
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() override { return m_element; }
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() const override { return m_element; }
     JS::Realm& my_realm() override { return realm(); }
@@ -159,20 +159,23 @@ private:
 
     Gfx::Color clear_color() const;
 
-    void stroke_internal(Gfx::Path const&);
-    void fill_internal(Gfx::Path const&, Gfx::WindingRule);
+    void stroke_internal(Gfx::Path);
+    void fill_internal(Gfx::Path, Gfx::WindingRule);
     void clip_internal(Gfx::Path&, Gfx::WindingRule);
     void paint_shadow_for_fill_internal(Gfx::Path const&, Gfx::WindingRule);
     void paint_shadow_for_stroke_internal(Gfx::Path const&, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, Vector<float> const&);
 
+    void flush_recorded_commands();
+
     GC::Ref<HTMLCanvasElement> m_element;
-    OwnPtr<Gfx::Painter> m_painter;
+
+    Gfx::CanvasCommandList m_commands;
+    OwnPtr<Gfx::CanvasCommandPlayer> m_player;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
     bool m_origin_clean { true };
 
     Gfx::IntSize m_size;
-    RefPtr<Gfx::PaintingSurface> m_surface;
     Bindings::CanvasRenderingContext2DSettings m_context_attributes;
 };
 
