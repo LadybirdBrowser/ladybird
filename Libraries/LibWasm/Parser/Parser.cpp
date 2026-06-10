@@ -1475,6 +1475,7 @@ ParseResult<NonnullRefPtr<Module>> Module::parse(Stream& stream)
         return with_eof_check(stream, ParseError::InvalidModuleVersion);
 
     auto last_section_id = SectionId::SectionIdKind::Custom;
+    u32 seen_section_kinds = 0;
     auto module_ptr = make_ref_counted<Module>();
     auto& module = *module_ptr;
 
@@ -1483,8 +1484,12 @@ ParseResult<NonnullRefPtr<Module>> Module::parse(Stream& stream)
         size_t section_size = TRY_READ(stream, LEB128<u32>, ParseError::ExpectedSize);
         auto section_stream = ConstrainedStream { MaybeOwned<Stream>(stream), section_size };
 
-        if (section_id.kind() != SectionId::SectionIdKind::Custom && section_id.kind() == last_section_id)
-            return ParseError::DuplicateSection;
+        if (section_id.kind() != SectionId::SectionIdKind::Custom) {
+            auto kind_bit = 1u << to_underlying(section_id.kind());
+            if (seen_section_kinds & kind_bit)
+                return ParseError::DuplicateSection;
+            seen_section_kinds |= kind_bit;
+        }
 
         switch (section_id.kind()) {
         case SectionId::SectionIdKind::Custom:
@@ -1534,7 +1539,9 @@ ParseResult<NonnullRefPtr<Module>> Module::parse(Stream& stream)
         }
         if (!section_id.can_appear_after(last_section_id))
             return ParseError::SectionOutOfOrder;
-        last_section_id = section_id.kind();
+        // Custom sections don't participate in ordering.
+        if (section_id.kind() != SectionId::SectionIdKind::Custom)
+            last_section_id = section_id.kind();
         if (section_stream.remaining() != 0)
             return ParseError::SectionSizeMismatch;
     }
