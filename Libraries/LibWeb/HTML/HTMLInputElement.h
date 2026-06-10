@@ -299,6 +299,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void adopted_from(DOM::Document&) override;
 
     Optional<double> convert_time_string_to_number(StringView input) const;
     Optional<double> convert_string_to_number(StringView input) const;

@@ -140,6 +140,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void adopted_from(DOM::Document&) override;
 
     // ^DOM::Node
     virtual bool is_html_link_element() const override { return true; }

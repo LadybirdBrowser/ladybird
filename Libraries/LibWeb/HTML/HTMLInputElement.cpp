@@ -124,6 +124,14 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_resource_request);
 }
 
+void HTMLInputElement::adopted_from(DOM::Document& old_document)
+{
+    Base::adopted_from(old_document);
+
+    if (m_load_event_delayer.has_value())
+        m_load_event_delayer.emplace(document());
+}
+
 void HTMLInputElement::set_being_activated(bool activated)
 {
     Base::set_being_activated(activated);

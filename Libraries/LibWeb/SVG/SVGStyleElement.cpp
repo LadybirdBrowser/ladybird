@@ -30,6 +30,13 @@ void SVGStyleElement::visit_edges(Cell::Visitor& visitor)
     visit_style_element_edges(visitor);
 }
 
+void SVGStyleElement::adopted_from(DOM::Document& old_document)
+{
+    Base::adopted_from(old_document);
+
+    retarget_style_load_event_delayer(document());
+}
+
 void SVGStyleElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);

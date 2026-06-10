@@ -43,6 +43,12 @@ public:
 
     void visit_style_element_edges(JS::Cell::Visitor&);
 
+    void retarget_style_load_event_delayer(Document& new_document)
+    {
+        if (m_document_load_event_delayer.has_value())
+            m_document_load_event_delayer.emplace(new_document);
+    }
+
     virtual Element& as_element() = 0;
     virtual Element const& as_element() const = 0;
 

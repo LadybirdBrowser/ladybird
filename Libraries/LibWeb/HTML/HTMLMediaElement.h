@@ -188,6 +188,7 @@ protected:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
+    virtual void adopted_from(DOM::Document&) override;
     virtual void children_changed(ChildrenChangedMetadata const& metadata) override;
 
 private:
