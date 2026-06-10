@@ -14,4 +14,8 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibGfx LIBS LibGfx)
 endforeach()
 
+target_link_libraries(BenchmarkJPEGLoader PRIVATE LibImageDecoders)
+target_link_libraries(TestImageDecoder PRIVATE LibImageDecoders)
+target_link_libraries(TestImageWriter PRIVATE LibImageDecoders)
+
 ladybird_test(TestYUVData.cpp LibGfx LIBS LibGfx skia)

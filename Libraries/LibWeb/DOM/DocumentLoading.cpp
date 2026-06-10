@@ -13,7 +13,6 @@
 #include <AK/Utf16FlyString.h>
 #include <LibCore/Promise.h>
 #include <LibCore/Resource.h>
-#include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
