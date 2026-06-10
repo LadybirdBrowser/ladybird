@@ -81,9 +81,20 @@ CookiesActor::CookiesActor(DevToolsServer& devtools, String name, WeakPtr<TabAct
     : Actor(devtools, move(name))
     , m_tab(move(tab))
 {
+    if (auto tab = m_tab.strong_ref()) {
+        devtools.delegate().listen_for_host_cookie_changes(
+            tab->description(),
+            weak_callback(*this, [](auto& self, Vector<HTTP::Cookie::Cookie> cookies) {
+                self.on_cookies_changed(move(cookies));
+            }));
+    }
 }
 
-CookiesActor::~CookiesActor() = default;
+CookiesActor::~CookiesActor()
+{
+    if (auto tab = m_tab.strong_ref())
+        devtools().delegate().stop_listening_for_host_cookie_changes(tab->description());
+}
 
 Optional<String> CookiesActor::host() const
 {
@@ -201,6 +212,13 @@ void CookiesActor::get_store_objects(Message const& message)
         cookies.append(move(cookie));
     }
 
+    if (!requested_names.has_value()) {
+        HashTable<String> visible_keys;
+        for (auto const& cookie : cookies)
+            visible_keys.set(cookie_unique_key(cookie));
+        m_visible_cookie_unique_keys.set(*host, move(visible_keys));
+    }
+
     quick_sort(cookies, [](auto const& left, auto const& right) {
         if (left.name != right.name)
             return left.name < right.name;
@@ -232,6 +250,87 @@ void CookiesActor::get_store_objects(Message const& message)
     response.set("total"sv, cookies.size());
     response.set("data"sv, move(data));
     send_response(message, move(response));
+}
+
+HashTable<String> CookiesActor::visible_cookie_unique_keys(String const& host) const
+{
+    HashTable<String> visible_keys;
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return visible_keys;
+
+    for (auto& cookie : devtools().delegate().cookies(tab->description())) {
+        if (cookie_matches_storage_host(cookie, host))
+            visible_keys.set(cookie_unique_key(cookie));
+    }
+    return visible_keys;
+}
+
+void CookiesActor::send_cookie_store_update(String const& host, JsonArray added, JsonArray changed, JsonArray deleted)
+{
+    JsonObject update;
+
+    auto append_update = [&](StringView update_type, JsonArray keys) {
+        if (keys.is_empty())
+            return;
+
+        JsonObject hosts;
+        hosts.set(host, move(keys));
+
+        JsonObject cookies;
+        cookies.set("cookies"sv, move(hosts));
+
+        update.set(update_type, move(cookies));
+    };
+
+    append_update("added"sv, move(added));
+    append_update("changed"sv, move(changed));
+    append_update("deleted"sv, move(deleted));
+
+    JsonObject message;
+    message.set("type"sv, "storesUpdate"sv);
+    message.set("data"sv, move(update));
+    send_message(move(message));
+}
+
+void CookiesActor::on_cookies_changed(Vector<HTTP::Cookie::Cookie> changed_cookies)
+{
+    auto storage_host = host();
+    if (!storage_host.has_value())
+        return;
+
+    HashTable<String> old_visible_keys;
+    if (auto it = m_visible_cookie_unique_keys.find(*storage_host); it != m_visible_cookie_unique_keys.end())
+        old_visible_keys = it->value;
+
+    auto current_visible_keys = visible_cookie_unique_keys(*storage_host);
+
+    JsonArray added;
+    JsonArray changed;
+    JsonArray deleted;
+
+    for (auto const& cookie : changed_cookies) {
+        if (!cookie_matches_storage_host(cookie, *storage_host))
+            continue;
+
+        auto unique_key = cookie_unique_key(cookie);
+        auto was_visible = old_visible_keys.contains(unique_key);
+        auto is_visible = current_visible_keys.contains(unique_key);
+
+        if (is_visible && was_visible)
+            changed.must_append(unique_key);
+        else if (is_visible)
+            added.must_append(unique_key);
+        else if (was_visible)
+            deleted.must_append(unique_key);
+    }
+
+    m_visible_cookie_unique_keys.set(*storage_host, move(current_visible_keys));
+
+    if (added.is_empty() && changed.is_empty() && deleted.is_empty())
+        return;
+
+    send_cookie_store_update(*storage_host, move(added), move(changed), move(deleted));
 }
 
 }
