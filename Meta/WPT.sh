@@ -86,6 +86,14 @@ WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
     "tools/certs/cacert.pem"
 )
+WPT_TEST_TYPE_ARGS=(
+    "--test-types"
+    "testharness"
+    "reftest"
+    "wdspec"
+    "crashtest"
+    "test262"
+)
 WPT_ARGS=(
     "--binary=${LADYBIRD_BINARY}"
     "--webdriver-binary=${WEBDRIVER_BINARY}"
@@ -510,7 +518,7 @@ run_wpt_chunked() {
 
     echo "Preparing the venv setup..."
     base_venv="${BUILD_DIR}/wpt-prep/_venv"
-    ./wpt --venv "$base_venv" run "${WPT_ARGS[@]}" ladybird THIS_TEST_CANNOT_POSSIBLY_EXIST || true
+    ./wpt --venv "$base_venv" run "${WPT_ARGS[@]}" ladybird THIS_TEST_CANNOT_POSSIBLY_EXIST "${WPT_TEST_TYPE_ARGS[@]}" || true
 
     echo "Launching $procs chunked instances (concurrency=$concurrency each)"
     local logs=()
@@ -579,7 +587,7 @@ execute_wpt() {
             WPT_ARGS+=( "--webdriver-arg=--certificate=${certificate_path}" )
         done
         construct_test_list "${@}"
-        run_wpt_chunked "$procs" "${WPT_ARGS[@]}" "${WPT_LOG_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        run_wpt_chunked "$procs" "${WPT_ARGS[@]}" "${WPT_LOG_ARGS[@]}" ladybird "${TEST_LIST[@]}" "${WPT_TEST_TYPE_ARGS[@]}"
     popd > /dev/null
 }
 
@@ -697,7 +705,7 @@ list_tests_wpt()
     construct_test_list "${@}"
 
     pushd "${WPT_SOURCE_DIR}" > /dev/null
-        ./wpt run --list-tests ladybird "${TEST_LIST[@]}"
+        ./wpt run --list-tests ladybird "${TEST_LIST[@]}" "${WPT_TEST_TYPE_ARGS[@]}"
     popd > /dev/null
 }
 
