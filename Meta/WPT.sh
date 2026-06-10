@@ -22,6 +22,7 @@ TMPDIR=${TMPDIR:-/tmp}
 : "${SHOW_LOGFILES:=true}"
 : "${SHOW_PROGRESS:=true}"
 : "${PARALLEL_INSTANCES:=1}"
+: "${BUILD_LADYBIRD:=true}"
 
 if "$SHOW_PROGRESS"; then
     SHOW_LOGFILES=true
@@ -115,6 +116,7 @@ print_help() {
                       Find the first commit where a given set of tests produce unexpected results.
 
     Env vars:
+      BUILD_LADYBIRD:             Whether to build Ladybird and WebDriver before running tests; true or false, default true
       EXTRA_WPT_ARGS:             Extra arguments for the wpt command, placed at the end; array, default empty
       TRY_SHOW_LOGFILES_IN_TMUX:  Whether to show split logs in tmux; true or false, default false
       SHOW_LOGFILES:              Whether to show logs at all; true or false, default true
@@ -246,6 +248,9 @@ ensure_wpt_repository() {
 }
 
 build_ladybird_and_webdriver() {
+    if ! "$BUILD_LADYBIRD"; then
+        return
+    fi
     "${LADYBIRD_SOURCE_DIR}"/Meta/ladybird.py build WebDriver
 }
 
