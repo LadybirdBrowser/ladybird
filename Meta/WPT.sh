@@ -32,6 +32,11 @@ fi
 sudo_and_ask() {
     local prompt
     prompt="$1"; shift
+    # Running as root is only possible when the CI environment variable is set to true.
+    if [ "$(id -u)" -eq 0 ]; then
+        "${@}"
+        return
+    fi
     if [ -z "$prompt" ]; then
         prompt="Running '${*}' as root, please enter password for %p: "
     else
@@ -234,7 +239,9 @@ if [ $headless -eq 1 ]; then
     WPT_ARGS+=( "--webdriver-arg=--headless" )
 fi
 
-exit_if_running_as_root "Do not run WPT.sh as root"
+if [ "${CI:-false}" != "true" ]; then
+    exit_if_running_as_root "Do not run WPT.sh as root"
+fi
 
 construct_test_list() {
     TEST_LIST=( "$@" "${TESTS_FROM_FILE[@]}" )
