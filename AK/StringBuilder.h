@@ -170,8 +170,10 @@ public:
         return {};
     }
 
-    Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction(Badge<Detail::StringData>) { return leak_buffer_for_string_construction(); }
-    Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction(Badge<Detail::Utf16StringData>) { return leak_buffer_for_string_construction(); }
+    Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction(Badge<Detail::StringData, Detail::Utf16StringData>)
+    {
+        return leak_buffer_for_string_construction();
+    }
 
 private:
     void initialize_buffer(Mode, size_t capacity);

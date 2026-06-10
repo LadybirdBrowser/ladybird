@@ -1527,12 +1527,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node_binding(bool subtree)
     return clone_node(nullptr, subtree);
 }
 
-void Node::set_document(Badge<Document>, Document& document)
-{
-    set_document(document);
-}
-
-void Node::set_document(Badge<NamedNodeMap>, Document& document)
+void Node::set_document(Badge<Document, NamedNodeMap>, Document& document)
 {
     set_document(document);
 }

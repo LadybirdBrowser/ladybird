@@ -14,8 +14,6 @@
 namespace AK {
 
 template<typename T>
-concept StreamLike = IsBaseOf<Stream, T>;
-template<typename T>
 concept SeekableStreamLike = IsBaseOf<SeekableStream, T>;
 
 template<typename T>
@@ -24,8 +22,7 @@ class BufferedHelper {
     AK_MAKE_DEFAULT_MOVABLE(BufferedHelper);
 
 public:
-    template<StreamLike U>
-    BufferedHelper(Badge<U>, NonnullOwnPtr<T> stream, CircularBuffer buffer)
+    BufferedHelper(Badge<Stream>, NonnullOwnPtr<T> stream, CircularBuffer buffer)
         : m_stream(move(stream))
         , m_buffer(move(buffer))
     {
