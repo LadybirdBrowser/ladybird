@@ -1245,14 +1245,6 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
         on_recently_closed_entries_changed();
 }
 
-void Application::clear_history()
-{
-    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Clearing browsing history");
-
-    m_history_store->clear();
-    on_recently_closed_entries_changed();
-}
-
 void Application::initialize_actions()
 {
     auto debug_request = [this](auto request) {
