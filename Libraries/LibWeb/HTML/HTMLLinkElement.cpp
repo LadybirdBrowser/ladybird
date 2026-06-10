@@ -67,6 +67,14 @@ void HTMLLinkElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_sizes);
 }
 
+void HTMLLinkElement::adopted_from(DOM::Document& old_document)
+{
+    Base::adopted_from(old_document);
+
+    if (m_document_load_event_delayer.has_value())
+        m_document_load_event_delayer.emplace(document());
+}
+
 void HTMLLinkElement::inserted()
 {
     HTMLElement::inserted();

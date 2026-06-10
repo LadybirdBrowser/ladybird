@@ -41,6 +41,14 @@ void SVGScriptElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_script);
 }
 
+void SVGScriptElement::adopted_from(DOM::Document& old_document)
+{
+    Base::adopted_from(old_document);
+
+    if (m_document_load_event_delayer.has_value())
+        m_document_load_event_delayer.emplace(document());
+}
+
 void SVGScriptElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);

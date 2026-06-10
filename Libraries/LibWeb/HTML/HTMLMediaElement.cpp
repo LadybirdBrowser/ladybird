@@ -258,6 +258,14 @@ void HTMLMediaElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* ol
     pause_element();
 }
 
+void HTMLMediaElement::adopted_from(DOM::Document& old_document)
+{
+    Base::adopted_from(old_document);
+
+    if (m_delaying_the_load_event.has_value())
+        m_delaying_the_load_event.emplace(document());
+}
+
 void HTMLMediaElement::cancel_the_fetching_process()
 {
     m_current_fetch_generation++;

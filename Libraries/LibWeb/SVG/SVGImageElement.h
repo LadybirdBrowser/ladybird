@@ -51,6 +51,7 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void adopted_from(DOM::Document&) override;
 
     void process_the_url(Optional<String> const& href);
     void fetch_the_document(URL::URL const& url);

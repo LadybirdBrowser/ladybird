@@ -45,6 +45,7 @@ private:
     virtual bool is_svg_script_element() const final { return true; }
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void adopted_from(DOM::Document&) override;
 
     void finish_external_script_fetch(URL::URL const& script_url, ReadonlyBytes body);
     void execute_script();

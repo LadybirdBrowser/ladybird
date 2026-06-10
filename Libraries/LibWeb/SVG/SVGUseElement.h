@@ -45,6 +45,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void adopted_from(DOM::Document&) override;
 
     virtual bool is_svg_use_element() const override { return true; }
 

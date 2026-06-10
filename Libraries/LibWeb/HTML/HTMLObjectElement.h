@@ -51,6 +51,7 @@ public:
     }
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void adopted_from(DOM::Document&) override;
 
 private:
     HTMLObjectElement(DOM::Document&, DOM::QualifiedName);

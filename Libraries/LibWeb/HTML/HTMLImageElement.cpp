@@ -202,6 +202,9 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
         if (auto callback = m_document_observer->document_became_active())
             callback->function()();
     }
+
+    if (m_load_event_delayer.has_value())
+        m_load_event_delayer.emplace(document());
 }
 
 void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
