@@ -3,6 +3,15 @@
         --border-color: #dcdde1;
         --card-background-color: #f5f5f5;
         --card-header-background-color: #f0f2f5;
+        --icon-background-color: #dfe8f5;
+        --icon-color: #37597d;
+        --item-hover-color: #eceff3;
+        --item-selected-color: #dfe8f5;
+        --menu-background-color: #fff;
+        --menu-border-color: #d8d8d8;
+        --menu-shadow-color: rgba(0, 0, 0, 0.12);
+        --secondary-text-color: #65707d;
+        --separator-color: #e3e6eb;
     }
 }
 
@@ -11,6 +20,15 @@
         --border-color: #3d3d3d;
         --card-background-color: #242424;
         --card-header-background-color: #252525;
+        --icon-background-color: #243748;
+        --icon-color: #9bc3ef;
+        --item-hover-color: #2a313a;
+        --item-selected-color: #243748;
+        --menu-background-color: #2a2a2a;
+        --menu-border-color: #4a4a4a;
+        --menu-shadow-color: rgba(0, 0, 0, 0.4);
+        --secondary-text-color: #a5b0bc;
+        --separator-color: #323841;
     }
 }
 
@@ -113,4 +131,69 @@ header img {
     min-width: 0;
 
     padding: 10px 12px;
+}
+
+.menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 32px;
+    height: 32px;
+
+    color: inherit;
+    background: none;
+    border: none;
+    border-radius: 4px;
+
+    cursor: pointer;
+}
+
+.menu-toggle:hover {
+    background-color: var(--menu-toggle-hover-color, var(--item-hover-color));
+}
+
+.menu-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
+.menu-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 10;
+
+    display: flex;
+    flex-direction: column;
+
+    min-width: 200px;
+    padding: 4px;
+    margin-top: 4px;
+
+    background-color: var(--menu-background-color);
+    border: 1px solid var(--menu-border-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px var(--menu-shadow-color);
+}
+
+.menu-dropdown.hidden {
+    display: none;
+}
+
+.menu-item {
+    color: inherit;
+    background: none;
+    border: none;
+    border-radius: 4px;
+
+    padding: 8px 12px;
+    font-size: 14px;
+    text-align: left;
+
+    cursor: pointer;
+}
+
+.menu-item:hover {
+    background-color: var(--menu-item-hover-color, var(--menu-toggle-hover-color, var(--item-hover-color)));
 }
