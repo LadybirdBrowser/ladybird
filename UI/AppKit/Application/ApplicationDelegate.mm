@@ -338,14 +338,7 @@
 
 - (NSMenuItem*)createHistoryMenu
 {
-    auto* menu = [[NSMenuItem alloc] init];
-
-    auto* submenu = [[NSMenu alloc] initWithTitle:@"History"];
-    [submenu setAutoenablesItems:NO];
-
-    [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().reload_action())];
-    [menu setSubmenu:submenu];
-    return menu;
+    return Ladybird::create_application_menu_item(WebView::Application::the().history_menu());
 }
 
 - (NSMenuItem*)createBookmarksMenu

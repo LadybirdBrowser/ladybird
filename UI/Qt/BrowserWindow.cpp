@@ -372,6 +372,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     m_hamburger_menu->addMenu(m_bookmarks_menu);
     menuBar()->addMenu(m_bookmarks_menu);
 
+    m_history_menu = create_application_menu(*this, application.history_menu());
+    m_hamburger_menu->addMenu(m_history_menu);
+    menuBar()->addMenu(m_history_menu);
+
     auto* inspect_menu = create_application_menu(*m_hamburger_menu, application.inspect_menu());
     m_hamburger_menu->addMenu(inspect_menu);
     menuBar()->addMenu(inspect_menu);

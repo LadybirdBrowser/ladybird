@@ -188,6 +188,8 @@ public:
     Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
     Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
 
+    Menu& history_menu() { return *m_history_menu; }
+
     Menu& inspect_menu() { return *m_inspect_menu; }
     Action& view_source_action() { return *m_view_source_action; }
 
@@ -386,6 +388,8 @@ private:
     RefPtr<Menu> m_bookmarks_bar_context_menu;
     RefPtr<Menu> m_bookmark_context_menu;
     RefPtr<Menu> m_bookmark_folder_context_menu;
+
+    RefPtr<Menu> m_history_menu;
 
     RefPtr<Menu> m_inspect_menu;
     RefPtr<Action> m_view_source_action;
