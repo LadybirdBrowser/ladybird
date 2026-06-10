@@ -38,8 +38,10 @@ public:
     ~CookieJar();
 
     String get_cookie(URL::URL const& url, HTTP::Cookie::Source source);
-    void set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source);
+    ErrorOr<void> set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source);
     void update_cookie(HTTP::Cookie::Cookie);
+    ErrorOr<void> set_cookie_from_devtools(URL::URL const&, Optional<CookieStorageKey> old_key, HTTP::Cookie::Cookie);
+    bool delete_cookie(CookieStorageKey const&);
     void dump_cookies();
     Vector<HTTP::Cookie::Cookie> get_all_cookies();
     Vector<HTTP::Cookie::Cookie> get_all_cookies_webdriver(URL::URL const& url);
