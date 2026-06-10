@@ -9,7 +9,6 @@
 #pragma once
 
 #include <AK/Debug.h>
-#include <LibGfx/Painter.h>
 #include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
@@ -126,8 +125,8 @@ public:
 
     void flush_transform()
     {
-        if (auto* painter = this->painter())
-            painter->set_transform(drawing_state().transform);
+        if (auto* canvas_command_list = this->canvas_command_list())
+            canvas_command_list->append(Gfx::CanvasCommands::SetTransform { .transform = drawing_state().transform });
     }
 
 protected:

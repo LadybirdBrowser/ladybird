@@ -13,9 +13,12 @@
 #include <AK/NumericLimits.h>
 #include <AK/OwnPtr.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/CanvasCommandList.h>
+#include <LibGfx/CanvasCommandPlayer.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/PainterSkia.h>
+#include <LibGfx/Painter.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -82,10 +85,10 @@ void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
 size_t CanvasRenderingContext2D::external_memory_size() const
 {
     auto size = Base::external_memory_size();
-    if (!m_surface)
+    if (!m_player)
         return size;
 
-    auto surface_size = m_surface->size();
+    auto surface_size = m_player->surface()->size();
     if (surface_size.is_empty())
         return size;
 
@@ -130,9 +133,9 @@ void CanvasRenderingContext2D::clear_rect(float x, float y, float width, float h
     if (!isfinite(x) || !isfinite(y) || !isfinite(width) || !isfinite(height))
         return;
 
-    if (auto* painter = this->painter()) {
+    if (auto* canvas_command_list = this->canvas_command_list()) {
         auto rect = Gfx::FloatRect(x, y, width, height);
-        painter->clear_rect(rect, clear_color());
+        canvas_command_list->append(Gfx::CanvasCommands::ClearRect { .rect = rect, .color = clear_color() });
         did_draw(rect);
     }
 }
@@ -210,8 +213,16 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
         scaling_mode = Gfx::ScalingMode::BilinearMipmap;
     }
 
-    if (auto* painter = this->painter()) {
-        painter->draw_bitmap(destination_rect, *frame, source_rect.to_rounded<int>(), scaling_mode, drawing_state().filter, drawing_state().global_alpha, drawing_state().current_compositing_and_blending_operator);
+    if (auto* canvas_command_list = this->canvas_command_list()) {
+        canvas_command_list->append(Gfx::CanvasCommands::DrawBitmap {
+            .frame = *frame,
+            .dst_rect = destination_rect,
+            .src_rect = source_rect.to_rounded<int>(),
+            .scaling_mode = scaling_mode,
+            .filter = drawing_state().filter,
+            .global_alpha = drawing_state().global_alpha,
+            .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
+        });
         did_draw(destination_rect);
     }
 
@@ -229,15 +240,28 @@ void CanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
     m_element->set_needs_repaint(InvalidateDisplayList::No);
 }
 
-Gfx::Painter* CanvasRenderingContext2D::painter()
+Gfx::CanvasCommandList* CanvasRenderingContext2D::canvas_command_list()
 {
     allocate_painting_surface_if_needed();
-    auto surface = m_element->surface();
-    if (!m_painter && surface) {
-        m_element->set_needs_repaint();
-        m_painter = make<Gfx::PainterSkia>(*m_element->surface());
-    }
-    return m_painter.ptr();
+    if (!m_player)
+        return nullptr;
+    return &m_commands;
+}
+
+RefPtr<Gfx::PaintingSurface> CanvasRenderingContext2D::surface()
+{
+    if (!m_player)
+        return nullptr;
+    flush_recorded_commands();
+    return m_player->surface();
+}
+
+void CanvasRenderingContext2D::flush_recorded_commands()
+{
+    if (m_commands.is_empty())
+        return;
+    auto commands = move(m_commands);
+    m_player->play(commands);
 }
 
 void CanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
@@ -245,19 +269,21 @@ void CanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
     if (m_size == size)
         return;
     m_size = size;
-    m_surface = nullptr;
-    m_painter = nullptr;
+    m_commands = {};
+    m_player = nullptr;
 }
 
 void CanvasRenderingContext2D::present()
 {
-    if (m_painter)
-        m_painter->prune_caches();
+    if (!m_player)
+        return;
+    flush_recorded_commands();
+    m_player->prune_caches();
 }
 
 void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 {
-    if (m_surface || m_size.is_empty())
+    if (m_player || m_size.is_empty())
         return;
 
     // FIXME: implement context attribute .color_space
@@ -267,16 +293,15 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 
     auto color_type = m_context_attributes.alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
 
-    m_surface = Gfx::PaintingSurface::create_with_size(m_element->bitmap_size_for_canvas(), color_type, Gfx::AlphaType::Premultiplied);
-    m_painter = nullptr;
+    auto surface_size = m_element->bitmap_size_for_canvas();
+    m_player = make<Gfx::CanvasCommandPlayer>(nullptr, surface_size, color_type, Gfx::AlphaType::Premultiplied);
+    m_element->set_needs_repaint();
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
     // Thus, the bitmap of such a context starts off as opaque black instead of transparent black;
     // AD-HOC: Skia provides us with a full transparent surface by default; only clear the surface if alpha is disabled.
-    if (!m_context_attributes.alpha) {
-        auto* painter = this->painter();
-        painter->clear_rect(m_surface->rect().to_type<float>(), clear_color());
-    }
+    if (!m_context_attributes.alpha)
+        m_player->clear(clear_color());
 }
 
 Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, float y, Optional<double> max_width)
@@ -432,10 +457,10 @@ Gfx::Color CanvasRenderingContext2D::clear_color() const
     return m_context_attributes.alpha ? Gfx::Color::Transparent : Gfx::Color::Black;
 }
 
-void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
+void CanvasRenderingContext2D::stroke_internal(Gfx::Path path)
 {
-    auto* painter = this->painter();
-    if (!painter)
+    auto* canvas_command_list = this->canvas_command_list();
+    if (!canvas_command_list)
         return;
 
     auto& state = drawing_state();
@@ -453,19 +478,32 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
         dash_array.append(static_cast<float>(dash));
     }
     paint_shadow_for_stroke_internal(path, line_cap, line_join, dash_array);
-    painter->stroke_path(path, paint_style, state.filter, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator, line_cap, line_join, state.miter_limit, dash_array, state.line_dash_offset);
+    auto bounding_box = path.bounding_box();
+    canvas_command_list->append(Gfx::CanvasCommands::StrokePath {
+        .path = move(path),
+        .style = Gfx::to_canvas_paint_style(*paint_style),
+        .thickness = state.line_width,
+        .cap_style = line_cap,
+        .join_style = line_join,
+        .miter_limit = state.miter_limit,
+        .dash_array = move(dash_array),
+        .dash_offset = state.line_dash_offset,
+        .filter = state.filter,
+        .global_alpha = state.global_alpha,
+        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
+    });
 
-    did_draw(path.bounding_box());
+    did_draw(bounding_box);
 }
 
 void CanvasRenderingContext2D::stroke()
 {
-    stroke_internal(path());
+    stroke_internal(path().clone());
 }
 
 void CanvasRenderingContext2D::stroke(Path2D const& path)
 {
-    stroke_internal(path.path());
+    stroke_internal(path.path().clone());
 }
 
 static Gfx::WindingRule parse_fill_rule(StringView fill_rule)
@@ -478,10 +516,10 @@ static Gfx::WindingRule parse_fill_rule(StringView fill_rule)
     return Gfx::WindingRule::Nonzero;
 }
 
-void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+void CanvasRenderingContext2D::fill_internal(Gfx::Path path, Gfx::WindingRule winding_rule)
 {
-    auto* painter = this->painter();
-    if (!painter)
+    auto* canvas_command_list = this->canvas_command_list();
+    if (!canvas_command_list)
         return;
 
     auto& state = this->drawing_state();
@@ -491,19 +529,27 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
 
     paint_shadow_for_fill_internal(path, winding_rule);
 
-    painter->fill_path(path, paint_style, state.filter, state.global_alpha, state.current_compositing_and_blending_operator, winding_rule);
+    auto bounding_box = path.bounding_box();
+    canvas_command_list->append(Gfx::CanvasCommands::FillPath {
+        .path = move(path),
+        .style = Gfx::to_canvas_paint_style(*paint_style),
+        .winding_rule = winding_rule,
+        .filter = state.filter,
+        .global_alpha = state.global_alpha,
+        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
+    });
 
-    did_draw(path.bounding_box());
+    did_draw(bounding_box);
 }
 
 void CanvasRenderingContext2D::fill(StringView fill_rule)
 {
-    fill_internal(path(), parse_fill_rule(fill_rule));
+    fill_internal(path().clone(), parse_fill_rule(fill_rule));
 }
 
 void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
 {
-    fill_internal(path.path(), parse_fill_rule(fill_rule));
+    fill_internal(path.path().clone(), parse_fill_rule(fill_rule));
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
@@ -598,8 +644,8 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_image_data(ImageData& im
 {
     // The putImageData(imageData, dx, dy) method steps are to put pixels from an ImageData onto a bitmap,
     // given imageData, this's output bitmap, dx, dy, 0, 0, imageData's width, and imageData's height.
-    if (auto* painter = this->painter())
-        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *painter, dx, dy, 0, 0, image_data.width(), image_data.height()));
+    if (auto* canvas_command_list = this->canvas_command_list())
+        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *canvas_command_list, dx, dy, 0, 0, image_data.width(), image_data.height()));
 
     return {};
 }
@@ -610,14 +656,14 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_image_data(ImageData& im
     // The putImageData(imageData, dx, dy, dirtyX, dirtyY, dirtyWidth, dirtyHeight) method steps are to put pixels
     // from an ImageData onto a bitmap, given imageData, this's output bitmap, dx, dy, dirtyX, dirtyY, dirtyWidth, and
     // dirtyHeight.
-    if (auto* painter = this->painter())
-        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *painter, x, y, dirty_x, dirty_y, dirty_width, dirty_height));
+    if (auto* canvas_command_list = this->canvas_command_list())
+        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *canvas_command_list, x, y, dirty_x, dirty_y, dirty_width, dirty_height));
 
     return {};
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context2d-putimagedata-common
-WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_data_onto_a_bitmap(ImageData& image_data, Gfx::Painter& painter, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
+WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_data_onto_a_bitmap(ImageData& image_data, Gfx::CanvasCommandList& canvas_command_list, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
 {
     // 1. Let buffer be imageData's data attribute value's [[ViewedArrayBuffer]] internal slot.
     auto* buffer = image_data.data()->viewed_array_buffer();
@@ -672,17 +718,24 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_dat
     //    imageData data structure's bitmap, converted from imageData's colorSpace to the color space of bitmap using
     //    'relative-colorimetric' rendering intent.
     auto dst_rect = Gfx::FloatRect { dx + dirty_x, dy + dirty_y, dirty_width, dirty_height };
-    painter.save();
-    painter.set_transform({});
-    painter.draw_bitmap(
-        dst_rect,
-        Gfx::DecodedImageFrame { image_data.bitmap(), Gfx::AlphaType::Unpremultiplied },
-        Gfx::IntRect { dirty_x, dirty_y, dirty_width, dirty_height },
-        Gfx::ScalingMode::NearestNeighbor,
-        {},
-        1.0f,
-        Gfx::CompositingAndBlendingOperator::SourceOver);
-    painter.restore();
+    // NOTE: The ImageData buffer is mutable from script and the recorded draw is only
+    //       serialized at flush time, so snapshot the dirty pixels at call time. The
+    //       snapshot is shareable so that flushing to the Compositor passes the pixels
+    //       by file descriptor instead of copying them again.
+    auto source_rect = Gfx::IntRect { dirty_x, dirty_y, dirty_width, dirty_height };
+    auto const& source_bitmap = image_data.bitmap();
+    auto bitmap_snapshot = MUST(Gfx::Bitmap::create_shareable(source_bitmap.format(), source_bitmap.alpha_type(), source_rect.size()));
+    for (int y = 0; y < source_rect.height(); ++y)
+        __builtin_memcpy(bitmap_snapshot->scanline(y), source_bitmap.scanline(source_rect.y() + y) + source_rect.x(), static_cast<size_t>(source_rect.width()) * sizeof(Gfx::RawPixel));
+    canvas_command_list.append(Gfx::CanvasCommands::Save {});
+    canvas_command_list.append(Gfx::CanvasCommands::SetTransform { .transform = {} });
+    canvas_command_list.append(Gfx::CanvasCommands::DrawBitmap {
+        .frame = Gfx::DecodedImageFrame { *bitmap_snapshot, Gfx::AlphaType::Unpremultiplied },
+        .dst_rect = dst_rect,
+        .src_rect = bitmap_snapshot->rect(),
+        .filter = {},
+    });
+    canvas_command_list.append(Gfx::CanvasCommands::Restore {});
 
     did_draw(dst_rect);
 
@@ -696,7 +749,7 @@ void CanvasRenderingContext2D::reset_to_default_state()
 
     // 1. Clear canvas's bitmap to transparent black.
     if (surface) {
-        painter()->clear_rect(surface->rect().to_type<float>(), clear_color());
+        canvas_command_list()->append(Gfx::CanvasCommands::ClearRect { .rect = surface->rect().to_type<float>(), .color = clear_color() });
     }
 
     // 2. Empty the list of subpaths in context's current default path.
@@ -709,7 +762,7 @@ void CanvasRenderingContext2D::reset_to_default_state()
     reset_drawing_state();
 
     if (surface) {
-        painter()->reset();
+        canvas_command_list()->append(Gfx::CanvasCommands::Reset {});
         did_draw(surface->rect().to_type<float>());
     }
 }
@@ -855,11 +908,11 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Ut
 
 void CanvasRenderingContext2D::clip_internal(Gfx::Path& path, Gfx::WindingRule winding_rule)
 {
-    auto* painter = this->painter();
-    if (!painter)
+    auto* canvas_command_list = this->canvas_command_list();
+    if (!canvas_command_list)
         return;
 
-    painter->clip(path, winding_rule);
+    canvas_command_list->append(Gfx::CanvasCommands::ClipPath { .path = path.clone(), .winding_rule = winding_rule });
 }
 
 void CanvasRenderingContext2D::clip(StringView fill_rule)
@@ -1152,8 +1205,8 @@ void CanvasRenderingContext2D::set_shadow_color(String color)
 }
 void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
 {
-    auto* painter = this->painter();
-    if (!painter)
+    auto* canvas_command_list = this->canvas_command_list();
+    if (!canvas_command_list)
         return;
 
     auto& state = this->drawing_state();
@@ -1170,23 +1223,30 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
     if (alpha == 0.0f)
         return;
 
-    painter->save();
+    canvas_command_list->append(Gfx::CanvasCommands::Save {});
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     transform.multiply(state.transform);
-    painter->set_transform(transform);
-    painter->fill_path(path, state.shadow_color.with_opacity(alpha), winding_rule, state.shadow_blur, state.current_compositing_and_blending_operator);
+    canvas_command_list->append(Gfx::CanvasCommands::SetTransform { .transform = transform });
+    canvas_command_list->append(Gfx::CanvasCommands::FillPath {
+        .path = path.clone(),
+        .style = state.shadow_color.with_opacity(alpha),
+        .winding_rule = winding_rule,
+        .blur_radius = state.shadow_blur,
+        .filter = state.filter,
+        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
+    });
 
-    painter->restore();
+    canvas_command_list->append(Gfx::CanvasCommands::Restore {});
 
     did_draw(path.bounding_box());
 }
 
 void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const& path, Gfx::Path::CapStyle line_cap, Gfx::Path::JoinStyle line_join, Vector<float> const& dash_array)
 {
-    auto* painter = this->painter();
-    if (!painter)
+    auto* canvas_command_list = this->canvas_command_list();
+    if (!canvas_command_list)
         return;
 
     auto& state = drawing_state();
@@ -1204,15 +1264,27 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
     if (alpha == 0.0f)
         return;
 
-    painter->save();
+    canvas_command_list->append(Gfx::CanvasCommands::Save {});
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     transform.multiply(state.transform);
-    painter->set_transform(transform);
-    painter->stroke_path(path, state.shadow_color.with_opacity(alpha), state.line_width, state.shadow_blur, state.current_compositing_and_blending_operator, line_cap, line_join, state.miter_limit, dash_array, state.line_dash_offset);
+    canvas_command_list->append(Gfx::CanvasCommands::SetTransform { .transform = transform });
+    canvas_command_list->append(Gfx::CanvasCommands::StrokePath {
+        .path = path.clone(),
+        .style = state.shadow_color.with_opacity(alpha),
+        .thickness = state.line_width,
+        .cap_style = line_cap,
+        .join_style = line_join,
+        .miter_limit = state.miter_limit,
+        .dash_array = dash_array,
+        .dash_offset = state.line_dash_offset,
+        .blur_radius = state.shadow_blur,
+        .filter = state.filter,
+        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
+    });
 
-    painter->restore();
+    canvas_command_list->append(Gfx::CanvasCommands::Restore {});
 
     did_draw(path.bounding_box());
 }

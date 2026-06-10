@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/CanvasCommandList.h>
 #include <LibWeb/HTML/Canvas/DrawingState.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
@@ -20,7 +21,7 @@ protected:
     virtual DrawingState const& drawing_state() const = 0;
     virtual JS::Realm& my_realm() = 0;
     virtual Gfx::Path& mutable_path() = 0;
-    virtual Gfx::Painter* painter() = 0;
+    virtual Gfx::CanvasCommandList* canvas_command_list() = 0;
     virtual CSS::ComputationContext computation_context_for_drawing_state() const = 0;
     Optional<Color> parse_a_css_color_value(StringView const& value) const;
 };
