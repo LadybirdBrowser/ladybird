@@ -533,6 +533,12 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
         }
     };
 
+    // If a prior seek encountered a decoding error, stop here to ensure that the pipeline state stays Error.
+    if (m_current_halting_status != PipelineStatus::Pending) {
+        set_halting_status_and_wait_for_seek(m_current_halting_status, {});
+        return;
+    }
+
     auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
     if (sample_result.is_error()) {
         if (sample_result.error().category() == DecoderErrorCategory::EndOfStream) {
