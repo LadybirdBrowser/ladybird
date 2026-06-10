@@ -14,6 +14,7 @@
 #include <LibDevTools/Actors/FrameActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/NetworkParentActor.h>
+#include <LibDevTools/Actors/StorageActor.h>
 #include <LibDevTools/Actors/StyleSheetsActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/TargetConfigurationActor.h>
@@ -91,11 +92,13 @@ void WatcherActor::handle_message(Message const& message)
             return;
 
         bool should_send_cookie_resources = false;
+        bool should_send_local_storage_resources = false;
+        bool should_send_session_storage_resources = false;
         if constexpr (DEVTOOLS_DEBUG) {
             for (auto const& resource_type : resource_types->values()) {
                 if (!resource_type.is_string())
                     continue;
-                if (resource_type.as_string() != "console-message"sv && resource_type.as_string() != "cookies"sv)
+                if (!first_is_one_of(resource_type.as_string(), "console-message"sv, "cookies"sv, "local-storage"sv, "session-storage"sv))
                     dbgln("Unrecognized `watchResources` resource type: '{}'", resource_type.as_string());
             }
         }
@@ -105,12 +108,22 @@ void WatcherActor::handle_message(Message const& message)
             if (resource_type.as_string() == "cookies"sv) {
                 m_is_watching_cookie_resources = true;
                 should_send_cookie_resources = true;
+            } else if (resource_type.as_string() == "local-storage"sv) {
+                m_is_watching_local_storage_resources = true;
+                should_send_local_storage_resources = true;
+            } else if (resource_type.as_string() == "session-storage"sv) {
+                m_is_watching_session_storage_resources = true;
+                should_send_session_storage_resources = true;
             }
         }
 
         send_response(message, move(response));
         if (should_send_cookie_resources)
             send_cookies_resource_available_message();
+        if (should_send_local_storage_resources)
+            send_storage_resource_available_message(local_storage_actor());
+        if (should_send_session_storage_resources)
+            send_storage_resource_available_message(session_storage_actor());
         return;
     }
 
@@ -155,13 +168,13 @@ JsonObject WatcherActor::serialize_description() const
     resources.set("jstracer-state"sv, false);
     resources.set("jstracer-trace"sv, false);
     resources.set("last-private-context-exit"sv, false);
-    resources.set("local-storage"sv, false);
+    resources.set("local-storage"sv, true);
     resources.set("network-event"sv, true);
     resources.set("network-event-stacktrace"sv, false);
     resources.set("platform-message"sv, false);
     resources.set("reflow"sv, false);
     resources.set("server-sent-event"sv, false);
-    resources.set("session-storage"sv, false);
+    resources.set("session-storage"sv, true);
     resources.set("source"sv, false);
     resources.set("stylesheet"sv, false);
     resources.set("thread-state"sv, false);
@@ -214,6 +227,10 @@ void WatcherActor::switch_frame_target(FrameActor& previous_target, String const
     target.set_pending_navigation_document_events_after_target_switch(url, title);
     if (m_is_watching_cookie_resources)
         send_cookies_resource_available_message();
+    if (m_is_watching_local_storage_resources)
+        send_storage_resource_available_message(local_storage_actor());
+    if (m_is_watching_session_storage_resources)
+        send_storage_resource_available_message(session_storage_actor());
 }
 
 void WatcherActor::send_frame_target_available_message(FrameActor& target)
@@ -257,6 +274,42 @@ void WatcherActor::send_cookies_resource_available_message()
 
     JsonArray array;
     array.must_append(move(cookie_resources));
+
+    JsonObject message;
+    message.set("type"sv, "resources-available-array"sv);
+    message.set("array"sv, move(array));
+    send_message(move(message));
+}
+
+StorageActor& WatcherActor::local_storage_actor()
+{
+    if (auto storage = m_local_storage.strong_ref())
+        return *storage;
+
+    m_local_storage = devtools().register_actor<StorageActor>(m_tab, Web::StorageAPI::StorageEndpointType::LocalStorage);
+    return *m_local_storage.strong_ref();
+}
+
+StorageActor& WatcherActor::session_storage_actor()
+{
+    if (auto storage = m_session_storage.strong_ref())
+        return *storage;
+
+    m_session_storage = devtools().register_actor<StorageActor>(m_tab, Web::StorageAPI::StorageEndpointType::SessionStorage);
+    return *m_session_storage.strong_ref();
+}
+
+void WatcherActor::send_storage_resource_available_message(StorageActor& storage)
+{
+    JsonArray resources;
+    resources.must_append(storage.serialize_storage());
+
+    JsonArray typed_resources;
+    typed_resources.must_append(storage.resource_type());
+    typed_resources.must_append(move(resources));
+
+    JsonArray array;
+    array.must_append(move(typed_resources));
 
     JsonObject message;
     message.set("type"sv, "resources-available-array"sv);

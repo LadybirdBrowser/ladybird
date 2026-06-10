@@ -477,6 +477,11 @@ void ViewImplementation::inspect_dom_tree()
     client().async_inspect_dom_tree(page_id());
 }
 
+void ViewImplementation::inspect_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id)
+{
+    client().async_inspect_storage(page_id(), storage_endpoint, request_id);
+}
+
 void ViewImplementation::inspect_accessibility_tree()
 {
     client().async_inspect_accessibility_tree(page_id());

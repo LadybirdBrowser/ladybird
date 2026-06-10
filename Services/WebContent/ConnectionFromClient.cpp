@@ -558,6 +558,52 @@ void ConnectionFromClient::inspect_dom_tree(u64 page_id)
     }
 }
 
+void ConnectionFromClient::inspect_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_inspect_storage(page_id, request_id, "[]"_string);
+        return;
+    }
+
+    auto* document = page->page().top_level_browsing_context().active_document();
+    if (!document || !document->window()) {
+        async_did_inspect_storage(page_id, request_id, "[]"_string);
+        return;
+    }
+
+    Web::WebIDL::ExceptionOr<GC::Ref<Web::HTML::Storage>> storage_or_error = [&]() -> Web::WebIDL::ExceptionOr<GC::Ref<Web::HTML::Storage>> {
+        if (storage_endpoint == Web::StorageAPI::StorageEndpointType::LocalStorage)
+            return document->window()->local_storage();
+        VERIFY(storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage);
+        return document->window()->session_storage();
+    }();
+
+    if (storage_or_error.is_error()) {
+        async_did_inspect_storage(page_id, request_id, "[]"_string);
+        return;
+    }
+
+    auto storage = storage_or_error.release_value();
+    JsonArray storage_items;
+    for (auto i = 0uz; i < storage->length(); ++i) {
+        auto name = storage->key(i);
+        if (!name.has_value())
+            continue;
+
+        auto value = storage->get_item(*name);
+        if (!value.has_value())
+            continue;
+
+        JsonObject item;
+        item.set("name"sv, name.release_value());
+        item.set("value"sv, value.release_value());
+        storage_items.must_append(move(item));
+    }
+
+    async_did_inspect_storage(page_id, request_id, storage_items.serialized());
+}
+
 void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options_value)
 {
     auto page = this->page(page_id);

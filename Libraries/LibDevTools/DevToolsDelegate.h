@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
 
@@ -44,6 +45,14 @@ public:
     using OnHostCookieChange = Function<void(Vector<HTTP::Cookie::Cookie>)>;
     virtual void listen_for_host_cookie_changes(TabDescription const&, OnHostCookieChange) const { }
     virtual void stop_listening_for_host_cookie_changes(TabDescription const&) const { }
+
+    struct StorageItem {
+        String name;
+        String value;
+    };
+
+    using OnStorageItemsReceived = Function<void(ErrorOr<Vector<StorageItem>>)>;
+    virtual void inspect_storage(TabDescription const&, Web::StorageAPI::StorageEndpointType, OnStorageItemsReceived) const { }
 
     using OnTabInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void inspect_tab(TabDescription const&, OnTabInspectionComplete) const { }
