@@ -7,86 +7,23 @@
 
 #include <AK/kmalloc.h>
 
-#if defined(AK_OS_SERENITY)
+#include <cstddef>
+#include <cstring>
 
-#    include <AK/Assertions.h>
-
-// However deceptively simple these functions look, they must not be inlined.
-// Memory allocated in one translation unit has to be deallocatable in another
-// translation unit, so these functions must be the same everywhere.
-// By making these functions global, this invariant is enforced.
-
-void* operator new(size_t size)
-{
-    void* ptr = malloc(size);
-    VERIFY(ptr);
-    return ptr;
-}
-
-void* operator new(size_t size, std::nothrow_t const&) noexcept
-{
-    return malloc(size);
-}
-
-void operator delete(void* ptr) noexcept
-{
-    return free(ptr);
-}
-
-void operator delete(void* ptr, size_t) noexcept
-{
-    return free(ptr);
-}
-
-void* operator new[](size_t size)
-{
-    void* ptr = malloc(size);
-    VERIFY(ptr);
-    return ptr;
-}
-
-void* operator new[](size_t size, std::nothrow_t const&) noexcept
-{
-    return malloc(size);
-}
-
-void operator delete[](void* ptr) noexcept
-{
-    return free(ptr);
-}
-
-void operator delete[](void* ptr, size_t) noexcept
-{
-    return free(ptr);
-}
-
-// This is usually provided by libstdc++ in most cases, and the kernel has its own definition in
-// Kernel/Heap/kmalloc.cpp. If neither of those apply, the following should suffice to not fail during linking.
-namespace AK_REPLACED_STD_NAMESPACE {
-
-nothrow_t const nothrow;
-
-}
-
-#else
-
-#    include <cstddef>
-#    include <cstring>
-
-#    if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
+#if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
 // LeakSanitizer does not reliably trace references stored in mimalloc-managed
 // AK containers, so sanitizer builds fall back to the system allocator.
-#        define AK_USE_SYSTEM_ALLOCATOR_INSTRUMENTED 1
-#    else
-#        include <mimalloc.h>
-#    endif
+#    define AK_USE_SYSTEM_ALLOCATOR_INSTRUMENTED 1
+#else
+#    include <mimalloc.h>
+#endif
 
 static bool allocation_needs_explicit_alignment(size_t alignment)
 {
     return alignment > alignof(std::max_align_t);
 }
 
-#    ifdef AK_USE_SYSTEM_ALLOCATOR_INSTRUMENTED
+#ifdef AK_USE_SYSTEM_ALLOCATOR_INSTRUMENTED
 
 static void* aligned_alloc_with_system_allocator(size_t size, size_t alignment, bool zeroed)
 {
@@ -109,9 +46,19 @@ void* ak_kmalloc(size_t size)
     return malloc(size);
 }
 
+void* ak_kmalloc(HeapPartition, size_t size)
+{
+    return ak_kmalloc(size);
+}
+
 void* ak_krealloc(void* ptr, size_t size)
 {
     return realloc(ptr, size);
+}
+
+void* ak_krealloc(HeapPartition, void* ptr, size_t size)
+{
+    return ak_krealloc(ptr, size);
 }
 
 size_t ak_kmalloc_good_size(size_t size)
@@ -164,7 +111,7 @@ extern "C" void* ladybird_rust_realloc(void* ptr, size_t old_size, size_t new_si
     return new_ptr;
 }
 
-#    else
+#else
 
 void* ak_kcalloc(size_t count, size_t size)
 {
@@ -176,9 +123,28 @@ void* ak_kmalloc(size_t size)
     return mi_malloc(size);
 }
 
+static mi_heap_t* heap_for_partition(HeapPartition partition)
+{
+    switch (partition) {
+    case HeapPartition::General:
+        return mi_heap_get_default();
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void* ak_kmalloc(HeapPartition partition, size_t size)
+{
+    return mi_heap_malloc(heap_for_partition(partition), size);
+}
+
 void* ak_krealloc(void* ptr, size_t size)
 {
     return mi_realloc(ptr, size);
+}
+
+void* ak_krealloc(HeapPartition partition, void* ptr, size_t size)
+{
+    return mi_heap_realloc(heap_for_partition(partition), ptr, size);
 }
 
 size_t ak_kmalloc_good_size(size_t size)
@@ -223,7 +189,5 @@ extern "C" void* ladybird_rust_realloc(void* ptr, size_t, size_t new_size, size_
         return mi_realloc_aligned(ptr, new_size, alignment);
     return mi_realloc(ptr, new_size);
 }
-
-#    endif
 
 #endif
