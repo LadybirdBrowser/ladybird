@@ -53,6 +53,9 @@ public:
 
     using OnStorageItemsReceived = Function<void(ErrorOr<Vector<StorageItem>>)>;
     virtual void inspect_storage(TabDescription const&, Web::StorageAPI::StorageEndpointType, OnStorageItemsReceived) const { }
+    virtual ErrorOr<Optional<String>> set_storage_item(TabDescription const&, Web::StorageAPI::StorageEndpointType, String const&, String const&, String const&) const { return Optional<String> {}; }
+    virtual ErrorOr<Optional<String>> remove_storage_item(TabDescription const&, Web::StorageAPI::StorageEndpointType, String const&, String const&) const { return Optional<String> {}; }
+    virtual ErrorOr<void> clear_storage(TabDescription const&, Web::StorageAPI::StorageEndpointType, String const&) const { return {}; }
 
     struct StorageChange {
         enum class Type : u8 {

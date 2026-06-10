@@ -44,6 +44,7 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/Settings.h>
+#include <LibWebView/StorageSetResult.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -127,6 +128,9 @@ public:
 
     void inspect_dom_tree();
     void inspect_storage(Web::StorageAPI::StorageEndpointType, u64 request_id);
+    Optional<StorageSetResult> set_session_storage_item(String const& key, String const& value);
+    Optional<String> remove_session_storage_item(String const& key);
+    bool clear_session_storage();
     void inspect_accessibility_tree();
     void get_hovered_node_id();
     void start_node_picker(DevTools::DevToolsDelegate::OnNodePickerEvent);

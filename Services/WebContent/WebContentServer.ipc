@@ -23,6 +23,7 @@
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/Settings.h>
+#include <LibWebView/StorageSetResult.h>
 
 endpoint WebContentServer
 {
@@ -60,6 +61,9 @@ endpoint WebContentServer
     get_source(u64 page_id) =|
     inspect_dom_tree(u64 page_id) =|
     inspect_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id) =|
+    set_session_storage_item(u64 page_id, String key, String value) => (Optional<WebView::StorageSetResult> result)
+    remove_session_storage_item(u64 page_id, String key) => (Optional<String> old_value)
+    clear_session_storage(u64 page_id) => (bool did_clear)
     inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) =|
     inspect_grid_layouts(u64 page_id, Web::UniqueNodeID root_node_id) =|
     inspect_current_grid(u64 page_id, Web::UniqueNodeID node_id) =|
