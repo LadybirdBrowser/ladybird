@@ -21,7 +21,7 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::create_uninitialized(StorageType
 {
     auto allocation_size = allocation_size_for_string_data(storage_type == Utf16StringData::StorageType::ASCII, code_unit_length);
 
-    void* slot = kmalloc(allocation_size);
+    void* slot = kmalloc(HeapPartition::String, allocation_size);
     VERIFY(slot);
 
     return adopt_ref(*new (slot) Utf16StringData(storage_type, code_unit_length));

@@ -24,7 +24,64 @@ public:
     static constexpr auto DEFAULT_MODE = Mode::UTF8;
     static constexpr size_t inline_capacity = 256;
 
-    using Buffer = Detail::ByteBuffer<inline_capacity>;
+    class Buffer {
+    public:
+        Buffer() = default;
+        Buffer(Buffer const&);
+        Buffer(Buffer&&);
+        ~Buffer();
+
+        Buffer& operator=(Buffer const&);
+        Buffer& operator=(Buffer&&);
+
+        [[nodiscard]] u8* data();
+        [[nodiscard]] u8 const* data() const;
+
+        [[nodiscard]] Bytes span() LIFETIME_BOUND;
+        [[nodiscard]] ReadonlyBytes span() const LIFETIME_BOUND;
+
+        [[nodiscard]] void* end_pointer();
+
+        [[nodiscard]] size_t size() const { return m_size; }
+        [[nodiscard]] size_t capacity() const { return m_inline ? inline_capacity : m_outline_capacity; }
+        [[nodiscard]] bool is_inline() const { return m_inline; }
+
+        void clear();
+        void resize(size_t);
+        void set_size(size_t);
+        void ensure_capacity(size_t);
+
+        ErrorOr<void> try_resize(size_t);
+        ErrorOr<void> try_ensure_capacity(size_t);
+        ErrorOr<void> try_append(char);
+        ErrorOr<void> try_append(ReadonlyBytes);
+        ErrorOr<void> try_append(void const*, size_t);
+
+        void append(char);
+        void append(void const*, size_t);
+
+        struct OutlineBuffer {
+            Bytes buffer;
+            size_t capacity { 0 };
+        };
+        Optional<OutlineBuffer> leak_outline_buffer();
+
+    private:
+        void move_from(Buffer&&);
+        void trim(size_t, bool may_discard_existing_data);
+        void shrink_into_inline_buffer(size_t, bool may_discard_existing_data);
+        ErrorOr<void> try_ensure_capacity_slowpath(size_t);
+
+        union {
+            u8 m_inline_buffer[inline_capacity];
+            struct {
+                u8* m_outline_buffer;
+                size_t m_outline_capacity;
+            };
+        };
+        size_t m_size { 0 };
+        bool m_inline { true };
+    };
 
     StringBuilder();
     explicit StringBuilder(size_t initial_capacity);

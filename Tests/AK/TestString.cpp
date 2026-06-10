@@ -282,6 +282,21 @@ TEST_CASE(string_builder)
     EXPECT_EQ(string.bytes().size(), 8u);
 }
 
+TEST_CASE(string_builder_outlined_to_string)
+{
+    StringBuilder builder;
+    builder.append_repeated("abcd"sv, 100);
+
+    auto string = MUST(builder.to_string());
+    EXPECT_EQ(string.bytes_as_string_view().length(), 400u);
+    EXPECT(string.starts_with_bytes("abcd"sv));
+    EXPECT(string.ends_with_bytes("abcd"sv));
+
+    builder.append("reused"sv);
+    auto reused_string = MUST(builder.to_string());
+    EXPECT_EQ(reused_string, "reused"sv);
+}
+
 TEST_CASE(ak_format)
 {
     auto foo = MUST(String::formatted("Hello {}", "friends"_string));
