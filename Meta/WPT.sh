@@ -94,6 +94,7 @@ WPT_ARGS=(
 )
 IMPORT_ARGS=()
 WPT_LOG_ARGS=()
+TESTS_FROM_FILE=()
 
 ARG0=$0
 print_help() {
@@ -135,6 +136,9 @@ print_help() {
               N>1 to enable chunked mode with explicit process count
       --log PATH
           Alias for --log-raw PATH
+      --test-list PATH
+          Read tests to run from the given file, one test path per line
+              Empty lines and lines starting with '#' are ignored
       --log-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot) PATH
           Enable the given wpt log option with the given PATH
 
@@ -191,10 +195,17 @@ set_logging_flags()
 
 headless=1
 ARG=$1
-while [[ "$ARG" =~ ^(--show-window|--debug-process|--parallel-instances|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
+while [[ "$ARG" =~ ^(--show-window|--debug-process|--parallel-instances|--test-list|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
     case "$ARG" in
         --show-window)
             headless=0
+            ;;
+        --test-list)
+            [ -f "${2}" ] || die "No such test list file: '${2}'"
+            while IFS= read -r test_path; do
+                TESTS_FROM_FILE+=("$test_path")
+            done < <(grep -v -e '^#' -e '^[[:space:]]*$' "${2}")
+            shift
             ;;
         --debug-process)
             process_name="${2}"
@@ -226,7 +237,7 @@ fi
 exit_if_running_as_root "Do not run WPT.sh as root"
 
 construct_test_list() {
-    TEST_LIST=( "$@" )
+    TEST_LIST=( "$@" "${TESTS_FROM_FILE[@]}" )
 
     for i in "${!TEST_LIST[@]}"; do
         item="${TEST_LIST[i]}"
