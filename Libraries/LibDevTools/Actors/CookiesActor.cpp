@@ -23,6 +23,7 @@ namespace DevTools {
 static constexpr auto cookie_unique_key_separator = "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv;
 static constexpr auto max_store_object_count = 50uz;
 static constexpr auto session_cookie_label = "Session"sv;
+static constexpr auto default_cookie_value = "value"sv;
 
 static bool cookie_matches_storage_host(HTTP::Cookie::Cookie const& cookie, String const& storage_host)
 {
@@ -71,6 +72,13 @@ static bool cookie_matches_unique_key(HTTP::Cookie::Cookie const& cookie, Parsed
     return cookie.name == unique_key.name
         && cookie.domain == unique_key.domain
         && cookie.path == unique_key.path;
+}
+
+static bool cookie_matches_requested_domain(HTTP::Cookie::Cookie const& cookie, Optional<String> const& domain)
+{
+    if (!domain.has_value())
+        return true;
+    return cookie.domain == *domain;
 }
 
 static JsonObject cookie_operation_result(Optional<String> error_string)
@@ -222,10 +230,10 @@ JsonObject CookiesActor::serialize_storage() const
         hosts.set(*storage_host, JsonArray {});
 
     JsonObject traits;
-    traits.set("supportsAddItem"sv, false);
-    traits.set("supportsRemoveAll"sv, false);
-    traits.set("supportsRemoveAllSessionCookies"sv, false);
-    traits.set("supportsRemoveItem"sv, false);
+    traits.set("supportsAddItem"sv, true);
+    traits.set("supportsRemoveAll"sv, true);
+    traits.set("supportsRemoveAllSessionCookies"sv, true);
+    traits.set("supportsRemoveItem"sv, true);
 
     JsonObject storage;
     storage.set("actor"sv, name());
@@ -254,6 +262,26 @@ void CookiesActor::handle_message(Message const& message)
 
     if (message.type == "editItem"sv) {
         edit_item(message);
+        return;
+    }
+
+    if (message.type == "addItem"sv) {
+        add_item(message);
+        return;
+    }
+
+    if (message.type == "removeItem"sv) {
+        remove_item(message);
+        return;
+    }
+
+    if (message.type == "removeAll"sv) {
+        remove_all(message);
+        return;
+    }
+
+    if (message.type == "removeAllSessionCookies"sv) {
+        remove_all_session_cookies(message);
         return;
     }
 
@@ -491,6 +519,137 @@ void CookiesActor::edit_item(Message const& message)
 
     auto result = devtools().delegate().set_cookie(tab->description(), old_cookie, move(edited_cookie));
     send_response(message, cookie_operation_result(move(result)));
+}
+
+void CookiesActor::add_item(Message const& message)
+{
+    auto guid = get_required_parameter<String>(message, "guid"sv);
+    if (!guid.has_value())
+        return;
+
+    auto storage_host = message.data.get_string("host"sv)
+                            .value_or_lazy_evaluated_optional([this] { return host(); });
+    if (!storage_host.has_value()) {
+        send_response(message, cookie_operation_result("No storage host is available for this page"_string));
+        return;
+    }
+
+    auto storage_url = URL::Parser::basic_parse(*storage_host);
+    auto host_name = storage_host_name(*storage_host);
+    if (!storage_url.has_value() || !host_name.has_value()) {
+        send_response(message, cookie_operation_result("Cannot add a cookie for this storage host"_string));
+        return;
+    }
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    auto now = UnixDateTime::now();
+
+    HTTP::Cookie::Cookie cookie;
+    cookie.name = move(*guid);
+    cookie.value = MUST(String::from_utf8(default_cookie_value));
+    cookie.same_site = HTTP::Cookie::SameSite::Lax;
+    cookie.creation_time = now;
+    cookie.last_access_time = now;
+    set_session_cookie_expiry(cookie);
+    cookie.domain = move(*host_name);
+    cookie.path = "/"_string;
+    cookie.secure = storage_url->scheme() == "https"sv;
+    cookie.host_only = true;
+
+    auto result = devtools().delegate().set_cookie(tab->description(), {}, move(cookie));
+    send_response(message, cookie_operation_result(move(result)));
+}
+
+void CookiesActor::remove_item(Message const& message)
+{
+    auto host = get_required_parameter<String>(message, "host"sv);
+    if (!host.has_value())
+        return;
+
+    auto name = get_required_parameter<String>(message, "name"sv);
+    if (!name.has_value())
+        return;
+
+    auto unique_key = parse_cookie_unique_key(name->bytes_as_string_view());
+    if (!unique_key.has_value()) {
+        send_response(message, {});
+        return;
+    }
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    Vector<HTTP::Cookie::Cookie> cookies_to_delete;
+    for (auto& cookie : devtools().delegate().cookies(tab->description())) {
+        if (!cookie_matches_storage_host(cookie, *host))
+            continue;
+        if (!cookie_matches_unique_key(cookie, *unique_key))
+            continue;
+        cookies_to_delete.append(move(cookie));
+    }
+
+    devtools().delegate().delete_cookies(tab->description(), move(cookies_to_delete));
+    send_response(message, {});
+}
+
+void CookiesActor::remove_all(Message const& message)
+{
+    auto host = get_required_parameter<String>(message, "host"sv);
+    if (!host.has_value())
+        return;
+
+    Optional<String> domain;
+    if (auto requested_domain = message.data.get_string("domain"sv); requested_domain.has_value())
+        domain = *requested_domain;
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    Vector<HTTP::Cookie::Cookie> cookies_to_delete;
+    for (auto& cookie : devtools().delegate().cookies(tab->description())) {
+        if (!cookie_matches_storage_host(cookie, *host))
+            continue;
+        if (!cookie_matches_requested_domain(cookie, domain))
+            continue;
+        cookies_to_delete.append(move(cookie));
+    }
+
+    devtools().delegate().delete_cookies(tab->description(), move(cookies_to_delete));
+    send_response(message, {});
+}
+
+void CookiesActor::remove_all_session_cookies(Message const& message)
+{
+    auto host = get_required_parameter<String>(message, "host"sv);
+    if (!host.has_value())
+        return;
+
+    Optional<String> domain;
+    if (auto requested_domain = message.data.get_string("domain"sv); requested_domain.has_value())
+        domain = *requested_domain;
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    Vector<HTTP::Cookie::Cookie> cookies_to_delete;
+    for (auto& cookie : devtools().delegate().cookies(tab->description())) {
+        if (!cookie_matches_storage_host(cookie, *host))
+            continue;
+        if (!cookie_matches_requested_domain(cookie, domain))
+            continue;
+        if (cookie.persistent)
+            continue;
+        cookies_to_delete.append(move(cookie));
+    }
+
+    devtools().delegate().delete_cookies(tab->description(), move(cookies_to_delete));
+    send_response(message, {});
 }
 
 HashTable<String> CookiesActor::visible_cookie_unique_keys(String const& host) const

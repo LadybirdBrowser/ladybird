@@ -620,6 +620,27 @@ public:
         return {};
     }
 
+    virtual void delete_cookies(DevTools::TabDescription const&, Vector<HTTP::Cookie::Cookie> cookies) const override
+    {
+        ++delete_cookies_call_count;
+
+        auto key_matches_cookie = [](HTTP::Cookie::Cookie const& left, HTTP::Cookie::Cookie const& right) {
+            return left.name == right.name
+                && left.domain == right.domain
+                && left.path == right.path;
+        };
+
+        for (auto const& cookie_to_delete : cookies) {
+            for (auto i = fixture_cookies.size(); i > 0; --i) {
+                if (key_matches_cookie(fixture_cookies[i - 1], cookie_to_delete))
+                    fixture_cookies.remove(i - 1);
+            }
+        }
+
+        if (on_host_cookie_change)
+            on_host_cookie_change(move(cookies));
+    }
+
     virtual void listen_for_host_cookie_changes(DevTools::TabDescription const&, OnHostCookieChange callback) const override
     {
         ++listen_for_cookie_changes_call_count;
@@ -1054,6 +1075,7 @@ public:
     mutable size_t inspect_tab_call_count { 0 };
     mutable size_t cookies_call_count { 0 };
     mutable size_t set_cookie_call_count { 0 };
+    mutable size_t delete_cookies_call_count { 0 };
     mutable size_t listen_for_cookie_changes_call_count { 0 };
     mutable size_t stop_listening_for_cookie_changes_call_count { 0 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
@@ -1429,6 +1451,52 @@ static JsonObject edit_cookie(ProtocolClient& client, StringView cookies_actor, 
     return client.request(move(request));
 }
 
+static JsonObject add_cookie(ProtocolClient& client, StringView cookies_actor, StringView name)
+{
+    JsonObject request;
+    request.set("to"sv, cookies_actor);
+    request.set("type"sv, "addItem"sv);
+    request.set("guid"sv, name);
+    request.set("host"sv, "https://example.test"sv);
+    return client.request(move(request));
+}
+
+static JsonObject remove_cookie(ProtocolClient& client, StringView cookies_actor, StringView name, StringView domain, StringView path)
+{
+    JsonObject request;
+    request.set("to"sv, cookies_actor);
+    request.set("type"sv, "removeItem"sv);
+    request.set("host"sv, "https://example.test"sv);
+    request.set("name"sv, cookie_unique_key(name, domain, path));
+    return client.request(move(request));
+}
+
+static JsonObject remove_all_cookies(ProtocolClient& client, StringView cookies_actor, Optional<StringView> domain = {})
+{
+    JsonObject request;
+    request.set("to"sv, cookies_actor);
+    request.set("type"sv, "removeAll"sv);
+    request.set("host"sv, "https://example.test"sv);
+    if (domain.has_value())
+        request.set("domain"sv, *domain);
+    else
+        request.set("domain"sv, JsonValue {});
+    return client.request(move(request));
+}
+
+static JsonObject remove_all_session_cookies(ProtocolClient& client, StringView cookies_actor, Optional<StringView> domain = {})
+{
+    JsonObject request;
+    request.set("to"sv, cookies_actor);
+    request.set("type"sv, "removeAllSessionCookies"sv);
+    request.set("host"sv, "https://example.test"sv);
+    if (domain.has_value())
+        request.set("domain"sv, *domain);
+    else
+        request.set("domain"sv, JsonValue {});
+    return client.request(move(request));
+}
+
 TEST_CASE(root_actor_and_connection_errors)
 {
     auto session = create_session();
@@ -1608,10 +1676,10 @@ TEST_CASE(storage_cookie_resource)
     auto hosts = cookie_resource.get_object("hosts"sv).release_value();
     EXPECT(hosts.has_array("https://example.test"sv));
     auto traits = cookie_resource.get_object("traits"sv).release_value();
-    EXPECT(!traits.get_bool("supportsAddItem"sv).value());
-    EXPECT(!traits.get_bool("supportsRemoveAll"sv).value());
-    EXPECT(!traits.get_bool("supportsRemoveAllSessionCookies"sv).value());
-    EXPECT(!traits.get_bool("supportsRemoveItem"sv).value());
+    EXPECT(traits.get_bool("supportsAddItem"sv).value());
+    EXPECT(traits.get_bool("supportsRemoveAll"sv).value());
+    EXPECT(traits.get_bool("supportsRemoveAllSessionCookies"sv).value());
+    EXPECT(traits.get_bool("supportsRemoveItem"sv).value());
 
     auto cookies_actor = actor_from(cookie_resource, "actor"sv);
     auto fields = client.request(cookies_actor, "getFields"sv).get_array("value"sv).release_value();
@@ -1845,6 +1913,79 @@ TEST_CASE(storage_cookie_edit_item)
     EXPECT_EQ(session->delegate.set_cookie_call_count, 6u);
     EXPECT_EQ(session->delegate.fixture_cookies.size(), 1u);
     EXPECT(cookie_matches(session->delegate.fixture_cookies[0], "gamma"sv, "example.test"sv, "/"sv));
+}
+
+TEST_CASE(storage_cookie_add_and_remove_items)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto cookies_actor = get_cookies_actor(client);
+    auto objects = get_cookie_store_objects(client, cookies_actor);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 0u);
+
+    auto response = add_cookie(client, cookies_actor, "devtools-cookie"sv);
+    EXPECT(response.get("errorString"sv).value().is_null());
+    EXPECT_EQ(session->delegate.set_cookie_call_count, 1u);
+    EXPECT_EQ(session->delegate.fixture_cookies.size(), 1u);
+    EXPECT(cookie_matches(session->delegate.fixture_cookies[0], "devtools-cookie"sv, "example.test"sv, "/"sv));
+    EXPECT_EQ(session->delegate.fixture_cookies[0].value, "value"sv);
+    EXPECT(!session->delegate.fixture_cookies[0].persistent);
+    EXPECT(session->delegate.fixture_cookies[0].secure);
+    EXPECT_EQ(session->delegate.fixture_cookies[0].same_site, HTTP::Cookie::SameSite::Lax);
+
+    auto stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    auto added_keys = get_cookie_update_keys(stores_update, "added"sv);
+    EXPECT_EQ(added_keys.size(), 1u);
+    EXPECT_EQ(added_keys.at(0).as_string(), cookie_unique_key("devtools-cookie"sv, "example.test"sv, "/"sv));
+
+    response = remove_cookie(client, cookies_actor, "devtools-cookie"sv, "example.test"sv, "/"sv);
+    EXPECT_EQ(response.get_string("from"sv).value(), cookies_actor);
+    EXPECT_EQ(session->delegate.delete_cookies_call_count, 1u);
+    EXPECT(session->delegate.fixture_cookies.is_empty());
+
+    stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    auto deleted_keys = get_cookie_update_keys(stores_update, "deleted"sv);
+    EXPECT_EQ(deleted_keys.size(), 1u);
+    EXPECT_EQ(deleted_keys.at(0).as_string(), cookie_unique_key("devtools-cookie"sv, "example.test"sv, "/"sv));
+
+    auto session_cookie = make_cookie("session-cookie"_string, "one"_string, "example.test"_string, "/"_string);
+    session_cookie.persistent = false;
+    session->delegate.fixture_cookies.append(session_cookie);
+
+    auto persistent_cookie = make_cookie("persistent-cookie"_string, "two"_string, "example.test"_string, "/"_string);
+    persistent_cookie.persistent = true;
+    persistent_cookie.expiry_time = UnixDateTime::from_seconds_since_epoch(4000);
+    session->delegate.fixture_cookies.append(persistent_cookie);
+
+    session->delegate.fixture_cookies.append(
+        make_cookie("ignored-cookie"_string, "three"_string, "other.test"_string, "/"_string));
+
+    objects = get_cookie_store_objects(client, cookies_actor);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 2u);
+
+    response = remove_all_session_cookies(client, cookies_actor);
+    EXPECT_EQ(response.get_string("from"sv).value(), cookies_actor);
+    EXPECT_EQ(session->delegate.delete_cookies_call_count, 2u);
+    EXPECT_EQ(session->delegate.fixture_cookies.size(), 2u);
+    EXPECT(cookie_matches(session->delegate.fixture_cookies[0], "persistent-cookie"sv, "example.test"sv, "/"sv));
+
+    stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    deleted_keys = get_cookie_update_keys(stores_update, "deleted"sv);
+    EXPECT_EQ(deleted_keys.size(), 1u);
+    EXPECT_EQ(deleted_keys.at(0).as_string(), cookie_unique_key("session-cookie"sv, "example.test"sv, "/"sv));
+
+    response = remove_all_cookies(client, cookies_actor, "example.test"sv);
+    EXPECT_EQ(response.get_string("from"sv).value(), cookies_actor);
+    EXPECT_EQ(session->delegate.delete_cookies_call_count, 3u);
+    EXPECT_EQ(session->delegate.fixture_cookies.size(), 1u);
+    EXPECT(cookie_matches(session->delegate.fixture_cookies[0], "ignored-cookie"sv, "other.test"sv, "/"sv));
+
+    stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    deleted_keys = get_cookie_update_keys(stores_update, "deleted"sv);
+    EXPECT_EQ(deleted_keys.size(), 1u);
+    EXPECT_EQ(deleted_keys.at(0).as_string(), cookie_unique_key("persistent-cookie"sv, "example.test"sv, "/"sv));
 }
 
 TEST_CASE(walker_node_picker)
