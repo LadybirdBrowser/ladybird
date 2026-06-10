@@ -152,16 +152,14 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
         bitmaps.ensure_capacity(batch_size);
         for (u32 i = 0; i < batch_size; ++i) {
             auto frame_or_error = decoder->frame(i, ideal_size);
-            if (frame_or_error.is_error()) {
-                bitmaps.unchecked_append({});
-            } else {
-                auto frame = frame_or_error.release_value();
-                frame.image->set_alpha_type_destructive(Gfx::AlphaType::Premultiplied);
-                bitmaps.unchecked_append(frame.image);
-                // If frame_duration() returned 0, use the actual decoded duration.
-                if (result.durations[i] == 0)
-                    result.durations[i] = frame.duration;
-            }
+            if (frame_or_error.is_error())
+                break;
+            auto frame = frame_or_error.release_value();
+            frame.image->set_alpha_type_destructive(Gfx::AlphaType::Premultiplied);
+            bitmaps.unchecked_append(frame.image);
+            // If frame_duration() returned 0, use the actual decoded duration.
+            if (result.durations[i] == 0)
+                result.durations[i] = frame.duration;
         }
 
         // Keep decoder alive for future frame requests.
@@ -289,7 +287,13 @@ NonnullRefPtr<ConnectionFromClient::PendingJob> ConnectionFromClient::start_fram
                     if (job->is_canceled())
                         return FrameDecodeResult {};
 
-                    auto frame = TRY(session->decoder->frame(i));
+                    auto frame_or_error = session->decoder->frame(i);
+                    if (frame_or_error.is_error()) {
+                        if (frames.is_empty())
+                            return frame_or_error.release_error();
+                        break;
+                    }
+                    auto frame = frame_or_error.release_value();
                     frame.image->set_alpha_type_destructive(Gfx::AlphaType::Premultiplied);
                     frames.unchecked_append(move(frame));
                 }
