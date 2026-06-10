@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/MemoryStream.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 
 namespace Gfx {
@@ -32,7 +31,7 @@ public:
     virtual int frame_duration(size_t index) override;
 
 private:
-    GIFImageDecoderPlugin(FixedMemoryStream);
+    explicit GIFImageDecoderPlugin(ReadonlyBytes);
 
     OwnPtr<GIFLoadingContext> m_context;
 };
