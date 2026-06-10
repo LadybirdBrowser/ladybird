@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 402 tests
+Found 409 tests
 
-402 Pass
+409 Pass
 Pass	Loading data…
 Pass	Parsing origin: <http://example	.
 org> against <http://example.org/foo/bar>
@@ -229,6 +229,12 @@ Pass	Parsing origin: <non-special:opaque 		  #hi> against <about:blank>
 Pass	Parsing origin: <non-special:opaque		   #hi> against <about:blank>
 Pass	Parsing origin: <http://www.foo。bar.com> against <http://other.com/>
 Pass	Parsing origin: <https://x/�?�#�> against <about:blank>
+Pass	Parsing origin: <http://a.b.c.xn--pokxncvks> against <about:blank>
+Pass	Parsing origin: <http://10.0.0.xn--pokxncvks> against <about:blank>
+Pass	Parsing origin: <http://a.b.c.XN--pokxncvks> against <about:blank>
+Pass	Parsing origin: <http://a.b.c.Xn--pokxncvks> against <about:blank>
+Pass	Parsing origin: <http://10.0.0.XN--pokxncvks> against <about:blank>
+Pass	Parsing origin: <http://10.0.0.xN--pokxncvks> against <about:blank>
 Pass	Parsing origin: <http://Ｇｏ.com> against <http://other.com/>
 Pass	Parsing origin: <http://你好你好> against <http://other.com/>
 Pass	Parsing origin: <https://faß.ExAmPlE/> against <about:blank>
@@ -371,6 +377,7 @@ Pass	Parsing origin: <foo://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> against
 Pass	Parsing origin: <wss://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> against <about:blank>
 Pass	Parsing origin: <https://example.com/"quoted"> against <about:blank>
 Pass	Parsing origin: <https://a%C2%ADb/> against <about:blank>
+Pass	Parsing origin: <https://xn--/> against <about:blank>
 Pass	Parsing origin: <data://example.com:8080/pathname?search#hash> against <about:blank>
 Pass	Parsing origin: <data:///test> against <about:blank>
 Pass	Parsing origin: <data://test/a/../b> against <about:blank>

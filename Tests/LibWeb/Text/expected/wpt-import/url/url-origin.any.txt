@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 403 tests
+Found 410 tests
 
-403 Pass
+410 Pass
 Pass	Loading data…
 Pass	Origin parsing: <http://example	.
 org> against <http://example.org/foo/bar>
@@ -229,6 +229,12 @@ Pass	Origin parsing: <non-special:opaque 		  #hi> without base
 Pass	Origin parsing: <non-special:opaque		   #hi> without base
 Pass	Origin parsing: <http://www.foo。bar.com> against <http://other.com/>
 Pass	Origin parsing: <https://x/�?�#�> without base
+Pass	Origin parsing: <http://a.b.c.xn--pokxncvks> without base
+Pass	Origin parsing: <http://10.0.0.xn--pokxncvks> without base
+Pass	Origin parsing: <http://a.b.c.XN--pokxncvks> without base
+Pass	Origin parsing: <http://a.b.c.Xn--pokxncvks> without base
+Pass	Origin parsing: <http://10.0.0.XN--pokxncvks> without base
+Pass	Origin parsing: <http://10.0.0.xN--pokxncvks> without base
 Pass	Origin parsing: <http://Ｇｏ.com> against <http://other.com/>
 Pass	Origin parsing: <http://你好你好> against <http://other.com/>
 Pass	Origin parsing: <https://faß.ExAmPlE/> without base
@@ -372,6 +378,7 @@ Pass	Origin parsing: <foo://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> without
 Pass	Origin parsing: <wss://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
 Pass	Origin parsing: <https://example.com/"quoted"> without base
 Pass	Origin parsing: <https://a%C2%ADb/> without base
+Pass	Origin parsing: <https://xn--/> without base
 Pass	Origin parsing: <data://example.com:8080/pathname?search#hash> without base
 Pass	Origin parsing: <data:///test> without base
 Pass	Origin parsing: <data://test/a/../b> without base
