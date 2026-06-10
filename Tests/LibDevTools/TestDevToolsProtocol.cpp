@@ -653,6 +653,18 @@ public:
         on_host_cookie_change = nullptr;
     }
 
+    virtual void inspect_storage(DevTools::TabDescription const&, Web::StorageAPI::StorageEndpointType storage_endpoint, OnStorageItemsReceived callback) const override
+    {
+        ++inspect_storage_call_count;
+        if (storage_endpoint == Web::StorageAPI::StorageEndpointType::LocalStorage) {
+            callback(fixture_local_storage_items);
+            return;
+        }
+
+        VERIFY(storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage);
+        callback(fixture_session_storage_items);
+    }
+
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete callback) const override
     {
         ++inspect_tab_call_count;
@@ -1071,6 +1083,8 @@ public:
 
     mutable bool use_navigation_dom_tree { false };
     mutable Vector<HTTP::Cookie::Cookie> fixture_cookies;
+    mutable Vector<DevTools::DevToolsDelegate::StorageItem> fixture_local_storage_items;
+    mutable Vector<DevTools::DevToolsDelegate::StorageItem> fixture_session_storage_items;
 
     mutable size_t inspect_tab_call_count { 0 };
     mutable size_t cookies_call_count { 0 };
@@ -1078,6 +1092,7 @@ public:
     mutable size_t delete_cookies_call_count { 0 };
     mutable size_t listen_for_cookie_changes_call_count { 0 };
     mutable size_t stop_listening_for_cookie_changes_call_count { 0 };
+    mutable size_t inspect_storage_call_count { 0 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
     mutable size_t listen_for_dom_properties_call_count { 0 };
     mutable size_t stop_listening_for_dom_properties_call_count { 0 };
@@ -1412,6 +1427,36 @@ static JsonObject get_cookie_store_objects(ProtocolClient& client, StringView co
     return client.request(move(get_store_objects));
 }
 
+static String get_storage_actor(ProtocolClient& client, StringView resource_type)
+{
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append(resource_type);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+
+    return actor_from(read_resource(client, resource_type), "actor"sv);
+}
+
+static JsonObject get_storage_store_objects(ProtocolClient& client, StringView storage_actor, StringView host = "https://example.test"sv, Optional<JsonArray> names = {})
+{
+    JsonObject get_store_objects;
+    get_store_objects.set("to"sv, storage_actor);
+    get_store_objects.set("type"sv, "getStoreObjects"sv);
+    get_store_objects.set("host"sv, host);
+    if (names.has_value())
+        get_store_objects.set("names"sv, names.release_value());
+    else
+        get_store_objects.set("names"sv, JsonValue {});
+    get_store_objects.set("options"sv, JsonObject {});
+    return client.request(move(get_store_objects));
+}
+
 static JsonArray get_cookie_update_keys(JsonObject const& stores_update, StringView update_type, StringView host = "https://example.test"sv)
 {
     return stores_update.get_object("data"sv)
@@ -1698,6 +1743,113 @@ TEST_CASE(storage_cookie_resource)
     get_store_objects.set("options"sv, move(options));
     auto objects = client.request(move(get_store_objects));
     EXPECT_EQ(objects.get_integer<size_t>("offset"sv).value(), 0u);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 0u);
+    EXPECT(objects.get_array("data"sv)->is_empty());
+}
+
+TEST_CASE(storage_web_storage_resources)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_response = client.request(tab_actor, "getWatcher"sv);
+    auto watcher_actor = actor_from(watcher_response, "actor"sv);
+    auto resources = watcher_response.get_object("traits"sv)->get_object("resources"sv).release_value();
+    EXPECT(resources.get_bool("local-storage"sv).value());
+    EXPECT(resources.get_bool("session-storage"sv).value());
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("local-storage"sv);
+    resource_types.must_append("session-storage"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+
+    auto local_storage_resource = read_resource(client, "local-storage"sv);
+    EXPECT_EQ(local_storage_resource.get_string("resourceKey"sv).value(), "localStorage"sv);
+    EXPECT_EQ(local_storage_resource.get_integer<u64>("browsingContextID"sv).value(), 1u);
+    EXPECT_EQ(local_storage_resource.get_integer<u64>("innerWindowId"sv).value(), 1u);
+    EXPECT_EQ(local_storage_resource.get_string("resourceId"sv).value(), "localStorage-1"sv);
+    EXPECT(local_storage_resource.get_object("hosts"sv)->has_array("https://example.test"sv));
+    auto local_traits = local_storage_resource.get_object("traits"sv).release_value();
+    EXPECT(local_traits.get_bool("supportsAddItem"sv).value());
+    EXPECT(local_traits.get_bool("supportsRemoveAll"sv).value());
+    EXPECT(!local_traits.get_bool("supportsRemoveAllSessionCookies"sv).value());
+    EXPECT(local_traits.get_bool("supportsRemoveItem"sv).value());
+
+    auto local_storage_actor = actor_from(local_storage_resource, "actor"sv);
+    auto fields = client.request(local_storage_actor, "getFields"sv).get_array("value"sv).release_value();
+    EXPECT_EQ(fields.size(), 2u);
+    EXPECT_EQ(fields.at(0).as_object().get_string("name"sv).value(), "name"sv);
+    EXPECT(fields.at(0).as_object().get_bool("editable"sv).value());
+    EXPECT_EQ(fields.at(1).as_object().get_string("name"sv).value(), "value"sv);
+    EXPECT(fields.at(1).as_object().get_bool("editable"sv).value());
+
+    auto session_storage_resource = read_resource(client, "session-storage"sv);
+    EXPECT_EQ(session_storage_resource.get_string("resourceKey"sv).value(), "sessionStorage"sv);
+    EXPECT_EQ(session_storage_resource.get_string("resourceId"sv).value(), "sessionStorage-1"sv);
+    EXPECT(session_storage_resource.get_object("hosts"sv)->has_array("https://example.test"sv));
+}
+
+TEST_CASE(storage_web_storage_store_objects)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    session->delegate.fixture_local_storage_items.append({ "beta"_string, "two"_string });
+    session->delegate.fixture_local_storage_items.append({ "alpha"_string, "one"_string });
+    session->delegate.fixture_session_storage_items.append({ "session-key"_string, "session-value"_string });
+
+    auto local_storage_actor = get_storage_actor(client, "local-storage"sv);
+    auto objects = get_storage_store_objects(client, local_storage_actor);
+    EXPECT_EQ(session->delegate.inspect_storage_call_count, 1u);
+    EXPECT_EQ(objects.get_integer<size_t>("offset"sv).value(), 0u);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 2u);
+
+    auto data = objects.get_array("data"sv).release_value();
+    EXPECT_EQ(data.size(), 2u);
+    EXPECT_EQ(data.at(0).as_object().get_string("name"sv).value(), "alpha"sv);
+    EXPECT_EQ(data.at(0).as_object().get_string("value"sv).value(), "one"sv);
+    EXPECT_EQ(data.at(1).as_object().get_string("name"sv).value(), "beta"sv);
+    EXPECT_EQ(data.at(1).as_object().get_string("value"sv).value(), "two"sv);
+
+    JsonArray names;
+    names.must_append("beta"sv);
+    auto filtered_objects = get_storage_store_objects(client, local_storage_actor, "https://example.test"sv, move(names));
+    EXPECT_EQ(filtered_objects.get_integer<size_t>("total"sv).value(), 1u);
+    auto filtered_data = filtered_objects.get_array("data"sv).release_value();
+    EXPECT_EQ(filtered_data.size(), 1u);
+    EXPECT_EQ(filtered_data.at(0).as_object().get_string("name"sv).value(), "beta"sv);
+
+    JsonObject paginated_request;
+    paginated_request.set("to"sv, local_storage_actor);
+    paginated_request.set("type"sv, "getStoreObjects"sv);
+    paginated_request.set("host"sv, "https://example.test"sv);
+    paginated_request.set("names"sv, JsonValue {});
+    JsonObject options;
+    options.set("offset"sv, 1);
+    options.set("size"sv, 1);
+    paginated_request.set("options"sv, move(options));
+    auto paginated_objects = client.request(move(paginated_request));
+    EXPECT_EQ(paginated_objects.get_integer<size_t>("offset"sv).value(), 1u);
+    EXPECT_EQ(paginated_objects.get_integer<size_t>("total"sv).value(), 2u);
+    auto paginated_data = paginated_objects.get_array("data"sv).release_value();
+    EXPECT_EQ(paginated_data.size(), 1u);
+    EXPECT_EQ(paginated_data.at(0).as_object().get_string("name"sv).value(), "beta"sv);
+
+    auto session_storage_actor = get_storage_actor(client, "session-storage"sv);
+    objects = get_storage_store_objects(client, session_storage_actor);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 1u);
+    data = objects.get_array("data"sv).release_value();
+    EXPECT_EQ(data.at(0).as_object().get_string("name"sv).value(), "session-key"sv);
+    EXPECT_EQ(data.at(0).as_object().get_string("value"sv).value(), "session-value"sv);
+
+    objects = get_storage_store_objects(client, session_storage_actor, "https://other.test"sv);
     EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 0u);
     EXPECT(objects.get_array("data"sv)->is_empty());
 }

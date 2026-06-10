@@ -1867,6 +1867,21 @@ void Application::stop_listening_for_host_cookie_changes(DevTools::TabDescriptio
         view->stop_listening_for_host_cookie_changes();
 }
 
+void Application::inspect_storage(DevTools::TabDescription const& description, Web::StorageAPI::StorageEndpointType storage_endpoint, OnStorageItemsReceived on_complete) const
+{
+    static u64 next_request_id = 0;
+
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    auto request_id = next_request_id++;
+    view->on_received_storage_items.set(request_id, move(on_complete));
+    view->inspect_storage(storage_endpoint, request_id);
+}
+
 void Application::inspect_tab(DevTools::TabDescription const& description, OnTabInspectionComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

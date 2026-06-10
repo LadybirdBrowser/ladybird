@@ -35,6 +35,7 @@ class ProcessActor;
 class RootActor;
 class StyleRuleActor;
 class StyleSheetsActor;
+class StorageActor;
 class TabActor;
 class TargetConfigurationActor;
 class ThreadActor;

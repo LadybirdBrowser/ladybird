@@ -21,6 +21,7 @@ set(SOURCES
     Actors/RootActor.cpp
     Actors/StyleRuleActor.cpp
     Actors/StyleSheetsActor.cpp
+    Actors/StorageActor.cpp
     Actors/TabActor.cpp
     Actors/TargetConfigurationActor.cpp
     Actors/ThreadActor.cpp

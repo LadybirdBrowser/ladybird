@@ -67,6 +67,7 @@ endpoint WebContentClient
     did_get_source(u64 page_id, URL::URL url, URL::URL base_url, String source) =|
 
     did_inspect_dom_tree(u64 page_id, String dom_tree) =|
+    did_inspect_storage(u64 page_id, u64 request_id, String storage_items) =|
     did_inspect_dom_node(u64 page_id, WebView::DOMNodeProperties properties) =|
     did_inspect_grid_layouts(u64 page_id, String grid_layouts) =|
     did_inspect_current_grid(u64 page_id, String grid_layout) =|

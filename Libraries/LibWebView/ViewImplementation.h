@@ -122,6 +122,7 @@ public:
     void get_source();
 
     void inspect_dom_tree();
+    void inspect_storage(Web::StorageAPI::StorageEndpointType, u64 request_id);
     void inspect_accessibility_tree();
     void get_hovered_node_id();
     void start_node_picker(DevTools::DevToolsDelegate::OnNodePickerEvent);
@@ -258,6 +259,7 @@ public:
     Function<void()> on_request_dismiss_dialog;
     Function<void(JsonObject)> on_received_dom_tree;
     Function<void(DOMNodeProperties)> on_received_dom_node_properties;
+    HashMap<u64, Function<void(ErrorOr<Vector<DevTools::DevToolsDelegate::StorageItem>>)>> on_received_storage_items;
     Function<void(JsonArray)> on_received_grid_layouts;
     Function<void(Optional<JsonObject>)> on_received_current_grid;
     Function<void(Optional<JsonObject>)> on_received_current_flexbox;

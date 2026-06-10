@@ -274,6 +274,7 @@ private:
     virtual void delete_cookies(DevTools::TabDescription const&, Vector<HTTP::Cookie::Cookie>) const override;
     virtual void listen_for_host_cookie_changes(DevTools::TabDescription const&, OnHostCookieChange) const override;
     virtual void stop_listening_for_host_cookie_changes(DevTools::TabDescription const&) const override;
+    virtual void inspect_storage(DevTools::TabDescription const&, Web::StorageAPI::StorageEndpointType, OnStorageItemsReceived) const override;
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete) const override;
     virtual void inspect_accessibility_tree(DevTools::TabDescription const&, OnAccessibilityTreeInspectionComplete) const override;
     virtual void listen_for_dom_properties(DevTools::TabDescription const&, OnDOMNodePropertiesReceived) const override;

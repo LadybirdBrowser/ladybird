@@ -680,6 +680,39 @@ void WebContentClient::did_inspect_dom_tree(u64 page_id, String dom_tree)
     }
 }
 
+static ErrorOr<Vector<DevTools::DevToolsDelegate::StorageItem>> parse_storage_items(String const& storage_items)
+{
+    auto parsed_items = JsonValue::from_string(storage_items);
+    if (parsed_items.is_error())
+        return Error::from_string_literal("Unable to parse storage items");
+
+    if (!parsed_items.value().is_array())
+        return Error::from_string_literal("Expected storage items to be an array");
+
+    Vector<DevTools::DevToolsDelegate::StorageItem> items;
+    parsed_items.value().as_array().for_each([&](auto const& item) {
+        if (!item.is_object())
+            return;
+
+        auto name = item.as_object().get_string("name"sv);
+        auto value = item.as_object().get_string("value"sv);
+        if (!name.has_value() || !value.has_value())
+            return;
+
+        items.append({ name.release_value(), value.release_value() });
+    });
+    return items;
+}
+
+void WebContentClient::did_inspect_storage(u64 page_id, u64 request_id, String storage_items)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto handler = view->on_received_storage_items.take(request_id);
+        if (handler.has_value())
+            (*handler)(parse_storage_items(storage_items));
+    }
+}
+
 void WebContentClient::did_inspect_dom_node(u64 page_id, DOMNodeProperties properties)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
