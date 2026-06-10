@@ -51,80 +51,132 @@ fn parse_opaque_host(input: &str) -> Option<Host> {
 }
 
 // https://url.spec.whatwg.org/#concept-domain-to-ascii
+#[allow(clippy::needless_late_init)]
 pub(crate) fn domain_to_ascii(domain: &str, be_strict: bool) -> Option<String> {
-    // 1. Let result be the result of running Unicode ToASCII with domain_name set to domain,
-    //     CheckHyphens set to beStrict,
-    //     CheckBidi set to true,
-    //     CheckJoiners set to true,
-    //     UseSTD3ASCIIRules set to beStrict,
-    //     Transitional_Processing set to false,
-    //     VerifyDnsLength set to beStrict,
-    //     and IgnoreInvalidPunycode set to false. [UTS46]
-    //
-    // NOTE: If beStrict is false, domain is an ASCII string, and strictly splitting domain on U+002E (.) does not
-    //       produce any item that starts with an ASCII case-insensitive match for "xn--", this step is equivalent to
-    //       ASCII lowercasing domain.
+    // 1. If beStrict is true:
+    if be_strict {
+        // 1. Let result be the result of running Unicode ToASCII with
+        //     domain_name set to domain,
+        //     CheckHyphens set to beStrict,
+        //     CheckBidi set to true,
+        //     CheckJoiners set to true,
+        //     UseSTD3ASCIIRules set to beStrict,
+        //     Transitional_Processing set to false,
+        //     VerifyDnsLength set to beStrict,
+        //     and IgnoreInvalidPunycode set to false. [UTS46]
+        let result = idna_to_ascii(
+            domain,
+            ToAsciiOptions {
+                check_hyphens: be_strict,
+                check_bidi: true,
+                check_joiners: true,
+                use_std3_ascii_rules: be_strict,
+                transitional_processing: false,
+                verify_dns_length: be_strict,
+                ignore_invalid_punycode: false,
+            },
+        );
 
-    // OPTIMIZATION: See spec note above.
-    if !be_strict && domain.is_ascii() {
-        // 3. If result is the empty string, domain-to-ASCII validation error, return failure.
-        if domain.is_empty() {
+        // 2. If result is a failure value, domain-to-ASCII validation error, return failure.
+        let Some(result) = result else {
             report_validation_error(State::Host, 0, None, "domain-to-ASCII");
             return None;
-        }
+        };
 
-        let mut slow_path = false;
-
-        for part in domain.split('.') {
-            if part.len() >= 4 && part[..4].eq_ignore_ascii_case("xn--") {
-                slow_path = true;
-                break;
-            }
-        }
-
-        if !slow_path {
-            let result = domain.to_ascii_lowercase();
-            return Some(result);
-        }
+        // 3. Return result.
+        return Some(result);
     }
 
-    // 2. If result is a failure value, domain-to-ASCII validation error, return failure.
-    let result = idna_to_ascii(
-        domain,
-        ToAsciiOptions {
-            check_hyphens: be_strict,
-            check_bidi: true,
-            check_joiners: true,
-            use_std3_ascii_rules: be_strict,
-            transitional_processing: false,
-            verify_dns_length: be_strict,
-            ignore_invalid_punycode: false,
-        },
-    )?;
+    // 2. Let result be null.
+    let result;
 
-    // 3. If beStrict is false:
-    if !be_strict {
-        // 1. If result is the empty string, domain-to-ASCII validation error, return failure.
-        if result.is_empty() {
+    // 3. If domain is an ASCII string:
+    if domain.is_ascii() {
+        // 1. If running Unicode ToASCII with
+        //     domain_name set to domain,
+        //     CheckHyphens set to false,
+        //     CheckBidi set to true,
+        //     CheckJoiners set to true,
+        //     UseSTD3ASCIIRules set to false,
+        //     Transitional_Processing set to false,
+        //     VerifyDnsLength set to false,
+        //     and IgnoreInvalidPunycode set to false
+        //  is a failure value, domain-to-ASCII validation error. [UTS46]
+        #[cfg(feature = "debug-validation-errors")]
+        if idna_to_ascii(
+            domain,
+            ToAsciiOptions {
+                check_hyphens: false,
+                check_bidi: true,
+                check_joiners: true,
+                use_std3_ascii_rules: false,
+                transitional_processing: false,
+                verify_dns_length: false,
+                ignore_invalid_punycode: false,
+            },
+        )
+        .is_none()
+        {
+            report_validation_error(State::Host, 0, None, "domain-to-ASCII");
+        }
+
+        // 2. Set result to domain, lowercased.
+        result = domain.to_ascii_lowercase();
+
+        // NOTE: When beStrict is false and domain is an ASCII string, Unicode ToASCII failures only
+        //       result in validation errors (instead of failing the whole algorithm) due to web
+        //       compatibility. IgnoreInvalidPunycode is not sufficient on its own, as Punycode can
+        //       decode successfully yet still fail validity criteria. E.g., xn--8i7caa decodes to
+        //       ｗｗｗ, whose code points have status "mapped". [UTS46]
+    }
+    // 4. Otherwise:
+    else {
+        // 1. Set result to the result of running Unicode ToASCII with
+        //     domain_name set to domain,
+        //     CheckHyphens set to beStrict,
+        //     CheckBidi set to true,
+        //     CheckJoiners set to true,
+        //     UseSTD3ASCIIRules set to beStrict,
+        //     Transitional_Processing set to false,
+        //     VerifyDnsLength set to beStrict,
+        //     and IgnoreInvalidPunycode set to false. [UTS46]
+        let ascii_domain = idna_to_ascii(
+            domain,
+            ToAsciiOptions {
+                check_hyphens: be_strict,
+                check_bidi: true,
+                check_joiners: true,
+                use_std3_ascii_rules: be_strict,
+                transitional_processing: false,
+                verify_dns_length: be_strict,
+                ignore_invalid_punycode: false,
+            },
+        );
+
+        // 2. If result is a failure value, domain-to-ASCII validation error, return failure.
+        let Some(ascii_domain) = ascii_domain else {
             report_validation_error(State::Host, 0, None, "domain-to-ASCII");
             return None;
-        }
+        };
 
-        // 2. If result contains a forbidden domain code point, domain-invalid-code-point validation error, return failure.
-        // NOTE: Due to web compatibility and compatibility with non-DNS-based systems the forbidden domain code points
-        //       are a subset of those disallowed when UseSTD3ASCIIRules is true. See also issue #397.
-        if result.chars().any(is_forbidden_domain_code_point) {
-            report_validation_error(State::Host, 0, None, "domain-invalid-code-point");
-            return None;
-        }
+        result = ascii_domain;
+    };
+
+    // 5. If result is the empty string, domain-to-ASCII validation error, return failure.
+    if result.is_empty() {
+        report_validation_error(State::Host, 0, None, "domain-to-ASCII");
+        return None;
     }
 
-    // 4. Assert: result is not the empty string and does not contain a forbidden domain code point.
-    // NOTE: Unicode IDNA Compatibility Processing guarantees this holds when beStrict is true. [UTS46]
-    assert!(!result.is_empty());
-    assert!(!result.chars().any(is_forbidden_domain_code_point));
+    // 6. If result contains a forbidden domain code point, domain-invalid-code-point validation error, return failure.
+    // NOTE: Due to web compatibility and compatibility with non-DNS-based systems the forbidden domain code points
+    //       are a subset of those disallowed when UseSTD3ASCIIRules is true. See also issue #397.
+    if result.chars().any(is_forbidden_domain_code_point) {
+        report_validation_error(State::Host, 0, None, "domain-invalid-code-point");
+        return None;
+    }
 
-    // 5. Return result.
+    // 7. Return result.
     // NOTE: This document and the web platform at large use Unicode IDNA Compatibility Processing and not IDNA2008. For
     //       instance, ☕.example becomes xn--53h.example and not failure. [UTS46] [RFC5890]
     Some(result)
