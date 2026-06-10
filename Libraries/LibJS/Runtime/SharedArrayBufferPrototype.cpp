@@ -104,7 +104,7 @@ JS_DEFINE_NATIVE_FUNCTION(SharedArrayBufferPrototype::grow)
     // FIXME:         i. If ByteListEqual(readByteLengthRawBytes, currentByteLengthRawBytes) is true, return undefined.
     // FIXME:         j. Set currentByteLengthRawBytes to readByteLengthRawBytes.
 
-    if (auto result = array_buffer_object->buffer().try_resize(new_byte_length, ByteBuffer::ZeroFillNewElements::Yes); result.is_error())
+    if (auto result = array_buffer_object->try_resize(new_byte_length, DataBlock::ZeroFillNewBytes::Yes); result.is_error())
         return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, new_byte_length);
 
     return js_undefined();
@@ -220,10 +220,10 @@ JS_DEFINE_NATIVE_FUNCTION(SharedArrayBufferPrototype::slice)
         return vm.throw_completion<TypeError>(ErrorType::SpeciesConstructorReturned, "an ArrayBuffer smaller than requested");
 
     // 20. Let fromBuf be O.[[ArrayBufferData]].
-    auto& from_buf = array_buffer_object->buffer();
+    auto from_buf = array_buffer_object->bytes();
 
     // 21. Let toBuf be new.[[ArrayBufferData]].
-    auto& to_buf = new_array_buffer_object->buffer();
+    auto to_buf = new_array_buffer_object->bytes();
 
     // 22. Perform CopyDataBlockBytes(toBuf, 0, fromBuf, first, newLen).
     copy_data_block_bytes(to_buf, 0, from_buf, first, new_length);

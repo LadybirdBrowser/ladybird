@@ -163,10 +163,9 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::resize)
     auto copy_length = min(new_byte_length, array_buffer_object->byte_length());
 
     // 12. Perform CopyDataBlockBytes(newBlock, 0, oldBlock, 0, copyLength).
-    if (array_buffer_object->is_external())
-        new_block.overwrite(0, array_buffer_object->data(), copy_length);
-    else
-        copy_data_block_bytes(new_block.buffer(), 0, array_buffer_object->buffer(), 0, copy_length);
+    auto new_block_bytes = new_block.bytes();
+    auto old_block_bytes = array_buffer_object->bytes();
+    copy_data_block_bytes(new_block_bytes, 0, old_block_bytes, 0, copy_length);
 
     // 13. NOTE: Neither creation of the new Data Block nor copying from the old Data Block are observable. Implementations may implement this method as in-place growth or shrinkage.
 
@@ -278,11 +277,14 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferPrototype::slice)
         // a. Let count be min(newLen, currentLen - first).
         auto count = min(new_length, current_length - first);
 
+        // Let fromBuf be O.[[ArrayBufferData]].
+        auto from_buf = array_buffer_object->bytes();
+
+        // Let toBuf be new.[[ArrayBufferData]].
+        auto to_buf = new_array_buffer_object->bytes();
+
         // b. Perform CopyDataBlockBytes(toBuf, 0, fromBuf, first, count).
-        if (array_buffer_object->is_external())
-            new_array_buffer_object->overwrite(0, array_buffer_object->data() + (size_t)first, (size_t)count);
-        else
-            copy_data_block_bytes(new_array_buffer_object->buffer(), 0, array_buffer_object->buffer(), first, count);
+        copy_data_block_bytes(to_buf, 0, from_buf, first, count);
     }
 
     // 28. Return new.
