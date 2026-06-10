@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/RefCounted.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Painter.h>
 #include <LibGfx/Size.h>
 
 namespace Gfx {
@@ -16,7 +16,7 @@ namespace Gfx {
 class VectorGraphic : public RefCounted<VectorGraphic> {
 public:
     virtual IntSize intrinsic_size() const = 0;
-    virtual void draw(Painter&) const = 0;
+    virtual void draw(PainterSkia&) const = 0;
 
     IntSize size() const { return intrinsic_size(); }
     IntRect rect() const { return { {}, size() }; }

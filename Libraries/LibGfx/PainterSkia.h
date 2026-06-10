@@ -8,8 +8,11 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/PaintStyle.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibGfx/Path.h>
+#include <LibGfx/WindingRule.h>
 
 namespace Gfx {
 
@@ -21,19 +24,16 @@ public:
     virtual void clear_rect(Gfx::FloatRect const&, Color) override;
     virtual void fill_rect(Gfx::FloatRect const&, Color) override;
     virtual void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame const& source, Gfx::IntRect const& src_rect, Gfx::ScalingMode, Optional<Gfx::Filter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator) override;
-    virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness) override;
-    virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, float miter_limit, Vector<float> const& dash_array, float dash_offset) override;
-    virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, Optional<Gfx::Filter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator) override;
-    virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, Optional<Gfx::Filter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset) override;
-    virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule) override;
-    virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator) override;
-    virtual void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, Optional<Gfx::Filter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule) override;
-    virtual void set_transform(Gfx::AffineTransform const&) override;
-    virtual void save() override;
-    virtual void restore() override;
-    virtual void clip(Gfx::Path const&, Gfx::WindingRule) override;
-    virtual void reset() override;
-    virtual void prune_caches() override;
+    void stroke_path(Gfx::Path const&, Gfx::Color, float thickness, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, float miter_limit, Vector<float> const& dash_array, float dash_offset);
+    void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, Optional<Gfx::Filter>, float thickness, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::Path::CapStyle const&, Gfx::Path::JoinStyle const&, float miter_limit, Vector<float> const&, float dash_offset);
+    void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
+    void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, Optional<Gfx::Filter>, float global_alpha, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Gfx::WindingRule);
+    void set_transform(Gfx::AffineTransform const&);
+    void save();
+    void restore();
+    void clip(Gfx::Path const&, Gfx::WindingRule);
+    void reset();
+    void prune_caches();
 
 private:
     struct Impl;
