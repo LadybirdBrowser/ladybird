@@ -56,7 +56,7 @@ void AudioTrack::set_enabled(bool enabled)
     // Whenever an audio track in an AudioTrackList that was disabled is enabled, and whenever one that was enabled
     // is disabled, the user agent must queue a media element task given the media element to fire an event named
     // change at the AudioTrackList object.
-    media_element().queue_a_media_element_task([audio_track_list = m_audio_track_list]() {
+    media_element().queue_a_media_element_task([audio_track_list = m_audio_track_list](HTMLMediaElement&) {
         audio_track_list->dispatch_event(DOM::Event::create(audio_track_list->realm(), HTML::EventNames::change));
     });
 
