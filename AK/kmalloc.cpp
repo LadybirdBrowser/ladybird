@@ -131,6 +131,9 @@ static mi_heap_t* heap_for_partition(HeapPartition partition)
     case HeapPartition::ArrayBuffer:
         static mi_heap_t* array_buffer_heap = mi_heap_new();
         return array_buffer_heap;
+    case HeapPartition::JSObjectStorage:
+        static mi_heap_t* js_object_storage_heap = mi_heap_new();
+        return js_object_storage_heap;
     }
     VERIFY_NOT_REACHED();
 }
