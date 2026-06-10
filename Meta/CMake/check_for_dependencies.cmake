@@ -21,6 +21,7 @@ find_package(JPEG REQUIRED)
 find_package(LIBAVIF REQUIRED)
 find_package(PNG REQUIRED)
 find_package(WebP REQUIRED)
+find_path(WUFFS_INCLUDE_DIR NAMES wuffs/wuffs-v0.3.c REQUIRED)
 
 pkg_check_modules(WOFF2 REQUIRED IMPORTED_TARGET libwoff2dec)
 

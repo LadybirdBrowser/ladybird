@@ -35,6 +35,8 @@ target_link_libraries(LibImageDecoders PRIVATE
     avif
 )
 
+target_include_directories(LibImageDecoders PRIVATE ${WUFFS_INCLUDE_DIR})
+
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
 list(TRANSFORM generated_sources PREPEND "${CMAKE_BINARY_DIR}/Libraries/LibGfx/ImageFormats/")
 
