@@ -43,6 +43,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QPlatformSurfaceEvent>
 #include <QPropertyAnimation>
 #include <QPushButton>
@@ -242,6 +243,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setWindowIcon(app_icon());
     qApp->installEventFilter(this);
     update_window_corners();
+    update_window_border();
 
     update_tabs_display();
 
@@ -979,6 +981,7 @@ void BrowserWindow::update_window_decoration_state()
     }
 
     update_menu_bar_visibility();
+    update_window_border();
 }
 
 void BrowserWindow::toggle_window_maximized()
@@ -1317,6 +1320,7 @@ void BrowserWindow::changeEvent(QEvent* event)
         update_menu_bar_window_control_icons();
         m_tabs_container->update_window_button_icons();
         update_window_corners();
+        update_window_border();
 
         QWindowStateChangeEvent* stateChangeEvent = static_cast<QWindowStateChangeEvent*>(event);
         bool was_fullscreen = stateChangeEvent->oldState() & Qt::WindowFullScreen;
@@ -1355,6 +1359,39 @@ void BrowserWindow::update_window_corners()
     clearMask();
     set_rounded_window_corners(*this, should_round_window, WINDOW_CORNER_RADIUS, ChromeStyle::chrome_background(palette()));
 #endif
+}
+
+bool BrowserWindow::should_draw_window_border() const
+{
+#if defined(AK_OS_MACOS)
+    // macOS frameless windows already get rounded corners and a native shadow, so a painted border would clash.
+    return false;
+#else
+    return windowFlags().testFlag(Qt::FramelessWindowHint) && !isFullScreen() && !isMaximized();
+#endif
+}
+
+void BrowserWindow::update_window_border()
+{
+    auto border_width = should_draw_window_border() ? 1 : 0;
+    setContentsMargins(border_width, border_width, border_width, border_width);
+    update();
+}
+
+void BrowserWindow::paintEvent(QPaintEvent* event)
+{
+    QMainWindow::paintEvent(event);
+
+    if (!should_draw_window_border())
+        return;
+
+    QPainter painter(this);
+    auto color = ChromeStyle::chrome_window_outline(palette());
+    auto frame = rect();
+    painter.fillRect(QRect(frame.left(), frame.top(), frame.width(), 1), color);
+    painter.fillRect(QRect(frame.left(), frame.bottom(), frame.width(), 1), color);
+    painter.fillRect(QRect(frame.left(), frame.top(), 1, frame.height()), color);
+    painter.fillRect(QRect(frame.right(), frame.top(), 1, frame.height()), color);
 }
 
 void BrowserWindow::moveEvent(QMoveEvent* event)
