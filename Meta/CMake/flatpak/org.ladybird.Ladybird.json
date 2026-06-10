@@ -718,6 +718,20 @@
       ]
     },
     {
+      "name": "wuffs",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -D -m644 release/c/wuffs-v0.3.c /app/include/wuffs/wuffs-v0.3.c"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/google/wuffs-mirror-release-c.git",
+          "tag": "v0.3.4"
+        }
+      ]
+    },
+    {
       "name": "pdfjs",
       "buildsystem": "simple",
       "build-commands": [

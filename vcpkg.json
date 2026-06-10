@@ -183,6 +183,7 @@
     "vulkan",
     "vulkan-headers",
     "woff2",
+    "wuffs",
     "zlib"
   ],
   "features": {
@@ -437,6 +438,10 @@
     {
       "name": "woff2",
       "version": "1.0.2#5"
+    },
+    {
+      "name": "wuffs",
+      "version": "0.3.4#0"
     },
     {
       "name": "zlib",

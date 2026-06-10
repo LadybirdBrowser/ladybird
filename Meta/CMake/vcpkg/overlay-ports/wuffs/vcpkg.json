@@ -1,0 +1,7 @@
+{
+  "name": "wuffs",
+  "version": "0.3.4",
+  "description": "Wrangling Untrusted File Formats Safely: a single-file C library of memory-safe codecs",
+  "homepage": "https://github.com/google/wuffs-mirror-release-c",
+  "license": "Apache-2.0 OR MIT"
+}
