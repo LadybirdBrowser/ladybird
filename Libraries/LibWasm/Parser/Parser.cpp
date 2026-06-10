@@ -447,7 +447,7 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
     case Instructions::memory_size.value():
     case Instructions::memory_grow.value(): {
         // op [multi-memory: memindex]|0x00
-        auto memory_index = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+        u32 memory_index = TRY_READ(stream, LEB128<u32>, ParseError::ExpectedKindTag);
 
         return Instruction { opcode, MemoryIndexArgument { MemoryIndex(memory_index) } };
     }
@@ -656,8 +656,8 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
         case Instructions::memory_init.value(): {
             auto index = TRY(GenericIndexParser<DataIndex>::parse(stream));
 
-            // Proposal "multi-memory", literal 0x00 is replaced with a memory index.
-            auto memory_index = TRY_READ(stream, u8, ParseError::InvalidInput);
+            // Proposal "multi-memory", literal 0x00 is replaced with a memory index (LEB-128).
+            u32 memory_index = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
 
             return Instruction { full_opcode, MemoryInitArgs { index, MemoryIndex(memory_index) } };
         }
@@ -666,18 +666,18 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
             return Instruction { full_opcode, index };
         }
         case Instructions::memory_copy.value(): {
-            // Proposal "multi-memory", literal 0x00 is replaced with two memory indices, destination and source, respectively.
+            // Proposal "multi-memory", literal 0x00 is replaced with two memory indices (LEB-128), destination and source, respectively.
             MemoryIndex indices[] = { 0, 0 };
 
             for (size_t i = 0; i < 2; ++i) {
-                auto memory_index = TRY_READ(stream, u8, ParseError::InvalidInput);
+                u32 memory_index = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
                 indices[i] = memory_index;
             }
             return Instruction { full_opcode, MemoryCopyArgs { indices[1], indices[0] } };
         }
         case Instructions::memory_fill.value(): {
-            // Proposal "multi-memory", literal 0x00 is replaced with a memory index.
-            auto memory_index = TRY_READ(stream, u8, ParseError::InvalidInput);
+            // Proposal "multi-memory", literal 0x00 is replaced with a memory index (LEB-128).
+            u32 memory_index = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
             return Instruction { full_opcode, MemoryIndexArgument { MemoryIndex { memory_index } } };
         }
         case Instructions::table_init.value(): {

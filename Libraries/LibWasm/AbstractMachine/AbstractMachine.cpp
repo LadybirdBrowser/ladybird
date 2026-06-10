@@ -631,6 +631,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     for (auto& segment : module.element_section().segments()) {
         auto current_index = index;
         ++index;
+        if (current_index >= main_module_instance.elements().size())
+            return InstantiationError { "Invalid element referenced by active element segment" };
         auto active_ptr = segment.mode.get_pointer<ElementSection::Active>();
         auto elem_instance = m_store.get(main_module_instance.elements()[current_index]);
         if (!active_ptr) {
@@ -638,6 +640,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 *elem_instance = ElementInstance(elem_instance->type(), {});
             continue;
         }
+        if (active_ptr->index.value() >= main_module_instance.tables().size())
+            return InstantiationError { "Invalid table referenced by active element segment" };
         Configuration config { m_store };
         if (m_should_limit_instruction_count)
             config.enable_instruction_count_limit();
@@ -649,14 +653,15 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         auto result = config.execute(interpreter);
         if (result.is_trap())
             return InstantiationError { "Element section initialisation trapped", move(result.trap()) };
-        auto d = result.values().first().to<i32>();
         auto table_instance = m_store.get(main_module_instance.tables()[active_ptr->index.value()]);
-        if (current_index >= main_module_instance.elements().size())
-            return InstantiationError { "Invalid element referenced by active element segment" };
         if (!table_instance || !elem_instance)
             return InstantiationError { "Invalid element referenced by active element segment" };
 
-        auto total_size = saturating_add(elem_instance->references().size(), static_cast<size_t>(d));
+        auto d = result.values().first().to<u64>();
+        if (table_instance->type().limits().address_type() == AddressType::I32)
+            d = static_cast<u32>(d);
+
+        auto total_size = saturating_add<u64>(elem_instance->references().size(), d);
 
         if (total_size > table_instance->elements().size())
             return InstantiationError { "Table instantiation out of bounds" };
@@ -686,7 +691,6 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 auto result = config.execute(interpreter);
                 if (result.is_trap())
                     return InstantiationError { "Data section initialisation trapped", move(result.trap()) };
-                size_t offset = result.values().first().to<u64>();
                 if (main_module_instance.memories().size() <= data.index.value()) {
                     return InstantiationError {
                         ByteString::formatted("Data segment referenced out-of-bounds memory ({}) of max {} entries",
@@ -701,6 +705,9 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
 
                 auto address = main_module_instance.memories()[data.index.value()];
                 auto instance = m_store.get(address);
+                u64 offset = result.values().first().to<u64>();
+                if (instance->type().limits().address_type() == AddressType::I32)
+                    offset = static_cast<u32>(offset);
                 Checked<size_t> checked_offset = data.init.size();
                 checked_offset += offset;
                 if (checked_offset.has_overflow() || checked_offset > instance->size()) {
@@ -753,20 +760,18 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
 
     module_instance.functions().extend(own_functions);
 
-    // FIXME: What if this fails?
-
     for (auto& table : module.table_section().tables()) {
         auto table_address = m_store.allocate(table.type());
-        if (table_address.has_value()) {
-            module_instance.tables().append(*table_address);
-        }
+        if (!table_address.has_value())
+            return InstantiationError { "Failed to allocate a table instance" };
+        module_instance.tables().append(*table_address);
     }
 
     for (auto& memory : module.memory_section().memories()) {
         auto memory_address = m_store.allocate(memory.type());
-        if (memory_address.has_value()) {
-            module_instance.memories().append(*memory_address);
-        }
+        if (!memory_address.has_value())
+            return InstantiationError { "Failed to allocate a memory instance" };
+        module_instance.memories().append(*memory_address);
     }
 
     size_t index = 0;
