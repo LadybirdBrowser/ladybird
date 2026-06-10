@@ -10,6 +10,24 @@
 
         println(`algorithm cached: ${key.algorithm === key.algorithm}`);
         println(`usages cached: ${key.usages === key.usages}`);
+
+        let algorithm = key.algorithm;
+        let nameDescriptor = Object.getOwnPropertyDescriptor(algorithm, "name");
+        let lengthDescriptor = Object.getOwnPropertyDescriptor(algorithm, "length");
+        println(`algorithm.name=${algorithm.name}`);
+        println(`algorithm.length=${algorithm.length}`);
+        println(`algorithm.name is data property: ${"value" in nameDescriptor}`);
+        println(`algorithm.name writable: ${nameDescriptor.writable}`);
+        println(`algorithm.length is data property: ${"value" in lengthDescriptor}`);
+
+        let hmacKey = await window.crypto.subtle.generateKey(
+            { name: "HMAC", hash: "SHA-256" },
+            true,
+            ["sign"]
+        );
+        let hmacHashDescriptor = Object.getOwnPropertyDescriptor(hmacKey.algorithm, "hash");
+        println(`hmac hash name=${hmacKey.algorithm.hash.name}`);
+        println(`hmac hash is data property: ${"value" in hmacHashDescriptor}`);
         done();
     });
 </script>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const legacyIs = document.createElement("button", "x-ladybird-button");
+        println(`legacy is option: ${legacyIs.outerHTML}`);
+
+        const dictionaryIs = document.createElement("button", { is: "x-ladybird-button" });
+        println(`dictionary is option: ${dictionaryIs.outerHTML}`);
+
+        try {
+            document.createElement("button", { is: "x-ladybird-button", customElementRegistry: customElements });
+        } catch (error) {
+            println(`is plus registry error: ${error.name}`);
+        }
+
+        const foreignDocument = document.implementation.createHTMLDocument("import source");
+        const parent = foreignDocument.createElement("section");
+        parent.appendChild(foreignDocument.createElement("span"));
+
+        println(`importNode false child count: ${document.importNode(parent, false).childNodes.length}`);
+        println(`importNode true child count: ${document.importNode(parent, true).childNodes.length}`);
+        println(`importNode selfOnly true child count: ${document.importNode(parent, { selfOnly: true }).childNodes.length}`);
+        println(`importNode selfOnly false child count: ${document.importNode(parent, { selfOnly: false }).childNodes.length}`);
+    });
+</script>

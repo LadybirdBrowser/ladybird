@@ -1,2 +1,9 @@
 algorithm cached: true
 usages cached: true
+algorithm.name=AES-CTR
+algorithm.length=128
+algorithm.name is data property: true
+algorithm.name writable: true
+algorithm.length is data property: true
+hmac hash name=SHA-256
+hmac hash is data property: true

@@ -19,7 +19,7 @@ TEST_CASE(javascript_bytecode_cache_memory_cache_request_headers_are_cloned)
     auto request_headers = HTTP::HeaderList::create({
         { "User-Agent"sv, "Ladybird"sv },
     });
-    auto response = Web::Fetch::Infrastructure::Response::create(*vm);
+    auto response = Web::Fetch::Infrastructure::Response::create();
     response->set_javascript_bytecode_cache_memory_cache_request_headers(request_headers);
 
     auto cloned_response = response->clone(realm);

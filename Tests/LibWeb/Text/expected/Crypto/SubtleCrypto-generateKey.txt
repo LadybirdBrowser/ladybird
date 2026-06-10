@@ -9,6 +9,10 @@ privateKey algorithm: {"name":"RSA-OAEP","modulusLength":256,"publicExponent":{"
 privateKey type: private
 privateKey extractable: true
 privateKey usages: decrypt,unwrapKey
+keyPair publicKey is data property: true
+keyPair publicKey writable: true
+keyPair privateKey is data property: true
+keyPair privateKey writable: true
 invalid usages throw
 Error: SyntaxError: Invalid key usage 'sign'
 no usages for private key throws

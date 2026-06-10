@@ -42,16 +42,10 @@ public:
     void set_indexed_value(GC::Ref<TestWrappable> indexed_value) { m_indexed_value = indexed_value; }
     void set_named_value(GC::Ref<TestWrappable> named_value) { m_named_value = named_value; }
     void set_origin(URL::Origin const& origin) { m_origin = origin; }
+    void record_setter_realm(JS::Realm& realm) { m_last_setter_realm = &realm; }
     JS::Realm* last_setter_realm() const { return m_last_setter_realm.ptr(); }
 
     virtual Optional<URL::Origin> extract_an_origin() const override { return m_origin; }
-
-    virtual Optional<JS::Value> item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override
-    {
-        if (index != 0 || !m_indexed_value)
-            return {};
-        return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *m_indexed_value }).ptr();
-    }
 
     virtual Vector<FlyString> supported_property_names() const override
     {
@@ -60,24 +54,8 @@ public:
         return { "child"_fly_string };
     }
 
-    virtual JS::Value named_item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override
-    {
-        if (name != "child"_fly_string || !m_named_value)
-            return JS::js_undefined();
-        return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *m_named_value }).ptr();
-    }
-
-    virtual Web::WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm& realm, u32, JS::Value) override
-    {
-        m_last_setter_realm = &realm;
-        return {};
-    }
-
-    virtual Web::WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm& realm, String const&, JS::Value) override
-    {
-        m_last_setter_realm = &realm;
-        return {};
-    }
+    GC::Ptr<TestWrappable> indexed_value() const { return m_indexed_value; }
+    GC::Ptr<TestWrappable> named_value() const { return m_named_value; }
 
 protected:
     virtual GC::Ref<Web::Bindings::PlatformObject> create_wrapper(JS::Realm&) override;
@@ -114,9 +92,37 @@ public:
         m_legacy_platform_object_flags->supports_named_properties = true;
     }
 
+    virtual Web::WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm& realm, String const&, JS::Value) override
+    {
+        static_cast<TestWrappable&>(*m_impl).record_setter_realm(realm);
+        return {};
+    }
+
+    virtual Web::WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm& realm, u32, JS::Value) override
+    {
+        static_cast<TestWrappable&>(*m_impl).record_setter_realm(realm);
+        return {};
+    }
+
 protected:
     virtual Web::Bindings::Wrappable* wrappable_impl() override { return m_impl.ptr(); }
     virtual Web::Bindings::Wrappable const* wrappable_impl() const override { return m_impl.ptr(); }
+
+    virtual Optional<JS::Value> item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override
+    {
+        auto const& impl = static_cast<TestWrappable const&>(*m_impl);
+        if (index != 0 || !impl.indexed_value())
+            return {};
+        return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *impl.indexed_value() }).ptr();
+    }
+
+    virtual JS::Value named_item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override
+    {
+        auto const& impl = static_cast<TestWrappable const&>(*m_impl);
+        if (name != "child"_fly_string || !impl.named_value())
+            return JS::js_undefined();
+        return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *impl.named_value() }).ptr();
+    }
 
 private:
     virtual void visit_edges(JS::Cell::Visitor& visitor) override
@@ -128,32 +134,27 @@ private:
     GC::Ref<Web::Bindings::Wrappable> m_impl;
 };
 
-static_assert(!IsConstructible<JS::Value, TestWrappable*>);
-static_assert(!IsConstructible<JS::Value, TestWrappable const*>);
-static_assert(!IsConstructible<JS::Value, GC::Ptr<TestWrappable>>);
-static_assert(!IsConstructible<JS::Value, GC::Ref<TestWrappable>>);
-static_assert(!IsConstructible<JS::Value, GC::Root<TestWrappable> const&>);
-static_assert(IsConstructible<JS::Value, TestWrapperObject*>);
-static_assert(IsConstructible<JS::Value, GC::Ref<TestWrapperObject>>);
-static_assert(!IsConstructible<JS::Completion, TestWrappable*>);
-static_assert(!IsConstructible<JS::Completion, TestWrappable const*>);
-static_assert(!IsConstructible<JS::Completion, GC::Ptr<TestWrappable>>);
-static_assert(!IsConstructible<JS::Completion, GC::Ref<TestWrappable>>);
-static_assert(!IsConstructible<JS::Completion, GC::Root<TestWrappable> const&>);
-static_assert(!IsConstructible<JS::ThrowCompletionOr<JS::Value>, TestWrappable*>);
-static_assert(!IsConstructible<JS::ThrowCompletionOr<JS::Value>, TestWrappable const*>);
-static_assert(!IsConstructible<JS::ThrowCompletionOr<JS::Value>, GC::Ptr<TestWrappable>>);
-static_assert(!IsConstructible<JS::ThrowCompletionOr<JS::Value>, GC::Ref<TestWrappable>>);
-static_assert(!IsConstructible<JS::ThrowCompletionOr<JS::Value>, GC::Root<TestWrappable> const&>);
-static_assert(IsConstructible<JS::ThrowCompletionOr<JS::Value>, TestWrapperObject*>);
-static_assert(IsConstructible<JS::ThrowCompletionOr<JS::Value>, GC::Ref<TestWrapperObject>>);
-static_assert(!IsConstructible<Web::WebIDL::ExceptionOr<JS::Value>, TestWrappable*>);
-static_assert(!IsConstructible<Web::WebIDL::ExceptionOr<JS::Value>, TestWrappable const*>);
-static_assert(!IsConstructible<Web::WebIDL::ExceptionOr<JS::Value>, GC::Ptr<TestWrappable>>);
-static_assert(!IsConstructible<Web::WebIDL::ExceptionOr<JS::Value>, GC::Ref<TestWrappable>>);
-static_assert(!IsConstructible<Web::WebIDL::ExceptionOr<JS::Value>, GC::Root<TestWrappable> const&>);
-static_assert(IsConstructible<Web::WebIDL::ExceptionOr<JS::Value>, TestWrapperObject*>);
-static_assert(IsConstructible<Web::WebIDL::ExceptionOr<JS::Value>, GC::Ref<TestWrapperObject>>);
+#define EXPECT_NOT_CONSTRUCTIBLE_FROM_WRAPPABLE(Target)              \
+    static_assert(!IsConstructible<Target, TestWrappable*>);         \
+    static_assert(!IsConstructible<Target, TestWrappable const*>);   \
+    static_assert(!IsConstructible<Target, GC::Ptr<TestWrappable>>); \
+    static_assert(!IsConstructible<Target, GC::Ref<TestWrappable>>); \
+    static_assert(!IsConstructible<Target, GC::Root<TestWrappable> const&>)
+
+#define EXPECT_CONSTRUCTIBLE_FROM_WRAPPER(Target)               \
+    static_assert(IsConstructible<Target, TestWrapperObject*>); \
+    static_assert(IsConstructible<Target, GC::Ref<TestWrapperObject>>)
+
+EXPECT_NOT_CONSTRUCTIBLE_FROM_WRAPPABLE(JS::Value);
+EXPECT_CONSTRUCTIBLE_FROM_WRAPPER(JS::Value);
+EXPECT_NOT_CONSTRUCTIBLE_FROM_WRAPPABLE(JS::Completion);
+EXPECT_NOT_CONSTRUCTIBLE_FROM_WRAPPABLE(JS::ThrowCompletionOr<JS::Value>);
+EXPECT_CONSTRUCTIBLE_FROM_WRAPPER(JS::ThrowCompletionOr<JS::Value>);
+EXPECT_NOT_CONSTRUCTIBLE_FROM_WRAPPABLE(Web::WebIDL::ExceptionOr<JS::Value>);
+EXPECT_CONSTRUCTIBLE_FROM_WRAPPER(Web::WebIDL::ExceptionOr<JS::Value>);
+
+#undef EXPECT_CONSTRUCTIBLE_FROM_WRAPPER
+#undef EXPECT_NOT_CONSTRUCTIBLE_FROM_WRAPPABLE
 
 GC_DEFINE_ALLOCATOR(TestWrappable);
 GC_DEFINE_ALLOCATOR(TestWrapperObject);
@@ -187,6 +188,11 @@ struct TestRealm {
         install_test_host_defined(realm(), wrapper_world_type);
     }
 
+    ~TestRealm()
+    {
+        realm().vm().pop_execution_context();
+    }
+
     JS::Realm& realm() { return *execution_context->realm; }
 
     NonnullOwnPtr<JS::ExecutionContext> execution_context;
@@ -209,8 +215,6 @@ TEST_CASE(main_world_uses_inline_wrapper_cache)
 
     wrapper_world->clear_wrapper(*wrappable, *wrapper);
     EXPECT(!cached_wrapper_for(realm.realm(), *wrappable));
-
-    vm->pop_execution_context();
 }
 
 TEST_CASE(wrap_uses_main_world_inline_cache)
@@ -224,8 +228,6 @@ TEST_CASE(wrap_uses_main_world_inline_cache)
     EXPECT(wrapper.ptr() == wrap_test_wrappable(realm.realm(), wrappable).ptr());
     EXPECT(&wrapper->realm() == &realm.realm());
     EXPECT(wrapper.ptr() == cached_wrapper_for(realm.realm(), *wrappable).ptr());
-
-    vm->pop_execution_context();
 }
 
 TEST_CASE(wrapper_forwards_identity_and_origin_to_wrappable)
@@ -249,8 +251,6 @@ TEST_CASE(wrapper_forwards_identity_and_origin_to_wrappable)
     EXPECT(extracted_origin->is_opaque());
     EXPECT(extracted_origin->opaque_data().nonce == nonce);
     EXPECT(extracted_origin->opaque_data().type == URL::Origin::OpaqueData::Type::Standard);
-
-    vm->pop_execution_context();
 }
 
 TEST_CASE(first_main_world_wrap_chooses_wrapper_realm)
@@ -266,9 +266,24 @@ TEST_CASE(first_main_world_wrap_chooses_wrapper_realm)
     EXPECT(wrapper.ptr() == cached_wrapper_for(caller_realm.realm(), *wrappable).ptr());
     EXPECT(wrapper.ptr() == cached_wrapper_for(allocation_realm.realm(), *wrappable).ptr());
     EXPECT(wrapper.ptr() == wrap_test_wrappable(allocation_realm.realm(), wrappable).ptr());
+}
 
-    vm->pop_execution_context();
-    vm->pop_execution_context();
+TEST_CASE(main_world_reuses_first_wrapper_across_realms)
+{
+    auto vm = JS::VM::create();
+    TestRealm allocation_realm { *vm };
+    TestRealm first_caller_realm { *vm };
+    TestRealm second_caller_realm { *vm };
+    auto wrappable = allocation_realm.realm().create<TestWrappable>(allocation_realm.realm());
+
+    auto first_wrapper = wrap_test_wrappable(first_caller_realm.realm(), wrappable);
+    auto second_wrapper = wrap_test_wrappable(second_caller_realm.realm(), wrappable);
+
+    EXPECT(second_wrapper.ptr() == first_wrapper.ptr());
+    EXPECT(&second_wrapper->realm() == &first_caller_realm.realm());
+    EXPECT(first_wrapper.ptr() == cached_wrapper_for(allocation_realm.realm(), *wrappable).ptr());
+    EXPECT(first_wrapper.ptr() == cached_wrapper_for(first_caller_realm.realm(), *wrappable).ptr());
+    EXPECT(first_wrapper.ptr() == cached_wrapper_for(second_caller_realm.realm(), *wrappable).ptr());
 }
 
 TEST_CASE(global_wrapper_uses_requested_realm)
@@ -284,7 +299,6 @@ TEST_CASE(global_wrapper_uses_requested_realm)
     EXPECT(&wrapper->realm() == &extension_realm);
     EXPECT(Web::Bindings::impl_from<TestWrappable>(wrapper.ptr()) == wrappable.ptr());
 
-    vm->pop_execution_context();
     vm->pop_execution_context();
 }
 
@@ -310,9 +324,6 @@ TEST_CASE(extension_world_uses_per_world_wrapper_cache)
     extension_world_cache->clear_wrapper(*wrappable, *extension_wrapper);
     EXPECT(!cached_wrapper_for(extension_realm.realm(), *wrappable));
     EXPECT(cached_wrapper_for(main_world.realm(), *wrappable).ptr() == main_wrapper.ptr());
-
-    vm->pop_execution_context();
-    vm->pop_execution_context();
 }
 
 TEST_CASE(extension_first_wrap_does_not_fill_main_world_cache)
@@ -333,9 +344,6 @@ TEST_CASE(extension_first_wrap_does_not_fill_main_world_cache)
     EXPECT(&main_wrapper->realm() == &main_world.realm());
     EXPECT(cached_wrapper_for(main_world.realm(), *wrappable).ptr() == main_wrapper.ptr());
     EXPECT(extension_wrapper.ptr() == wrap_test_wrappable(extension_realm.realm(), wrappable).ptr());
-
-    vm->pop_execution_context();
-    vm->pop_execution_context();
 }
 
 TEST_CASE(global_wrapper_cache_uses_realm_wrapper_world)
@@ -362,7 +370,6 @@ TEST_CASE(global_wrapper_cache_uses_realm_wrapper_world)
     EXPECT(!cached_wrapper_for(main_world.realm(), *wrappable));
 
     vm->pop_execution_context();
-    vm->pop_execution_context();
 }
 
 TEST_CASE(wrap_uses_extension_world_cache)
@@ -380,9 +387,6 @@ TEST_CASE(wrap_uses_extension_world_cache)
     EXPECT(&extension_wrapper->realm() == &extension_realm.realm());
     EXPECT(&main_wrapper->realm() == &main_world.realm());
     EXPECT(cached_wrapper_for(main_world.realm(), *wrappable).ptr() == main_wrapper.ptr());
-
-    vm->pop_execution_context();
-    vm->pop_execution_context();
 }
 
 TEST_CASE(legacy_property_getters_use_wrapper_realm)
@@ -434,7 +438,4 @@ TEST_CASE(legacy_property_getters_use_wrapper_realm)
     auto* extension_test_wrapper = as<TestWrapperObject>(extension_wrapper.ptr());
     MUST(extension_test_wrapper->set_value_of_named_property(extension_realm.realm(), "child"_string, JS::js_undefined()));
     EXPECT(parent->last_setter_realm() == &extension_realm.realm());
-
-    vm->pop_execution_context();
-    vm->pop_execution_context();
 }

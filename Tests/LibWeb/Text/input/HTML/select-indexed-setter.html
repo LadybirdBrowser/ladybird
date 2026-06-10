@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<select>
+    <option>old</option>
+</select>
+<script>
+    test(() => {
+        const select = document.querySelector("select");
+        const option = document.createElement("option");
+        option.textContent = "new";
+
+        select[0] = option;
+
+        println(`length: ${select.length}`);
+        println(`text: ${select[0].textContent}`);
+    });
+</script>
