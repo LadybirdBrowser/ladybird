@@ -215,6 +215,19 @@ jobs:
             --python-executable "${{ env.pythonLocation }}/bin/python" \
             | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Run WPT Smoke Tests
+        if: ${{ inputs.os_name == 'Linux' && (inputs.build_preset == 'Release' || inputs.build_preset == 'Sanitizer') }}
+        timeout-minutes: 5
+        working-directory: ${{ github.workspace }}
+        run: Meta/WPT.sh run --test-list Tests/LibWeb/WPT/ci-smoke-tests.txt
+        env:
+          BUILD_LADYBIRD: 'false'
+          LADYBIRD_BINARY: ${{ github.workspace }}/Build/bin/Ladybird
+          WEBDRIVER_BINARY: ${{ github.workspace }}/Build/bin/WebDriver
+          WPT_PROCESSES: '4'
+          ASAN_OPTIONS: 'log_path=${{ github.workspace }}/Build/asan.log'
+          UBSAN_OPTIONS: 'log_path=${{ github.workspace }}/Build/ubsan.log'
+
       - name: Test
         if: ${{ inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
