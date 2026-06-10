@@ -225,6 +225,9 @@ static void initialize_native_icon(WebView::Action& action, id control)
         set_control_image(control, @"arrow.clockwise");
         [control setKeyEquivalent:@"r"];
         break;
+    case WebView::ActionID::ViewHistory:
+        set_control_image(control, @"clock");
+        break;
 
     case WebView::ActionID::CopySelection:
         set_control_image(control, @"document.on.document");
