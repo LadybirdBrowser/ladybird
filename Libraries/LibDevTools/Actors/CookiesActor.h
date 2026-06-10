@@ -35,6 +35,10 @@ private:
     void get_fields(Message const&);
     void get_store_objects(Message const&);
     void edit_item(Message const&);
+    void add_item(Message const&);
+    void remove_item(Message const&);
+    void remove_all(Message const&);
+    void remove_all_session_cookies(Message const&);
     HashTable<String> visible_cookie_unique_keys(String const& host) const;
     void send_cookie_store_update(String const& host, JsonArray added, JsonArray changed, JsonArray deleted);
 
