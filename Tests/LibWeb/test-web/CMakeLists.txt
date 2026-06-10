@@ -7,6 +7,7 @@ set(SOURCES
     Fuzzy.cpp
     TestRunCapture.cpp
     TestWebView.cpp
+    Variants.cpp
     main.cpp
 )
 
