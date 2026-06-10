@@ -311,7 +311,7 @@ TEST_CASE(recently_closed_entries_are_cleared_with_history)
     store->record_closed_tab(first_url, UnixDateTime::from_seconds_since_epoch(10));
     store->record_closed_window({ second_url }, 0, UnixDateTime::from_seconds_since_epoch(20));
 
-    store->clear();
+    store->remove_entries_accessed_since(UnixDateTime::earliest());
 
     EXPECT(!store->has_recently_closed_entries());
     EXPECT(!store->most_recently_closed_entry().has_value());
@@ -358,9 +358,6 @@ TEST_CASE(disabled_history_store_ignores_updates)
     check_is_empty();
 
     store->remove_entries_accessed_since(UnixDateTime::from_seconds_since_epoch(0));
-    check_is_empty();
-
-    store->clear();
     check_is_empty();
 }
 

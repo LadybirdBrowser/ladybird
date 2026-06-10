@@ -245,7 +245,6 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
         ORDER BY last_visited_time DESC, url ASC
         LIMIT ?3 OFFSET ?4;
     )#"sv));
-    statements.clear_entries = TRY(database.prepare_statement("DELETE FROM History;"sv));
     statements.delete_entry = TRY(database.prepare_statement("DELETE FROM History WHERE url = ?;"sv));
     statements.delete_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM History WHERE last_visited_time >= ?;"sv));
     statements.all_urls = TRY(database.prepare_statement("SELECT url FROM History;"sv));
@@ -476,16 +475,6 @@ Vector<HistoryEntry> HistoryStore::list_entries(StringView query, size_t offset,
     return entries;
 }
 
-void HistoryStore::clear()
-{
-    if (m_is_disabled)
-        return;
-
-    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Clearing {} history store", m_storage->name());
-    m_storage->clear();
-    m_recently_closed_entries.clear();
-}
-
 void HistoryStore::remove_entry_for_url(URL::URL const& url)
 {
     if (m_is_disabled)
@@ -676,11 +665,6 @@ Vector<HistoryEntry> HistoryStore::TransientStorage::list_entries(StringView tit
     return entries;
 }
 
-void HistoryStore::TransientStorage::clear()
-{
-    m_entries.clear();
-}
-
 void HistoryStore::TransientStorage::remove_entry_for_url(String const& url)
 {
     m_entries.remove(url);
@@ -816,11 +800,6 @@ Vector<HistoryEntry> HistoryStore::PersistedStorage::list_entries(StringView tit
         static_cast<i64>(offset));
 
     return entries;
-}
-
-void HistoryStore::PersistedStorage::clear()
-{
-    m_database.execute_statement(m_statements.clear_entries, {});
 }
 
 void HistoryStore::PersistedStorage::remove_entry_for_url(String const& url)

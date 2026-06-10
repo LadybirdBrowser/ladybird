@@ -232,11 +232,6 @@
     [current_window performClose:self];
 }
 
-- (void)clearHistory:(id)sender
-{
-    WebView::Application::the().clear_history();
-}
-
 - (NSMenuItem*)createApplicationMenu
 {
     auto* menu = [[NSMenuItem alloc] init];
@@ -349,12 +344,6 @@
     [submenu setAutoenablesItems:NO];
 
     [submenu addItem:Ladybird::create_application_menu_item(WebView::Application::the().reload_action())];
-    [submenu addItem:[NSMenuItem separatorItem]];
-
-    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Clear History"
-                                                action:@selector(clearHistory:)
-                                         keyEquivalent:@""]];
-
     [menu setSubmenu:submenu];
     return menu;
 }

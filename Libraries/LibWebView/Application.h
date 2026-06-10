@@ -77,14 +77,12 @@ public:
     void tab_settings_changed(Badge<ApplicationSettingsObserver>);
 
     static BookmarkStore& bookmark_store() { return the().m_bookmark_store; }
-    static HistoryStore& history_store() { return *the().m_history_store; }
     void update_bookmark_action_for_current_web_view();
     void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
     void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
-    void clear_history();
-
     virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<BookmarkItem const&>, [[maybe_unused]] Optional<String const&> target_folder_id) { }
 
+    static HistoryStore& history_store() { return *the().m_history_store; }
     static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
     static HSTSStore& hsts_store() { return *the().m_hsts_store; }
     static StorageJar& storage_jar() { return *the().m_storage_jar; }
