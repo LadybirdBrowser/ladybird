@@ -64,6 +64,13 @@ class ModuleCommand:
     name: Optional[str]
 
 
+# An anonymous `(module definition ...)`.
+@dataclass
+class ModuleDefinitionCommand:
+    line: int
+    file_name: Path
+
+
 @dataclass
 class Invoke:
     field: str
@@ -122,6 +129,7 @@ class AssertInvalid:
 
 Command = Union[
     ModuleCommand,
+    ModuleDefinitionCommand,
     AssertReturn,
     AssertTrap,
     ActionCommand,
@@ -157,6 +165,12 @@ class GeneratedAnyFuncRef:
     pass
 
 
+# `(ref.extern)` with no index: any non-null extern reference.
+@dataclass
+class GeneratedAnyExternRef:
+    pass
+
+
 GeneratedValue = Union[
     str,
     ArithmeticNan,
@@ -164,6 +178,7 @@ GeneratedValue = Union[
     GeneratedVector,
     GeneratedEitherOf,
     GeneratedAnyFuncRef,
+    GeneratedAnyExternRef,
 ]
 
 
@@ -241,7 +256,7 @@ def parse(raw: dict[str, Any]) -> WastDescription:
             if "name" in raw_cmd:
                 defined_modules[raw_cmd["name"]] = module_binary_filename(raw_cmd)
                 continue
-            cmd = ModuleCommand(line, module_binary_filename(raw_cmd), None)
+            cmd = ModuleDefinitionCommand(line, module_binary_filename(raw_cmd))
         elif cmd_type == "module_instance":
             cmd = ModuleCommand(line, defined_modules[raw_cmd["module"]], raw_cmd.get("instance"))
         elif cmd_type == "action":
@@ -377,6 +392,9 @@ def gen_value_result(value: WasmValue) -> GeneratedValue:
     if value.kind == "funcref" and value.value is None:
         return GeneratedAnyFuncRef()
 
+    if value.kind == "externref" and value.value is None:
+        return GeneratedAnyExternRef()
+
     if value.kind == "f32" or value.kind == "f64":
         assert value.value is not None
         if value.value.startswith("nan"):
@@ -428,6 +446,23 @@ _test.skip = test.skip;
     ctx.has_unclosed = True
 
 
+def gen_module_definition_command(command: ModuleDefinitionCommand, ctx: Context):
+    if ctx.has_unclosed:
+        print("});")
+        ctx.has_unclosed = False
+    stem = command.file_name.stem
+    print(
+        f"""
+describe("{stem}", () => {{
+let _test = test;
+{gen_test_command_for_module(command.file_name)}("validate (line {command.line})", () => {{
+content = readBinaryWasmFile("Fixtures/SpecTests/{command.file_name}");
+validateWebAssemblyModule(content);
+}});
+}});"""
+    )
+
+
 def gen_invalid(invalid: AssertInvalid, ctx: Context):
     # TODO: Remove this once the multiple memories proposal is standardized.
     # We support the multiple memories proposal, so spec-tests that check that
@@ -464,6 +499,15 @@ def gen_expectation(gen_result: GeneratedValue, module: str):
             f"isValidFuncrefIn(_result, {module})",
             "_result",
             "(ref.func)",
+        )
+        return
+    if isinstance(gen_result, GeneratedAnyExternRef):
+        # Null extern references surface as JS null; live ones as their address.
+        print(f"/* {gen_result} */ ", end="")
+        gen_pretty_expect(
+            "_result !== null",
+            "_result",
+            "(ref.extern)",
         )
         return
     if isinstance(gen_result, ArithmeticNan):
@@ -572,6 +616,9 @@ def gen_register(register: Register, _: Context):
 def gen_command(command: Command, ctx: Context):
     if isinstance(command, ModuleCommand):
         gen_module_command(command, ctx)
+        return
+    if isinstance(command, ModuleDefinitionCommand):
+        gen_module_definition_command(command, ctx)
         return
     if isinstance(command, ActionCommand):
         if isinstance(command.action, Invoke):

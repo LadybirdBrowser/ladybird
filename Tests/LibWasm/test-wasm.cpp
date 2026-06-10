@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibTest/JavaScriptTestRunner.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
+#include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWasm/Types.h>
 #include <string.h>
 
@@ -186,6 +187,21 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
     }
 
     return JS::Value(TRY(WebAssemblyModule::create(realm, result.release_value(), imports)));
+}
+
+TESTJS_GLOBAL_FUNCTION(validate_webassembly_module, validateWebAssemblyModule)
+{
+    auto object = TRY(vm.argument(0).to_object(vm));
+    if (!is<JS::Uint8Array>(*object))
+        return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to validate_webassembly_module"sv);
+    auto& array = static_cast<JS::Uint8Array&>(*object);
+    FixedMemoryStream stream { array.data() };
+    auto result = Wasm::Module::parse(stream);
+    if (result.is_error())
+        return vm.throw_completion<JS::SyntaxError>(Wasm::parse_error_to_byte_string(result.error()));
+    if (auto validation = WebAssemblyModule::machine().validate(*result.value(), {}, Wasm::CompileToNative::No); validation.is_error())
+        return vm.throw_completion<JS::SyntaxError>(validation.release_error().error_string);
+    return JS::js_undefined();
 }
 
 TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
