@@ -6776,6 +6776,11 @@ void Document::prune_image_resource_caches()
     static constexpr size_t decoded_image_resource_cache_limit = 8 * MiB;
     static constexpr size_t decoded_image_resource_cache_count_limit = 96;
 
+    auto is_used_by_css_image_resource = [&](URL::URL const& url, HTML::SharedResourceRequest const& request) {
+        auto* css_image_resource = this->css_image_resource(url);
+        return css_image_resource && css_image_resource->image_data() == request.image_data();
+    };
+
     struct CacheSize {
         size_t decoded_image_size { 0 };
         size_t decoded_image_count { 0 };
@@ -6788,6 +6793,8 @@ void Document::prune_image_resource_caches()
         for (auto const& it : m_shared_resource_requests) {
             auto const& request = *it.value;
             if (!request.can_be_pruned_from_memory_cache())
+                continue;
+            if (is_used_by_css_image_resource(it.key, request))
                 continue;
             ++count;
             if (auto image_data = request.image_data())
@@ -6806,6 +6813,8 @@ void Document::prune_image_resource_caches()
         for (auto const& it : m_shared_resource_requests) {
             auto const& request = *it.value;
             if (!request.can_be_pruned_from_memory_cache())
+                continue;
+            if (is_used_by_css_image_resource(it.key, request))
                 continue;
             if (request.cache_touch_serial() >= least_recently_used_serial)
                 continue;
