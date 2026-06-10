@@ -152,7 +152,7 @@ describe("errors", () => {
     test("should not crash when serializing deeply nested structures", () => {
         const deepArray = [];
         let current = deepArray;
-        for (let i = 0; i < 100_000; i++) {
+        for (let i = 0; i < 1_000_000; i++) {
             current[0] = [];
             current = current[0];
         }
@@ -163,7 +163,7 @@ describe("errors", () => {
 
         const deepObject = {};
         current = deepObject;
-        for (let i = 0; i < 100_000; i++) {
+        for (let i = 0; i < 1_000_000; i++) {
             current.x = {};
             current = current.x;
         }
