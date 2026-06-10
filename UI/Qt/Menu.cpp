@@ -218,7 +218,11 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M));
         break;
     case WebView::ActionID::OpenSettingsPage:
+#if defined(AK_OS_MACOS)
         qaction.setShortcut(QKeySequence::StandardKey::Preferences);
+#else
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
+#endif
         break;
     case WebView::ActionID::ToggleDevTools:
         qaction.setShortcuts({
