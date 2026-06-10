@@ -50,8 +50,7 @@ GC::Ref<ViewTransition> ViewTransition::create(GC::Ref<DOM::Document> document, 
 }
 
 ViewTransition::ViewTransition(GC::Ref<DOM::Document> document, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<WebIDL::Promise> update_callback_done_promise, GC::Ref<WebIDL::Promise> finished_promise)
-    : Bindings::Wrappable()
-    , m_document(document)
+    : m_document(document)
     , m_ready_promise(ready_promise)
     , m_update_callback_done_promise(update_callback_done_promise)
     , m_finished_promise(finished_promise)
@@ -95,7 +94,7 @@ void ViewTransition::skip_transition()
 
     // 1. If this's phase is not "done", then skip the view transition for this with an "AbortError" DOMException.
     if (m_phase != Phase::Done) {
-        skip_the_view_transition(WebIDL::AbortError::create(document().relevant_settings_object().realm(), "ViewTransition.skip_transition() was called"_utf16));
+        skip_the_view_transition(WebIDL::AbortError::create("ViewTransition.skip_transition() was called"_utf16));
     }
 }
 
@@ -119,7 +118,7 @@ void ViewTransition::setup_view_transition()
     //    If failure is returned,
     if (result.is_error()) {
         // then skip the view transition for transition with an "InvalidStateError" DOMException in transition’s relevant Realm,
-        skip_the_view_transition(WebIDL::InvalidStateError::create(realm, "Failed to capture old state"_utf16));
+        skip_the_view_transition(WebIDL::InvalidStateError::create("Failed to capture old state"_utf16));
         // and return.
         return;
     }
@@ -167,7 +166,7 @@ void ViewTransition::activate_view_transition()
     //    skip transition with an "InvalidStateError" DOMException in transition’s relevant Realm, and return.
     auto snapshot_containing_block_size = document.navigable()->snapshot_containing_block_size();
     if (m_initial_snapshot_containing_block_size != snapshot_containing_block_size) {
-        skip_the_view_transition(WebIDL::InvalidStateError::create(realm, "Transition's initial snapshot containing block size is not equal to the snapshot containing block size"_utf16));
+        skip_the_view_transition(WebIDL::InvalidStateError::create("Transition's initial snapshot containing block size is not equal to the snapshot containing block size"_utf16));
         return;
     }
 
@@ -176,7 +175,7 @@ void ViewTransition::activate_view_transition()
     //    If failure is returned,
     if (result.is_error()) {
         // then skip the view transition for transition with an "InvalidStateError" DOMException in transition’s relevant Realm,
-        skip_the_view_transition(WebIDL::InvalidStateError::create(realm, "Failed to capture new state"_utf16));
+        skip_the_view_transition(WebIDL::InvalidStateError::create("Failed to capture new state"_utf16));
         // and return.
         return;
     }
@@ -198,7 +197,7 @@ void ViewTransition::activate_view_transition()
     //    If failure is returned,
     if (result.is_error()) {
         // then skip the view transition for transition with an "InvalidStateError" DOMException in transition’s relevant Realm,
-        skip_the_view_transition(WebIDL::InvalidStateError::create(realm, "Failed to update pseudo-element styles"_utf16));
+        skip_the_view_transition(WebIDL::InvalidStateError::create("Failed to update pseudo-element styles"_utf16));
         // and return.
         return;
     }
@@ -475,12 +474,12 @@ void ViewTransition::setup_transition_pseudo_elements()
             //       animation-name: -ua-view-transition-fade-in;
             //     }
             //    NOTE: The above code example contains variables to be replaced.
-            unsigned index = MUST(stylesheet->insert_rule(document.relevant_settings_object().realm(), MUST(String::formatted(R"(
+            unsigned index = MUST(stylesheet->insert_rule(MUST(String::formatted(R"(
                 :root::view-transition-new({}) {{
                     animation-name: -ua-view-transition-fade-in;
                 }}
             )",
-                                                                                                           transition_name)),
+                                                              transition_name)),
                 stylesheet->rules().length()));
             captured_element->image_animation_name_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
         }
@@ -496,12 +495,12 @@ void ViewTransition::setup_transition_pseudo_elements()
             //       animation-name: -ua-view-transition-fade-out;
             //     }
             //    NOTE: The above code example contains variables to be replaced.
-            unsigned index = MUST(stylesheet->insert_rule(document.relevant_settings_object().realm(), MUST(String::formatted(R"(
+            unsigned index = MUST(stylesheet->insert_rule(MUST(String::formatted(R"(
                 :root::view-transition-old({}) {{
                     animation-name: -ua-view-transition-fade-out;
                 }}
             )",
-                                                                                                           transition_name)),
+                                                              transition_name)),
                 stylesheet->rules().length()));
             captured_element->image_animation_name_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
         }
@@ -535,7 +534,7 @@ void ViewTransition::setup_transition_pseudo_elements()
             //       }
             //     }
             //    NOTE: The above code example contains variables to be replaced.
-            unsigned index = MUST(stylesheet->insert_rule(document.relevant_settings_object().realm(), MUST(String::formatted(R"(
+            unsigned index = MUST(stylesheet->insert_rule(MUST(String::formatted(R"(
                 @keyframes -ua-view-transition-group-anim-{} {{
                     from {{
                         transform: {};
@@ -545,7 +544,7 @@ void ViewTransition::setup_transition_pseudo_elements()
                     }}
                 }}
             )",
-                                                                                                           transition_name, "transform", width, height, "backdrop_filter")),
+                                                              transition_name, "transform", width, height, "backdrop_filter")),
                 stylesheet->rules().length()));
             // FIXME: all the strings above should be the identically named variables, serialized somehow.
             captured_element->group_keyframes = as<CSS::CSSKeyframesRule>(stylesheet->css_rules()->item(index));
@@ -556,12 +555,12 @@ void ViewTransition::setup_transition_pseudo_elements()
             //       animation-name: -ua-view-transition-group-anim-transitionName;
             //     }
             //    NOTE: The above code example contains variables to be replaced.
-            index = MUST(stylesheet->insert_rule(document.relevant_settings_object().realm(), MUST(String::formatted(R"(
+            index = MUST(stylesheet->insert_rule(MUST(String::formatted(R"(
                 :root::view-transition-group({0}) {{
                     animation-name: -ua-view-transition-group-anim-{0};
                 }}
             )",
-                                                                                                  transition_name)),
+                                                     transition_name)),
                 stylesheet->rules().length()));
             captured_element->group_animation_name_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
 
@@ -571,12 +570,12 @@ void ViewTransition::setup_transition_pseudo_elements()
             //       isolation: isolate;
             //     }
             //    NOTE: The above code example contains variables to be replaced.
-            index = MUST(stylesheet->insert_rule(document.relevant_settings_object().realm(), MUST(String::formatted(R"(
+            index = MUST(stylesheet->insert_rule(MUST(String::formatted(R"(
                 :root::view-transition-image-pair({}) {{
                     isolation: isolate;
                 }}
             )",
-                                                                                                  transition_name)),
+                                                     transition_name)),
                 stylesheet->rules().length()));
             captured_element->image_pair_isolation_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
 
@@ -594,7 +593,7 @@ void ViewTransition::setup_transition_pseudo_elements()
             //    cross-fade.
             // AD-HOC: We can't use the given CSS exactly since it is two rules, not one.
             //         Instead we turn it into one rule, with both of them nested inside.
-            index = MUST(stylesheet->insert_rule(document.relevant_settings_object().realm(), MUST(String::formatted(R"(
+            index = MUST(stylesheet->insert_rule(MUST(String::formatted(R"(
                 :root {{
                     &::view-transition-old({0}) {{
                         animation-name: -ua-view-transition-fade-out, -ua-mix-blend-mode-plus-lighter;
@@ -604,7 +603,7 @@ void ViewTransition::setup_transition_pseudo_elements()
                     }}
                 }}
             )",
-                                                                                                  transition_name)),
+                                                     transition_name)),
                 stylesheet->rules().length()));
             captured_element->image_animation_name_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
         }
@@ -794,7 +793,7 @@ void ViewTransition::handle_transition_frame()
     auto snapshot_containing_block_size = document.navigable()->snapshot_containing_block_size();
     if (m_initial_snapshot_containing_block_size != snapshot_containing_block_size) {
         // then skip the view transition for transition with an "InvalidStateError" DOMException in transition’s relevant Realm,
-        skip_the_view_transition(WebIDL::InvalidStateError::create(realm, "Transition's initial snapshot containing block size is not equal to the snapshot containing block size"_utf16));
+        skip_the_view_transition(WebIDL::InvalidStateError::create("Transition's initial snapshot containing block size is not equal to the snapshot containing block size"_utf16));
         // and return.
         return;
     }
@@ -804,7 +803,7 @@ void ViewTransition::handle_transition_frame()
     //    If failure is returned,
     if (result.is_error()) {
         // then skip the view transition for transition with an "InvalidStateError" DOMException in transition’s relevant Realm,
-        skip_the_view_transition(WebIDL::InvalidStateError::create(realm, "Failed to update pseudo-element styles"_utf16));
+        skip_the_view_transition(WebIDL::InvalidStateError::create("Failed to update pseudo-element styles"_utf16));
         // and return.
         return;
     }
@@ -938,7 +937,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             // }
             // NOTE: The above code example contains variables to be replaced.
             auto stylesheet = document().dynamic_view_transition_style_sheet();
-            unsigned index = MUST(stylesheet->insert_rule(document().relevant_settings_object().realm(), MUST(String::formatted(R"(
+            unsigned index = MUST(stylesheet->insert_rule(MUST(String::formatted(R"(
                 :root::view-transition-group({}) {{
                     width: {};
                     height: {};
@@ -951,7 +950,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
                     color-scheme: {};
                 }}
             )",
-                                                                                                             transition_name, width, height, "transform", "writing_mode", "direction", "text_orientation", "mix_blend_mode", "backdrop_filter", "color_scheme")),
+                                                              transition_name, width, height, "transform", "writing_mode", "direction", "text_orientation", "mix_blend_mode", "backdrop_filter", "color_scheme")),
                 stylesheet->rules().length()));
             // FIXME: all the strings above should be the identically named variables, serialized somehow.
             captured_element->group_styles_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/Crypto.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
 #include <LibWeb/Export.h>
@@ -25,7 +24,7 @@ public:
 
     GC::Ref<SubtleCrypto> subtle() const;
 
-    WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> get_random_values(JS::Realm&, WebIDL::ArrayBufferViewVariant) const;
+    WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> get_random_values(WebIDL::ArrayBufferViewVariant) const;
     String random_uuid() const;
 
 protected:

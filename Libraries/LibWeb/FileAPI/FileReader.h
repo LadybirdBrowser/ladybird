@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -20,12 +21,12 @@ class FileReader : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(FileReader);
 
 public:
-    using Result = Variant<Empty, String, GC::Ref<JS::ArrayBuffer>>;
+    using Result = Variant<Empty, String, ByteBuffer>;
 
     virtual ~FileReader() override;
 
     [[nodiscard]] static GC::Ref<FileReader> create(GC::Ref<DOM::EventTarget> relevant_global_object);
-    static GC::Ref<FileReader> construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<FileReader>> create_for_constructor(JS::Realm&);
 
     // async read methods
     WebIDL::ExceptionOr<void> read_as_array_buffer(Blob&);
@@ -56,7 +57,7 @@ public:
     // File or Blob data
 
     // https://w3c.github.io/FileAPI/#dom-filereader-result
-    Result result() const { return m_result; }
+    WebIDL::ExceptionOr<JS::Value> result(JS::Realm&) const;
 
     // https://w3c.github.io/FileAPI/#dom-filereader-error
     GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
@@ -86,7 +87,7 @@ public:
         Text,
         DataURL,
     };
-    static WebIDL::ExceptionOr<Result> blob_package_data(JS::Realm& realm, ByteBuffer, FileReader::Type type, Optional<String> const&, Optional<String> const& encoding_name = {});
+    static WebIDL::ExceptionOr<Result> blob_package_data(ByteBuffer, FileReader::Type type, Optional<String> const&, Optional<String> const& encoding_name = {});
 
 protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;

@@ -9,6 +9,12 @@
 #include <AK/Forward.h>
 #include <LibWeb/DOM/EventTarget.h>
 
+namespace Web::Bindings {
+
+struct CloseWatcherOptions;
+
+}
+
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#the-closewatcher-interface
@@ -19,7 +25,8 @@ class CloseWatcher final : public DOM::EventTarget {
 public:
     using GetEnabledState = GC::Ref<GC::Function<bool()>>;
 
-    static WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> construct_impl(Window&, Bindings::CloseWatcherOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> create(Window&, Bindings::CloseWatcherOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> create_for_constructor(JS::Realm&, Bindings::CloseWatcherOptions const&);
     [[nodiscard]] static GC::Ref<CloseWatcher> establish(HTML::Window&, GetEnabledState);
 
     void request_close_for_bindings();

@@ -6,9 +6,8 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -26,7 +25,7 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     VERIFY(realm);
 
     // 2. Let worker global scope be realm's global object.
-    auto* worker = Bindings::impl_from<HTML::WorkerGlobalScope>(&realm->global_object());
+    auto* worker = Bindings::worker_global_scope_from_global_object(realm->global_object());
     VERIFY(worker);
 
     // 3. Let origin be a unique opaque origin if worker global scope's url's scheme is "data"; otherwise outside settings's origin.
@@ -60,14 +59,12 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
 
     // 8. Set realm's [[HostDefined]] field to settings object.
     auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
-    auto wrapper_world = GC::Heap::the().allocate<Bindings::WrapperWorld>(Bindings::WrapperWorld::Type::Main);
-    auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, *wrapper_world, page);
-    realm->set_host_defined(move(host_defined));
+    realm->set_host_defined(Bindings::create_principal_host_defined(settings_object, intrinsics, page));
     Bindings::cache_global_object_wrapper(*realm);
 
     // Non-Standard: We cannot fully initialize worker object until *after* the we set up
     //    the realm's [[HostDefined]] internal slot as the internal slot contains the web platform intrinsics
-    worker->initialize_web_interfaces({});
+    Bindings::initialize_worker_web_interfaces(*worker);
 
     // 9. Return settings object.
     return settings_object;

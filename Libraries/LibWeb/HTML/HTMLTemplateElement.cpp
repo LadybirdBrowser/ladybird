@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLTemplateElement.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
@@ -49,7 +47,7 @@ void HTMLTemplateElement::adopted_from(DOM::Document&)
     auto document = this->document().appropriate_template_contents_owner_document();
 
     // 2. Adopt node's template contents (a DocumentFragment object) into document.
-    document->adopt_node(content());
+    document->adopt_node_steps(content());
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#the-template-element:concept-node-clone-ext

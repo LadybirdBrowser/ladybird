@@ -13,8 +13,7 @@ namespace Web::Internals {
 GC_DEFINE_ALLOCATOR(InternalsBase);
 
 InternalsBase::InternalsBase(HTML::Window& window)
-    : Bindings::Wrappable()
-    , m_window(window)
+    : m_window(window)
 {
 }
 

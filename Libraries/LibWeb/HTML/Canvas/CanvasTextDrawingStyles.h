@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
 
 namespace Web::HTML {
@@ -21,14 +22,14 @@ public:
     // https://html.spec.whatwg.org/multipage/canvas.html#font-style-source-object
     Variant<DOM::Document*, HTML::WorkerGlobalScope*> get_font_source_for_font_style_source_object(CanvasType& font_style_source_object);
 
-    Bindings::CanvasTextAlign text_align() const { return drawing_state().text_align; }
-    void set_text_align(Bindings::CanvasTextAlign text_align) { drawing_state().text_align = text_align; }
+    CanvasTextAlign text_align() const { return drawing_state().text_align; }
+    void set_text_align(CanvasTextAlign text_align) { drawing_state().text_align = text_align; }
 
-    Bindings::CanvasTextBaseline text_baseline() const { return drawing_state().text_baseline; }
-    void set_text_baseline(Bindings::CanvasTextBaseline text_baseline) { drawing_state().text_baseline = text_baseline; }
+    CanvasTextBaseline text_baseline() const { return drawing_state().text_baseline; }
+    void set_text_baseline(CanvasTextBaseline text_baseline) { drawing_state().text_baseline = text_baseline; }
 
-    Bindings::CanvasDirection direction() const { return drawing_state().direction; }
-    void set_direction(Bindings::CanvasDirection direction) { drawing_state().direction = direction; }
+    CanvasDirection direction() const { return drawing_state().direction; }
+    void set_direction(CanvasDirection direction) { drawing_state().direction = direction; }
 
     String letter_spacing() const;
     void set_letter_spacing(StringView);

@@ -29,6 +29,10 @@ def async_iterator_implementation_header_for_interface(interface: Interface) -> 
     return libweb_include_path(interface.path.with_name(f"{interface.implemented_name}AsyncIterator.h"))
 
 
+def bindings_wrapper_header_for_interface(interface: Interface) -> str:
+    return "LibWeb/Bindings/ImplementedInBindings.h"
+
+
 def write_iterator_prototype_declaration(out: TextIO, interface: Interface) -> None:
     if interface.iterable is None or interface.iterable.key_type is None:
         return
@@ -182,7 +186,9 @@ def write_pair_iterable_declaration_functions(
     includes.add("LibJS/Runtime/AbstractOperations.h")
     includes.add("LibJS/Runtime/Error.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("AK/IterationDecision.h")
+    includes.add("AK/Optional.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
     includes.add(iterator_implementation_header_for_interface(interface))
     add_header_includes_for_idl_type(interface.iterable.key_type, includes, context)
     add_header_includes_for_idl_type(interface.iterable.value_type, includes, context)
@@ -190,6 +196,7 @@ def write_pair_iterable_declaration_functions(
     out.write(f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::entries");
+    auto& realm = *vm.current_realm();
 
     // 1. Let jsValue be ? ToObject(this value).
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "%Symbol.iterator%", and "method".
@@ -197,12 +204,13 @@ def write_pair_iterable_declaration_functions(
     auto* this_impl = TRY(impl_from(vm));
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "key+value" as its kind, and index set to 0.
-    return TRY(throw_dom_exception_if_needed(vm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(*this_impl, JS::Object::PropertyKind::KeyAndValue); }}));
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(realm, *this_impl, JS::Object::PropertyKind::KeyAndValue); }}));
 }}
 
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::keys");
+    auto& realm = *vm.current_realm();
 
     // 1. Let jsValue be ? ToObject(this value).
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "keys", and "method".
@@ -210,12 +218,13 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
     auto* this_impl = TRY(impl_from(vm));
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "key" as its kind, and index set to 0.
-    return TRY(throw_dom_exception_if_needed(vm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(*this_impl, JS::Object::PropertyKind::Key); }}));
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(realm, *this_impl, JS::Object::PropertyKind::Key); }}));
 }}
 
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::values");
+    auto& realm = *vm.current_realm();
 
     // 1. Let jsValue be ? ToObject(this value).
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "values", and "method".
@@ -223,12 +232,13 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
     auto* this_impl = TRY(impl_from(vm));
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "value" as its kind, and index set to 0.
-    return TRY(throw_dom_exception_if_needed(vm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(*this_impl, JS::Object::PropertyKind::Value); }}));
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {fully_qualified_name_for_interface(interface)}Iterator::create(realm, *this_impl, JS::Object::PropertyKind::Value); }}));
 }}
 
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::for_each");
+    [[maybe_unused]] auto& realm = *vm.current_realm();
     auto* this_impl = TRY(impl_from(vm));
 
     auto callback = vm.argument(0);
@@ -236,12 +246,19 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, callback);
 
     auto this_value = vm.this_value();
-    TRY(this_impl->for_each([&](auto key, auto value) -> JS::ThrowCompletionOr<void> {{
+    Optional<JS::Completion> callback_exception;
+    this_impl->for_each([&](auto key, auto value) -> IterationDecision {{
         JS::Value wrapped_key = {to_javascript_value(interface.iterable.key_type, "key", includes, context)};
         JS::Value wrapped_value = {to_javascript_value(interface.iterable.value_type, "value", includes, context)};
-        TRY(JS::call(vm, callback.as_function(), vm.argument(1), wrapped_value, wrapped_key, this_value));
-        return {{}};
-    }}));
+        auto completion = JS::call(vm, callback.as_function(), vm.argument(1), wrapped_value, wrapped_key, this_value);
+        if (completion.is_error()) {{
+            callback_exception = completion.release_error();
+            return IterationDecision::Break;
+        }}
+        return IterationDecision::Continue;
+    }});
+    if (callback_exception.has_value())
+        return callback_exception.release_value();
 
     return JS::js_undefined();
 }}
@@ -262,7 +279,7 @@ def write_iterator_prototype_implementation(
     includes.add("LibJS/Runtime/IteratorPrototype.h")
     includes.add("LibJS/Runtime/PrimitiveString.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
     includes.add(iterator_implementation_header_for_interface(interface))
 
     iterator_interface_name = f"{interface.name}Iterator"
@@ -297,7 +314,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.name}IteratorPrototype::next)
 {{
     WebIDL::log_trace(vm, "{interface.name}IteratorPrototype::next");
     auto* impl = TRY({make_name_acceptable_cpp(title_case_to_snake_case(iterator_interface_name))}_impl_from(vm));
-    return TRY(throw_dom_exception_if_needed(vm, [&] {{ return impl->next(); }}));
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return impl->next(); }}));
 }}
 
 """)
@@ -314,16 +331,18 @@ def write_async_iterable_declaration_functions(
     if interface.async_iterable.key_type is not None:
         raise RuntimeError(f"Unsupported pair async iterable declaration on '{interface.name}'")
 
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
     includes.add(async_iterator_implementation_header_for_interface(interface))
 
     add_header_includes_for_idl_type(interface.async_iterable.value_type, includes, context)
+    if "ImplementedInBindings" in interface.async_iterable.extended_attributes:
+        includes.add(bindings_wrapper_header_for_interface(interface))
 
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::values");
-    auto& realm = *vm.current_realm();
+    [[maybe_unused]] auto& realm = *vm.current_realm();
     auto* impl = TRY(impl_from(vm));
 
 """
@@ -334,8 +353,12 @@ def write_async_iterable_declaration_functions(
     if arguments:
         arguments = f", {arguments}"
 
+    create_iterator = f"{fully_qualified_name_for_interface(interface)}AsyncIterator::create(realm, JS::Object::PropertyKind::Value, *impl"
+    if "ImplementedInBindings" in interface.async_iterable.extended_attributes:
+        create_iterator = "Web::Bindings::values(realm, *impl"
+
     out.write(
-        f"""    return TRY(throw_dom_exception_if_needed(vm, [&] {{ return {fully_qualified_name_for_interface(interface)}AsyncIterator::create(realm, JS::Object::PropertyKind::Value, *impl{arguments}); }}));
+        f"""    return TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {create_iterator}{arguments}); }}));
 }}
 
 """
@@ -353,7 +376,7 @@ def write_async_iterator_prototype_implementation(
     includes.add("AK/StringView.h")
     includes.add("LibJS/Runtime/AsyncIteratorPrototype.h")
     includes.add("LibJS/Runtime/PrimitiveString.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
     includes.add("LibWeb/WebIDL/AsyncIterator.h")
     includes.add(async_iterator_implementation_header_for_interface(interface))
 
@@ -382,9 +405,9 @@ void {interface.name}AsyncIteratorPrototype::initialize(JS::Realm& realm)
 JS_DEFINE_NATIVE_FUNCTION({interface.name}AsyncIteratorPrototype::next)
 {{
     WebIDL::log_trace(vm, "{interface.name}AsyncIteratorPrototype::next");
-    auto& realm = *vm.current_realm();
+    [[maybe_unused]] auto& realm = *vm.current_realm();
 
-    return TRY(throw_dom_exception_if_needed(vm, [&] {{
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{
         return WebIDL::AsyncIterator::next<{fully_qualified_name_for_interface(interface)}AsyncIterator>(realm, "{interface.name}AsyncIterator"sv);
     }}));
 }}
@@ -396,11 +419,11 @@ JS_DEFINE_NATIVE_FUNCTION({interface.name}AsyncIteratorPrototype::next)
 JS_DEFINE_NATIVE_FUNCTION({interface.name}AsyncIteratorPrototype::return_)
 {{
     WebIDL::log_trace(vm, "{interface.name}AsyncIteratorPrototype::return");
-    auto& realm = *vm.current_realm();
+    [[maybe_unused]] auto& realm = *vm.current_realm();
 
     auto value = vm.argument(0);
 
-    return TRY(throw_dom_exception_if_needed(vm, [&] {{
+    return TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{
         return WebIDL::AsyncIterator::return_<{fully_qualified_name_for_interface(interface)}AsyncIterator>(realm, "{interface.name}AsyncIterator"sv, value);
     }}));
 }}
@@ -421,18 +444,23 @@ def write_maplike_declaration_functions(
     includes.add("LibJS/Runtime/Map.h")
     includes.add("LibJS/Runtime/MapIterator.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
+    includes.add(bindings_wrapper_header_for_interface(interface))
+
+    if interface.maplike.key_type.name not in ("ByteString", "CSSOMString", "DOMString", "USVString"):
+        raise RuntimeError(f"Unsupported maplike key type '{interface.maplike.key_type.name}' on '{interface.name}'")
 
     out.write(f"""// https://webidl.spec.whatwg.org/#js-map-size
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get_size)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::get_size");
+    auto& realm = *vm.current_realm();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "size" and type "getter".
     auto* this_impl = TRY(impl_from(vm));
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
+    GC::Ref<JS::Map> map = map_entries(realm, *this_impl);
 
     // 3. Return map’s size, converted to a JavaScript value.
     return map->map_size();
@@ -448,7 +476,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
     auto* this_impl = TRY(impl_from(vm));
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
+    GC::Ref<JS::Map> map = map_entries(realm, *this_impl);
 
     // 3. Return the result of creating a map iterator from map with kind "key+value".
     return JS::MapIterator::create(realm, *map, PropertyKind::KeyAndValue);
@@ -464,7 +492,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
     auto* this_impl = TRY(impl_from(vm));
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
+    GC::Ref<JS::Map> map = map_entries(realm, *this_impl);
 
     // 3. Return the result of creating a map iterator from map with kind "key".
     return JS::MapIterator::create(realm, *map, PropertyKind::Key);
@@ -480,7 +508,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
     auto* this_impl = TRY(impl_from(vm));
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
+    GC::Ref<JS::Map> map = map_entries(realm, *this_impl);
 
     // 3. Return the result of creating a map iterator from map with kind "value".
     return JS::MapIterator::create(realm, *map, PropertyKind::Value);
@@ -490,12 +518,13 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::for_each");
+    auto& realm = *vm.current_realm();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "forEach" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
     // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
+    GC::Ref<JS::Map> map = map_entries(realm, *this_impl);
 
     // 3. Let callbackFn be the first argument passed to the function, or undefined if not supplied.
     auto callback = vm.argument(0);
@@ -506,12 +535,13 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 
     // 5. Let thisArg be the second argument passed to the function, or undefined if not supplied.
     auto this_arg = vm.argument(1);
+    auto this_value = vm.this_value();
 
     // 6. For each key → value of map:
     for (auto& [key, value] : *map) {{
         // 1. Let jsKey and jsValue be key and value converted to a JavaScript value.
         // 2. Perform ? Call(callbackFn, thisArg, « jsValue, jsKey, O »).
-        TRY(JS::call(vm, callback.as_function(), this_arg, value, key, this_impl));
+        TRY(JS::call(vm, callback.as_function(), this_arg, value, key, this_value));
     }}
 
     // 7. Return undefined.
@@ -522,23 +552,24 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::get");
+    [[maybe_unused]] auto& realm = *vm.current_realm();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "get" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
-    // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
-
     // 3. Let keyType be the key type specified in the maplike declaration.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
-    auto key = vm.argument(0);
-    {type_check_idl_value(interface.maplike.key_type, "key", includes, context, interface.name)}
+    auto key_arg = vm.argument(0);
+    auto key = TRY([&]() -> JS::ThrowCompletionOr<FlyString> {{
+        auto key_string = TRY(key_arg.to_string(vm));
+        return MUST(FlyString::from_utf8(key_string.bytes_as_string_view()));
+    }}());
 
     // FIXME: 6. If key is -0, set key to +0.
 
     // 7. If map[key] exists, then return map[key], converted to a JavaScript value.
-    auto result = map->map_get(key);
+    auto result = map_get(realm, *this_impl, key);
     return result.value_or(JS::js_undefined());
 }}
 
@@ -546,23 +577,24 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get)
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::has");
+    [[maybe_unused]] auto& realm = *vm.current_realm();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "has" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
-    // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
-
     // 3. Let keyType be the key type specified in the maplike declaration.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
-    auto key = vm.argument(0);
-    {type_check_idl_value(interface.maplike.key_type, "key", includes, context, interface.name)}
+    auto key_arg = vm.argument(0);
+    auto key = TRY([&]() -> JS::ThrowCompletionOr<FlyString> {{
+        auto key_string = TRY(key_arg.to_string(vm));
+        return MUST(FlyString::from_utf8(key_string.bytes_as_string_view()));
+    }}());
 
     // FIXME: 6. If key is -0, set key to +0.
 
     // 7. If map[key] exists, then return true; otherwise return false.
-    return map->map_has(key);
+    return map_has(*this_impl, key);
 }}
 """)
 
@@ -573,18 +605,19 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::set)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::set");
+    auto& realm = *vm.current_realm();
 
     // 1. Let O be the this value, implementation-checked against A with identifier "set" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
-    // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
-
     // 3. Let keyType be the key type specified in the maplike declaration, and valueType be the value type.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
-    auto key = vm.argument(0);
-    {type_check_idl_value(interface.maplike.key_type, "key", includes, context, interface.name)}
+    auto key_arg = vm.argument(0);
+    auto key = TRY([&]() -> JS::ThrowCompletionOr<FlyString> {{
+        auto key_string = TRY(key_arg.to_string(vm));
+        return MUST(FlyString::from_utf8(key_string.bytes_as_string_view()));
+    }}());
 
     // FIXME: 6. If key is -0, set key to +0.
 
@@ -594,11 +627,10 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::set)
     {type_check_idl_value(interface.maplike.value_type, "value", includes, context, interface.name)}
 
     // 9. Set map[key] to value.
-    map->map_set(key, value);
-    this_impl->on_map_modified_from_js({{}});
+    TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return set(realm, *this_impl, key.to_string(), value); }}));
 
     // 10. Return O.
-    return this_impl;
+    return vm.this_value();
 }}
 
 """)
@@ -614,21 +646,20 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
     // 1. Let O be the this value, implementation-checked against A with identifier "delete" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
-    // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
-
     // 3. Let keyType be the key type specified in the maplike declaration.
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
-    auto key = vm.argument(0);
-    {type_check_idl_value(interface.maplike.key_type, "key", includes, context, interface.name)}
+    auto key_arg = vm.argument(0);
+    auto key = TRY([&]() -> JS::ThrowCompletionOr<FlyString> {{
+        auto key_string = TRY(key_arg.to_string(vm));
+        return MUST(FlyString::from_utf8(key_string.bytes_as_string_view()));
+    }}());
 
     // FIXME: 6. If key is -0, set key to +0.
 
     // 7. Let retVal be true if map[key] exists, or else false.
     // 8. Remove map[key].
-    auto result = map->map_remove(key);
-    this_impl->on_map_modified_from_js({{}});
+    auto result = map_remove(*this_impl, key);
 
     // 9. Return retVal.
     return result;
@@ -647,13 +678,9 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::clear)
     // 1. Let O be the this value, implementation-checked against A with identifier "delete" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
-    // 2. Let map be the map entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Map> map = this_impl->map_entries();
-
     // 3. Clear map.
     // NOTE: The map is preserved because there may be existing iterators, currently suspended, iterating over it.
-    map->map_clear();
-    this_impl->on_map_modified_from_js({{}});
+    map_clear(*this_impl);
 
     // 4. Return undefined.
     return JS::js_undefined();
@@ -676,18 +703,22 @@ def write_setlike_declaration_functions(
     includes.add("LibJS/Runtime/Set.h")
     includes.add("LibJS/Runtime/SetIterator.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
+    includes.add("LibWeb/Bindings/WrapperWorld.h")
+    includes.add(bindings_wrapper_header_for_interface(interface))
 
     out.write(f"""// https://webidl.spec.whatwg.org/#js-set-size
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get_size)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::size");
+    auto& realm = *vm.current_realm();
+    auto& wrapper_world = host_defined_wrapper_world(realm);
 
     // 1. Let O be the this value, implementation-checked against A with identifier "size" and type "getter".
     auto* this_impl = TRY(impl_from(vm));
 
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Set> set = this_impl->set_entries();
+    GC::Ref<JS::Set> set = setlike_entries(realm, wrapper_world, *this_impl);
 
     // 3. Return set’s size, converted to a JavaScript value.
     return set->set_size();
@@ -698,12 +729,13 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::values");
     auto& realm = *vm.current_realm();
+    auto& wrapper_world = host_defined_wrapper_world(realm);
 
     // 1. Let O be the this value, implementation-checked against A with identifier "entries" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Set> set = this_impl->set_entries();
+    GC::Ref<JS::Set> set = setlike_entries(realm, wrapper_world, *this_impl);
 
     // 3. Return the result of creating a set iterator from set with kind "key+value".
     return JS::SetIterator::create(realm, *set, PropertyKind::KeyAndValue);
@@ -714,12 +746,13 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::values");
     auto& realm = *vm.current_realm();
+    auto& wrapper_world = host_defined_wrapper_world(realm);
 
     // 1. Let O be the this value, implementation-checked against A with identifier "values" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Set> set = this_impl->set_entries();
+    GC::Ref<JS::Set> set = setlike_entries(realm, wrapper_world, *this_impl);
 
     // 3. Return the result of creating a set iterator from set with kind "value".
     return JS::SetIterator::create(realm, *set, PropertyKind::Value);
@@ -729,12 +762,14 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 {{
     WebIDL::log_trace(vm, "{interface.prototype_class}::for_each");
+    auto& realm = *vm.current_realm();
+    auto& wrapper_world = host_defined_wrapper_world(realm);
 
     // 1. Let O be the this value, implementation-checked against A with identifier "forEach" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Set> set = this_impl->set_entries();
+    GC::Ref<JS::Set> set = setlike_entries(realm, wrapper_world, *this_impl);
 
     // 3. Let callbackFn be the first argument passed to the function, or undefined if not supplied.
     // 4. If IsCallable(callbackFn) is false, throw a TypeError.
@@ -744,6 +779,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 
     // 5. Let thisArg be the second argument passed to the function, or undefined if not supplied.
     auto this_arg = vm.argument(1);
+    auto this_value = vm.this_value();
 
     // 6. For each value of set:
     for (auto& entry : *set) {{
@@ -751,7 +787,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
         auto value = entry.key;
 
         // 2. Perform ? Call(callbackFn, thisArg, « jsValue, jsValue, O»).
-        TRY(JS::call(vm, callback.as_function(), this_arg, value, value, this_impl));
+        TRY(JS::call(vm, callback.as_function(), this_arg, value, value, this_value));
     }}
 
     // 7. Return undefined.
@@ -766,9 +802,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
     // 1. Let O be the this value, implementation-checked against A with identifier "has" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
-    // 2. Let set be the set entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Set> set = this_impl->set_entries();
-
     // 3. Let valueType be the value type specified in the setlike declaration.
     // 4. Let valueArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let value be valueArg converted to an IDL value of type valueType.
@@ -777,7 +810,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
     {type_check_idl_value(interface.setlike.value_type, "value", includes, context, interface.name)}
 
     // 7. If set contains value, then return true, otherwise return false.
-    return set->set_has(value);
+    return setlike_has(*this_impl, value);
 }}
 
 """)
@@ -793,9 +826,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::add)
     // 1. Let O be the this value, implementation-checked against A with identifier "add" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
-    // 2. Let set be the set entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Set> set = this_impl->set_entries();
-
     // 3. Let valueType be the value type specified in the setlike declaration.
     // 4. Let valueArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let value be valueArg converted to an IDL value of type valueType.
@@ -804,10 +834,10 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::add)
     {type_check_idl_value(interface.setlike.value_type, "value", includes, context, interface.name)}
 
     // 6. Append value to set.
-    set->set_add(value);
-    this_impl->on_set_modified_from_js({{}});
+    setlike_add(*this_impl, value);
+    setlike_on_set_modified_from_js(*this_impl);
 
-    return this_impl;
+    return vm.this_value();
 }}
 
 """)
@@ -823,9 +853,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
     // 1. Let O be the this value, implementation-checked against A with identifier "delete" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
-    // 2. Let set be O’s set entries.
-    GC::Ref<JS::Set> set = this_impl->set_entries();
-
     // 3. Let valueType be the value type specified in the setlike declaration.
     // 4. Let valueArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let value be valueArg converted to an IDL value of type valueType.
@@ -835,8 +862,8 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
 
     // 7. Let retVal be true if set contains value, or else false.
     // 8. Remove value from set.
-    auto result = set->set_remove(value);
-    this_impl->on_set_modified_from_js({{}});
+    auto result = setlike_remove(*this_impl, value);
+    setlike_on_set_modified_from_js(*this_impl);
 
     // 9. Return retVal.
     return result;
@@ -855,13 +882,10 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::clear)
     // 1. Let O be the this value, implementation-checked against A with identifier "clear" and type "method".
     auto* this_impl = TRY(impl_from(vm));
 
-    // 2. Let set be the set entries of the IDL value that represents a reference to O.
-    GC::Ref<JS::Set> set = this_impl->set_entries();
-
     // 3. Empty set.
     // NOTE: Note: The set is preserved because there may be existing iterators, currently suspended, iterating over it.
-    set->set_clear();
-    this_impl->on_set_modified_from_js({{}});
+    setlike_clear(*this_impl);
+    setlike_on_set_modified_from_js(*this_impl);
 
     // 4. Return undefined.
     return JS::js_undefined();

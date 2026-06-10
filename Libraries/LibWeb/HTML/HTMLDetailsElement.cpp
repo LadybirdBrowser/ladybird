@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLDetailsElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
@@ -120,7 +118,7 @@ void HTMLDetailsElement::queue_a_details_toggle_event_task(String old_state, Str
     auto task_id = queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state)]() mutable {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
         //    oldState and the newState attribute initialized to newState.
-        Bindings::ToggleEventInit event_init {};
+        ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
 
@@ -225,9 +223,9 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
         return {};
 
     // The details element is expected to have an internal shadow tree with three child elements:
-    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
-    shadow_root->set_slot_assignment(Bindings::SlotAssignmentMode::Manual);
+    shadow_root->set_slot_assignment(Web::DOM::SlotAssignmentMode::Manual);
     set_shadow_root(shadow_root);
 
     // The first child element is a slot that is expected to take the details element's first summary element child, if any.

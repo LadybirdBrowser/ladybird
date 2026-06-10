@@ -9,7 +9,6 @@
 #include <AK/StringBuilder.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -125,13 +124,13 @@ bool DOMTokenList::contains(String const& token)
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-add
-WebIDL::ExceptionOr<void> DOMTokenList::add(JS::Realm& realm, Vector<String> const& tokens)
+WebIDL::ExceptionOr<void> DOMTokenList::add(Vector<String> const& tokens)
 {
     // 1. For each token of tokens:
     for (auto const& token : tokens) {
         // a. If token is the empty string, then throw a "SyntaxError" DOMException.
         // b. If token contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
-        TRY(validate_token(realm, token));
+        TRY(validate_token(token));
 
         // 2. For each token of tokens, append token to this’s token set.
         append_to_ordered_set(m_token_set, token);
@@ -143,13 +142,13 @@ WebIDL::ExceptionOr<void> DOMTokenList::add(JS::Realm& realm, Vector<String> con
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-remove
-WebIDL::ExceptionOr<void> DOMTokenList::remove(JS::Realm& realm, Vector<String> const& tokens)
+WebIDL::ExceptionOr<void> DOMTokenList::remove(Vector<String> const& tokens)
 {
     // 1. For each token of tokens:
     for (auto const& token : tokens) {
         // a. If token is the empty string, then throw a "SyntaxError" DOMException.
         // b. If token contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
-        TRY(validate_token(realm, token));
+        TRY(validate_token(token));
 
         // 2. For each token of tokens, remove token from this’s token set.
         remove_from_ordered_set(m_token_set, token);
@@ -161,11 +160,11 @@ WebIDL::ExceptionOr<void> DOMTokenList::remove(JS::Realm& realm, Vector<String> 
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-toggle
-WebIDL::ExceptionOr<bool> DOMTokenList::toggle(JS::Realm& realm, String const& token, Optional<bool> force)
+WebIDL::ExceptionOr<bool> DOMTokenList::toggle(String const& token, Optional<bool> force)
 {
     // 1. If token is the empty string, then throw a "SyntaxError" DOMException.
     // 2. If token contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
-    TRY(validate_token(realm, token));
+    TRY(validate_token(token));
 
     // 3. If this’s token set[token] exists, then:
     if (contains(token)) {
@@ -192,15 +191,15 @@ WebIDL::ExceptionOr<bool> DOMTokenList::toggle(JS::Realm& realm, String const& t
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-replace
-WebIDL::ExceptionOr<bool> DOMTokenList::replace(JS::Realm& realm, String const& token, String const& new_token)
+WebIDL::ExceptionOr<bool> DOMTokenList::replace(String const& token, String const& new_token)
 {
     // 1. If either token or newToken is the empty string, then throw a "SyntaxError" DOMException.
-    TRY(validate_token_not_empty(realm, token));
-    TRY(validate_token_not_empty(realm, new_token));
+    TRY(validate_token_not_empty(token));
+    TRY(validate_token_not_empty(new_token));
 
     // 2. If either token or newToken contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
-    TRY(validate_token_not_whitespace(realm, token));
-    TRY(validate_token_not_whitespace(realm, new_token));
+    TRY(validate_token_not_whitespace(token));
+    TRY(validate_token_not_whitespace(new_token));
 
     // 3. If this’s token set does not contain token, then return false.
     if (!contains(token))
@@ -301,24 +300,24 @@ void DOMTokenList::set_value(String const& value)
     associated_element->set_attribute_value(m_associated_attribute, value);
 }
 
-WebIDL::ExceptionOr<void> DOMTokenList::validate_token(JS::Realm& realm, StringView token) const
+WebIDL::ExceptionOr<void> DOMTokenList::validate_token(StringView token) const
 {
-    TRY(validate_token_not_empty(realm, token));
-    TRY(validate_token_not_whitespace(realm, token));
+    TRY(validate_token_not_empty(token));
+    TRY(validate_token_not_whitespace(token));
     return {};
 }
 
-WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_empty(JS::Realm& realm, StringView token) const
+WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_empty(StringView token) const
 {
     if (token.is_empty())
-        return WebIDL::SyntaxError::create(realm, "Non-empty DOM tokens are not allowed"_utf16);
+        return WebIDL::SyntaxError::create("Non-empty DOM tokens are not allowed"_utf16);
     return {};
 }
 
-WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_whitespace(JS::Realm& realm, StringView token) const
+WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_whitespace(StringView token) const
 {
     if (any_of(token, Infra::is_ascii_whitespace))
-        return WebIDL::InvalidCharacterError::create(realm, "DOM tokens containing ASCII whitespace are not allowed"_utf16);
+        return WebIDL::InvalidCharacterError::create("DOM tokens containing ASCII whitespace are not allowed"_utf16);
     return {};
 }
 
@@ -337,14 +336,6 @@ void DOMTokenList::run_update_steps()
     // 2. Set an attribute value given set’s element, set’s attribute name, and the result of running the ordered set
     //    serializer for set’s token set.
     associated_element->set_attribute_value(m_associated_attribute, serialize_ordered_set());
-}
-
-Optional<JS::Value> DOMTokenList::item_value(Bindings::WrapperWorld&, JS::Realm& realm, size_t index) const
-{
-    auto string = item(index);
-    if (!string.has_value())
-        return {};
-    return JS::PrimitiveString::create(realm.vm(), string.release_value());
 }
 
 }

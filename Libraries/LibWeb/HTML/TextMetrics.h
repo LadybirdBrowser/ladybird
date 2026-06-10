@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/TextMetrics.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {

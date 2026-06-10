@@ -6,7 +6,7 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/DOMRectReadOnly.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -15,25 +15,9 @@ namespace Web::Geometry {
 
 GC_DEFINE_ALLOCATOR(DOMRectReadOnly);
 
-WebIDL::ExceptionOr<GC::Ref<DOMRectReadOnly>> DOMRectReadOnly::construct_impl(double x, double y, double width, double height)
-{
-    return create(x, y, width, height);
-}
-
 GC::Ref<DOMRectReadOnly> DOMRectReadOnly::create(double x, double y, double width, double height)
 {
     return GC::Heap::the().allocate<DOMRectReadOnly>(x, y, width, height);
-}
-
-// https://drafts.fxtf.org/geometry/#create-a-domrect-from-the-dictionary
-GC::Ref<DOMRectReadOnly> DOMRectReadOnly::from_rect(JS::VM&, Bindings::DOMRectInit const& other)
-{
-    return from_rect(other);
-}
-
-GC::Ref<DOMRectReadOnly> DOMRectReadOnly::from_rect(Bindings::DOMRectInit const& other)
-{
-    return GC::Heap::the().allocate<DOMRectReadOnly>(other.x, other.y, other.width, other.height);
 }
 
 GC::Ref<DOMRectReadOnly> DOMRectReadOnly::create()
@@ -41,14 +25,17 @@ GC::Ref<DOMRectReadOnly> DOMRectReadOnly::create()
     return GC::Heap::the().allocate<DOMRectReadOnly>();
 }
 
+GC::Ref<DOMRectReadOnly> DOMRectReadOnly::dom_rect_read_only_from_rect(Bindings::DOMRectInit const& other)
+{
+    return create(other.x, other.y, other.width, other.height);
+}
+
 DOMRectReadOnly::DOMRectReadOnly(double x, double y, double width, double height)
-    : Bindings::Wrappable()
-    , m_rect(x, y, width, height)
+    : m_rect(x, y, width, height)
 {
 }
 
 DOMRectReadOnly::DOMRectReadOnly()
-    : Bindings::Wrappable()
 {
 }
 

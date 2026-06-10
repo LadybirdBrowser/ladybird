@@ -18,7 +18,6 @@ GC::Ref<SpeechSynthesisVoice> SpeechSynthesisVoice::create()
 }
 
 SpeechSynthesisVoice::SpeechSynthesisVoice()
-    : Bindings::Wrappable()
 {
 }
 

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/External.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 

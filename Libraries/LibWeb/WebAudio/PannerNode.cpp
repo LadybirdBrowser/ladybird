@@ -5,8 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
@@ -18,7 +16,7 @@ GC_DEFINE_ALLOCATOR(PannerNode);
 
 PannerNode::~PannerNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::create(GC::Ref<BaseAudioContext> context, Bindings::PannerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::create(GC::Ref<BaseAudioContext> context, PannerOptions const& options)
 {
     // Create the node and allocate memory
     auto node = GC::Heap::the().allocate<PannerNode>(context, options);
@@ -26,8 +24,8 @@ WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::create(GC::Ref<BaseAudioCon
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#PannerNode
     AudioNodeDefaultOptions default_options;
-    default_options.channel_count_mode = Bindings::ChannelCountMode::ClampedMax;
-    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    default_options.channel_count_mode = ChannelCountMode::ClampedMax;
+    default_options.channel_interpretation = ChannelInterpretation::Speakers;
     default_options.channel_count = 2;
     // FIXME: Set tail-time to maybe
 
@@ -35,7 +33,7 @@ WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::create(GC::Ref<BaseAudioCon
     return node;
 }
 
-WebIDL::ExceptionOr<void> PannerNode::validate_options(Bindings::PannerOptions const& options)
+WebIDL::ExceptionOr<void> PannerNode::validate_options(PannerOptions const& options)
 {
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-refdistance
     // A RangeError exception MUST be thrown if this is set to a negative value.
@@ -61,21 +59,21 @@ WebIDL::ExceptionOr<void> PannerNode::validate_options(Bindings::PannerOptions c
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-pannernode-pannernode
-WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::construct_impl(GC::Ref<BaseAudioContext> context, Bindings::PannerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::create_for_constructor(GC::Ref<BaseAudioContext> context, PannerOptions const& options)
 {
     TRY(validate_options(options));
     return create(context, options);
 }
 
-PannerNode::PannerNode(GC::Ref<BaseAudioContext> context, Bindings::PannerOptions const& options)
+PannerNode::PannerNode(GC::Ref<BaseAudioContext> context, PannerOptions const& options)
     : AudioNode(context)
     , m_panning_model(options.panning_model)
-    , m_position_x(AudioParam::create(context, options.position_x, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_position_y(AudioParam::create(context, options.position_y, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_position_z(AudioParam::create(context, options.position_z, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_orientation_x(AudioParam::create(context, options.orientation_x, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_orientation_y(AudioParam::create(context, options.orientation_y, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_orientation_z(AudioParam::create(context, options.orientation_z, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_position_x(AudioParam::create(context, options.position_x, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
+    , m_position_y(AudioParam::create(context, options.position_y, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
+    , m_position_z(AudioParam::create(context, options.position_z, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
+    , m_orientation_x(AudioParam::create(context, options.orientation_x, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
+    , m_orientation_y(AudioParam::create(context, options.orientation_y, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
+    , m_orientation_z(AudioParam::create(context, options.orientation_z, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
     , m_distance_model(options.distance_model)
     , m_ref_distance(options.ref_distance)
     , m_max_distance(options.max_distance)
@@ -135,7 +133,7 @@ WebIDL::ExceptionOr<void> PannerNode::set_cone_outer_gain(double value)
 {
     // It is a linear value (not dB) in the range [0, 1]. An InvalidStateError MUST be thrown if the parameter is outside this range.
     if (value < 0.0 || value > 1.0)
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(relevant_global_object()), "coneOuterGain must be in the range of [0, 1]"_utf16);
+        return WebIDL::InvalidStateError::create("coneOuterGain must be in the range of [0, 1]"_utf16);
 
     m_cone_outer_gain = value;
     return {};
@@ -168,10 +166,10 @@ WebIDL::ExceptionOr<void> PannerNode::set_orientation(float x, float y, float z)
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcountmode
-WebIDL::ExceptionOr<void> PannerNode::set_channel_count_mode(Bindings::ChannelCountMode mode)
+WebIDL::ExceptionOr<void> PannerNode::set_channel_count_mode(ChannelCountMode mode)
 {
-    if (mode == Bindings::ChannelCountMode::Max) {
-        return WebIDL::NotSupportedError::create(HTML::relevant_realm(relevant_global_object()), "PannerNode does not support 'max' as channelCountMode."_utf16);
+    if (mode == ChannelCountMode::Max) {
+        return WebIDL::NotSupportedError::create("PannerNode does not support 'max' as channelCountMode."_utf16);
     }
 
     return AudioNode::set_channel_count_mode(mode);
@@ -181,7 +179,7 @@ WebIDL::ExceptionOr<void> PannerNode::set_channel_count_mode(Bindings::ChannelCo
 WebIDL::ExceptionOr<void> PannerNode::set_channel_count(WebIDL::UnsignedLong channel_count)
 {
     if (channel_count > 2) {
-        return WebIDL::NotSupportedError::create(HTML::relevant_realm(relevant_global_object()), "PannerNode does not support channel count greater than 2"_utf16);
+        return WebIDL::NotSupportedError::create("PannerNode does not support channel count greater than 2"_utf16);
     }
 
     return AudioNode::set_channel_count(channel_count);

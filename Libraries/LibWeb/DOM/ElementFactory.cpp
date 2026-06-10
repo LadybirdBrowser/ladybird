@@ -7,9 +7,9 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
+#include <LibWeb/HTML/CustomElements/CustomElementAlgorithms.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/CustomElements/CustomElementName.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
@@ -84,10 +84,7 @@
 #include <LibWeb/HTML/HTMLUListElement.h>
 #include <LibWeb/HTML/HTMLUnknownElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
-#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/ExceptionReporter.h>
-#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MathML/MathMLElement.h>
@@ -145,7 +142,6 @@
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/SVG/SVGViewElement.h>
 #include <LibWeb/SVG/TagNames.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::DOM {
 
@@ -639,8 +635,6 @@ GC::Ref<Element> create_element_internal(Document& document, Interface interface
 // https://dom.spec.whatwg.org/#concept-create-element
 WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, Optional<String> is_value, bool synchronous_custom_elements_flag, Variant<GC::Ptr<HTML::CustomElementRegistry>, Default> initial_registry)
 {
-    auto& realm = document.relevant_settings_object().realm();
-
     // 1. Let result be null.
     GC::Ptr<Element> result;
 
@@ -669,7 +663,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
         // 3. If synchronousCustomElements is true, then run this step while catching any exceptions:
         if (synchronous_custom_elements_flag) {
             // 1. Upgrade result using definition.
-            auto upgrade_result = result->upgrade_element(*definition);
+            auto upgrade_result = Bindings::upgrade_custom_element(*result, *definition);
 
             // If this step threw an exception exception:
             if (upgrade_result.is_throw_completion()) {
@@ -693,76 +687,24 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
     else if (definition) {
         // 1. If synchronousCustomElements is true:
         if (synchronous_custom_elements_flag) {
-            // 1. Let C be definition’s constructor.
-            auto& constructor = definition->constructor();
-
-            // 2. Set the surrounding agent’s active custom element constructor map[C] to registry.
-            auto& active_custom_element_constructor_map = HTML::relevant_similar_origin_window_agent(document).active_custom_element_constructor_map;
-            active_custom_element_constructor_map.set(static_cast<JS::FunctionObject&>(*constructor.callback), registry);
-
             // 3. Run these steps while catching any exceptions:
-            auto synchronously_upgrade_custom_element = [&]() -> JS::ThrowCompletionOr<void> {
-                // 1. Set result to the result of constructing C, with no arguments.
-                // NOTE: IDL does not currently convert the object for us, so we will have to do it here.
-                auto constructed_element = TRY(WebIDL::construct(constructor, {}));
-                if (constructed_element.is_object())
-                    result = Bindings::impl_from<HTML::HTMLElement>(&constructed_element.as_object());
-                if (!result)
-                    return JS::throw_completion(JS::TypeError::create(realm, "Custom element constructor must return an object that implements HTMLElement"_string));
-
-                // FIXME: 2. Assert: result’s custom element state and custom element definition are initialized.
-
-                // 3. Assert: result’s namespace is the HTML namespace.
-                // Note: IDL enforces that result is an HTMLElement object, which all use the HTML namespace.
-                VERIFY(result->namespace_uri() == Namespace::HTML);
-
-                // 4. If result’s attribute list is not empty, then throw a "NotSupportedError" DOMException.
-                if (result->has_attributes())
-                    return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have attributes"_utf16));
-
-                // 5. If result has children, then throw a "NotSupportedError" DOMException.
-                if (result->has_children())
-                    return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have children"_utf16));
-
-                // 6. If result’s parent is not null, then throw a "NotSupportedError" DOMException.
-                if (result->parent())
-                    return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have a parent"_utf16));
-
-                // 7. If result’s node document is not document, then throw a "NotSupportedError" DOMException.
-                if (&result->document() != &document)
-                    return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must be in the same document that element creation was invoked in"_utf16));
-
-                // 8. If result’s local name is not equal to localName, then throw a "NotSupportedError" DOMException.
-                if (result->local_name() != local_name)
-                    return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must have the same local name that element creation was invoked with"_utf16));
-
-                // 9. Set result’s namespace prefix to prefix.
-                result->set_prefix(prefix);
-
-                // 10. Set result’s is value to null.
-                result->set_is_value(Optional<String> {});
-
-                // 11. Set result’s custom element registry to registry.
-                result->set_custom_element_registry(registry);
-
-                return {};
-            };
+            auto constructed_element = Bindings::construct_autonomous_custom_element(document, local_name, prefix, registry, *definition);
 
             // If any of these steps threw an exception, then:
-            if (auto maybe_error = synchronously_upgrade_custom_element(); maybe_error.is_throw_completion()) {
+            if (constructed_element.is_throw_completion()) {
                 // 1. Report exception for definition’s constructor’s corresponding JavaScript object’s associated
                 //    realm’s global object.
                 auto& window_or_worker = HTML::relevant_window_or_worker_global_scope(definition->constructor().callback);
-                window_or_worker.report_an_exception(maybe_error.error_value());
+                window_or_worker.report_an_exception(constructed_element.error_value());
 
                 // 2. Set result to the result of creating an element internal given document, HTMLUnknownElement,
                 //    localName, the HTML namespace, prefix, "failed", null, and registry.
                 result = create_element_internal(document, [](auto& document, auto qualified_name) { return create_element_on_heap<HTML::HTMLUnknownElement>(document, qualified_name); }, local_name, Namespace::HTML, prefix, CustomElementState::Failed, {}, registry);
             }
 
-            // 4. Remove the surrounding agent’s active custom element constructor map[C].
-            // Note: Under normal circumstances it will already have been removed at this point.
-            active_custom_element_constructor_map.remove(static_cast<JS::FunctionObject&>(*constructor.callback));
+            else {
+                result = constructed_element.release_value();
+            }
         }
 
         // 2. Otherwise:

@@ -24,8 +24,7 @@ GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Fu
 }
 
 HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort)
-    : Bindings::Wrappable()
-    , GC::WeakContainer(heap())
+    : GC::WeakContainer(heap())
     , m_root(root)
     , m_filter(move(filter))
     , m_sort(move(sort))
@@ -176,22 +175,6 @@ Vector<FlyString> HTMLCollection::supported_property_names() const
 
     // 3. Return result.
     return result;
-}
-
-Optional<JS::Value> HTMLCollection::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
-{
-    auto* element = item(index);
-    if (!element)
-        return {};
-    return Bindings::wrap(wrapper_world, realm, GC::Ref { *element }).ptr();
-}
-
-JS::Value HTMLCollection::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
-{
-    auto* element = named_item(name);
-    if (!element)
-        return JS::js_undefined();
-    return Bindings::wrap(wrapper_world, realm, GC::Ref { *element }).ptr();
 }
 
 }

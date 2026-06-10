@@ -7,10 +7,8 @@
 #pragma once
 
 #include <LibGC/CellAllocator.h>
-#include <LibWeb/Bindings/BarProp.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -23,6 +21,8 @@ public:
     BarProp(Window&);
     static GC::Ref<BarProp> create(Window&);
 
+    [[nodiscard]] Window& window() { return m_window; }
+    [[nodiscard]] Window const& window() const { return m_window; }
     [[nodiscard]] bool visible() const;
 
 private:

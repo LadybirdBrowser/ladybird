@@ -5,5 +5,5 @@ interface MediaList {
     readonly attribute unsigned long length;
     getter CSSOMString? item(unsigned long index);
     undefined appendMedium(CSSOMString medium);
-    [NeedsThisObjectRealm] undefined deleteMedium(CSSOMString medium);
+    undefined deleteMedium(CSSOMString medium);
 };

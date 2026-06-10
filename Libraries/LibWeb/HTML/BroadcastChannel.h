@@ -15,7 +15,6 @@
 namespace Web::HTML {
 
 class BroadcastChannelRepository;
-class WindowOrWorkerGlobalScopeMixin;
 
 class BroadcastChannel final : public DOM::EventTarget {
     WEB_WRAPPABLE(BroadcastChannel, DOM::EventTarget);
@@ -24,7 +23,8 @@ class BroadcastChannel final : public DOM::EventTarget {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<BroadcastChannel> construct_impl(WindowOrWorkerGlobalScopeMixin&, FlyString const& name);
+    [[nodiscard]] static GC::Ref<BroadcastChannel> create(GC::Ref<DOM::EventTarget> relevant_global_object, FlyString const& name, URL::Origin, StorageAPI::StorageKey);
+    [[nodiscard]] static GC::Ref<BroadcastChannel> create_for_constructor(JS::Realm&, FlyString const& name);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-name
     FlyString const& name() const

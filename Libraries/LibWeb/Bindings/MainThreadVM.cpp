@@ -19,15 +19,14 @@
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibWeb/Bindings/Element.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/MutationRecord.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -35,8 +34,10 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
@@ -57,6 +58,7 @@
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebAssembly/WebAssemblyModule.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Bindings {
 
@@ -86,15 +88,15 @@ HTML::Script* active_script()
         });
 }
 
-static NonnullOwnPtr<JS::Agent> create_agent(GC::Heap& heap, AgentType type)
+static NonnullOwnPtr<JS::Agent> create_agent(GC::Heap& heap, HTML::AgentType type)
 {
     switch (type) {
-    case AgentType::SimilarOriginWindow:
+    case HTML::AgentType::SimilarOriginWindow:
         return HTML::SimilarOriginWindowAgent::create(heap);
-    case AgentType::DedicatedWorker:
-    case AgentType::SharedWorker:
+    case HTML::AgentType::DedicatedWorker:
+    case HTML::AgentType::SharedWorker:
         return HTML::WorkerAgent::create(heap, JS::Agent::CanBlock::Yes);
-    case AgentType::ServiceWorker:
+    case HTML::AgentType::ServiceWorker:
         return HTML::WorkerAgent::create(heap, JS::Agent::CanBlock::No);
     default:
         break;
@@ -102,7 +104,7 @@ static NonnullOwnPtr<JS::Agent> create_agent(GC::Heap& heap, AgentType type)
     VERIFY_NOT_REACHED();
 }
 
-void initialize_main_thread_vm(AgentType type)
+void initialize_main_thread_vm(HTML::AgentType type)
 {
     VERIFY(!main_thread_vm_ptr());
 
@@ -206,8 +208,8 @@ void initialize_main_thread_vm(AgentType type)
                 auto* window = as_if<HTML::Window>(global);
                 VERIFY(window);
 
-                Bindings::PromiseRejectionEventInit event_init {
-                    {}, // Initialize the inherited Bindings::EventInit
+                HTML::PromiseRejectionEventInit event_init {
+                    {}, // Initialize the inherited EventInit
                     /* .promise = */ promise,
                     /* .reason = */ promise.result(),
                 };
@@ -413,7 +415,7 @@ void initialize_main_thread_vm(AgentType type)
             auto specifier_string = TRY(specifier.to_string(vm));
 
             // 2. Let url be the result of resolving a module specifier given moduleScript and specifier.
-            auto url = TRY(Bindings::throw_dom_exception_if_needed(vm, realm, [&] {
+            auto url = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {
                 return HTML::resolve_module_specifier(*module_script, specifier_string);
             }));
 
@@ -515,11 +517,11 @@ void initialize_main_thread_vm(AgentType type)
                     // 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
                     if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
                         load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
-                        load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, settings_object->realm(), maybe_exception.exception()).release_value();
+                        load_state_as_fetch_context->error_to_rethrow = WebIDL::exception_to_throw_completion(vm, settings_object->realm(), maybe_exception.exception()).release_value();
                     }
 
                     // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
-                    auto completion = exception_to_throw_completion(main_thread_vm(), settings_object->realm(), maybe_exception.exception());
+                    auto completion = WebIDL::exception_to_throw_completion(main_thread_vm(), settings_object->realm(), maybe_exception.exception());
                     JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
                     // 3. Return.
@@ -565,11 +567,11 @@ void initialize_main_thread_vm(AgentType type)
             // 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
             if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
                 load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
-                load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, settings_object->realm(), url.exception()).release_value();
+                load_state_as_fetch_context->error_to_rethrow = WebIDL::exception_to_throw_completion(vm, settings_object->realm(), url.exception()).release_value();
             }
 
             // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
-            auto completion = exception_to_throw_completion(main_thread_vm(), settings_object->realm(), url.exception());
+            auto completion = WebIDL::exception_to_throw_completion(main_thread_vm(), settings_object->realm(), url.exception());
             HTML::TemporaryExecutionContext context { *settings_object };
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
@@ -690,82 +692,6 @@ JS::VM& main_thread_vm()
     return *main_thread_vm_ptr();
 }
 
-// https://dom.spec.whatwg.org/#queue-a-mutation-observer-compound-microtask
-void queue_mutation_observer_microtask()
-{
-    auto& vm = main_thread_vm();
-    auto& surrounding_agent = as<HTML::SimilarOriginWindowAgent>(*vm.agent());
-
-    // 1. If the surrounding agent’s mutation observer microtask queued is true, then return.
-    if (surrounding_agent.mutation_observer_microtask_queued)
-        return;
-
-    // 2. Set the surrounding agent’s mutation observer microtask queued to true.
-    surrounding_agent.mutation_observer_microtask_queued = true;
-
-    // 3. Queue a microtask to notify mutation observers.
-    HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [&surrounding_agent]() {
-        // https://dom.spec.whatwg.org/#notify-mutation-observers
-        // 1. Set the surrounding agent’s mutation observer microtask queued to false.
-        surrounding_agent.mutation_observer_microtask_queued = false;
-
-        // 2. Let notifySet be a clone of the surrounding agent’s pending mutation observers.
-        // 3. Empty the surrounding agent’s pending mutation observers.
-        auto notify_set = move(surrounding_agent.pending_mutation_observers);
-
-        // 4. Let signalSet be a clone of the surrounding agent’s signal slots.
-        // 5. Empty the surrounding agent’s signal slots.
-        auto signal_set = move(surrounding_agent.signal_slots);
-
-        // 6. For each mo of notifySet:
-        for (auto& mutation_observer : notify_set) {
-            // 1. Let records be a clone of mo’s record queue.
-            // 2. Empty mo’s record queue.
-            auto records = mutation_observer->take_records();
-
-            // 3. For each node of mo’s node list, remove all transient registered observers whose observer is mo from
-            //    node’s registered observer list.
-            for (auto& node : mutation_observer->node_list()) {
-                // FIXME: Is this correct?
-                if (!node)
-                    continue;
-
-                if (node->registered_observer_list()) {
-                    node->registered_observer_list()->remove_all_matching([&mutation_observer](DOM::RegisteredObserver& registered_observer) {
-                        return is<DOM::TransientRegisteredObserver>(registered_observer) && static_cast<DOM::TransientRegisteredObserver&>(registered_observer).observer().ptr() == mutation_observer;
-                    });
-                }
-            }
-
-            // 4. If records is not empty, then invoke mo’s callback with « records, mo » and "report", and with
-            //    callback this value mo.
-            if (!records.is_empty()) {
-                auto& callback = mutation_observer->callback();
-                auto& settings = callback.callback_context;
-
-                auto wrapped_records = MUST(JS::Array::create(settings->realm(), 0));
-                auto& wrapper_world = Bindings::host_defined_wrapper_world(settings->realm());
-                for (size_t i = 0; i < records.size(); ++i) {
-                    auto& record = records.at(i);
-                    auto property_index = JS::PropertyKey { i };
-                    MUST(wrapped_records->create_data_property(property_index,
-                        Bindings::wrap(wrapper_world, settings->realm(), GC::Ref { *record })));
-                }
-
-                auto wrapped_mutation_observer = Bindings::wrap(wrapper_world, settings->realm(), mutation_observer);
-                (void)WebIDL::invoke_callback(callback, wrapped_mutation_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, wrapped_mutation_observer } });
-            }
-        }
-
-        // 7. For each slot of signalSet, fire an event named slotchange, with its bubbles attribute set to true, at slot.
-        for (auto& slot : signal_set) {
-            Bindings::EventInit event_init;
-            event_init.bubbles = true;
-            slot->dispatch_event(DOM::Event::create(HTML::EventNames::slotchange, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*slot))));
-        }
-    }));
-}
-
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-new-javascript-realm
 NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, Function<JS::Object*(JS::Realm&)> create_global_object, Function<JS::Object*(JS::Realm&)> create_global_this_value)
 {
@@ -787,54 +713,6 @@ NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, Fu
 
     // 7. Return realm execution context.
     return realm_execution_context;
-}
-
-// https://html.spec.whatwg.org/multipage/custom-elements.html#invoke-custom-element-reactions
-void invoke_custom_element_reactions(Vector<GC::Weak<DOM::Element>>& element_queue)
-{
-    // 1. While queue is not empty:
-    while (!element_queue.is_empty()) {
-        // 1. Let element be the result of dequeuing from queue.
-        auto element = element_queue.take_first();
-        if (!element)
-            continue;
-
-        // 2. Let reactions be element's custom element reaction queue.
-        auto* reactions = element->custom_element_reaction_queue();
-
-        // 3. Repeat until reactions is empty:
-        if (!reactions)
-            continue;
-        while (!reactions->is_empty()) {
-            // 1. Remove the first element of reactions, and let reaction be that element. Switch on reaction's type:
-            auto reaction = reactions->take_first();
-
-            reaction.visit(
-                [&](DOM::CustomElementUpgradeReaction const& custom_element_upgrade_reaction) -> void {
-                    // -> upgrade reaction
-                    //      Upgrade element using reaction's custom element definition.
-                    auto maybe_exception = element->upgrade_element(*custom_element_upgrade_reaction.custom_element_definition);
-                    // If this throws an exception, catch it, and report it for reaction's custom element definition's constructor's corresponding JavaScript object's associated realm's global object.
-                    if (maybe_exception.is_error()) {
-                        // FIXME: Should it be easier to get to report an exception from an IDL callback?
-                        auto& callback = custom_element_upgrade_reaction.custom_element_definition->constructor();
-                        auto& realm = callback.callback->shape().realm();
-                        auto& global = realm.global_object();
-
-                        auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(global);
-                        VERIFY(window_or_worker);
-                        window_or_worker->report_an_exception(maybe_exception.error_value());
-                    }
-                },
-                [&](DOM::CustomElementCallbackReaction& custom_element_callback_reaction) -> void {
-                    // -> callback reaction
-                    //      Invoke reaction's callback function with reaction's arguments and "report", and callback this value set to element.
-                    auto& realm = custom_element_callback_reaction.callback->callback->shape().realm();
-                    auto this_value = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *element });
-                    (void)WebIDL::invoke_callback(*custom_element_callback_reaction.callback, this_value.ptr(), WebIDL::ExceptionBehavior::Report, custom_element_callback_reaction.arguments);
-                });
-        }
-    }
 }
 
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/Export.h>
@@ -20,7 +21,7 @@ class WEB_API DocumentFragment
 
 public:
     [[nodiscard]] static GC::Ref<DocumentFragment> create(Document&);
-    static WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> construct_impl(HTML::Window&);
+    [[nodiscard]] static GC::Ref<DocumentFragment> construct_impl(JS::Realm&);
 
     virtual ~DocumentFragment() override = default;
 

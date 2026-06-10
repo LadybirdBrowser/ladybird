@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/ValueType.h>
 
@@ -27,7 +28,7 @@ Vector<Parser::ComponentValue> NumberStyleValue::tokenize() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-numeric-value
-GC::Ref<CSSStyleValue> NumberStyleValue::reify(JS::Realm&, Utf16FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> NumberStyleValue::reify(Utf16FlyString const& associated_property) const
 {
     // NB: Step 1 doesn't apply here.
     // 2. If num is the unitless value 0 and num is a <dimension>, return a new CSSUnitValue with its value internal
@@ -35,9 +36,9 @@ GC::Ref<CSSStyleValue> NumberStyleValue::reify(JS::Realm&, Utf16FlyString const&
     if (m_value == 0) {
         // NB: Determine whether the associated property expects 0 to be a <length>.
         // FIXME: Do this for registered custom properties.
-        if (auto property_id = property_id_from_string(associated_property); property_id.has_value()
-            && property_id != PropertyID::Custom
-            && property_accepts_type(*property_id, ValueType::Length)) {
+        if (auto property = PropertyNameAndID::from_name(associated_property); property.has_value()
+            && !property->is_custom_property()
+            && property_accepts_type(property->id(), ValueType::Length)) {
             return CSSUnitValue::create(0, "px"_fly_string);
         }
     }

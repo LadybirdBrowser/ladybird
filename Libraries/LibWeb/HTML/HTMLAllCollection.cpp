@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -38,8 +39,7 @@ GC::Ref<HTMLAllCollection> HTMLAllCollection::create(DOM::ParentNode& root, Scop
 }
 
 HTMLAllCollection::HTMLAllCollection(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
-    : Bindings::Wrappable()
-    , m_root(root)
+    : m_root(root)
     , m_filter(move(filter))
     , m_scope(scope)
 {
@@ -187,6 +187,13 @@ GC::Ptr<DOM::Element> HTMLAllCollection::get_the_all_indexed_element(u32 index) 
     return elements[index];
 }
 
+GC::Ptr<DOM::Element> HTMLAllCollection::item(size_t index) const
+{
+    if (index > NumericLimits<u32>::max())
+        return nullptr;
+    return get_the_all_indexed_element(static_cast<u32>(index));
+}
+
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#concept-get-all-indexed-or-named
 Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::get_the_all_indexed_or_named_elements(JS::PropertyKey const& name_or_index) const
 {
@@ -201,21 +208,6 @@ Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllColle
 
     // 2. Return the result of getting the "all"-named element(s) from collection given nameOrIndex.
     return get_the_all_named_elements(name_or_index.as_string().view().to_utf8_but_should_be_ported_to_utf16());
-}
-
-Optional<JS::Value> HTMLAllCollection::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
-{
-    if (auto value = get_the_all_indexed_element(index))
-        return Bindings::wrap(wrapper_world, realm, GC::Ref { *value });
-    return {};
-}
-
-JS::Value HTMLAllCollection::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
-{
-    return named_item(name).visit(
-        [](Empty) -> JS::Value { return JS::js_undefined(); },
-        [&wrapper_world, &realm](GC::Ref<DOM::HTMLCollection> const& value) -> JS::Value { return Bindings::wrap(wrapper_world, realm, value); },
-        [&wrapper_world, &realm](GC::Ref<DOM::Element> const& value) -> JS::Value { return Bindings::wrap(wrapper_world, realm, value); });
 }
 
 }

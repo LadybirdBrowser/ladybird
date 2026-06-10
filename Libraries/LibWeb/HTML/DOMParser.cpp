@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/DOMParser.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/DOMParser.h>
 #include <LibWeb/HTML/HTMLDocument.h>
@@ -21,7 +22,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DOMParser);
 
-WebIDL::ExceptionOr<GC::Ref<DOMParser>> DOMParser::construct_impl()
+GC::Ref<DOMParser> DOMParser::create()
 {
     return GC::Heap::the().allocate<DOMParser>();
 }
@@ -42,7 +43,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(JS::Re
 
     // 2. Let document be a new Document, whose content type is type and url is this's relevant global object's associated Document's URL.
     GC::Ptr<DOM::Document> document;
-    auto& associated_document = relevant_window(realm.global_object()).associated_document();
+    auto& associated_document = HTML::relevant_window(realm.global_object()).associated_document();
 
     // 3. Switch on type:
     if (type == Bindings::DOMParserSupportedType::Text_Html) {
@@ -52,7 +53,8 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(JS::Re
         document->set_document_type(DOM::Document::Type::HTML);
 
         // 1. Parse HTML from a string given document and compliantString.
-        document->parse_html_from_a_string(realm, compliant_string.to_utf8_but_should_be_ported_to_utf16());
+        [[maybe_unused]] auto wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *document });
+        document->parse_html_from_a_string(compliant_string.to_utf8_but_should_be_ported_to_utf16());
     } else {
         // -> Otherwise
         document = DOM::Document::create(associated_document.page(), associated_document.relevant_global_event_target(), associated_document.url());

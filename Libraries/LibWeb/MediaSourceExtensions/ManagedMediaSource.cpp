@@ -5,8 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ManagedMediaSource.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/MediaSourceExtensions/ManagedMediaSource.h>
 
@@ -14,9 +13,16 @@ namespace Web::MediaSourceExtensions {
 
 GC_DEFINE_ALLOCATOR(ManagedMediaSource);
 
-WebIDL::ExceptionOr<GC::Ref<ManagedMediaSource>> ManagedMediaSource::construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object)
+GC::Ref<ManagedMediaSource> ManagedMediaSource::create(GC::Ref<DOM::EventTarget> relevant_global_object)
 {
     return GC::Heap::the().allocate<ManagedMediaSource>(relevant_global_object);
+}
+
+GC::Ref<ManagedMediaSource> ManagedMediaSource::create_for_constructor(JS::Realm& realm)
+{
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(realm.global_object());
+    VERIFY(global_scope);
+    return create(global_scope->this_impl());
 }
 
 ManagedMediaSource::ManagedMediaSource(GC::Ref<DOM::EventTarget> relevant_global_object)

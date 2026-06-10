@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/IterationDecision.h>
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibHTTP/HeaderList.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Headers.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Fetch {
@@ -36,7 +36,7 @@ public:
     };
 
     [[nodiscard]] static GC::Ref<Headers> create(NonnullRefPtr<HTTP::HeaderList>);
-    static WebIDL::ExceptionOr<GC::Ref<Headers>> construct_impl(Optional<HeadersInit> const& init);
+    static WebIDL::ExceptionOr<GC::Ref<Headers>> create_from_init(Optional<HeadersInit> const& init);
 
     virtual ~Headers() override;
 
@@ -57,8 +57,8 @@ public:
     WebIDL::ExceptionOr<bool> has(String const& name);
     WebIDL::ExceptionOr<void> set(String const& name, String const& value);
 
-    using ForEachCallback = Function<JS::ThrowCompletionOr<void>(String const&, String const&)>;
-    JS::ThrowCompletionOr<void> for_each(ForEachCallback);
+    using ForEachCallback = Function<IterationDecision(String const&, String const&)>;
+    void for_each(ForEachCallback);
 
 private:
     friend class HeadersIterator;

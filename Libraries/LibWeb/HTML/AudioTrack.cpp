@@ -7,7 +7,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/AudioTrack.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/AudioTrackList.h>

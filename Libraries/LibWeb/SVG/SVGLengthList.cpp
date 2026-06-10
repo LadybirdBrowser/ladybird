@@ -5,8 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGLength.h>
 #include <LibWeb/SVG/SVGLengthList.h>
 
@@ -32,40 +30,6 @@ SVGLengthList::SVGLengthList(Vector<GC::Ref<SVGLength>> items, ReadOnlyList read
 SVGLengthList::SVGLengthList(ReadOnlyList read_only)
     : SVGList(read_only)
 {
-}
-
-Optional<JS::Value> SVGLengthList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
-{
-    if (index >= items().size())
-        return {};
-    return Bindings::wrap(wrapper_world, realm, items()[index]);
-}
-
-static WebIDL::ExceptionOr<GC::Ref<SVGLength>> svg_length_from_value(JS::Value value)
-{
-    if (value.is_object()) {
-        if (auto* length = Bindings::impl_from<SVGLength>(&value.as_object()))
-            return GC::Ref { *length };
-    }
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value must be an SVGLength"sv };
-}
-
-WebIDL::ExceptionOr<void> SVGLengthList::set_value_of_new_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
-{
-    TRY(replace_item(realm, TRY(svg_length_from_value(value)), index));
-    return {};
-}
-
-WebIDL::ExceptionOr<void> SVGLengthList::set_value_of_existing_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
-{
-    TRY(replace_item(realm, TRY(svg_length_from_value(value)), index));
-    return {};
-}
-
-WebIDL::ExceptionOr<void> SVGLengthList::set_value_of_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
-{
-    TRY(replace_item(realm, TRY(svg_length_from_value(value)), index));
-    return {};
 }
 
 void SVGLengthList::visit_edges(Visitor& visitor)

@@ -16,15 +16,14 @@
 
 namespace Web::HTML {
 
-class Window;
+using CommandEventInit = Bindings::CommandEventInit;
 
 class CommandEvent : public DOM::Event {
     WEB_WRAPPABLE(CommandEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(CommandEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CommandEvent> create(FlyString const& event_name, Bindings::CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<CommandEvent>> construct_impl(Window&, FlyString const& event_name, Bindings::CommandEventInit const&);
+    [[nodiscard]] static GC::Ref<CommandEvent> create(FlyString const& event_name, CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-commandevent-command
     String const& command() const { return m_command; }
@@ -35,7 +34,7 @@ public:
 private:
     void visit_edges(Visitor&) override;
 
-    CommandEvent(FlyString const& event_name, Bindings::CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    CommandEvent(FlyString const& event_name, CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     GC::Ptr<DOM::Element> m_source;
     String m_command;

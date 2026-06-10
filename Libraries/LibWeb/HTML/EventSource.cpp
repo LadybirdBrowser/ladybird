@@ -7,11 +7,9 @@
 #include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/EventSource.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessageEvent.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -34,8 +32,16 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(EventSource);
 
+static GC::Ref<DOM::Event> create_message_event(JS::Realm& realm, FlyString const& type, StringView data, String const& last_event_id, URL::Origin const& origin)
+{
+    HTML::MessageEventInit init;
+    init.data = JS::PrimitiveString::create(realm.vm(), data);
+    init.last_event_id = last_event_id;
+    return HTML::MessageEvent::create(realm.global_object(), type, init, origin);
+}
+
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
-WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(WindowOrWorkerGlobalScopeMixin& global_scope, StringView url, Bindings::EventSourceInit const& event_source_init_dict)
+WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlobalScopeMixin& global_scope, StringView url, EventSourceInit const& event_source_init)
 {
     // 1. Let ev be a new EventSource object.
     auto event_source = GC::Heap::the().allocate<EventSource>(global_scope.this_impl());
@@ -58,7 +64,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(WindowOrWo
 
     // 7. If the value of eventSourceInitDict's withCredentials member is true, then set corsAttributeState to Use Credentials
     //    and set ev's withCredentials attribute to true.
-    if (event_source_init_dict.with_credentials) {
+    if (event_source_init.with_credentials) {
         cors_attribute_state = CORSSettingAttribute::UseCredentials;
         event_source->m_with_credentials = true;
     }
@@ -158,6 +164,11 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(WindowOrWo
 
     // 16. Return ev.
     return event_source;
+}
+
+WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create_for_constructor(JS::Realm& realm, StringView url, EventSourceInit const& event_source_init)
+{
+    return create(relevant_window_or_worker_global_scope(realm.global_object()), url, event_source_init);
 }
 
 EventSource::EventSource(GC::Ref<DOM::EventTarget> relevant_global_object)
@@ -440,13 +451,10 @@ void EventSource::dispatch_the_event()
     //    the event source.
     // 6. If the event type buffer has a value other than the empty string, change the type of the newly created event to equal
     //    the value of the event type buffer.
-    Bindings::MessageEventInit init;
     auto& realm = HTML::relevant_realm(relevant_global_object());
-    init.data = JS::PrimitiveString::create(realm.vm(), data_buffer);
-    init.last_event_id = last_event_id;
 
     auto type = m_event_type.is_empty() ? HTML::EventNames::message : m_event_type;
-    auto event = MessageEvent::create(realm.global_object(), type, init, m_url.origin());
+    auto event = create_message_event(realm, type, data_buffer, last_event_id, m_url.origin());
 
     // 7. Set the data buffer and the event type buffer to the empty string.
     m_event_type = {};

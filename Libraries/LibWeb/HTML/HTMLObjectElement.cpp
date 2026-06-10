@@ -6,7 +6,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibWeb/Bindings/HTMLObjectElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/EmbeddedContentInvalidator.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -464,7 +463,7 @@ void HTMLObjectElement::run_object_representation_handler_steps(Fetch::Infrastru
             MUST(m_content_navigable->navigate({
                 .url = *response.url(),
                 .source_document = document(),
-                .history_handling = Bindings::NavigationHistoryBehavior::Replace,
+                .history_handling = NavigationHistoryBehavior::Replace,
             }));
         }
 

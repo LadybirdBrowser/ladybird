@@ -5,9 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/AudioContext.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaElementAudioSourceNode.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/MessageChannel.h>
@@ -23,12 +20,16 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioContext);
 
+WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, AudioContextOptions const& context_options)
+{
+    auto& window = HTML::relevant_window(realm.global_object());
+    return create_for_constructor(window, HTML::relevant_settings_object(window), context_options);
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-audiocontext
-WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(HTML::Window& window, Optional<Bindings::AudioContextOptions> const& context_options)
+WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::create_for_constructor(GC::Ref<DOM::EventTarget> relevant_global_object, HTML::EnvironmentSettingsObject& settings, Optional<AudioContextOptions> const& context_options)
 {
     // If the current settings object’s responsible document is NOT fully active, throw an InvalidStateError and abort these steps.
-    auto& settings = HTML::relevant_settings_object(window);
-
     // FIXME: Not all settings objects currently return a responsible document.
     //        Therefore we only fail this check if responsible document is not null.
     if (!settings.responsible_document() || !settings.responsible_document()->is_fully_active()) {
@@ -41,15 +42,15 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(HTML::Wi
         TRY(verify_audio_options_inside_nominal_range(*context_options->sample_rate));
 
     // 1. Let context be a new AudioContext object.
-    auto context = GC::Heap::the().allocate<AudioContext>(window);
+    auto context = GC::Heap::the().allocate<AudioContext>(relevant_global_object);
     context->set_listener(AudioListener::create(context));
-    context->m_destination = TRY(AudioDestinationNode::construct_impl(context));
+    context->m_destination = TRY(AudioDestinationNode::create(context));
 
     // 2. Set a [[control thread state]] to suspended on context.
-    context->set_control_state(Bindings::AudioContextState::Suspended);
+    context->set_control_state(AudioContextState::Suspended);
 
     // 3. Set a [[rendering thread state]] to suspended on context.
-    context->set_rendering_state(Bindings::AudioContextState::Suspended);
+    context->set_rendering_state(AudioContextState::Suspended);
 
     // FIXME: 4. Let messageChannel be a new MessageChannel.
     // FIXME: 5. Let controlSidePort be the value of messageChannel’s port1 attribute.
@@ -63,26 +64,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(HTML::Wi
         // 1. If sinkId is specified, let sinkId be the value of contextOptions.sinkId and run the following substeps:
 
         // 2. Set the internal latency of context according to contextOptions.latencyHint, as described in latencyHint.
-        context_options->latency_hint.visit(
-            [&](Bindings::AudioContextLatencyCategory category) {
-                switch (category) {
-                case Bindings::AudioContextLatencyCategory::Balanced:
-                    // FIXME: Determine optimal settings for balanced.
-                    break;
-                case Bindings::AudioContextLatencyCategory::Interactive:
-                    // FIXME: Determine optimal settings for interactive.
-                    break;
-                case Bindings::AudioContextLatencyCategory::Playback:
-                    // FIXME: Determine optimal settings for playback.
-                    break;
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            },
-            [&](double latency_seconds) {
-                // FIXME: Determine optimal settings for numeric latency hint.
-                (void)latency_seconds;
-            });
+        // FIXME: Determine optimal settings for contextOptions.latencyHint.
 
         // 3: If contextOptions.sampleRate is specified, set the sampleRate of context to this value.
         if (context_options->sample_rate.has_value()) {
@@ -104,12 +86,12 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(HTML::Wi
         // FIXME: 2. Attempt to acquire system resources to use a following audio output device based on [[sink ID]] for rendering
 
         // 2. Set this [[rendering thread state]] to running on the AudioContext.
-        context->set_rendering_state(Bindings::AudioContextState::Running);
+        context->set_rendering_state(AudioContextState::Running);
 
         // 3. Queue a media element task to execute the following steps:
         context->queue_a_media_element_task(GC::create_function(GC::Heap::the(), [context]() {
             // 1. Set the state attribute of the AudioContext to "running".
-            context->set_control_state(Bindings::AudioContextState::Running);
+            context->set_control_state(AudioContextState::Running);
 
             // 2. Fire an event named statechange at the AudioContext.
             context->dispatch_event(context->create_associated_event(HTML::EventNames::statechange));
@@ -129,7 +111,7 @@ void AudioContext::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp
-Bindings::AudioTimestamp AudioContext::get_output_timestamp()
+AudioTimestamp AudioContext::get_output_timestamp()
 {
     // If the context's rendering graph has not yet processed a block of audio, then
     // getOutputTimestamp call returns an AudioTimestamp instance with both members
@@ -143,22 +125,17 @@ Bindings::AudioTimestamp AudioContext::get_output_timestamp()
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-resume
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
+WebIDL::ExceptionOr<void> AudioContext::resume(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
 {
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
     auto const& associated_document = relevant_window().associated_document();
     if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_utf16);
-
-    // 2. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
+        return WebIDL::InvalidStateError::create("Document is not fully active"_utf16);
 
     // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-    if (state() == Bindings::AudioContextState::Closed) {
-        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_utf16));
-        return promise;
+    if (state() == AudioContextState::Closed) {
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create("Audio context is already closed."_utf16));
+        return {};
     }
 
     // 4. Set [[suspended by user]] to true.
@@ -171,24 +148,23 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
     }
 
     // 6. Set the [[control thread state]] on the AudioContext to running.
-    set_control_state(Bindings::AudioContextState::Running);
+    set_control_state(AudioContextState::Running);
 
     // 7. Queue a control message to resume the AudioContext.
     // FIXME: Implement control message queue to run following steps on the rendering thread
     // FIXME: 7.1: Attempt to acquire system resources.
 
     // 7.2: Set the [[rendering thread state]] on the AudioContext to running.
-    set_rendering_state(Bindings::AudioContextState::Running);
+    set_rendering_state(AudioContextState::Running);
 
     // 7.3: Start rendering the audio graph.
     if (!start_rendering_audio_graph()) {
         // 7.4: In case of failure, queue a media element task to execute the following steps:
         queue_a_media_element_task(GC::create_function(GC::Heap::the(), [this]() {
-            auto& realm = HTML::relevant_realm(relevant_global_object());
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
             // 7.4.1: Reject all promises from [[pending resume promises]] in order, then clear [[pending resume promises]].
             for (auto const& promise : m_pending_resume_promises) {
+                auto& realm = WebIDL::promise_realm(promise);
+                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 WebIDL::reject_promise(realm, promise, JS::js_null());
 
                 // 7.4.2: Additionally, remove those promises from [[pending promises]].
@@ -202,13 +178,12 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
 
     // 7.5: queue a media element task to execute the following steps:
     queue_a_media_element_task(GC::create_function(GC::Heap::the(), [promise, this]() {
-        auto& realm = HTML::relevant_realm(relevant_global_object());
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
         // 7.5.1: Resolve all promises from [[pending resume promises]] in order.
         // 7.5.2: Clear [[pending resume promises]]. Additionally, remove those promises from
         //        [[pending promises]].
         for (auto const& pending_resume_promise : m_pending_resume_promises) {
+            auto& realm = WebIDL::promise_realm(pending_resume_promise);
+            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             WebIDL::resolve_promise(realm, pending_resume_promise, JS::js_undefined());
             m_pending_promises.remove_first_matching([&pending_resume_promise](auto& pending_promise) {
                 return pending_promise == pending_resume_promise;
@@ -217,12 +192,14 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
         m_pending_resume_promises.clear();
 
         // 7.5.3: Resolve promise.
+        auto& realm = WebIDL::promise_realm(promise);
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
         // 7.5.4: If the state attribute of the AudioContext is not already "running":
-        if (state() != Bindings::AudioContextState::Running) {
+        if (state() != AudioContextState::Running) {
             // 7.5.4.1: Set the state attribute of the AudioContext to "running".
-            set_control_state(Bindings::AudioContextState::Running);
+            set_control_state(AudioContextState::Running);
 
             // 7.5.4.2: queue a media element task to fire an event named statechange at the AudioContext.
             queue_a_media_element_task(GC::create_function(GC::Heap::the(), [this]() {
@@ -230,28 +207,21 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
             }));
         }
     }));
-
-    // 8. Return promise.
-    return promise;
+    return {};
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-suspend
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
+WebIDL::ExceptionOr<void> AudioContext::suspend(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
 {
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
     auto const& associated_document = relevant_window().associated_document();
     if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_utf16);
-
-    // 2. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
+        return WebIDL::InvalidStateError::create("Document is not fully active"_utf16);
 
     // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-    if (state() == Bindings::AudioContextState::Closed) {
-        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_utf16));
-        return promise;
+    if (state() == AudioContextState::Closed) {
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create("Audio context is already closed."_utf16));
+        return {};
     }
 
     // 4. Append promise to [[pending promises]].
@@ -261,27 +231,27 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
     m_suspended_by_user = true;
 
     // 6. Set the [[control thread state]] on the AudioContext to suspended.
-    set_control_state(Bindings::AudioContextState::Suspended);
+    set_control_state(AudioContextState::Suspended);
 
     // 7. Queue a control message to suspend the AudioContext.
     // FIXME: Implement control message queue to run following steps on the rendering thread
     // FIXME: 7.1: Attempt to release system resources.
 
     // 7.2: Set the [[rendering thread state]] on the AudioContext to suspended.
-    set_rendering_state(Bindings::AudioContextState::Suspended);
+    set_rendering_state(AudioContextState::Suspended);
 
     // 7.3: queue a media element task to execute the following steps:
     queue_a_media_element_task(GC::create_function(GC::Heap::the(), [promise, this]() {
-        auto& realm = HTML::relevant_realm(relevant_global_object());
+        auto& realm = WebIDL::promise_realm(promise);
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 7.3.1: Resolve promise.
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
         // 7.3.2: If the state attribute of the AudioContext is not already "suspended":
-        if (state() != Bindings::AudioContextState::Suspended) {
+        if (state() != AudioContextState::Suspended) {
             // 7.3.2.1: Set the state attribute of the AudioContext to "suspended".
-            set_control_state(Bindings::AudioContextState::Suspended);
+            set_control_state(AudioContextState::Suspended);
 
             // 7.3.2.2: queue a media element task to fire an event named statechange at the AudioContext.
             queue_a_media_element_task(GC::create_function(GC::Heap::the(), [this]() {
@@ -289,54 +259,47 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
             }));
         }
     }));
-
-    // 8. Return promise.
-    return promise;
+    return {};
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-close
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::close()
+WebIDL::ExceptionOr<void> AudioContext::close(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
 {
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
     auto const& associated_document = relevant_window().associated_document();
     if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_utf16);
-
-    // 2. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
+        return WebIDL::InvalidStateError::create("Document is not fully active"_utf16);
 
     // 3. If the [[control thread state]] flag on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-    if (state() == Bindings::AudioContextState::Closed) {
-        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_utf16));
-        return promise;
+    if (state() == AudioContextState::Closed) {
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create("Audio context is already closed."_utf16));
+        return {};
     }
 
     // 4. Set the [[control thread state]] flag on the AudioContext to closed.
-    set_control_state(Bindings::AudioContextState::Closed);
+    set_control_state(AudioContextState::Closed);
 
     // 5. Queue a control message to close the AudioContext.
     // FIXME: Implement control message queue to run following steps on the rendering thread
     // FIXME: 5.1: Attempt to release system resources.
 
     // 5.2: Set the [[rendering thread state]] to "suspended".
-    set_rendering_state(Bindings::AudioContextState::Suspended);
+    set_rendering_state(AudioContextState::Suspended);
 
     // FIXME: 5.3: If this control message is being run in a reaction to the document being unloaded, abort this algorithm.
 
     // 5.4: queue a media element task to execute the following steps:
     queue_a_media_element_task(GC::create_function(GC::Heap::the(), [promise, this]() {
-        auto& realm = HTML::relevant_realm(relevant_global_object());
+        auto& realm = WebIDL::promise_realm(promise);
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 5.4.1: Resolve promise.
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
         // 5.4.2: If the state attribute of the AudioContext is not already "closed":
-        if (state() != Bindings::AudioContextState::Closed) {
+        if (state() != AudioContextState::Closed) {
             // 5.4.2.1: Set the state attribute of the AudioContext to "closed".
-            set_control_state(Bindings::AudioContextState::Closed);
+            set_control_state(AudioContextState::Closed);
         }
 
         // 5.4.2.2: queue a media element task to fire an event named statechange at the AudioContext.
@@ -344,8 +307,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::close()
         this->dispatch_event(create_associated_event(HTML::EventNames::statechange));
     }));
 
-    // 6. Return promise
-    return promise;
+    return {};
 }
 
 // FIXME: Actually implement the rendering thread
@@ -358,8 +320,7 @@ bool AudioContext::start_rendering_audio_graph()
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediaelementsource
 WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> AudioContext::create_media_element_source(GC::Ptr<HTML::HTMLMediaElement> media_element)
 {
-    Bindings::MediaElementAudioSourceOptions options { .media_element = *media_element };
-    return MediaElementAudioSourceNode::create(*this, options);
+    return MediaElementAudioSourceNode::create(*this, *media_element);
 }
 
 }

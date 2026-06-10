@@ -16,7 +16,6 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -572,29 +571,5 @@ template WEB_API JS::ThrowCompletionOr<Long> convert_to_int(JS::VM& vm, JS::Valu
 template WEB_API JS::ThrowCompletionOr<UnsignedLong> convert_to_int(JS::VM& vm, JS::Value, EnforceRange, Clamp);
 template WEB_API JS::ThrowCompletionOr<LongLong> convert_to_int(JS::VM& vm, JS::Value, EnforceRange, Clamp);
 template WEB_API JS::ThrowCompletionOr<UnsignedLongLong> convert_to_int(JS::VM& vm, JS::Value, EnforceRange, Clamp);
-
-// AD-HOC: For same-object caching purposes, this can be used to compare a cached JS array of DOM::Elements with another
-//         list. Either list can be null, in which case they are considered the same only if they are both null.
-bool lists_contain_same_elements(GC::Ptr<JS::Array> array, Optional<GC::RootVector<GC::Ref<DOM::Element>>> const& elements)
-{
-    if (!array || !elements.has_value())
-        return !array && !elements.has_value();
-
-    bool is_equivalent = array->indexed_array_like_size() == elements->size();
-
-    for (size_t i = 0; is_equivalent && i < elements->size(); ++i) {
-        auto cached_value = array->get_without_side_effects(JS::PropertyKey { i });
-        auto const* cached_element = cached_value.is_object()
-            ? Bindings::impl_from<DOM::Element>(&cached_value.as_object())
-            : nullptr;
-        VERIFY(cached_element);
-
-        auto it = elements->find_if([&](auto const& element) { return element.ptr() == cached_element; });
-        if (it == elements->end())
-            is_equivalent = false;
-    }
-
-    return is_equivalent;
-}
 
 }

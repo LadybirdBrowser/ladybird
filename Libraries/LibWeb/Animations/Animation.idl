@@ -1,7 +1,7 @@
 // https://drafts.csswg.org/web-animations-1/#the-animation-interface
 [Exposed=Window]
 interface Animation : EventTarget {
-    [NeedsArgumentCount] constructor(optional AnimationEffect? effect = null,
+    [ImplementedInBindings, NeedsArgumentCount] constructor(optional AnimationEffect? effect = null,
                 optional AnimationTimeline? timeline);
 
     attribute DOMString id;

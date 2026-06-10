@@ -6,7 +6,6 @@
 
 #include "CSSMathSum.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSMathSum.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -43,7 +42,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::add_all_types_into_math_sum
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathsum-cssmathsum
-WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::construct_impl(ReadonlySpan<CSSNumberish> values)
+WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::create_for_constructor(ReadonlySpan<CSSNumberish> values)
 {
     // The CSSMathSum(...args) constructor must, when called, perform the following steps:
 
@@ -64,7 +63,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::construct_impl(ReadonlySpan
 }
 
 CSSMathSum::CSSMathSum(NumericType type, GC::Ref<CSSNumericArray> values)
-    : CSSMathValue(Bindings::CSSMathOperator::Sum, move(type))
+    : CSSMathValue(CSSMathOperator::Sum, move(type))
     , m_values(move(values))
 {
 }

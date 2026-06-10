@@ -20,7 +20,7 @@ GC::Ref<CSSVariableReferenceValue> CSSVariableReferenceValue::create(FlyString v
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssvariablereferencevalue-cssvariablereferencevalue
-WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> CSSVariableReferenceValue::construct_impl(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback)
+WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> CSSVariableReferenceValue::create_for_constructor(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback)
 {
     // The CSSVariableReferenceValue(variable, fallback) constructor must, when called, perform the following steps:
     // 1. If variable is not a custom property name string, throw a TypeError.
@@ -32,8 +32,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> CSSVariableReferenceValu
 }
 
 CSSVariableReferenceValue::CSSVariableReferenceValue(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback)
-    : Bindings::Wrappable()
-    , m_variable(move(variable))
+    : m_variable(move(variable))
     , m_fallback(move(fallback))
 {
 }

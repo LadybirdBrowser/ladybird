@@ -20,7 +20,8 @@ class MediaStream final : public DOM::EventTarget {
 
 public:
     static GC::Ref<MediaStream> create();
-    static GC::Ref<MediaStream> construct_impl(ReadonlySpan<GC::Ref<MediaStreamTrack>> const&);
+    static GC::Ref<MediaStream> create(ReadonlySpan<GC::Ref<MediaStreamTrack>> const&);
+    static GC::Ref<MediaStream> create(GC::RootVector<GC::Ref<MediaStreamTrack>> const&);
 
     virtual ~MediaStream() override = default;
 

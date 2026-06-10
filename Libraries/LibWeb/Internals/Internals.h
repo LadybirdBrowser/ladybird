@@ -6,12 +6,22 @@
 
 #pragma once
 
+#include <LibWeb/Compositor/AsyncScrollingState.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/Internals/InternalsBase.h>
+#include <LibWeb/Painting/Forward.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace JS {
+
+class Object;
+class Realm;
+
+}
 
 namespace Web::Internals {
 
@@ -41,9 +51,10 @@ public:
     WebIDL::ExceptionOr<String> set_time_zone(StringView time_zone);
 
     void gc();
-    GC::Ref<WebIDL::Promise> gc_async();
+    void gc_async(GC::Ref<WebIDL::Promise>);
     WebIDL::ExceptionOr<void> mark_as_garbage(StringView variable_name);
-    JS::Object* hit_test(double x, double y);
+    Optional<Painting::HitTestResult> hit_test(double x, double y);
+    JS::Object* hit_test_result(JS::Realm&, double x, double y);
 
     void send_text(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);
     void send_key(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);
@@ -59,7 +70,8 @@ public:
     // High-level mouse conveniences
     void click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void click_and_hold(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
-    GC::Ref<WebIDL::Promise> wheel(double x, double y, double delta_x, double delta_y);
+    void wheel(GC::Ref<WebIDL::Promise>, double x, double y, double delta_x, double delta_y);
+    void wheel(double x, double y, double delta_x, double delta_y, GC::Ref<WebIDL::Promise>);
     void pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers);
 
     String current_cursor();
@@ -125,14 +137,16 @@ public:
     void clear_element(HTML::HTMLElement&);
     void set_environments_top_level_url(JS::Realm&, StringView url);
 
-    JS::Object* get_style_invalidation_counters();
+    DOM::Document::StyleInvalidationCounters const& style_invalidation_counters() const;
+    JS::Object* style_invalidation_counters_object(JS::Realm&) const;
     void reset_style_invalidation_counters();
     void update_style();
     void set_preferred_color_scheme(StringView color_scheme);
     String canvas_color_scheme();
     bool style_sheet_may_have_has_selectors(CSS::CSSStyleSheet&);
     WebIDL::UnsignedLongLong active_image_style_value_animation_count();
-    JS::Object* async_scrolling_state();
+    Compositor::AsyncScrollingState async_scrolling_state();
+    JS::Object* async_scrolling_state_object(JS::Realm&);
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
     bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
     String async_scrolling_state_wheel_routing_admission();

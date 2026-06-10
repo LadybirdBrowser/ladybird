@@ -18,10 +18,10 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESVertexArrayObject);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESVertexArrayObject::create(GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> OESVertexArrayObject::create(GC::Ref<WebGLRenderingContextBase> context)
 {
     auto extension = GC::Heap::the().allocate<OESVertexArrayObject>(context);
-    return GC::Ref<Bindings::Wrappable> { extension };
+    return GC::Ref<WebGLExtension> { extension };
 }
 
 OESVertexArrayObject::OESVertexArrayObject(GC::Ref<WebGLRenderingContextBase> context)

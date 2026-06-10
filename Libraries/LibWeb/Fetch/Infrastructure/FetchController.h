@@ -54,7 +54,7 @@ public:
     void process_next_manual_redirect() const;
     [[nodiscard]] GC::Ref<FetchTimingInfo> extract_full_timing_info() const;
     void abort(JS::Realm&, Optional<JS::Value>);
-    JS::Value deserialize_a_serialized_abort_reason(JS::Realm&);
+    Optional<HTML::SerializationRecord> const& serialized_abort_reason() const { return m_serialized_abort_reason; }
     void terminate();
 
     void set_fetch_params(Badge<FetchParams>, GC::Ref<FetchParams> fetch_params) { m_fetch_params = fetch_params; }

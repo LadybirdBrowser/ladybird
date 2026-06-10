@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SVGAnimatedLength.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGLength.h>
 

@@ -19,8 +19,7 @@ GC::Ref<PerformanceTiming> PerformanceTiming::create(HTML::Window& window)
 }
 
 PerformanceTiming::PerformanceTiming(HTML::Window& window)
-    : Bindings::Wrappable()
-    , m_window(window)
+    : m_window(window)
 {
 }
 

@@ -23,6 +23,9 @@ public:
 
     virtual ~VisualViewport() override = default;
 
+    DOM::Document& document() { return m_document; }
+    DOM::Document const& document() const { return m_document; }
+
     CSSPixelPoint offset() const { return m_offset; }
 
     [[nodiscard]] double offset_left() const;

@@ -17,11 +17,11 @@ interface mixin WindowOrWorkerGlobalScope {
     undefined clearInterval(optional long id = 0);
 
     // ImageBitmap
-    Promise<ImageBitmap> createImageBitmap(ImageBitmapSource image, optional ImageBitmapOptions options = {});
-    Promise<ImageBitmap> createImageBitmap(ImageBitmapSource image, long sx, long sy, long sw, long sh, optional ImageBitmapOptions options = {});
+    [CreatesPromise] Promise<ImageBitmap> createImageBitmap(ImageBitmapSource image, optional ImageBitmapOptions options = {});
+    [CreatesPromise] Promise<ImageBitmap> createImageBitmap(ImageBitmapSource image, long sx, long sy, long sw, long sh, optional ImageBitmapOptions options = {});
 
     // https://fetch.spec.whatwg.org/#fetch-method
-    [NeedsCallerRealm, NewObject] Promise<Response> fetch(RequestInfo input, optional RequestInit init = {});
+    [ImplementedInBindings, NeedsCallerRealm, NewObject] Promise<Response> fetch(RequestInfo input, optional RequestInit init = {});
 
     // https://w3c.github.io/hr-time/#the-performance-attribute
     [Replaceable] readonly attribute Performance performance;

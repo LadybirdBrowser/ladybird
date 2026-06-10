@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/CSSNumericArray.h>
+#include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -23,7 +23,7 @@ public:
     virtual ~CSSNumericArray() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
+    GC::Ptr<CSSNumericValue> value_at(size_t index) const;
     Vector<GC::Ref<CSSNumericValue>> values() { return m_values; }
 
     virtual void visit_edges(GC::Cell::Visitor&) override;

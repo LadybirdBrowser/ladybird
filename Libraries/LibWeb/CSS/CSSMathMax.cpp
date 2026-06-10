@@ -6,7 +6,6 @@
 
 #include "CSSMathMax.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSMathMax.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -43,7 +42,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> CSSMathMax::add_all_types_into_math_max
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathmin-cssmathmin
-WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> CSSMathMax::construct_impl(Vector<CSSNumberish> values)
+WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> CSSMathMax::create_for_constructor(ReadonlySpan<CSSNumberish> values)
 {
     // The CSSMathMin(...args) and CSSMathMax(...args) constructors are defined identically to the above, except that
     // in the last step they return a new CSSMathMin or CSSMathMax object, respectively.
@@ -66,7 +65,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> CSSMathMax::construct_impl(Vector<CSSNu
 }
 
 CSSMathMax::CSSMathMax(NumericType type, GC::Ref<CSSNumericArray> values)
-    : CSSMathValue(Bindings::CSSMathOperator::Max, move(type))
+    : CSSMathValue(CSSMathOperator::Max, move(type))
     , m_values(move(values))
 {
 }

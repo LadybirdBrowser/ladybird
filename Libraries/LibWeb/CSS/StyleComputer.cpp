@@ -25,7 +25,6 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
@@ -997,15 +996,15 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     HashMap<PropertyID, RefPtr<StyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
     HashMap<PropertyID, RefPtr<StyleValue const>> computed_end_values = compute_keyframe_values(keyframe_end_values);
     clear_computation_context_caches();
-    auto to_composite_operation = [&](Bindings::CompositeOperationOrAuto composite_operation_or_auto) {
+    auto to_composite_operation = [&](Animations::CompositeOperationOrAuto composite_operation_or_auto) {
         switch (composite_operation_or_auto) {
-        case Bindings::CompositeOperationOrAuto::Accumulate:
-            return Bindings::CompositeOperation::Accumulate;
-        case Bindings::CompositeOperationOrAuto::Add:
-            return Bindings::CompositeOperation::Add;
-        case Bindings::CompositeOperationOrAuto::Replace:
-            return Bindings::CompositeOperation::Replace;
-        case Bindings::CompositeOperationOrAuto::Auto:
+        case Animations::CompositeOperationOrAuto::Accumulate:
+            return Animations::CompositeOperation::Accumulate;
+        case Animations::CompositeOperationOrAuto::Add:
+            return Animations::CompositeOperation::Add;
+        case Animations::CompositeOperationOrAuto::Replace:
+            return Animations::CompositeOperation::Replace;
+        case Animations::CompositeOperationOrAuto::Auto:
             return effect->composite();
         }
         VERIFY_NOT_REACHED();
@@ -2932,9 +2931,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     process_animation_definitions(computed_style, cascaded_properties, abstract_element);
 
     auto animations = abstract_element.element().get_animations_internal(
-        abstract_element.element().document().relevant_settings_object().realm(),
         Animations::Animatable::GetAnimationsSorted::Yes,
-        Bindings::GetAnimationsOptions { .subtree = false });
+        Animations::Animatable::GetAnimationsOptions { .subtree = false, .pseudo_element = {} });
     if (animations.is_exception()) {
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
     } else {

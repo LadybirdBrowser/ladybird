@@ -32,7 +32,7 @@ public:
     void invalidate_framebuffer(WebIDL::UnsignedLong target, Vector<WebIDL::UnsignedLong> attachments);
     void invalidate_sub_framebuffer(WebIDL::UnsignedLong target, Vector<WebIDL::UnsignedLong> attachments, WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
     void read_buffer(WebIDL::UnsignedLong src);
-    JS::Value get_internalformat_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong internalformat, WebIDL::UnsignedLong pname);
+    Optional<Vector<WebIDL::Long>> get_internalformat_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong internalformat, WebIDL::UnsignedLong pname);
     void renderbuffer_storage_multisample(WebIDL::UnsignedLong target, WebIDL::Long samples, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height);
     void tex_storage2d(WebIDL::UnsignedLong target, WebIDL::Long levels, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height);
     void tex_storage3d(WebIDL::UnsignedLong target, WebIDL::Long levels, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth);
@@ -72,7 +72,7 @@ public:
     void begin_query(WebIDL::UnsignedLong target, GC::Ref<WebGLQuery> query);
     void end_query(WebIDL::UnsignedLong target);
     GC::Ptr<WebGLQuery> get_query(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
-    JS::Value get_query_parameter(GC::Ref<WebGLQuery> query, WebIDL::UnsignedLong pname);
+    Optional<WebGLParameterValue> get_query_parameter(GC::Ref<WebGLQuery> query, WebIDL::UnsignedLong pname);
     GC::Ref<WebGLSampler> create_sampler();
     void delete_sampler(GC::Ptr<WebGLSampler> sampler);
     void bind_sampler(WebIDL::UnsignedLong unit, GC::Ptr<WebGLSampler> sampler);
@@ -82,7 +82,7 @@ public:
     void delete_sync(GC::Ptr<WebGLSync> sync);
     WebIDL::UnsignedLong client_wait_sync(GC::Ref<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout);
     void wait_sync(GC::Ref<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout);
-    JS::Value get_sync_parameter(GC::Ref<WebGLSync> sync, WebIDL::UnsignedLong pname);
+    Optional<WebIDL::Long> get_sync_parameter(GC::Ref<WebGLSync> sync, WebIDL::UnsignedLong pname);
     GC::Ref<WebGLTransformFeedback> create_transform_feedback();
     void delete_transform_feedback(GC::Ptr<WebGLTransformFeedback> transform_feedback);
     void bind_transform_feedback(WebIDL::UnsignedLong target, GC::Ptr<WebGLTransformFeedback>);
@@ -94,9 +94,10 @@ public:
     void bind_buffer_base(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Ptr<WebGLBuffer> buffer);
     void bind_buffer_range(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Ptr<WebGLBuffer> buffer, WebIDL::LongLong offset, WebIDL::LongLong size);
     Optional<Vector<WebIDL::UnsignedLong>> get_uniform_indices(GC::Ref<WebGLProgram> program, Vector<String> const& uniform_names);
-    JS::Value get_active_uniforms(GC::Ref<WebGLProgram> program, Vector<WebIDL::UnsignedLong> uniform_indices, WebIDL::UnsignedLong pname);
+    Optional<Vector<WebGLParameterValue>> get_active_uniforms(GC::Ref<WebGLProgram> program, Vector<WebIDL::UnsignedLong> uniform_indices, WebIDL::UnsignedLong pname);
     WebIDL::UnsignedLong get_uniform_block_index(GC::Ref<WebGLProgram> program, String uniform_block_name);
-    JS::Value get_active_uniform_block_parameter(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong pname);
+    using ActiveUniformBlockParameter = Variant<WebGLParameterValue, Vector<WebIDL::UnsignedLong>>;
+    Optional<ActiveUniformBlockParameter> get_active_uniform_block_parameter(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong pname);
     Optional<String> get_active_uniform_block_name(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index);
     void uniform_block_binding(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong uniform_block_binding);
     GC::Ref<WebGLVertexArrayObject> create_vertex_array();

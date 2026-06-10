@@ -6,7 +6,6 @@
 
 #include "CSSRotate.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSRotate.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -23,7 +22,7 @@ GC::Ref<CSSRotate> CSSRotate::create(Is2D is_2d, GC::Ref<CSSNumericValue> x, GC:
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssrotate-cssrotate
-WebIDL::ExceptionOr<GC::Ref<CSSRotate>> CSSRotate::construct_impl(GC::Ref<CSSNumericValue> angle)
+WebIDL::ExceptionOr<GC::Ref<CSSRotate>> CSSRotate::create_for_constructor(GC::Ref<CSSNumericValue> angle)
 {
     // The CSSRotate(angle) constructor must, when invoked, perform the following steps:
 
@@ -42,7 +41,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSRotate>> CSSRotate::construct_impl(GC::Ref<CSSNum
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssrotate-cssrotate-x-y-z-anglec
-WebIDL::ExceptionOr<GC::Ref<CSSRotate>> CSSRotate::construct_impl(CSSNumberish x, CSSNumberish y, CSSNumberish z, GC::Ref<CSSNumericValue> angle)
+WebIDL::ExceptionOr<GC::Ref<CSSRotate>> CSSRotate::create_for_constructor(CSSNumberish x, CSSNumberish y, CSSNumberish z, GC::Ref<CSSNumericValue> angle)
 {
     // The CSSRotate(x, y, z, angle) constructor must, when invoked, perform the following steps:
 
@@ -139,7 +138,7 @@ WebIDL::ExceptionOr<Utf16String> CSSRotate::to_string() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix
-WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSRotate::to_matrix(JS::Realm& realm) const
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSRotate::to_matrix() const
 {
     // 1. Let matrix be a new DOMMatrix object, initialized to this’s equivalent 4x4 transform matrix, as defined in
     //    CSS Transforms 1 § 12. Mathematical Description of Transform Functions, and with its is2D internal slot set
@@ -154,14 +153,14 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSRotate::to_matrix(JS::Realm
     auto matrix = Geometry::DOMMatrix::create();
 
     // NB: to() throws a TypeError if the conversion can't be done.
-    auto angle = TRY(m_angle->to(realm, "deg"_fly_string))->value();
+    auto angle = TRY(m_angle->to("deg"_fly_string))->value();
 
     if (is_2d())
         return matrix->rotate_axis_angle_self(0, 0, 1, angle);
 
-    auto x = TRY(m_x->to(realm, "number"_fly_string))->value();
-    auto y = TRY(m_y->to(realm, "number"_fly_string))->value();
-    auto z = TRY(m_z->to(realm, "number"_fly_string))->value();
+    auto x = TRY(m_x->to("number"_fly_string))->value();
+    auto y = TRY(m_y->to("number"_fly_string))->value();
+    auto z = TRY(m_z->to("number"_fly_string))->value();
 
     return matrix->rotate_axis_angle_self(x, y, z, angle);
 }

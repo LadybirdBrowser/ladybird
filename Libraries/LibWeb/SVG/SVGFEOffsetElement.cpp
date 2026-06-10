@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFEOffsetElement.h>
 #include <LibWeb/SVG/SVGFEOffsetElement.h>
 
 namespace Web::SVG {

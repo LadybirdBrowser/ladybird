@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibJS/Runtime/Promise.h>
-#include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
@@ -15,6 +14,37 @@
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web::HTML {
+
+class NavigationHistoryEntry;
+
+using NavigationUpdateCurrentEntryOptions = Bindings::NavigationUpdateCurrentEntryOptions;
+using NavigationOptions = Bindings::NavigationOptions;
+using NavigationNavigateOptions = Bindings::NavigationNavigateOptions;
+using NavigationReloadOptions = Bindings::NavigationReloadOptions;
+
+struct NavigationResult {
+    static NavigationResult from_promises(GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished)
+    {
+        return NavigationResult {
+            .committed = committed,
+            .finished = finished,
+            .entry = nullptr,
+        };
+    }
+
+    static NavigationResult resolved_with_entry(GC::Ref<NavigationHistoryEntry> entry)
+    {
+        return NavigationResult {
+            .committed = nullptr,
+            .finished = nullptr,
+            .entry = entry,
+        };
+    }
+
+    GC::Ptr<WebIDL::Promise> committed;
+    GC::Ptr<WebIDL::Promise> finished;
+    GC::Ptr<NavigationHistoryEntry> entry;
+};
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-api-method-tracker
 struct NavigationAPIMethodTracker final : public JS::Cell {
@@ -51,7 +81,7 @@ public:
     // IDL properties and methods
     Vector<GC::Ref<NavigationHistoryEntry>> entries() const;
     GC::Ptr<NavigationHistoryEntry> current_entry() const;
-    WebIDL::ExceptionOr<void> update_current_entry(Bindings::NavigationUpdateCurrentEntryOptions);
+    WebIDL::ExceptionOr<void> update_current_entry(NavigationUpdateCurrentEntryOptions);
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-transition
     GC::Ptr<NavigationTransition> transition() const { return m_transition; }
@@ -59,12 +89,12 @@ public:
     bool can_go_back() const;
     bool can_go_forward() const;
 
-    WebIDL::ExceptionOr<Bindings::NavigationResult> navigate(String url, Bindings::NavigationNavigateOptions const&);
-    WebIDL::ExceptionOr<Bindings::NavigationResult> reload(Bindings::NavigationReloadOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> navigate(JS::Realm&, String url, NavigationNavigateOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> reload(JS::Realm&, NavigationReloadOptions const&);
 
-    WebIDL::ExceptionOr<Bindings::NavigationResult> traverse_to(String key, Bindings::NavigationOptions const&);
-    WebIDL::ExceptionOr<Bindings::NavigationResult> back(Bindings::NavigationOptions const&);
-    WebIDL::ExceptionOr<Bindings::NavigationResult> forward(Bindings::NavigationOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> traverse_to(JS::Realm&, String key, NavigationOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> back(JS::Realm&, NavigationOptions const&);
+    WebIDL::ExceptionOr<Bindings::NavigationResult> forward(JS::Realm&, NavigationOptions const&);
 
     // Event Handlers
     void set_onnavigate(WebIDL::CallbackType*);
@@ -86,7 +116,7 @@ public:
     void abort_a_navigate_event(GC::Ref<NavigateEvent>, GC::Ref<WebIDL::DOMException> reason);
     bool fire_a_traverse_navigate_event(NonnullRefPtr<SessionHistoryEntry> destination_she, UserNavigationInvolvement = UserNavigationInvolvement::None);
     bool fire_a_push_replace_reload_navigate_event(
-        Bindings::NavigationType,
+        NavigationType,
         URL::URL destination_url,
         bool is_same_document,
         UserNavigationInvolvement = UserNavigationInvolvement::None,
@@ -97,7 +127,7 @@ public:
     bool fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename);
 
     void initialize_the_navigation_api_entries_for_a_new_document(Vector<NonnullRefPtr<SessionHistoryEntry>> const& new_shes, NonnullRefPtr<SessionHistoryEntry> initial_she);
-    void update_the_navigation_api_entries_for_a_same_document_navigation(NonnullRefPtr<SessionHistoryEntry> destination_she, Bindings::NavigationType);
+    void update_the_navigation_api_entries_for_a_same_document_navigation(NonnullRefPtr<SessionHistoryEntry> destination_she, NavigationType);
 
     virtual ~Navigation() override;
 
@@ -117,12 +147,18 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     using AnyException = decltype(declval<WebIDL::ExceptionOr<void>>().exception());
-    Bindings::NavigationResult early_error_result(AnyException);
-    Bindings::NavigationResult early_error_result(GC::Ref<WebIDL::DOMException>);
+    NavigationResult early_error_result(AnyException);
+    NavigationResult early_error_result(GC::Ref<WebIDL::DOMException>);
+
+    WebIDL::ExceptionOr<NavigationResult> navigate_internal(String url, NavigationNavigateOptions const&);
+    WebIDL::ExceptionOr<NavigationResult> reload_internal(NavigationReloadOptions const&);
+    WebIDL::ExceptionOr<NavigationResult> traverse_to_internal(String key, NavigationOptions const&);
+    WebIDL::ExceptionOr<NavigationResult> back_internal(NavigationOptions const&);
+    WebIDL::ExceptionOr<NavigationResult> forward_internal(NavigationOptions const&);
 
     GC::Ref<NavigationAPIMethodTracker> maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<SerializationRecord>);
     GC::Ref<NavigationAPIMethodTracker> add_an_upcoming_traverse_api_method_tracker(String destination_key, JS::Value info);
-    WebIDL::ExceptionOr<Bindings::NavigationResult> perform_a_navigation_api_traversal(String key, Bindings::NavigationOptions const&);
+    WebIDL::ExceptionOr<NavigationResult> perform_a_navigation_api_traversal(String key, NavigationOptions const&);
     void promote_an_upcoming_api_method_tracker_to_ongoing(Optional<String> destination_key);
     void resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>);
     void reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>, JS::Value exception);
@@ -132,7 +168,7 @@ private:
     void run_the_navigate_event_intercept_commit_handler_steps(GC::Ref<NavigateEvent>, GC::Ptr<NavigationAPIMethodTracker>);
 
     bool inner_navigate_event_firing_algorithm(
-        Bindings::NavigationType,
+        NavigationType,
         GC::Ref<NavigationDestination>,
         UserNavigationInvolvement,
         GC::Ptr<DOM::Element> source_element,
@@ -176,7 +212,7 @@ private:
     bool m_was_initial_about_blank_opened { false };
 };
 
-HistoryHandlingBehavior to_history_handling_behavior(Bindings::NavigationHistoryBehavior);
-Bindings::NavigationHistoryBehavior to_navigation_history_behavior(HistoryHandlingBehavior);
+HistoryHandlingBehavior to_history_handling_behavior(NavigationHistoryBehavior);
+NavigationHistoryBehavior to_navigation_history_behavior(HistoryHandlingBehavior);
 
 }

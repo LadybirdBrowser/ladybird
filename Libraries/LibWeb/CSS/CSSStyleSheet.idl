@@ -5,16 +5,16 @@ interface CSSStyleSheet : StyleSheet {
 
     readonly attribute CSSRule? ownerRule;
     [SameObject] readonly attribute CSSRuleList cssRules;
-    [NeedsCallerRealm] unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
-    [NeedsThisObjectRealm] undefined deleteRule(unsigned long index);
+    unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
+    undefined deleteRule(unsigned long index);
 
-    [NeedsCallerRealm] Promise<CSSStyleSheet> replace(USVString text);
-    [NeedsCallerRealm] undefined replaceSync(USVString text);
+    [CreatesPromise, NeedsCallerRealm] Promise<CSSStyleSheet> replace(USVString text);
+    undefined replaceSync(USVString text);
 
     // https://drafts.csswg.org/cssom/#legacy-css-style-sheet-members
     [SameObject, ImplementedAs=css_rules] readonly attribute CSSRuleList rules;
-    [NeedsCallerRealm] long addRule(optional DOMString selector = "undefined", optional DOMString style = "undefined", optional unsigned long index);
-    [NeedsThisObjectRealm] undefined removeRule(optional unsigned long index);
+    long addRule(optional DOMString selector = "undefined", optional DOMString style = "undefined", optional unsigned long index);
+    undefined removeRule(optional unsigned long index);
 };
 
 dictionary CSSStyleSheetInit {

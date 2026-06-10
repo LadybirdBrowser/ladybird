@@ -1,7 +1,7 @@
 [Exposed=(Window,Worker)]
 interface IDBObjectStore {
     attribute DOMString name;
-    readonly attribute any keyPath;
+    [ImplementedAs=key_path_value, NeedsCallerRealmForGetter] readonly attribute any keyPath;
     readonly attribute DOMStringList indexNames;
     [SameObject] readonly attribute IDBTransaction transaction;
     readonly attribute boolean autoIncrement;

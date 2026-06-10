@@ -72,6 +72,7 @@
 #include <AK/Debug.h>
 #include <AK/StdLibExtras.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/NavigationType.h>
 
 namespace Web::HTML {
 
@@ -1843,7 +1844,6 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     auto exceptions_enabled = params.exceptions_enabled;
 
     auto& active_document = *this->active_document();
-    auto& realm = active_document.relevant_settings_object().realm();
     auto& page_client = active_document.page().client();
 
     // AD-HOC: If we are not able to continue in this process, request a new process from the UI.
@@ -1865,7 +1865,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     if (!source_document->navigable()->allowed_by_sandboxing_to_navigate(*this, source_snapshot_params)) {
         // 1. If exceptionsEnabled is true, then throw a "SecurityError" DOMException.
         if (exceptions_enabled) {
-            return WebIDL::SecurityError::create(realm, "Source document's node navigable is not allowed to navigate"_utf16);
+            return WebIDL::SecurityError::create("Source document's node navigable is not allowed to navigate"_utf16);
         }
 
         // 2 Return.
@@ -1988,22 +1988,22 @@ void Navigable::begin_navigation(NavigateParams params)
     }
 
     // 12. If historyHandling is "auto", then:
-    if (history_handling == Bindings::NavigationHistoryBehavior::Auto) {
+    if (history_handling == NavigationHistoryBehavior::Auto) {
         // FIXME: Fix spec typo targetNavigable --> navigable
         // 1. If url equals navigable's active document's URL,
         //     and initiatorOriginSnapshot is same origin with targetNavigable's active document's origin,
         //     then set historyHandling to "replace".
         if (url == active_document.url() && initiator_origin_snapshot.is_same_origin(active_document.origin()))
-            history_handling = Bindings::NavigationHistoryBehavior::Replace;
+            history_handling = NavigationHistoryBehavior::Replace;
 
         // 2. Otherwise, set historyHandling to "push".
         else
-            history_handling = Bindings::NavigationHistoryBehavior::Push;
+            history_handling = NavigationHistoryBehavior::Push;
     }
 
     // 13. If the navigation must be a replace given url and navigable's active document, then set historyHandling to "replace".
     if (navigation_must_be_a_replace(url, active_document))
-        history_handling = Bindings::NavigationHistoryBehavior::Replace;
+        history_handling = NavigationHistoryBehavior::Replace;
 
     // 14. If all of the following are true:
     //     - documentResource is null;
@@ -2087,13 +2087,13 @@ void Navigable::begin_navigation(NavigateParams params)
         //    with navigationType set to historyHandling, isSameDocument set to false, userInvolvement set to userInvolvement,
         //    sourceElement set to sourceElement, formDataEntryList set to entryListForFiring, destinationURL set to url,
         //    and navigationAPIState set to navigationAPIStateForFiring.
-        auto navigation_type = [](Bindings::NavigationHistoryBehavior history_handling) {
+        auto navigation_type = [](NavigationHistoryBehavior history_handling) {
             switch (history_handling) {
-            case Bindings::NavigationHistoryBehavior::Push:
-                return Bindings::NavigationType::Push;
-            case Bindings::NavigationHistoryBehavior::Replace:
-                return Bindings::NavigationType::Replace;
-            case Bindings::NavigationHistoryBehavior::Auto:
+            case NavigationHistoryBehavior::Push:
+                return NavigationType::Push;
+            case NavigationHistoryBehavior::Replace:
+                return NavigationType::Replace;
+            case NavigationHistoryBehavior::Auto:
             default:
                 VERIFY_NOT_REACHED();
             }
@@ -2310,7 +2310,7 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
     // 4. Let continue be the result of firing a push/replace/reload navigate event at navigation with navigationType
     //    set to historyHandling, isSameDocument set to true, userInvolvement set to userInvolvement, sourceElement set
     //    to sourceElement, destinationURL set to url, and navigationAPIState set to destinationNavigationAPIState.
-    auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? Bindings::NavigationType::Push : Bindings::NavigationType::Replace;
+    auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? NavigationType::Push : NavigationType::Replace;
     bool const continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, true, user_involvement, source_element, {}, destination_navigation_api_state);
 
     // 5. If continue is false, then return.
@@ -2357,10 +2357,11 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
 
     // 13. Update document for history step application given navigable's active document, historyEntry, true, scriptHistoryIndex, and scriptHistoryLength.
     // AD HOC: Skip updating the navigation api entries twice here
-    active_document()->update_for_history_step_application(*history_entry, true, script_history_length, script_history_index, navigation_type, {}, {}, false);
+    auto html_navigation_type = navigation_type;
+    active_document()->update_for_history_step_application(*history_entry, true, script_history_length, script_history_index, html_navigation_type, {}, {}, false);
 
     // 14. Update the navigation API entries for a same-document navigation given navigation, historyEntry, and historyHandling.
-    navigation->update_the_navigation_api_entries_for_a_same_document_navigation(history_entry, navigation_type);
+    navigation->update_the_navigation_api_entries_for_a_same_document_navigation(history_entry, html_navigation_type);
 
     // 15. Scroll to the fragment given navigable's active document.
     // FIXME: Specification doesn't say when document url needs to update during fragment navigation
@@ -2605,7 +2606,7 @@ void Navigable::reload(Optional<SerializationRecord> navigation_api_state, UserN
         //    navigationType set to "reload", isSameDocument set to false, userInvolvement set to userInvolvement,
         //    destinationURL set to navigable's active session history entry's URL, navigationAPIState set to
         //    destinationNavigationAPIState, and apiMethodTracker set to apiMethodTracker.
-        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(Bindings::NavigationType::Reload, active_session_history_entry()->url(), false, user_involvement, nullptr, {}, destination_navigation_api_state);
+        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(NavigationType::Reload, active_session_history_entry()->url(), false, user_involvement, nullptr, {}, destination_navigation_api_state);
 
         // 5. If continue is false, then return.
         if (!continue_)
@@ -2855,7 +2856,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
 
     // 11. Update the navigation API entries for a same-document navigation given document's relevant global object's navigation API, newEntry, and historyHandling.
     auto& window = HTML::relevant_window(document);
-    auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? Bindings::NavigationType::Push : Bindings::NavigationType::Replace;
+    auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? NavigationType::Push : NavigationType::Replace;
     window.navigation()->update_the_navigation_api_entries_for_a_same_document_navigation(new_entry, navigation_type);
 
     // 12. Let traversable be navigable's traversable navigable.
@@ -3648,15 +3649,15 @@ void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintC
     compositor_context().request_screenshot(painting_surface, move(callback));
 }
 
-GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
+void Navigable::scroll_viewport_by_delta(CSSPixelPoint delta, GC::Ptr<WebIDL::Promise> promise)
 {
     auto vv = active_document()->visual_viewport();
     CSSPixelPoint page_position { CSSPixels(vv->page_left()), CSSPixels(vv->page_top()) };
-    return perform_a_scroll_of_the_viewport(page_position + delta);
+    perform_a_scroll_of_the_viewport(page_position + delta, promise);
 }
 
 // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
-GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position)
+void Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position, GC::Ptr<WebIDL::Promise> promise)
 {
     // 1. Let doc be the viewport’s associated Document.
     auto doc = active_document();
@@ -3707,8 +3708,11 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     doc->update_layout(DOM::UpdateLayoutReason::NavigableViewportScroll);
 
     // AD-HOC: Skip scrolling unscrollable boxes, unless this scroll can pan the visual viewport.
-    if (!doc->paintable_box()->could_be_scrolled_by_wheel_event() && visual_dx == 0.0 && visual_dy == 0.0)
-        return WebIDL::create_resolved_promise(HTML::relevant_realm(*doc), JS::js_undefined());
+    if (!doc->paintable_box()->could_be_scrolled_by_wheel_event() && visual_dx == 0.0 && visual_dy == 0.0) {
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
+    }
 
     auto scrolling_area = doc->paintable_box()->scrollable_overflow_rect()->to_type<float>();
     auto new_viewport_scroll_offset = m_viewport_scroll_offset.to_type<double>() + Gfx::Point(layout_dx, layout_dy);
@@ -3718,8 +3722,11 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
 
     // AD-HOC: If the scroll position would not change, return early to avoid unnecessary display invalidation
     //         and event loop scheduling (e.g. during momentum scrolling against a boundary).
-    if (new_viewport_scroll_offset.to_type<CSSPixels>() == m_viewport_scroll_offset && visual_dx == 0.0 && visual_dy == 0.0)
-        return WebIDL::create_resolved_promise(HTML::relevant_realm(*doc), JS::js_undefined());
+    if (new_viewport_scroll_offset.to_type<CSSPixels>() == m_viewport_scroll_offset && visual_dx == 0.0 && visual_dy == 0.0) {
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
+    }
 
     // FIXME: Get a Promise from this.
     perform_scroll_of_viewport_scrolling_box(new_viewport_scroll_offset.to_type<CSSPixels>());
@@ -3732,14 +3739,11 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     if (visual_dx == 0.0 && visual_dy == 0.0)
         doc->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::No);
 
-    // 16. Let scrollPromise be a new Promise.
-    auto scroll_promise = WebIDL::create_promise(HTML::relevant_realm(*doc));
-
     // 17. Return scrollPromise, and run the remaining steps in parallel.
     // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.
     // FIXME: Actually wait for scroll to occur. For now, all our scrolls are instant.
-    WebIDL::resolve_promise(HTML::relevant_realm(*doc), scroll_promise);
-    return scroll_promise;
+    if (promise)
+        WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
 }
 
 void Navigable::reset_zoom()

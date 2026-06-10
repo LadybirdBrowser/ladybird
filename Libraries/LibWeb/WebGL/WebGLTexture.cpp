@@ -7,7 +7,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WebGLTexture.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
 
 namespace Web::WebGL {

@@ -12,7 +12,7 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(AbortController);
 
-WebIDL::ExceptionOr<GC::Ref<AbortController>> AbortController::construct_impl()
+GC::Ref<AbortController> AbortController::create()
 {
     auto signal = AbortSignal::create();
     return GC::Heap::the().allocate<AbortController>(move(signal));
@@ -20,8 +20,7 @@ WebIDL::ExceptionOr<GC::Ref<AbortController>> AbortController::construct_impl()
 
 // https://dom.spec.whatwg.org/#dom-abortcontroller-abortcontroller
 AbortController::AbortController(GC::Ref<AbortSignal> signal)
-    : Bindings::Wrappable()
-    , m_signal(move(signal))
+    : m_signal(move(signal))
 {
 }
 
@@ -39,7 +38,7 @@ void AbortController::abort(JS::Realm& realm, Optional<JS::Value> reason)
     // The abort(reason) method steps are to signal abort on this’s signal with reason if it is given.
     auto abort_reason = reason.value_or(JS::js_undefined());
     if (abort_reason.is_undefined())
-        abort_reason = throw_completion(realm, WebIDL::AbortError::create(realm, "Aborted without reason"_utf16)).value();
+        abort_reason = throw_completion(realm, WebIDL::AbortError::create("Aborted without reason"_utf16)).value();
 
     m_signal->signal_abort(abort_reason, realm.global_object());
 }

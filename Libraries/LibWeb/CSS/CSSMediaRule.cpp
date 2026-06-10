@@ -7,7 +7,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/Dump.h>
 

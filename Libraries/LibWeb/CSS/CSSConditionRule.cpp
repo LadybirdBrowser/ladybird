@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSConditionRule.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 
 namespace Web::CSS {

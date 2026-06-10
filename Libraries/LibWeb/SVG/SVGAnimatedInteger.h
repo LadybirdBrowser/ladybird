@@ -8,9 +8,10 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SVGAnimatedInteger.h>
+#include <AK/StringView.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::SVG {
 

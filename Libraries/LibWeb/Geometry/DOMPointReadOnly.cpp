@@ -7,7 +7,8 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
+#include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
@@ -17,11 +18,6 @@
 namespace Web::Geometry {
 
 GC_DEFINE_ALLOCATOR(DOMPointReadOnly);
-
-GC::Ref<DOMPointReadOnly> DOMPointReadOnly::construct_impl(double x, double y, double z, double w)
-{
-    return create(x, y, z, w);
-}
 
 GC::Ref<DOMPointReadOnly> DOMPointReadOnly::create(double x, double y, double z, double w)
 {
@@ -33,9 +29,13 @@ GC::Ref<DOMPointReadOnly> DOMPointReadOnly::create()
     return GC::Heap::the().allocate<DOMPointReadOnly>();
 }
 
+GC::Ref<DOMPointReadOnly> DOMPointReadOnly::dom_point_read_only_from_point(Bindings::DOMPointInit const& other)
+{
+    return create(other.x, other.y, other.z, other.w);
+}
+
 DOMPointReadOnly::DOMPointReadOnly(double x, double y, double z, double w)
-    : Bindings::Wrappable()
-    , m_x(x)
+    : m_x(x)
     , m_y(y)
     , m_z(z)
     , m_w(w)
@@ -43,27 +43,25 @@ DOMPointReadOnly::DOMPointReadOnly(double x, double y, double z, double w)
 }
 
 DOMPointReadOnly::DOMPointReadOnly()
-    : Bindings::Wrappable()
 {
-}
-
-// https://drafts.fxtf.org/geometry/#dom-dompointreadonly-frompoint
-GC::Ref<DOMPointReadOnly> DOMPointReadOnly::from_point(JS::VM&, Bindings::DOMPointInit const& other)
-{
-    // The fromPoint(other) static method on DOMPointReadOnly must create a DOMPointReadOnly from the dictionary other.
-    return GC::Heap::the().allocate<DOMPointReadOnly>(other.x, other.y, other.z, other.w);
 }
 
 DOMPointReadOnly::~DOMPointReadOnly() = default;
 
 // https://drafts.fxtf.org/geometry/#dom-dompointreadonly-matrixtransform
-WebIDL::ExceptionOr<GC::Ref<DOMPoint>> DOMPointReadOnly::matrix_transform(Bindings::DOMMatrixInit& matrix) const
+WebIDL::ExceptionOr<GC::Ref<DOMPoint>> DOMPointReadOnly::matrix_transform(GC::Ref<DOMMatrix> matrix_object) const
 {
     // 1. Let matrixObject be the result of invoking create a DOMMatrix from the dictionary matrix.
-    auto matrix_object = TRY(DOMMatrix::create_from_dom_matrix_init(matrix));
+    // NB: This is done by the binding helper before entering the implementation.
 
     // 2. Return the result of invoking transform a point with a matrix, given the current point and matrixObject. The current point does not get modified.
     return matrix_object->transform_point(*this);
+}
+
+WebIDL::ExceptionOr<GC::Ref<DOMPoint>> DOMPointReadOnly::matrix_transform(Bindings::DOMMatrixInit const& matrix) const
+{
+    auto matrix_object = DOMMatrix::create_from_dom_matrix_init(TRY(validate_and_fixup_dom_matrix_init(matrix)));
+    return matrix_transform(matrix_object);
 }
 
 WebIDL::ExceptionOr<void> DOMPointReadOnly::serialization_steps(JS::Realm&, HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)

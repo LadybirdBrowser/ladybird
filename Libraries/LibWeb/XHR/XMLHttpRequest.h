@@ -14,8 +14,9 @@
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibHTTP/HeaderList.h>
+#include <LibJS/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/Bindings/XMLHttpRequest.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Fetch/BodyInit.h>
@@ -54,25 +55,28 @@ public:
         Done = 4,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<XMLHttpRequest>> construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object);
+    using ResponseType = Bindings::XMLHttpRequestResponseType;
+
+    static GC::Ref<XMLHttpRequest> create(GC::Ref<DOM::EventTarget> relevant_global_object);
+    static WebIDL::ExceptionOr<GC::Ref<XMLHttpRequest>> create_for_constructor(JS::Realm&);
 
     virtual ~XMLHttpRequest() override;
 
     State ready_state() const { return m_state; }
     Fetch::Infrastructure::Status status() const;
     WebIDL::ExceptionOr<String> status_text() const;
-    WebIDL::ExceptionOr<String> response_text(JS::Realm&) const;
-    WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> response_xml(JS::Realm&);
     WebIDL::ExceptionOr<JS::Value> response(JS::Realm&);
-    Bindings::XMLHttpRequestResponseType response_type() const { return m_response_type; }
+    WebIDL::ExceptionOr<String> response_text() const;
+    WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> response_xml();
+    ResponseType response_type() const { return m_response_type; }
     String response_url();
 
-    WebIDL::ExceptionOr<void> open(JS::Realm&, String const& method, String const& url);
-    WebIDL::ExceptionOr<void> open(JS::Realm&, String const& method, String const& url, bool async, Optional<String> const& username = Optional<String> {}, Optional<String> const& password = Optional<String> {});
+    WebIDL::ExceptionOr<void> open(String const& method, String const& url);
+    WebIDL::ExceptionOr<void> open(String const& method, String const& url, bool async, Optional<String> const& username = Optional<String> {}, Optional<String> const& password = Optional<String> {});
     WebIDL::ExceptionOr<void> send(JS::Realm&, NullableDocumentOrXMLHttpRequestBodyInit body);
 
-    WebIDL::ExceptionOr<void> set_request_header(JS::Realm&, String const& name, String const& value);
-    WebIDL::ExceptionOr<void> set_response_type(JS::Realm&, Bindings::XMLHttpRequestResponseType);
+    WebIDL::ExceptionOr<void> set_request_header(String const& name, String const& value);
+    WebIDL::ExceptionOr<void> set_response_type(ResponseType);
 
     Optional<String> get_response_header(String const& name) const;
     String get_all_response_headers() const;
@@ -80,17 +84,27 @@ public:
     WebIDL::CallbackType* onreadystatechange();
     void set_onreadystatechange(WebIDL::CallbackType*);
 
-    WebIDL::ExceptionOr<void> override_mime_type(JS::Realm&, String const& mime);
+    WebIDL::ExceptionOr<void> override_mime_type(String const& mime);
 
     u32 timeout() const;
-    WebIDL::ExceptionOr<void> set_timeout(JS::Realm&, u32 timeout);
+    WebIDL::ExceptionOr<void> set_timeout(u32 timeout);
 
     bool with_credentials() const;
-    WebIDL::ExceptionOr<void> set_with_credentials(JS::Realm&, bool);
+    WebIDL::ExceptionOr<void> set_with_credentials(bool);
 
     void abort();
 
     GC::Ref<XMLHttpRequestUpload> upload() const;
+    String get_text_response() const;
+    ByteBuffer const& received_bytes() const { return m_received_bytes; }
+    bool response_body_is_null() const;
+    bool response_object_is_failure() const { return m_response_object.has<Failure>(); }
+    GC::Ptr<DOM::Document> response_document() const;
+    GC::Ptr<FileAPI::Blob> response_blob() const;
+    void set_blob_response_object(GC::Ref<FileAPI::Blob>);
+    void set_document_response();
+    MimeSniff::MimeType get_final_mime_type() const;
+    u64 response_object_revision() const { return m_response_object_revision; }
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -98,20 +112,15 @@ private:
 
     [[nodiscard]] MimeSniff::MimeType get_response_mime_type() const;
     [[nodiscard]] Optional<StringView> get_final_encoding() const;
-    [[nodiscard]] MimeSniff::MimeType get_final_mime_type() const;
 
-    String get_text_response() const;
     JS::Object& relevant_global_object() const;
     GC::Ref<DOM::Event> create_associated_event(FlyString const&) const;
     HTML::EnvironmentSettingsObject& relevant_settings_object() const;
-    void set_document_response();
-    void clear_response_object_cache();
-    GC::Ptr<JS::Object> cached_response_object(Bindings::WrapperWorld const&) const;
-    void cache_response_object(Bindings::WrapperWorld const&, GC::Ref<JS::Object>);
+    void reset_response_object();
 
-    WebIDL::ExceptionOr<void> handle_response_end_of_body(JS::Realm&);
-    WebIDL::ExceptionOr<void> handle_errors(JS::Realm&);
-    JS::ThrowCompletionOr<void> request_error_steps(JS::Realm&, FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception = nullptr);
+    WebIDL::ExceptionOr<void> handle_response_end_of_body();
+    WebIDL::ExceptionOr<void> handle_errors();
+    WebIDL::ExceptionOr<void> request_error_steps(FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception = nullptr);
 
     void stop_timeout_timer();
 
@@ -196,7 +205,7 @@ private:
     // https://xhr.spec.whatwg.org/#response-type
     // response type
     //     One of the empty string, "arraybuffer", "blob", "document", "json", and "text"; initially the empty string.
-    Bindings::XMLHttpRequestResponseType m_response_type;
+    ResponseType m_response_type { ResponseType::Empty };
 
     enum class Failure {
         /// ????
@@ -206,7 +215,7 @@ private:
     // response object
     //     An object, failure, or null, initially null.
     Variant<GC::Ref<DOM::Document>, GC::Ref<FileAPI::Blob>, Failure, Empty> m_response_object;
-    mutable Bindings::WrapperWorldWeakValueCache<JS::Object> m_response_objects;
+    u64 m_response_object_revision { 0 };
 
     // https://xhr.spec.whatwg.org/#xmlhttprequest-fetch-controller
     // fetch controller

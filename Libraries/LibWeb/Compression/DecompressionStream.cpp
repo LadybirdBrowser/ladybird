@@ -11,12 +11,9 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/DecompressionStream.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/CompressionStream.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Compression/DecompressionStream.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/WritableStream.h>
@@ -26,74 +23,66 @@ namespace Web::Compression {
 
 GC_DEFINE_ALLOCATOR(DecompressionStream);
 
-// https://compression.spec.whatwg.org/#dom-decompressionstream-decompressionstream
-WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, Bindings::CompressionFormat format)
+static ErrorOr<Decompressor> create_decompressor(Bindings::CompressionFormat format, AllocatingMemoryStream& input_stream)
 {
-    auto& realm = HTML::relevant_realm(global_scope);
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    auto stream = MaybeOwned<Stream> { input_stream };
+    switch (format) {
+    case Bindings::CompressionFormat::Deflate:
+        return TRY(Compress::ZlibDecompressor::create(move(stream)));
+    case Bindings::CompressionFormat::DeflateRaw:
+        return TRY(Compress::DeflateDecompressor::create(move(stream)));
+    case Bindings::CompressionFormat::Gzip:
+        return TRY(Compress::GzipDecompressor::create(move(stream)));
+    }
 
+    VERIFY_NOT_REACHED();
+}
+
+WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::create_for_constructor(JS::Realm& realm, Bindings::CompressionFormat format)
+{
     // 1. If format is unsupported in DecompressionStream, then throw a TypeError.
     // 2. Set this's format to format.
     auto input_stream = make<AllocatingMemoryStream>();
-
-    auto decompressor = [&, input_stream = MaybeOwned<Stream> { *input_stream }]() mutable -> ErrorOr<Decompressor> {
-        switch (format) {
-        case Bindings::CompressionFormat::Deflate:
-            return TRY(Compress::ZlibDecompressor::create(move(input_stream)));
-        case Bindings::CompressionFormat::DeflateRaw:
-            return TRY(Compress::DeflateDecompressor::create(move(input_stream)));
-        case Bindings::CompressionFormat::Gzip:
-            return TRY(Compress::GzipDecompressor::create((move(input_stream))));
-        }
-
-        VERIFY_NOT_REACHED();
-    }();
-
+    auto decompressor = create_decompressor(format, *input_stream);
     if (decompressor.is_error())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create decompressor: {}", decompressor.error())) };
 
+    return create(realm, decompressor.release_value(), move(input_stream));
+}
+
+// https://compression.spec.whatwg.org/#dom-decompressionstream-decompressionstream
+WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::create(JS::Realm& realm, Decompressor decompressor, NonnullOwnPtr<AllocatingMemoryStream> input_stream)
+{
     // 5. Set this's transform to a new TransformStream.
     // NOTE: We do this first so that we may store it as nonnull in the GenericTransformStream.
     auto transform_stream = GC::Heap::the().allocate<Streams::TransformStream>();
-    (void)Bindings::wrap(wrapper_world, realm, transform_stream);
-    auto stream = GC::Heap::the().allocate<DecompressionStream>(transform_stream, decompressor.release_value(), move(input_stream));
+    auto stream = GC::Heap::the().allocate<DecompressionStream>(transform_stream, move(decompressor), move(input_stream));
 
     // 3. Let transformAlgorithm be an algorithm which takes a chunk argument and runs the decompress and enqueue a chunk
     //    algorithm with this and chunk.
     auto transform_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-        auto& vm = realm->vm();
-
-        if (auto result = stream->decompress_and_enqueue_chunk(realm, chunk); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, result.exception());
-            return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
-        }
+        if (auto result = stream->decompress_and_enqueue_chunk(realm, chunk); result.is_error())
+            return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
 
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 4. Let flushAlgorithm be an algorithm which takes no argument and runs the decompress flush and enqueue algorithm with this.
     auto flush_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)]() -> GC::Ref<WebIDL::Promise> {
-        auto& vm = realm->vm();
-
-        if (auto result = stream->decompress_flush_and_enqueue(realm); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, result.exception());
-            return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
-        }
+        if (auto result = stream->decompress_flush_and_enqueue(realm); result.is_error())
+            return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
 
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 6. Set up this's transform with transformAlgorithm set to transformAlgorithm and flushAlgorithm set to flushAlgorithm.
     stream->m_transform->set_up(realm, transform_algorithm, flush_algorithm);
-    (void)Bindings::wrap(wrapper_world, realm, stream->m_transform->readable());
-    (void)Bindings::wrap(wrapper_world, realm, stream->m_transform->writable());
 
     return stream;
 }
 
 DecompressionStream::DecompressionStream(GC::Ref<Streams::TransformStream> transform, Decompressor decompressor, NonnullOwnPtr<AllocatingMemoryStream> input_stream)
-    : Bindings::Wrappable()
-    , Streams::GenericTransformStreamMixin(transform)
+    : Streams::GenericTransformStreamMixin(transform)
     , m_decompressor(move(decompressor))
     , m_input_stream(move(input_stream))
 {

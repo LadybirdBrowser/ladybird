@@ -17,7 +17,7 @@ class CSSMathNegate final : public CSSMathValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMathNegate> create(NumericType, GC::Ref<CSSNumericValue>);
-    static GC::Ref<CSSMathNegate> construct_impl(CSSNumberish);
+    static GC::Ref<CSSMathNegate> create_from_numberish(CSSNumberish);
 
     virtual ~CSSMathNegate() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;

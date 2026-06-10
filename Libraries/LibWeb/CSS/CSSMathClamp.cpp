@@ -6,7 +6,6 @@
 
 #include "CSSMathClamp.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSMathClamp.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -23,7 +22,7 @@ GC::Ref<CSSMathClamp> CSSMathClamp::create(NumericType type, GC::Ref<CSSNumericV
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathclamp-cssmathclamp
-WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> CSSMathClamp::construct_impl(CSSNumberish lower, CSSNumberish value, CSSNumberish upper)
+WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> CSSMathClamp::create_for_constructor(CSSNumberish lower, CSSNumberish value, CSSNumberish upper)
 {
     // The CSSMathClamp(lower, value, upper) constructor must, when called, perform the following steps:
     // 1. Replace lower, value, and upper with the result of rectifying a numberish value for each.
@@ -44,7 +43,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> CSSMathClamp::construct_impl(CSSNumbe
 }
 
 CSSMathClamp::CSSMathClamp(NumericType type, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper)
-    : CSSMathValue(Bindings::CSSMathOperator::Clamp, move(type))
+    : CSSMathValue(CSSMathOperator::Clamp, move(type))
     , m_lower(move(lower))
     , m_value(move(value))
     , m_upper(move(upper))

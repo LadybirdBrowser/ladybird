@@ -6,18 +6,64 @@
 
 #pragma once
 
+#include <AK/String.h>
+#include <AK/Types.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/NavigateEvent.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/Export.h>
+#include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
+
+namespace Web::Bindings {
+
+struct NavigateEventInit;
+
+}
+
+namespace Web::DOM {
+
+class AbortController;
+class AbortSignal;
+class Element;
+
+}
+
+namespace Web::XHR {
+
+class FormData;
+
+}
 
 namespace Web::HTML {
 
+class NavigationDestination;
 class Window;
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationintercepthandler
 using NavigationInterceptHandler = GC::Ref<WebIDL::CallbackType>;
+
+using NavigationFocusReset = Bindings::NavigationFocusReset;
+using NavigationScrollBehavior = Bindings::NavigationScrollBehavior;
+
+struct NavigateEventInit : public DOM::EventInit {
+    NavigationType navigation_type { NavigationType::Push };
+    GC::Ref<NavigationDestination> destination;
+    bool can_intercept { false };
+    bool user_initiated { false };
+    bool hash_change { false };
+    GC::Ref<DOM::AbortSignal> signal;
+    GC::Ptr<XHR::FormData> form_data;
+    Optional<String> download_request;
+    Optional<JS::Value> info;
+    bool has_ua_visual_transition { false };
+    GC::Ptr<DOM::Element> source_element;
+};
+
+using NavigationInterceptOptions = Bindings::NavigationInterceptOptions;
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigateevent
 class NavigateEvent : public DOM::Event {
@@ -34,12 +80,12 @@ public:
         Finished
     };
 
-    [[nodiscard]] static GC::Ref<NavigateEvent> create(Window& relevant_window, FlyString const& event_name, Bindings::NavigateEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<NavigateEvent> construct_impl(Window&, FlyString const& event_name, Bindings::NavigateEventInit const&);
+    [[nodiscard]] static GC::Ref<NavigateEvent> create(JS::Realm&, FlyString const& event_name, Bindings::NavigateEventInit const&);
+    [[nodiscard]] static GC::Ref<NavigateEvent> create(Window& relevant_window, FlyString const& event_name, NavigateEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     // The navigationType, destination, canIntercept, userInitiated, hashChange, signal, formData, downloadRequest,
     // info, hasUAVisualTransition, and sourceElement attributes must return the values they are initialized to.
-    Bindings::NavigationType navigation_type() const { return m_navigation_type; }
+    NavigationType navigation_type() const { return m_navigation_type; }
     GC::Ref<NavigationDestination> destination() const { return m_destination; }
     bool can_intercept() const { return m_can_intercept; }
     bool user_initiated() const { return m_user_initiated; }
@@ -47,12 +93,12 @@ public:
     GC::Ref<DOM::AbortSignal> signal() const { return m_signal; }
     GC::Ptr<XHR::FormData> form_data() const { return m_form_data; }
     Optional<String> download_request() const { return m_download_request; }
-    JS::Value info() const { return m_info; }
+    JS::Value const& info() const { return m_info; }
     bool has_ua_visual_transition() const { return m_has_ua_visual_transition; }
     GC::Ptr<DOM::Element> source_element() const { return m_source_element; }
 
-    WebIDL::ExceptionOr<void> intercept(JS::Realm&, Bindings::NavigationInterceptOptions const&);
-    WebIDL::ExceptionOr<void> scroll(JS::Realm&);
+    WebIDL::ExceptionOr<void> intercept(JS::Realm&, NavigationInterceptOptions const&);
+    WebIDL::ExceptionOr<void> scroll();
 
     virtual ~NavigateEvent() override;
 
@@ -72,11 +118,11 @@ public:
     void finish(bool did_fulfill);
 
 private:
-    NavigateEvent(Window&, FlyString const& event_name, Bindings::NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    NavigateEvent(Window&, FlyString const& event_name, NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> perform_shared_checks(JS::Realm&);
+    WebIDL::ExceptionOr<void> perform_shared_checks();
     void process_scroll_behavior();
     void potentially_process_scroll_behavior();
     void potentially_reset_the_focus();
@@ -93,10 +139,10 @@ private:
     Vector<NavigationInterceptHandler> m_navigation_handler_list;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-focusreset
-    Optional<Bindings::NavigationFocusReset> m_focus_reset_behavior = {};
+    Optional<NavigationFocusReset> m_focus_reset_behavior = {};
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-scroll
-    Optional<Bindings::NavigationScrollBehavior> m_scroll_behavior = {};
+    Optional<NavigationScrollBehavior> m_scroll_behavior = {};
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-abort-controller
     GC::Ptr<DOM::AbortController> m_abort_controller = { nullptr };
@@ -105,7 +151,7 @@ private:
     Optional<SerializationRecord> m_classic_history_api_state = {};
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-navigationtype
-    Bindings::NavigationType m_navigation_type = { Bindings::NavigationType::Push };
+    NavigationType m_navigation_type = { NavigationType::Push };
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-destination
     GC::Ref<NavigationDestination> m_destination;
@@ -136,26 +182,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-sourceelement
     GC::Ptr<DOM::Element> m_source_element { nullptr };
-};
-
-}
-
-namespace AK {
-
-template<>
-struct Formatter<Web::Bindings::NavigationScrollBehavior> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::Bindings::NavigationScrollBehavior const& value)
-    {
-        return Formatter<StringView>::format(builder, Web::Bindings::idl_enum_to_string(value));
-    }
-};
-
-template<>
-struct Formatter<Web::Bindings::NavigationFocusReset> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, Web::Bindings::NavigationFocusReset const& value)
-    {
-        return Formatter<StringView>::format(builder, Web::Bindings::idl_enum_to_string(value));
-    }
 };
 
 }

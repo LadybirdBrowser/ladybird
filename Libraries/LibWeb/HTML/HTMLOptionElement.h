@@ -51,7 +51,6 @@ public:
     WebIDL::ExceptionOr<void> clone_into_selectedcontent(GC::Ref<HTMLSelectedContentElement>);
 
 private:
-    friend class Bindings::OptionConstructor;
     friend class HTMLSelectElement;
 
     HTMLOptionElement(DOM::Document&, DOM::QualifiedName);

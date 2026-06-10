@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/WebGLUniformLocation.h>
+#include <AK/Error.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLProgram.h>

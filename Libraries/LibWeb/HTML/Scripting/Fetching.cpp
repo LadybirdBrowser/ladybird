@@ -970,7 +970,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     if (body_bytes.template has<Empty>() || body_bytes.template has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>()
         || !Fetch::Infrastructure::is_ok_status(response->status())
         || !Fetch::Infrastructure::extract_mime_type(response->header_list()).has_value() || !Fetch::Infrastructure::extract_mime_type(response->header_list())->is_javascript()) {
-        return WebIDL::NetworkError::create(realm, "Network error"_utf16);
+        return WebIDL::NetworkError::create("Network error"_utf16);
     }
 
     // 8. Let sourceText be the result of UTF-8 decoding bodyBytes.

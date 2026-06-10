@@ -5,7 +5,7 @@ callback FunctionStringCallback = undefined (DOMString data);
 interface DataTransferItem {
     readonly attribute DOMString kind;
     readonly attribute DOMString type;
-    [NeedsCallerRealm] undefined getAsString(FunctionStringCallback? _callback);
+    undefined getAsString(FunctionStringCallback? _callback);
     File? getAsFile();
 
     // https://wicg.github.io/entries-api/#dom-datatransferitem-webkitgetasentry

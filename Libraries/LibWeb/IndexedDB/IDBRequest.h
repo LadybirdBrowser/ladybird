@@ -10,6 +10,7 @@
 
 #include <LibWeb/Bindings/IDBRequest.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -39,9 +40,9 @@ public:
 
     [[nodiscard]] HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
     [[nodiscard]] JS::Object& relevant_global_object() const;
-    [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
     [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const;
     [[nodiscard]] WebIDL::ExceptionOr<JS::Value> result() const;
+    [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
 
     void set_done(bool done) { m_done = done; }
     void set_result(JS::Value result) { m_result = result; }

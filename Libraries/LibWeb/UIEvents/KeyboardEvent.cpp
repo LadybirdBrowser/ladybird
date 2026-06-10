@@ -7,9 +7,6 @@
 #include <AK/CharacterTypes.h>
 #include <LibGC/Heap.h>
 #include <LibUnicode/CharacterTypes.h>
-#include <LibWeb/Bindings/KeyboardEvent.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
@@ -17,11 +14,6 @@
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(KeyboardEvent);
-
-static HighResolutionTime::DOMHighResTimeStamp event_time_stamp(HTML::Window& window)
-{
-    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window));
-}
 
 // https://www.w3.org/TR/uievents/#determine-keydown-keyup-keyCode
 static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
@@ -713,7 +705,7 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object cons
     auto key_code = determine_key_code(platform_key, code_point);
     auto char_code = determine_char_code(event_name, code_point);
 
-    Bindings::KeyboardEventInit event_init {};
+    KeyboardEventInit event_init {};
     event_init.key = move(event_key);
     event_init.code = move(event_code);
     event_init.location = to_underlying(get_event_location(platform_key, modifiers));
@@ -790,17 +782,12 @@ void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool c
     m_meta_key = meta_key;
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create(FlyString const& event_name, Bindings::KeyboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<KeyboardEvent> KeyboardEvent::create(FlyString const& event_name, KeyboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     return GC::Heap::the().allocate<KeyboardEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> KeyboardEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
-{
-    return GC::Heap::the().allocate<KeyboardEvent>(event_name, event_init, event_time_stamp(window));
-}
-
-KeyboardEvent::KeyboardEvent(FlyString const& event_name, Bindings::KeyboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+KeyboardEvent::KeyboardEvent(FlyString const& event_name, KeyboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : UIEvent(event_name, event_init, time_stamp)
     , m_key(event_init.key)
     , m_code(event_init.code)

@@ -7,9 +7,9 @@
 #pragma once
 
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/XPathExpression.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
+#include <LibWeb/XPath/EvaluateResult.h>
 #include <LibWeb/XPath/XPathNSResolver.h>
 #include <LibWeb/XPath/XPathResult.h>
 
@@ -26,7 +26,7 @@ public:
     virtual ~XPathExpression() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm&, DOM::Node const& context_node, WebIDL::UnsignedShort type = 0, GC::Ptr<XPathResult> result = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(DOM::Node const& context_node, WebIDL::UnsignedShort type = 0, GC::Ptr<XPathResult> result = nullptr);
 
 private:
     String m_expression;

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SVGAnimatedEnumeration.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
 

@@ -21,8 +21,8 @@ public:
 
     virtual size_t length() const override;
     virtual String item(size_t index) const override;
-    virtual WebIDL::ExceptionOr<void> set_property(JS::Realm&, Utf16FlyString const& property, StringView value, StringView priority) override;
-    virtual WebIDL::ExceptionOr<String> remove_property(JS::Realm&, Utf16FlyString const& property) override;
+    virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property, StringView value, StringView priority) override;
+    virtual WebIDL::ExceptionOr<String> remove_property(Utf16FlyString const& property) override;
     virtual String get_property_value(Utf16FlyString const& property) const override;
     virtual StringView get_property_priority(Utf16FlyString const& property) const override;
 
@@ -31,7 +31,7 @@ public:
     RefPtr<StyleValue const> descriptor_or_initial_value(DescriptorNameAndID const&) const;
     virtual String serialized() const override;
 
-    virtual WebIDL::ExceptionOr<void> set_css_text(JS::Realm&, StringView) override;
+    virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
 protected:
     CSSDescriptors(AtRuleID, Vector<Descriptor>);

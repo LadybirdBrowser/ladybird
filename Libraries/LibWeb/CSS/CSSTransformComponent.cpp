@@ -5,7 +5,6 @@
  */
 
 #include "CSSTransformComponent.h"
-#include <LibWeb/Bindings/CSSTransformComponent.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {

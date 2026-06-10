@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WebGLRenderbuffer.h>
 #include <LibWeb/WebGL/WebGLRenderbuffer.h>
 
 namespace Web::WebGL {

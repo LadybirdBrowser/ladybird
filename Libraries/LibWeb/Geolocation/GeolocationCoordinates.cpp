@@ -11,13 +11,11 @@ namespace Web::Geolocation {
 GC_DEFINE_ALLOCATOR(GeolocationCoordinates);
 
 GeolocationCoordinates::GeolocationCoordinates()
-    : Bindings::Wrappable()
 {
 }
 
 GeolocationCoordinates::GeolocationCoordinates(CoordinatesData data)
-    : Bindings::Wrappable()
-    , m_coordinates_data(move(data))
+    : m_coordinates_data(move(data))
 {
 }
 

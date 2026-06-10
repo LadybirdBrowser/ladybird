@@ -18,8 +18,7 @@ GC::Ref<MimeType> MimeType::create(Window& window, String type)
 }
 
 MimeType::MimeType(Window& window, String type)
-    : Bindings::Wrappable()
-    , m_type(move(type))
+    : m_type(move(type))
     , m_window(window)
 {
 }

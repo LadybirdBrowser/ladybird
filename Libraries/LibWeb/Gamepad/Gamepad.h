@@ -14,6 +14,8 @@
 
 namespace Web::Gamepad {
 
+using GamepadMappingType = Bindings::GamepadMappingType;
+
 // https://w3c.github.io/gamepad/#dom-gamepad
 class Gamepad final : public Bindings::Wrappable {
     WEB_WRAPPABLE(Gamepad, Bindings::Wrappable);
@@ -42,7 +44,7 @@ public:
     bool exposed() const { return m_exposed; }
     void set_exposed(Badge<NavigatorGamepadPartial>, bool);
 
-    Bindings::GamepadMappingType mapping() const { return m_mapping; }
+    GamepadMappingType mapping() const { return m_mapping; }
 
     Vector<double> const& axes() const { return m_axes; }
     Vector<GC::Ref<GamepadButton>> const& buttons() const { return m_buttons; }
@@ -150,7 +152,7 @@ private:
     // https://w3c.github.io/gamepad/#dom-gamepad-mapping
     // The mapping in use for this device. If the user agent has knowledge of the layout of the device, then it SHOULD
     // indicate that a mapping is in use by setting mapping to the corresponding GamepadMappingType value.
-    Bindings::GamepadMappingType m_mapping { Bindings::GamepadMappingType::Standard };
+    GamepadMappingType m_mapping { GamepadMappingType::Standard };
 
     GC::Ref<HTML::Window> m_window;
     SDL_JoystickID m_sdl_joystick_id { 0 };

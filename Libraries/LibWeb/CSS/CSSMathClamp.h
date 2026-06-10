@@ -17,7 +17,7 @@ class CSSMathClamp final : public CSSMathValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMathClamp> create(NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> construct_impl(CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> create_for_constructor(CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
 
     virtual ~CSSMathClamp() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;

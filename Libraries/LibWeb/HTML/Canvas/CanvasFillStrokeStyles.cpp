@@ -91,23 +91,23 @@ CanvasFillStrokeStyles::FillOrStrokeStyleVariant CanvasFillStrokeStyles::stroke_
     return drawing_state().stroke_style.to_js_fill_or_stroke_style();
 }
 
-WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_radial_gradient(JS::Realm& realm, double x0, double y0, double r0, double x1, double y1, double r1)
+WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1)
 {
-    return CanvasGradient::create_radial(realm, x0, y0, r0, x1, y1, r1);
+    return CanvasGradient::create_radial(x0, y0, r0, x1, y1, r1);
 }
-WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_linear_gradient(JS::Realm& realm, double x0, double y0, double x1, double y1)
+WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_linear_gradient(double x0, double y0, double x1, double y1)
 {
-    return CanvasGradient::create_linear(realm, x0, y0, x1, y1);
-}
-
-WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_conic_gradient(JS::Realm& realm, double start_angle, double x, double y)
-{
-    return CanvasGradient::create_conic(realm, start_angle, x, y);
+    return CanvasGradient::create_linear(x0, y0, x1, y1);
 }
 
-WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasFillStrokeStyles::create_pattern(JS::Realm& realm, CanvasImageSource const& image, StringView repetition)
+WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_conic_gradient(double start_angle, double x, double y)
 {
-    return CanvasPattern::create(realm, image, repetition);
+    return CanvasGradient::create_conic(start_angle, x, y);
+}
+
+WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasFillStrokeStyles::create_pattern(CanvasImageSource const& image, StringView repetition)
+{
+    return CanvasPattern::create(image, repetition);
 }
 
 }

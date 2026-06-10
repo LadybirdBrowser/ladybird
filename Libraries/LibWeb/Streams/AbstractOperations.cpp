@@ -12,10 +12,7 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/MessageEvent.h>
-#include <LibWeb/Bindings/MessagePort.h>
-#include <LibWeb/Bindings/QueuingStrategy.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -23,21 +20,22 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Streams/AbstractOperations.h>
+#include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultController.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultController.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#validate-and-normalize-high-water-mark
-WebIDL::ExceptionOr<double> extract_high_water_mark(Bindings::QueuingStrategy const& strategy, double default_hwm)
+WebIDL::ExceptionOr<double> extract_high_water_mark(QueuingStrategy const& strategy, double default_hwm)
 {
     // 1. If strategy["highWaterMark"] does not exist, return defaultHWM.
     if (!strategy.high_water_mark.has_value())
@@ -55,7 +53,7 @@ WebIDL::ExceptionOr<double> extract_high_water_mark(Bindings::QueuingStrategy co
 }
 
 // https://streams.spec.whatwg.org/#make-size-algorithm-from-size-function
-GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, Bindings::QueuingStrategy const& strategy)
+GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, QueuingStrategy const& strategy)
 {
     // 1. If strategy["size"] does not exist, return an algorithm that returns 1.
     if (!strategy.size)
@@ -64,9 +62,22 @@ GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, Bindings::QueuingStrategy
     // 2. Return an algorithm that performs the following steps, taking a chunk argument:
     return GC::create_function(GC::Heap::the(), [size = strategy.size](JS::Value chunk) {
         // 1. Return the result of invoking strategy["size"] with argument list « chunk ».
-        return WebIDL::invoke_callback(*size, {}, { { chunk } });
+        return Bindings::invoke_queuing_strategy_size_callback(*size, chunk);
     });
 }
+
+}
+
+namespace Web::Bindings {
+
+JS::Completion invoke_queuing_strategy_size_callback(WebIDL::CallbackType& callback, JS::Value chunk)
+{
+    return WebIDL::invoke_callback(callback, {}, { { chunk } });
+}
+
+}
+
+namespace Web::Streams {
 
 struct PromiseHolder : public JS::Cell {
     GC_CELL(PromiseHolder, JS::Cell);
@@ -130,7 +141,7 @@ WebIDL::ExceptionOr<void> pack_and_post_message(JS::Realm& realm, HTML::MessageP
     auto target_port = port.entangled_port();
 
     // 5. Let options be «[ "transfer" → « » ]».
-    Bindings::StructuredSerializeOptions options;
+    HTML::StructuredSerializeOptions options;
 
     // 6. Run the message port post message steps providing targetPort, message, and options.
     return port.message_port_post_message_steps(realm, target_port, message, options);
@@ -144,7 +155,7 @@ WebIDL::ExceptionOr<void> pack_and_post_message_handling_error(JS::Realm& realm,
 
     // 2. If result is an abrupt completion,
     if (result.is_exception()) {
-        auto error = Bindings::exception_to_throw_completion(realm.vm(), realm, result.release_error());
+        auto error = WebIDL::exception_to_throw_completion(realm.vm(), realm, result.release_error());
 
         // 1. Perform ! CrossRealmTransformSendError(port, result.[[Value]]).
         cross_realm_transform_send_error(realm, port, error.value());
@@ -208,7 +219,7 @@ void set_up_cross_realm_transform_readable(JS::Realm& realm, ReadableStream& str
     add_message_event_listener(realm, port, HTML::EventNames::messageerror,
         [&realm, &port, controller](JS::VM&, HTML::MessageEvent const&) {
             // 1. Let error be a new "DataCloneError" DOMException.
-            auto error = WebIDL::DataCloneError::create(realm, "Unable to transfer stream"_utf16);
+            auto error = WebIDL::DataCloneError::create("Unable to transfer stream"_utf16);
             auto error_value = throw_completion(realm, error).value();
 
             // 2. Perform ! CrossRealmTransformSendError(port, error).
@@ -324,7 +335,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
     add_message_event_listener(realm, port, HTML::EventNames::messageerror,
         [&realm, &port, controller](JS::VM&, HTML::MessageEvent const&) {
             // 1. Let error be a new "DataCloneError" DOMException
-            auto error = WebIDL::DataCloneError::create(realm, "Unable to transfer stream"_utf16);
+            auto error = WebIDL::DataCloneError::create("Unable to transfer stream"_utf16);
             auto error_value = throw_completion(realm, error).value();
 
             // 2. Perform ! CrossRealmTransformSendError(port, error).
@@ -372,7 +383,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
                     port.disentangle();
 
                     // 2. Return a promise rejected with result.[[Value]].
-                    auto error = Bindings::exception_to_throw_completion(realm.vm(), realm, result.release_error());
+                    auto error = WebIDL::exception_to_throw_completion(realm.vm(), realm, result.release_error());
                     WebIDL::reject_promise(realm, *reaction_promise->promise, error.value());
                 }
                 // 4. Otherwise, return a promise resolved with undefined.

@@ -13,7 +13,6 @@ interface HTMLCanvasElement : HTMLElement {
 
     USVString toDataURL(optional DOMString type = "image/png", optional any quality);
     undefined toBlob(BlobCallback _callback, optional DOMString type = "image/png", optional any quality);
-
 };
 
 callback BlobCallback = undefined (Blob? blob);

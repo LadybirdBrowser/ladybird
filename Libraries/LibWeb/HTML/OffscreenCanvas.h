@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Canvas/CanvasSettings.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
@@ -28,8 +29,8 @@ class OffscreenCanvas : public DOM::EventTarget
     GC_DECLARE_ALLOCATOR(OffscreenCanvas);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> construct_impl(
-        WindowOrWorkerGlobalScopeMixin&,
+    static WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> create(
+        DOM::EventTarget& relevant_global_object,
         WebIDL::UnsignedLong width,
         WebIDL::UnsignedLong height);
 
@@ -47,16 +48,12 @@ public:
 
     RefPtr<Gfx::Bitmap> bitmap() const;
 
-    WebIDL::ExceptionOr<void> set_width(JS::Realm&, WebIDL::UnsignedLong);
-    WebIDL::ExceptionOr<void> set_height(JS::Realm&, WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
 
     Gfx::IntSize bitmap_size_for_canvas() const;
 
-    JS::ThrowCompletionOr<OffscreenRenderingContext> get_context(JS::Realm&, Bindings::OffscreenRenderingContextId contextId, JS::Value options);
-
-    WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> transfer_to_image_bitmap(JS::Realm&);
-
-    GC::Ref<WebIDL::Promise> convert_to_blob(JS::Realm&, Optional<Bindings::ImageEncodeOptions> options);
+    WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> transfer_to_image_bitmap();
 
     void set_oncontextlost(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> oncontextlost();
@@ -65,19 +62,20 @@ public:
 
     CSS::ComputationContext canvas_font_computation_context() const;
 
+    enum class HasOrCreatedContext {
+        No,
+        Yes,
+    };
+    HasOrCreatedContext create_2d_context(CanvasRenderingContext2DSettings);
+    OffscreenRenderingContext const& context() const { return m_context; }
+
 private:
     OffscreenCanvas(GC::Ref<DOM::EventTarget> relevant_global_object, RefPtr<Gfx::Bitmap> bitmap);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    enum class HasOrCreatedContext {
-        No,
-        Yes,
-    };
-    JS::ThrowCompletionOr<HasOrCreatedContext> create_2d_context(JS::Value options);
-
     void reset_context_to_default_state();
-    WebIDL::ExceptionOr<void> set_new_bitmap_size(JS::Realm&, Gfx::IntSize new_size);
+    WebIDL::ExceptionOr<void> set_new_bitmap_size(Gfx::IntSize new_size);
 
     Variant<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
 

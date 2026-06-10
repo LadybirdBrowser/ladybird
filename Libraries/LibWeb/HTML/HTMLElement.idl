@@ -25,10 +25,10 @@ interface HTMLElement : Element {
     [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString innerText;
     [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString outerText;
 
-    [NeedsCallerRealm] ElementInternals attachInternals();
+    ElementInternals attachInternals();
 
     // The popover API
-    [ImplementedAs=show_popover_for_bindings] undefined showPopover(optional ShowPopoverOptions options = {});
+    undefined showPopover(optional ShowPopoverOptions options = {});
     [ImplementedAs=hide_popover_for_bindings] undefined hidePopover();
     boolean togglePopover(optional (TogglePopoverOptions or boolean) options = {});
     [CEReactions] attribute DOMString? popover;

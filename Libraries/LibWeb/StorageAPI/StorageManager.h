@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/StorageManager.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::StorageAPI {

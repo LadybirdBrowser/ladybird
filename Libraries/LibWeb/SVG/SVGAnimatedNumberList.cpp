@@ -17,8 +17,7 @@ GC::Ref<SVGAnimatedNumberList> SVGAnimatedNumberList::create(GC::Ref<SVGNumberLi
 }
 
 SVGAnimatedNumberList::SVGAnimatedNumberList(GC::Ref<SVGNumberList> base_val)
-    : Bindings::Wrappable()
-    , m_base_val(base_val)
+    : m_base_val(base_val)
 {
 }
 

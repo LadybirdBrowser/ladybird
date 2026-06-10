@@ -8,7 +8,6 @@
 #include <AK/Time.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/VideoTrack.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>

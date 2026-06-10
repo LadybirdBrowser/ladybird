@@ -7,7 +7,6 @@
  */
 
 #include <LibWeb/Bindings/HTMLSlotElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
@@ -31,11 +30,16 @@ void HTMLSlotElement::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_manually_assigned_nodes);
 }
 
+static HTMLSlotElement::AssignedNodesFlatten assigned_nodes_flatten(Bindings::AssignedNodesOptions const& options)
+{
+    return options.flatten ? HTMLSlotElement::AssignedNodesFlatten::Yes : HTMLSlotElement::AssignedNodesFlatten::No;
+}
+
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignednodes
-Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(Bindings::AssignedNodesOptions options) const
+Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(AssignedNodesFlatten flatten) const
 {
     // 1. If options["flatten"] is false, then return this's assigned nodes.
-    if (!options.flatten) {
+    if (flatten == AssignedNodesFlatten::No) {
         Vector<GC::Root<DOM::Node>> assigned_nodes;
         assigned_nodes.ensure_capacity(assigned_nodes_internal().size());
 
@@ -61,11 +65,16 @@ Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(Bindings::AssignedNo
     return assigned_nodes;
 }
 
+Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(Bindings::AssignedNodesOptions const& options) const
+{
+    return assigned_nodes(assigned_nodes_flatten(options));
+}
+
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignedelements
-Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(Bindings::AssignedNodesOptions options) const
+Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(AssignedNodesFlatten flatten) const
 {
     // 1. If options["flatten"] is false, then return this's assigned nodes, filtered to contain only Element nodes.
-    if (!options.flatten) {
+    if (flatten == AssignedNodesFlatten::No) {
         Vector<GC::Root<DOM::Element>> assigned_nodes;
 
         for (auto const& node : assigned_nodes_internal()) {
@@ -84,6 +93,11 @@ Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(Bindings::Assi
             assigned_nodes.append(*element);
     }
     return assigned_nodes;
+}
+
+Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(Bindings::AssignedNodesOptions const& options) const
+{
+    return assigned_elements(assigned_nodes_flatten(options));
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assign

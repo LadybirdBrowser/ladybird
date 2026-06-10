@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, the SerenityOS developers.
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,13 +10,13 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
-namespace Web::Bindings {
+namespace Web::WebIDL {
 
 template<typename>
 constexpr bool IsExceptionOr = false;
 
 template<typename T>
-constexpr bool IsExceptionOr<WebIDL::ExceptionOr<T>> = true;
+constexpr bool IsExceptionOr<ExceptionOr<T>> = true;
 
 template<typename>
 constexpr bool IsThrowCompletionOr = false;
@@ -32,7 +32,7 @@ struct ExtractExceptionOrValueType {
 };
 
 template<typename T>
-struct ExtractExceptionOrValueType<WebIDL::ExceptionOr<T>> {
+struct ExtractExceptionOrValueType<ExceptionOr<T>> {
     using Type = T;
 };
 
@@ -47,12 +47,12 @@ struct ExtractExceptionOrValueType<void> {
 };
 
 template<>
-struct ExtractExceptionOrValueType<WebIDL::ExceptionOr<Empty>> {
+struct ExtractExceptionOrValueType<ExceptionOr<Empty>> {
     using Type = JS::Value;
 };
 
 template<>
-struct ExtractExceptionOrValueType<WebIDL::ExceptionOr<void>> {
+struct ExtractExceptionOrValueType<ExceptionOr<void>> {
     using Type = JS::Value;
 };
 
@@ -61,11 +61,11 @@ struct ExtractExceptionOrValueType<WebIDL::ExceptionOr<void>> {
 ALWAYS_INLINE JS::Completion exception_to_throw_completion(JS::VM& vm, JS::Realm& realm, auto&& exception)
 {
     return exception.visit(
-        [&](WebIDL::SimpleException const& exception) {
+        [&](SimpleException const& exception) {
             auto message = exception.message.visit([](auto const& s) -> StringView { return s; });
             switch (exception.type) {
-#define E(x)                             \
-    case WebIDL::SimpleExceptionType::x: \
+#define E(x)                     \
+    case SimpleExceptionType::x: \
         return vm.template throw_completion<JS::x>(message);
 
                 ENUMERATE_SIMPLE_WEBIDL_EXCEPTION_TYPES(E)
@@ -75,7 +75,7 @@ ALWAYS_INLINE JS::Completion exception_to_throw_completion(JS::VM& vm, JS::Realm
                 VERIFY_NOT_REACHED();
             }
         },
-        [&](GC::Ref<WebIDL::DOMException> const& exception) {
+        [&](GC::Ref<DOMException> const& exception) {
             return throw_completion(realm, exception);
         },
         [&](JS::Completion const& completion) {
@@ -97,7 +97,7 @@ JS::ThrowCompletionOr<Ret> throw_dom_exception_if_needed(JS::VM& vm, JS::Realm& 
         auto&& result = fn();
 
         if (result.is_exception())
-            return exception_to_throw_completion(vm, realm, result.exception());
+            return WebIDL::exception_to_throw_completion(vm, realm, result.exception());
 
         if constexpr (requires(T v) { v.value(); })
             return result.value();

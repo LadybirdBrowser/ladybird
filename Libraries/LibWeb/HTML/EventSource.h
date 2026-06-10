@@ -13,13 +13,20 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/EventSource.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace Web::Bindings {
+
+struct EventSourceInit;
+
+}
+
 namespace Web::HTML {
+
+using EventSourceInit = Bindings::EventSourceInit;
 
 class EventSource : public DOM::EventTarget {
     WEB_WRAPPABLE(EventSource, DOM::EventTarget);
@@ -30,7 +37,8 @@ public:
 
     virtual ~EventSource() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<EventSource>> construct_impl(WindowOrWorkerGlobalScopeMixin&, StringView url, Bindings::EventSourceInit const& event_source_init_dict = {});
+    static WebIDL::ExceptionOr<GC::Ref<EventSource>> create(WindowOrWorkerGlobalScopeMixin&, StringView url, EventSourceInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<EventSource>> create_for_constructor(JS::Realm&, StringView url, EventSourceInit const&);
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource-url
     String url() const { return m_url.serialize(); }

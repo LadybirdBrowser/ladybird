@@ -12,14 +12,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationActivation);
 
-GC::Ref<NavigationActivation> NavigationActivation::create(GC::Ptr<NavigationHistoryEntry> from, GC::Ref<NavigationHistoryEntry> entry, Bindings::NavigationType navigation_type)
+GC::Ref<NavigationActivation> NavigationActivation::create(GC::Ptr<NavigationHistoryEntry> from, GC::Ref<NavigationHistoryEntry> entry, NavigationType navigation_type)
 {
     return GC::Heap::the().allocate<NavigationActivation>(from, entry, navigation_type);
 }
 
-NavigationActivation::NavigationActivation(GC::Ptr<NavigationHistoryEntry> from, GC::Ref<NavigationHistoryEntry> entry, Bindings::NavigationType navigation_type)
-    : Bindings::Wrappable()
-    , m_from(from)
+NavigationActivation::NavigationActivation(GC::Ptr<NavigationHistoryEntry> from, GC::Ref<NavigationHistoryEntry> entry, NavigationType navigation_type)
+    : m_from(from)
     , m_entry(entry)
     , m_navigation_type(navigation_type)
 {

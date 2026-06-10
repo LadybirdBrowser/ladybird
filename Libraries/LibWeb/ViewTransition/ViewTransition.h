@@ -10,12 +10,12 @@
 #include <AK/Optional.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
-#include <LibWeb/Bindings/ViewTransition.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/DOM/PseudoElement.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 

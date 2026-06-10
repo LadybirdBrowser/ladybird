@@ -1,14 +1,14 @@
 [Exposed=(Window,Worker)]
 interface IDBKeyRange {
-    [NeedsCallerRealmForGetter] readonly attribute any lower;
-    [NeedsCallerRealmForGetter] readonly attribute any upper;
+    [ImplementedAs=key_range_lower, ImplementedInBindings, NeedsCallerRealmForGetter] readonly attribute any lower;
+    [ImplementedAs=key_range_upper, ImplementedInBindings, NeedsCallerRealmForGetter] readonly attribute any upper;
     readonly attribute boolean lowerOpen;
     readonly attribute boolean upperOpen;
 
-    [NeedsCallerRealm, NewObject] static IDBKeyRange only(any value);
-    [NeedsCallerRealm, NewObject] static IDBKeyRange lowerBound(any lower, optional boolean open = false);
-    [NeedsCallerRealm, NewObject] static IDBKeyRange upperBound(any upper, optional boolean open = false);
-    [NeedsCallerRealm, NewObject] static IDBKeyRange bound(any lower, any upper, optional boolean lowerOpen = false, optional boolean upperOpen = false);
+    [ImplementedInBindings, NeedsCallerRealm, NewObject] static IDBKeyRange only(any value);
+    [ImplementedInBindings, NeedsCallerRealm, NewObject] static IDBKeyRange lowerBound(any lower, optional boolean open = false);
+    [ImplementedInBindings, NeedsCallerRealm, NewObject] static IDBKeyRange upperBound(any upper, optional boolean open = false);
+    [ImplementedInBindings, NeedsCallerRealm, NewObject] static IDBKeyRange bound(any lower, any upper, optional boolean lowerOpen = false, optional boolean upperOpen = false);
 
-    [NeedsCallerRealm] boolean includes(any key);
+    [ImplementedInBindings, NeedsCallerRealm] boolean includes(any key);
 };

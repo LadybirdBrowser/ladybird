@@ -17,13 +17,13 @@ class CSSSkewX final : public CSSTransformComponent {
 
 public:
     [[nodiscard]] static GC::Ref<CSSSkewX> create(GC::Ref<CSSNumericValue> ax);
-    static WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> construct_impl(GC::Ref<CSSNumericValue> ax);
+    static WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> create_for_constructor(GC::Ref<CSSNumericValue> ax);
 
     virtual ~CSSSkewX() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
 
     GC::Ref<CSSNumericValue> ax() const { return m_ax; }
     WebIDL::ExceptionOr<void> set_ax(GC::Ref<CSSNumericValue> value);

@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/SpeechSynthesisUtterance.h>
 #include <LibWeb/Speech/SpeechSynthesisUtterance.h>
 #include <LibWeb/Speech/SpeechSynthesisVoice.h>
 
@@ -13,7 +12,7 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechSynthesisUtterance);
 
-WebIDL::ExceptionOr<GC::Ref<SpeechSynthesisUtterance>> SpeechSynthesisUtterance::construct_impl(String const& text)
+GC::Ref<SpeechSynthesisUtterance> SpeechSynthesisUtterance::create(String const& text)
 {
     return GC::Heap::the().allocate<SpeechSynthesisUtterance>(text);
 }

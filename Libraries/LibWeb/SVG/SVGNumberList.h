@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SVGNumberList.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -29,10 +28,6 @@ private:
     SVGNumberList(Vector<GC::Ref<SVGNumber>>, ReadOnlyList);
     explicit SVGNumberList(ReadOnlyList);
 
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(JS::Realm&, u32, JS::Value) override;
     virtual void visit_edges(Visitor&) override;
 };
 

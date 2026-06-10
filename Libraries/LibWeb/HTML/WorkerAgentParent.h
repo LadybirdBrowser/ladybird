@@ -7,9 +7,6 @@
 #pragma once
 
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/AgentType.h>
-#include <LibWeb/Bindings/Request.h>
-#include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 
@@ -23,9 +20,9 @@ class WorkerAgentParent : public JS::Cell {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<WorkerAgentParent> create(URL::URL, Bindings::WorkerOptions const&,
+    static GC::Ref<WorkerAgentParent> create(URL::URL, WorkerOptions const&,
         GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings,
-        GC::Ref<DOM::EventTarget> worker_event_target, Bindings::AgentType);
+        GC::Ref<DOM::EventTarget> worker_event_target, AgentType);
 
     static WEB_API void did_finish_loading_worker_script(WorkerAgentOwnerToken);
     static WEB_API void did_fail_loading_worker_script(WorkerAgentOwnerToken);
@@ -37,9 +34,9 @@ protected:
     virtual void finalize() override;
 
 private:
-    WorkerAgentParent(URL::URL, Bindings::WorkerOptions const&, GC::Ptr<MessagePort> outside_port,
+    WorkerAgentParent(URL::URL, WorkerOptions const&, GC::Ptr<MessagePort> outside_port,
         GC::Ref<EnvironmentSettingsObject> outside_settings, GC::Ref<DOM::EventTarget> worker_event_target,
-        Bindings::AgentType);
+        AgentType);
 
     void start();
     void release_startup_keep_alive();
@@ -48,8 +45,8 @@ private:
 
     static WorkerAgentOwnerToken next_owner_token();
 
-    Bindings::WorkerOptions m_worker_options;
-    Bindings::AgentType m_agent_type { Bindings::AgentType::DedicatedWorker };
+    WorkerOptions m_worker_options;
+    AgentType m_agent_type { AgentType::DedicatedWorker };
     URL::URL m_url;
     WorkerAgentId m_agent_id { 0 };
     WorkerAgentOwnerToken m_owner_token { 0 };

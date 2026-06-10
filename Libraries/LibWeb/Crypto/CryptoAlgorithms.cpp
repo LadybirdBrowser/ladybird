@@ -37,14 +37,11 @@
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/CryptoKey.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Crypto/CryptoAlgorithms.h>
-#include <LibWeb/Crypto/KeyAlgorithms.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Crypto {
 
@@ -65,7 +62,7 @@ static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_
     }();
 
     if (maybe_normalized_algorithm.is_error()) {
-        return Bindings::exception_to_throw_completion(vm, realm, maybe_normalized_algorithm.exception());
+        return WebIDL::exception_to_throw_completion(vm, realm, maybe_normalized_algorithm.exception());
     }
 
     return HashAlgorithmIdentifier { maybe_normalized_algorithm.value().parameter->name };
@@ -79,15 +76,69 @@ static WebIDL::ExceptionOr<ByteBuffer> export_public_exponent(JS::VM& vm, ::Cryp
 }
 
 // https://w3c.github.io/webcrypto/#concept-usage-intersection
-static Vector<Bindings::KeyUsage> usage_intersection(ReadonlySpan<Bindings::KeyUsage> a, ReadonlySpan<Bindings::KeyUsage> b)
+static Vector<KeyUsage> usage_intersection(ReadonlySpan<KeyUsage> a, ReadonlySpan<KeyUsage> b)
 {
-    Vector<Bindings::KeyUsage> result;
+    Vector<KeyUsage> result;
     for (auto const& usage : a) {
         if (b.contains_slow(usage))
             result.append(usage);
     }
     quick_sort(result);
     return result;
+}
+
+static StringView key_usage_to_string(KeyUsage usage)
+{
+    switch (usage) {
+    case KeyUsage::Encrypt:
+        return "encrypt"sv;
+    case KeyUsage::Decrypt:
+        return "decrypt"sv;
+    case KeyUsage::Sign:
+        return "sign"sv;
+    case KeyUsage::Verify:
+        return "verify"sv;
+    case KeyUsage::DeriveKey:
+        return "deriveKey"sv;
+    case KeyUsage::DeriveBits:
+        return "deriveBits"sv;
+    case KeyUsage::WrapKey:
+        return "wrapKey"sv;
+    case KeyUsage::UnwrapKey:
+        return "unwrapKey"sv;
+    case KeyUsage::EncapsulateKey:
+        return "encapsulateKey"sv;
+    case KeyUsage::EncapsulateBits:
+        return "encapsulateBits"sv;
+    case KeyUsage::DecapsulateKey:
+        return "decapsulateKey"sv;
+    case KeyUsage::DecapsulateBits:
+        return "decapsulateBits"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static StringView key_format_to_string(KeyFormat format)
+{
+    switch (format) {
+    case KeyFormat::RawPublic:
+        return "raw-public"sv;
+    case KeyFormat::RawPrivate:
+        return "raw-private"sv;
+    case KeyFormat::RawSeed:
+        return "raw-seed"sv;
+    case KeyFormat::RawSecret:
+        return "raw-secret"sv;
+    case KeyFormat::Raw:
+        return "raw"sv;
+    case KeyFormat::Spki:
+        return "spki"sv;
+    case KeyFormat::Pkcs8:
+        return "pkcs8"sv;
+    case KeyFormat::Jwk:
+        return "jwk"sv;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 // Out of line to ensure this class has a key function
@@ -131,7 +182,7 @@ WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm& realm, String
     if (base64_bytes_or_error.is_error()) {
         if (base64_bytes_or_error.error().code() == ENOMEM)
             return vm.throw_completion<JS::InternalError>(vm.error_message(::JS::VM::ErrorMessage::OutOfMemory));
-        return WebIDL::DataError::create(realm, Utf16String::formatted("base64 decode: {}", base64_bytes_or_error.release_error()));
+        return WebIDL::DataError::create(Utf16String::formatted("base64 decode: {}", base64_bytes_or_error.release_error()));
     }
     return base64_bytes_or_error.release_value();
 }
@@ -144,7 +195,7 @@ WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Rea
 
 // https://w3c.github.io/webcrypto/#concept-parse-an-asn1-structure
 template<typename Structure>
-static WebIDL::ExceptionOr<Structure> parse_an_ASN1_structure(JS::Realm& realm, ReadonlyBytes data, bool exact_data = true)
+static WebIDL::ExceptionOr<Structure> parse_an_ASN1_structure(JS::Realm&, ReadonlyBytes data, bool exact_data = true)
 {
     // 1. Let data be a sequence of bytes to be parsed.
     // 2. Let structure be the ASN.1 structure to be parsed.
@@ -156,17 +207,17 @@ static WebIDL::ExceptionOr<Structure> parse_an_ASN1_structure(JS::Realm& realm, 
     if constexpr (IsSame<Structure, ::Crypto::Certificate::SubjectPublicKey>) {
         auto maybe_subject_public_key = ::Crypto::Certificate::parse_subject_public_key_info(decoder);
         if (maybe_subject_public_key.is_error())
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Error parsing subjectPublicKeyInfo: {}", maybe_subject_public_key.release_error()));
+            return WebIDL::DataError::create(Utf16String::formatted("Error parsing subjectPublicKeyInfo: {}", maybe_subject_public_key.release_error()));
         structure = maybe_subject_public_key.release_value();
     } else if constexpr (IsSame<Structure, ::Crypto::Certificate::PrivateKey>) {
         auto maybe_private_key = ::Crypto::Certificate::parse_private_key_info(decoder);
         if (maybe_private_key.is_error())
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Error parsing privateKeyInfo: {}", maybe_private_key.release_error()));
+            return WebIDL::DataError::create(Utf16String::formatted("Error parsing privateKeyInfo: {}", maybe_private_key.release_error()));
         structure = maybe_private_key.release_value();
     } else if constexpr (IsSame<Structure, StringView>) {
         auto read_result = decoder.read<StringView>(::Crypto::ASN1::Class::Universal, ::Crypto::ASN1::Kind::OctetString);
         if (read_result.is_error())
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Read of kind OctetString failed: {}", read_result.error()));
+            return WebIDL::DataError::create(Utf16String::formatted("Read of kind OctetString failed: {}", read_result.error()));
         structure = read_result.release_value();
     } else {
         static_assert(DependentFalse<Structure>, "Don't know how to parse ASN.1 structure type");
@@ -174,7 +225,7 @@ static WebIDL::ExceptionOr<Structure> parse_an_ASN1_structure(JS::Realm& realm, 
 
     // 5. If exactData was specified, and all of the bytes of data were not consumed during the parsing phase, then throw a DataError.
     if (exact_data && !decoder.eof())
-        return WebIDL::DataError::create(realm, "Not all bytes were consumed during the parsing phase"_utf16);
+        return WebIDL::DataError::create("Not all bytes were consumed during the parsing phase"_utf16);
 
     // 6. Return the parsed ASN.1 structure.
     return structure;
@@ -228,13 +279,13 @@ static WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> parse_jwk_rsa_public_key(
 static WebIDL::ExceptionOr<ByteBuffer> parse_jwk_symmetric_key(JS::Realm& realm, JsonWebKey const& jwk)
 {
     if (!jwk.k.has_value()) {
-        return WebIDL::DataError::create(realm, "JWK has no 'k' field"_utf16);
+        return WebIDL::DataError::create("JWK has no 'k' field"_utf16);
     }
     return base64_url_bytes_decode(realm, *jwk.k);
 }
 
 // https://www.rfc-editor.org/rfc/rfc7517#section-4.3
-static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm& realm, JsonWebKey const& jwk, Vector<Bindings::KeyUsage> const& usages)
+static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm&, JsonWebKey const& jwk, Vector<KeyUsage> const& usages)
 {
     // Use of the "key_ops" member is OPTIONAL, unless the application requires its presence.
     if (!jwk.key_ops.has_value())
@@ -245,7 +296,7 @@ static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm& realm, JsonWebK
     HashTable<String> seen_operations;
     for (auto const& key_operation : key_operations) {
         if (seen_operations.set(key_operation) != HashSetResult::InsertedNewEntry)
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Duplicate key operation: {}", key_operation));
+            return WebIDL::DataError::create(Utf16String::formatted("Duplicate key operation: {}", key_operation));
     }
 
     // Multiple unrelated key operations SHOULD NOT be specified for a key because of the potential
@@ -257,7 +308,7 @@ static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm& realm, JsonWebK
     auto is_used_for_wrapping = seen_operations.contains("wrapKey"sv) || seen_operations.contains("unwrapKey"sv);
     auto number_of_operation_types = is_used_for_signing + is_used_for_encryption + is_used_for_wrapping;
     if (number_of_operation_types > 1)
-        return WebIDL::DataError::create(realm, "Multiple unrelated key operations are specified"_utf16);
+        return WebIDL::DataError::create("Multiple unrelated key operations are specified"_utf16);
 
     // The "use" and "key_ops" JWK members SHOULD NOT be used together; however, if both are used,
     // the information they convey MUST be consistent. Applications should specify which of these
@@ -267,16 +318,16 @@ static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm& realm, JsonWebK
             if (key_operation == "deriveKey"sv || key_operation == "deriveBits"sv)
                 continue;
             if (jwk.use == "sig"sv && key_operation != "sign"sv && key_operation != "verify"sv)
-                return WebIDL::DataError::create(realm, "use=sig but key_ops does not contain 'sign' or 'verify'"_utf16);
+                return WebIDL::DataError::create("use=sig but key_ops does not contain 'sign' or 'verify'"_utf16);
             if (jwk.use == "enc"sv && (key_operation == "sign"sv || key_operation == "verify"sv))
-                return WebIDL::DataError::create(realm, "use=enc but key_ops contains 'sign' or 'verify'"_utf16);
+                return WebIDL::DataError::create("use=enc but key_ops contains 'sign' or 'verify'"_utf16);
         }
     }
 
     // NOTE: This validation happens in multiple places in the spec, so it is here for convenience.
     for (auto const& usage : usages) {
-        if (!seen_operations.contains(Bindings::idl_enum_to_string(usage)))
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Missing key_ops usage: {}", Bindings::idl_enum_to_string(usage)));
+        if (!seen_operations.contains(key_usage_to_string(usage)))
+            return WebIDL::DataError::create(Utf16String::formatted("Missing key_ops usage: {}", key_usage_to_string(usage)));
     }
 
     return {};
@@ -287,32 +338,6 @@ static WebIDL::ExceptionOr<ByteBuffer> generate_random_key(JS::VM& vm, u16 const
     auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(size_in_bits / 8));
     fill_with_random(key_buffer);
     return key_buffer;
-}
-
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedKey::to_object(JS::Realm& realm)
-{
-    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
-
-    if (shared_key.has_value())
-        TRY(object->create_data_property("sharedKey"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *shared_key.value() })));
-
-    if (ciphertext.has_value())
-        TRY(object->create_data_property("ciphertext"_utf16_fly_string, JS::ArrayBuffer::create(realm, ciphertext.value())));
-
-    return object;
-}
-
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedBits::to_object(JS::Realm& realm) const
-{
-    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
-
-    if (shared_key.has_value())
-        TRY(object->create_data_property("sharedKey"_utf16_fly_string, JS::ArrayBuffer::create(realm, shared_key.value())));
-
-    if (ciphertext.has_value())
-        TRY(object->create_data_property("ciphertext"_utf16_fly_string, JS::ArrayBuffer::create(realm, ciphertext.value())));
-
-    return object;
 }
 
 AlgorithmParams::~AlgorithmParams() = default;
@@ -579,15 +604,9 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDeriveParams::from_
     auto& vm = realm.vm();
     auto& object = value.as_object();
 
-    auto key_value = TRY(object.get("public"_utf16_fly_string));
-    auto key_object = TRY(key_value.to_object(vm));
+    auto key = TRY(crypto_key_from_value(vm, TRY(object.get("public"_utf16_fly_string))));
 
-    auto* key = Bindings::impl_from<CryptoKey>(&*key_object);
-    if (!key) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CryptoKey");
-    }
-
-    return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { *key });
+    return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { key });
 }
 
 EcKeyImportParams::~EcKeyImportParams() = default;
@@ -797,13 +816,13 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacImportParams::from_val
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-encrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<ByteBuffer> RSAOAEP::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     auto const& normalized_algorithm = static_cast<RsaOaepParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+    if (key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
     // 2. Let label be the contents of the label member of normalizedAlgorithm or the empty octet string if the label member of normalizedAlgorithm is not present.
     auto const& label = normalized_algorithm.label;
@@ -827,7 +846,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(JS::Realm& realm,
 
     // 4. If performing the operation results in an error, then throw an OperationError.
     if (!hash_kind.has_value())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash));
+        return WebIDL::OperationError::create(Utf16String::formatted("Invalid hash function '{}'", hash));
 
     // 5. Let ciphertext be the value C that results from performing the operation.
     auto rsa = ::Crypto::PK::RSA_OAEP_EME { *hash_kind, public_key };
@@ -835,20 +854,20 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(JS::Realm& realm,
 
     auto maybe_ciphertext = rsa.encrypt(plaintext);
     if (maybe_ciphertext.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to encrypt"_utf16);
+        return WebIDL::OperationError::create("Failed to encrypt"_utf16);
 
     // 6. Return the result of creating an ArrayBuffer containing ciphertext.
-    return JS::ArrayBuffer::create(realm, maybe_ciphertext.release_value());
+    return maybe_ciphertext.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-decrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, AK::ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<ByteBuffer> RSAOAEP::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, AK::ByteBuffer const& ciphertext)
 {
     auto const& normalized_algorithm = static_cast<RsaOaepParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     // 2. Let label be the contents of the label member of normalizedAlgorithm or the empty octet string if the label member of normalizedAlgorithm is not present.
     auto const& label = normalized_algorithm.label;
@@ -872,7 +891,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(JS::Realm& realm,
 
     // 4. If performing the operation results in an error, then throw an OperationError.
     if (!hash_kind.has_value())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash));
+        return WebIDL::OperationError::create(Utf16String::formatted("Invalid hash function '{}'", hash));
 
     // 5. Let plaintext the value M that results from performing the operation.
     auto rsa = ::Crypto::PK::RSA_OAEP_EME { *hash_kind, private_key };
@@ -880,19 +899,19 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(JS::Realm& realm,
 
     auto maybe_plaintext = rsa.decrypt(ciphertext);
     if (maybe_plaintext.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to encrypt"_utf16);
+        return WebIDL::OperationError::create("Failed to encrypt"_utf16);
 
     // 6. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(realm, maybe_plaintext.release_value());
+    return maybe_plaintext.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAOAEP::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAOAEP::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -902,7 +921,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAOAEP
     auto const& normalized_algorithm = static_cast<RsaHashedKeyGenParams const&>(params);
     auto maybe_key_pair = ::Crypto::PK::RSA::generate_key_pair(normalized_algorithm.modulus_length, normalized_algorithm.public_exponent);
     if (maybe_key_pair.is_error())
-        return WebIDL::OperationError::create(realm, "Failed generating RSA key pair"_utf16);
+        return WebIDL::OperationError::create("Failed generating RSA key pair"_utf16);
 
     auto key_pair = maybe_key_pair.release_value();
 
@@ -913,7 +932,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAOAEP
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.public_key });
 
     // 10. Set the [[type]] internal slot of publicKey to "public"
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 4. Let algorithm be a new RsaHashedKeyAlgorithm object.
     // 5. Set the name attribute of algorithm to "RSA-OAEP".
@@ -931,13 +950,13 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAOAEP
     public_key->set_extractable(true);
 
     // 13. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "encrypt", "wrapKey" ].
-    public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Encrypt, Bindings::KeyUsage::Wrapkey } }));
+    public_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Encrypt, KeyUsage::WrapKey } }));
 
     // 14. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.private_key });
 
     // 15. Set the [[type]] internal slot of privateKey to "private"
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 16. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::RsaHashedKeyAlgorithmData {
@@ -950,17 +969,17 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAOAEP
     private_key->set_extractable(extractable);
 
     // 18. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "decrypt", "unwrapKey" ].
-    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Decrypt, Bindings::KeyUsage::Unwrapkey } }));
+    private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Decrypt, KeyUsage::UnwrapKey } }));
 
     // 19. Let result be a new CryptoKeyPair dictionary.
     // 20. Set the publicKey attribute of result to be publicKey.
     // 21. Set the privateKey attribute of result to be privateKey.
     // 22. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(realm, public_key, private_key) };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, Web::Crypto::AlgorithmParams const& params, KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
 
@@ -968,11 +987,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
     auto const& normalized_algorithm = static_cast<RsaHashedImportParams const&>(params);
 
     // 2. -> If format is "spki":
-    if (key_format == Bindings::KeyFormat::Spki) {
+    if (key_format == KeyFormat::Spki) {
         // 1. If usages contains an entry which is not "encrypt" or "wrapKey", then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Wrapkey) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Encrypt && usage != KeyUsage::WrapKey) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -985,7 +1004,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
         if (spki.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
-            return WebIDL::DataError::create(realm, "Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
+            return WebIDL::DataError::create("Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
 
         // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
@@ -997,23 +1016,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
         //    a valid public key according to [RFC3447], then throw a DataError.
         auto maybe_valid = public_key.is_valid();
         if (maybe_valid.is_error())
-            return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+            return WebIDL::DataError::create("Failed to verify key"_utf16);
         if (!maybe_valid.value())
-            return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+            return WebIDL::DataError::create("Invalid key"_utf16);
 
         // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
         key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
         // 8. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
     }
 
     // -> If format is "pkcs8":
-    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+    else if (key_format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "decrypt" or "unwrapKey", then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Unwrapkey) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Decrypt && usage != KeyUsage::UnwrapKey) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -1026,7 +1045,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
         if (private_key_info.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
-            return WebIDL::DataError::create(realm, "Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
+            return WebIDL::DataError::create("Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
 
         // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
@@ -1038,32 +1057,32 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
         //    a valid RSA private key according to [RFC3447], then throw a DataError.
         auto maybe_valid = rsa_private_key.is_valid();
         if (maybe_valid.is_error())
-            return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+            return WebIDL::DataError::create("Failed to verify key"_utf16);
         if (!maybe_valid.value())
-            return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+            return WebIDL::DataError::create("Invalid key"_utf16);
 
         // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
         key = CryptoKey::create(CryptoKey::InternalKeyData { rsa_private_key });
 
         // 8. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
     }
 
     // -> If format is "jwk":
-    else if (key_format == Bindings::KeyFormat::Jwk) {
+    else if (key_format == KeyFormat::Jwk) {
         // 1. -> If keyData is a JsonWebKey dictionary:
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field of jwk is present and usages contains an entry which is not "decrypt" or "unwrapKey", then throw a SyntaxError.
         if (jwk.d.has_value()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Unwrapkey) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", Bindings::idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Decrypt && usage != KeyUsage::UnwrapKey) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
@@ -1071,19 +1090,19 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
         // 3. If the d field of jwk is not present and usages contains an entry which is not "encrypt" or "wrapKey", then throw a SyntaxError.
         if (!jwk.d.has_value()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Wrapkey) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", Bindings::idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Encrypt && usage != KeyUsage::WrapKey) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
 
         // 4. If the kty field of jwk is not a case-sensitive string match to "RSA", then throw a DataError.
         if (jwk.kty != "RSA"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 5. If usages is non-empty and the use field of jwk is present and is not a case-sensitive string match to "enc", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
-            return WebIDL::DataError::create(realm, "Invalid use field"_utf16);
+            return WebIDL::DataError::create("Invalid use field"_utf16);
 
         // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -1091,7 +1110,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
 
         // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
 
         Optional<String> hash = {};
         // 8. -> If the alg field of jwk is not present:
@@ -1122,7 +1141,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
         else {
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 9.  If hash is not undefined:
@@ -1132,7 +1151,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
             if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.name(realm.vm())))
-                return WebIDL::DataError::create(realm, "Invalid hash"_utf16);
+                return WebIDL::DataError::create("Invalid hash"_utf16);
         }
 
         // 10. -> If the d field of jwk is present:
@@ -1148,7 +1167,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
             }
 
             if (!meets_requirements)
-                return WebIDL::DataError::create(realm, "Invalid JWK private key"_utf16);
+                return WebIDL::DataError::create("Invalid JWK private key"_utf16);
 
             // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
             auto private_key = TRY(parse_jwk_rsa_private_key(realm, jwk));
@@ -1156,22 +1175,22 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
             // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
             auto maybe_valid = private_key.is_valid();
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
 
             // 4. Let key be a new CryptoKey representing privateKey.
             key = CryptoKey::create(CryptoKey::InternalKeyData { private_key });
 
             // 5. Set the [[type]] internal slot of key to "private"
-            key->set_type(Bindings::KeyType::Private);
+            key->set_type(KeyType::Private);
         }
 
         //     -> Otherwise:
         else {
             // 1. If jwk does not meet the requirements of Section 6.3.1 of JSON Web Algorithms [JWA], then throw a DataError.
             if (!jwk.e.has_value() || !jwk.n.has_value())
-                return WebIDL::DataError::create(realm, "Invalid JWK public key"_utf16);
+                return WebIDL::DataError::create("Invalid JWK public key"_utf16);
 
             // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
             auto public_key = TRY(parse_jwk_rsa_public_key(realm, jwk));
@@ -1179,21 +1198,21 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
             // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
             auto maybe_valid = public_key.is_valid();
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
 
             // 4. Let key be a new CryptoKey representing publicKey.
             key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
             // 5. Set the [[type]] internal slot of key to "public"
-            key->set_type(Bindings::KeyType::Public);
+            key->set_type(KeyType::Public);
         }
     }
 
     // -> Otherwise: throw a NotSupportedError.
     else {
-        return WebIDL::NotSupportedError::create(realm, "Unsupported key format"_utf16);
+        return WebIDL::NotSupportedError::create("Unsupported key format"_utf16);
     }
 
     // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
@@ -1230,7 +1249,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> RSAOAEP::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& vm = realm.vm();
 
@@ -1240,13 +1259,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(JS::Realm& realm, B
     // Note: In our impl this is always accessible
     auto const& handle = key->handle();
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 3. If format is "spki"
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not public"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not public"_utf16);
 
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -1264,14 +1283,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(JS::Realm& realm, B
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // If format is "pkcs8"
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not private"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not private"_utf16);
 
         // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
         // - Set the version field to 0.
@@ -1290,11 +1309,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(JS::Realm& realm, B
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // If format is "jwk"
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -1327,7 +1346,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(JS::Realm& realm, B
             // - Perform any key export steps defined by other applicable specifications,
             //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
             // - Set the alg attribute of jwk to alg.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 10. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
@@ -1364,32 +1383,32 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(JS::Realm& realm, B
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 14. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 15. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // Otherwise throw a NotSupportedError.
     else {
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Exporting to format {} is not supported", Bindings::idl_enum_to_string(format)));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Exporting to format {} is not supported", key_format_to_string(format)));
     }
 
     // 8. Return result
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#rsa-pss-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAPSS::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAPSS::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -1399,7 +1418,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAPSS:
     auto const& normalized_algorithm = static_cast<RsaHashedKeyGenParams const&>(params);
     auto maybe_key_pair = ::Crypto::PK::RSA::generate_key_pair(normalized_algorithm.modulus_length, normalized_algorithm.public_exponent);
     if (maybe_key_pair.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate RSA key pair"_utf16);
+        return WebIDL::OperationError::create("Failed to generate RSA key pair"_utf16);
 
     auto key_pair = maybe_key_pair.release_value();
 
@@ -1410,7 +1429,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAPSS:
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.public_key });
 
     // 10. Set the [[type]] internal slot of publicKey to "public"
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 4. Let algorithm be a new RsaHashedKeyAlgorithm object.
     // 5. Set the name attribute of algorithm to "RSA-PSS".
@@ -1428,13 +1447,13 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAPSS:
     public_key->set_extractable(true);
 
     // 13. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
-    public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Verify } }));
+    public_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Verify } }));
 
     // 14. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.private_key });
 
     // 15. Set the [[type]] internal slot of privateKey to "private"
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 16. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::RsaHashedKeyAlgorithmData {
@@ -1447,21 +1466,21 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAPSS:
     private_key->set_extractable(extractable);
 
     // 18. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
-    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Sign } }));
+    private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Sign } }));
 
     // 19. Let result be a new CryptoKeyPair dictionary.
     // 20. Set the publicKey attribute of result to be publicKey.
     // 21. Set the privateKey attribute of result to be privateKey.
     // 22. Return result.
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(realm, public_key, private_key) };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
 // https://w3c.github.io/webcrypto/#rsa-pss-operations-sign
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+WebIDL::ExceptionOr<ByteBuffer> RSAPSS::sign(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey>();
     auto pss_params = static_cast<RsaPssParams const&>(params);
@@ -1483,7 +1502,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(JS::Realm& realm, Alg
 
     // 4. If performing the operation results in an error, then throw an OperationError.
     if (!hash_kind.has_value())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash));
+        return WebIDL::OperationError::create(Utf16String::formatted("Invalid hash function '{}'", hash));
 
     // 5. Let signature be the signature, S, that results from performing the operation.
     auto rsa = ::Crypto::PK::RSA_PSS_EMSA { *hash_kind, private_key };
@@ -1491,18 +1510,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(JS::Realm& realm, Alg
 
     auto maybe_signature = rsa.sign(message);
     if (maybe_signature.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to sign message"_utf16);
+        return WebIDL::OperationError::create("Failed to sign message"_utf16);
 
     // 6. Return signature.
-    return JS::ArrayBuffer::create(realm, maybe_signature.release_value());
+    return maybe_signature.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#rsa-pss-operations-verify
-WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+WebIDL::ExceptionOr<bool> RSAPSS::verify(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+    if (key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
     auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey>();
     auto pss_params = static_cast<RsaPssParams const&>(params);
@@ -1523,7 +1542,7 @@ WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(JS::Realm& realm, AlgorithmParams 
         hash_kind = ::Crypto::Hash::HashKind::SHA512;
 
     if (!hash_kind.has_value())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash));
+        return WebIDL::OperationError::create(Utf16String::formatted("Invalid hash function '{}'", hash));
 
     // 3. Let result be a boolean with the value true if the result of the operation was "valid signature" and the value false otherwise.
     auto rsa = ::Crypto::PK::RSA_PSS_EMSA { *hash_kind, public_key };
@@ -1531,13 +1550,13 @@ WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(JS::Realm& realm, AlgorithmParams 
 
     auto maybe_verification = rsa.verify(message, signature);
     if (maybe_verification.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to verify message"_utf16);
+        return WebIDL::OperationError::create("Failed to verify message"_utf16);
 
-    return JS::Value { maybe_verification.release_value() };
+    return maybe_verification.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#rsa-pss-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
 
@@ -1545,11 +1564,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
     auto const& normalized_algorithm = static_cast<RsaHashedImportParams const&>(params);
 
     // 2. -> If format is "spki":
-    if (key_format == Bindings::KeyFormat::Spki) {
+    if (key_format == KeyFormat::Spki) {
         // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -1562,7 +1581,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
         if (spki.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
-            return WebIDL::DataError::create(realm, "Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
+            return WebIDL::DataError::create("Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
 
         // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
@@ -1574,23 +1593,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
         //    a valid public key according to [RFC3447], then throw a DataError.
         auto maybe_valid = public_key.is_valid();
         if (maybe_valid.is_error())
-            return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+            return WebIDL::DataError::create("Failed to verify key"_utf16);
         if (!maybe_valid.value())
-            return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+            return WebIDL::DataError::create("Invalid key"_utf16);
 
         // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
         key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
         // 8. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
     }
 
     // -> If format is "pkcs8":
-    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+    else if (key_format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Sign) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Sign) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -1603,7 +1622,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
         if (private_key_info.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
-            return WebIDL::DataError::create(realm, "Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
+            return WebIDL::DataError::create("Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
 
         // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
@@ -1615,25 +1634,25 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
         //    a valid RSA private key according to [RFC3447], then throw a DataError.
         auto maybe_valid = rsa_private_key.is_valid();
         if (maybe_valid.is_error())
-            return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+            return WebIDL::DataError::create("Failed to verify key"_utf16);
         if (!maybe_valid.value())
-            return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+            return WebIDL::DataError::create("Invalid key"_utf16);
 
         // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
         key = CryptoKey::create(CryptoKey::InternalKeyData { rsa_private_key });
 
         // 8. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
     }
 
     // -> If format is "jwk":
-    else if (key_format == Bindings::KeyFormat::Jwk) {
+    else if (key_format == KeyFormat::Jwk) {
         // 1. -> If keyData is a JsonWebKey dictionary:
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field of jwk is present and usages contains an entry which is not "sign", or,
@@ -1641,25 +1660,25 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
         //    then throw a SyntaxError.
         if (jwk.d.has_value()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Sign) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", Bindings::idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Sign) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         } else {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Verify) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", Bindings::idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Verify) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
 
         // 3. If the kty field of jwk is not a case-sensitive string match to "RSA", then throw a DataError.
         if (jwk.kty != "RSA"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 4. If usages is non-empty and the use field of jwk is present and is not a case-sensitive string match to "sig", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "sig"_string)
-            return WebIDL::DataError::create(realm, "Invalid use field"_utf16);
+            return WebIDL::DataError::create("Invalid use field"_utf16);
 
         // 5. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -1667,7 +1686,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
 
         // 6. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
 
         Optional<String> hash = {};
         // 7. -> If the alg field of jwk is not present:
@@ -1698,7 +1717,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
         else {
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 8. If hash is not undefined:
@@ -1708,7 +1727,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
             if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.name(realm.vm())))
-                return WebIDL::DataError::create(realm, "Invalid hash"_utf16);
+                return WebIDL::DataError::create("Invalid hash"_utf16);
         }
 
         // 9. -> If the d field of jwk is present:
@@ -1724,7 +1743,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
             }
 
             if (!meets_requirements)
-                return WebIDL::DataError::create(realm, "Invalid JWK private key"_utf16);
+                return WebIDL::DataError::create("Invalid JWK private key"_utf16);
 
             // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
             auto private_key = TRY(parse_jwk_rsa_private_key(realm, jwk));
@@ -1732,22 +1751,22 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
             // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
             auto maybe_valid = private_key.is_valid();
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
 
             // 4. Let key be a new CryptoKey representing privateKey.
             key = CryptoKey::create(CryptoKey::InternalKeyData { private_key });
 
             // 5. Set the [[type]] internal slot of key to "private"
-            key->set_type(Bindings::KeyType::Private);
+            key->set_type(KeyType::Private);
         }
 
         //     -> Otherwise:
         else {
             // 1. If jwk does not meet the requirements of Section 6.3.1 of JSON Web Algorithms [JWA], then throw a DataError.
             if (!jwk.e.has_value() || !jwk.n.has_value())
-                return WebIDL::DataError::create(realm, "Invalid JWK public key"_utf16);
+                return WebIDL::DataError::create("Invalid JWK public key"_utf16);
 
             // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
             auto public_key = TRY(parse_jwk_rsa_public_key(realm, jwk));
@@ -1755,21 +1774,21 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
             // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
             auto maybe_valid = public_key.is_valid();
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
 
             // 4. Let key be a new CryptoKey representing publicKey.
             key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
             // 5. Set the [[type]] internal slot of key to "public"
-            key->set_type(Bindings::KeyType::Public);
+            key->set_type(KeyType::Public);
         }
     }
 
     // -> Otherwise: throw a NotSupportedError.
     else {
-        return WebIDL::NotSupportedError::create(realm, "Unsupported key format"_utf16);
+        return WebIDL::NotSupportedError::create("Unsupported key format"_utf16);
     }
 
     // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
@@ -1806,7 +1825,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
 }
 
 // https://w3c.github.io/webcrypto/#rsa-pss-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> RSAPSS::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& vm = realm.vm();
 
@@ -1816,13 +1835,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(JS::Realm& realm, Bi
     // Note: In our impl this is always accessible
     auto const& handle = key->handle();
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 3. If format is "spki"
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not public"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not public"_utf16);
 
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -1840,14 +1859,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(JS::Realm& realm, Bi
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // If format is "pkcs8"
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not private"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not private"_utf16);
 
         // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
         // - Set the version field to 0.
@@ -1866,11 +1885,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(JS::Realm& realm, Bi
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // If format is "jwk"
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -1903,7 +1922,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(JS::Realm& realm, Bi
             // - Perform any key export steps defined by other applicable specifications,
             //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
             // - Set the alg attribute of jwk to alg.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
@@ -1941,32 +1960,32 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(JS::Realm& realm, Bi
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // Otherwise throw a NotSupportedError.
     else {
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Exporting to format {} is not supported", Bindings::idl_enum_to_string(format)));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Exporting to format {} is not supported", key_format_to_string(format)));
     }
 
     // 8. Return result
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSASSAPKCS1::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSASSAPKCS1::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -1976,7 +1995,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSASSAP
     auto const& normalized_algorithm = static_cast<RsaHashedKeyGenParams const&>(params);
     auto maybe_key_pair = ::Crypto::PK::RSA::generate_key_pair(normalized_algorithm.modulus_length, normalized_algorithm.public_exponent);
     if (maybe_key_pair.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate RSA key pair"_utf16);
+        return WebIDL::OperationError::create("Failed to generate RSA key pair"_utf16);
 
     auto key_pair = maybe_key_pair.release_value();
 
@@ -1987,7 +2006,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSASSAP
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.public_key });
 
     // 10. Set the [[type]] internal slot of publicKey to "public"
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 4. Let algorithm be a new RsaHashedKeyAlgorithm object.
     // 5. Set the name attribute of algorithm to "RSASSA-PKCS1-v1_5".
@@ -2005,13 +2024,13 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSASSAP
     public_key->set_extractable(true);
 
     // 13. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
-    public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Verify } }));
+    public_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Verify } }));
 
     // 14. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { key_pair.private_key });
 
     // 15. Set the [[type]] internal slot of privateKey to "private"
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 16. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::RsaHashedKeyAlgorithmData {
@@ -2024,21 +2043,21 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSASSAP
     private_key->set_extractable(extractable);
 
     // 18. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
-    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Sign } }));
+    private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Sign } }));
 
     // 19. Let result be a new CryptoKeyPair dictionary.
     // 20. Set the publicKey attribute of result to be publicKey.
     // 21. Set the privateKey attribute of result to be privateKey.
     // 22. Return result.
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(realm, public_key, private_key) };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
 // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-sign
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSASSAPKCS1::sign(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+WebIDL::ExceptionOr<ByteBuffer> RSASSAPKCS1::sign(JS::Realm&, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey>();
     auto hash = key->rsa_hashed_algorithm().hash();
@@ -2058,25 +2077,25 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSASSAPKCS1::sign(JS::Realm& realm
 
     // 4. If performing the operation results in an error, then throw an OperationError.
     if (!hash_kind.has_value())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash));
+        return WebIDL::OperationError::create(Utf16String::formatted("Invalid hash function '{}'", hash));
 
     // 5. Let signature be the signature, S, that results from performing the operation.
     auto rsa = ::Crypto::PK::RSA_PKCS1_EMSA { *hash_kind, private_key };
 
     auto maybe_signature = rsa.sign(message);
     if (maybe_signature.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to sign message"_utf16);
+        return WebIDL::OperationError::create("Failed to sign message"_utf16);
 
     // 6. Return signature.
-    return JS::ArrayBuffer::create(realm, maybe_signature.release_value());
+    return maybe_signature.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-verify
-WebIDL::ExceptionOr<JS::Value> RSASSAPKCS1::verify(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+WebIDL::ExceptionOr<bool> RSASSAPKCS1::verify(JS::Realm&, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+    if (key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
     auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey>();
     auto hash = key->rsa_hashed_algorithm().hash();
@@ -2095,20 +2114,20 @@ WebIDL::ExceptionOr<JS::Value> RSASSAPKCS1::verify(JS::Realm& realm, AlgorithmPa
         hash_kind = ::Crypto::Hash::HashKind::SHA512;
 
     if (!hash_kind.has_value())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash));
+        return WebIDL::OperationError::create(Utf16String::formatted("Invalid hash function '{}'", hash));
 
     // 3. Let result be a boolean with the value true if the result of the operation was "valid signature" and the value false otherwise.
     auto rsa = ::Crypto::PK::RSA_PKCS1_EMSA { *hash_kind, public_key };
 
     auto maybe_verification = rsa.verify(message, signature);
     if (maybe_verification.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to verify message"_utf16);
+        return WebIDL::OperationError::create("Failed to verify message"_utf16);
 
-    return JS::Value { maybe_verification.release_value() };
+    return maybe_verification.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm, AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
 
@@ -2116,11 +2135,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
     auto const& normalized_algorithm = static_cast<RsaHashedImportParams const&>(params);
 
     // 2. -> If format is "spki":
-    if (key_format == Bindings::KeyFormat::Spki) {
+    if (key_format == KeyFormat::Spki) {
         // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -2133,7 +2152,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
         if (spki.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
-            return WebIDL::DataError::create(realm, "Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
+            return WebIDL::DataError::create("Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
 
         // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
@@ -2145,23 +2164,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
         //    a valid public key according to [RFC3447], then throw a DataError.
         auto maybe_valid = public_key.is_valid();
         if (maybe_valid.is_error())
-            return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+            return WebIDL::DataError::create("Failed to verify key"_utf16);
         if (!maybe_valid.value())
-            return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+            return WebIDL::DataError::create("Invalid key"_utf16);
 
         // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
         key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
         // 8. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
     }
 
     // -> If format is "pkcs8":
-    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+    else if (key_format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Sign) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Sign) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -2174,7 +2193,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
         if (private_key_info.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
-            return WebIDL::DataError::create(realm, "Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
+            return WebIDL::DataError::create("Algorithm object identifier is not the rsaEncryption object identifier"_utf16);
 
         // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
@@ -2186,25 +2205,25 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
         //    a valid RSA private key according to [RFC3447], then throw a DataError.
         auto maybe_valid = rsa_private_key.is_valid();
         if (maybe_valid.is_error())
-            return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+            return WebIDL::DataError::create("Failed to verify key"_utf16);
         if (!maybe_valid.value())
-            return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+            return WebIDL::DataError::create("Invalid key"_utf16);
 
         // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
         key = CryptoKey::create(CryptoKey::InternalKeyData { rsa_private_key });
 
         // 8. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
     }
 
     // -> If format is "jwk":
-    else if (key_format == Bindings::KeyFormat::Jwk) {
+    else if (key_format == KeyFormat::Jwk) {
         // 1. -> If keyData is a JsonWebKey dictionary:
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field of jwk is present and usages contains an entry which is not "sign", or,
@@ -2212,25 +2231,25 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
         //    then throw a SyntaxError.
         if (jwk.d.has_value()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Sign) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", Bindings::idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Sign) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         } else {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Verify) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", Bindings::idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Verify) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
 
         // 3. If the kty field of jwk is not a case-sensitive string match to "RSA", then throw a DataError.
         if (jwk.kty != "RSA"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 4. If usages is non-empty and the use field of jwk is present and is not a case-sensitive string match to "sig", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "sig"_string)
-            return WebIDL::DataError::create(realm, "Invalid use field"_utf16);
+            return WebIDL::DataError::create("Invalid use field"_utf16);
 
         // 5. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -2238,7 +2257,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
 
         // 6. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
 
         Optional<String> hash = {};
         // 7. -> If the alg field of jwk is not present:
@@ -2269,7 +2288,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
         else {
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 8. If hash is not undefined:
@@ -2279,7 +2298,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
             if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.name(realm.vm())))
-                return WebIDL::DataError::create(realm, "Invalid hash"_utf16);
+                return WebIDL::DataError::create("Invalid hash"_utf16);
         }
 
         // 9. -> If the d field of jwk is present:
@@ -2295,7 +2314,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
             }
 
             if (!meets_requirements)
-                return WebIDL::DataError::create(realm, "Invalid JWK private key"_utf16);
+                return WebIDL::DataError::create("Invalid JWK private key"_utf16);
 
             // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
             auto private_key = TRY(parse_jwk_rsa_private_key(realm, jwk));
@@ -2303,22 +2322,22 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
             // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
             auto maybe_valid = private_key.is_valid();
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
 
             // 4. Let key be a new CryptoKey representing privateKey.
             key = CryptoKey::create(CryptoKey::InternalKeyData { private_key });
 
             // 5. Set the [[type]] internal slot of key to "private"
-            key->set_type(Bindings::KeyType::Private);
+            key->set_type(KeyType::Private);
         }
 
         //     -> Otherwise:
         else {
             // 1. If jwk does not meet the requirements of Section 6.3.1 of JSON Web Algorithms [JWA], then throw a DataError.
             if (!jwk.e.has_value() || !jwk.n.has_value())
-                return WebIDL::DataError::create(realm, "Invalid JWK public key"_utf16);
+                return WebIDL::DataError::create("Invalid JWK public key"_utf16);
 
             // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
             auto public_key = TRY(parse_jwk_rsa_public_key(realm, jwk));
@@ -2326,21 +2345,21 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
             // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
             auto maybe_valid = public_key.is_valid();
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
 
             // 4. Let key be a new CryptoKey representing publicKey.
             key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
             // 5. Set the [[type]] internal slot of key to "public"
-            key->set_type(Bindings::KeyType::Public);
+            key->set_type(KeyType::Public);
         }
     }
 
     // -> Otherwise: throw a NotSupportedError.
     else {
-        return WebIDL::NotSupportedError::create(realm, "Unsupported key format"_utf16);
+        return WebIDL::NotSupportedError::create("Unsupported key format"_utf16);
     }
 
     // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
@@ -2377,7 +2396,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
 }
 
 // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> RSASSAPKCS1::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& vm = realm.vm();
 
@@ -2387,13 +2406,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(JS::Realm& real
     // Note: In our impl this is always accessible
     auto const& handle = key->handle();
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 3. If format is "spki"
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not public"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not public"_utf16);
 
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -2411,14 +2430,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(JS::Realm& real
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // If format is "pkcs8"
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not private"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not private"_utf16);
 
         // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
         // - Set the version field to 0.
@@ -2437,11 +2456,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(JS::Realm& real
         auto data = TRY_OR_THROW_OOM(vm, maybe_data);
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // If format is "jwk"
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -2474,7 +2493,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(JS::Realm& real
             // - Perform any key export steps defined by other applicable specifications,
             //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
             // - Set the alg attribute of jwk to alg.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
@@ -2512,33 +2531,33 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(JS::Realm& real
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // Otherwise throw a NotSupportedError.
     else {
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Exporting to format {} is not supported", Bindings::idl_enum_to_string(format)));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Exporting to format {} is not supported", key_format_to_string(format)));
     }
 
     // 8. Return result
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-encrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::encrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<ByteBuffer> AesCbc::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
 
     // 1. If the iv member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
     if (normalized_algorithm.iv.size() != 16)
-        return WebIDL::OperationError::create(realm, "IV to AES-CBC must be exactly 16 bytes"_utf16);
+        return WebIDL::OperationError::create("IV to AES-CBC must be exactly 16 bytes"_utf16);
 
     // 2. Let paddedPlaintext be the result of adding padding octets to the contents of plaintext according to the procedure defined in Section 10.3 of [RFC2315], step 2, with a value of k of 16.
     // 3. Let ciphertext be the result of performing the CBC Encryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the contents of the iv member of normalizedAlgorithm as the IV input parameter and paddedPlaintext as the input plaintext.
@@ -2547,24 +2566,24 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::encrypt(JS::Realm& realm, 
     ::Crypto::Cipher::AESCBCCipher cipher(key_bytes);
     auto maybe_ciphertext = cipher.encrypt(plaintext, normalized_algorithm.iv);
     if (maybe_ciphertext.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to encrypt"_utf16);
+        return WebIDL::OperationError::create("Failed to encrypt"_utf16);
 
     // 4. Return the result of creating an ArrayBuffer containing ciphertext.
-    return JS::ArrayBuffer::create(realm, maybe_ciphertext.release_value());
+    return maybe_ciphertext.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-decrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::decrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<ByteBuffer> AesCbc::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
 
     // 1. If the iv member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
     if (normalized_algorithm.iv.size() != 16)
-        return WebIDL::OperationError::create(realm, "IV to AES-CBC must be exactly 16 bytes"_utf16);
+        return WebIDL::OperationError::create("IV to AES-CBC must be exactly 16 bytes"_utf16);
 
     // 2. If the length of ciphertext is zero or is not a multiple of 16 bytes, then throw an OperationError.
     if (ciphertext.is_empty() || ciphertext.size() % 16 != 0)
-        return WebIDL::OperationError::create(realm, "Ciphertext length must be a multiple of 16 bytes"_utf16);
+        return WebIDL::OperationError::create("Ciphertext length must be a multiple of 16 bytes"_utf16);
 
     // 3. Let paddedPlaintext be the result of performing the CBC Decryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the iv member of normalizedAlgorithm as the IV input parameter and ciphertext as the input ciphertext.
     // 4. Let p be the value of the last octet of paddedPlaintext.
@@ -2573,47 +2592,47 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::decrypt(JS::Realm& realm, 
     ::Crypto::Cipher::AESCBCCipher cipher(key->handle().get<ByteBuffer>());
     auto maybe_plaintext = cipher.decrypt(ciphertext, normalized_algorithm.iv);
     if (maybe_plaintext.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to decrypt"_utf16);
+        return WebIDL::OperationError::create("Failed to decrypt"_utf16);
 
     // 7. Return plaintext.
-    return JS::ArrayBuffer::create(realm, maybe_plaintext.release_value());
+    return maybe_plaintext.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(JS::Realm& realm, AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
     // 2.
     ByteBuffer data;
-    if (format == Bindings::KeyFormat::Raw
-        || format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::Raw
+        || format == KeyFormat::RawSecret) {
         // -> If format is "raw":
         //    1. Let data be the octet string contained in keyData.
         //    2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
         data = move(key_data.get<ByteBuffer>());
         auto length_in_bits = data.size() * 8;
         if (length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256) {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
         }
-    } else if (format == Bindings::KeyFormat::Jwk) {
+    } else if (format == KeyFormat::Jwk) {
         // -> If format is "jwk":
         //    1. ->   If keyData is a JsonWebKey dictionary:
         //                Let jwk equal keyData.
         //       ->   Otherwise:
         //                Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         //    2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         //    3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
         // Specifically, those requirements are:
@@ -2635,23 +2654,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(JS::Realm& realm, Alg
         auto const& alg = jwk.alg;
         if (data_bits == 128) {
             if (alg.has_value() && alg != "A128CBC") {
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
             }
         } else if (data_bits == 192) {
             if (alg.has_value() && alg != "A192CBC") {
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
             }
         } else if (data_bits == 256) {
             if (alg.has_value() && alg != "A256CBC") {
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
             }
         } else {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key size: {} bits", data_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key size: {} bits", data_bits));
         }
 
         //    6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
         if (!key_usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
-            return WebIDL::DataError::create(realm, "Invalid use field"_utf16);
+            return WebIDL::DataError::create("Invalid use field"_utf16);
 
         //    7. If the key_ops field of jwk is present, and is invalid according to the
         //       requirements of JSON Web Key [JWK] or does not contain all of the specified usages
@@ -2660,11 +2679,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(JS::Realm& realm, Alg
 
         //    8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
     } else {
         //    Otherwise:
         //        throw a NotSupportedError
-        return WebIDL::NotSupportedError::create(realm, "Only raw and jwk formats are supported"_utf16);
+        return WebIDL::NotSupportedError::create("Only raw and jwk formats are supported"_utf16);
     }
 
     // 3. Let key be a new CryptoKey object representing an AES key with value data.
@@ -2672,7 +2691,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(JS::Realm& realm, Alg
     auto key = CryptoKey::create(move(data));
 
     // 4. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 5. Let algorithm be a new AesKeyAlgorithm.
     // 6. Set the name attribute of algorithm to "AES-CBC".
@@ -2685,12 +2704,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(JS::Realm& realm, Alg
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCbc::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCbc::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -2699,7 +2718,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCbc:
     // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
     auto const bits = normalized_algorithm.length;
     if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Cannot create AES-CBC key with unusual amount of {} bits", bits));
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-CBC key with unusual amount of {} bits", bits));
     }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
@@ -2712,7 +2731,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCbc:
     auto key = CryptoKey::create(CryptoKey::InternalKeyData { key_buffer });
 
     // 9. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 6. Let algorithm be a new AesKeyAlgorithm.
     // 7. Set the name attribute of algorithm to "AES-CBC".
@@ -2731,26 +2750,26 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCbc:
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCbc::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> AesCbc::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
     auto const& handle = key->handle();
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 2. -> If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
-    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::Raw || format == KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = handle.get<ByteBuffer>();
 
         // 2. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     //    -> If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -2775,84 +2794,84 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCbc::export_key(JS::Realm& realm, Bi
         } else if (key_bits == 256) {
             jwk.alg = "A256CBC"_string;
         } else {
-            return WebIDL::OperationError::create(realm, "unclear key size"_utf16);
+            return WebIDL::OperationError::create("unclear key size"_utf16);
         }
 
         // 5. Set the key_ops attribute of jwk to equal the usages attribute of key.
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
     //    -> Otherwise:
     else {
         //        throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Cannot export to unsupported format"_utf16);
+        return WebIDL::NotSupportedError::create("Cannot export to unsupported format"_utf16);
     }
 
     // 3. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> AesCbc::get_key_length(JS::Realm& realm, AlgorithmParams const& params)
+WebIDL::ExceptionOr<Optional<u32>> AesCbc::get_key_length(JS::Realm&, AlgorithmParams const& params)
 {
     // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<AesDerivedKeyParams const&>(params);
     auto length = normalized_algorithm.length;
     if (length != 128 && length != 192 && length != 256)
-        return WebIDL::OperationError::create(realm, "Invalid key length"_utf16);
+        return WebIDL::OperationError::create("Invalid key length"_utf16);
 
     // 2. Return the length member of normalizedDerivedKeyAlgorithm.
-    return JS::Value(length);
+    return length;
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(JS::Realm& realm, AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
     ByteBuffer data;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw
-        || format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::Raw
+        || format == KeyFormat::RawSecret) {
         // 1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
         // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
         auto length_in_bits = data.size() * 8;
         if (length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256) {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
         }
     }
 
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. -> If keyData is a JsonWebKey dictionary:
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
 
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
         // Specifically, those requirements are:
@@ -2860,10 +2879,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(JS::Realm& realm, Alg
         // * An "alg" member SHOULD also be present to identify the algorithm intended to be used with the key,
         //   unless the application uses another means or convention to determine the algorithm used.
         if (!jwk.k.has_value())
-            return WebIDL::DataError::create(realm, "Missing 'k' field"_utf16);
+            return WebIDL::DataError::create("Missing 'k' field"_utf16);
 
         if (!jwk.alg.has_value())
-            return WebIDL::DataError::create(realm, "Missing 'alg' field"_utf16);
+            return WebIDL::DataError::create("Missing 'alg' field"_utf16);
 
         // 4. Let data be the octet string obtained by decoding the k field of jwk.
         data = TRY(parse_jwk_symmetric_key(realm, jwk));
@@ -2880,20 +2899,20 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(JS::Realm& realm, Alg
         auto const& alg = jwk.alg;
         if (data_bits == 128) {
             if (alg.has_value() && alg != "A128CTR")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
         } else if (data_bits == 192) {
             if (alg.has_value() && alg != "A192CTR")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
         } else if (data_bits == 256) {
             if (alg.has_value() && alg != "A256CTR")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
         } else {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key size: {} bits", data_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key size: {} bits", data_bits));
         }
 
         // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
         if (!key_usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
-            return WebIDL::DataError::create(realm, "Invalid use field"_utf16);
+            return WebIDL::DataError::create("Invalid use field"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -2901,13 +2920,13 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(JS::Realm& realm, Alg
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
     }
 
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Only raw and jwk formats are supported"_utf16);
+        return WebIDL::NotSupportedError::create("Only raw and jwk formats are supported"_utf16);
     }
 
     auto data_bits = data.size() * 8;
@@ -2916,7 +2935,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(JS::Realm& realm, Alg
     auto key = CryptoKey::create(move(data));
 
     // 4. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 5. Let algorithm be a new AesKeyAlgorithm.
     // 6. Set the name attribute of algorithm to "AES-CTR".
@@ -2929,26 +2948,26 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(JS::Realm& realm, Alg
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCtr::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> AesCtr::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 2. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
-    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::Raw || format == KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = key->handle().get<ByteBuffer>();
 
         // 2. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -2979,46 +2998,46 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCtr::export_key(JS::Realm& realm, Bi
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Cannot export to unsupported format"_utf16);
+        return WebIDL::NotSupportedError::create("Cannot export to unsupported format"_utf16);
     }
 
     // 3. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> AesCtr::get_key_length(JS::Realm& realm, AlgorithmParams const& params)
+WebIDL::ExceptionOr<Optional<u32>> AesCtr::get_key_length(JS::Realm&, AlgorithmParams const& params)
 {
     // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw a OperationError.
     auto const& normalized_algorithm = static_cast<AesDerivedKeyParams const&>(params);
     auto length = normalized_algorithm.length;
     if (length != 128 && length != 192 && length != 256)
-        return WebIDL::OperationError::create(realm, "Invalid key length"_utf16);
+        return WebIDL::OperationError::create("Invalid key length"_utf16);
 
     // 2. Return the length member of normalizedDerivedKeyAlgorithm.
-    return JS::Value(length);
+    return length;
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCtr::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCtr::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -3026,7 +3045,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCtr:
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
     auto const bits = normalized_algorithm.length;
     if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Cannot create AES-CTR key with unusual amount of {} bits", bits));
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-CTR key with unusual amount of {} bits", bits));
     }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
@@ -3037,7 +3056,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCtr:
     auto key = CryptoKey::create(CryptoKey::InternalKeyData { key_buffer });
 
     // 9. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 6. Let algorithm be a new AesKeyAlgorithm.
     // 7. Set the name attribute of algorithm to "AES-CTR".
@@ -3056,18 +3075,18 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesCtr:
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-encrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::encrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<ByteBuffer> AesCtr::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<AesCtrParams const&>(params);
     auto const& counter = normalized_algorithm.counter;
     if (counter.size() != 16)
-        return WebIDL::OperationError::create(realm, "Invalid counter length"_utf16);
+        return WebIDL::OperationError::create("Invalid counter length"_utf16);
 
     // 2. If the length member of normalizedAlgorithm is zero or is greater than 128, then throw an OperationError.
     auto const& length = normalized_algorithm.length;
     if (length == 0 || length > 128)
-        return WebIDL::OperationError::create(realm, "Invalid length"_utf16);
+        return WebIDL::OperationError::create("Invalid length"_utf16);
 
     // 3. Let ciphertext be the result of performing the CTR Encryption operation described in Section 6.5 of [NIST-SP800-38A] using
     //    AES as the block cipher,
@@ -3077,25 +3096,25 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::encrypt(JS::Realm& realm, 
     ::Crypto::Cipher::AESCTRCipher cipher(key->handle().get<ByteBuffer>());
     auto maybe_ciphertext = cipher.encrypt(plaintext, counter);
     if (maybe_ciphertext.is_error())
-        return WebIDL::OperationError::create(realm, "Encryption failed"_utf16);
+        return WebIDL::OperationError::create("Encryption failed"_utf16);
 
     // 4. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(realm, maybe_ciphertext.release_value());
+    return maybe_ciphertext.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-decrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::decrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<ByteBuffer> AesCtr::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<AesCtrParams const&>(params);
     auto const& counter = normalized_algorithm.counter;
     if (counter.size() != 16)
-        return WebIDL::OperationError::create(realm, "Invalid counter length"_utf16);
+        return WebIDL::OperationError::create("Invalid counter length"_utf16);
 
     // 2. If the length member of normalizedAlgorithm is zero or is greater than 128, then throw an OperationError.
     auto const& length = normalized_algorithm.length;
     if (length == 0 || length > 128)
-        return WebIDL::OperationError::create(realm, "Invalid length"_utf16);
+        return WebIDL::OperationError::create("Invalid length"_utf16);
 
     // 3. Let plaintext be the result of performing the CTR Decryption operation described in Section 6.5 of [NIST-SP800-38A] using
     //    AES as the block cipher,
@@ -3105,64 +3124,64 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCtr::decrypt(JS::Realm& realm, 
     ::Crypto::Cipher::AESCTRCipher cipher(key->handle().get<ByteBuffer>());
     auto maybe_plaintext = cipher.decrypt(ciphertext, counter);
     if (maybe_plaintext.is_error())
-        return WebIDL::OperationError::create(realm, "Decryption failed"_utf16);
+        return WebIDL::OperationError::create("Decryption failed"_utf16);
 
     // 4. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(realm, maybe_plaintext.release_value());
+    return maybe_plaintext.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> AesGcm::get_key_length(JS::Realm& realm, AlgorithmParams const& params)
+WebIDL::ExceptionOr<Optional<u32>> AesGcm::get_key_length(JS::Realm&, AlgorithmParams const& params)
 {
     // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw a OperationError.
     auto const& normalized_algorithm = static_cast<AesDerivedKeyParams const&>(params);
     auto length = normalized_algorithm.length;
     if (length != 128 && length != 192 && length != 256)
-        return WebIDL::OperationError::create(realm, "Invalid key length"_utf16);
+        return WebIDL::OperationError::create("Invalid key length"_utf16);
 
     // 2. Return the length member of normalizedDerivedKeyAlgorithm.
-    return JS::Value(length);
+    return length;
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(JS::Realm& realm, AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
     ByteBuffer data;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw
-        || format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::Raw
+        || format == KeyFormat::RawSecret) {
         // 1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
         // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
         auto length_in_bits = data.size() * 8;
         if (length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256) {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
         }
     }
 
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. -> If keyData is a JsonWebKey dictionary:
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
 
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
         // Specifically, those requirements are:
@@ -3170,10 +3189,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(JS::Realm& realm, Alg
         // * An "alg" member SHOULD also be present to identify the algorithm intended to be used with the key,
         //   unless the application uses another means or convention to determine the algorithm used.
         if (!jwk.k.has_value())
-            return WebIDL::DataError::create(realm, "Missing 'k' field"_utf16);
+            return WebIDL::DataError::create("Missing 'k' field"_utf16);
 
         if (!jwk.alg.has_value())
-            return WebIDL::DataError::create(realm, "Missing 'alg' field"_utf16);
+            return WebIDL::DataError::create("Missing 'alg' field"_utf16);
 
         // 4. Let data be the octet string obtained by decoding the k field of jwk.
         data = TRY(parse_jwk_symmetric_key(realm, jwk));
@@ -3190,20 +3209,20 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(JS::Realm& realm, Alg
         auto const& alg = jwk.alg;
         if (data_bits == 128) {
             if (alg.has_value() && alg != "A128GCM")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
         } else if (data_bits == 192) {
             if (alg.has_value() && alg != "A192GCM")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
         } else if (data_bits == 256) {
             if (alg.has_value() && alg != "A256GCM")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
         } else {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key size: {} bits", data_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key size: {} bits", data_bits));
         }
 
         // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
         if (!key_usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
-            return WebIDL::DataError::create(realm, "Invalid use field"_utf16);
+            return WebIDL::DataError::create("Invalid use field"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -3211,13 +3230,13 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(JS::Realm& realm, Alg
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
     }
 
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Only raw and jwk formats are supported"_utf16);
+        return WebIDL::NotSupportedError::create("Only raw and jwk formats are supported"_utf16);
     }
 
     auto data_bits = data.size() * 8;
@@ -3226,7 +3245,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(JS::Realm& realm, Alg
     auto key = CryptoKey::create(move(data));
 
     // 4. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 5. Let algorithm be a new AesKeyAlgorithm.
     // 6. Set the name attribute of algorithm to "AES-GCM".
@@ -3239,26 +3258,26 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(JS::Realm& realm, Alg
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesGcm::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> AesGcm::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 2. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
-    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::Raw || format == KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = key->handle().get<ByteBuffer>();
 
         // 2. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -3289,34 +3308,34 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesGcm::export_key(JS::Realm& realm, Bi
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Cannot export to unsupported format"_utf16);
+        return WebIDL::NotSupportedError::create("Cannot export to unsupported format"_utf16);
     }
 
     // 3. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-encrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<ByteBuffer> AesGcm::encrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
 
     // 1. If plaintext has a length greater than 2^39 - 256 bytes, then throw an OperationError.
     if (plaintext.size() > (1ULL << 39) - 256)
-        return WebIDL::OperationError::create(realm, "Invalid plaintext length"_utf16);
+        return WebIDL::OperationError::create("Invalid plaintext length"_utf16);
 
     // 2. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
     // NOTE: This is not possible
@@ -3336,7 +3355,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(JS::Realm& realm, 
 
     // Otherwise: throw an OperationError.
     else
-        return WebIDL::OperationError::create(realm, "Invalid tag length"_utf16);
+        return WebIDL::OperationError::create("Invalid tag length"_utf16);
 
     // 5. Let additionalData be the contents of the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
@@ -3350,7 +3369,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(JS::Realm& realm, 
     ::Crypto::Cipher::AESGCMCipher cipher(key->handle().get<ByteBuffer>());
     auto maybe_encrypted = cipher.encrypt(plaintext, normalized_algorithm.iv, additional_data, tag_length / 8);
     if (maybe_encrypted.is_error()) {
-        return WebIDL::OperationError::create(realm, "Encryption failed"_utf16);
+        return WebIDL::OperationError::create("Encryption failed"_utf16);
     }
 
     auto [ciphertext, tag] = maybe_encrypted.release_value();
@@ -3359,11 +3378,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(JS::Realm& realm, 
     TRY_OR_THROW_OOM(realm.vm(), ciphertext.try_append(tag));
 
     // 8. Return the result of creating an ArrayBuffer containing ciphertext.
-    return JS::ArrayBuffer::create(realm, ciphertext);
+    return ciphertext;
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-decrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<ByteBuffer> AesGcm::decrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
 
@@ -3379,11 +3398,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(JS::Realm& realm, 
 
     // Otherwise: throw an OperationError.
     else
-        return WebIDL::OperationError::create(realm, "Invalid tag length"_utf16);
+        return WebIDL::OperationError::create("Invalid tag length"_utf16);
 
     // 2. If ciphertext has a length less than tagLength bits, then throw an OperationError.
     if (ciphertext.size() < tag_length / 8)
-        return WebIDL::OperationError::create(realm, "Invalid ciphertext length"_utf16);
+        return WebIDL::OperationError::create("Invalid ciphertext length"_utf16);
 
     // 3. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
     // NOTE: This is not possible
@@ -3413,21 +3432,21 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(JS::Realm& realm, 
     auto maybe_plaintext = cipher.decrypt(actual_ciphertext.bytes(), normalized_algorithm.iv, additional_data, tag);
     if (maybe_plaintext.is_error()) {
         dbgln("FAILED: {}", maybe_plaintext.error());
-        return WebIDL::OperationError::create(realm, "Decryption failed"_utf16);
+        return WebIDL::OperationError::create("Decryption failed"_utf16);
     }
 
     // Otherwise: Let plaintext be the output P of the Authenticated Decryption Function.
     // 9. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(realm, maybe_plaintext.release_value());
+    return maybe_plaintext.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesGcm::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -3435,7 +3454,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm:
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
     auto const bits = normalized_algorithm.length;
     if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Cannot create AES-GCM key with unusual amount of {} bits", bits));
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-GCM key with unusual amount of {} bits", bits));
     }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
@@ -3446,7 +3465,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm:
     auto key = CryptoKey::create(CryptoKey::InternalKeyData { key_buffer });
 
     // 9. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 6. Let algorithm be a new AesKeyAlgorithm.
     // 7. Set the name attribute of algorithm to "AES-GCM".
@@ -3465,44 +3484,44 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm:
 }
 
 // https://w3c.github.io/webcrypto/#aes-kw-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(JS::Realm& realm, AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
     ByteBuffer data;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw
-        || format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::Raw
+        || format == KeyFormat::RawSecret) {
         // 1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
         // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
         auto length_in_bits = data.size() * 8;
         if (length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256) {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
         }
     }
 
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. -> If keyData is a JsonWebKey dictionary:
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
 
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
         // Specifically, those requirements are:
@@ -3511,7 +3530,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(JS::Realm& realm, Algo
         //   unless the application uses another means or convention to determine the algorithm used.
         // NOTE: "k" is already checked in step 4.
         if (!jwk.alg.has_value())
-            return WebIDL::DataError::create(realm, "Missing 'alg' field"_utf16);
+            return WebIDL::DataError::create("Missing 'alg' field"_utf16);
 
         // 4. Let data be the octet string obtained by decoding the k field of jwk.
         data = TRY(parse_jwk_symmetric_key(realm, jwk));
@@ -3528,20 +3547,20 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(JS::Realm& realm, Algo
         auto const& alg = jwk.alg;
         if (data_bits == 128) {
             if (alg.has_value() && alg != "A128KW")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
         } else if (data_bits == 192) {
             if (alg.has_value() && alg != "A192KW")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
         } else if (data_bits == 256) {
             if (alg.has_value() && alg != "A256KW")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
         } else {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key size: {} bits", data_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key size: {} bits", data_bits));
         }
 
         // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
         if (!key_usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
-            return WebIDL::DataError::create(realm, "Invalid use field"_utf16);
+            return WebIDL::DataError::create("Invalid use field"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -3549,13 +3568,13 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(JS::Realm& realm, Algo
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
     }
 
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Only raw and jwk formats are supported"_utf16);
+        return WebIDL::NotSupportedError::create("Only raw and jwk formats are supported"_utf16);
     }
 
     auto data_bits = data.size() * 8;
@@ -3564,7 +3583,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(JS::Realm& realm, Algo
     auto key = CryptoKey::create(move(data));
 
     // 4. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 5. Let algorithm be a new AesKeyAlgorithm.
     // 6. Set the name attribute of algorithm to "AES-KW".
@@ -3577,26 +3596,26 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(JS::Realm& realm, Algo
 }
 
 // https://w3c.github.io/webcrypto/#aes-kw-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesKw::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> AesKw::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 2. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
-    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::Raw || format == KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = key->handle().get<ByteBuffer>();
 
         // 2. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -3627,46 +3646,46 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesKw::export_key(JS::Realm& realm, Bin
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Cannot export to unsupported format"_utf16);
+        return WebIDL::NotSupportedError::create("Cannot export to unsupported format"_utf16);
     }
 
     // 3. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-kw-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> AesKw::get_key_length(JS::Realm& realm, AlgorithmParams const& params)
+WebIDL::ExceptionOr<Optional<u32>> AesKw::get_key_length(JS::Realm&, AlgorithmParams const& params)
 {
     // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<AesDerivedKeyParams const&>(params);
     auto length = normalized_algorithm.length;
     if (length != 128 && length != 192 && length != 256)
-        return WebIDL::OperationError::create(realm, "Invalid key length"_utf16);
+        return WebIDL::OperationError::create("Invalid key length"_utf16);
 
     // 2. Return the length member of normalizedDerivedKeyAlgorithm.
-    return JS::Value(length);
+    return length;
 }
 
 // https://w3c.github.io/webcrypto/#aes-kw-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesKw::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesKw::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -3674,7 +3693,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesKw::
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
     auto const bits = normalized_algorithm.length;
     if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Cannot create AES-KW key with unusual amount of {} bits", bits));
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-KW key with unusual amount of {} bits", bits));
     }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
@@ -3685,7 +3704,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesKw::
     auto key = CryptoKey::create(CryptoKey::InternalKeyData { key_buffer });
 
     // 9. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 6. Let algorithm be a new AesKeyAlgorithm.
     // 7. Set the name attribute of algorithm to "AES-KW".
@@ -3704,29 +3723,29 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesKw::
 }
 
 // https://w3c.github.io/webcrypto/#aes-kw-operations-wrap-key
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::wrap_key(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<ByteBuffer> AesKw::wrap_key(JS::Realm&, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     // 1. If plaintext is not a multiple of 64 bits in length, then throw an OperationError.
     if (plaintext.size() % 8 != 0)
-        return WebIDL::OperationError::create(realm, "Invalid plaintext length"_utf16);
+        return WebIDL::OperationError::create("Invalid plaintext length"_utf16);
 
     // 2. Let ciphertext be the result of performing the Key Wrap operation described in Section 2.2.1 of [RFC3394]
     //    with plaintext as the plaintext to be wrapped and using the default Initial Value defined in Section 2.2.3.1 of the same document.
     ::Crypto::Cipher::AESKWCipher cipher(key->handle().get<ByteBuffer>());
     auto maybe_ciphertext = cipher.wrap(plaintext.bytes());
     if (maybe_ciphertext.is_error())
-        return WebIDL::OperationError::create(realm, "Key wrap failed"_utf16);
+        return WebIDL::OperationError::create("Key wrap failed"_utf16);
 
     // 3. Return ciphertext.
-    return JS::ArrayBuffer::create(realm, maybe_ciphertext.release_value());
+    return maybe_ciphertext.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#aes-kw-operations-unwrap-key
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::unwrap_key(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<ByteBuffer> AesKw::unwrap_key(JS::Realm&, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     // NOTE: The spec does not mention this, but we need to check
     if (ciphertext.size() < 8)
-        return WebIDL::OperationError::create(realm, "Invalid ciphertext length"_utf16);
+        return WebIDL::OperationError::create("Invalid ciphertext length"_utf16);
 
     // 1. Let plaintext be the result of performing the Key Unwrap operation described in Section 2.2.2 of [RFC3394]
     //     with ciphertext as the input ciphertext and using the default Initial Value defined in Section 2.2.3.1 of the same document
@@ -3734,14 +3753,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::unwrap_key(JS::Realm& realm
     ::Crypto::Cipher::AESKWCipher cipher(key->handle().get<ByteBuffer>());
     auto maybe_plaintext = cipher.unwrap(ciphertext.bytes());
     if (maybe_plaintext.is_error())
-        return WebIDL::OperationError::create(realm, "Key unwrap failed"_utf16);
+        return WebIDL::OperationError::create("Key unwrap failed"_utf16);
 
     // 3. Return plaintext.
-    return JS::ArrayBuffer::create(realm, maybe_plaintext.release_value());
+    return maybe_plaintext.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(JS::Realm& realm, AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(JS::Realm&, AlgorithmParams const&, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. Let keyData be the key data to be imported.
 
@@ -3751,26 +3770,26 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(JS::Realm& realm, Algor
     //        throw a NotSupportedError.
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
-    if (format != Bindings::KeyFormat::Raw && format != Bindings::KeyFormat::RawSecret) {
-        return WebIDL::NotSupportedError::create(realm, "Only raw format is supported"_utf16);
+    if (format != KeyFormat::Raw && format != KeyFormat::RawSecret) {
+        return WebIDL::NotSupportedError::create("Only raw format is supported"_utf16);
     }
 
     //        1. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
     for (auto& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
     //        2. If extractable is not false, then throw a SyntaxError.
     if (extractable)
-        return WebIDL::SyntaxError::create(realm, "extractable must be false"_utf16);
+        return WebIDL::SyntaxError::create("extractable must be false"_utf16);
 
     //        3. Let key be a new CryptoKey representing the key data provided in keyData.
     auto key = CryptoKey::create(move(key_data));
 
     //        4. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     //        5. Let algorithm be a new KeyAlgorithm object.
     //        6. Set the name attribute of algorithm to "HKDF".
@@ -3782,7 +3801,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(JS::Realm& realm, Algor
 }
 
 // https://w3c.github.io/webcrypto/#sha-operations-digest
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> SHA::digest(JS::Realm& realm, AlgorithmParams const& algorithm, ByteBuffer const& data)
+WebIDL::ExceptionOr<ByteBuffer> SHA::digest(JS::Realm&, AlgorithmParams const& algorithm, ByteBuffer const& data)
 {
     auto& algorithm_name = algorithm.name;
 
@@ -3802,7 +3821,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> SHA::digest(JS::Realm& realm, Algo
     } else if (algorithm_name == "SHA3-512") {
         hash_kind = ::Crypto::Hash::HashKind::SHA3_512;
     } else {
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Invalid hash function '{}'", algorithm_name));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", algorithm_name));
     }
 
     ::Crypto::Hash::Manager hash { hash_kind };
@@ -3811,18 +3830,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> SHA::digest(JS::Realm& realm, Algo
     auto digest = hash.digest();
     auto result_buffer = ByteBuffer::copy(digest.immutable_data(), hash.digest_size());
     if (result_buffer.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to create result buffer"_utf16);
+        return WebIDL::OperationError::create("Failed to create result buffer"_utf16);
 
-    return JS::ArrayBuffer::create(realm, result_buffer.release_value());
+    return result_buffer.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ECDSA::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -3847,7 +3866,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
         // passing in normalizedAlgorithm and resulting in an elliptic curve key pair.
 
         // Otherwise: throw a NotSupportedError
-        return WebIDL::NotSupportedError::create(realm, "Only 'P-256', 'P-384' and 'P-521' is supported"_utf16);
+        return WebIDL::NotSupportedError::create("Only 'P-256', 'P-384' and 'P-521' is supported"_utf16);
     }
 
     // NOTE: Spec jumps to 6 here for some reason
@@ -3857,7 +3876,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
         [](auto instance) { return instance.generate_private_key(); });
 
     if (maybe_private_key_data.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to create valid crypto instance"_utf16);
+        return WebIDL::OperationError::create("Failed to create valid crypto instance"_utf16);
 
     auto private_key_data = maybe_private_key_data.release_value();
 
@@ -3866,7 +3885,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
         [&](auto instance) { return instance.generate_public_key(private_key_data); });
 
     if (maybe_public_key_data.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to create valid crypto instance"_utf16);
+        return WebIDL::OperationError::create("Failed to create valid crypto instance"_utf16);
 
     auto public_key_data = maybe_public_key_data.release_value();
     auto ec_public_key = ::Crypto::PK::ECPublicKey { public_key_data };
@@ -3875,7 +3894,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { ec_public_key });
 
     // 11. Set the [[type]] internal slot of publicKey to "public"
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 7. Let algorithm be a new EcKeyAlgorithm object.
     // 8. Set the name attribute of algorithm to "ECDSA".
@@ -3887,14 +3906,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     public_key->set_extractable(true);
 
     // 14. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
-    public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Verify } }));
+    public_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Verify } }));
 
     // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
     auto ec_private_key = ::Crypto::PK::ECPrivateKey { private_key_data, public_key_data.size, {}, ec_public_key };
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { ec_private_key });
 
     // 16. Set the [[type]] internal slot of privateKey to "private"
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 17. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDSA"_string, normalized_algorithm.named_curve });
@@ -3903,24 +3922,24 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     private_key->set_extractable(extractable);
 
     // 19. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
-    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Sign } }));
+    private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Sign } }));
 
     // 20. Let result be a new CryptoKeyPair dictionary.
     // 21. Set the publicKey attribute of result to be publicKey.
     // 22. Set the privateKey attribute of result to be privateKey.
     // 23. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(realm, public_key, private_key) };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-sign
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+WebIDL::ExceptionOr<ByteBuffer> ECDSA::sign(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto& vm = realm.vm();
     auto const& normalized_algorithm = static_cast<EcdsaParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
     auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(vm));
@@ -3936,7 +3955,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(JS::Realm& realm, Algo
     } else if (hash_algorithm == "SHA-512") {
         hash_kind = ::Crypto::Hash::HashKind::SHA512;
     } else {
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
     }
     ::Crypto::Hash::Manager hash { hash_kind };
     hash.update(message);
@@ -3979,7 +3998,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(JS::Realm& realm, Algo
             [&](auto instance) { return instance.sign(M, d.d()); });
 
         if (maybe_signature.is_error())
-            return WebIDL::OperationError::create(realm, Utf16String::from_utf8(maybe_signature.error().string_literal()));
+            return WebIDL::OperationError::create(Utf16String::from_utf8(maybe_signature.error().string_literal()));
 
         auto signature = maybe_signature.release_value();
 
@@ -3999,22 +4018,22 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(JS::Realm& realm, Algo
     } else {
         // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
         // Perform the ECDSA signature steps specified in that specification, passing in M, params and d and resulting in result.
-        return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+        return WebIDL::DataError::create("Invalid algorithm"_utf16);
     }
 
     // NOTE: The spec jumps to 9 here for some reason
     // 9. Return the result of creating an ArrayBuffer containing result.
-    return JS::ArrayBuffer::create(realm, result);
+    return result;
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-verify
-WebIDL::ExceptionOr<JS::Value> ECDSA::verify(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+WebIDL::ExceptionOr<bool> ECDSA::verify(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto const& normalized_algorithm = static_cast<EcdsaParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+    if (key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
     // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
     [[maybe_unused]] auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
@@ -4030,7 +4049,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(JS::Realm& realm, AlgorithmParams c
     } else if (hash_algorithm == "SHA-512") {
         hash_kind = ::Crypto::Hash::HashKind::SHA512;
     } else {
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
     }
     ::Crypto::Hash::Manager hash { hash_kind };
     hash.update(message);
@@ -4073,22 +4092,22 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(JS::Realm& realm, AlgorithmParams c
             [&](auto instance) { return instance.verify(M, Q.to_secpxxxr1_point(), ::Crypto::Curves::SECPxxxr1Signature { r, s, half_size }); });
 
         if (maybe_result.is_error())
-            return WebIDL::OperationError::create(realm, Utf16String::from_utf8(maybe_result.error().string_literal()));
+            return WebIDL::OperationError::create(Utf16String::from_utf8(maybe_result.error().string_literal()));
 
         result = maybe_result.release_value();
     } else {
         // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
         // Perform the ECDSA verification steps specified in that specification passing in M, signature, params and Q and resulting in an indication of whether or not the purported signature is valid.
-        return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_utf16));
+        return throw_completion(realm, WebIDL::NotSupportedError::create("Invalid algorithm"_utf16));
     }
 
     // 9. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
     // 10. Return result.
-    return JS::Value(result);
+    return result;
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     // NOTE: This is a parameter to the function
     // 1. Let keyData be the key data to be imported.
@@ -4098,11 +4117,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
     GC::Ptr<CryptoKey> key = nullptr;
 
     // 2. If format is "spki":
-    if (key_format == Bindings::KeyFormat::Spki) {
+    if (key_format == KeyFormat::Spki) {
         // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -4113,11 +4132,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
         if (spki.algorithm.identifier != ::Crypto::ASN1::ec_public_key_encryption_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is absent, then throw a DataError.
         if (!spki.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let params be the parameters field of the algorithm AlgorithmIdentifier field of spki.
         auto ec_params = spki.algorithm.ec_parameters;
@@ -4158,12 +4177,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
         if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 12. If the public key value is not a valid point on the Elliptic Curve identified
         //     by the namedCurve member of normalizedAlgorithm throw a DataError.
@@ -4183,14 +4202,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
                     return instance.is_valid_point(public_key.to_secpxxxr1_point());
                 });
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
             return {};
         }));
 
         // 13. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 14. Let algorithm be a new EcKeyAlgorithm.
         // 15. Set the name attribute of algorithm to "ECDSA".
@@ -4200,11 +4219,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
     }
 
     // 2. If format is "pkcs8":
-    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+    else if (key_format == KeyFormat::Pkcs8) {
         // 1. If usages contains a value which is not "sign" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Sign) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Sign) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -4215,12 +4234,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
         if (private_key_info.algorithm.identifier != ::Crypto::ASN1::ec_public_key_encryption_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field
         //    of privateKeyInfo is not present, then throw a DataError.
         if (!private_key_info.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let params be the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo.
         auto ec_params = private_key_info.algorithm.ec_parameters;
@@ -4259,7 +4278,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
             //    the same object identifier as the parameters field of the privateKeyAlgorithm
             //    PrivateKeyAlgorithmIdentifier field of privateKeyInfo, throw a DataError.
             if (ec_private_key.parameters().has_value() && *ec_private_key.parameters() != ec_params.value_or({}))
-                return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+                return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
             // 4. Let key be a new CryptoKey that represents the Elliptic Curve private key identified
             //    by performing the conversion steps defined in Section 3 of [RFC5915] using ecPrivateKey.
@@ -4268,12 +4287,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
         if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 12. If the key value is not a valid point on the Elliptic Curve identified
         //     by the namedCurve member of normalizedAlgorithm throw a DataError.
@@ -4296,14 +4315,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
                     return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
                 });
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
             return {};
         }));
 
         // 13. Set the [[type]] internal slot of key to "private".
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 14. Let algorithm be a new EcKeyAlgorithm.
         // 15. Set the name attribute of algorithm to "ECDSA".
@@ -4313,36 +4332,36 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
     }
 
     // 2. If format is "jwk":
-    else if (key_format == Bindings::KeyFormat::Jwk) {
+    else if (key_format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and usages contains a value which is not "sign", or,
         //    if the d field is not present and usages contains a value which is not "verify" then throw a SyntaxError.
         if (jwk.d.has_value()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Sign) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Sign) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         } else {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Verify) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Verify) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
 
         // 3. If the kty field of jwk is not "EC", then throw a DataError.
         if (jwk.kty != "EC"sv)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 4. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "sig"sv)
-            return WebIDL::DataError::create(realm, "Invalid key use"_utf16);
+            return WebIDL::DataError::create("Invalid key use"_utf16);
 
         // 5. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
         //    or it does not contain all of the specified usages values, then throw a DataError.
@@ -4350,17 +4369,17 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
 
         // 6. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid extractable"_utf16);
+            return WebIDL::DataError::create("Invalid extractable"_utf16);
 
         // 7. Let namedCurve be a string whose value is equal to the crv field of jwk.
         // NOTE: The spec does not say what to do if crv is missing.
         if (!jwk.crv.has_value())
-            return WebIDL::DataError::create(realm, "Invalid key crv"_utf16);
+            return WebIDL::DataError::create("Invalid key crv"_utf16);
         auto named_curve = *jwk.crv;
 
         // 8. If namedCurve is not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
         if (named_curve != normalized_algorithm.named_curve)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 9. If namedCurve is "P-256", "P-384" or "P-521":
         if (named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
@@ -4385,12 +4404,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
                 // otherwise:
                 else
                     // throw a DataError.
-                    return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+                    return WebIDL::DataError::create("Invalid algorithm"_utf16);
             }
 
             // 3. If algNamedCurve is defined, and is not equal to namedCurve, throw a DataError.
             if (!alg_named_curve.is_empty() && alg_named_curve != named_curve)
-                return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+                return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
             size_t coord_size;
             if (named_curve == "P-256"sv)
@@ -4404,23 +4423,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
 
             // NOTE: according to Section 6.2.1 and 6.2.2 of JSON Web Algorithms [JWA], x and y are always required
             if (!jwk.x.has_value() || !jwk.y.has_value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
 
             auto maybe_x_bytes = decode_base64url(jwk.x.value());
             if (maybe_x_bytes.is_error()) {
-                return WebIDL::DataError::create(realm, "Failed to decode base64"_utf16);
+                return WebIDL::DataError::create("Failed to decode base64"_utf16);
             }
             auto x_bytes = maybe_x_bytes.release_value();
             if (x_bytes.size() != coord_size)
-                return WebIDL::DataError::create(realm, "Invalid key size"_utf16);
+                return WebIDL::DataError::create("Invalid key size"_utf16);
 
             auto maybe_y_bytes = decode_base64url(jwk.y.value());
             if (maybe_y_bytes.is_error()) {
-                return WebIDL::DataError::create(realm, "Failed to decode base64"_utf16);
+                return WebIDL::DataError::create("Failed to decode base64"_utf16);
             }
             auto y_bytes = maybe_y_bytes.release_value();
             if (y_bytes.size() != coord_size)
-                return WebIDL::DataError::create(realm, "Invalid key size"_utf16);
+                return WebIDL::DataError::create("Invalid key size"_utf16);
 
             auto public_key = ::Crypto::PK::ECPublicKey {
                 ::Crypto::UnsignedBigInteger::import_data(x_bytes),
@@ -4433,11 +4452,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
                 // 1. If jwk does not meet the requirements of Section 6.2.2 of JSON Web Algorithms [JWA], then throw a DataError.
                 auto maybe_d_bytes = decode_base64url(jwk.d.value());
                 if (maybe_d_bytes.is_error()) {
-                    return WebIDL::DataError::create(realm, "Failed to decode base64"_utf16);
+                    return WebIDL::DataError::create("Failed to decode base64"_utf16);
                 }
                 auto d_bytes = maybe_d_bytes.release_value();
                 if (d_bytes.size() != coord_size)
-                    return WebIDL::DataError::create(realm, "Invalid key size"_utf16);
+                    return WebIDL::DataError::create("Invalid key size"_utf16);
 
                 // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
                 //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
@@ -4450,7 +4469,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
                 key = CryptoKey::create(CryptoKey::InternalKeyData { private_key });
 
                 // 3. Set the [[type]] internal slot of Key to "private".
-                key->set_type(Bindings::KeyType::Private);
+                key->set_type(KeyType::Private);
             } else {
                 // Otherwise:
                 // 1. If jwk does not meet the requirements of Section 6.2.1 of JSON Web Algorithms [JWA], then throw a DataError.
@@ -4459,12 +4478,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
                 key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
                 // 3. Set the [[type]] internal slot of Key to "public".
-                key->set_type(Bindings::KeyType::Public);
+                key->set_type(KeyType::Public);
             }
         } else {
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining key.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 10. If the key value is not a valid point on the Elliptic Curve identified
@@ -4488,9 +4507,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
                     return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
                 });
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
             return {};
         }));
 
@@ -4504,15 +4523,15 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
     // 2. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
-    else if (key_format == Bindings::KeyFormat::Raw || key_format == Bindings::KeyFormat::RawPublic) {
+    else if (key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic) {
         // 1. If the namedCurve member of normalizedAlgorithm is not a named curve, then throw a DataError.
         if (!normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv))
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 2. If usages contains a value which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -4528,7 +4547,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
             // 3. If a decode error occurs or an identity point is found, throw a DataError.
             auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(key_bytes, false, {});
             if (maybe_public_key.is_error())
-                return WebIDL::DataError::create(realm, "Failed to parse key"_utf16);
+                return WebIDL::DataError::create("Failed to parse key"_utf16);
 
             // 4. Let key be a new CryptoKey that represents Q.
             key = CryptoKey::create(CryptoKey::InternalKeyData { maybe_public_key.release_value().public_key });
@@ -4536,14 +4555,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 4. Let algorithm be a new EcKeyAlgorithm object.
         // 5. Set the name attribute of algorithm to "ECDSA".
         // 6. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
         // 7. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 8. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDSA"_string, normalized_algorithm.named_curve });
@@ -4552,7 +4571,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
     // Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 3. Return key
@@ -4560,7 +4579,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> ECDSA::export_key(JS::Realm&, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // NOTE: This is a parameter to the function
     // 1. Let key be the CryptoKey to be exported.
@@ -4569,13 +4588,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(JS::Realm& realm, Bin
     // Note: In our impl this is always accessible
     auto const& handle = key->handle();
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 3. If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         ByteBuffer data;
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
@@ -4615,7 +4634,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(JS::Realm& realm, Bin
                 });
 
             if (maybe_data.is_error()) {
-                return WebIDL::DataError::create(realm, "Failed to encode public key"_utf16);
+                return WebIDL::DataError::create("Failed to encode public key"_utf16);
             }
 
             data = maybe_data.release_value();
@@ -4624,18 +4643,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(JS::Realm& realm, Bin
             // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
             //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
             // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // NOTE: Spec does not say anything about this.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // 3. If format is "pkcs8":
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         ByteBuffer data;
 
@@ -4681,7 +4700,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(JS::Realm& realm, Bin
                 });
 
             if (maybe_data.is_error())
-                return WebIDL::DataError::create(realm, "Failed to encode private key"_utf16);
+                return WebIDL::DataError::create("Failed to encode private key"_utf16);
 
             data = maybe_data.release_value();
         } else {
@@ -4689,15 +4708,15 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(JS::Realm& realm, Bin
             // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
             //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
             // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // 3. If format is "jwt":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -4767,10 +4786,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(JS::Realm& realm, Bin
                 });
 
             if (maybe_error.is_error())
-                return WebIDL::DataError::create(realm, "Failed to encode public key"_utf16);
+                return WebIDL::DataError::create("Failed to encode public key"_utf16);
 
             // 4. If the [[type]] internal slot of key is "private"
-            if (key->type() == Bindings::KeyType::Private) {
+            if (key->type() == KeyType::Private) {
                 auto maybe_error = handle.visit(
                     [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<void> {
                         // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
@@ -4784,36 +4803,36 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(JS::Realm& realm, Bin
                     });
 
                 if (maybe_error.is_error())
-                    return WebIDL::DataError::create(realm, "Failed to encode private key"_utf16);
+                    return WebIDL::DataError::create("Failed to encode private key"_utf16);
             }
         } else {
             // 1. Perform any key export steps defined by other applicable specifications,
             //    passing format and the namedCurve attribute of the [[algorithm]] internal slot
             //    of key and obtaining namedCurve and a new value of jwk.
             // 2. Set the crv attribute of jwk to namedCurve.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 4. Set the key_ops attribute of jwk to the usages attribute of key.
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->unchecked_append(idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
 
         // 5. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 6. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // 3. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
-    else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
+    else if (format == KeyFormat::Raw || format == KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         ByteBuffer data;
 
@@ -4831,36 +4850,36 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(JS::Realm& realm, Bin
                 });
 
             if (maybe_data.is_error())
-                return WebIDL::DataError::create(realm, "Failed to encode public key"_utf16);
+                return WebIDL::DataError::create("Failed to encode public key"_utf16);
 
             data = maybe_data.release_value();
         } else {
             // Perform any key export steps defined by other applicable specifications, passing format and
             // the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and data.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, move(data));
+        result = ExportKeyResult { move(data) };
     }
 
     // Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 4. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#ecdh-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ECDH::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -4886,7 +4905,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
         // passing in normalizedAlgorithm and resulting in an elliptic curve key pair.
 
         // Otherwise: throw a NotSupportedError
-        return WebIDL::NotSupportedError::create(realm, "Only 'P-256', 'P-384' and 'P-521' is supported"_utf16);
+        return WebIDL::NotSupportedError::create("Only 'P-256', 'P-384' and 'P-521' is supported"_utf16);
     }
 
     // 3. If performing the operation results in an error, then throw a OperationError.
@@ -4895,7 +4914,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
         [](auto instance) { return instance.generate_private_key(); });
 
     if (maybe_private_key_data.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to create valid crypto instance"_utf16);
+        return WebIDL::OperationError::create("Failed to create valid crypto instance"_utf16);
 
     auto private_key_data = maybe_private_key_data.release_value();
 
@@ -4904,7 +4923,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
         [&](auto instance) { return instance.generate_public_key(private_key_data); });
 
     if (maybe_public_key_data.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to create valid crypto instance"_utf16);
+        return WebIDL::OperationError::create("Failed to create valid crypto instance"_utf16);
 
     auto public_key_data = maybe_public_key_data.release_value();
     auto ec_public_key = ::Crypto::PK::ECPublicKey { public_key_data };
@@ -4913,7 +4932,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { ec_public_key });
 
     // 8. Set the [[type]] internal slot of publicKey to "public"
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 4. Let algorithm be a new EcKeyAlgorithm object.
     // 5. Set the name attribute of algorithm to "ECDH".
@@ -4932,7 +4951,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { ec_private_key });
 
     // 13. Set the [[type]] internal slot of privateKey to "private"
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 14. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDH"_string, normalized_algorithm.named_curve });
@@ -4941,43 +4960,43 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     private_key->set_extractable(extractable);
 
     // 16. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "deriveKey", "deriveBits" ].
-    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Derivekey, Bindings::KeyUsage::Derivebits } }));
+    private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::DeriveKey, KeyUsage::DeriveBits } }));
 
     // 17. Let result be a new CryptoKeyPair dictionary.
     // 18. Set the publicKey attribute of result to be publicKey.
     // 19. Set the privateKey attribute of result to be privateKey.
     // 20. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(realm, public_key, private_key) };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
 // https://w3c.github.io/webcrypto/#ecdh-operations-derive-bits
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     // 2. Let publicKey be the public member of normalizedAlgorithm.
     auto& public_key = normalized_algorithm.public_key;
 
     // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
-    if (public_key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Public key is not a public key"_utf16);
+    if (public_key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Public key is not a public key"_utf16);
 
     // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
     auto& internal_algorithm = key->ec_algorithm();
     auto& public_internal_algorithm = public_key->ec_algorithm();
     if (internal_algorithm.name() != public_internal_algorithm.name()) {
-        return WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_utf16);
+        return WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16);
     }
 
     // 5. If the namedCurve attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the namedCurve property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
     if (internal_algorithm.named_curve() != public_internal_algorithm.named_curve())
-        return WebIDL::InvalidAccessError::create(realm, "Curve mismatch"_utf16);
+        return WebIDL::InvalidAccessError::create("Curve mismatch"_utf16);
 
     ByteBuffer secret;
 
@@ -5007,11 +5026,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(JS::Realm& realm
             [&private_key_data, &public_key_data](auto instance) { return instance.compute_coordinate(private_key_data.d(), public_key_data.to_secpxxxr1_point()); });
 
         if (maybe_secret.is_error())
-            return WebIDL::OperationError::create(realm, Utf16String::formatted("Failed to compute secret: {}", maybe_secret.error()));
+            return WebIDL::OperationError::create(Utf16String::formatted("Failed to compute secret: {}", maybe_secret.error()));
 
         auto maybe_secret_data = maybe_secret.release_value().to_uncompressed();
         if (maybe_secret_data.is_error())
-            return WebIDL::OperationError::create(realm, "Failed to convert secret"_utf16);
+            return WebIDL::OperationError::create("Failed to convert secret"_utf16);
 
         // NOTE: Remove the prefix from the uncompressed point
         auto secret_data = maybe_secret_data.release_value();
@@ -5026,18 +5045,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(JS::Realm& realm
         // in an applicable specification that specifies the use of that value with ECDH:
         // Perform the ECDH derivation steps specified in that specification,
         // passing in key and publicKey and resulting in secret.
-        return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+        return WebIDL::DataError::create("Invalid algorithm"_utf16);
     }
 
     // 8. If length is null: Return secret
     if (!length_optional.has_value()) {
-        return JS::ArrayBuffer::create(realm, move(secret));
+        return secret;
     }
 
     // Otherwise: If the length of secret in bits is less than length: throw an OperationError.
     auto length = length_optional.value();
     if (secret.size() * 8 < length)
-        return WebIDL::OperationError::create(realm, "Secret is too short"_utf16);
+        return WebIDL::OperationError::create("Secret is too short"_utf16);
 
     // Otherwise: Return an octet string containing the first length bits of secret.
     auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, ceil_div(length, 8)));
@@ -5046,11 +5065,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(JS::Realm& realm
         slice[slice.size() - 1] &= 0xFF << (8 - (length % 8));
     }
 
-    return JS::ArrayBuffer::create(realm, move(slice));
+    return slice;
 }
 
 // https://w3c.github.io/webcrypto/#ecdh-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     // NOTE: This is a parameter to the function
     // 1. Let keyData be the key data to be imported.
@@ -5060,10 +5079,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
     GC::Ptr<CryptoKey> key = nullptr;
 
     // 2. If format is "spki":
-    if (key_format == Bindings::KeyFormat::Spki) {
+    if (key_format == KeyFormat::Spki) {
         // 1. If usages is not empty then throw a SyntaxError.
         if (!usages.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Usages must be empty"_utf16);
+            return WebIDL::SyntaxError::create("Usages must be empty"_utf16);
 
         // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
         // 3. If an error occurred while parsing, then throw a DataError.
@@ -5072,11 +5091,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
         if (spki.algorithm.identifier != ::Crypto::ASN1::ec_public_key_encryption_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is absent, then throw a DataError.
         if (!spki.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let params be the parameters field of the algorithm AlgorithmIdentifier field of spki.
         auto ec_params = spki.algorithm.ec_parameters;
@@ -5117,12 +5136,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
         if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 12. If the key value is not a valid point on the Elliptic Curve identified
         //     by the namedCurve member of normalizedAlgorithm throw a DataError.
@@ -5142,14 +5161,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
                     return instance.is_valid_point(public_key.to_secpxxxr1_point());
                 });
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
             return {};
         }));
 
         // 13. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 14. Let algorithm be a new EcKeyAlgorithm.
         // 15. Set the name attribute of algorithm to "ECDH".
@@ -5159,11 +5178,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
     }
 
     // 2. If format is "pkcs8":
-    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+    else if (key_format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -5174,12 +5193,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
         if (private_key_info.algorithm.identifier != ::Crypto::ASN1::ec_public_key_encryption_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field
         //    of privateKeyInfo is not present, then throw a DataError.
         if (!private_key_info.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let params be the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo.
         auto ec_params = private_key_info.algorithm.ec_parameters;
@@ -5218,7 +5237,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
             //    the same object identifier as the parameters field of the privateKeyAlgorithm
             //    PrivateKeyAlgorithmIdentifier field of privateKeyInfo, throw a DataError.
             if (ec_private_key.parameters().has_value() && *ec_private_key.parameters() != ec_params.value_or({}))
-                return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+                return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
             // 4. Let key be a new CryptoKey that represents the Elliptic Curve private key identified
             //    by performing the conversion steps defined in Section 3 of [RFC5915] using ecPrivateKey.
@@ -5227,12 +5246,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
         if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 12. If the key value is not a valid point on the Elliptic Curve identified
         //     by the namedCurve member of normalizedAlgorithm throw a DataError.
@@ -5255,14 +5274,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
                     return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
                 });
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
             return {};
         }));
 
         // 13. Set the [[type]] internal slot of key to "private".
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 14. Let algorithm be a new EcKeyAlgorithm.
         // 15. Set the name attribute of algorithm to "ECDH".
@@ -5272,33 +5291,33 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
     }
 
     // 2. If format is "jwk":
-    else if (key_format == Bindings::KeyFormat::Jwk) {
+    else if (key_format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         if (jwk.d.has_value() && !usages.is_empty()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+                if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
 
         // 3. If the d field is not present and if usages is not empty then throw a SyntaxError.
         if (!jwk.d.has_value() && !usages.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Usages must be empty"_utf16);
+            return WebIDL::SyntaxError::create("Usages must be empty"_utf16);
 
         // 4. If the kty field of jwk is not "EC", then throw a DataError.
         if (jwk.kty != "EC"sv)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 5. If usages is non-empty and the use field of jwk is present and is not equal to "enc" then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"sv)
-            return WebIDL::DataError::create(realm, "Invalid key use"_utf16);
+            return WebIDL::DataError::create("Invalid key use"_utf16);
 
         // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
         //    or it does not contain all of the specified usages values, then throw a DataError.
@@ -5306,17 +5325,17 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
 
         // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid extractable"_utf16);
+            return WebIDL::DataError::create("Invalid extractable"_utf16);
 
         // 8. Let namedCurve be a string whose value is equal to the crv field of jwk.
         // NOTE: The spec does not say what to do if crv is missing.
         if (!jwk.crv.has_value())
-            return WebIDL::DataError::create(realm, "Invalid key crv"_utf16);
+            return WebIDL::DataError::create("Invalid key crv"_utf16);
         auto named_curve = *jwk.crv;
 
         // 9. If namedCurve is not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
         if (named_curve != normalized_algorithm.named_curve)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 10. If namedCurve is "P-256", "P-384" or "P-521":
         if (named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
@@ -5332,23 +5351,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
 
             // NOTE: according to Section 6.2.1 and 6.2.2 of JSON Web Algorithms [JWA], x and y are always required
             if (!jwk.x.has_value() || !jwk.y.has_value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
 
             auto maybe_x_bytes = decode_base64url(jwk.x.value());
             if (maybe_x_bytes.is_error()) {
-                return WebIDL::DataError::create(realm, "Failed to decode base64"_utf16);
+                return WebIDL::DataError::create("Failed to decode base64"_utf16);
             }
             auto x_bytes = maybe_x_bytes.release_value();
             if (x_bytes.size() != coord_size)
-                return WebIDL::DataError::create(realm, "Invalid key size"_utf16);
+                return WebIDL::DataError::create("Invalid key size"_utf16);
 
             auto maybe_y_bytes = decode_base64url(jwk.y.value());
             if (maybe_y_bytes.is_error()) {
-                return WebIDL::DataError::create(realm, "Failed to decode base64"_utf16);
+                return WebIDL::DataError::create("Failed to decode base64"_utf16);
             }
             auto y_bytes = maybe_y_bytes.release_value();
             if (y_bytes.size() != coord_size)
-                return WebIDL::DataError::create(realm, "Invalid key size"_utf16);
+                return WebIDL::DataError::create("Invalid key size"_utf16);
 
             auto public_key = ::Crypto::PK::ECPublicKey {
                 ::Crypto::UnsignedBigInteger::import_data(x_bytes),
@@ -5361,11 +5380,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
                 // 1. If jwk does not meet the requirements of Section 6.2.2 of JSON Web Algorithms [JWA], then throw a DataError.
                 auto maybe_d_bytes = decode_base64url(jwk.d.value());
                 if (maybe_d_bytes.is_error()) {
-                    return WebIDL::DataError::create(realm, "Failed to decode base64"_utf16);
+                    return WebIDL::DataError::create("Failed to decode base64"_utf16);
                 }
                 auto d_bytes = maybe_d_bytes.release_value();
                 if (d_bytes.size() != coord_size)
-                    return WebIDL::DataError::create(realm, "Invalid key size"_utf16);
+                    return WebIDL::DataError::create("Invalid key size"_utf16);
 
                 // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
                 //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
@@ -5378,7 +5397,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
                 key = CryptoKey::create(CryptoKey::InternalKeyData { private_key });
 
                 // 3. Set the [[type]] internal slot of Key to "private".
-                key->set_type(Bindings::KeyType::Private);
+                key->set_type(KeyType::Private);
             } else {
                 // Otherwise:
                 // 1. If jwk does not meet the requirements of Section 6.2.1 of JSON Web Algorithms [JWA], then throw a DataError.
@@ -5387,12 +5406,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
                 key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
                 // 3. Set the [[type]] internal slot of Key to "public".
-                key->set_type(Bindings::KeyType::Public);
+                key->set_type(KeyType::Public);
             }
         } else {
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining key.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 11. If the key value is not a valid point on the Elliptic Curve identified
@@ -5416,9 +5435,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
                     return instance.is_valid_point(private_key.public_key()->to_secpxxxr1_point(), private_key.d());
                 });
             if (maybe_valid.is_error())
-                return WebIDL::DataError::create(realm, "Failed to verify key"_utf16);
+                return WebIDL::DataError::create("Failed to verify key"_utf16);
             if (!maybe_valid.value())
-                return WebIDL::DataError::create(realm, "Invalid key"_utf16);
+                return WebIDL::DataError::create("Invalid key"_utf16);
             return {};
         }));
 
@@ -5432,14 +5451,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
     // 2. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
-    else if (key_format == Bindings::KeyFormat::Raw || key_format == Bindings::KeyFormat::RawPublic) {
+    else if (key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic) {
         // 1. If the namedCurve member of normalizedAlgorithm is not a named curve, then throw a DataError.
         if (!normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv))
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 2. If usages is not the empty list, then throw a SyntaxError.
         if (!usages.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Usages must be empty"_utf16);
+            return WebIDL::SyntaxError::create("Usages must be empty"_utf16);
 
         // 3. If namedCurve is "P-256", "P-384" or "P-521":
         if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
@@ -5453,7 +5472,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
             // 3. If a decode error occurs or an identity point is found, throw a DataError.
             auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(key_bytes, false, {});
             if (maybe_public_key.is_error())
-                return WebIDL::DataError::create(realm, "Failed to parse key"_utf16);
+                return WebIDL::DataError::create("Failed to parse key"_utf16);
 
             // 4. Let key be a new CryptoKey that represents Q.
             key = CryptoKey::create(CryptoKey::InternalKeyData { maybe_public_key.release_value().public_key });
@@ -5461,14 +5480,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 4. Let algorithm be a new EcKeyAlgorithm object.
         // 5. Set the name attribute of algorithm to "ECDH".
         // 6. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
         // 7. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 8. Set the [[algorithm]] internal slot of key to algorithm.
         key->set_algorithm(CryptoKey::EcKeyAlgorithmData { "ECDH"_string, normalized_algorithm.named_curve });
@@ -5479,7 +5498,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
 }
 
 // https://w3c.github.io/webcrypto/#ecdh-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> ECDH::export_key(JS::Realm&, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // NOTE: This is a parameter to the function
     // 1. Let key be the CryptoKey to be exported.
@@ -5488,13 +5507,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(JS::Realm& realm, Bind
     // Note: In our impl this is always accessible
     auto const& handle = key->handle();
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 3. If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         ByteBuffer data;
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
@@ -5534,7 +5553,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(JS::Realm& realm, Bind
                 });
 
             if (maybe_data.is_error()) {
-                return WebIDL::DataError::create(realm, "Failed to encode public key"_utf16);
+                return WebIDL::DataError::create("Failed to encode public key"_utf16);
             }
 
             data = maybe_data.release_value();
@@ -5543,18 +5562,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(JS::Realm& realm, Bind
             // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
             //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
             // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // NOTE: Spec does not say anything about this.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // 3. If format is "pkcs8":
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         ByteBuffer data;
 
@@ -5600,7 +5619,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(JS::Realm& realm, Bind
                 });
 
             if (maybe_data.is_error())
-                return WebIDL::DataError::create(realm, "Failed to encode private key"_utf16);
+                return WebIDL::DataError::create("Failed to encode private key"_utf16);
 
             data = maybe_data.release_value();
         } else {
@@ -5608,15 +5627,15 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(JS::Realm& realm, Bind
             // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
             //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
             // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // NOTE: Spec does not say anything about this.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // 3. If format is "jwt":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -5686,10 +5705,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(JS::Realm& realm, Bind
                 });
 
             if (maybe_error.is_error())
-                return WebIDL::DataError::create(realm, "Failed to encode public key"_utf16);
+                return WebIDL::DataError::create("Failed to encode public key"_utf16);
 
             // 4. If the [[type]] internal slot of key is "private"
-            if (key->type() == Bindings::KeyType::Private) {
+            if (key->type() == KeyType::Private) {
                 auto maybe_error = handle.visit(
                     [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<void> {
                         // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
@@ -5703,36 +5722,36 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(JS::Realm& realm, Bind
                     });
 
                 if (maybe_error.is_error())
-                    return WebIDL::DataError::create(realm, "Failed to encode private key"_utf16);
+                    return WebIDL::DataError::create("Failed to encode private key"_utf16);
             }
         } else {
             // 1. Perform any key export steps defined by other applicable specifications,
             //    passing format and the namedCurve attribute of the [[algorithm]] internal slot
             //    of key and obtaining namedCurve and a new value of jwk.
             // 2. Set the crv attribute of jwk to namedCurve.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 4. Set the key_ops attribute of jwk to the usages attribute of key.
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->unchecked_append(idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
 
         // 5. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 6. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // 3. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
-    else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
+    else if (format == KeyFormat::Raw || format == KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         ByteBuffer data;
 
@@ -5750,30 +5769,30 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(JS::Realm& realm, Bind
                 });
 
             if (maybe_data.is_error())
-                return WebIDL::DataError::create(realm, "Failed to encode public key"_utf16);
+                return WebIDL::DataError::create("Failed to encode public key"_utf16);
 
             data = maybe_data.release_value();
         } else {
             // Perform any key export steps defined by other applicable specifications, passing format and
             // the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and data.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 3. Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, move(data));
+        result = ExportKeyResult { move(data) };
     }
 
     // 4. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#ed25519-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519::generate_key(JS::Realm& realm, [[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ED25519::generate_key(JS::Realm&, [[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -5781,12 +5800,12 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519
     ::Crypto::Curves::Ed25519 curve;
     auto maybe_private_key = curve.generate_private_key();
     if (maybe_private_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate private key"_utf16);
+        return WebIDL::OperationError::create("Failed to generate private key"_utf16);
     auto private_key_data = maybe_private_key.release_value();
 
     auto maybe_public_key = curve.generate_public_key(private_key_data);
     if (maybe_public_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate public key"_utf16);
+        return WebIDL::OperationError::create("Failed to generate public key"_utf16);
     auto public_key_data = maybe_public_key.release_value();
 
     // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
@@ -5794,7 +5813,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { public_key_data });
 
     // 6. Set the [[type]] internal slot of publicKey to "public"
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 3. Let algorithm be a new KeyAlgorithm object.
     // 4. Set the name attribute of algorithm to "Ed25519".
@@ -5805,14 +5824,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519
     public_key->set_extractable(true);
 
     // 9. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
-    public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Verify } }));
+    public_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Verify } }));
 
     // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
     // and representing the private key of the generated key pair.
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { private_key_data });
 
     // 11. Set the [[type]] internal slot of privateKey to "private"
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 12. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::KeyAlgorithmData { "Ed25519"_string });
@@ -5821,33 +5840,33 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519
     private_key->set_extractable(extractable);
 
     // 14. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
-    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Sign } }));
+    private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Sign } }));
 
     // 15. Let result be a new CryptoKeyPair dictionary.
     // 16. Set the publicKey attribute of result to be publicKey.
     // 17. Set the privateKey attribute of result to be privateKey.
     // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(realm, public_key, private_key) };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
 // https://w3c.github.io/webcrypto/#ed25519-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
     [[maybe_unused]] Web::Crypto::AlgorithmParams const& params,
-    Bindings::KeyFormat format,
+    KeyFormat format,
     CryptoKey::InternalKeyData key_data,
     bool extractable,
-    Vector<Bindings::KeyUsage> const& usages)
+    Vector<KeyUsage> const& usages)
 {
     GC::Ptr<CryptoKey> key = nullptr;
 
     // 1. Let keyData be the key data to be imported.
 
     // 2. If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -5858,11 +5877,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
         if (spki.algorithm.identifier != ::Crypto::ASN1::ed25519_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm identifier"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm identifier"_utf16);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
         if (spki.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let publicKey be the Ed25519 public key identified by the subjectPublicKey field of spki.
         auto const& public_key = spki.raw_key;
@@ -5872,7 +5891,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
         key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
         // 8. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 9. Let algorithm be a new KeyAlgorithm.
         // 10. Set the name attribute of algorithm to "Ed25519".
@@ -5881,11 +5900,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
     }
 
     // 2. If format is "pkcs8":
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If usages contains a value which is not "sign" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Sign) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Sign) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -5896,12 +5915,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field
         //    of privateKeyInfo is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
         if (private_key_info.algorithm.identifier != ::Crypto::ASN1::ed25519_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm identifier"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm identifier"_utf16);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present,
         //    then throw a DataError.
         if (private_key_info.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 CurvePrivateKey structure
@@ -5915,7 +5934,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
         key = CryptoKey::create(CryptoKey::InternalKeyData { curve_private_key_bytes });
 
         // 9. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 10. Let algorithm be a new KeyAlgorithm.
         // 11. Set the name attribute of algorithm to "Ed25519".
@@ -5924,44 +5943,44 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
     }
 
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and usages contains a value which is not "sign",
         //    or, if the d field is not present and usages contains a value which is not "verify" then throw a SyntaxError.
         if (jwk.d.has_value()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Sign) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Sign) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         } else {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Verify) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Verify) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
 
         // 3. If the kty field of jwk is not "OKP", then throw a DataError.
         if (jwk.kty != "OKP"sv)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 4. If the crv field of jwk is not "Ed25519", then throw a DataError.
         if (jwk.crv != "Ed25519"sv)
-            return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+            return WebIDL::DataError::create("Invalid curve"_utf16);
 
         // 5. If the alg field of jwk is present and is not "Ed25519" or "EdDSA", then throw a DataError.
         if (jwk.alg.has_value() && !jwk.alg.value().is_one_of("Ed25519"sv, "EdDSA"sv))
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 6. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && jwk.use.value() != "sig")
-            return WebIDL::DataError::create(realm, "Invalid key usage"_utf16);
+            return WebIDL::DataError::create("Invalid key usage"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
         //    or it does not contain all of the specified usages values, then throw a DataError.
@@ -5969,7 +5988,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !jwk.ext.value() && extractable)
-            return WebIDL::DataError::create(realm, "Invalid extractable"_utf16);
+            return WebIDL::DataError::create("Invalid extractable"_utf16);
 
         // 9. If the d field is present:
         if (jwk.d.has_value()) {
@@ -5977,68 +5996,68 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
             //    then throw a DataError.
             // o  The parameter "kty" MUST be "OKP".
             if (jwk.kty != "OKP"sv)
-                return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+                return WebIDL::DataError::create("Invalid key type"_utf16);
 
             // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "Ed25519"sv)
-                return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+                return WebIDL::DataError::create("Invalid curve"_utf16);
 
             // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
             if (!jwk.x.has_value())
-                return WebIDL::DataError::create(realm, "Missing x field"_utf16);
+                return WebIDL::DataError::create("Missing x field"_utf16);
             auto public_key = TRY(base64_url_bytes_decode(realm, jwk.x.value()));
             if (public_key.size() != 32)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
             //    This parameter MUST NOT be present for public keys.
             if (!jwk.d.has_value())
-                return WebIDL::DataError::create(realm, "Present d field"_utf16);
+                return WebIDL::DataError::create("Present d field"_utf16);
             auto private_key = TRY(base64_url_bytes_decode(realm, jwk.d.value()));
             if (private_key.size() != 32)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             ::Crypto::Curves::Ed25519 curve;
             auto derived_public_key = TRY_OR_THROW_OOM(realm.vm(), curve.generate_public_key(private_key));
             if (derived_public_key != public_key)
-                return WebIDL::DataError::create(realm, "Invalid key pair"_utf16);
+                return WebIDL::DataError::create("Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the Ed25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(CryptoKey::InternalKeyData { private_key });
 
             // 3. Set the [[type]] internal slot of Key to "private".
-            key->set_type(Bindings::KeyType::Private);
+            key->set_type(KeyType::Private);
         }
         // Otherwise:
         else {
             // 1. If jwk does not meet the requirements of the JWK public key format described in Section 2 of [RFC8037], then throw a DataError.
             // o  The parameter "kty" MUST be "OKP".
             if (jwk.kty != "OKP"sv)
-                return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+                return WebIDL::DataError::create("Invalid key type"_utf16);
 
             // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "Ed25519"sv)
-                return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+                return WebIDL::DataError::create("Invalid curve"_utf16);
 
             // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
             if (!jwk.x.has_value())
-                return WebIDL::DataError::create(realm, "Missing x field"_utf16);
+                return WebIDL::DataError::create("Missing x field"_utf16);
             auto public_key = TRY(base64_url_bytes_decode(realm, jwk.x.value()));
             if (public_key.size() != 32)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
             //    This parameter MUST NOT be present for public keys.
             if (jwk.d.has_value())
-                return WebIDL::DataError::create(realm, "Present d field"_utf16);
+                return WebIDL::DataError::create("Present d field"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the Ed25519 public key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
             // 3. Set the [[type]] internal slot of Key to "public".
-            key->set_type(Bindings::KeyType::Public);
+            key->set_type(KeyType::Public);
         }
 
         // 10. Let algorithm be a new instance of a KeyAlgorithm object.
@@ -6050,11 +6069,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
     // 2. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
-    else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
+    else if (format == KeyFormat::Raw || format == KeyFormat::RawPublic) {
         // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -6063,13 +6082,13 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
 
         // 3. If the length in bits of data is not 256 then throw a DataError.
         if (data.size() * 8 != 256)
-            return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+            return WebIDL::DataError::create("Invalid key length"_utf16);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
         key = CryptoKey::create(move(data));
 
         // 7. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 4. Let algorithm be a new KeyAlgorithm object.
         // 5. Set the name attribute of algorithm to "Ed25519".
@@ -6080,14 +6099,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(JS::Realm& realm,
     // 2. Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     return GC::Ref { *key };
 }
 
 // https://w3c.github.io/webcrypto/#ed25519-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> ED25519::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& vm = realm.vm();
 
@@ -6098,10 +6117,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(JS::Realm& realm, B
     auto const& key_data = key->handle().get<ByteBuffer>();
 
     // 3. If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -6111,14 +6130,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(JS::Realm& realm, B
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(key_data, ed25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(realm, move(data));
+        return ExportKeyResult { move(data) };
     }
 
     // 3. If format is "pkcs8":
-    if (format == Bindings::KeyFormat::Pkcs8) {
+    if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
         //    * Set the version field to 0.
@@ -6134,11 +6153,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(JS::Realm& realm, B
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), ed25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(realm, move(data));
+        return ExportKeyResult { move(data) };
     }
 
     // 2. If format is "jwk":
-    if (format == Bindings::KeyFormat::Jwk) {
+    if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk;
 
@@ -6152,7 +6171,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(JS::Realm& realm, B
         jwk.crv = "Ed25519"_string;
 
         // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-        if (key->type() == Bindings::KeyType::Public) {
+        if (key->type() == KeyType::Public) {
             jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         } else {
             // The "x" parameter of the "epk" field is set as follows:
@@ -6165,7 +6184,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(JS::Realm& realm, B
         }
 
         // 6. If the [[type]] internal slot of key is "private"
-        if (key->type() == Bindings::KeyType::Private) {
+        if (key->type() == KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
             jwk.d = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         }
@@ -6174,41 +6193,41 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(JS::Realm& realm, B
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
 
         // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        return TRY(jwk.to_object(realm));
+        return ExportKeyResult { move(jwk) };
     }
 
     // 2. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
-    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
+    if (format == KeyFormat::Raw || format == KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an octet string representing the Ed25519 public key represented by the [[handle]] internal slot of key.
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(realm, key_data);
+        return ExportKeyResult { key_data };
     }
 
     // 2. Otherwise:
     //    throw a NotSupportedError.
-    return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+    return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
 }
 
 // https://w3c.github.io/webcrypto/#ed25519-operations-sign
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED25519::sign(JS::Realm& realm, [[maybe_unused]] AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+WebIDL::ExceptionOr<ByteBuffer> ED25519::sign(JS::Realm& realm, [[maybe_unused]] AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto& vm = realm.vm();
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     // 2. Perform the Ed25519 signing process, as specified in [RFC8032], Section 5.1.6,
     // with message as M, using the Ed25519 private key associated with key.
@@ -6217,28 +6236,28 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED25519::sign(JS::Realm& realm, [[
     ::Crypto::Curves::Ed25519 curve;
     auto maybe_public_key = curve.generate_public_key(private_key);
     if (maybe_public_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate public key"_utf16);
+        return WebIDL::OperationError::create("Failed to generate public key"_utf16);
     auto public_key = maybe_public_key.release_value();
 
     auto maybe_signature = curve.sign(private_key, message);
     if (maybe_signature.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to sign message"_utf16);
+        return WebIDL::OperationError::create("Failed to sign message"_utf16);
     auto signature = maybe_signature.release_value();
 
     // 3. Return a new ArrayBuffer associated with the relevant global object of this [HTML],
     // and containing the bytes of the signature resulting from performing the Ed25519 signing process.
     auto result = TRY_OR_THROW_OOM(vm, ByteBuffer::copy(signature));
-    return JS::ArrayBuffer::create(realm, move(result));
+    return result;
 }
 
 // https://w3c.github.io/webcrypto/#ed25519-operations-verify
-WebIDL::ExceptionOr<JS::Value> ED25519::verify(JS::Realm& realm, [[maybe_unused]] AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+WebIDL::ExceptionOr<bool> ED25519::verify(JS::Realm&, [[maybe_unused]] AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+    if (key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
-    // NOTE: this is checked by ED25519::verify(JS::Realm& realm, )
+    // NOTE: this is checked by ED25519::verify().
     // 2. If the key data of key represents an invalid point or a small-order element on the Elliptic Curve of Ed25519, return false.
     // 3. If the point R, encoded in the first half of signature, represents an invalid point or a small-order element on the Elliptic Curve of Ed25519, return false.
 
@@ -6252,19 +6271,19 @@ WebIDL::ExceptionOr<JS::Value> ED25519::verify(JS::Realm& realm, [[maybe_unused]
     ::Crypto::Curves::Ed25519 curve;
     auto maybe_verified = curve.verify(key->handle().get<ByteBuffer>(), signature, message);
     if (maybe_verified.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::from_utf8(maybe_verified.error().string_literal()));
+        return WebIDL::OperationError::create(Utf16String::from_utf8(maybe_verified.error().string_literal()));
 
     // 10. Return result.
     return maybe_verified.release_value();
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED448::generate_key(JS::Realm& realm, [[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ED448::generate_key(JS::Realm&, [[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -6272,12 +6291,12 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED448::
     ::Crypto::Curves::Ed448 curve;
     auto maybe_private_key = curve.generate_private_key();
     if (maybe_private_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate private key"_utf16);
+        return WebIDL::OperationError::create("Failed to generate private key"_utf16);
     auto private_key_data = maybe_private_key.release_value();
 
     auto maybe_public_key = curve.generate_public_key(private_key_data);
     if (maybe_public_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate public key"_utf16);
+        return WebIDL::OperationError::create("Failed to generate public key"_utf16);
     auto public_key_data = maybe_public_key.release_value();
 
     // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
@@ -6285,7 +6304,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED448::
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { public_key_data });
 
     // 6. Set the [[type]] internal slot of publicKey to "public"
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 3. Let algorithm be a new KeyAlgorithm object.
     // 4. Set the name attribute of algorithm to "Ed448".
@@ -6296,14 +6315,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED448::
     public_key->set_extractable(true);
 
     // 9. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
-    public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Verify } }));
+    public_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Verify } }));
 
     // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
     // and representing the private key of the generated key pair.
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { private_key_data });
 
     // 11. Set the [[type]] internal slot of privateKey to "private"
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 12. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::KeyAlgorithmData { "Ed448"_string });
@@ -6312,33 +6331,33 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED448::
     private_key->set_extractable(extractable);
 
     // 14. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
-    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Sign } }));
+    private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::Sign } }));
 
     // 15. Let result be a new CryptoKeyPair dictionary.
     // 16. Set the publicKey attribute of result to be publicKey.
     // 17. Set the privateKey attribute of result to be privateKey.
     // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(realm, public_key, private_key) };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
     [[maybe_unused]] Web::Crypto::AlgorithmParams const& params,
-    Bindings::KeyFormat format,
+    KeyFormat format,
     CryptoKey::InternalKeyData key_data,
     bool extractable,
-    Vector<Bindings::KeyUsage> const& usages)
+    Vector<KeyUsage> const& usages)
 {
     GC::Ptr<CryptoKey> key = nullptr;
 
     // 1. Let keyData be the key data to be imported.
 
     // 2. If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -6349,11 +6368,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-Ed448 object identifier defined in [RFC8410], then throw a DataError.
         if (spki.algorithm.identifier != ::Crypto::ASN1::ed448_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm identifier"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm identifier"_utf16);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
         if (spki.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let publicKey be the Ed448 public key identified by the subjectPublicKey field of spki.
         auto const& public_key = spki.raw_key;
@@ -6363,7 +6382,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
         key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
         // 8. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 9. Let algorithm be a new KeyAlgorithm.
         // 10. Set the name attribute of algorithm to "Ed448".
@@ -6372,11 +6391,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
     }
 
     // 2. If format is "pkcs8":
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If usages contains a value which is not "sign" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Sign) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Sign) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -6387,12 +6406,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field
         //    of privateKeyInfo is not equal to the id-Ed448 object identifier defined in [RFC8410], then throw a DataError.
         if (private_key_info.algorithm.identifier != ::Crypto::ASN1::ed448_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm identifier"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm identifier"_utf16);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present,
         //    then throw a DataError.
         if (private_key_info.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 CurvePrivateKey structure
@@ -6406,7 +6425,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
         key = CryptoKey::create(CryptoKey::InternalKeyData { curve_private_key_bytes });
 
         // 9. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 10. Let algorithm be a new KeyAlgorithm.
         // 11. Set the name attribute of algorithm to "Ed448".
@@ -6415,44 +6434,44 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
     }
 
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and usages contains a value which is not "sign",
         //    or, if the d field is not present and usages contains a value which is not "verify" then throw a SyntaxError.
         if (jwk.d.has_value()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Sign) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Sign) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         } else {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Verify) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+                if (usage != KeyUsage::Verify) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
 
         // 3. If the kty field of jwk is not "OKP", then throw a DataError.
         if (jwk.kty != "OKP"sv)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 4. If the crv field of jwk is not "Ed448", then throw a DataError.
         if (jwk.crv != "Ed448"sv)
-            return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+            return WebIDL::DataError::create("Invalid curve"_utf16);
 
         // 5. If the alg field of jwk is present and is not "Ed448" or "EdDSA", then throw a DataError.
         if (jwk.alg.has_value() && (jwk.alg.value() != "Ed448"sv && jwk.alg.value() != "EdDSA"sv))
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 6. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && jwk.use.value() != "sig")
-            return WebIDL::DataError::create(realm, "Invalid key usage"_utf16);
+            return WebIDL::DataError::create("Invalid key usage"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
         //    or it does not contain all of the specified usages values, then throw a DataError.
@@ -6460,7 +6479,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !jwk.ext.value() && extractable)
-            return WebIDL::DataError::create(realm, "Invalid extractable"_utf16);
+            return WebIDL::DataError::create("Invalid extractable"_utf16);
 
         // 9. If the d field is present:
         if (jwk.d.has_value()) {
@@ -6468,68 +6487,68 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
             //    then throw a DataError.
             // o  The parameter "kty" MUST be "OKP".
             if (jwk.kty != "OKP"sv)
-                return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+                return WebIDL::DataError::create("Invalid key type"_utf16);
 
             // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "Ed448"sv)
-                return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+                return WebIDL::DataError::create("Invalid curve"_utf16);
 
             // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
             if (!jwk.x.has_value())
-                return WebIDL::DataError::create(realm, "Missing x field"_utf16);
+                return WebIDL::DataError::create("Missing x field"_utf16);
             auto public_key = TRY(base64_url_bytes_decode(realm, jwk.x.value()));
             if (public_key.size() != 57)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
             //    This parameter MUST NOT be present for public keys.
             if (!jwk.d.has_value())
-                return WebIDL::DataError::create(realm, "Present d field"_utf16);
+                return WebIDL::DataError::create("Present d field"_utf16);
             auto private_key = TRY(base64_url_bytes_decode(realm, jwk.d.value()));
             if (private_key.size() != 57)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             ::Crypto::Curves::Ed448 curve;
             auto derived_public_key = TRY_OR_THROW_OOM(realm.vm(), curve.generate_public_key(private_key));
             if (derived_public_key != public_key)
-                return WebIDL::DataError::create(realm, "Invalid key pair"_utf16);
+                return WebIDL::DataError::create("Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the Ed448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(CryptoKey::InternalKeyData { private_key });
 
             // 3. Set the [[type]] internal slot of Key to "private".
-            key->set_type(Bindings::KeyType::Private);
+            key->set_type(KeyType::Private);
         }
         // Otherwise:
         else {
             // 1. If jwk does not meet the requirements of the JWK public key format described in Section 2 of [RFC8037], then throw a DataError.
             // o  The parameter "kty" MUST be "OKP".
             if (jwk.kty != "OKP"sv)
-                return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+                return WebIDL::DataError::create("Invalid key type"_utf16);
 
             // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "Ed448"sv)
-                return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+                return WebIDL::DataError::create("Invalid curve"_utf16);
 
             // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
             if (!jwk.x.has_value())
-                return WebIDL::DataError::create(realm, "Missing x field"_utf16);
+                return WebIDL::DataError::create("Missing x field"_utf16);
             auto public_key = TRY(base64_url_bytes_decode(realm, jwk.x.value()));
             if (public_key.size() != 57)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
             //    This parameter MUST NOT be present for public keys.
             if (jwk.d.has_value())
-                return WebIDL::DataError::create(realm, "Present d field"_utf16);
+                return WebIDL::DataError::create("Present d field"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the Ed448 public key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
             // 3. Set the [[type]] internal slot of Key to "public".
-            key->set_type(Bindings::KeyType::Public);
+            key->set_type(KeyType::Public);
         }
 
         // 10. Let algorithm be a new instance of a KeyAlgorithm object.
@@ -6539,11 +6558,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
     }
 
     // 2. If format is "raw":
-    else if (format == Bindings::KeyFormat::Raw) {
+    else if (format == KeyFormat::Raw) {
         // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -6554,13 +6573,13 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
         // AD-HOC: The spec has a typo with the size of the key length
         //         See spec comment: https://github.com/w3c/webcrypto/pull/425#discussion_r3070135408
         if (data.size() * 8 != 456)
-            return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+            return WebIDL::DataError::create("Invalid key length"_utf16);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
         key = CryptoKey::create(move(data));
 
         // 7. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 4. Let algorithm be a new KeyAlgorithm object.
         // 5. Set the name attribute of algorithm to "Ed448".
@@ -6571,14 +6590,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(JS::Realm& realm,
     // 2. Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     return GC::Ref { *key };
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> ED448::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& vm = realm.vm();
 
@@ -6589,10 +6608,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(JS::Realm& realm, Bin
     auto const& key_data = key->handle().get<ByteBuffer>();
 
     // 3. If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -6601,14 +6620,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(JS::Realm& realm, Bin
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(key_data, ::Crypto::ASN1::ed448_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(realm, move(data));
+        return ExportKeyResult { move(data) };
     }
 
     // 3. If format is "pkcs8":
-    if (format == Bindings::KeyFormat::Pkcs8) {
+    if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
         //    * Set the version field to 0.
@@ -6623,11 +6642,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(JS::Realm& realm, Bin
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), ::Crypto::ASN1::ed448_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(realm, move(data));
+        return ExportKeyResult { move(data) };
     }
 
     // 2. If format is "jwk":
-    if (format == Bindings::KeyFormat::Jwk) {
+    if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk;
 
@@ -6641,7 +6660,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(JS::Realm& realm, Bin
         jwk.crv = "Ed448"_string;
 
         // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-        if (key->type() == Bindings::KeyType::Public) {
+        if (key->type() == KeyType::Public) {
             jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         } else {
             // The "x" parameter of the "epk" field is set as follows:
@@ -6654,7 +6673,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(JS::Realm& realm, Bin
         }
 
         // 6. If the [[type]] internal slot of key is "private"
-        if (key->type() == Bindings::KeyType::Private) {
+        if (key->type() == KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
             jwk.d = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         }
@@ -6663,37 +6682,37 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(JS::Realm& realm, Bin
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
 
         // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        return TRY(jwk.to_object(realm));
+        return ExportKeyResult { move(jwk) };
     }
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == KeyFormat::Raw) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an octet string representing the Ed448 public key represented by the [[handle]] internal slot of key.
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(realm, key_data);
+        return ExportKeyResult { key_data };
     }
 
     // 2. Otherwise:
     //    throw a NotSupportedError.
-    return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+    return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED448::sign(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+WebIDL::ExceptionOr<ByteBuffer> ED448::sign(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     // 2. Let context be the contents of the context member of normalizedAlgorithm
     //    or the empty octet string if the context member of normalizedAlgorithm is not present.
@@ -6702,27 +6721,27 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED448::sign(JS::Realm& realm, Algo
 
     // 3. If context has a length greater than 255 bytes, then throw an OperationError.
     if (context.size() > 255)
-        return WebIDL::OperationError::create(realm, "Context is too long"_utf16);
+        return WebIDL::OperationError::create("Context is too long"_utf16);
 
     // 4. Perform the Ed448 signing process, as specified in [RFC8032], Section 5.2.6,
     //    with message as M and context as C, using the Ed448 private key associated with key.
     ::Crypto::Curves::Ed448 curve;
     auto maybe_signature = curve.sign(key->handle().get<ByteBuffer>(), message, context);
     if (maybe_signature.is_error()) {
-        return WebIDL::OperationError::create(realm, "Failed to sign message"_utf16);
+        return WebIDL::OperationError::create("Failed to sign message"_utf16);
     }
 
     // 5. Return a new ArrayBuffer associated with the relevant global object of this [HTML],
     //    and containing the bytes of the signature resulting from performing the Ed448 signing process.
-    return JS::ArrayBuffer::create(realm, maybe_signature.release_value());
+    return maybe_signature.release_value();
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
-WebIDL::ExceptionOr<JS::Value> ED448::verify(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+WebIDL::ExceptionOr<bool> ED448::verify(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+    if (key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
     // 2. Let context be the contents of the context member of normalizedAlgorithm
     //    or the empty octet string if the context member of normalizedAlgorithm is not present.
@@ -6731,7 +6750,7 @@ WebIDL::ExceptionOr<JS::Value> ED448::verify(JS::Realm& realm, AlgorithmParams c
 
     // 3. If context has a length greater than 255 bytes, then throw an OperationError.
     if (context.size() > 255)
-        return WebIDL::OperationError::create(realm, "Context is too long"_utf16);
+        return WebIDL::OperationError::create("Context is too long"_utf16);
 
     // 4. If the key data of key represents an invalid point or a small-order element
     //    on the Elliptic Curve of Ed448, return false.
@@ -6747,7 +6766,7 @@ WebIDL::ExceptionOr<JS::Value> ED448::verify(JS::Realm& realm, AlgorithmParams c
     ::Crypto::Curves::Ed448 curve;
     auto maybe_verified = curve.verify(key->handle().get<ByteBuffer>(), signature, message, context);
     if (maybe_verified.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::from_utf8(maybe_verified.error().string_literal()));
+        return WebIDL::OperationError::create(Utf16String::from_utf8(maybe_verified.error().string_literal()));
 
     // 7. Let result be a boolean with the value true if the signature is valid
     //    and the value false otherwise.
@@ -6756,13 +6775,13 @@ WebIDL::ExceptionOr<JS::Value> ED448::verify(JS::Realm& realm, AlgorithmParams c
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto const& normalized_algorithm = static_cast<HKDFParams const&>(params);
 
     // 1. If length is null or is not a multiple of 8, then throw an OperationError.
     if (!length_optional.has_value() || *length_optional % 8 != 0)
-        return WebIDL::OperationError::create(realm, "Length must be specified and divisible by 8"_utf16);
+        return WebIDL::OperationError::create("Length must be specified and divisible by 8"_utf16);
 
     // 2. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
     auto key_derivation_key = key->handle().get<ByteBuffer>();
@@ -6780,7 +6799,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(JS::Realm& realm
 
     // Note: Check for zero length early because our implementation doesn't support it.
     if (*length_optional == 0) {
-        return TRY(JS::ArrayBuffer::create(realm, static_cast<size_t>(0)));
+        return ByteBuffer {};
     }
 
     auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
@@ -6793,7 +6812,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(JS::Realm& realm
             return ::Crypto::Hash::HashKind::SHA384;
         if (hash_algorithm == "SHA-512")
             return ::Crypto::Hash::HashKind::SHA512;
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
     }());
 
     ::Crypto::Hash::HKDF hkdf(hash_kind);
@@ -6801,31 +6820,31 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(JS::Realm& realm
 
     // 4. If the key derivation operation fails, then throw an OperationError.
     if (maybe_result.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to derive key"_utf16);
+        return WebIDL::OperationError::create("Failed to derive key"_utf16);
 
     // 5. Return result
-    return JS::ArrayBuffer::create(realm, maybe_result.release_value());
+    return maybe_result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> HKDF::get_key_length(JS::Realm&, AlgorithmParams const&)
+WebIDL::ExceptionOr<Optional<u32>> HKDF::get_key_length(JS::Realm&, AlgorithmParams const&)
 {
     // 1. Return null.
-    return JS::js_null();
+    return Optional<u32> {};
 }
 
 // https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<ByteBuffer> PBKDF2::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto const& normalized_algorithm = static_cast<PBKDF2Params const&>(params);
 
     // 1. If length is null or is not a multiple of 8, then throw an OperationError.
     if (!length_optional.has_value() || *length_optional % 8 != 0)
-        return WebIDL::OperationError::create(realm, "Length must be greater than 0 and divisible by 8"_utf16);
+        return WebIDL::OperationError::create("Length must be greater than 0 and divisible by 8"_utf16);
 
     // 2. If the iterations member of normalizedAlgorithm is zero, then throw an OperationError.
     if (normalized_algorithm.iterations == 0)
-        return WebIDL::OperationError::create(realm, "Iterations must be greater than 0"_utf16);
+        return WebIDL::OperationError::create("Iterations must be greater than 0"_utf16);
 
     // 3. Let prf be the MAC Generation function described in Section 4 of [FIPS-198-1] using the hash function described by the hash member of normalizedAlgorithm.
     auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
@@ -6850,7 +6869,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(JS::Realm& rea
             return ::Crypto::Hash::HashKind::SHA384;
         if (hash_algorithm == "SHA-512")
             return ::Crypto::Hash::HashKind::SHA512;
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
     }());
 
     ::Crypto::Hash::PBKDF2 pbkdf2(hash_kind);
@@ -6858,43 +6877,43 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(JS::Realm& rea
 
     // 5. If the key derivation operation fails, then throw an OperationError.
     if (maybe_result.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to derive key"_utf16);
+        return WebIDL::OperationError::create("Failed to derive key"_utf16);
 
     // 6. Return result
-    return JS::ArrayBuffer::create(realm, maybe_result.release_value());
+    return maybe_result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#pbkdf2-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> PBKDF2::get_key_length(JS::Realm&, AlgorithmParams const&)
+WebIDL::ExceptionOr<Optional<u32>> PBKDF2::get_key_length(JS::Realm&, AlgorithmParams const&)
 {
     // 1. Return null.
-    return JS::js_null();
+    return Optional<u32> {};
 }
 
 // https://w3c.github.io/webcrypto/#pbkdf2-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(JS::Realm& realm, AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(JS::Realm&, AlgorithmParams const&, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If format is not "raw", throw a NotSupportedError
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
-    if (format != Bindings::KeyFormat::Raw && format != Bindings::KeyFormat::RawSecret)
-        return WebIDL::NotSupportedError::create(realm, "Only raw format is supported"_utf16);
+    if (format != KeyFormat::Raw && format != KeyFormat::RawSecret)
+        return WebIDL::NotSupportedError::create("Only raw format is supported"_utf16);
 
     // 2. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
     for (auto& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits)
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits)
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
     }
 
     // 3. If extractable is not false, then throw a SyntaxError.
     if (extractable)
-        return WebIDL::SyntaxError::create(realm, "extractable must be false"_utf16);
+        return WebIDL::SyntaxError::create("extractable must be false"_utf16);
 
     // 4. Let key be a new CryptoKey representing keyData.
     auto key = CryptoKey::create(move(key_data));
 
     // 5. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 6. Let algorithm be a new KeyAlgorithm object.
     // 7. Set the name attribute of algorithm to "PBKDF2".
@@ -6906,25 +6925,25 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(JS::Realm& realm, Alg
 }
 
 // https://w3c.github.io/webcrypto/#x25519-operations-derive-bits
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<ByteBuffer> X25519::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     // 2. Let publicKey be the public member of normalizedAlgorithm.
     auto& public_key = normalized_algorithm.public_key;
 
     // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
-    if (public_key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Public key is not a public key"_utf16);
+    if (public_key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Public key is not a public key"_utf16);
 
     // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
     if (key->algorithm_name() != public_key->algorithm_name())
-        return WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_utf16);
+        return WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16);
 
     // 5. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
     //    key as the X25519 private key k and
@@ -6935,7 +6954,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(JS::Realm& rea
     ::Crypto::Curves::X25519 curve;
     auto maybe_secret = curve.compute_coordinate(private_key, public_key_data);
     if (maybe_secret.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to compute secret"_utf16);
+        return WebIDL::OperationError::create("Failed to compute secret"_utf16);
 
     auto secret = maybe_secret.release_value();
 
@@ -6949,18 +6968,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(JS::Realm& rea
     }
 
     if (or_bytes == 0)
-        return WebIDL::OperationError::create(realm, "Secret is the all-zero value"_utf16);
+        return WebIDL::OperationError::create("Secret is the all-zero value"_utf16);
 
     // 7. If length is null: Return secret
     if (!length_optional.has_value()) {
         auto result = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(secret));
-        return JS::ArrayBuffer::create(realm, move(result));
+        return result;
     }
 
     // Otherwise: If the length of secret in bits is less than length: throw an OperationError.
     auto length = length_optional.value();
     if (secret.size() * 8 < length)
-        return WebIDL::OperationError::create(realm, "Secret is too short"_utf16);
+        return WebIDL::OperationError::create("Secret is too short"_utf16);
 
     // Otherwise: Return an octet string containing the first length bits of secret.
     auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, ceil_div(length, 8)));
@@ -6969,16 +6988,16 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(JS::Realm& rea
         slice[slice.size() - 1] &= 0xFF << (8 - (length % 8));
     }
 
-    return JS::ArrayBuffer::create(realm, move(slice));
+    return slice;
 }
 
 // https://w3c.github.io/webcrypto/#x25519-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519::generate_key(JS::Realm& realm, [[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> X25519::generate_key(JS::Realm&, [[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -6987,13 +7006,13 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519:
     ::Crypto::Curves::X25519 curve;
     auto maybe_private_key = curve.generate_private_key();
     if (maybe_private_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate private key"_utf16);
+        return WebIDL::OperationError::create("Failed to generate private key"_utf16);
 
     auto private_key_data = maybe_private_key.release_value();
 
     auto maybe_public_key = curve.generate_public_key(private_key_data);
     if (maybe_public_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate public key"_utf16);
+        return WebIDL::OperationError::create("Failed to generate public key"_utf16);
 
     auto public_key_data = maybe_public_key.release_value();
 
@@ -7002,7 +7021,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519:
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { public_key_data });
 
     // 6. Set the [[type]] internal slot of publicKey to "public"
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 3. Let algorithm be a new KeyAlgorithm object.
     // 4. Set the name attribute of algorithm to "X25519".
@@ -7020,7 +7039,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519:
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { private_key_data });
 
     // 11. Set the [[type]] internal slot of privateKey to "private"
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 12. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::KeyAlgorithmData { "X25519"_string });
@@ -7029,17 +7048,17 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519:
     private_key->set_extractable(extractable);
 
     // 14. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "deriveKey", "deriveBits" ].
-    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Derivekey, Bindings::KeyUsage::Derivebits } }));
+    private_key->set_usages(usage_intersection(key_usages, { { KeyUsage::DeriveKey, KeyUsage::DeriveBits } }));
 
     // 15. Let result be a new CryptoKeyPair dictionary.
     // 16. Set the publicKey attribute of result to be publicKey.
     // 17. Set the privateKey attribute of result to be privateKey.
     // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(realm, public_key, private_key) };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { CryptoKeyPair { public_key, private_key } };
 }
 
 // https://w3c.github.io/webcrypto/#x25519-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[maybe_unused]] Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[maybe_unused]] Web::Crypto::AlgorithmParams const& params, KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     // NOTE: This is a parameter to the function
     // 1. Let keyData be the key data to be imported.
@@ -7048,10 +7067,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
     GC::Ptr<CryptoKey> key = nullptr;
 
     // 2. If format is "spki":
-    if (key_format == Bindings::KeyFormat::Spki) {
+    if (key_format == KeyFormat::Spki) {
         // 1. If usages is not empty then throw a SyntaxError.
         if (!usages.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Usages must be empty"_utf16);
+            return WebIDL::SyntaxError::create("Usages must be empty"_utf16);
 
         // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
         // 3. If an error occurred while parsing, then throw a DataError.
@@ -7060,11 +7079,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
         if (spki.algorithm.identifier != ::Crypto::ASN1::x25519_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
         if (spki.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let publicKey be the X25519 public key identified by the subjectPublicKey field of spki.
         auto public_key = spki.raw_key;
@@ -7073,7 +7092,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
         key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
         // 8. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 9. Let algorithm be a new KeyAlgorithm.
         // 10. Set the name attribute of algorithm to "X25519".
@@ -7082,11 +7101,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
     }
 
     // 2. If format is "pkcs8":
-    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+    else if (key_format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -7097,11 +7116,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
         if (private_key_info.algorithm.identifier != ::Crypto::ASN1::x25519_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present, then throw a DataError.
         if (private_key_info.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the privateKey field of privateKeyInfo,
@@ -7116,7 +7135,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
         key = CryptoKey::create(CryptoKey::InternalKeyData { curve_private_key_bytes });
 
         // 9. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 10. Let algorithm be a new KeyAlgorithm.
         // 11. Set the name attribute of algorithm to "X25519".
@@ -7125,37 +7144,37 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
     }
 
     // 2. If format is "jwk":
-    else if (key_format == Bindings::KeyFormat::Jwk) {
+    else if (key_format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "keyData is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("keyData is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         if (jwk.d.has_value() && !usages.is_empty()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+                if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
 
         // 3. If the d field is not present and if usages is not empty then throw a SyntaxError.
         if (!jwk.d.has_value() && !usages.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Usages must be empty if d is missing"_utf16);
+            return WebIDL::SyntaxError::create("Usages must be empty if d is missing"_utf16);
 
         // 4. If the kty field of jwk is not "OKP", then throw a DataError.
         if (jwk.kty != "OKP"sv)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 5. If the crv field of jwk is not "X25519", then throw a DataError.
         if (jwk.crv != "X25519"sv)
-            return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+            return WebIDL::DataError::create("Invalid curve"_utf16);
 
         // 6. If usages is non-empty and the use field of jwk is present and is not equal to "enc" then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && jwk.use.value() != "enc"sv)
-            return WebIDL::DataError::create(realm, "Invalid use"_utf16);
+            return WebIDL::DataError::create("Invalid use"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
         //    or it does not contain all of the specified usages values, then throw a DataError.
@@ -7163,74 +7182,74 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !jwk.ext.value() && extractable)
-            return WebIDL::DataError::create(realm, "Invalid extractable"_utf16);
+            return WebIDL::DataError::create("Invalid extractable"_utf16);
 
         // 9. If the d field is present:
         if (jwk.d.has_value()) {
             // 1. If jwk does not meet the requirements of the JWK private key format described in Section 2 of [RFC8037], then throw a DataError.
             // o  The parameter "kty" MUST be "OKP".
             if (jwk.kty != "OKP"sv)
-                return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+                return WebIDL::DataError::create("Invalid key type"_utf16);
 
             // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "X25519"sv)
-                return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+                return WebIDL::DataError::create("Invalid curve"_utf16);
 
             // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
             if (!jwk.x.has_value())
-                return WebIDL::DataError::create(realm, "Missing x field"_utf16);
+                return WebIDL::DataError::create("Missing x field"_utf16);
             auto public_key = TRY(base64_url_bytes_decode(realm, jwk.x.value()));
             if (public_key.size() != 32)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
             //    This parameter MUST NOT be present for public keys.
             if (!jwk.d.has_value())
-                return WebIDL::DataError::create(realm, "Missing d field"_utf16);
+                return WebIDL::DataError::create("Missing d field"_utf16);
             auto private_key = TRY(base64_url_bytes_decode(realm, jwk.d.value()));
             if (private_key.size() != 32)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             ::Crypto::Curves::X25519 curve;
             auto derived_public_key = TRY_OR_THROW_OOM(realm.vm(), curve.generate_public_key(private_key));
             if (derived_public_key != public_key)
-                return WebIDL::DataError::create(realm, "Invalid key pair"_utf16);
+                return WebIDL::DataError::create("Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the X25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(CryptoKey::InternalKeyData { private_key });
 
             // 3. Set the [[type]] internal slot of Key to "private".
-            key->set_type(Bindings::KeyType::Private);
+            key->set_type(KeyType::Private);
         }
         // 9. Otherwise:
         else {
             // 1. If jwk does not meet the requirements of the JWK public key format described in Section 2 of [RFC8037], then throw a DataError.
             // o  The parameter "kty" MUST be "OKP".
             if (jwk.kty != "OKP"sv)
-                return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+                return WebIDL::DataError::create("Invalid key type"_utf16);
 
             // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "X25519"sv)
-                return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+                return WebIDL::DataError::create("Invalid curve"_utf16);
 
             // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
             if (!jwk.x.has_value())
-                return WebIDL::DataError::create(realm, "Missing x field"_utf16);
+                return WebIDL::DataError::create("Missing x field"_utf16);
             auto public_key = TRY(base64_url_bytes_decode(realm, jwk.x.value()));
             if (public_key.size() != 32)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
             //    This parameter MUST NOT be present for public keys.
             if (jwk.d.has_value())
-                return WebIDL::DataError::create(realm, "Present d field"_utf16);
+                return WebIDL::DataError::create("Present d field"_utf16);
 
             key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
             // 3. Set the [[type]] internal slot of Key to "public".
-            key->set_type(Bindings::KeyType::Public);
+            key->set_type(KeyType::Public);
         }
 
         // 10. Let algorithm be a new instance of a KeyAlgorithm object.
@@ -7242,23 +7261,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
     // 2. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
-    else if (key_format == Bindings::KeyFormat::Raw || key_format == Bindings::KeyFormat::RawPublic) {
+    else if (key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic) {
         // 1. If usages is not empty then throw a SyntaxError.
         if (!usages.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Usages must be empty"_utf16);
+            return WebIDL::SyntaxError::create("Usages must be empty"_utf16);
 
         // 2. Let data be keyData.
         auto data = move(key_data.get<ByteBuffer>());
 
         // 3. If the length in bits of data is not 256 then throw a DataError.
         if (data.size() * 8 != 256)
-            return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+            return WebIDL::DataError::create("Invalid key length"_utf16);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
         key = CryptoKey::create(move(data));
 
         // 7. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 4. Let algorithm be a new KeyAlgorithm object.
         // 5. Set the name attribute of algorithm to "X25519".
@@ -7268,7 +7287,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
 
     // 2. Otherwise: throw a NotSupportedError.
     else {
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 3. Return key
@@ -7276,7 +7295,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key(JS::Realm& realm, [[m
 }
 
 // https://w3c.github.io/webcrypto/#x25519-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> X25519::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& vm = realm.vm();
 
@@ -7287,13 +7306,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(JS::Realm& realm, Bi
     // Note: In our impl this is always accessible
     auto const& handle = key->handle();
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 3. If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         //    Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -7303,14 +7322,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(JS::Realm& realm, Bi
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::x25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // 3. If format is "pkcs8":
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
         //    Set the version field to 0.
@@ -7325,11 +7344,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(JS::Realm& realm, Bi
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), ::Crypto::ASN1::x25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // 3. If format is "jwt":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionar1y.
         JsonWebKey jwk = {};
 
@@ -7340,7 +7359,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(JS::Realm& realm, Bi
         jwk.crv = "X25519"_string;
 
         // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-        if (key->type() == Bindings::KeyType::Public) {
+        if (key->type() == KeyType::Public) {
             auto public_key = handle.get<ByteBuffer>();
             jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(public_key, AK::OmitPadding::Yes));
         } else {
@@ -7354,7 +7373,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(JS::Realm& realm, Bi
         }
 
         // 5. If the [[type]] internal slot of key is "private"
-        if (key->type() == Bindings::KeyType::Private) {
+        if (key->type() == KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
             auto private_key = handle.get<ByteBuffer>();
             jwk.d = TRY_OR_THROW_OOM(vm, encode_base64url(private_key, AK::OmitPadding::Yes));
@@ -7364,60 +7383,60 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(JS::Realm& realm, Bi
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
 
         // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 8. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // 3. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
-    else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
+    else if (format == KeyFormat::Raw || format == KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an octet string representing the X25519 public key represented by the [[handle]] internal slot of key.
         auto public_key = handle.get<ByteBuffer>();
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        result = JS::ArrayBuffer::create(realm, public_key);
+        result = ExportKeyResult { public_key };
     }
 
     // 3. Otherwise:
     else {
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 4. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X448::derive_bits(JS::Realm& realm,
+WebIDL::ExceptionOr<ByteBuffer> X448::derive_bits(JS::Realm& realm,
     AlgorithmParams const& params,
     GC::Ref<CryptoKey> key,
     Optional<u32> length_optional)
 {
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     // 2. Let publicKey be the public member of normalizedAlgorithm.
     auto& public_key = static_cast<EcdhKeyDeriveParams const&>(params).public_key;
 
     // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
-    if (public_key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Public key is not a public key"_utf16);
+    if (public_key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Public key is not a public key"_utf16);
 
     // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
     if (key->algorithm_name() != public_key->algorithm_name())
-        return WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_utf16);
+        return WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16);
 
     // 5. Let secret be the result of performing the X448 function specified in [RFC7748] Section 5
     //    with key as the X448 private key k and the X448 public key represented by the [[handle]]
@@ -7428,7 +7447,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X448::derive_bits(JS::Realm& realm
     ::Crypto::Curves::X448 curve;
     auto maybe_secret = curve.compute_coordinate(private_key, public_key_data);
     if (maybe_secret.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to compute secret"_utf16);
+        return WebIDL::OperationError::create("Failed to compute secret"_utf16);
 
     auto secret = maybe_secret.release_value();
 
@@ -7441,18 +7460,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X448::derive_bits(JS::Realm& realm
     }
 
     if (or_bytes == 0)
-        return WebIDL::OperationError::create(realm, "Secret is the all-zero value"_utf16);
+        return WebIDL::OperationError::create("Secret is the all-zero value"_utf16);
 
     // 7. If length is null: Return secret
     if (!length_optional.has_value()) {
         auto result = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(secret));
-        return JS::ArrayBuffer::create(realm, move(result));
+        return result;
     }
 
     // Otherwise: Return an octet string containing the first length bits of secret.
     auto length = length_optional.value();
     if (secret.size() * 8 < length)
-        return WebIDL::OperationError::create(realm, "Secret is too short"_utf16);
+        return WebIDL::OperationError::create("Secret is too short"_utf16);
 
     auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, ceil_div(length, 8)));
     if (length % 8 != 0) {
@@ -7460,19 +7479,19 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X448::derive_bits(JS::Realm& realm
         slice[slice.size() - 1] &= 0xFF << (8 - (length % 8));
     }
 
-    return JS::ArrayBuffer::create(realm, move(slice));
+    return slice;
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X448::generate_key(JS::Realm& realm,
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> X448::generate_key(JS::Realm&,
     AlgorithmParams const&,
     bool extractable,
-    Vector<Bindings::KeyUsage> const& usages)
+    Vector<KeyUsage> const& usages)
 {
     // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
     for (auto const& usage : usages) {
-        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -7480,18 +7499,18 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X448::g
     ::Crypto::Curves::X448 curve;
     auto maybe_private_key = curve.generate_private_key();
     if (maybe_private_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate private key"_utf16);
+        return WebIDL::OperationError::create("Failed to generate private key"_utf16);
     auto private_key_data = maybe_private_key.release_value();
     auto maybe_public_key = curve.generate_public_key(private_key_data);
     if (maybe_public_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate public key"_utf16);
+        return WebIDL::OperationError::create("Failed to generate public key"_utf16);
     auto public_key_data = maybe_public_key.release_value();
 
     // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML], and representing the public key of the generated key pair.
     auto public_key = CryptoKey::create(CryptoKey::InternalKeyData { public_key_data });
 
     // 6. Set the [[type]] internal slot of publicKey to "public"
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 3. Let algorithm be a new KeyAlgorithm object.
     // 4. Set the name attribute of algorithm to "X448".
@@ -7508,7 +7527,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X448::g
     auto private_key = CryptoKey::create(CryptoKey::InternalKeyData { private_key_data });
 
     // 11. Set the [[type]] internal slot of privateKey to "private"
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 12. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::KeyAlgorithmData { "X448"_string });
@@ -7517,19 +7536,19 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X448::g
     private_key->set_extractable(extractable);
 
     // 14. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "deriveKey", "deriveBits" ].
-    private_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Derivekey, Bindings::KeyUsage::Derivebits } }));
+    private_key->set_usages(usage_intersection(usages, { { KeyUsage::DeriveKey, KeyUsage::DeriveBits } }));
 
     // 15. Let result be a new CryptoKeyPair dictionary.
     // 16. Set the publicKey attribute of result to be publicKey.
     // 17. Set the privateKey attribute of result to be privateKey.
-    auto result = CryptoKeyPair::create(realm, public_key, private_key);
+    auto result = CryptoKeyPair { public_key, private_key };
 
     // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { result };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { result };
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> X448::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. Let key be the CryptoKey to be exported.
 
@@ -7538,10 +7557,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(JS::Realm& realm, Bind
     auto const& key_data = key->handle().get<ByteBuffer>();
 
     // 3. If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -7551,14 +7570,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(JS::Realm& realm, Bind
         auto data = TRY_OR_THROW_OOM(realm.vm(), ::Crypto::PK::wrap_in_subject_public_key_info(key_data, x448_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(realm, data);
+        return ExportKeyResult { data };
     }
 
     // 3. If format is "pkcs8":
-    if (format == Bindings::KeyFormat::Pkcs8) {
+    if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
         //    * Set the version field to 0.
@@ -7572,11 +7591,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(JS::Realm& realm, Bind
         auto data = TRY_OR_THROW_OOM(realm.vm(), ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), x448_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(realm, data);
+        return ExportKeyResult { data };
     }
 
     // 3. If format is "jwk":
-    if (format == Bindings::KeyFormat::Jwk) {
+    if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -7587,7 +7606,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(JS::Realm& realm, Bind
         jwk.crv = "X448"_string;
 
         // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-        if (key->type() == Bindings::KeyType::Public) {
+        if (key->type() == KeyType::Public) {
             jwk.x = TRY_OR_THROW_OOM(realm.vm(), encode_base64url(key_data, AK::OmitPadding::Yes));
         } else {
             ::Crypto::Curves::X448 curve;
@@ -7596,7 +7615,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(JS::Realm& realm, Bind
         }
 
         // 5. If the [[type]] internal slot of key is "private"
-        if (key->type() == Bindings::KeyType::Private) {
+        if (key->type() == KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
             jwk.d = TRY_OR_THROW_OOM(realm.vm(), encode_base64url(key_data, AK::OmitPadding::Yes));
         }
@@ -7605,47 +7624,46 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(JS::Realm& realm, Bind
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
 
         // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 8. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        auto result = TRY(jwk.to_object(realm));
-        return GC::Ref { *result };
+        return ExportKeyResult { move(jwk) };
     }
 
     // 3. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == KeyFormat::Raw) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an octet string representing the X448 public key represented by the [[handle]] internal slot of key.
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(realm, key_data);
+        return ExportKeyResult { key_data };
     }
 
     // 3. Otherwise:
     //    throw a NotSupportedError.
-    return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+    return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
     AlgorithmParams const&,
-    Bindings::KeyFormat format,
+    KeyFormat format,
     CryptoKey::InternalKeyData key_data,
     bool extractable,
-    Vector<Bindings::KeyUsage> const& usages)
+    Vector<KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
 
     // 2. If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If usages is not empty then throw a SyntaxError.
         if (!usages.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Usages must be empty"_utf16);
+            return WebIDL::SyntaxError::create("Usages must be empty"_utf16);
 
         // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
         // 3. If an error occurred while parsing, then throw a DataError.
@@ -7653,11 +7671,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
 
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal to the id-X448 object identifier defined in [RFC8410], then throw a DataError.
         if (spki.algorithm.identifier != ::Crypto::ASN1::x448_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
         if (spki.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let publicKey be the X448 public key identified by the subjectPublicKey field of spki.
         auto const& public_key = spki.raw_key;
@@ -7666,7 +7684,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
         auto key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
         // 8. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 9. Let algorithm be a new KeyAlgorithm.
         // 10. Set the name attribute of algorithm to "X448".
@@ -7677,11 +7695,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
     }
 
     // 3. If format is "pkcs8":
-    if (format == Bindings::KeyFormat::Pkcs8) {
+    if (format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -7692,11 +7710,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
 
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo is not equal to the id-X448 object identifier defined in [RFC8410], then throw a DataError.
         if (private_key_info.algorithm.identifier != ::Crypto::ASN1::x448_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present, then throw a DataError.
         if (private_key_info.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 CurvePrivateKey
@@ -7709,7 +7727,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
         auto key = CryptoKey::create(CryptoKey::InternalKeyData { curve_private_key_bytes });
 
         // 9. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 10. Let algorithm be a new KeyAlgorithm.
         // 11. Set the name attribute of algorithm to "X448".
@@ -7720,39 +7738,39 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
     }
 
     // 3. If format is "jwk":
-    if (format == Bindings::KeyFormat::Jwk) {
+    if (format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary:
         //    Let jwk equal keyData.
         //    Otherwise:
         //    Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "Data is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("Data is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         if (jwk.d.has_value()) {
             for (auto const& usage : usages) {
-                if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-                    return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+                if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
+                    return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
                 }
             }
         }
 
         // 3. If the d field is not present and if usages is not empty then throw a SyntaxError.
         if (!jwk.d.has_value() && !usages.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Usages must be empty"_utf16);
+            return WebIDL::SyntaxError::create("Usages must be empty"_utf16);
 
         // 4. If the kty field of jwk is not "OKP", then throw a DataError.
         if (jwk.kty != "OKP"sv)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 5. If the crv field of jwk is not "X448", then throw a DataError.
         if (jwk.crv != "X448"sv)
-            return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+            return WebIDL::DataError::create("Invalid curve"_utf16);
 
         // 6. If usages is non-empty and the use field of jwk is present and is not equal to "enc" then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && jwk.use.value() != "enc"sv)
-            return WebIDL::DataError::create(realm, "Invalid use"_utf16);
+            return WebIDL::DataError::create("Invalid use"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
         //    or it does not contain all of the specified usages values, then throw a DataError.
@@ -7760,7 +7778,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !jwk.ext.value() && extractable)
-            return WebIDL::DataError::create(realm, "Invalid extractable"_utf16);
+            return WebIDL::DataError::create("Invalid extractable"_utf16);
 
         GC::Ptr<CryptoKey> key = nullptr;
 
@@ -7770,68 +7788,68 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
 
             // o  The parameter "kty" MUST be "OKP".
             if (jwk.kty != "OKP"sv)
-                return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+                return WebIDL::DataError::create("Invalid key type"_utf16);
 
             // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "X448"sv)
-                return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+                return WebIDL::DataError::create("Invalid curve"_utf16);
 
             // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
             if (!jwk.x.has_value())
-                return WebIDL::DataError::create(realm, "Missing x field"_utf16);
+                return WebIDL::DataError::create("Missing x field"_utf16);
             auto public_key = TRY(base64_url_bytes_decode(realm, jwk.x.value()));
             if (public_key.size() != 56)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
             //    This parameter MUST NOT be present for public keys.
             if (!jwk.d.has_value())
-                return WebIDL::DataError::create(realm, "Missing d field"_utf16);
+                return WebIDL::DataError::create("Missing d field"_utf16);
             auto private_key = TRY(base64_url_bytes_decode(realm, jwk.d.value()));
             if (private_key.size() != 56)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             ::Crypto::Curves::X448 curve;
             auto derived_public_key = TRY_OR_THROW_OOM(realm.vm(), curve.generate_public_key(private_key));
             if (derived_public_key != public_key)
-                return WebIDL::DataError::create(realm, "Invalid key pair"_utf16);
+                return WebIDL::DataError::create("Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the X448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(CryptoKey::InternalKeyData { private_key });
 
             // 3. Set the [[type]] internal slot of Key to "private".
-            key->set_type(Bindings::KeyType::Private);
+            key->set_type(KeyType::Private);
         }
         // Otherwise:
         else {
             // 1. If jwk does not meet the requirements of the JWK public key format described in Section 2 of [RFC8037], then throw a DataError.
             // o  The parameter "kty" MUST be "OKP".
             if (jwk.kty != "OKP"sv)
-                return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+                return WebIDL::DataError::create("Invalid key type"_utf16);
 
             // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
             // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
             if (jwk.crv != "X448"sv)
-                return WebIDL::DataError::create(realm, "Invalid curve"_utf16);
+                return WebIDL::DataError::create("Invalid curve"_utf16);
 
             // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
             if (!jwk.x.has_value())
-                return WebIDL::DataError::create(realm, "Missing x field"_utf16);
+                return WebIDL::DataError::create("Missing x field"_utf16);
             auto public_key = TRY(base64_url_bytes_decode(realm, jwk.x.value()));
             if (public_key.size() != 56)
-                return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+                return WebIDL::DataError::create("Invalid key length"_utf16);
 
             // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
             //    This parameter MUST NOT be present for public keys.
             if (jwk.d.has_value())
-                return WebIDL::DataError::create(realm, "Present d field"_utf16);
+                return WebIDL::DataError::create("Present d field"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the X448 public key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(CryptoKey::InternalKeyData { public_key });
 
             // 3. Set the [[type]] internal slot of Key to "public".
-            key->set_type(Bindings::KeyType::Public);
+            key->set_type(KeyType::Public);
         }
 
         // 10. Let algorithm be a new instance of a KeyAlgorithm object.
@@ -7843,23 +7861,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
     }
 
     // 3. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == KeyFormat::Raw) {
         // 1. If usages is not empty then throw a SyntaxError.
         if (!usages.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Usages must be empty"_utf16);
+            return WebIDL::SyntaxError::create("Usages must be empty"_utf16);
 
         // 2.Let data be keyData.
         auto data = move(key_data.get<ByteBuffer>());
 
         // 3. If the length in bits of data is not 448 then throw a DataError.
         if (data.size() * 8 != 448)
-            return WebIDL::DataError::create(realm, "Invalid key length"_utf16);
+            return WebIDL::DataError::create("Invalid key length"_utf16);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
         auto key = CryptoKey::create(move(data));
 
         // 7. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 4. Let algorithm be a new KeyAlgorithm object.
         // 5. Set the name attribute of algorithm to "X448".
@@ -7873,10 +7891,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(JS::Realm& realm,
 
     // 3. Otherwise:
     //    throw a NotSupportedError.
-    return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+    return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
 }
 
-static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm& realm, String const& hash_name, ReadonlyBytes key, ReadonlyBytes message)
+static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm&, String const& hash_name, ReadonlyBytes key, ReadonlyBytes message)
 {
     auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
         if (hash_name == "SHA-1")
@@ -7887,7 +7905,7 @@ static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm& 
             return ::Crypto::Hash::HashKind::SHA384;
         if (hash_name == "SHA-512")
             return ::Crypto::Hash::HashKind::SHA512;
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash_name));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_name));
     }());
 
     ::Crypto::Authentication::HMAC hmac(hash_kind, key);
@@ -7905,11 +7923,11 @@ static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(JS::Realm&
         return ::Crypto::Hash::SHA384::block_size();
     if (hash_name == "SHA-512")
         return ::Crypto::Hash::SHA512::block_size();
-    return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("Invalid hash function '{}'", hash_name));
+    return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_name));
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-sign
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HMAC::sign(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+WebIDL::ExceptionOr<ByteBuffer> HMAC::sign(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     // 1. Let mac be the result of performing the MAC Generation operation described in Section 4 of
     //    [FIPS-198-1] using the key represented by [[handle]] internal slot of key, the hash
@@ -7920,11 +7938,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HMAC::sign(JS::Realm& realm, Algor
     auto mac = TRY(hmac_calculate_message_digest(realm, algorithm.hash(), key_data.bytes(), message.bytes()));
 
     // 2. Return the result of creating an ArrayBuffer containing mac.
-    return JS::ArrayBuffer::create(realm, move(mac));
+    return mac;
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-verify
-WebIDL::ExceptionOr<JS::Value> HMAC::verify(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+WebIDL::ExceptionOr<bool> HMAC::verify(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     // 1. Let mac be the result of performing the MAC Generation operation described in Section 4 of
     //    [FIPS-198-1] using the key represented by [[handle]] internal slot of key, the hash
@@ -7939,12 +7957,12 @@ WebIDL::ExceptionOr<JS::Value> HMAC::verify(JS::Realm& realm, AlgorithmParams co
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> HMAC::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. If usages contains any entry which is not "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify)
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify)
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
     }
 
     // 2. If the length member of normalizedAlgorithm is not present:
@@ -7965,7 +7983,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::g
     // Otherwise:
     else {
         // throw an OperationError.
-        return WebIDL::OperationError::create(realm, "Invalid length"_utf16);
+        return WebIDL::OperationError::create("Invalid length"_utf16);
     }
 
     // 3. Generate a key of length length bits.
@@ -7984,7 +8002,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::g
     auto hash_name = TRY(normalized_algorithm.hash.name(realm.vm()));
 
     // 12. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 10. Set the hash attribute of algorithm to hash.
     // 11. Set the length attribute of algorithm to length.
@@ -7998,11 +8016,11 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::g
     key->set_usages(usages);
 
     // 16. Return key.
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { key };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { key };
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::Crypto::AlgorithmParams const& params, KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     auto& vm = realm.vm();
     auto const& normalized_algorithm = static_cast<HmacImportParams const&>(params);
@@ -8010,8 +8028,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
     // 1. Let keyData be the key data to be imported.
     // 2. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify)
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify)
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
     }
 
     // 3. Let hash be a new KeyAlgorithm.
@@ -8019,8 +8037,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
 
     // 4. If format is "raw":
     AK::ByteBuffer data;
-    if (key_format == Bindings::KeyFormat::Raw
-        || key_format == Bindings::KeyFormat::RawSecret) {
+    if (key_format == KeyFormat::Raw
+        || key_format == KeyFormat::RawSecret) {
         // 4.1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
@@ -8029,18 +8047,18 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
     }
 
     // If format is "jwk":
-    else if (key_format == Bindings::KeyFormat::Jwk) {
+    else if (key_format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary:
         //    Let jwk equal keyData.
         //    Otherwise:
         //    Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "Data is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("Data is not a JsonWebKey dictionary"_utf16);
         auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"sv)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA],
         //    then throw a DataError.
@@ -8054,41 +8072,41 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
         if (hash_name == "SHA-1") {
             // If the alg field of jwk is present and is not "HS1", then throw a DataError.
             if (jwk.alg.has_value() && jwk.alg != "HS1"sv)
-                return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+                return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // If the name attribute of hash is "SHA-256":
         else if (hash_name == "SHA-256") {
             // If the alg field of jwk is present and is not "HS256", then throw a DataError.
             if (jwk.alg.has_value() && jwk.alg != "HS256"sv)
-                return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+                return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // If the name attribute of hash is "SHA-384":
         else if (hash_name == "SHA-384") {
             // If the alg field of jwk is present and is not "HS384", then throw a DataError.
             if (jwk.alg.has_value() && jwk.alg != "HS384"sv)
-                return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+                return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // If the name attribute of hash is "SHA-512":
         else if (hash_name == "SHA-512") {
             // If the alg field of jwk is present and is not "HS512", then throw a DataError.
             if (jwk.alg.has_value() && jwk.alg != "HS512"sv)
-                return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+                return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // Otherwise, if the name attribute of hash is defined in another applicable specification:
         else {
             // Perform any key import steps defined by other applicable specifications, passing format,
             // jwk and hash and obtaining hash.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // 7. If usages is non-empty and the use field of jwk is present and is not "sign", then
         //    throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && jwk.use != "sign"sv)
-            return WebIDL::DataError::create(realm, "Invalid use in JsonWebKey"_utf16);
+            return WebIDL::DataError::create("Invalid use in JsonWebKey"_utf16);
 
         // 8. If the key_ops field of jwk is present, and is invalid according to the requirements
         //    of JSON Web Key [JWK] or does not contain all of the specified usages values, then
@@ -8098,13 +8116,13 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
         // 9. If the ext field of jwk is present and has the value false and extractable is true,
         //    then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
     }
 
     // Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 5. Let length be equivalent to the length, in octets, of data, multiplied by 8.
@@ -8112,7 +8130,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
 
     // 6. If length is zero then throw a DataError.
     if (length == 0)
-        return WebIDL::DataError::create(realm, "No data provided"_utf16);
+        return WebIDL::DataError::create("No data provided"_utf16);
 
     // 7. If the length member of normalizedAlgorithm is present:
     if (normalized_algorithm.length.has_value()) {
@@ -8120,13 +8138,13 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
         auto normalized_algorithm_length = normalized_algorithm.length.value();
         if (normalized_algorithm_length > length) {
             // throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid data size"_utf16);
+            return WebIDL::DataError::create("Invalid data size"_utf16);
         }
 
         // If the length member of normalizedAlgorithm, is less than or equal to length minus eight:
         if (normalized_algorithm_length <= length - 8) {
             // throw a DataError.
-            return WebIDL::DataError::create(realm, "Invalid data size"_utf16);
+            return WebIDL::DataError::create("Invalid data size"_utf16);
         }
 
         // Otherwise:
@@ -8141,7 +8159,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
     auto key = CryptoKey::create(move(data));
 
     // 9. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 10. Let algorithm be a new HmacKeyAlgorithm.
     // 11. Set the name attribute of algorithm to "HMAC".
@@ -8155,7 +8173,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> HMAC::export_key(JS::Realm&, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot
     //    of key cannot be accessed, then throw an OperationError.
@@ -8168,14 +8186,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(JS::Realm& realm, Bind
     // 4. If format is "raw":
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
     // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
-    GC::Ptr<JS::Object> result;
-    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
+    Optional<ExportKeyResult> result;
+    if (format == KeyFormat::Raw || format == KeyFormat::RawSecret) {
         // Let result be the result of creating an ArrayBuffer containing data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
 
     // If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk {};
 
@@ -8218,35 +8236,35 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(JS::Realm& realm, Bind
             // Perform any key export steps defined by other applicable specifications,
             // passing format and key and obtaining alg.
             // Set the alg attribute of jwk to alg.
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
         }
 
         // Set the key_ops attribute of jwk to equal the usages attribute of key.
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
 
     // Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 5. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> HMAC::get_key_length(JS::Realm& realm, AlgorithmParams const& params)
+WebIDL::ExceptionOr<Optional<u32>> HMAC::get_key_length(JS::Realm& realm, AlgorithmParams const& params)
 {
     auto const& normalized_derived_key_algorithm = static_cast<HmacImportParams const&>(params);
     WebIDL::UnsignedLong length;
@@ -8271,15 +8289,15 @@ WebIDL::ExceptionOr<JS::Value> HMAC::get_key_length(JS::Realm& realm, AlgorithmP
     }
 
     // 2. Return length.
-    return JS::Value(length);
+    return length;
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-sign
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> MLDSA::sign(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+WebIDL::ExceptionOr<ByteBuffer> MLDSA::sign(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
     // 2. Let context be the context member of normalizedAlgorithm or the empty octet string if the
     //    context member of normalizedAlgorithm is not present.
@@ -8303,18 +8321,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> MLDSA::sign(JS::Realm& realm, Algo
 
     // 4. If the ML-DSA.Sign algorithm returned an error, return an OperationError.
     if (maybe_result.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to sign message"_utf16);
+        return WebIDL::OperationError::create("Failed to sign message"_utf16);
 
     // 5. Return result.
-    return JS::ArrayBuffer::create(realm, maybe_result.value());
+    return maybe_result.value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-verify
-WebIDL::ExceptionOr<JS::Value> MLDSA::verify(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+WebIDL::ExceptionOr<bool> MLDSA::verify(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+    if (key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
     // 2. Let context be the context member of normalizedAlgorithm or the empty octet string if the
     //    context member of normalizedAlgorithm is not present.
@@ -8338,19 +8356,19 @@ WebIDL::ExceptionOr<JS::Value> MLDSA::verify(JS::Realm& realm, AlgorithmParams c
 
     // 4. If the ML-DSA.Verify algorithm returned an error, return an OperationError.
     if (maybe_result.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to verify message"_utf16);
+        return WebIDL::OperationError::create("Failed to verify message"_utf16);
 
     // 5. Return result.
     return maybe_result.value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLDSA::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> MLDSA::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -8367,14 +8385,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLDSA::
 
     // 3. If the key generation step fails, then throw an OperationError.
     if (maybe_key_pair.is_error())
-        return WebIDL::OperationError::create(realm, "Key generation failed"_utf16);
+        return WebIDL::OperationError::create("Key generation failed"_utf16);
     auto const& key_pair = maybe_key_pair.value();
 
     // 6. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
     auto public_key = CryptoKey::create(key_pair.public_key);
 
     // 7. Set the [[type]] internal slot of publicKey to "public".
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 4. Let algorithm be a new KeyAlgorithm object.
     // 5. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -8385,13 +8403,13 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLDSA::
     public_key->set_extractable(true);
 
     // 10. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
-    public_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Verify } }));
+    public_key->set_usages(usage_intersection(usages, { { KeyUsage::Verify } }));
 
     // 11. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
     auto private_key = CryptoKey::create(key_pair.private_key);
 
     // 12. Set the [[type]] internal slot of privateKey to "private".
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 13. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
@@ -8400,29 +8418,29 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLDSA::
     private_key->set_extractable(extractable);
 
     // 15. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
-    private_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Sign } }));
+    private_key->set_usages(usage_intersection(usages, { { KeyUsage::Sign } }));
 
     // 16. Let result be a new CryptoKeyPair dictionary.
     // 17. Set the publicKey attribute of result to be publicKey.
     // 18. Set the privateKey attribute of result to be privateKey.
-    auto const result = CryptoKeyPair::create(realm, public_key, private_key);
+    auto const result = CryptoKeyPair { public_key, private_key };
 
     // 19. Return result.
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { result };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { result };
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     GC::Ptr<CryptoKey> key = nullptr;
 
     // 1. Let keyData be the key data to be imported.
     // 2. -> If format is "spki":
-    if (key_format == Bindings::KeyFormat::Spki) {
+    if (key_format == KeyFormat::Spki) {
         // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
         for (auto const usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify)
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify)
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
 
         // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
@@ -8448,17 +8466,17 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         // Otherwise:
         else {
             // throw a NotSupportedError.
-            return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+            return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
         }
 
         // 5. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal
         //    to expectedOid, then throw a DataError.
         if (spki.algorithm.identifier != expected_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 6. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
         if (spki.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 7. Let publicKey be the ML-DSA public key identified by the subjectPublicKey field of spki.
         auto const public_key = spki.raw_key;
@@ -8467,7 +8485,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         key = CryptoKey::create(::Crypto::PK::MLDSAPublicKey(public_key));
 
         // 9. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 10. Let algorithm be a new KeyAlgorithm.
         // 11. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -8481,11 +8499,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         key->set_usages(usages);
     }
     // -> If format is "pkcs8":
-    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+    else if (key_format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Sign) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Sign) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -8513,18 +8531,18 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         } else if (params.name == "ML-DSA-87") {
             expected_oid = ::Crypto::ASN1::ml_dsa_87_oid;
         } else {
-            return WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::NotSupportedError::create("Invalid algorithm"_utf16);
         }
 
         // 5. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
         //    privateKeyInfo is not equal to expectedOid, then throw a DataError.
         if (private_key_info.algorithm.identifier != expected_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 6. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of
         //    privateKeyInfo is present, then throw a DataError.
         if (private_key_info.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 7. Let mlDsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm, with
         //    data as the privateKey field of privateKeyInfo, structure as asn1Structure, and exactData set to
@@ -8538,7 +8556,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         key = CryptoKey::create(ml_dsa_private_key);
 
         // 10. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 11. Let algorithm be a new KeyAlgorithm.
         // 12. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -8552,11 +8570,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         key->set_usages(usages);
     }
     //    -> If format is "raw-public":
-    else if (key_format == Bindings::KeyFormat::RawPublic) {
+    else if (key_format == KeyFormat::RawPublic) {
         // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
         for (auto const usage : usages) {
-            if (usage != Bindings::KeyUsage::Verify)
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Verify)
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
 
         // 4. Let key be a new CryptoKey representing the key data provided in keyData.
@@ -8564,7 +8582,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         key = CryptoKey::create(::Crypto::PK::MLDSAPublicKey { key_data.get<ByteBuffer>() });
 
         // 5. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 2. Let algorithm be a new KeyAlgorithm object.
         // 3. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -8572,11 +8590,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
     }
     //  -> If format is "raw-seed":
-    else if (key_format == Bindings::KeyFormat::RawSeed) {
+    else if (key_format == KeyFormat::RawSeed) {
         // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
         for (auto const usage : usages) {
-            if (usage != Bindings::KeyUsage::Sign)
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::Sign)
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
 
         // 2. Let data be keyData.
@@ -8585,7 +8603,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
 
         // 3. If the length in bits of data is not 256 then throw a DataError.
         if (data.size() * 8 != 256)
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Seed must be 256 bits long"));
+            return WebIDL::DataError::create(Utf16String::formatted("Seed must be 256 bits long"));
 
         // 4. Let privateKey be the result of performing the ML-DSA.KeyGen_internal function described in Section 6.1
         //    of [FIPS-204] with the parameter set indicated by the name member of normalizedAlgorithm, using data as ξ.
@@ -8603,7 +8621,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         key = CryptoKey::create(private_key);
 
         // 6. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 7. Let algorithm be a new KeyAlgorithm.
         // 8. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -8611,7 +8629,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
     }
     //  -> If format is "jwk":
-    else if (key_format == Bindings::KeyFormat::Jwk) {
+    else if (key_format == KeyFormat::Jwk) {
         // 1.  => If keyData is a JsonWebKey dictionary:
         //        Let jwk equal keyData.
         //     => Otherwise:
@@ -8619,26 +8637,26 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
         auto* const jwk = key_data.get_pointer<JsonWebKey>();
 
         if (!jwk)
-            return WebIDL::DataError::create(realm, "Data is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("Data is not a JsonWebKey dictionary"_utf16);
 
         // 2. If the priv field is present and usages contains a value which is not "sign", or, if the priv field is
         //    not present and usages contains a value which is not "verify" then throw a SyntaxError.
-        if ((jwk->priv.has_value() && usages.contains([](auto usage) { return usage != Bindings::KeyUsage::Sign; }))
-            || (!jwk->priv.has_value() && usages.contains([](auto usage) { return usage != Bindings::KeyUsage::Verify; }))) {
-            return WebIDL::SyntaxError::create(realm, "Invalid usage"_utf16);
+        if ((jwk->priv.has_value() && usages.contains([](auto usage) { return usage != KeyUsage::Sign; }))
+            || (!jwk->priv.has_value() && usages.contains([](auto usage) { return usage != KeyUsage::Verify; }))) {
+            return WebIDL::SyntaxError::create("Invalid usage"_utf16);
         }
 
         // 3. If the kty field of jwk is not "AKP", then throw a DataError.
         if (jwk->kty != "AKP"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 4. If the alg field of jwk is not equal to the name member of normalizedAlgorithm, then throw a DataError.
         if (jwk->alg != params.name)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If usages is non-empty and the use field of jwk is present and is not equal to "sig", then throw a DataError.
         if (!usages.is_empty() && jwk->use.has_value() && jwk->use == "sig"_string)
-            return WebIDL::DataError::create(realm, "Invalid usage type"_utf16);
+            return WebIDL::DataError::create("Invalid usage type"_utf16);
 
         // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web
         //    Key [JWK], or it does not contain all of the specified usages values, then throw a DataError.
@@ -8646,7 +8664,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
 
         // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk->ext.has_value() && jwk->ext == false && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
 
         // 8. => If the priv field of jwk is present:
         if (jwk->priv.has_value()) {
@@ -8668,23 +8686,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
             key = CryptoKey::create(private_key);
 
             // 3. Set the [[type]] internal slot of Key to "private".
-            key->set_type(Bindings::KeyType::Private);
+            key->set_type(KeyType::Private);
 
             // 4. If the pub attribute of jwk does not contain the base64url encoded public key
             //    representing the ML-DSA public key corresponding to key, then throw a DataError.
             if (!jwk->pub.has_value())
-                return WebIDL::DataError::create(realm, "JsonWebKey does not contain public key"_utf16);
+                return WebIDL::DataError::create("JsonWebKey does not contain public key"_utf16);
 
             if (auto pub_decoded = base64_url_bytes_decode(realm, jwk->pub.value());
                 pub_decoded.is_error() || pub_decoded.value() != public_key.public_key())
-                return WebIDL::DataError::create(realm, "JsonWebKey public key does not match"_utf16);
+                return WebIDL::DataError::create("JsonWebKey public key does not match"_utf16);
         }
         //    => Otherwise:
         else {
             // 1. If the pub attribute of jwk does not contain a valid base64url encoded public key
             //    representing an ML-DSA public key, then throw a DataError.
             if (!jwk->pub.has_value())
-                return WebIDL::DataError::create(realm, "JsonWebKey does not contain public key"_utf16);
+                return WebIDL::DataError::create("JsonWebKey does not contain public key"_utf16);
 
             auto public_key = TRY(base64_url_bytes_decode(realm, jwk->pub.value()));
 
@@ -8693,7 +8711,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
             key = CryptoKey::create(::Crypto::PK::MLDSAPublicKey { public_key });
 
             // 3. Set the [[type]] internal slot of Key to "public".
-            key->set_type(Bindings::KeyType::Public);
+            key->set_type(KeyType::Public);
         }
 
         // 9. Let algorithm be a new instance of a KeyAlgorithm object.
@@ -8704,7 +8722,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
     //    -> Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 3. Return key
@@ -8712,9 +8730,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> MLDSA::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
-    GC::Ptr<JS::Object> result;
+    Optional<ExportKeyResult> result;
     auto& vm = realm.vm();
 
     // 1. Let key be the CryptoKey to be exported.
@@ -8724,10 +8742,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(JS::Realm& realm, Bin
     auto const& handle = key->handle();
 
     // 3. -> If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -8748,7 +8766,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(JS::Realm& realm, Bin
         } else if (key->algorithm_name() == "ML-DSA-87") {
             algorithm_oid = ::Crypto::ASN1::ml_dsa_87_oid;
         } else {
-            return WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::NotSupportedError::create("Invalid algorithm"_utf16);
         }
 
         ::Crypto::ASN1::Encoder encoder;
@@ -8756,13 +8774,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(JS::Realm& realm, Bin
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(handle.get<::Crypto::PK::MLDSAPublicKey>().public_key(), algorithm_oid));
 
         // 3. Let result be the result of DER-encoding data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     //   -> If format is "pkcs8":
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
         //    * Set the version field to 0.
@@ -8801,7 +8819,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(JS::Realm& realm, Bin
         } else if (key->algorithm_name() == "ML-DSA-87") {
             algorithm_oid = ::Crypto::ASN1::ml_dsa_87_oid;
         } else {
-            return WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::NotSupportedError::create("Invalid algorithm"_utf16);
         }
 
         ::Crypto::ASN1::Encoder encoder;
@@ -8809,36 +8827,36 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(JS::Realm& realm, Bin
         auto const data = TRY_OR_THROW_OOM(realm.vm(), ::Crypto::PK::wrap_in_private_key_info(handle.get<::Crypto::PK::MLDSAPrivateKey>(), algorithm_oid));
 
         // 3. Let result be the result of DER-encoding data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     //   -> If format is "raw-public":
-    else if (format == Bindings::KeyFormat::RawPublic) {
+    else if (format == KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be a byte sequence containing the ML-DSA public key represented by the [[handle]] internal slot of key.
         VERIFY(handle.has<::Crypto::PK::MLDSAPublicKey>());
         auto const data = handle.get<::Crypto::PK::MLDSAPublicKey>().public_key();
 
         // 3. Let result be data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     //   -> If format is "raw-seed":
-    else if (format == Bindings::KeyFormat::RawSeed) {
+    else if (format == KeyFormat::RawSeed) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         // 2. Let data be a byte sequence containing the ξ seed variable of the key represented by the [[handle]] internal slot of key.
         VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
         auto const data = handle.get<::Crypto::PK::MLDSAPrivateKey>().seed();
 
         // 3. Let result be data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     //   -> If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         auto jwk = JsonWebKey {};
 
@@ -8859,7 +8877,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(JS::Realm& realm, Bin
 
         // 5. -> If the [[type]] internal slot of key is "private":
         //       Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal slot of key.
-        if (key->type() == Bindings::KeyType::Private) {
+        if (key->type() == KeyType::Private) {
             VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
             jwk.priv = TRY_OR_THROW_OOM(vm, encode_base64url(handle.get<::Crypto::PK::MLDSAPrivateKey>().seed(), AK::OmitPadding::Yes));
         }
@@ -8868,36 +8886,36 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(JS::Realm& realm, Bin
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 8. Let result be jwk.
-        result = TRY(jwk.to_object(realm));
+        result = ExportKeyResult { move(jwk) };
     }
     //   -> Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 4. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> MLKEM::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. If usages contains any entry which is not one of "encapsulateKey", "encapsulateBits", "decapsulateKey" or
     //    "decapsulateBits", then throw a SyntaxError.
     for (auto const usage : usages) {
-        if (usage != Bindings::KeyUsage::Encapsulatekey
-            && usage != Bindings::KeyUsage::Encapsulatebits
-            && usage != Bindings::KeyUsage::Decapsulatekey
-            && usage != Bindings::KeyUsage::Decapsulatebits) {
-            return WebIDL::SyntaxError::create(realm, "Invalid key usage"_utf16);
+        if (usage != KeyUsage::EncapsulateKey
+            && usage != KeyUsage::EncapsulateBits
+            && usage != KeyUsage::DecapsulateKey
+            && usage != KeyUsage::DecapsulateBits) {
+            return WebIDL::SyntaxError::create("Invalid key usage"_utf16);
         }
     }
 
@@ -8915,14 +8933,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::
 
     // 3. If the key generation step fails, then throw an OperationError.
     if (maybe_key_pair.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Key generation failed: {}", maybe_key_pair.release_error()));
+        return WebIDL::OperationError::create(Utf16String::formatted("Key generation failed: {}", maybe_key_pair.release_error()));
     auto const key_pair = maybe_key_pair.release_value();
 
     // 6. Let publicKey be a new CryptoKey representing the encapsulation key of the generated key pair.
     auto public_key = CryptoKey::create(key_pair.public_key);
 
     // 7. Set the [[type]] internal slot of publicKey to "public".
-    public_key->set_type(Bindings::KeyType::Public);
+    public_key->set_type(KeyType::Public);
 
     // 4. Let algorithm be a new KeyAlgorithm object.
     // 5. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -8934,13 +8952,13 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::
 
     // 10. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "encapsulateKey",
     //     "encapsulateBits" ].
-    public_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Encapsulatekey, Bindings::KeyUsage::Encapsulatebits } }));
+    public_key->set_usages(usage_intersection(usages, { { KeyUsage::EncapsulateKey, KeyUsage::EncapsulateBits } }));
 
     // 11. Let privateKey be a new CryptoKey representing the decapsulation key of the generated key pair.
     auto private_key = CryptoKey::create(key_pair.private_key);
 
     // 12. Set the [[type]] internal slot of privateKey to "private".
-    private_key->set_type(Bindings::KeyType::Private);
+    private_key->set_type(KeyType::Private);
 
     // 13. Set the [[algorithm]] internal slot of privateKey to algorithm.
     private_key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
@@ -8950,30 +8968,30 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::
 
     // 15. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "decapsulateKey",
     //     "decapsulateBits" ].
-    private_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Decapsulatekey, Bindings::KeyUsage::Decapsulatebits } }));
+    private_key->set_usages(usage_intersection(usages, { { KeyUsage::DecapsulateKey, KeyUsage::DecapsulateBits } }));
 
     // 16. Let result be a new CryptoKeyPair dictionary.
     // 17. Set the publicKey attribute of result to be publicKey.
     // 18. Set the privateKey attribute of result to be privateKey.
-    auto result = CryptoKeyPair::create(realm, public_key, private_key);
+    auto result = CryptoKeyPair { public_key, private_key };
 
     // 19. Return result.
-    return WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>>(result);
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { result };
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     GC::Ptr<CryptoKey> key = nullptr;
 
     // 1. Let keyData be the key data to be imported.
     // 2. -> If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If usages contains a value which is not "encapsulateKey" or "encapsulateBits" then throw
         //    a SyntaxError.
         for (auto const usage : usages) {
-            if (usage != Bindings::KeyUsage::Encapsulatekey && usage != Bindings::KeyUsage::Encapsulatebits)
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::EncapsulateKey && usage != KeyUsage::EncapsulateBits)
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
 
         // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
@@ -8999,17 +9017,17 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         // Otherwise:
         else {
             // throw a NotSupportedError.
-            return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+            return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
         }
 
         // 5. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal
         //    to expectedOid, then throw a DataError.
         if (spki.algorithm.identifier != expected_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 6. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
         if (spki.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 7. Let publicKey be the ML-KEM public key identified by the subjectPublicKey field of spki.
         auto const public_key = spki.raw_key;
@@ -9018,7 +9036,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         key = CryptoKey::create(::Crypto::PK::MLKEMPublicKey(public_key));
 
         // 9. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 10. Let algorithm be a new KeyAlgorithm.
         // 11. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -9032,11 +9050,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         key->set_usages(usages);
     }
     //    -> If format is "pkcs8":
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "decapsulateKey" or "decapsulateBits" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Decapsulatekey && usage != Bindings::KeyUsage::Decapsulatebits) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::DecapsulateKey && usage != KeyUsage::DecapsulateBits) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -9064,18 +9082,18 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         } else if (params.name == "ML-KEM-1024") {
             expected_oid = ::Crypto::ASN1::ml_kem_1024_oid;
         } else {
-            return WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::NotSupportedError::create("Invalid algorithm"_utf16);
         }
 
         // 5. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
         //    privateKeyInfo is not equal to expectedOid, then throw a DataError.
         if (private_key_info.algorithm.identifier != expected_oid)
-            return WebIDL::DataError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 6. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of
         //    privateKeyInfo is present, then throw a DataError.
         if (private_key_info.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create(realm, "Invalid algorithm parameters"_utf16);
+            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
 
         // 7. Let mlKemPrivateKey be the result of performing the parse an ASN.1 structure algorithm, with
         //    data as the privateKey field of privateKeyInfo, structure as asn1Structure, and exactData set to
@@ -9089,7 +9107,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         key = CryptoKey::create(ml_kem_private_key);
 
         // 10. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 11. Let algorithm be a new KeyAlgorithm.
         // 12. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -9097,11 +9115,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
     }
     //    -> If format is "raw-public":
-    else if (format == Bindings::KeyFormat::RawPublic) {
+    else if (format == KeyFormat::RawPublic) {
         // 1. If usages contains a value which is not "encapsulateKey" or "encapsulateBits" then throw a SyntaxError.
         for (auto const usage : usages) {
-            if (usage != Bindings::KeyUsage::Encapsulatekey && usage != Bindings::KeyUsage::Encapsulatebits)
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::EncapsulateKey && usage != KeyUsage::EncapsulateBits)
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
 
         // 2. Let data be keyData.
@@ -9112,7 +9130,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         key = CryptoKey::create(::Crypto::PK::MLKEMPublicKey { data.get<ByteBuffer>() });
 
         // 4. Set the [[type]] internal slot of key to "public"
-        key->set_type(Bindings::KeyType::Public);
+        key->set_type(KeyType::Public);
 
         // 5. Let algorithm be a new KeyAlgorithm object.
         // 6. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -9120,11 +9138,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
         key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
     }
     //    -> If format is "raw-seed":
-    else if (format == Bindings::KeyFormat::RawSeed) {
+    else if (format == KeyFormat::RawSeed) {
         // 1. If usages contains an entry which is not "decapsulateKey" or "decapsulateBits" then throw a SyntaxError.
         for (auto const& usage : usages) {
-            if (usage != Bindings::KeyUsage::Decapsulatekey && usage != Bindings::KeyUsage::Decapsulatebits) {
-                return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            if (usage != KeyUsage::DecapsulateKey && usage != KeyUsage::DecapsulateBits) {
+                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
             }
         }
 
@@ -9134,7 +9152,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
 
         // 3. If the length in bits of data is not 512 then throw a DataError.
         if (data.size() * 8 != 512)
-            return WebIDL::DataError::create(realm, "Invalid key format"_utf16);
+            return WebIDL::DataError::create("Invalid key format"_utf16);
 
         // 4. Let privateKey be the result of performing the ML-KEM.KeyGen_internal function described in
         //    Section 6.1 of [FIPS-203] with the parameter set indicated by the name member of
@@ -9149,14 +9167,14 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
             VERIFY_NOT_REACHED();
         }();
         if (maybe_key_pair.is_error())
-            return WebIDL::OperationError::create(realm, Utf16String::formatted("Key generation failed: {}", maybe_key_pair.release_error()));
+            return WebIDL::OperationError::create(Utf16String::formatted("Key generation failed: {}", maybe_key_pair.release_error()));
         auto const key_pair = maybe_key_pair.release_value();
 
         // 5. Let key be a new CryptoKey that represents the ML-KEM private key identified by privateKey.
         key = CryptoKey::create(key_pair.private_key);
 
         // 6. Set the [[type]] internal slot of key to "private"
-        key->set_type(Bindings::KeyType::Private);
+        key->set_type(KeyType::Private);
 
         // 7. Let algorithm be a new KeyAlgorithm.
         // 8. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
@@ -9167,7 +9185,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
     //    -> Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 3. Return key
@@ -9175,9 +9193,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(JS::Realm& realm, Algo
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLKEM::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> MLKEM::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
-    GC::Ptr<JS::Object> result;
+    Optional<ExportKeyResult> result;
     auto& vm = realm.vm();
 
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be
@@ -9186,10 +9204,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLKEM::export_key(JS::Realm& realm, Bin
     auto const& handle = key->handle();
 
     // 2. -> If format is "spki":
-    if (format == Bindings::KeyFormat::Spki) {
+    if (format == KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -9210,7 +9228,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLKEM::export_key(JS::Realm& realm, Bin
         } else if (key->algorithm_name() == "ML-KEM-1024") {
             algorithm_oid = ::Crypto::ASN1::ml_kem_1024_oid;
         } else {
-            return WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::NotSupportedError::create("Invalid algorithm"_utf16);
         }
 
         ::Crypto::ASN1::Encoder encoder;
@@ -9218,13 +9236,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLKEM::export_key(JS::Realm& realm, Bin
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(handle.get<::Crypto::PK::MLKEMPublicKey>().public_key(), algorithm_oid));
 
         // 3. Let result be the result of DER-encoding data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     //   -> If format is "pkcs8":
-    else if (format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
         //    * Set the version field to 0.
@@ -9263,7 +9281,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLKEM::export_key(JS::Realm& realm, Bin
         } else if (key->algorithm_name() == "ML-KEM-1024") {
             algorithm_oid = ::Crypto::ASN1::ml_kem_1024_oid;
         } else {
-            return WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_utf16);
+            return WebIDL::NotSupportedError::create("Invalid algorithm"_utf16);
         }
 
         ::Crypto::ASN1::Encoder encoder;
@@ -9271,26 +9289,26 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLKEM::export_key(JS::Realm& realm, Bin
         auto const data = TRY_OR_THROW_OOM(realm.vm(), ::Crypto::PK::wrap_in_private_key_info(handle.get<::Crypto::PK::MLKEMPrivateKey>(), algorithm_oid));
 
         // 3. Let result be the result of DER-encoding data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     //   -> If format is "raw-public":
-    else if (format == Bindings::KeyFormat::RawPublic) {
+    else if (format == KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
+        if (key->type() != KeyType::Public)
+            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
         // 2. Let data be a byte sequence containing the raw octets of the key represented by the [[handle]] internal slot of key.
         VERIFY(handle.has<::Crypto::PK::MLKEMPublicKey>());
         auto const data = handle.get<::Crypto::PK::MLKEMPublicKey>().public_key();
 
         // 3. Let result be data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     //   -> If format is "raw-seed":
-    else if (format == Bindings::KeyFormat::RawSeed) {
+    else if (format == KeyFormat::RawSeed) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
+        if (key->type() != KeyType::Private)
+            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
 
         // 2. Let data be a byte sequence containing the concatenation of the d and z seed variables of the
         //    key represented by the [[handle]] internal slot of key.
@@ -9298,25 +9316,25 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLKEM::export_key(JS::Realm& realm, Bin
         auto const data = key->handle().get<::Crypto::PK::MLKEMPrivateKey>().seed();
 
         // 3. Let result be data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     // FIXME:  -> If format is "jwk":
     //   -> Otherwise:
     else {
         // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
     }
 
     // 4. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-encapsulate
-WebIDL::ExceptionOr<EncapsulatedBits> MLKEM::encapsulate(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<EncapsulatedBits> MLKEM::encapsulate(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key)
 {
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Invalid key type"_utf16);
+    if (key->type() != KeyType::Public)
+        return WebIDL::InvalidAccessError::create("Invalid key type"_utf16);
 
     // 2. Perform the encapsulation key check described in Section 7.2 of [FIPS-203] with the parameter set indicated
     //    by the name member of algorithm, using the key represented by the [[handle]] internal slot of key as the ek
@@ -9343,7 +9361,7 @@ WebIDL::ExceptionOr<EncapsulatedBits> MLKEM::encapsulate(JS::Realm& realm, Algor
 
     // 5. If the ML-KEM.Encaps function returned an error, return an OperationError.
     if (maybe_encapsulation.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Key encapsulation failed: {}", maybe_encapsulation.release_error()));
+        return WebIDL::OperationError::create(Utf16String::formatted("Key encapsulation failed: {}", maybe_encapsulation.release_error()));
     auto const [shared_key, ciphertext] = maybe_encapsulation.release_value();
 
     // 6. Let result be a new EncapsulatedBits dictionary.
@@ -9356,11 +9374,11 @@ WebIDL::ExceptionOr<EncapsulatedBits> MLKEM::encapsulate(JS::Realm& realm, Algor
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-decapsulate
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> MLKEM::decapsulate(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<ByteBuffer> MLKEM::decapsulate(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Invalid key type"_utf16);
+    if (key->type() != KeyType::Private)
+        return WebIDL::InvalidAccessError::create("Invalid key type"_utf16);
 
     // 2. Perform the decapsulation input check described in Section 7.3 of [FIPS-203] with the parameter set
     //    indicated by the name member of algorithm, using the key represented by the [[handle]] internal slot of key as
@@ -9387,38 +9405,38 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> MLKEM::decapsulate(JS::Realm& real
     }();
 
     if (maybe_shared_key.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Key decapsulation failed: {}", maybe_shared_key.release_error()));
+        return WebIDL::OperationError::create(Utf16String::formatted("Key decapsulation failed: {}", maybe_shared_key.release_error()));
 
     auto const shared_key = maybe_shared_key.release_value();
 
     // 5. Return sharedKey.
-    return JS::ArrayBuffer::create(realm, shared_key);
+    return shared_key;
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(JS::Realm& realm, AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(JS::Realm&, AlgorithmParams const& params, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
     // 2. If format is not "raw-secret", throw a NotSupportedError
-    if (format != Bindings::KeyFormat::RawSecret)
-        return WebIDL::NotSupportedError::create(realm, "Invalid key format"_utf16);
+    if (format != KeyFormat::RawSecret)
+        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
 
     // 3. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
     for (auto const usage : usages) {
-        if (!(usage == Bindings::KeyUsage::Derivekey || usage == Bindings::KeyUsage::Derivebits))
-            return WebIDL::SyntaxError::create(realm, "Invalid key usage"_utf16);
+        if (!(usage == KeyUsage::DeriveKey || usage == KeyUsage::DeriveBits))
+            return WebIDL::SyntaxError::create("Invalid key usage"_utf16);
     }
 
     // 4. If extractable is not false, then throw a SyntaxError.
     if (extractable) {
-        return WebIDL::SyntaxError::create(realm, "Key cannot be extractable"_utf16);
+        return WebIDL::SyntaxError::create("Key cannot be extractable"_utf16);
     }
 
     // 5. Let key be a new CryptoKey representing keyData.
     auto key = CryptoKey::create(key_data);
 
     // 6. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 7. Set the [[extractable]] internal slot of key to false.
     key->set_extractable(false);
@@ -9433,28 +9451,28 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(JS::Realm& realm, Alg
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-derive-bits
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Argon2::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length)
+WebIDL::ExceptionOr<ByteBuffer> Argon2::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length)
 {
     auto const& normalized_algorithm = static_cast<Argon2Params const&>(params);
     // 1. If length is null, or is less than 32 (4*8), then throw an OperationError.
     if (!length.has_value() || length.value() < 32u)
-        return WebIDL::OperationError::create(realm, "Length must be equal or greater than 32"_utf16);
+        return WebIDL::OperationError::create("Length must be equal or greater than 32"_utf16);
 
     // 2. If the version member of normalizedAlgorithm is present and is not 19 (0x13), then throw an OperationError.
     if (normalized_algorithm.version.has_value() && normalized_algorithm.version != 19)
-        return WebIDL::OperationError::create(realm, "Invalid algorithm version"_utf16);
+        return WebIDL::OperationError::create("Invalid algorithm version"_utf16);
 
     // 3. If the parallelism member of normalizedAlgorithm is zero, or greater than 16777215 (2^24-1), then throw an OperationError.
     if (normalized_algorithm.parallelism == 0 || normalized_algorithm.parallelism > (1 << 24) - 1)
-        return WebIDL::OperationError::create(realm, "Invalid parallelism"_utf16);
+        return WebIDL::OperationError::create("Invalid parallelism"_utf16);
 
     // 4. If the memory member of normalizedAlgorithm is less than 8 times the parallelism member of normalizedAlgorithm, then throw an OperationError.
     if (normalized_algorithm.memory < 8 * normalized_algorithm.parallelism)
-        return WebIDL::OperationError::create(realm, "Memory is too low for the parallelism level"_utf16);
+        return WebIDL::OperationError::create("Memory is too low for the parallelism level"_utf16);
 
     // 5. If the passes member of normalizedAlgorithm is zero, then throw an OperationError.
     if (normalized_algorithm.passes == 0)
-        return WebIDL::OperationError::create(realm, "Invalid passes"_utf16);
+        return WebIDL::OperationError::create("Invalid passes"_utf16);
 
     auto const algorithm = [&]() {
         // 6 => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2d":
@@ -9500,20 +9518,20 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Argon2::derive_bits(JS::Realm& rea
 
     // 10. If the key derivation operation fails, then throw an OperationError.
     if (maybe_result.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Hashing function failed: {}", maybe_result.error()));
+        return WebIDL::OperationError::create(Utf16String::formatted("Hashing function failed: {}", maybe_result.error()));
 
-    return JS::ArrayBuffer::create(realm, maybe_result.value());
+    return maybe_result.value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> Argon2::get_key_length(JS::Realm&, AlgorithmParams const&)
+WebIDL::ExceptionOr<Optional<u32>> Argon2::get_key_length(JS::Realm&, AlgorithmParams const&)
 {
     // 1. Return null.
-    return JS::js_null();
+    return Optional<u32> {};
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#cshake-operations-digest
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> CShake::digest(JS::Realm& realm, AlgorithmParams const& params, ByteBuffer const& data)
+WebIDL::ExceptionOr<ByteBuffer> CShake::digest(JS::Realm&, AlgorithmParams const& params, ByteBuffer const& data)
 {
     auto const& normalized_algorithm = static_cast<CShakeParams const&>(params);
 
@@ -9549,10 +9567,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> CShake::digest(JS::Realm& realm, A
 
     // 5. If performing the operation results in an error, then throw an OperationError.
     if (maybe_result.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Hash function failed: {}", maybe_result.error()));
+        return WebIDL::OperationError::create(Utf16String::formatted("Hash function failed: {}", maybe_result.error()));
 
     // 6. Return result.
-    return JS::ArrayBuffer::create(realm, maybe_result.release_value());
+    return maybe_result.release_value();
 }
 
 AeadParams::~AeadParams() = default;
@@ -9585,17 +9603,17 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AeadParams::from_value(JS:
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-encrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ChaCha20Poly1305::encrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
 
     // 1. If the iv member of normalizedAlgorithm does not have a length of 12 bytes, then throw an OperationError.
     if (normalized_algorithm.iv.size() != 12)
-        return WebIDL::OperationError::create(realm, "IV must have a length of 12 bytes"_utf16);
+        return WebIDL::OperationError::create("IV must have a length of 12 bytes"_utf16);
 
     // 2. If the tagLength member of normalizedAlgorithm is present and is not 128, then throw an OperationError.
     if (normalized_algorithm.tag_length.has_value() && normalized_algorithm.tag_length.value() != 128)
-        return WebIDL::OperationError::create(realm, "tagLength must be 128"_utf16);
+        return WebIDL::OperationError::create("tagLength must be 128"_utf16);
 
     // 3. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto const& additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
@@ -9612,28 +9630,28 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ChaCha20Poly1305::encrypt(JS::Real
         additional_data);
 
     if (maybe_ciphertext.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Encryption failed: {}", maybe_ciphertext.error()));
+        return WebIDL::OperationError::create(Utf16String::formatted("Encryption failed: {}", maybe_ciphertext.error()));
 
     // 5. Return ciphertext.
-    return JS::ArrayBuffer::create(realm, maybe_ciphertext.value());
+    return maybe_ciphertext.value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-decrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ChaCha20Poly1305::decrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
 
     // 1. If the iv member of normalizedAlgorithm does not have a length of 12 bytes, then throw an OperationError.
     if (normalized_algorithm.iv.size() != 12)
-        return WebIDL::OperationError::create(realm, "IV must have a length of 12 bytes"_utf16);
+        return WebIDL::OperationError::create("IV must have a length of 12 bytes"_utf16);
 
     // 2. If the tagLength member of normalizedAlgorithm is present and is not 128, then throw an OperationError.
     if (normalized_algorithm.tag_length.has_value() && normalized_algorithm.tag_length.value() != 128)
-        return WebIDL::OperationError::create(realm, "tagLength must be 128"_utf16);
+        return WebIDL::OperationError::create("tagLength must be 128"_utf16);
 
     // 3. If ciphertext has a length less than 128 bits, then throw an OperationError.
     if (ciphertext.size() < 16)
-        return WebIDL::OperationError::create(realm, "Ciphertext must be at least 128 bits"_utf16);
+        return WebIDL::OperationError::create("Ciphertext must be at least 128 bits"_utf16);
 
     // 4. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto const& additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
@@ -9654,19 +9672,19 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ChaCha20Poly1305::decrypt(JS::Real
     //    Otherwise:
     //       Let plaintext be the resulting plaintext.
     if (maybe_plaintext.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Decryption failed: {}", maybe_plaintext.error()));
+        return WebIDL::OperationError::create(Utf16String::formatted("Decryption failed: {}", maybe_plaintext.error()));
 
     // 6. Return plaintext.
-    return JS::ArrayBuffer::create(realm, maybe_plaintext.value());
+    return maybe_plaintext.value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ChaCha20Poly1305::generate_key(JS::Realm& realm, AlgorithmParams const&, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ChaCha20Poly1305::generate_key(JS::Realm& realm, AlgorithmParams const&, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -9680,7 +9698,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ChaCha2
     auto key = CryptoKey::create(CryptoKey::InternalKeyData { key_buffer });
 
     // 5. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 6. Let algorithm be a new KeyAlgorithm.
     // 7. Set the name attribute of algorithm to "ChaCha20-Poly1305".
@@ -9698,42 +9716,42 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ChaCha2
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(JS::Realm& realm, AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
 
     // 2. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
     ByteBuffer data;
 
     // 3. If format is "raw-secret":
-    if (format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::RawSecret) {
         // 1. Let data be keyData.
         data = move(key_data.get<ByteBuffer>());
 
         // 2. If the length in bits of data is not 256 then throw a DataError.
         if (data.size() != 32)
-            return WebIDL::DataError::create(realm, "Key data must be 256 bits"_utf16);
+            return WebIDL::DataError::create("Key data must be 256 bits"_utf16);
     }
     // 3. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary:
         //        Let jwk equal keyData.
         //    Otherwise:
         //        Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "Invalid JWK key data"_utf16);
+            return WebIDL::DataError::create("Invalid JWK key data"_utf16);
 
         auto const& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
         // NB: Specifically, those requirements are:
@@ -9745,11 +9763,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(JS::Realm& 
 
         // 5. If the alg field of jwk is present, and is not "C20P", then throw a DataError.
         if (jwk.alg.has_value() && jwk.alg.value() != "C20P"_string)
-            return WebIDL::DataError::create(realm, "Invalid alg field"_utf16);
+            return WebIDL::DataError::create("Invalid alg field"_utf16);
 
         // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
-            return WebIDL::DataError::create(realm, "Invalid use field"_utf16);
+            return WebIDL::DataError::create("Invalid use field"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -9757,19 +9775,19 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(JS::Realm& 
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
     }
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Only raw-secret and jwk formats are supported"_utf16);
+        return WebIDL::NotSupportedError::create("Only raw-secret and jwk formats are supported"_utf16);
     }
 
     // 4. Let key be a new CryptoKey object representing a key with value data.
     auto key = CryptoKey::create(move(data));
 
     // 5. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 6. Let algorithm be a new KeyAlgorithm.
     // 7. Set the name attribute of algorithm to "ChaCha20-Poly1305".
@@ -9781,23 +9799,23 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(JS::Realm& 
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> ChaCha20Poly1305::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> ChaCha20Poly1305::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 2. If format is "raw-secret":
-    if (format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = key->handle().get<ByteBuffer>();
 
         // 2. Let result be data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -9816,40 +9834,40 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ChaCha20Poly1305::export_key(JS::Realm&
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 7. Let result be jwk.
-        return TRY(jwk.to_object(realm));
+        return ExportKeyResult { move(jwk) };
     }
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Cannot export to unsupported format"_utf16);
+        return WebIDL::NotSupportedError::create("Cannot export to unsupported format"_utf16);
     }
 
     // 3. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> ChaCha20Poly1305::get_key_length(JS::Realm&, AlgorithmParams const&)
+WebIDL::ExceptionOr<Optional<u32>> ChaCha20Poly1305::get_key_length(JS::Realm&, AlgorithmParams const&)
 {
     // 1. Return 256.
-    return JS::Value(256);
+    return 256;
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-encrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesOcb::encrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<ByteBuffer> AesOcb::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
 
     // 1. If the iv member of normalizedAlgorithm has a length greater than 15 bytes, then throw an OperationError.
     if (normalized_algorithm.iv.size() > 15)
-        return WebIDL::OperationError::create(realm, "IV must have a length of 15 bytes"_utf16);
+        return WebIDL::OperationError::create("IV must have a length of 15 bytes"_utf16);
 
     size_t tag_length = 0;
     auto constexpr valid_tag_lengths = Array { 64, 96, 128 };
@@ -9864,7 +9882,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesOcb::encrypt(JS::Realm& realm, 
 
     // 2. Otherwise: throw an OperationError.
     else
-        return WebIDL::OperationError::create(realm, "Invalid tag length"_utf16);
+        return WebIDL::OperationError::create("Invalid tag length"_utf16);
 
     // 3. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto const& additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
@@ -9885,20 +9903,20 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesOcb::encrypt(JS::Realm& realm, 
         tag_length);
 
     if (maybe_ciphertext.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Encryption failed: {}", maybe_ciphertext.error()));
+        return WebIDL::OperationError::create(Utf16String::formatted("Encryption failed: {}", maybe_ciphertext.error()));
 
     // 5. Return C
-    return JS::ArrayBuffer::create(realm, maybe_ciphertext.value());
+    return maybe_ciphertext.value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-decrypt
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesOcb::decrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<ByteBuffer> AesOcb::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
 
     // 1. If the iv member of normalizedAlgorithm has a length greater than 15 bytes, then throw an OperationError.
     if (normalized_algorithm.iv.size() > 15)
-        return WebIDL::OperationError::create(realm, "IV must have a length of 15 bytes"_utf16);
+        return WebIDL::OperationError::create("IV must have a length of 15 bytes"_utf16);
 
     size_t tag_length = 0;
     auto constexpr valid_tag_lengths = Array { 64, 96, 128 };
@@ -9913,11 +9931,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesOcb::decrypt(JS::Realm& realm, 
 
     // 2. Otherwise: throw an OperationError.
     else
-        return WebIDL::OperationError::create(realm, "Invalid tag length"_utf16);
+        return WebIDL::OperationError::create("Invalid tag length"_utf16);
 
     // 3. If ciphertext has a length less than tagLength bits, then throw an OperationError.
     if (ciphertext.size() < tag_length / 8)
-        return WebIDL::OperationError::create(realm, "Ciphertext is less than tagLength bits"_utf16);
+        return WebIDL::OperationError::create("Ciphertext is less than tagLength bits"_utf16);
 
     // 4. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto const& additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
@@ -9942,19 +9960,19 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesOcb::decrypt(JS::Realm& realm, 
     //    Otherwise:
     //       Let plaintext be the resulting plaintext.
     if (maybe_plaintext.is_error())
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Decryption failed: {}", maybe_plaintext.error()));
+        return WebIDL::OperationError::create(Utf16String::formatted("Decryption failed: {}", maybe_plaintext.error()));
 
     // 6. Return plaintext.
-    return JS::ArrayBuffer::create(realm, maybe_plaintext.value());
+    return maybe_plaintext.value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesOcb::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesOcb::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
@@ -9962,7 +9980,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesOcb:
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
     auto const bits = normalized_algorithm.length;
     if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Cannot create AES-OCB key with unusual amount of {} bits", bits));
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-OCB key with unusual amount of {} bits", bits));
     }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
@@ -9973,7 +9991,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesOcb:
     auto key = CryptoKey::create(CryptoKey::InternalKeyData { key_buffer });
 
     // 6. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 7. Let algorithm be a new AesKeyAlgorithm.
     // 8. Set the name attribute of algorithm to "AES-OCB".
@@ -9992,49 +10010,49 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesOcb:
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesOcb::import_key(JS::Realm& realm, AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesOcb::import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
 
     // 2. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto const& usage : usages) {
-        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
         }
     }
 
     ByteBuffer data;
 
     // 3. If format is "raw-secret":
-    if (format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::RawSecret) {
         // 1. Let data be keyData.
         data = move(key_data.get<ByteBuffer>());
 
         // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
         auto length_in_bits = data.size() * 8;
         if (length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256) {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits));
         }
     }
     // 3. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary:
         //        Let jwk equal keyData.
         //    Otherwise:
         //        Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "Invalid JWK key data"_utf16);
+            return WebIDL::DataError::create("Invalid JWK key data"_utf16);
 
         auto const& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
         // NOTE: "k" is already checked in step 4.
         if (!jwk.alg.has_value())
-            return WebIDL::DataError::create(realm, "Missing 'alg' field"_utf16);
+            return WebIDL::DataError::create("Missing 'alg' field"_utf16);
 
         // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
         data = TRY(parse_jwk_symmetric_key(realm, jwk));
@@ -10051,20 +10069,20 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesOcb::import_key(JS::Realm& realm, Alg
         auto const& alg = jwk.alg;
         if (data_bits == 128) {
             if (alg.has_value() && alg != "A128OCB")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_utf16);
         } else if (data_bits == 192) {
             if (alg.has_value() && alg != "A192OCB")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_utf16);
         } else if (data_bits == 256) {
             if (alg.has_value() && alg != "A256OCB")
-                return WebIDL::DataError::create(realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
+                return WebIDL::DataError::create("Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_utf16);
         } else {
-            return WebIDL::DataError::create(realm, Utf16String::formatted("Invalid key size: {} bits", data_bits));
+            return WebIDL::DataError::create(Utf16String::formatted("Invalid key size: {} bits", data_bits));
         }
 
         // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
-            return WebIDL::DataError::create(realm, "Invalid use field"_utf16);
+            return WebIDL::DataError::create("Invalid use field"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -10072,12 +10090,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesOcb::import_key(JS::Realm& realm, Alg
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
     }
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Only raw-secret and jwk formats are supported"_utf16);
+        return WebIDL::NotSupportedError::create("Only raw-secret and jwk formats are supported"_utf16);
     }
 
     auto data_bits = data.size() * 8;
@@ -10086,7 +10104,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesOcb::import_key(JS::Realm& realm, Alg
     auto key = CryptoKey::create(move(data));
 
     // 5. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 6. Let algorithm be a new AesKeyAlgorithm.
     // 7. Set the name attribute of algorithm to "AES-OCB".
@@ -10099,24 +10117,24 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesOcb::import_key(JS::Realm& realm, Alg
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesOcb::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> AesOcb::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
 
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 2. If format is "raw-secret":
-    if (format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = key->handle().get<ByteBuffer>();
 
         // 2. Let result be data.
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -10147,42 +10165,42 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesOcb::export_key(JS::Realm& realm, Bi
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 7. Let result be jwk.
-        return TRY(jwk.to_object(realm));
+        return ExportKeyResult { move(jwk) };
     }
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Cannot export to unsupported format"_utf16);
+        return WebIDL::NotSupportedError::create("Cannot export to unsupported format"_utf16);
     }
 
     // 3. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> AesOcb::get_key_length(JS::Realm& realm, AlgorithmParams const& params)
+WebIDL::ExceptionOr<Optional<u32>> AesOcb::get_key_length(JS::Realm&, AlgorithmParams const& params)
 {
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
 
     // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw an OperationError.
     auto const length = normalized_algorithm.length;
     if (length != 128 && length != 192 && length != 256) {
-        return WebIDL::OperationError::create(realm, Utf16String::formatted("Invalid key length: {}", length));
+        return WebIDL::OperationError::create(Utf16String::formatted("Invalid key length: {}", length));
     }
 
     // 2. Return the length member of normalizedDerivedKeyAlgorithm.
-    return JS::Value(length);
+    return length;
 }
 
 static WebIDL::ExceptionOr<ByteBuffer> kmac_calculate_mac(
-    JS::Realm& realm,
+    JS::Realm&,
     StringView algorithm_name,
     ReadonlyBytes key,
     ReadonlyBytes message,
@@ -10191,18 +10209,18 @@ static WebIDL::ExceptionOr<ByteBuffer> kmac_calculate_mac(
 {
     auto kind = ::Crypto::Authentication::KMAC::kind_from_algorithm_name(algorithm_name);
     if (!kind.has_value())
-        return WebIDL::OperationError::create(realm, "Unsupported KMAC algorithm"_utf16);
+        return WebIDL::OperationError::create("Unsupported KMAC algorithm"_utf16);
     ::Crypto::Authentication::KMAC kmac(*kind);
 
     auto maybe_result = kmac.sign(key, message, output_length_bits, customization);
     if (maybe_result.is_error())
-        return WebIDL::OperationError::create(realm, "KMAC operation failed"_utf16);
+        return WebIDL::OperationError::create("KMAC operation failed"_utf16);
 
     return maybe_result.release_value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-sign
-WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> KMAC::sign(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+WebIDL::ExceptionOr<ByteBuffer> KMAC::sign(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto const& normalized_algorithm = static_cast<KmacParams const&>(params);
 
@@ -10231,11 +10249,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> KMAC::sign(JS::Realm& realm, Algor
         customization.map([](auto const& v) { return v.span(); })));
 
     // 3. Return a byte sequence containing mac.
-    return JS::ArrayBuffer::create(realm, move(mac));
+    return mac;
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-verify
-WebIDL::ExceptionOr<JS::Value> KMAC::verify(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+WebIDL::ExceptionOr<bool> KMAC::verify(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto const& normalized_algorithm = static_cast<KmacParams const&>(params);
 
@@ -10267,12 +10285,12 @@ WebIDL::ExceptionOr<JS::Value> KMAC::verify(JS::Realm& realm, AlgorithmParams co
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> KMAC::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> KMAC::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify)
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify)
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
     }
 
     auto const& normalized_algorithm = static_cast<KmacKeyGenParams const&>(params);
@@ -10287,12 +10305,12 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> KMAC::g
     if (!normalized_algorithm.length.has_value()) {
         auto kind = ::Crypto::Authentication::KMAC::kind_from_algorithm_name(params.name);
         if (!kind.has_value())
-            return WebIDL::OperationError::create(realm, "Unsupported KMAC algorithm"_utf16);
+            return WebIDL::OperationError::create("Unsupported KMAC algorithm"_utf16);
         length = ::Crypto::Authentication::KMAC::default_key_length(*kind);
     } else if (normalized_algorithm.length.value() != 0) {
         length = normalized_algorithm.length.value();
     } else {
-        return WebIDL::OperationError::create(realm, "Invalid key length"_utf16);
+        return WebIDL::OperationError::create("Invalid key length"_utf16);
     }
 
     // 3. Generate a key of length bits.
@@ -10303,7 +10321,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> KMAC::g
     auto key = CryptoKey::create(move(key_data));
 
     // 6. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 7. Let algorithm be a new KmacKeyAlgorithm.
     // 8. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
@@ -10318,11 +10336,11 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> KMAC::g
     key->set_usages(usages);
 
     // 13. Return key.
-    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { key };
+    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { key };
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {
     auto const& normalized_algorithm = static_cast<KmacImportParams const&>(params);
 
@@ -10330,31 +10348,31 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, Algor
 
     // 2. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
     for (auto const& usage : usages) {
-        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify)
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify)
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
     }
 
     ByteBuffer data;
 
     // 3. If format is "raw-secret":
-    if (format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::RawSecret) {
         // 1. Let data be keyData.
         data = move(key_data.get<ByteBuffer>());
     }
     // 3. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary:
         //        Let jwk equal keyData.
         //    Otherwise:
         //        Throw a DataError.
         if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create(realm, "Data is not a JsonWebKey dictionary"_utf16);
+            return WebIDL::DataError::create("Data is not a JsonWebKey dictionary"_utf16);
 
         auto const& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"sv)
-            return WebIDL::DataError::create(realm, "Invalid key type"_utf16);
+            return WebIDL::DataError::create("Invalid key type"_utf16);
 
         // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
         // NOTE: parse_jwk_symmetric_key() performs the validation required for symmetric JWKs.
@@ -10369,15 +10387,15 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, Algor
         auto const& algorithm_name = normalized_algorithm.name;
         if (algorithm_name == "KMAC128"sv) {
             if (jwk.alg.has_value() && *jwk.alg != "K128"sv)
-                return WebIDL::DataError::create(realm, "Invalid alg field for KMAC128"_utf16);
+                return WebIDL::DataError::create("Invalid alg field for KMAC128"_utf16);
         } else if (algorithm_name == "KMAC256"sv) {
             if (jwk.alg.has_value() && *jwk.alg != "K256"sv)
-                return WebIDL::DataError::create(realm, "Invalid alg field for KMAC256"_utf16);
+                return WebIDL::DataError::create("Invalid alg field for KMAC256"_utf16);
         }
 
         // 6. If usages is non-empty and the use field of jwk is present and is not "sign", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "sign"sv)
-            return WebIDL::DataError::create(realm, "Invalid use in JsonWebKey"_utf16);
+            return WebIDL::DataError::create("Invalid use in JsonWebKey"_utf16);
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -10385,12 +10403,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, Algor
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(realm, "Invalid ext field"_utf16);
+            return WebIDL::DataError::create("Invalid ext field"_utf16);
     }
     // 3. Otherwise:
     else {
         // 1. Throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Only raw-secret and jwk formats are supported"_utf16);
+        return WebIDL::NotSupportedError::create("Only raw-secret and jwk formats are supported"_utf16);
     }
 
     // 4. Let length be the length in bits of data.
@@ -10402,11 +10420,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, Algor
 
         // 1. If the length member of normalizedAlgorithm is greater than length, then throw a DataError.
         if (requested_length > length)
-            return WebIDL::DataError::create(realm, "Invalid data size"_utf16);
+            return WebIDL::DataError::create("Invalid data size"_utf16);
 
         // 2. If the length member of normalizedAlgorithm is less than or equal to length minus eight, then throw a DataError.
         if (requested_length <= length - 8)
-            return WebIDL::DataError::create(realm, "Invalid data size"_utf16);
+            return WebIDL::DataError::create("Invalid data size"_utf16);
 
         // 3. Otherwise:
         //        Set length equal to the length member of normalizedAlgorithm.
@@ -10421,7 +10439,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, Algor
     auto key = CryptoKey::create(move(data));
 
     // 7. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
+    key->set_type(KeyType::Secret);
 
     // 8. Let algorithm be a new KmacKeyAlgorithm.
     // 9. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
@@ -10434,21 +10452,21 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(JS::Realm& realm, Algor
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-export-key
-WebIDL::ExceptionOr<GC::Ref<JS::Object>> KMAC::export_key(JS::Realm& realm, Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+WebIDL::ExceptionOr<ExportKeyResult> KMAC::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
 {
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
 
-    GC::Ptr<JS::Object> result = nullptr;
+    Optional<ExportKeyResult> result;
 
     // 2. If format is "raw-secret":
-    if (format == Bindings::KeyFormat::RawSecret) {
+    if (format == KeyFormat::RawSecret) {
         // 1. Let result be the raw bits of the key represented by [[handle]] internal slot of key.
         auto data = key->handle().get<ByteBuffer>();
-        result = JS::ArrayBuffer::create(realm, data);
+        result = ExportKeyResult { data };
     }
     // 2. If format is "jwk":
-    else if (format == Bindings::KeyFormat::Jwk) {
+    else if (format == KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
         JsonWebKey jwk = {};
 
@@ -10476,27 +10494,27 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> KMAC::export_key(JS::Realm& realm, Bind
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(MUST(String::from_utf8(key_usage_to_string(usage))));
         }
 
         // 7. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
 
         // 8. Let result be jwk.
-        return TRY(jwk.to_object(realm));
+        return ExportKeyResult { move(jwk) };
     }
     // 2. Otherwise:
     else {
         // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create(realm, "Cannot export to unsupported format"_utf16);
+        return WebIDL::NotSupportedError::create("Cannot export to unsupported format"_utf16);
     }
 
     // 3. Return result.
-    return GC::Ref { *result };
+    return result.release_value();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-get-key-length
-WebIDL::ExceptionOr<JS::Value> KMAC::get_key_length(JS::Realm& realm, AlgorithmParams const& params)
+WebIDL::ExceptionOr<Optional<u32>> KMAC::get_key_length(JS::Realm&, AlgorithmParams const& params)
 {
     auto const& normalized_algorithm = static_cast<KmacImportParams const&>(params);
 
@@ -10514,13 +10532,13 @@ WebIDL::ExceptionOr<JS::Value> KMAC::get_key_length(JS::Realm& realm, AlgorithmP
     else {
         auto kind = ::Crypto::Authentication::KMAC::kind_from_algorithm_name(params.name);
         if (!kind.has_value())
-            return WebIDL::OperationError::create(realm, "Unsupported KMAC algorithm"_utf16);
+            return WebIDL::OperationError::create("Unsupported KMAC algorithm"_utf16);
 
         length = ::Crypto::Authentication::KMAC::default_key_length(*kind);
     }
 
     // 2. Return length.
-    return JS::Value(length);
+    return length;
 }
 
 }

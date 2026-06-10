@@ -6,7 +6,6 @@
 
 #include "CSSLayerStatementRule.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/Dump.h>
 

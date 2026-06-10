@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/String.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CloseEvent.h>
 #include <LibWeb/DOM/Event.h>
@@ -15,15 +16,14 @@
 
 namespace Web::HTML {
 
-class WindowOrWorkerGlobalScopeMixin;
+using CloseEventInit = Bindings::CloseEventInit;
 
 class CloseEvent : public DOM::Event {
     WEB_WRAPPABLE(CloseEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(CloseEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CloseEvent> create(FlyString const& event_name, Bindings::CloseEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<CloseEvent>> construct_impl(WindowOrWorkerGlobalScopeMixin&, FlyString const& event_name, Bindings::CloseEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CloseEvent> create(FlyString const& event_name, CloseEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~CloseEvent() override;
 
@@ -32,7 +32,7 @@ public:
     String reason() const { return m_reason; }
 
 private:
-    CloseEvent(FlyString const& event_name, Bindings::CloseEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    CloseEvent(FlyString const& event_name, CloseEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     bool m_was_clean { false };
     u16 m_code { 0 };

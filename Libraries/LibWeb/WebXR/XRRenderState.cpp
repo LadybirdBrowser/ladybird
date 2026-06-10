@@ -11,7 +11,6 @@ namespace Web::WebXR {
 GC_DEFINE_ALLOCATOR(XRRenderState);
 
 XRRenderState::XRRenderState()
-    : Bindings::Wrappable()
 {
 }
 

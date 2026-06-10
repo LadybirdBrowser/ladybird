@@ -1241,7 +1241,7 @@ bool command_insert_html_action(DOM::Document& document, Utf16String const& valu
         return true;
 
     // 4. Let frag be the result of calling createContextualFragment(value) on the active range.
-    auto frag = MUST(range->create_contextual_fragment(resulting_value));
+    auto frag = MUST(range->create_contextual_fragment(resulting_value.to_utf8_but_should_be_ported_to_utf16()));
 
     // 5. Let last child be the lastChild of frag.
     GC::Ptr<DOM::Node> last_child = frag->last_child();

@@ -17,20 +17,8 @@ GC::Ref<IntersectionObserverEntry> IntersectionObserverEntry::create(HighResolut
     return GC::Heap::the().allocate<IntersectionObserverEntry>(time, root_bounds, bounding_client_rect, intersection_rect, is_intersecting, intersection_ratio, target);
 }
 
-WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> IntersectionObserverEntry::construct_impl(Bindings::IntersectionObserverEntryInit const& options)
-{
-    GC::Ptr<Geometry::DOMRectReadOnly> root_bounds;
-    if (options.root_bounds.has_value())
-        root_bounds = Geometry::DOMRectReadOnly::from_rect(options.root_bounds.value());
-
-    auto bounding_client_rect = Geometry::DOMRectReadOnly::from_rect(options.bounding_client_rect);
-    auto intersection_rect = Geometry::DOMRectReadOnly::from_rect(options.intersection_rect);
-    return IntersectionObserverEntry::create(options.time, root_bounds, bounding_client_rect, intersection_rect, options.is_intersecting, options.intersection_ratio, *options.target);
-}
-
 IntersectionObserverEntry::IntersectionObserverEntry(HighResolutionTime::DOMHighResTimeStamp time, GC::Ptr<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<DOM::Element> target)
-    : Bindings::Wrappable()
-    , m_time(time)
+    : m_time(time)
     , m_root_bounds(root_bounds)
     , m_bounding_client_rect(bounding_client_rect)
     , m_intersection_rect(intersection_rect)

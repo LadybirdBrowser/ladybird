@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SVGAnimatedNumber.h>
+#include <AK/StringView.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGElement.h>
 

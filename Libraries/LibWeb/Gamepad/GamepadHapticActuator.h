@@ -6,11 +6,17 @@
 
 #pragma once
 
+#include <LibGC/Function.h>
 #include <LibWeb/Bindings/GamepadHapticActuator.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Gamepad {
+
+using GamepadHapticEffectType = Bindings::GamepadHapticEffectType;
+using GamepadHapticsResult = Bindings::GamepadHapticsResult;
+using GamepadHapticsCompletionSteps = GC::Function<void(GamepadHapticsResult)>;
+using GamepadEffectParameters = Bindings::GamepadEffectParameters;
 
 class GamepadHapticActuator final : public Bindings::Wrappable {
     WEB_WRAPPABLE(GamepadHapticActuator, Bindings::Wrappable);
@@ -21,17 +27,23 @@ public:
 
     virtual ~GamepadHapticActuator() override;
 
-    Vector<Bindings::GamepadHapticEffectType> const& effects() const { return m_effects; }
+    Vector<GamepadHapticEffectType> effects() const;
 
-    GC::Ref<WebIDL::Promise> play_effect(JS::Realm&, Bindings::GamepadHapticEffectType, Bindings::GamepadEffectParameters const&);
-    GC::Ref<WebIDL::Promise> reset(JS::Realm&);
+    bool is_valid_effect(GamepadHapticEffectType, GamepadEffectParameters const&) const;
+    bool can_play_effect_with_type(GamepadHapticEffectType) const;
+
+    void play_effect(JS::Realm&, GamepadHapticEffectType, GamepadEffectParameters const&, GC::Ref<WebIDL::Promise>);
+    void reset(JS::Realm&, GC::Ref<WebIDL::Promise>);
+
+    void play_effect(GamepadHapticEffectType, GamepadEffectParameters const&, GC::Ref<GamepadHapticsCompletionSteps>);
+    void reset(GC::Ref<GamepadHapticsCompletionSteps>);
 
 private:
     GamepadHapticActuator(HTML::Window&, GC::Ref<Gamepad>, GC::Ref<DOM::DocumentObserver>);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void document_became_hidden();
-    void issue_haptic_effect(Bindings::GamepadHapticEffectType, Bindings::GamepadEffectParameters const&, GC::Ref<GC::Function<void()>> on_complete);
+    void issue_haptic_effect(GamepadHapticEffectType, GamepadEffectParameters const&, GC::Ref<GC::Function<void()>> on_complete);
     bool stop_haptic_effects();
     void clear_playing_effect_timers();
 
@@ -41,11 +53,11 @@ private:
 
     // https://w3c.github.io/gamepad/#dfn-effects
     // Represents the effects supported by the actuator.
-    Vector<Bindings::GamepadHapticEffectType> m_effects;
+    Vector<GamepadHapticEffectType> m_effects;
 
     // https://w3c.github.io/gamepad/#dfn-playingeffectpromise
-    // The Promise to play some effect, or null if no effect is playing.
-    GC::Ptr<WebIDL::Promise> m_playing_effect_promise;
+    // The completion steps for playing some effect, or null if no effect is playing.
+    GC::Ptr<GamepadHapticsCompletionSteps> m_playing_effect_completion_steps;
     GC::Ptr<Platform::Timer> m_playing_effect_timer;
 };
 

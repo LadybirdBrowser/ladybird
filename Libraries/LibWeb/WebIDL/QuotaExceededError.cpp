@@ -33,21 +33,9 @@ GC::Ref<QuotaExceededError> QuotaExceededError::create(Utf16String const& messag
     return GC::Heap::the().allocate<QuotaExceededError>(message);
 }
 
-GC::Ref<QuotaExceededError> QuotaExceededError::create(JS::Realm&)
-{
-    return create();
-}
-
-GC::Ref<QuotaExceededError> QuotaExceededError::create(JS::Realm&, Utf16String const& message)
-{
-    return create(message);
-}
-
 // https://webidl.spec.whatwg.org/#dom-quotaexceedederror-quotaexceedederror
-ExceptionOr<GC::Ref<QuotaExceededError>> QuotaExceededError::construct_impl(JS::Realm& realm, Utf16String const& message, Bindings::QuotaExceededErrorOptions const& options)
+ExceptionOr<GC::Ref<QuotaExceededError>> QuotaExceededError::create(JS::VM& vm, Utf16String const& message, QuotaExceededErrorOptions const& options)
 {
-    auto& vm = realm.vm();
-
     // 1. Set this’s name to "QuotaExceededError".
     // 2. Set this’s message to message.
     // NB: Done in constructor.

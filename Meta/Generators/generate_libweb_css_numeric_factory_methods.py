@@ -24,15 +24,14 @@ def write_header_file(out: TextIO, units_data: dict) -> None:
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 
 // https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory
 namespace Web::CSS {
 
-GC::Ref<CSSUnitValue> number(JS::VM&, WebIDL::Double value);
-GC::Ref<CSSUnitValue> percent(JS::VM&, WebIDL::Double value);
+GC::Ref<CSSUnitValue> number(WebIDL::Double value);
+GC::Ref<CSSUnitValue> percent(WebIDL::Double value);
 """)
 
     for dimension_name, units in units_data.items():
@@ -40,7 +39,7 @@ GC::Ref<CSSUnitValue> percent(JS::VM&, WebIDL::Double value);
         out.write(f"\n// <{dimension_acceptable_cpp}>\n")
         for unit_name in units:
             unit_acceptable_cpp = make_name_acceptable_cpp(unit_name.lower())
-            out.write(f"GC::Ref<CSSUnitValue> {unit_acceptable_cpp}(JS::VM&, WebIDL::Double value);\n")
+            out.write(f"GC::Ref<CSSUnitValue> {unit_acceptable_cpp}(WebIDL::Double value);\n")
 
     out.write("""
 }
@@ -50,28 +49,27 @@ GC::Ref<CSSUnitValue> percent(JS::VM&, WebIDL::Double value);
 def write_implementation_file(out: TextIO, units_data: dict) -> None:
     out.write("""
 #include <AK/FlyString.h>
-#include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/GeneratedCSSNumericFactoryMethods.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory
-inline GC::Ref<CSSUnitValue> numeric_factory(JS::VM&, WebIDL::Double value, FlyString unit)
+inline GC::Ref<CSSUnitValue> numeric_factory(WebIDL::Double value, FlyString unit)
 {
     // All of the above methods must, when called with a double value, return a new CSSUnitValue whose value internal
     // slot is set to value and whose unit internal slot is set to the name of the method as defined here.
     return CSSUnitValue::create(value, move(unit));
 }
 
-GC::Ref<CSSUnitValue> number(JS::VM& vm, WebIDL::Double value)
+GC::Ref<CSSUnitValue> number(WebIDL::Double value)
 {
-    return numeric_factory(vm, value, "number"_fly_string);
+    return numeric_factory(value, "number"_fly_string);
 }
 
-GC::Ref<CSSUnitValue> percent(JS::VM& vm, WebIDL::Double value)
+GC::Ref<CSSUnitValue> percent(WebIDL::Double value)
 {
-    return numeric_factory(vm, value, "percent"_fly_string);
+    return numeric_factory(value, "percent"_fly_string);
 }
 
 """)
@@ -82,9 +80,9 @@ GC::Ref<CSSUnitValue> percent(JS::VM& vm, WebIDL::Double value)
         for unit_name in units:
             unit_acceptable_cpp = make_name_acceptable_cpp(unit_name.lower())
             out.write(f"""
-GC::Ref<CSSUnitValue> {unit_acceptable_cpp}(JS::VM& vm, WebIDL::Double value)
+GC::Ref<CSSUnitValue> {unit_acceptable_cpp}(WebIDL::Double value)
 {{
-    return numeric_factory(vm, value, "{unit_name}"_fly_string);
+    return numeric_factory(value, "{unit_name}"_fly_string);
 }}
 """)
 
@@ -96,8 +94,8 @@ GC::Ref<CSSUnitValue> {unit_acceptable_cpp}(JS::VM& vm, WebIDL::Double value)
 def write_idl_file(out: TextIO, units_data: dict) -> None:
     out.write("""
 partial namespace CSS {
-    CSSUnitValue number(double value);
-    CSSUnitValue percent(double value);
+    [DoesNotNeedVM] CSSUnitValue number(double value);
+    [DoesNotNeedVM] CSSUnitValue percent(double value);
 
 """)
 
@@ -108,7 +106,9 @@ partial namespace CSS {
 """)
         for unit_name in units:
             unit_acceptable_cpp = make_name_acceptable_cpp(unit_name.lower())
-            out.write(f"    [ImplementedAs={unit_acceptable_cpp}] CSSUnitValue {unit_name}(double value);\n")
+            out.write(
+                f"    [DoesNotNeedVM, ImplementedAs={unit_acceptable_cpp}] CSSUnitValue {unit_name}(double value);\n"
+            )
 
     out.write("""
 };

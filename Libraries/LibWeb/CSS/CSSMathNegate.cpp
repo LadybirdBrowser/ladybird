@@ -6,7 +6,6 @@
 
 #include "CSSMathNegate.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSMathNegate.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -20,7 +19,7 @@ GC::Ref<CSSMathNegate> CSSMathNegate::create(NumericType type, GC::Ref<CSSNumeri
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathnegate-cssmathnegate
-GC::Ref<CSSMathNegate> CSSMathNegate::construct_impl(CSSNumberish value)
+GC::Ref<CSSMathNegate> CSSMathNegate::create_from_numberish(CSSNumberish value)
 {
     // The CSSMathNegate(arg) constructor must, when called, perform the following steps:
     // 1. Replace arg with the result of rectifying a numberish value for arg.
@@ -31,7 +30,7 @@ GC::Ref<CSSMathNegate> CSSMathNegate::construct_impl(CSSNumberish value)
 }
 
 CSSMathNegate::CSSMathNegate(NumericType type, GC::Ref<CSSNumericValue> values)
-    : CSSMathValue(Bindings::CSSMathOperator::Negate, move(type))
+    : CSSMathValue(CSSMathOperator::Negate, move(type))
     , m_value(move(values))
 {
 }

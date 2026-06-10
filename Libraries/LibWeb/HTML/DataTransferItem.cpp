@@ -5,12 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Function.h>
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
@@ -82,33 +82,40 @@ Optional<DragDataStore::Mode> DataTransferItem::mode() const
     return m_data_transfer->mode();
 }
 
-// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasstring
-void DataTransferItem::get_as_string(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback) const
+Optional<String> DataTransferItem::string_data() const
 {
-    auto& vm = realm.vm();
+    if (mode() != DragDataStore::Mode::ReadWrite && mode() != DragDataStore::Mode::ReadOnly)
+        return {};
 
+    auto const& item = m_data_transfer->drag_data(*m_item_index);
+
+    if (item.kind != DragDataStoreItem::Kind::Text)
+        return {};
+
+    return MUST(String::from_utf8({ item.data }));
+}
+
+// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasstring
+void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) const
+{
     // 1. If the callback is null, return.
     if (!callback)
         return;
 
     // 2. If the DataTransferItem object is not in the read/write mode or the read-only mode, return. The callback is
     //    never invoked.
-    if (mode() != DragDataStore::Mode::ReadWrite && mode() != DragDataStore::Mode::ReadOnly)
-        return;
-
-    auto const& item = m_data_transfer->drag_data(*m_item_index);
-
     // 3. If the drag data item kind is not text, then return. The callback is never invoked.
-    if (item.kind != DragDataStoreItem::Kind::Text)
+    auto data = string_data();
+    if (!data.has_value())
         return;
 
     // 4. Otherwise, queue a task to invoke callback, passing the actual data of the item represented by the
     //    DataTransferItem object as the argument.
-    auto data = JS::PrimitiveString::create(vm, MUST(String::from_utf8({ item.data })));
-
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
-        GC::Function<void()>::create(GC::Heap::the(), [callback, data]() {
-            (void)WebIDL::invoke_callback(*callback, {}, { { data } });
+        GC::Function<void()>::create(GC::Heap::the(), [callback, data = data.release_value()]() mutable {
+            auto& vm = callback->callback->vm();
+            auto wrapped_data = JS::PrimitiveString::create(vm, move(data));
+            (void)WebIDL::invoke_callback(*callback, {}, { { wrapped_data } });
         }));
 }
 
@@ -132,7 +139,7 @@ GC::Ptr<FileAPI::File> DataTransferItem::get_as_file() const
     auto file_name = MUST(String::from_byte_string(item.file_name));
 
     // FIXME: Fill in other fields (e.g. last_modified).
-    Bindings::FilePropertyBag options {};
+    FileAPI::FilePropertyBag options {};
     options.type = item.type_string;
 
     FileAPI::BlobParts file_bits {};

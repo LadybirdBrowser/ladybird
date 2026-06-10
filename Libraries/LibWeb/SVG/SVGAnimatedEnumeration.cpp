@@ -18,8 +18,7 @@ GC::Ref<SVGAnimatedEnumeration> SVGAnimatedEnumeration::create(u16 value)
 }
 
 SVGAnimatedEnumeration::SVGAnimatedEnumeration(u16 value)
-    : Bindings::Wrappable()
-    , m_value(value)
+    : m_value(value)
 {
 }
 

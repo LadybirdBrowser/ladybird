@@ -7,9 +7,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLSelectElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -157,17 +154,6 @@ HTMLOptionElement* HTMLSelectElement::item(WebIDL::UnsignedLong index)
     return as<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).item(index));
 }
 
-// https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:htmlselectelement
-Optional<JS::Value> HTMLSelectElement::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
-{
-    // The options collection is also mirrored on the HTMLSelectElement object. The supported property indices at any
-    // instant are the indices supported by the object returned by the options attribute at that instant.
-    auto* option = const_cast<HTMLOptionsCollection&>(*options()).item(index);
-    if (!option)
-        return {};
-    return Bindings::wrap(wrapper_world, realm, GC::Ref { *option }).ptr();
-}
-
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-nameditem
 HTMLOptionElement* HTMLSelectElement::named_item(FlyString const& name)
 {
@@ -187,11 +173,11 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::add(HTMLOptionOrOptGroupElement ele
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:set-the-value-of-a-new-indexed-property
-WebIDL::ExceptionOr<void> HTMLSelectElement::set_value_of_indexed_property(JS::Realm& realm, u32 n, JS::Value new_value)
+WebIDL::ExceptionOr<void> HTMLSelectElement::set_value_of_indexed_property(u32 n, Optional<GC::Ref<DOM::Element>> new_value)
 {
     // When the user agent is to set the value of a new indexed property or set the value of an existing indexed property
     // for a select element, it must instead run the corresponding algorithm on the select element's options collection.
-    TRY(const_cast<HTMLOptionsCollection&>(*options()).set_value_of_indexed_property(realm, n, new_value));
+    TRY(const_cast<HTMLOptionsCollection&>(*options()).set_value_of_indexed_property(n, move(new_value)));
 
     return {};
 }
@@ -201,7 +187,7 @@ void HTMLSelectElement::remove()
 {
     // The remove() method must act like its namesake method on that same options collection when it has arguments,
     // and like its namesake method on the ChildNode interface implemented by the HTMLSelectElement ancestor interface Element when it has no arguments.
-    ChildNode::remove_binding();
+    ChildNode::remove_from_parent();
 }
 
 void HTMLSelectElement::remove(WebIDL::Long index)
@@ -619,18 +605,18 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
 
     // 1. If this is not mutable, then throw an "InvalidStateError" DOMException.
     if (!is_mutable())
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "Element is not mutable"_utf16);
+        return WebIDL::InvalidStateError::create("Element is not mutable"_utf16);
 
     // 2. If this's relevant settings object's origin is not same origin with this's relevant settings object's top-level origin,
     //    and this is a select element, then throw a "SecurityError" DOMException.
     if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*this).top_level_origin.value())) {
-        return WebIDL::SecurityError::create(HTML::relevant_realm(*this), "Cross origin pickers are not allowed"_utf16);
+        return WebIDL::SecurityError::create("Cross origin pickers are not allowed"_utf16);
     }
 
     // 3. If this's relevant global object does not have transient activation, then throw a "NotAllowedError" DOMException.
     auto* relevant_window = window_from_global_object(relevant_global_object(*this));
     if (!relevant_window || !relevant_window->has_transient_activation()) {
-        return WebIDL::NotAllowedError::create(HTML::relevant_realm(*this), "Too long since user activation to show picker"_utf16);
+        return WebIDL::NotAllowedError::create("Too long since user activation to show picker"_utf16);
     }
 
     // FIXME: 4. If this is a select element, and this is not being rendered, then throw a "NotSupportedError" DOMException.
@@ -701,9 +687,9 @@ void HTMLSelectElement::computed_properties_changed()
     if (m_chevron_icon_element) {
         auto appearance = computed_properties()->appearance();
         if (appearance == CSS::Appearance::None) {
-            MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"_string));
+            MUST(m_chevron_icon_element->style()->set_property(CSS::PropertyID::Display, "none"_string));
         } else {
-            MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"_string));
+            MUST(m_chevron_icon_element->style()->set_property(CSS::PropertyID::Display, "block"_string));
         }
     }
 }
@@ -713,7 +699,7 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return;
 
-    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 

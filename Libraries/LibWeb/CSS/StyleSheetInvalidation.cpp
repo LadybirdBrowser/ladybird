@@ -463,7 +463,7 @@ void invalidate_assigned_elements_for_dirty_slots(DOM::ShadowRoot& shadow_root)
     shadow_root.for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&shadow_root](HTML::HTMLSlotElement& slot) {
         if (!slot_or_ancestor_needs_style_update(slot, shadow_root))
             return TraversalDecision::Continue;
-        for (auto const& assigned_element : slot.assigned_elements({ .flatten = true }))
+        for (auto const& assigned_element : slot.assigned_elements(HTML::HTMLSlotElement::AssignedNodesFlatten::Yes))
             assigned_element->set_needs_style_update(true);
         return TraversalDecision::Continue;
     });

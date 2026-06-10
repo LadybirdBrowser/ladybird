@@ -7,9 +7,10 @@
 #pragma once
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/IDBObjectStore.h>
+#include <LibWeb/Bindings/IDBCursor.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 
 namespace Web::IndexedDB {
@@ -26,7 +27,8 @@ public:
     WebIDL::ExceptionOr<void> set_name(String const& value);
     String name() const { return m_name; }
     GC::Ref<IDBObjectStore> object_store() { return m_object_store_handle; }
-    JS::Value key_path() const;
+    KeyPath const& key_path() const;
+    JS::ThrowCompletionOr<JS::Value> key_path_value(JS::Realm&) const;
     bool multi_entry() const { return m_index->multi_entry(); }
     bool unique() const { return m_index->unique(); }
 
@@ -34,10 +36,10 @@ public:
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_key(JS::Value);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_keys(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_records(Bindings::IDBGetAllOptions const&);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_records(RetrieveMultipleItemsOptions const&);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> count(Optional<JS::Value>);
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(Optional<JS::Value>, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_key_cursor(Optional<JS::Value>, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(Optional<JS::Value>, CursorDirection);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_key_cursor(Optional<JS::Value>, CursorDirection);
 
     // The transaction of an index handle is the transaction of its associated object store handle.
     GC::Ref<IDBTransaction> transaction() { return m_object_store_handle->transaction(); }

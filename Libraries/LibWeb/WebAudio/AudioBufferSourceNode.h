@@ -13,6 +13,8 @@
 
 namespace Web::WebAudio {
 
+using AudioBufferSourceOptions = Bindings::AudioBufferSourceOptions;
+
 // https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioScheduledSourceNode {
     WEB_WRAPPABLE(AudioBufferSourceNode, AudioScheduledSourceNode);
@@ -36,11 +38,11 @@ public:
 
     WebIDL::ExceptionOr<void> start(Optional<double>, Optional<double>, Optional<double>);
 
-    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create_for_constructor(GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
 
 protected:
-    AudioBufferSourceNode(GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
+    AudioBufferSourceNode(GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

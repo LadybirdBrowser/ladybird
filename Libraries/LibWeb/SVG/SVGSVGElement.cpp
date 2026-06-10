@@ -6,8 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/DOMPointReadOnly.h>
-#include <LibWeb/Bindings/SVGSVGElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -16,6 +14,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/StaticNodeList.h>
+#include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -250,7 +249,7 @@ GC::Ref<SVGLength> SVGSVGElement::create_svg_length() const
 GC::Ref<Geometry::DOMPoint> SVGSVGElement::create_svg_point() const
 {
     // A new, detached DOMPoint object whose coordinates are all 0.
-    return Geometry::DOMPoint::from_point(vm(), Bindings::DOMPointInit {});
+    return Geometry::DOMPoint::create();
 }
 
 GC::Ref<Geometry::DOMMatrix> SVGSVGElement::create_svg_matrix() const

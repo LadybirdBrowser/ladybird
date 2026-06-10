@@ -28,9 +28,9 @@
 #include <LibThreading/ThreadPool.h>
 #include <LibURL/Parser.h>
 #include <LibWasm/AbstractMachine/Validator.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Module.h>
-#include <LibWeb/Bindings/Response.h>
+#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
@@ -48,6 +48,7 @@
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebAssembly {
@@ -59,11 +60,15 @@ static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm
 
 namespace Detail {
 
-HashMap<GC::Ptr<JS::Object>, NonnullRefPtr<WebAssemblyCache>> s_caches;
+static HashMap<GC::Ptr<JS::Object>, NonnullRefPtr<WebAssemblyCache>>& caches()
+{
+    static NeverDestroyed<HashMap<GC::Ptr<JS::Object>, NonnullRefPtr<WebAssemblyCache>>> caches;
+    return *caches;
+}
 
 NonnullRefPtr<WebAssemblyCache> get_cache(JS::Realm& realm)
 {
-    return s_caches.ensure(realm.global_object(), [] {
+    return caches().ensure(realm.global_object(), [] {
         return make_ref_counted<WebAssemblyCache>();
     });
 }
@@ -88,7 +93,7 @@ void WebAssemblyCache::visit_edges(JS::Cell::Visitor& visitor)
 void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
 {
     auto& global_object = HTML::relevant_global_object(object);
-    if (auto maybe_cache = Detail::s_caches.get(global_object); maybe_cache.has_value()) {
+    if (auto maybe_cache = Detail::caches().get(global_object); maybe_cache.has_value()) {
         auto& cache = *maybe_cache.release_value();
         cache.visit_edges(visitor);
     }
@@ -97,7 +102,7 @@ void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
 void finalize(JS::Object& object)
 {
     auto& global_object = HTML::relevant_global_object(object);
-    Detail::s_caches.remove(global_object);
+    Detail::caches().remove(global_object);
 }
 
 // https://webassembly.github.io/spec/js-api/#error-objects
@@ -380,7 +385,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     }
                     // 3.5.2. Otherwise, if v implements Global,
                     else if (import_.is_object()) {
-                        auto* global = Bindings::impl_from<Global>(&import_.as_object());
+                        auto* global = Bindings::global_from_value(import_);
                         if (!global)
                             return vm.throw_completion<LinkError>("Invalid value for global type"sv);
 
@@ -401,7 +406,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 // 3.6. If externtype is of the form mem memtype,
                 [&](Wasm::MemoryType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.6.1. If v does not implement Memory, throw a LinkError exception.
-                    auto* memory = import_.is_object() ? Bindings::impl_from<Memory>(&import_.as_object()) : nullptr;
+                    auto* memory = Bindings::memory_from_value(import_);
                     if (!memory)
                         return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"sv);
                     // 3.6.2. Let externmem be the external value mem v.[[Memory]].
@@ -413,7 +418,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 // 3.7. If externtype is of the form table tabletype,
                 [&](Wasm::TableType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.7.1. If v does not implement Table, throw a LinkError exception.
-                    auto* table = import_.is_object() ? Bindings::impl_from<Table>(&import_.as_object()) : nullptr;
+                    auto* table = Bindings::table_from_value(import_);
                     if (!table)
                         return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"sv);
                     // 3.7.2. Let tableaddr be v.[[Table]].
@@ -548,14 +553,14 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS
     if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)) {
         // 3. For each memaddr → mem in all Memory object caches,
         bool seen = false;
-        for (auto& cache_entry : s_caches) {
+        for (auto& cache_entry : caches()) {
             auto& cache = cache_entry.value;
             auto const& map = cache->memory_instances();
 
             for (auto const& entry : map) {
                 auto memory = entry.value;
                 // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
-                if (memory->has_buffer_object(buffer)) {
+                if (memory_has_buffer_object(*memory, buffer)) {
                     // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
                     VERIFY(!seen);
                     seen = true;
@@ -577,7 +582,9 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS
 
                     // 5. Grow the memory buffer associated with memaddr by delta.
                     // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
-                    TRY(memory->grow(buffer.shape().realm(), delta));
+                    TRY(WebIDL::throw_dom_exception_if_needed(vm, buffer.shape().realm(), [&] {
+                        return memory->grow(delta);
+                    }));
                 }
             }
         }
@@ -603,14 +610,14 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
 
         // 3. For each memaddr → mem in all Memory object caches,
         bool seen = false;
-        for (auto& cache_entry : s_caches) {
+        for (auto& cache_entry : caches()) {
             auto& cache = cache_entry.value;
             auto const& map = cache->memory_instances();
 
             for (auto const& entry : map) {
                 auto memory = entry.value;
                 // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
-                if (memory->has_buffer_object(buffer)) {
+                if (memory_has_buffer_object(*memory, buffer)) {
                     // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
                     VERIFY(!seen);
                     seen = true;
@@ -632,7 +639,9 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
 
                     // 5. Grow the memory buffer associated with memaddr by delta.
                     // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
-                    TRY(memory->grow(buffer.shape().realm(), delta));
+                    TRY(WebIDL::throw_dom_exception_if_needed(vm, buffer.shape().realm(), [&] {
+                        return memory->grow(delta);
+                    }));
                 }
             }
         }
@@ -753,7 +762,8 @@ JS::NativeFunction* create_native_function(JS::Realm& realm, Wasm::FunctionAddre
 JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::Realm& realm, JS::Value value, Wasm::ValueType const& type)
 {
     auto& vm = realm.vm();
-    static ::Crypto::SignedBigInteger two_64 = TRY_OR_THROW_OOM(vm, "1"_sbigint.shift_left(64));
+    static auto const& two_64 = *new ::Crypto::SignedBigInteger(
+        TRY_OR_THROW_OOM(vm, "1"_sbigint.shift_left(64)));
 
     switch (type.kind()) {
     case Wasm::ValueType::I64: {
@@ -923,7 +933,7 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm& re
                 auto module_object = GC::Heap::the().allocate<Module>(module_or_error.release_value());
 
                 // 2. Resolve promise with moduleObject.
-                WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, module_object));
+                Bindings::resolve_webassembly_module_promise(realm, promise, module_object);
             }
         }));
     }));
@@ -966,7 +976,7 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::Realm
         auto instance_object = Instance::create(Detail::get_cache(realm), move(instance));
 
         // 4. Resolve promise with instanceObject.
-        WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, instance_object));
+        Bindings::resolve_webassembly_instance_promise(realm, promise, instance_object);
     }));
 
     // 5. Return promise.
@@ -983,7 +993,7 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::Realm& realm, GC::Ref
 
     // 2. Upon fulfillment of promiseOfModule with value module:
     auto fulfillment_steps = GC::create_function(GC::Heap::the(), [promise, import_object](JS::Value module_value) -> WebIDL::ExceptionOr<JS::Value> {
-        auto* module = module_value.is_object() ? Bindings::impl_from<Module>(&module_value.as_object()) : nullptr;
+        auto* module = Bindings::module_from_value(module_value);
         VERIFY(module);
         auto module_object = GC::Ref { *module };
 
@@ -994,13 +1004,11 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::Realm& realm, GC::Ref
         // 2. Upon fulfillment of innerPromise with value instance.
         auto instantiate_fulfillment_steps = GC::create_function(GC::Heap::the(), [promise, module_object](JS::Value instance_value) -> WebIDL::ExceptionOr<JS::Value> {
             auto& realm = HTML::relevant_realm(*promise->promise());
-            auto* instance = instance_value.is_object() ? Bindings::impl_from<Instance>(&instance_value.as_object()) : nullptr;
+            auto* instance = Bindings::instance_from_value(instance_value);
             VERIFY(instance);
 
             // 1. Let result be the WebAssemblyInstantiatedSource value «[ "module" → module, "instance" → instance ]».
-            auto result = JS::Object::create(realm, nullptr);
-            result->define_direct_property("module"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, module_object), JS::default_attributes);
-            result->define_direct_property("instance"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *instance }), JS::default_attributes);
+            auto result = Bindings::create_webassembly_instantiated_source(realm, module_object, GC::Ref { *instance });
 
             // 2. Resolve promise with result.
             WebIDL::resolve_promise(realm, promise, result);
@@ -1058,7 +1066,9 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm& realm
         auto& realm = HTML::relevant_realm(*return_value->promise());
 
         // 1. Let response be unwrappedSource’s response.
-        auto* response_object = unwrapped_source.is_object() ? Bindings::impl_from<Fetch::Response>(&unwrapped_source.as_object()) : nullptr;
+        auto* response_object = unwrapped_source.is_object()
+            ? Bindings::impl_from<Fetch::Response>(&unwrapped_source.as_object())
+            : nullptr;
         if (!response_object) {
             WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Response").value());
             return JS::js_undefined();
@@ -1089,10 +1099,9 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm& realm
         }
 
         // 8. Consume response’s body as an ArrayBuffer, and let bodyPromise be the result.
-        auto body_promise_or_error = response_object->array_buffer(realm);
+        auto body_promise_or_error = Bindings::array_buffer_for_webassembly_response(realm, *response_object);
         if (body_promise_or_error.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), realm, body_promise_or_error.release_error());
-            WebIDL::reject_promise(realm, return_value, throw_completion.value());
+            WebIDL::reject_promise_with_exception(realm, return_value, body_promise_or_error.release_error());
             return JS::js_undefined();
         }
         auto body_promise = body_promise_or_error.release_value();
@@ -1297,6 +1306,56 @@ WASM_ENUMERATE_NATIVE_ERRORS
 }
 
 namespace Web::Bindings {
+
+WebAssembly::Global* global_from_value(JS::Value value)
+{
+    return value.is_object() ? Bindings::impl_from<WebAssembly::Global>(&value.as_object()) : nullptr;
+}
+
+WebAssembly::Instance* instance_from_value(JS::Value value)
+{
+    return value.is_object() ? Bindings::impl_from<WebAssembly::Instance>(&value.as_object()) : nullptr;
+}
+
+WebAssembly::Memory* memory_from_value(JS::Value value)
+{
+    return value.is_object() ? Bindings::impl_from<WebAssembly::Memory>(&value.as_object()) : nullptr;
+}
+
+WebAssembly::Module* module_from_value(JS::Value value)
+{
+    return value.is_object() ? Bindings::impl_from<WebAssembly::Module>(&value.as_object()) : nullptr;
+}
+
+WebAssembly::Table* table_from_value(JS::Value value)
+{
+    return value.is_object() ? Bindings::impl_from<WebAssembly::Table>(&value.as_object()) : nullptr;
+}
+
+void resolve_webassembly_module_promise(JS::Realm& realm, WebIDL::Promise& promise, GC::Ref<WebAssembly::Module> module)
+{
+    WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, module));
+}
+
+void resolve_webassembly_instance_promise(JS::Realm& realm, WebIDL::Promise& promise, GC::Ref<WebAssembly::Instance> instance)
+{
+    WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, instance));
+}
+
+GC::Ref<JS::Object> create_webassembly_instantiated_source(JS::Realm& realm, GC::Ref<WebAssembly::Module> module, GC::Ref<WebAssembly::Instance> instance)
+{
+    auto result = JS::Object::create(realm, nullptr);
+    result->define_direct_property("module"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, module), JS::default_attributes);
+    result->define_direct_property("instance"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, instance), JS::default_attributes);
+    return result;
+}
+
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> array_buffer_for_webassembly_response(JS::Realm& realm, Fetch::Response const& response)
+{
+    auto promise = WebIDL::create_promise(realm);
+    response.array_buffer(realm, promise);
+    return promise;
+}
 
 #define DEFINE_WASM_ERROR_PROTOTYPE_AND_CONSTRUCTOR_WEB_INTRINSIC(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)    \
     template<>                                                                                                                             \

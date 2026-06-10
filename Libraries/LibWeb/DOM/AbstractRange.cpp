@@ -4,15 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/AbstractRange.h>
 #include <LibWeb/DOM/AbstractRange.h>
 #include <LibWeb/DOM/Document.h>
 
 namespace Web::DOM {
 
 AbstractRange::AbstractRange(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset)
-    : Bindings::Wrappable()
-    , m_start_container(start_container)
+    : m_start_container(start_container)
     , m_start_offset(start_offset)
     , m_end_container(end_container)
     , m_end_offset(end_offset)

@@ -18,7 +18,6 @@ GC::Ref<TextMetrics> TextMetrics::create()
 }
 
 TextMetrics::TextMetrics()
-    : Bindings::Wrappable()
 {
 }
 

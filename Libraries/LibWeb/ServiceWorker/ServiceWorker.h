@@ -26,8 +26,8 @@ public:
     virtual ~ServiceWorker() override;
 
     String script_url() const;
-    Bindings::ServiceWorkerState service_worker_state() const { return m_state; }
-    void set_service_worker_state(Bindings::ServiceWorkerState state) { m_state = state; }
+    ServiceWorkerState service_worker_state() const { return m_state; }
+    void set_service_worker_state(ServiceWorkerState state) { m_state = state; }
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \
@@ -39,7 +39,7 @@ public:
 private:
     ServiceWorker(ServiceWorkerRecord*);
 
-    Bindings::ServiceWorkerState m_state { Bindings::ServiceWorkerState::Parsed };
+    ServiceWorkerState m_state { ServiceWorkerState::Parsed };
     ServiceWorkerRecord* m_service_worker_record;
 };
 

@@ -18,7 +18,7 @@ class CSSMathMin final : public CSSMathValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMathMin> create(NumericType, GC::Ref<CSSNumericArray>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> construct_impl(ReadonlySpan<CSSNumberish>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> create_for_constructor(ReadonlySpan<CSSNumberish>);
     static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> add_all_types_into_math_min(GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathMin() override;

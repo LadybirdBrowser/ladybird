@@ -6,7 +6,10 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -23,7 +26,8 @@ public:
     String id() const;
     i64 index() const;
     bool same_document() const;
-    WebIDL::ExceptionOr<JS::Value> get_state();
+    bool associated_document_is_fully_active() const;
+    WebIDL::ExceptionOr<JS::Value> get_state(JS::Realm&);
 
     void set_ondispose(WebIDL::CallbackType*);
     WebIDL::CallbackType* ondispose();

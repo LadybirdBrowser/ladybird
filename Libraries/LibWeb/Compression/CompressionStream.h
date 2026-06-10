@@ -12,10 +12,15 @@
 #include <LibCompress/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/CompressionStream.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+
+namespace Web::Bindings {
+
+enum class CompressionFormat : u8;
+
+}
 
 namespace Web::Compression {
 
@@ -32,7 +37,8 @@ class CompressionStream final
     GC_DECLARE_ALLOCATOR(CompressionStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<CompressionStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, Bindings::CompressionFormat);
+    static WebIDL::ExceptionOr<GC::Ref<CompressionStream>> create(JS::Realm&, Compressor, NonnullOwnPtr<AllocatingMemoryStream>);
+    static WebIDL::ExceptionOr<GC::Ref<CompressionStream>> create_for_constructor(JS::Realm&, Bindings::CompressionFormat);
     virtual ~CompressionStream() override;
 
 private:

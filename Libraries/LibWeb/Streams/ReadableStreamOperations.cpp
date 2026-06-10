@@ -18,10 +18,9 @@
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/ReadableByteStreamController.h>
 #include <LibWeb/Bindings/ReadableStreamDefaultController.h>
-#include <LibWeb/Bindings/UnderlyingSource.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -40,6 +39,8 @@
 #include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
@@ -56,6 +57,38 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> acquire_readable_stream_b
     // 3. Return reader.
     return reader;
 }
+
+}
+
+namespace Web::Bindings {
+
+WebIDL::ExceptionOr<JS::Value> invoke_readable_byte_stream_start_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_source, GC::Ref<Streams::ReadableByteStreamController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return TRY(WebIDL::invoke_callback(callback, underlying_source, { { wrapped_controller } }));
+}
+
+GC::Ref<WebIDL::Promise> invoke_readable_byte_stream_pull_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_source, GC::Ref<Streams::ReadableByteStreamController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return WebIDL::invoke_promise_callback(callback, underlying_source, { { wrapped_controller } });
+}
+
+WebIDL::ExceptionOr<JS::Value> invoke_readable_stream_start_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_source, GC::Ref<Streams::ReadableStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return TRY(WebIDL::invoke_callback(callback, underlying_source, { { wrapped_controller } }));
+}
+
+GC::Ref<WebIDL::Promise> invoke_readable_stream_pull_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_source, GC::Ref<Streams::ReadableStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return WebIDL::invoke_promise_callback(callback, underlying_source, { { wrapped_controller } });
+}
+
+}
+
+namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#acquire-readable-stream-reader
 WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> acquire_readable_stream_default_reader(JS::Realm& realm, ReadableStream& stream)
@@ -1419,7 +1452,7 @@ WebIDL::ExceptionOr<void> readable_stream_default_controller_enqueue(JS::Realm& 
 
         // 5. If enqueueResult is an abrupt completion,
         if (enqueue_result.is_error()) {
-            auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, realm, [&] { return enqueue_result; }).throw_completion();
+            auto throw_completion = WebIDL::exception_to_throw_completion(vm, realm, enqueue_result.exception());
 
             // 1. Perform ! ReadableStreamDefaultControllerError(controller, enqueueResult.[[Value]]).
             readable_stream_default_controller_error(controller, throw_completion.value());
@@ -1565,7 +1598,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(JS::Realm& r
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-default-controller-from-underlying-source
-WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underlying_source(JS::Realm& realm, ReadableStream& stream, JS::Value underlying_source_value, Bindings::UnderlyingSource underlying_source, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
+WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underlying_source(JS::Realm& realm, ReadableStream& stream, JS::Value underlying_source_value, UnderlyingSource underlying_source, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
 {
     // 1. Let controller be a new ReadableStreamDefaultController.
     auto controller = GC::Heap::the().allocate<ReadableStreamDefaultController>();
@@ -1589,8 +1622,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
     //    invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source.start) {
         start_algorithm = GC::create_function(GC::Heap::the(), [controller, underlying_source_value, callback = underlying_source.start, realm = GC::Ref(realm)]() -> WebIDL::ExceptionOr<JS::Value> {
-            auto wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
-            return TRY(WebIDL::invoke_callback(*callback, underlying_source_value, { { wrapped_controller } }));
+            return Bindings::invoke_readable_stream_start_algorithm_callback(realm, *callback, underlying_source_value, controller);
         });
     }
 
@@ -1598,8 +1630,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
     //    invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source.pull) {
         pull_algorithm = GC::create_function(GC::Heap::the(), [controller, underlying_source_value, callback = underlying_source.pull, realm = GC::Ref(realm)]() {
-            auto wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
-            return WebIDL::invoke_promise_callback(*callback, underlying_source_value, { { wrapped_controller } });
+            return Bindings::invoke_readable_stream_pull_algorithm_callback(realm, *callback, underlying_source_value, controller);
         });
     }
 
@@ -1964,7 +1995,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_cloned_chunk_t
 
     // 2. If cloneResult is an abrupt completion,
     if (clone_result.is_throw_completion()) {
-        auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, realm, [&] { return clone_result; }).throw_completion();
+        auto throw_completion = clone_result.throw_completion();
 
         // 1. Perform ! ReadableByteStreamControllerError(controller, cloneResult.[[Value]]).
         readable_byte_stream_controller_error(controller, throw_completion.value());
@@ -2360,7 +2391,7 @@ void readable_byte_stream_controller_pull_into(JS::Realm& realm, ReadableByteStr
     // 8. If bufferResult is an abrupt completion,
     if (buffer_result.is_exception()) {
         // 1. Perform readIntoRequest’s error steps, given bufferResult.[[Value]].
-        auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, buffer_result.exception());
+        auto throw_completion = WebIDL::exception_to_throw_completion(vm, realm, buffer_result.exception());
         read_into_request.on_error(throw_completion.release_value());
 
         // 2. Return.
@@ -2837,7 +2868,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(JS::Realm& real
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-byte-stream-controller-from-underlying-source
-WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying_source(JS::Realm& realm, ReadableStream& stream, JS::Value underlying_source, Bindings::UnderlyingSource const& underlying_source_dict, double high_water_mark)
+WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying_source(JS::Realm& realm, ReadableStream& stream, JS::Value underlying_source, UnderlyingSource const& underlying_source_dict, double high_water_mark)
 {
     // 1. Let controller be a new ReadableByteStreamController.
     auto controller = GC::Heap::the().allocate<ReadableByteStreamController>();
@@ -2861,8 +2892,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
     //    invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source_dict.start) {
         start_algorithm = GC::create_function(GC::Heap::the(), [&realm, controller, underlying_source, callback = underlying_source_dict.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            auto wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
-            return TRY(WebIDL::invoke_callback(*callback, underlying_source, { { wrapped_controller } }));
+            return Bindings::invoke_readable_byte_stream_start_algorithm_callback(realm, *callback, underlying_source, controller);
         });
     }
 
@@ -2870,8 +2900,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
     //    invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source_dict.pull) {
         pull_algorithm = GC::create_function(GC::Heap::the(), [&realm, controller, underlying_source, callback = underlying_source_dict.pull]() {
-            auto wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
-            return WebIDL::invoke_promise_callback(*callback, underlying_source, { { wrapped_controller } });
+            return Bindings::invoke_readable_byte_stream_pull_algorithm_callback(realm, *callback, underlying_source, controller);
         });
     }
 

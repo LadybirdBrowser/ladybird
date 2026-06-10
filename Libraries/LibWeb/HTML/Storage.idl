@@ -5,7 +5,7 @@ interface Storage {
     readonly attribute unsigned long length;
     DOMString? key(unsigned long index);
     getter DOMString? getItem(DOMString key);
-    [NeedsCallerRealm] setter undefined setItem(DOMString key, DOMString value);
+    setter undefined setItem(DOMString key, DOMString value);
     deleter undefined removeItem(DOMString key);
     undefined clear();
 

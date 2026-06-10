@@ -24,7 +24,6 @@ public:
     GC::Ref<JS::Object> next();
 
 private:
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     HeadersIterator(JS::Realm&, Headers const&, JS::Object::PropertyKind iteration_kind);

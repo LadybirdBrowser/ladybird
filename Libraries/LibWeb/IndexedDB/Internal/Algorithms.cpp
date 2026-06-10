@@ -16,12 +16,11 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/Blob.h>
-#include <LibWeb/Bindings/File.h>
-#include <LibWeb/Bindings/IDBDatabase.h>
-#include <LibWeb/Bindings/IDBKeyRange.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -35,6 +34,7 @@
 #include <LibWeb/IndexedDB/IDBCursor.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
+#include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
@@ -115,7 +115,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
             auto maybe_database = Database::create_for_key_and_name(GC::Heap::the(), storage_key, name);
 
             if (maybe_database.is_error()) {
-                call_completion(queue, on_complete, WebIDL::OperationError::create(realm, "Unable to create a new database"_utf16));
+                call_completion(queue, on_complete, WebIDL::OperationError::create("Unable to create a new database"_utf16));
                 return;
             }
 
@@ -124,7 +124,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
 
         // 7. If db’s version is greater than version, return a newly created "VersionError" DOMException and abort these steps.
         if (db->version() > version) {
-            call_completion(queue, on_complete, WebIDL::VersionError::create(realm, "Database version is greater than the requested version"_utf16));
+            call_completion(queue, on_complete, WebIDL::VersionError::create("Database version is greater than the requested version"_utf16));
             return;
         }
 
@@ -197,13 +197,13 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
 
                     // 6. Run upgrade a database using connection, version and request.
                     dbgln_if(IDB_DEBUG, "open_a_database_connection: waiting for step 10.6");
-                    upgrade_a_database(realm, connection, version, request, GC::create_function(GC::Heap::the(), [&realm, &queue, connection, request, on_complete] {
+                    upgrade_a_database(realm, connection, version, request, GC::create_function(GC::Heap::the(), [&queue, connection, request, on_complete] {
                         dbgln_if(IDB_DEBUG, "open_a_database_connection: finished waiting for step 10.6");
 
                         // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
                         if (connection->state() == ConnectionState::Closed) {
                             dbgln_if(IDB_DEBUG, "open_a_database_connection: step 10.7: connection was closed, aborting");
-                            call_completion(queue, on_complete, (WebIDL::AbortError::create(realm, "Connection was closed"_utf16)));
+                            call_completion(queue, on_complete, (WebIDL::AbortError::create("Connection was closed"_utf16)));
                             return;
                         }
 
@@ -211,9 +211,9 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
                         //    return a newly created "AbortError" DOMException and abort these steps.
                         if (request->has_error()) {
                             dbgln_if(IDB_DEBUG, "open_a_database_connection: step 10.8: request errored, waiting to close connection");
-                            close_a_database_connection(*connection, GC::create_function(GC::Heap::the(), [&realm, &queue, on_complete] {
+                            close_a_database_connection(*connection, GC::create_function(GC::Heap::the(), [&queue, on_complete] {
                                 dbgln_if(IDB_DEBUG, "open_a_database_connection: step 10.8: connection closed, aborting");
-                                call_completion(queue, on_complete, WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_utf16));
+                                call_completion(queue, on_complete, WebIDL::AbortError::create("Upgrade transaction was aborted"_utf16));
                             }));
                             return;
                         }
@@ -244,7 +244,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
 
 bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, GC::Ref<DOM::EventTarget> target, u64 old_version, Optional<u64> new_version)
 {
-    Bindings::IDBVersionChangeEventInit event_init = {};
+    IDBVersionChangeEventInit event_init = {};
     // 4. Set event’s oldVersion attribute to oldVersion.
     event_init.old_version = old_version;
     // 5. Set event’s newVersion attribute to newVersion.
@@ -381,15 +381,13 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
 // https://w3c.github.io/IndexedDB/#close-a-database-connection
 void close_a_database_connection(GC::Ref<IDBDatabase> connection, GC::Ptr<GC::Function<void()>> on_complete, bool forced)
 {
-    auto& realm = HTML::relevant_realm(connection->relevant_global_object());
-
     // 1. Set connection’s close pending flag to true.
     connection->set_close_pending(true);
 
     // 2. If the forced flag is true, then for each transaction created using connection run abort a transaction with transaction and newly created "AbortError" DOMException.
     if (forced) {
         for (auto const& transaction : connection->transactions()) {
-            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Connection was closed"_utf16));
+            abort_a_transaction(*transaction, WebIDL::AbortError::create("Connection was closed"_utf16));
         }
     }
 
@@ -430,7 +428,7 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
 
     // 2. Let transaction be a new upgrade transaction with connection used as connection.
     // 3. Set transaction’s scope to connection’s object store set.
-    auto transaction = IDBTransaction::create(connection, Bindings::IDBTransactionMode::Versionchange, Bindings::IDBTransactionDurability::Default, Vector(connection->object_store_set()));
+    auto transaction = IDBTransaction::create(connection, TransactionMode::Versionchange, TransactionDurability::Default, Vector(connection->object_store_set()));
     dbgln_if(IDB_DEBUG, "Created new upgrade transaction with UUID: {}", transaction->uuid());
 
     // 4. Set db’s upgrade transaction to transaction.
@@ -457,7 +455,7 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     // 10. Queue a database task to run these steps:
     queue_a_database_task(GC::create_function(GC::Heap::the(), [&realm, request, connection, transaction, old_version, version, on_complete]() {
         // 1. Set request’s result to connection.
-        request->set_result(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, connection));
+        Bindings::set_idb_request_result(realm, request, connection);
 
         // 2. Set request’s transaction to transaction.
         // NOTE: We need to do a two-way binding here.
@@ -481,7 +479,7 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
 
             // 2. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
             if (did_throw)
-                abort_a_transaction(transaction, WebIDL::AbortError::create(realm, "Version change event threw an exception"_utf16));
+                abort_a_transaction(transaction, WebIDL::AbortError::create("Version change event threw an exception"_utf16));
 
             // https://w3c.github.io/IndexedDB/#transaction-commit
             // The implementation must attempt to commit an inactive transaction when all requests placed
@@ -573,14 +571,14 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
                 }
             }
 
-            db->wait_for_connections_to_close(open_connections->elements(), GC::create_function(GC::Heap::the(), [&realm, &queue, db, storage_key, name, on_complete] {
+            db->wait_for_connections_to_close(open_connections->elements(), GC::create_function(GC::Heap::the(), [&queue, db, storage_key, name, on_complete] {
                 // 10. Let version be db’s version.
                 auto version = db->version();
 
                 // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. "QuotaExceededError" or "UnknownError" DOMException).
                 auto maybe_deleted = Database::delete_for_key_and_name(storage_key, name);
                 if (maybe_deleted.is_error()) {
-                    call_completion(queue, on_complete, WebIDL::OperationError::create(realm, "Unable to delete database"_utf16));
+                    call_completion(queue, on_complete, WebIDL::OperationError::create("Unable to delete database"_utf16));
                     return;
                 }
 
@@ -689,7 +687,7 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
             request->set_result(JS::js_undefined());
 
             // 3. Set request’s error to a newly created "AbortError" DOMException.
-            request->set_error(WebIDL::AbortError::create(HTML::relevant_realm(request->relevant_global_object()), "Transaction was aborted"_utf16));
+            request->set_error(WebIDL::AbortError::create("Transaction was aborted"_utf16));
 
             // 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
             request->dispatch_event(DOM::Event::create(
@@ -729,7 +727,7 @@ void abort_a_transaction(GC::Ref<IDBTransaction> transaction, GC::Ptr<WebIDL::DO
 
             // FIXME: https://github.com/w3c/IndexedDB/issues/473
             // x. Set transaction's associated request's error to a newly created "AbortError" DOMException.
-            request->set_error(WebIDL::AbortError::create(HTML::relevant_realm(transaction->relevant_global_object()), "Upgrade transaction was aborted"_utf16));
+            request->set_error(WebIDL::AbortError::create("Upgrade transaction was aborted"_utf16));
 
             // 4. Set request’s processed flag to false.
             // FIXME: request->set_processed(false);
@@ -1067,9 +1065,6 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
     // 3. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
     // 4. For each identifier of identifiers, jump to the appropriate step below:
     TRY(key_path_string.bytes_as_string_view().for_each_split_view('.', SplitBehavior::KeepEmpty, [&](auto const& identifier) -> ErrorOr<void> {
-        auto* blob = value.is_object() ? Bindings::impl_from<FileAPI::Blob>(&value.as_object()) : nullptr;
-        auto* file = value.is_object() ? Bindings::impl_from<FileAPI::File>(&value.as_object()) : nullptr;
-
         // If Type(value) is String, and identifier is "length"
         if (value.is_string() && identifier == "length") {
             // Let value be a Number equal to the number of elements in value.
@@ -1082,28 +1077,9 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
             value = JS::Value(MUST(length_of_array_like(realm.vm(), value.as_object())));
         }
 
-        // If value is a Blob and identifier is "size"
-        else if (blob && identifier == "size") {
-            // Let value be value’s size.
-            value = JS::Value(blob->size());
-        }
-
-        // If value is a Blob and identifier is "type"
-        else if (blob && identifier == "type") {
-            // Let value be a String equal to value’s type.
-            value = JS::PrimitiveString::create(realm.vm(), blob->type());
-        }
-
-        // If value is a File and identifier is "name"
-        else if (file && identifier == "name") {
-            // Let value be a String equal to value’s name.
-            value = JS::PrimitiveString::create(realm.vm(), file->name());
-        }
-
-        // If value is a File and identifier is "lastModified"
-        else if (file && identifier == "lastModified") {
-            // Let value be a Number equal to value’s lastModified.
-            value = JS::Value(static_cast<double>(file->last_modified()));
+        // If value is a Blob or File and identifier is one of their special key path properties.
+        else if (auto key_path_value = Bindings::key_path_value_for_blob_or_file(realm, value, identifier); key_path_value.has_value()) {
+            value = *key_path_value;
         }
 
         // Otherwise
@@ -1222,7 +1198,7 @@ void fire_an_error_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
         // 2. If legacyOutputDidListenersThrowFlag is true, then run abort a transaction with transaction and a newly created "AbortError" DOMException and terminate these steps.
         //    This is done even if event’s canceled flag is false.
         if (legacy_output_did_listeners_throw_flag) {
-            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "Error event interrupted by exception"_utf16));
+            abort_a_transaction(*transaction, WebIDL::AbortError::create("Error event interrupted by exception"_utf16));
             return;
         }
 
@@ -1269,7 +1245,7 @@ void fire_a_success_event(JS::Realm& realm, GC::Ref<IDBRequest> request)
 
         // 2. If legacyOutputDidListenersThrowFlag is true, then run abort a transaction with transaction and a newly created "AbortError" DOMException.
         if (legacy_output_did_listeners_throw_flag) {
-            abort_a_transaction(*transaction, WebIDL::AbortError::create(realm, "An error occurred"_utf16));
+            abort_a_transaction(*transaction, WebIDL::AbortError::create("An error occurred"_utf16));
             return;
         }
 
@@ -1489,7 +1465,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
             // 2. If key is failure, then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
             if (maybe_key.is_error())
-                return WebIDL::ConstraintError::create(realm, Utf16String::from_utf8_without_validation(maybe_key.error().string_literal()));
+                return WebIDL::ConstraintError::create(Utf16String::from_utf8_without_validation(maybe_key.error().string_literal()));
 
             key = Key::create_number(static_cast<double>(maybe_key.value()));
 
@@ -1508,7 +1484,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
     //    then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
     auto has_record = store->has_record_with_key(*key);
     if (no_overwrite && has_record)
-        return WebIDL::ConstraintError::create(realm, "Record already exists"_utf16);
+        return WebIDL::ConstraintError::create("Record already exists"_utf16);
 
     // 3. If a record already exists in store with its key equal to key, then remove the record from store using delete records from an object store.
     if (has_record) {
@@ -1548,7 +1524,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
         //    then this operation failed with a "ConstraintError" DOMException.
         //    Abort this algorithm without taking any further steps.
         if ((!index_multi_entry || !index_key_is_array) && index_is_unique && index->has_record_with_key(index_key))
-            return WebIDL::ConstraintError::create(realm, "Record already exists in index"_utf16);
+            return WebIDL::ConstraintError::create("Record already exists in index"_utf16);
 
         // 4. If index’s multiEntry flag is true and index key is an array key,
         //    and if index already contains a record with key equal to any of the subkeys of index key,
@@ -1558,7 +1534,7 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
         if (index_multi_entry && index_key_is_array && index_is_unique) {
             for (auto const& subkey : index_key->subkeys()) {
                 if (index->has_record_with_key(*subkey))
-                    return WebIDL::ConstraintError::create(realm, "Record already exists in index"_utf16);
+                    return WebIDL::ConstraintError::create("Record already exists in index"_utf16);
             }
         }
 
@@ -1595,15 +1571,15 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Realm& realm, Optional<JS::Value> value, bool null_disallowed)
 {
     // 1. If value is a key range, return value.
-    if (value.has_value() && value->is_object()) {
-        if (auto* key_range = Bindings::impl_from<IDBKeyRange>(&value->as_object()))
+    if (value.has_value()) {
+        if (auto key_range = Bindings::idb_key_range_from_value(*value))
             return GC::Ref { *key_range };
     }
 
     // 2. If value is undefined or is null, then throw a "DataError" DOMException if null disallowed flag is true, or return an unbounded key range otherwise.
     if (!value.has_value() || (value.has_value() && (value->is_undefined() || value->is_null()))) {
         if (null_disallowed)
-            return WebIDL::DataError::create(realm, "Value is undefined or null"_utf16);
+            return WebIDL::DataError::create("Value is undefined or null"_utf16);
 
         return IDBKeyRange::create({}, {}, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
     }
@@ -1613,7 +1589,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Rea
 
     // 4. If key is invalid, throw a "DataError" DOMException.
     if (key->is_invalid())
-        return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
+        return WebIDL::DataError::create("Value is invalid"_utf16);
 
     // 5. Return a key range containing only key.
     return IDBKeyRange::create(key, key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
@@ -1662,7 +1638,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     auto direction = cursor->direction();
 
     // 3. Assert: if primaryKey is given, source is an index and direction is "next" or "prev".
-    auto direction_is_next_or_prev = direction == Bindings::IDBCursorDirection::Next || direction == Bindings::IDBCursorDirection::Prev;
+    auto direction_is_next_or_prev = direction == CursorDirection::Next || direction == CursorDirection::Prev;
     if (primary_key)
         VERIFY(source.has<GC::Ref<Index>>() && direction_is_next_or_prev);
 
@@ -1868,7 +1844,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     while (count > 0) {
         // 1. Switch on direction:
         switch (direction) {
-        case Bindings::IDBCursorDirection::Next: {
+        case CursorDirection::Next: {
             // Let found record be the first record in records which satisfy all of the following requirements:
             found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.first_matching(next_requirements);
@@ -1879,7 +1855,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             });
             break;
         }
-        case Bindings::IDBCursorDirection::Nextunique: {
+        case CursorDirection::Nextunique: {
             // Let found record be the first record in records which satisfy all of the following requirements:
             found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.first_matching(next_unique_requirements);
@@ -1890,7 +1866,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             });
             break;
         }
-        case Bindings::IDBCursorDirection::Prev: {
+        case CursorDirection::Prev: {
             // Let found record be the last record in records which satisfy all of the following requirements:
             found_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.last_matching(prev_requirements);
@@ -1902,7 +1878,7 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
             break;
         }
 
-        case Bindings::IDBCursorDirection::Prevunique: {
+        case CursorDirection::Prevunique: {
             // Let temp record be the last record in records which satisfy all of the following requirements:
             auto temp_record = records.visit([&](auto content) -> Variant<Empty, ObjectStoreRecord, IndexRecord> {
                 auto value = content.last_matching(prev_unique_requirements);
@@ -2059,7 +2035,7 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm& real
 }
 
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#retrieve-multiple-items-from-an-object-store
-GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm, GC::Ref<ObjectStore> store, GC::Ref<IDBKeyRange> range, RecordKind kind, CursorDirection direction, Optional<WebIDL::UnsignedLong> count)
 {
     // 1. If count is not given or is 0 (zero), let count be infinity.
     if (count.has_value() && *count == 0)
@@ -2069,12 +2045,12 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm
     GC::ConservativeVector<ObjectStoreRecord> records;
 
     // 3. If direction is "next" or "nextunique", set records to the first count of store’s list of records whose key is in range.
-    if (direction == Bindings::IDBCursorDirection::Next || direction == Bindings::IDBCursorDirection::Nextunique) {
+    if (direction == CursorDirection::Next || direction == CursorDirection::Nextunique) {
         records.extend(store->first_n_in_range(range, count));
     }
 
     // 4. If direction is "prev" or "prevunique", set records to the last count of store’s list of records whose key is in range.
-    if (direction == Bindings::IDBCursorDirection::Prev || direction == Bindings::IDBCursorDirection::Prevunique) {
+    if (direction == CursorDirection::Prev || direction == CursorDirection::Prevunique) {
         records.extend(store->last_n_in_range(range, count));
     }
 
@@ -2119,7 +2095,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm
             auto record_snapshot = IDBRecord::create(key, value, key);
 
             // 5. Append record snapshot to list.
-            MUST(list->create_data_property_or_throw(i, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, record_snapshot)));
+            Bindings::append_idb_record(realm, list, i, record_snapshot);
             break;
         }
         }
@@ -2297,7 +2273,7 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
 bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
 {
     // 1. If value is a key range, return true.
-    if (value.is_object() && Bindings::impl_from<IDBKeyRange>(&value.as_object()))
+    if (Bindings::idb_key_range_from_value(value))
         return true;
 
     // 2. Else if Type(value) is Number, return true.
@@ -2325,7 +2301,7 @@ bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
 }
 
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#retrieve-multiple-items-from-an-index
-GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, RecordKind kind, Bindings::IDBCursorDirection direction, Optional<WebIDL::UnsignedLong> count)
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm, GC::Ref<Index> index, GC::Ref<IDBKeyRange> range, RecordKind kind, CursorDirection direction, Optional<WebIDL::UnsignedLong> count)
 {
     // 1. If count is not given or is 0 (zero), let count be infinity.
     if (count.has_value() && *count == 0)
@@ -2337,13 +2313,13 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm
     // 3. Switching on direction:
     switch (direction) {
     // "next"
-    case Bindings::IDBCursorDirection::Next: {
+    case CursorDirection::Next: {
         // 1. Set records to the first count of index’s list of records whose key is in range.
         records.extend(index->first_n_in_range(range, count));
         break;
     }
     // "nextunique"
-    case Bindings::IDBCursorDirection::Nextunique: {
+    case CursorDirection::Nextunique: {
         // 1. Let range records be a list containing the index’s list of records whose key is in range.
         auto range_records = index->first_n_in_range(range, OptionalNone());
 
@@ -2378,13 +2354,13 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm
         break;
     }
     // "prev"
-    case Bindings::IDBCursorDirection::Prev: {
+    case CursorDirection::Prev: {
         // 1. Set records to the last count of index’s list of records whose key is in range.
         records.extend(index->last_n_in_range(range, count));
         break;
     }
     // "prevunique"
-    case Bindings::IDBCursorDirection::Prevunique: {
+    case CursorDirection::Prevunique: {
         // 1. Let range records be a list containing the index’s list of records whose key is in range.
         auto range_records = index->first_n_in_range(range, OptionalNone());
 
@@ -2468,7 +2444,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm
             auto record_snapshot = IDBRecord::create(index_key, value, key);
 
             // 6. Append record snapshot to list.
-            MUST(list->create_data_property_or_throw(i, Bindings::wrap(Bindings::host_defined_wrapper_world(target_realm), target_realm, record_snapshot)));
+            Bindings::append_idb_record(target_realm, list, i, record_snapshot);
             break;
         }
         }
@@ -2498,7 +2474,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
         [](GC::Ref<ObjectStore> object_store) { return object_store->is_deleted(); },
         [](GC::Ref<Index> index) { return index->is_deleted() || index->object_store()->is_deleted(); });
     if (is_source_or_object_store_deleted)
-        return WebIDL::InvalidStateError::create(realm, "Source or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Source or its object store has been deleted"_utf16);
 
     // 4. Let transaction be sourceHandle’s transaction.
     auto transaction = source_handle.visit(
@@ -2509,14 +2485,14 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
 
     // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while creating retrieve multiple items request"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while creating retrieve multiple items request"_utf16);
 
     // 6. Let range be a key range.
     GC::Ptr<IDBKeyRange> range;
 
     // 7. Let direction be "next".
     // FIXME: Spec bug: https://github.com/w3c/IndexedDB/pull/478
-    Bindings::IDBCursorDirection direction = Bindings::IDBCursorDirection::Next;
+    CursorDirection direction = CursorDirection::Next;
 
     // 8. If running is a potentially valid key range with queryOrOptions is true, then:
     // AD-HOC: Check if query_or_options is null following https://github.com/w3c/IndexedDB/issues/475
@@ -2536,13 +2512,13 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
         // 3. Set direction to query_or_options["direction"].
         auto direction_value = TRY(TRY(query_or_options.get(vm, "direction"_utf16)).to_string(vm));
         if (direction_value == "next")
-            direction = Bindings::IDBCursorDirection::Next;
+            direction = CursorDirection::Next;
         else if (direction_value == "nextunique")
-            direction = Bindings::IDBCursorDirection::Nextunique;
+            direction = CursorDirection::Nextunique;
         else if (direction_value == "prev")
-            direction = Bindings::IDBCursorDirection::Prev;
+            direction = CursorDirection::Prev;
         else if (direction_value == "prevunique")
-            direction = Bindings::IDBCursorDirection::Prevunique;
+            direction = CursorDirection::Prevunique;
     }
 
     // 10. Let operation be an algorithm to run.
@@ -2566,6 +2542,139 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
     auto result = asynchronously_execute_a_request(realm, source_handle, operation);
     dbgln_if(IDB_DEBUG, "Executing request for creating retrieve multiple items request with uuid {}", result->uuid());
     return result;
+}
+
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_items(JS::Realm& realm, IDBRequestSource source_handle, RecordKind kind, RetrieveMultipleItemsOptions const& options)
+{
+    // 1. Let source be an index or an object store from sourceHandle.
+    // If sourceHandle is an index handle, then source is the index handle’s associated index.
+    // Otherwise, source is the object store handle’s associated object store.
+    auto source = source_handle.visit(
+        [](Empty) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { VERIFY_NOT_REACHED(); },
+        [](GC::Ref<IDBCursor>) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { VERIFY_NOT_REACHED(); },
+        [](GC::Ref<IDBIndex> index) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { return index->index(); },
+        [](GC::Ref<IDBObjectStore> object_store) -> Variant<GC::Ref<ObjectStore>, GC::Ref<Index>> { return object_store->store(); });
+
+    // 2. If source has been deleted, throw an "InvalidStateError" DOMException.
+    // 3. If source is an index and source’s object store has been deleted, throw an "InvalidStateError" DOMException.
+    auto is_source_or_object_store_deleted = source.visit(
+        [](GC::Ref<ObjectStore> object_store) { return object_store->is_deleted(); },
+        [](GC::Ref<Index> index) { return index->is_deleted() || index->object_store()->is_deleted(); });
+    if (is_source_or_object_store_deleted)
+        return WebIDL::InvalidStateError::create("Source or its object store has been deleted"_utf16);
+
+    // 4. Let transaction be sourceHandle’s transaction.
+    auto transaction = source_handle.visit(
+        [](Empty) -> GC::Ref<IDBTransaction> { VERIFY_NOT_REACHED(); },
+        [](GC::Ref<IDBCursor>) -> GC::Ref<IDBTransaction> { VERIFY_NOT_REACHED(); },
+        [](GC::Ref<IDBIndex> index) -> GC::Ref<IDBTransaction> { return index->transaction(); },
+        [](GC::Ref<IDBObjectStore> object_store) -> GC::Ref<IDBTransaction> { return object_store->transaction(); });
+
+    // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
+    if (!transaction->is_active())
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while creating retrieve multiple items request"_utf16);
+
+    // 6. Let range be a key range.
+    auto range = TRY(convert_a_value_to_a_key_range(realm, options.query));
+
+    // 10. Let operation be an algorithm to run.
+    auto operation = source.visit(
+        // 11. If source is an index, set operation to retrieve multiple items from an index with targetRealm, source, range, kind, direction, and count if given.
+        [&](GC::Ref<Index> index) {
+            return GC::create_function(GC::Heap::the(),
+                [&realm, index, range, kind, direction = options.direction, count = options.count]() -> WebIDL::ExceptionOr<JS::Value> {
+                    return retrieve_multiple_items_from_an_index(realm, index, range, kind, direction, count);
+                });
+        },
+        // 12. Else set operation to retrieve multiple items from an object store with targetRealm, source, range, kind, direction, and count if given.
+        [&](GC::Ref<ObjectStore> object_store) {
+            return GC::create_function(GC::Heap::the(),
+                [&realm, object_store, range, kind, direction = options.direction, count = options.count]() -> WebIDL::ExceptionOr<JS::Value> {
+                    return retrieve_multiple_items_from_an_object_store(realm, object_store, range, kind, direction, count);
+                });
+        });
+
+    // 13. Return the result (an IDBRequest) of running asynchronously execute a request with sourceHandle and operation.
+    auto result = asynchronously_execute_a_request(realm, source_handle, operation);
+    dbgln_if(IDB_DEBUG, "Executing request for creating retrieve multiple items request with uuid {}", result->uuid());
+    return result;
+}
+
+JS::ThrowCompletionOr<JS::Value> convert_a_key_path_to_a_value(JS::Realm& realm, KeyPath const& key_path)
+{
+    return key_path.visit(
+        [&](String const& value) -> JS::ThrowCompletionOr<JS::Value> {
+            return JS::PrimitiveString::create(realm.vm(), value);
+        },
+        [&](Vector<String> const& value) -> JS::ThrowCompletionOr<JS::Value> {
+            return JS::Array::create_from<String>(realm, value.span(), [&](auto const& entry) -> JS::Value {
+                return JS::PrimitiveString::create(realm.vm(), entry);
+            });
+        });
+}
+
+}
+
+namespace Web::Bindings {
+
+void set_idb_request_result(JS::Realm& realm, IndexedDB::IDBRequest& request, GC::Ref<IndexedDB::IDBDatabase> database)
+{
+    request.set_result(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, database));
+}
+
+void resolve_database_info_list_promise(JS::Realm& realm, WebIDL::Promise const& promise, Vector<GC::Weak<IndexedDB::Database>> const& databases)
+{
+    auto result = MUST(JS::Array::create(realm, 0));
+
+    u32 result_index = 0;
+    for (auto const& db : databases) {
+        if (!db || db->version() == 0)
+            continue;
+
+        auto info = JS::Object::create(realm, realm.intrinsics().object_prototype());
+        MUST(info->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), db->name())));
+        MUST(info->create_data_property("version"_utf16_fly_string, JS::Value(db->version())));
+        MUST(result->create_data_property_or_throw(result_index++, info));
+    }
+
+    WebIDL::resolve_promise(realm, promise, result);
+}
+
+void append_idb_record(JS::Realm& realm, JS::Array& list, u32 index, GC::Ref<IndexedDB::IDBRecord> record)
+{
+    MUST(list.create_data_property_or_throw(index, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, record)));
+}
+
+JS::Value idb_cursor_result(JS::Realm& realm, GC::Ptr<IndexedDB::IDBCursor> cursor)
+{
+    if (!cursor)
+        return JS::js_null();
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, cursor);
+}
+
+Optional<JS::Value> key_path_value_for_blob_or_file(JS::Realm& realm, JS::Value value, StringView identifier)
+{
+    auto* blob = value.is_object() ? Bindings::impl_from<FileAPI::Blob>(&value.as_object()) : nullptr;
+    if (blob) {
+        if (identifier == "size")
+            return JS::Value(blob->size());
+        if (identifier == "type")
+            return JS::PrimitiveString::create(realm.vm(), blob->type());
+    }
+
+    if (auto* file = value.is_object() ? Bindings::impl_from<FileAPI::File>(&value.as_object()) : nullptr) {
+        if (identifier == "name")
+            return JS::PrimitiveString::create(realm.vm(), file->name());
+        if (identifier == "lastModified")
+            return JS::Value(static_cast<double>(file->last_modified()));
+    }
+
+    return {};
+}
+
+GC::Ptr<IndexedDB::IDBKeyRange> idb_key_range_from_value(JS::Value value)
+{
+    return Bindings::key_range_from_value(value);
 }
 
 }

@@ -9,12 +9,12 @@
 
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
+#include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::Streams {
@@ -24,6 +24,11 @@ using ReadableStreamReader = Variant<GC::Ref<ReadableStreamDefaultReader>, GC::R
 
 // https://streams.spec.whatwg.org/#typedefdef-readablestreamcontroller
 using ReadableStreamController = Variant<GC::Ref<ReadableStreamDefaultController>, GC::Ref<ReadableByteStreamController>>;
+
+using ReadableWritablePair = Bindings::ReadableWritablePair;
+using StreamPipeOptions = Bindings::StreamPipeOptions;
+using ReadableStreamGetReaderOptions = Bindings::ReadableStreamGetReaderOptions;
+using ReadableStreamIteratorOptions = Bindings::ReadableStreamIteratorOptions;
 
 struct ReadableStreamPair {
     // Define a couple container-like methods so this type may be used as the return type of the IDL `tee` implementation.
@@ -56,7 +61,8 @@ public:
         Errored,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ptr<JS::Object> underlying_source, Bindings::QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStream>> create_for_constructor(JS::Realm&, GC::Ptr<JS::Object> underlying_source_object, QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStream>> create(JS::Realm&, GC::Ptr<JS::Object> underlying_source_object, UnderlyingSource const&, QueuingStrategy const& = {});
 
     static WebIDL::ExceptionOr<GC::Ref<ReadableStream>> from(JS::Realm&, JS::Value async_iterable);
 
@@ -64,9 +70,10 @@ public:
 
     bool locked() const;
     GC::Ref<WebIDL::Promise> cancel(JS::Realm&, Optional<JS::Value> reason);
-    WebIDL::ExceptionOr<ReadableStreamReader> get_reader(JS::Realm&, Bindings::ReadableStreamGetReaderOptions const& = {});
-    WebIDL::ExceptionOr<GC::Ref<ReadableStream>> pipe_through(JS::Realm&, Bindings::ReadableWritablePair transform, Bindings::StreamPipeOptions const& = {});
-    GC::Ref<WebIDL::Promise> pipe_to(JS::Realm&, WritableStream& destination, Bindings::StreamPipeOptions const& = {});
+    WebIDL::ExceptionOr<ReadableStreamReader> get_reader(JS::Realm&, ReadableStreamGetReaderOptions const& = {});
+    WebIDL::ExceptionOr<GC::Ref<ReadableStream>> pipe_through(JS::Realm&, ReadableWritablePair transform, StreamPipeOptions const& = {});
+    GC::Ref<WebIDL::Promise> pipe_to(JS::Realm&, WritableStream& destination, StreamPipeOptions const& = {});
+    WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> values(JS::Realm&, ReadableStreamIteratorOptions);
     WebIDL::ExceptionOr<ReadableStreamPair> tee(JS::Realm&);
 
     void close(JS::Realm&);

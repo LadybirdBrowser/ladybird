@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PointerEvent.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -17,7 +16,33 @@ class Window;
 
 }
 
+namespace Web::Bindings {
+
+struct PointerEventInit;
+
+}
+
 namespace Web::UIEvents {
+
+class PointerEvent;
+
+struct PointerEventOptions : public MouseEventOptions {
+    WebIDL::Long pointer_id { 0 };
+    double width { 1 };
+    double height { 1 };
+    float pressure { 0 };
+    float tangential_pressure { 0 };
+    WebIDL::Long tilt_x { 0 };
+    WebIDL::Long tilt_y { 0 };
+    WebIDL::Long twist { 0 };
+    double altitude_angle { AK::Pi<double> / 2 };
+    double azimuth_angle { 0 };
+    String pointer_type {};
+    bool is_primary { false };
+    WebIDL::Long persistent_device_id { 0 };
+    Vector<GC::Ref<PointerEvent>> coalesced_events;
+    Vector<GC::Ref<PointerEvent>> predicted_events;
+};
 
 // https://w3c.github.io/pointerevents/#pointerevent-interface
 class PointerEvent : public MouseEvent {
@@ -26,11 +51,11 @@ class PointerEvent : public MouseEvent {
 
 public:
     [[nodiscard]] static GC::Ref<PointerEvent> create(
-        FlyString const& type, Bindings::PointerEventInit const&,
+        FlyString const& type, PointerEventOptions&&,
         double page_x, double page_y, double offset_x, double offset_y,
         HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> create_for_constructor(FlyString const&, Bindings::PointerEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers);
-    static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> construct_impl(HTML::Window&, FlyString const& type, Bindings::PointerEventInit const& = {});
 
     virtual ~PointerEvent() override;
 
@@ -66,7 +91,7 @@ public:
     static constexpr float ACTIVE_PRESSURE_DEFAULT_IN_ACTIVE_BUTTON_STATE { 0.5 };
 
 protected:
-    PointerEvent(FlyString const& type, Bindings::PointerEventInit const&, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp);
+    PointerEvent(FlyString const& type, PointerEventOptions&&, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

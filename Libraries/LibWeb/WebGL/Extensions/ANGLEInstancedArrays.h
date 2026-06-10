@@ -6,19 +6,18 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/ANGLEInstancedArrays.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 #include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
 
-class ANGLEInstancedArrays : public Bindings::Wrappable {
-    WEB_WRAPPABLE(ANGLEInstancedArrays, Bindings::Wrappable);
+class ANGLEInstancedArrays : public WebGLExtension {
+    WEB_WRAPPABLE(ANGLEInstancedArrays, WebGLExtension);
     GC_DECLARE_ALLOCATOR(ANGLEInstancedArrays);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
     void draw_arrays_instanced_angle(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
     void draw_elements_instanced_angle(GLenum mode, GLsizei count, GLenum type, GLintptr offset, GLsizei primcount);

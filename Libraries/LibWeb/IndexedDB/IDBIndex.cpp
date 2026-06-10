@@ -5,10 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibWeb/Bindings/IDBIndex.h>
-#include <LibWeb/Bindings/IDBObjectStore.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>
@@ -22,8 +18,7 @@ GC_DEFINE_ALLOCATOR(IDBIndex);
 IDBIndex::~IDBIndex() = default;
 
 IDBIndex::IDBIndex(GC::Ref<Index> index, GC::Ref<IDBObjectStore> object_store)
-    : Bindings::Wrappable()
-    , m_index(index)
+    : m_index(index)
     , m_object_store_handle(object_store)
     , m_name(index->name())
 {
@@ -51,8 +46,6 @@ JS::Object& IDBIndex::relevant_global_object() const
 // https://w3c.github.io/IndexedDB/#dom-idbindex-name
 WebIDL::ExceptionOr<void> IDBIndex::set_name(String const& value)
 {
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-
     // 1. Let name be the given value.
     auto const& name = value;
 
@@ -64,15 +57,15 @@ WebIDL::ExceptionOr<void> IDBIndex::set_name(String const& value)
 
     // 4. If transaction is not an upgrade transaction, throw an "InvalidStateError" DOMException.
     if (!transaction->is_upgrade_transaction())
-        return WebIDL::InvalidStateError::create(realm, "Transaction is not an upgrade transaction"_utf16);
+        return WebIDL::InvalidStateError::create("Transaction is not an upgrade transaction"_utf16);
 
     // 5. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while updating index name"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while updating index name"_utf16);
 
     // 6. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
     if (index->is_deleted() || index->object_store()->is_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Index or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Index or its object store has been deleted"_utf16);
 
     // 7. If index’s name is equal to name, terminate these steps.
     if (index->name() == name)
@@ -80,7 +73,7 @@ WebIDL::ExceptionOr<void> IDBIndex::set_name(String const& value)
 
     // 8. If an index named name already exists in index’s object store, throw a "ConstraintError" DOMException.
     if (index->object_store()->index_set().contains(name))
-        return WebIDL::ConstraintError::create(realm, "An index with the given name already exists"_utf16);
+        return WebIDL::ConstraintError::create("An index with the given name already exists"_utf16);
 
     // AD-HOC: Log the rename for potential revert on abort.
     m_object_store_handle->store()->mutation_log()->note_index_renamed(index, index->name());
@@ -99,21 +92,18 @@ WebIDL::ExceptionOr<void> IDBIndex::set_name(String const& value)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbindex-keypath
-JS::Value IDBIndex::key_path() const
+KeyPath const& IDBIndex::key_path() const
 {
-    return m_index->key_path().visit(
-        [&](String const& value) -> JS::Value {
-            return JS::PrimitiveString::create(HTML::relevant_realm(relevant_global_object()).vm(), value);
-        },
-        [&](Vector<String> const& value) -> JS::Value {
-            return JS::Array::create_from<String>(HTML::relevant_realm(relevant_global_object()), value.span(), [&](auto const& entry) -> JS::Value {
-                return JS::PrimitiveString::create(HTML::relevant_realm(relevant_global_object()).vm(), entry);
-            });
-        });
+    return m_index->key_path();
+}
+
+JS::ThrowCompletionOr<JS::Value> IDBIndex::key_path_value(JS::Realm& realm) const
+{
+    return convert_a_key_path_to_a_value(realm, key_path());
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbindex-opencursor
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_cursor(Optional<JS::Value> query, Bindings::IDBCursorDirection direction)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_cursor(Optional<JS::Value> query, CursorDirection direction)
 {
     auto& realm = HTML::relevant_realm(relevant_global_object());
 
@@ -125,11 +115,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_cursor(Optional<JS::Valu
 
     // 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
     if (index->is_deleted() || index->object_store()->is_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Index or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Index or its object store has been deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while opening cursor"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while opening cursor"_utf16);
 
     // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
     auto range = TRY(convert_a_value_to_a_key_range(realm, query));
@@ -140,9 +130,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_cursor(Optional<JS::Valu
     // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
         auto result = iterate_a_cursor(realm, cursor);
-        if (!result)
-            return JS::js_null();
-        return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, result);
+        return Bindings::idb_cursor_result(realm, result);
     });
 
     // 8. Let request be the result of running asynchronously execute a request with this and operation.
@@ -168,11 +156,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get(JS::Value query)
 
     // 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
     if (index->is_deleted() || index->object_store()->is_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Index or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Index or its object store has been deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while getting"_utf16);
 
     // 5. Let range be the result of converting a value to a key range with query and true. Rethrow any exceptions.
     auto range = TRY(convert_a_value_to_a_key_range(realm, query, true));
@@ -201,11 +189,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_key(JS::Value query)
 
     // 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
     if (index->is_deleted() || index->object_store()->is_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Index or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Index or its object store has been deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while getting key"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while getting key"_utf16);
 
     // 5. Let range be the result of converting a value to a key range with query and true. Rethrow any exceptions.
     auto range = TRY(convert_a_value_to_a_key_range(realm, query, true));
@@ -250,11 +238,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::count(Optional<JS::Value> que
 
     // 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
     if (index->is_deleted() || index->object_store()->is_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Index or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Index or its object store has been deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while counting"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while counting"_utf16);
 
     // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
     auto range = TRY(convert_a_value_to_a_key_range(realm, query));
@@ -271,7 +259,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::count(Optional<JS::Value> que
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbindex-openkeycursor
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(Optional<JS::Value> query, Bindings::IDBCursorDirection direction)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(Optional<JS::Value> query, CursorDirection direction)
 {
     auto& realm = HTML::relevant_realm(relevant_global_object());
 
@@ -283,11 +271,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(Optional<JS::
 
     // 3. If index or index’s object store has been deleted, throw an "InvalidStateError" DOMException.
     if (index->is_deleted() || index->object_store()->is_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Index or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Index or its object store has been deleted"_utf16);
 
     // 4. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while opening key cursor"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while opening key cursor"_utf16);
 
     // 5. Let range be the result of converting a value to a key range with query. Rethrow any exceptions.
     auto range = TRY(convert_a_value_to_a_key_range(realm, query));
@@ -298,9 +286,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(Optional<JS::
     // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [&realm, cursor] -> WebIDL::ExceptionOr<JS::Value> {
         auto result = iterate_a_cursor(realm, cursor);
-        if (!result)
-            return JS::js_null();
-        return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, result);
+        return Bindings::idb_cursor_result(realm, result);
     });
 
     // 8. Let request be the result of running asynchronously execute a request with this and operation.
@@ -314,17 +300,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(Optional<JS::
     return request;
 }
 
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all_records(Bindings::IDBGetAllOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all_records(RetrieveMultipleItemsOptions const& options)
 {
     // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this,
     //    "record", and options. Rethrow any exceptions.
-
-    auto converted_options = JS::Object::create(HTML::relevant_realm(relevant_global_object()), nullptr);
-    MUST(converted_options->create_data_property("query"_utf16, options.query));
-    MUST(converted_options->create_data_property("count"_utf16, options.count.has_value() ? JS::Value(options.count.value()) : JS::js_undefined()));
-    MUST(converted_options->create_data_property("direction"_utf16, JS::PrimitiveString::create(HTML::relevant_realm(relevant_global_object()).vm(), idl_enum_to_string(options.direction))));
-
-    return create_a_request_to_retrieve_multiple_items(HTML::relevant_realm(relevant_global_object()), GC::Ref(*this), RecordKind::Record, converted_options, {});
+    return create_a_request_to_retrieve_multiple_items(HTML::relevant_realm(relevant_global_object()), GC::Ref(*this), RecordKind::Record, options);
 }
 
 }

@@ -6,8 +6,12 @@
 
 #include <AK/Enumerate.h>
 #include <AK/Find.h>
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Object.h>
+#include <LibGC/WeakInlines.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/PrimitiveString.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/FileAPI/FileList.h>
@@ -19,6 +23,50 @@
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DataTransfer);
+
+struct DataTransferTypesCacheEntry {
+    GC::Weak<DataTransfer> data_transfer;
+    u64 types_revision { 0 };
+    Bindings::WrapperWorldWeakValueCache<JS::Array> types_arrays;
+};
+
+static Vector<DataTransferTypesCacheEntry>& data_transfer_types_caches()
+{
+    static NeverDestroyed<Vector<DataTransferTypesCacheEntry>> caches;
+    return *caches;
+}
+
+static void prune_data_transfer_types_caches()
+{
+    data_transfer_types_caches().remove_all_matching([](auto const& entry) {
+        return !entry.data_transfer;
+    });
+}
+
+static DataTransferTypesCacheEntry& types_cache_for(DataTransfer& data_transfer)
+{
+    auto& caches = data_transfer_types_caches();
+    prune_data_transfer_types_caches();
+
+    for (auto& entry : caches) {
+        if (entry.data_transfer.ptr() != &data_transfer)
+            continue;
+
+        if (entry.types_revision != data_transfer.types_revision()) {
+            entry.types_arrays.clear();
+            entry.types_revision = data_transfer.types_revision();
+        }
+
+        return entry;
+    }
+
+    caches.append(DataTransferTypesCacheEntry {
+        data_transfer,
+        data_transfer.types_revision(),
+        {},
+    });
+    return caches.last();
+}
 
 namespace DataTransferEffect {
 
@@ -42,7 +90,7 @@ GC::Ref<DataTransfer> DataTransfer::create(NonnullRefPtr<DragDataStore> drag_dat
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer
-GC::Ref<DataTransfer> DataTransfer::construct_impl()
+GC::Ref<DataTransfer> DataTransfer::create_for_constructor()
 {
     // 1. Set the drag data store's item list to be an empty list.
     auto drag_data_store = DragDataStore::create();
@@ -118,36 +166,31 @@ GC::Ref<DataTransferItemList> DataTransfer::items()
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-types
-ReadonlySpan<String> DataTransfer::types() const
+ReadonlySpan<String> DataTransfer::types_list() const
 {
     // The types attribute must return this DataTransfer object's types array.
     return m_types;
 }
 
-GC::Ptr<JS::Object> DataTransfer::cached_types(Bindings::WrapperWorld const& wrapper_world) const
+JS::ThrowCompletionOr<JS::Value> DataTransfer::types(JS::Realm& realm)
 {
-    return m_cached_types.get(wrapper_world);
-}
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    auto& cache = types_cache_for(*this);
 
-void DataTransfer::set_cached_types(Bindings::WrapperWorld const& wrapper_world, GC::Ptr<JS::Object> cached_types)
-{
-    if (!cached_types) {
-        clear_cached_types();
-        return;
+    if (auto types_array = cache.types_arrays.get(wrapper_world))
+        return JS::Value { types_array };
+
+    auto& vm = realm.vm();
+    auto types = types_list();
+    auto types_array = MUST(JS::Array::create(realm, 0));
+    for (size_t i = 0; i < types.size(); ++i) {
+        auto wrapped_type = JS::PrimitiveString::create(vm, types[i]);
+        MUST(types_array->create_data_property(JS::PropertyKey { i }, wrapped_type));
     }
 
-    m_cached_types.set(wrapper_world, cached_types);
-}
-
-void DataTransfer::set_cached_types(GC::Ptr<JS::Object> cached_types)
-{
-    VERIFY(!cached_types);
-    clear_cached_types();
-}
-
-void DataTransfer::clear_cached_types()
-{
-    m_cached_types.clear();
+    TRY(types_array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
+    cache.types_arrays.set(wrapper_world, types_array);
+    return JS::Value { types_array };
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-getdata
@@ -268,7 +311,7 @@ GC::Ref<FileAPI::FileList> DataTransfer::files() const
         auto file_name = MUST(String::from_byte_string(item.file_name));
 
         // FIXME: Fill in other fields (e.g. last_modified).
-        Bindings::FilePropertyBag options {};
+        FileAPI::FilePropertyBag options {};
         options.type = item.type_string;
 
         auto file = MUST(FileAPI::File::create({ { blob } }, file_name, move(options)));
@@ -426,8 +469,8 @@ void DataTransfer::update_data_transfer_types_list()
     }
 
     // 3. Set the DataTransfer object's types array to the result of creating a frozen array from L.
-    set_cached_types(nullptr);
     m_types = move(types);
+    ++m_types_revision;
 }
 
 }

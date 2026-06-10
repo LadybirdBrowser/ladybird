@@ -18,8 +18,7 @@ GC::Ref<WebGLShaderPrecisionFormat> WebGLShaderPrecisionFormat::create(GLint ran
 }
 
 WebGLShaderPrecisionFormat::WebGLShaderPrecisionFormat(GLint range_min, GLint range_max, GLint precision)
-    : Bindings::Wrappable()
-    , m_range_min(range_min)
+    : m_range_min(range_min)
     , m_range_max(range_max)
     , m_precision(precision)
 {

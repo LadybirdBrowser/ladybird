@@ -6,9 +6,12 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/Selection.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Selection {
@@ -36,26 +39,17 @@ public:
     unsigned range_count() const;
     String type() const;
     String direction() const;
-    WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> get_range_at(JS::Realm&, unsigned index);
     WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> get_range_at(unsigned index);
     void add_range(GC::Ref<DOM::Range>);
-    WebIDL::ExceptionOr<void> remove_range(JS::Realm&, GC::Ref<DOM::Range>);
     WebIDL::ExceptionOr<void> remove_range(GC::Ref<DOM::Range>);
     void remove_all_ranges();
     void empty();
-    WebIDL::ExceptionOr<void> collapse(JS::Realm&, GC::Ptr<DOM::Node>, unsigned offset);
     WebIDL::ExceptionOr<void> collapse(GC::Ptr<DOM::Node>, unsigned offset);
-    WebIDL::ExceptionOr<void> set_position(JS::Realm&, GC::Ptr<DOM::Node>, unsigned offset);
     WebIDL::ExceptionOr<void> set_position(GC::Ptr<DOM::Node>, unsigned offset);
-    WebIDL::ExceptionOr<void> collapse_to_start(JS::Realm&);
     WebIDL::ExceptionOr<void> collapse_to_start();
-    WebIDL::ExceptionOr<void> collapse_to_end(JS::Realm&);
     WebIDL::ExceptionOr<void> collapse_to_end();
-    WebIDL::ExceptionOr<void> extend(JS::Realm&, GC::Ref<DOM::Node>, unsigned offset);
     WebIDL::ExceptionOr<void> extend(GC::Ref<DOM::Node>, unsigned offset);
-    WebIDL::ExceptionOr<void> set_base_and_extent(JS::Realm&, GC::Ref<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ref<DOM::Node> focus_node, unsigned focus_offset);
     WebIDL::ExceptionOr<void> set_base_and_extent(GC::Ref<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ref<DOM::Node> focus_node, unsigned focus_offset);
-    WebIDL::ExceptionOr<void> select_all_children(JS::Realm&, GC::Ref<DOM::Node>);
     WebIDL::ExceptionOr<void> select_all_children(GC::Ref<DOM::Node>);
     WebIDL::ExceptionOr<void> modify(Optional<String> alter, Optional<String> direction, Optional<String> granularity);
     WebIDL::ExceptionOr<void>

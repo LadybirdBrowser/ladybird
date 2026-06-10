@@ -57,6 +57,14 @@ def reflected_attribute_name(attribute: Attribute) -> str:
     return attribute.extended_attributes.get("Reflect") or attribute.name.lower()
 
 
+def bindings_wrapper_header_for_interface(interface: Interface) -> str:
+    if interface.name in ("NodeIterator", "TreeWalker"):
+        return "LibWeb/Bindings/ImplementedInBindings.h"
+    if interface.name == "Element":
+        return "LibWeb/DOM/Element.h"
+    return "LibWeb/Bindings/ImplementedInBindings.h"
+
+
 def attribute_callback_cpp_name(attribute: Attribute) -> str:
     return attribute.extended_attributes.get("AttributeCallbackName", idl_identifier_cpp_name(attribute))
 
@@ -67,6 +75,39 @@ def attribute_getter_callback_name(attribute: Attribute) -> str:
 
 def attribute_setter_callback_name(attribute: Attribute) -> str:
     return f"{attribute_callback_cpp_name(attribute)}_setter"
+
+
+def implementation_attribute_getter_call(
+    interface: Interface, attribute: Attribute, realm_argument: str = "realm"
+) -> str:
+    return f"""[&]<typename Implementation = {fully_qualified_name_for_interface(interface)}> {{
+        if constexpr (requires(Implementation& implementation) {{ implementation.{idl_implementation_cpp_name(attribute)}(); }})
+            return static_cast<Implementation&>(*idl_object).{idl_implementation_cpp_name(attribute)}();
+        else
+            return static_cast<Implementation&>(*idl_object).{idl_implementation_cpp_name(attribute)}({realm_argument});
+    }}()"""
+
+
+def implementation_attribute_setter_call(interface: Interface, attribute: Attribute) -> str:
+    return f"""[&]<typename Implementation = {fully_qualified_name_for_interface(interface)}> {{
+        if constexpr (requires(Implementation& implementation) {{ implementation.set_{idl_implementation_cpp_name(attribute)}(idl_value); }})
+            return static_cast<Implementation&>(*idl_object).set_{idl_implementation_cpp_name(attribute)}(idl_value);
+        else
+            return static_cast<Implementation&>(*idl_object).set_{idl_implementation_cpp_name(attribute)}(realm, idl_value);
+    }}()"""
+
+
+def bindings_attribute_getter_call(attribute: Attribute, realm_argument: str) -> str:
+    return f"Web::Bindings::{idl_implementation_cpp_name(attribute)}({realm_argument}, *idl_object)"
+
+
+def bindings_attribute_setter_call(attribute: Attribute) -> str:
+    return f"Web::Bindings::set_{idl_implementation_cpp_name(attribute)}(realm, *idl_object, idl_value)"
+
+
+def bindings_static_attribute_getter_call(attribute: Attribute) -> str:
+    arguments = "realm" if "NeedsCallerRealmForGetter" in attribute.extended_attributes else "vm"
+    return f"Web::Bindings::{idl_implementation_cpp_name(attribute)}({arguments})"
 
 
 def define_the_regular_attributes(
@@ -208,13 +249,19 @@ def write_attribute_getter(
 
     getter_prelude = ""
     getter_cache_check = ""
-    getter_steps = f"auto R = TRY(throw_dom_exception_if_needed(vm, [&] {{ return idl_object->{idl_implementation_cpp_name(attribute)}(); }}));"
+    getter_realm_argument = (
+        "realm" if "NeedsCallerRealmForGetter" in attribute.extended_attributes else "this_object_realm"
+    )
+    getter_steps = f"auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, {getter_realm_argument}, [&] {{ return {implementation_attribute_getter_call(interface, attribute, getter_realm_argument)}; }}));"
     is_reflected = "Reflect" in attribute.extended_attributes
     is_non_nullable_reflected = is_reflected and not attribute.type.nullable
     is_non_nullable_reflected_string = is_non_nullable_reflected and attribute.type.name == "DOMString"
     is_reflected_usv_string = is_non_nullable_reflected and attribute.type.name == "USVString"
 
-    if is_reflected and attribute.type.name == "boolean":
+    if "ImplementedInBindings" in attribute.extended_attributes:
+        includes.add(bindings_wrapper_header_for_interface(interface))
+        getter_steps = f"auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, {getter_realm_argument}, [&] {{ return {bindings_attribute_getter_call(attribute, getter_realm_argument)}; }}));"
+    elif is_reflected and attribute.type.name == "boolean":
         getter_steps = f"""// If a reflected IDL attribute has the type boolean:
     // 1. Let contentAttributeValue be the result of running this's get the content attribute.
     // 2. If contentAttributeValue is null, then return false.
@@ -355,20 +402,31 @@ def write_attribute_getter(
     elif attribute_is_nullable_reflected_element(attribute):
         getter_steps = f"""static auto const& content_attribute = *new FlyString("{reflected_attribute_name(attribute)}"_fly_string);
 
-    auto R = idl_object->get_the_attribute_associated_element(content_attribute, TRY(throw_dom_exception_if_needed(vm, [&] {{ return idl_object->{idl_implementation_cpp_name(attribute)}(); }})));"""
+    auto R = idl_object->get_the_attribute_associated_element(content_attribute, TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return idl_object->{idl_implementation_cpp_name(attribute)}(); }})));"""
     elif attribute_is_nullable_reflected_frozen_array_of_element(attribute):
         getter_steps = f"""static auto const& content_attribute = *new FlyString("{reflected_attribute_name(attribute)}"_fly_string);
 
-    auto R = idl_object->get_the_attribute_associated_elements(content_attribute, TRY(throw_dom_exception_if_needed(vm, [&] {{ return idl_object->{idl_implementation_cpp_name(attribute)}(); }})));"""
+    auto R = idl_object->get_the_attribute_associated_elements(content_attribute, TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return idl_object->{idl_implementation_cpp_name(attribute)}(); }})));"""
 
     if "CachedAttribute" in attribute.extended_attributes:
+        includes.add("LibWeb/Bindings/WrapperWorld.h")
+        includes.add(bindings_wrapper_header_for_interface(interface))
         getter_prelude = f"""    if (auto cached_value = idl_object->cached_{idl_implementation_cpp_name(attribute)}())
         return JS::Value(cached_value.ptr());
 
 """
+        getter_prelude = f"""    auto& wrapper_world = host_defined_wrapper_world({getter_realm_argument});
+    if (auto cached_value = Bindings::cached_{idl_implementation_cpp_name(attribute)}(*idl_object, wrapper_world))
+        return JS::Value(cached_value.ptr());
+
+"""
     if attribute_is_nullable_reflected_frozen_array_of_element(attribute):
-        includes.add("LibWeb/WebIDL/AbstractOperations.h")
-        getter_cache_check = f"""    if (auto cached_value = idl_object->cached_{idl_implementation_cpp_name(attribute)}(); WebIDL::lists_contain_same_elements(cached_value, R))
+        includes.add("LibWeb/DOM/Element.h")
+        includes.add("LibWeb/Bindings/WrapperWorld.h")
+        getter_prelude = f"""    auto& wrapper_world = host_defined_wrapper_world({getter_realm_argument});
+
+"""
+        getter_cache_check = """    if (auto cached_value = cached_reflected_element_array(*idl_object, wrapper_world, content_attribute); cached_reflected_element_array_contains_same_elements(cached_value, R))
         return JS::Value(cached_value.ptr());
 
 """
@@ -378,12 +436,25 @@ def write_attribute_getter(
         if attribute_is_nullable_reflected_frozen_array_of_element(attribute):
             includes.add("LibJS/Runtime/Array.h")
             cached_value = "&as<JS::Array>(js_value.as_object())"
+        cache_setter = f"idl_object->set_cached_{idl_implementation_cpp_name(attribute)}({cached_value});"
+        if "CachedAttribute" in attribute.extended_attributes:
+            cache_setter = f"Bindings::set_cached_{idl_implementation_cpp_name(attribute)}(*idl_object, wrapper_world, {cached_value});"
+        elif attribute_is_nullable_reflected_frozen_array_of_element(attribute):
+            cache_setter = (
+                f"set_cached_reflected_element_array(*idl_object, wrapper_world, content_attribute, {cached_value});"
+            )
         cached_return_value = f"""[&]() -> JS::Value {{
-        JS::Value js_value = {to_javascript_value(attribute.type, "R", includes, context)};
+        JS::Value js_value = {to_javascript_value(attribute.type, "R", includes, context, getter_realm_argument)};
         if (js_value.is_object())
-            idl_object->set_cached_{idl_implementation_cpp_name(attribute)}({cached_value});
+            {cache_setter}
         return js_value;
     }}()"""
+    return_value = (
+        "R"
+        if "ReturnsJSValue" in attribute.extended_attributes
+        else to_javascript_value(attribute.type, "R", includes, context, getter_realm_argument)
+    )
+
     if attribute_type_is_promise:
         if getter_prelude or getter_cache_check:
             raise RuntimeError(f"Unsupported cached promise attribute '{attribute.name}' on '{interface.name}'")
@@ -394,24 +465,26 @@ def write_attribute_getter(
     [[maybe_unused]] auto& realm = *vm.current_realm();
 
     auto steps = [&]() -> JS::ThrowCompletionOr<GC::Ptr<WebIDL::Promise>> {{
-        // 1. Let idlObject be null.
-        [[maybe_unused]] auto* idl_object = TRY(impl_from(vm));
+        [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = nullptr;
+
+        auto js_value = vm.this_value();
+        if (js_value.is_nullish())
+            js_value = &realm.global_object();
+
+        idl_object = TRY(impl_from(vm, js_value));
+        [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
+
         {getter_steps}
         return R;
     }};
 
     auto maybe_R = steps();
 
-    // 2. And then, if an exception E was thrown:
-
-    // 1. If attribute’s type is a promise type, then return ! Call(%Promise.reject%, %Promise%, «E»).
     if (maybe_R.is_throw_completion())
         return WebIDL::create_rejected_promise(realm, maybe_R.error_value())->promise();
 
-    // 2. Otherwise, end these steps and allow the exception to propagate.
     auto R = maybe_R.release_value();
 
-    // 4. Return the result of converting R to a JavaScript value of the type attribute is declared as.
     return {to_javascript_value(attribute.type, "R", includes, context)};
 }}
 
@@ -424,12 +497,19 @@ def write_attribute_getter(
     WebIDL::log_trace(vm, "{receiver_class}::{attribute_getter_callback_name(attribute)}");
     [[maybe_unused]] auto& realm = *vm.current_realm();
 
-    auto* idl_object = TRY(impl_from(vm));
+    [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = nullptr;
+
+    auto js_value = vm.this_value();
+    if (js_value.is_nullish())
+        js_value = &realm.global_object();
+
+    idl_object = TRY(impl_from(vm, js_value));
+    [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
 
 {getter_prelude}
     {getter_steps}
 {getter_cache_check}
-    return {cached_return_value or to_javascript_value(attribute.type, "R", includes, context)};
+    return {cached_return_value or return_value};
 }}
 
 """
@@ -466,31 +546,18 @@ def write_attribute_setter(
     WebIDL::log_trace(vm, "{receiver_class}::{attribute_setter_callback_name(attribute)}");
     [[maybe_unused]] auto& realm = *vm.current_realm();
 
-    // 1. Let V be undefined.
     auto V = JS::js_undefined();
-
-    // 2. If any arguments were passed, then set V to the value of the first argument passed.
     if (vm.argument_count() > 0)
         V = vm.argument(0);
 
-    // 3. Let id be attribute’s identifier.
-
-    // 4. Let idlObject be null.
     [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = nullptr;
 
-    // 5. If attribute is a regular attribute:
-
-    // 1. Let jsValue be the this value, if it is not null or undefined, or realm’s global object otherwise. (This will subsequently cause a TypeError in a few steps, if the global object does not implement target and [LegacyLenientThis] is not specified.)
     auto js_value = vm.this_value();
     if (js_value.is_nullish())
         js_value = &realm.global_object();
+    [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
 
-    // 2. FIXME: If jsValue is a platform object, then perform a security check, passing jsValue, attribute’s identifier, and "setter".
-
-    // 3. Let validThis be true if jsValue implements target, or false otherwise.
     auto maybe_idl_object = impl_from(vm, js_value);
-
-    // 4. If validThis is false and attribute was not specified with the [LegacyLenientThis] extended attribute, then throw a TypeError.
 """
     )
     if "LegacyLenientThis" not in attribute.extended_attributes:
@@ -501,11 +568,8 @@ def write_attribute_setter(
         )
     if "Replaceable" in attribute.extended_attributes:
         out.write(
-            f"""    // 5. If attribute is declared with the [Replaceable] extended attribute, then:
-    // 1. Perform ? CreateDataPropertyOrThrow(jsValue, id, V).
-    TRY(idl_object->create_data_property_or_throw("{attribute.name}"_utf16_fly_string, V));
+            f"""    TRY(js_value.as_object().create_data_property_or_throw("{attribute.name}"_utf16_fly_string, V));
 
-    // 2. Return undefined.
     return JS::js_undefined();
 }}
 
@@ -515,11 +579,9 @@ def write_attribute_setter(
 
     if "LegacyLenientThis" in attribute.extended_attributes:
         out.write(
-            """    // 6. If validThis is false, then return undefined.
-    if (maybe_idl_object.is_error())
+            """    if (maybe_idl_object.is_error())
         return JS::js_undefined();
 
-    // 5. Set idlObject to the IDL interface type value that represents a reference to jsValue.
     idl_object = maybe_idl_object.release_value();
 
 """
@@ -527,8 +589,7 @@ def write_attribute_setter(
 
     if "LegacyLenientSetter" in attribute.extended_attributes:
         out.write(
-            """    // 7. If attribute is declared with a [LegacyLenientSetter] extended attribute, then return undefined.
-    return JS::js_undefined();
+            """    return JS::js_undefined();
 }
 
 """
@@ -538,23 +599,16 @@ def write_attribute_setter(
     if put_forwards_identifier := attribute.extended_attributes.get("PutForwards"):
         includes.add("LibJS/Runtime/PropertyKey.h")
         out.write(
-            f"""    // 8. If attribute is declared with a [PutForwards] extended attribute, then:
+            f"""    auto receiver_value = TRY(js_value.as_object().get("{attribute.name}"_utf16_fly_string));
 
-    // 1. Let Q be ? Get(jsValue, id).
-    auto receiver_value = TRY(idl_object->get("{attribute.name}"_utf16_fly_string));
-
-    // 2. If Q is not an Object, then throw a TypeError.
     if (!receiver_value.is_object())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, receiver_value);
     auto& receiver = receiver_value.as_object();
 
-    // 3. Let forwardId be the identifier argument of the [PutForwards] extended attribute.
     auto forward_id = "{put_forwards_identifier}"_utf16_fly_string;
 
-    // 4. Perform ? Set(Q, forwardId, V, false).
     TRY(receiver.set(JS::PropertyKey {{ forward_id, JS::PropertyKey::StringMayBeNumber::No }}, V, JS::Object::ShouldThrowExceptions::No));
 
-    // 5. Return undefined.
     return JS::js_undefined();
 }}
 
@@ -562,7 +616,7 @@ def write_attribute_setter(
         )
         return
 
-    setter_steps = f"TRY(throw_dom_exception_if_needed(vm, [&] {{ return idl_object->set_{idl_implementation_cpp_name(attribute)}(idl_value); }}));\n    return {{}};"
+    setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {implementation_attribute_setter_call(interface, attribute)}; }}));\n    return {{}};"
     is_reflected = "Reflect" in attribute.extended_attributes
     is_non_nullable_reflected = is_reflected and not attribute.type.nullable
     is_nullable_reflected_string = is_reflected and attribute.type.nullable and attribute.type.name == "DOMString"
@@ -575,6 +629,9 @@ def write_attribute_setter(
     else
         idl_object->set_attribute_value("{reflected_attribute_name(attribute)}"_fly_string, String {{}});
     return {{}};"""
+    elif "ImplementedInBindings" in attribute.extended_attributes:
+        includes.add(bindings_wrapper_header_for_interface(interface))
+        setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {bindings_attribute_setter_call(attribute)}; }}));\n    return {{}};"
     elif is_non_nullable_reflected and attribute.type.name == "unsigned long":
         setter_steps = f"""u32 minimum = 0;
     u32 new_value = minimum;
@@ -608,10 +665,13 @@ def write_attribute_setter(
     idl_object->set_{idl_implementation_cpp_name(attribute)}(*idl_value);
     return {{}};"""
     elif attribute_is_nullable_reflected_frozen_array_of_element(attribute):
+        includes.add("LibWeb/DOM/Element.h")
+        includes.add("LibWeb/Bindings/WrapperWorld.h")
         includes.add("LibGC/Weak.h")
-        setter_steps = f"""idl_object->set_cached_{idl_implementation_cpp_name(attribute)}(nullptr);
+        setter_steps = f"""auto& wrapper_world = host_defined_wrapper_world(realm);
 
     static auto const& content_attribute = *new FlyString("{reflected_attribute_name(attribute)}"_fly_string);
+    set_cached_reflected_element_array(*idl_object, wrapper_world, content_attribute, nullptr);
 
     if (!idl_value.has_value()) {{
         idl_object->set_{idl_implementation_cpp_name(attribute)}({{}});
@@ -635,31 +695,23 @@ def write_attribute_setter(
     )
     if context.enumeration(attribute.type) is not None:
         out.write(
-            f"""        // 6. Let idlValue be determined as follows:
-        // -> attribute's type is an enumeration
-        // 1. Let S be ? ToString(V).
-        auto maybe_idl_value = throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(attribute, "V", includes, context)}; }});
+            f"""        auto maybe_idl_value = WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value(attribute, "V", includes, context)}; }});
 
-        // 2. If S is not one of the enumeration's values, then return undefined.
         if (maybe_idl_value.is_error())
             return JS::js_undefined();
 
-        // 3. Otherwise, idlValue is the enumeration value equal to S.
         auto idl_value = maybe_idl_value.release_value();
 
 """
         )
     else:
         out.write(
-            f"""        // 6. Let idlValue be determined as follows:
-        // -> Otherwise, idlValue is the result of converting V to an IDL value of attribute’s type.
-        auto idl_value = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(attribute, "V", includes, context)}; }}));
+            f"""        auto idl_value = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value(attribute, "V", includes, context)}; }}));
 
 """
         )
     out.write(
-        f"""        // 7. Run the setter steps of attribute with idlObject as this and idlValue as the value.
-        auto setter_result = [&]() -> JS::ThrowCompletionOr<void> {{
+        f"""        auto setter_result = [&]() -> JS::ThrowCompletionOr<void> {{
             {setter_steps}
         }}();
 
@@ -671,11 +723,10 @@ def write_attribute_setter(
 """
     )
     if "CEReactions" in attribute.extended_attributes:
-        setter_result = wrap_with_ce_reactions(includes, "original_steps()")
+        setter_result = wrap_with_ce_reactions(includes, "original_steps()", "this_object_realm")
     else:
         setter_result = "original_steps()"
     out.write(f"""
-    // 8. Return undefined.
     return TRY({setter_result});
 }}
 
@@ -698,12 +749,28 @@ def write_static_attribute_getter(
     interface: Interface,
     attribute: Attribute,
 ) -> None:
+    if "ImplementedInBindings" in attribute.extended_attributes:
+        includes.add(bindings_wrapper_header_for_interface(interface))
+        getter_call = bindings_static_attribute_getter_call(attribute)
+    elif "NeedsCallerRealmForGetter" in attribute.extended_attributes:
+        getter_call = (
+            f"{fully_qualified_name_for_interface(interface)}::{idl_implementation_cpp_name(attribute)}(realm)"
+        )
+    else:
+        getter_call = f"""[&]<typename Implementation = {fully_qualified_name_for_interface(interface)}> {{
+        if constexpr (requires {{ Implementation::{idl_implementation_cpp_name(attribute)}(); }})
+            return Implementation::{idl_implementation_cpp_name(attribute)}();
+        else
+            return Implementation::{idl_implementation_cpp_name(attribute)}(vm);
+    }}()"""
+
     out.write(f"""JS_DEFINE_NATIVE_FUNCTION({interface.constructor_class}::{attribute_getter_callback_name(attribute)})
 {{
     WebIDL::log_trace(vm, "{interface.constructor_class}::{attribute_getter_callback_name(attribute)}");
+    [[maybe_unused]] auto& realm = *vm.current_realm();
 
     // Let R be the result of running the getter steps of attribute.
-    auto R = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {fully_qualified_name_for_interface(interface)}::{idl_implementation_cpp_name(attribute)}(vm); }}));
+    auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {getter_call}; }}));
 
     // Return the result of converting R to a JavaScript value of the type attribute is declared as.
     return {to_javascript_value(attribute.type, "R", includes, context)};

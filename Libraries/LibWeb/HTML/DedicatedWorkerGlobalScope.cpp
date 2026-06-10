@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DedicatedWorkerExposedInterfaces.h>
-#include <LibWeb/Bindings/DedicatedWorkerGlobalScope.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::HTML {
 
@@ -23,18 +22,6 @@ DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(GC::Ref<Web::Page> page)
 }
 
 DedicatedWorkerGlobalScope::~DedicatedWorkerGlobalScope() = default;
-
-void DedicatedWorkerGlobalScope::initialize_web_interfaces_impl()
-{
-    auto& realm = this->realm();
-    auto& global_object = realm.global_object();
-
-    Bindings::add_dedicated_worker_exposed_interfaces(global_object);
-
-    DedicatedWorkerGlobalScopeGlobalMixin::initialize(realm, global_object);
-
-    Base::initialize_web_interfaces_impl();
-}
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-close
 void DedicatedWorkerGlobalScope::close()
@@ -50,12 +37,17 @@ void DedicatedWorkerGlobalScope::finalize()
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage-options
-WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, StructuredSerializeOptions const& options)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
     return m_internal_port->post_message(realm, message, options);
+}
+
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
+{
+    return post_message(realm, message, StructuredSerializeOptions { .transfer = options.transfer });
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage

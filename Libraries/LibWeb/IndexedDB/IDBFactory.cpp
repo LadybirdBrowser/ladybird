@@ -7,11 +7,7 @@
 
 #include <AK/Vector.h>
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/IDBDatabase.h>
-#include <LibWeb/Bindings/IDBFactory.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -25,7 +21,6 @@
 #include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
-#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::IndexedDB {
 
@@ -37,8 +32,7 @@ static auto current_high_resolution_time(HTML::WindowOrWorkerGlobalScopeMixin& g
 }
 
 IDBFactory::IDBFactory(HTML::WindowOrWorkerGlobalScopeMixin& global)
-    : Bindings::Wrappable()
-    , m_global(global.this_impl())
+    : m_global(global.this_impl())
 {
 }
 
@@ -81,7 +75,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
     //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
     auto storage_key = StorageAPI::obtain_a_storage_key(environment);
     if (!storage_key.has_value())
-        return WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_utf16);
+        return WebIDL::SecurityError::create("Failed to obtain a storage key"_utf16);
 
     // 4. Let request be a new open request.
     auto request = IDBOpenDBRequest::create(m_global);
@@ -114,7 +108,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
                     current_high_resolution_time(request->relevant_global_scope())));
             } else {
                 // 1. Set request’s result to result.
-                request->set_result(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, result.release_value()));
+                Bindings::set_idb_request_result(realm, request, result.release_value());
 
                 // 2. Set request’s done flag to true.
                 request->set_done(true);
@@ -139,14 +133,14 @@ WebIDL::ExceptionOr<i8> IDBFactory::cmp(JS::Value first, JS::Value second)
 
     // 2. If a is invalid, throw a "DataError" DOMException.
     if (a->is_invalid())
-        return WebIDL::DataError::create(HTML::relevant_realm(relevant_global_object()), "Failed to convert a value to a key"_utf16);
+        return WebIDL::DataError::create("Failed to convert a value to a key"_utf16);
 
     // 3. Let b be the result of converting a value to a key with second. Rethrow any exceptions.
     auto b = TRY(convert_a_value_to_a_key(HTML::relevant_realm(relevant_global_object()), second));
 
     // 4. If b is invalid, throw a "DataError" DOMException.
     if (b->is_invalid())
-        return WebIDL::DataError::create(HTML::relevant_realm(relevant_global_object()), "Failed to convert a value to a key"_utf16);
+        return WebIDL::DataError::create("Failed to convert a value to a key"_utf16);
 
     // 5. Return the results of comparing two keys with a and b.
     return Key::compare_two_keys(a, b);
@@ -164,7 +158,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Strin
     //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
     auto storage_key = StorageAPI::obtain_a_storage_key(environment);
     if (!storage_key.has_value())
-        return WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_utf16);
+        return WebIDL::SecurityError::create("Failed to obtain a storage key"_utf16);
 
     // 3. Let request be a new open request.
     auto request = IDBOpenDBRequest::create(m_global);
@@ -210,7 +204,15 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Strin
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-databases
-GC::Ref<WebIDL::Promise> IDBFactory::databases()
+GC::Ref<WebIDL::Promise> IDBFactory::databases(JS::Realm& realm)
+{
+    auto promise = WebIDL::create_promise(realm);
+    databases(promise);
+    return promise;
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbfactory-databases
+void IDBFactory::databases(GC::Ref<WebIDL::Promise> promise)
 {
     auto& realm = HTML::relevant_realm(relevant_global_object());
 
@@ -220,16 +222,17 @@ GC::Ref<WebIDL::Promise> IDBFactory::databases()
     // 2. Let storageKey be the result of running obtain a storage key given environment.
     //    If failure is returned, then return a promise rejected with a "SecurityError" DOMException
     auto maybe_storage_key = StorageAPI::obtain_a_storage_key(environment);
-    if (!maybe_storage_key.has_value())
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_utf16));
+    if (!maybe_storage_key.has_value()) {
+        WebIDL::reject_promise(realm, promise, WebIDL::SecurityError::create("Failed to obtain a storage key"_utf16));
+        return;
+    }
 
     auto storage_key = maybe_storage_key.release_value();
 
     // 3. Let p be a new promise.
-    auto p = WebIDL::create_promise(realm);
 
     // 4. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, storage_key, p]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, storage_key, promise]() {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 1. Let databases be the set of databases in storageKey.
@@ -237,36 +240,11 @@ GC::Ref<WebIDL::Promise> IDBFactory::databases()
         auto databases = Database::for_key(storage_key);
 
         // 2. Let result be a new list.
-        auto result = MUST(JS::Array::create(realm, 0));
-
-        // 3. For each db of databases:
-        u32 result_index = 0;
-        for (u32 i = 0; i < databases.size(); ++i) {
-            auto& db = databases[i];
-
-            // 1. If db’s version is 0, then continue.
-            if (db->version() == 0)
-                continue;
-
-            // 2. Let info be a new IDBDatabaseInfo dictionary.
-            auto info = JS::Object::create(realm, realm.intrinsics().object_prototype());
-
-            // 3. Set info’s name dictionary member to db’s name.
-            MUST(info->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), db->name())));
-
-            // 4. Set info’s version dictionary member to db’s version.
-            MUST(info->create_data_property("version"_utf16_fly_string, JS::Value(db->version())));
-
-            // 4. Append info to result.
-            MUST(result->create_data_property_or_throw(result_index++, info));
-        }
-
+        // 3. For each db of databases, append an IDBDatabaseInfo dictionary
+        //    if db's version is not 0.
         // 4. Resolve p with result.
-        WebIDL::resolve_promise(realm, p, result);
+        Bindings::resolve_database_info_list_promise(realm, promise, databases);
     }));
-
-    // 5. Return p.
-    return p;
 }
 
 }

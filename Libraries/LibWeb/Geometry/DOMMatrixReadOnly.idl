@@ -54,7 +54,7 @@ interface DOMMatrixReadOnly {
     [NewObject, NeedsCallerRealm] Float32Array toFloat32Array();
     [NewObject, NeedsCallerRealm] Float64Array toFloat64Array();
 
-    [Exposed=Window, NeedsCallerRealm] stringifier;
+    [Exposed=Window] stringifier;
     [Default] object toJSON();
 };
 

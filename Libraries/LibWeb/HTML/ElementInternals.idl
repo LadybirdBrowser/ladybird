@@ -5,21 +5,21 @@ interface ElementInternals {
     readonly attribute ShadowRoot? shadowRoot;
 
     // Form-associated custom elements
-    [NeedsCallerRealm] undefined setFormValue((File or USVString or FormData)? value,
+    undefined setFormValue((File or USVString or FormData)? value,
                             optional (File or USVString or FormData)? state);
 
-    [NeedsCallerRealmForGetter] readonly attribute HTMLFormElement? form;
+    readonly attribute HTMLFormElement? form;
 
-    [NeedsCallerRealm] undefined setValidity(optional ValidityStateFlags flags = {},
+    undefined setValidity(optional ValidityStateFlags flags = {},
                           optional DOMString message,
                           optional HTMLElement anchor);
-    [NeedsCallerRealmForGetter] readonly attribute boolean willValidate;
-    [NeedsCallerRealmForGetter] readonly attribute ValidityState validity;
-    [NeedsCallerRealmForGetter] readonly attribute DOMString validationMessage;
-    [NeedsCallerRealm] boolean checkValidity();
-    [NeedsCallerRealm] boolean reportValidity();
+    readonly attribute boolean willValidate;
+    readonly attribute ValidityState validity;
+    readonly attribute DOMString validationMessage;
+    boolean checkValidity();
+    boolean reportValidity();
 
-    [NeedsCallerRealmForGetter] readonly attribute NodeList labels;
+    readonly attribute NodeList labels;
 
     // Custom state pseudo-class
     [SameObject] readonly attribute CustomStateSet states;

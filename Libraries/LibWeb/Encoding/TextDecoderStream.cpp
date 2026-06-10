@@ -11,12 +11,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/TextDecoder.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Encoding/TextDecoderStream.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
@@ -27,6 +22,11 @@
 namespace Web::Encoding {
 
 GC_DEFINE_ALLOCATOR(TextDecoderStream);
+
+WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::create_for_constructor(JS::Realm& realm, String const& label, TextDecoderOptions const& options)
+{
+    return create(realm, FlyString { label }, options);
+}
 
 static bool is_utf8_continuation_byte(u8 byte)
 {
@@ -95,11 +95,8 @@ static size_t find_utf8_safe_decode_boundary(ReadonlyBytes bytes)
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoderstream
-WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, FlyString label, Bindings::TextDecoderOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::create(JS::Realm& realm, FlyString label, TextDecoderOptions const& options)
 {
-    auto& realm = HTML::relevant_realm(global_scope);
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-
     // 1. Let encoding be the result of getting an encoding from label.
     auto encoding = TextCodec::get_standardized_encoding(label);
 
@@ -125,7 +122,6 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
 
     // 9. Let transformStream be a new TransformStream.
     auto transform_stream = GC::Heap::the().allocate<Streams::TransformStream>();
-    (void)Bindings::wrap(wrapper_world, realm, transform_stream);
 
     auto stream = GC::Heap::the().allocate<TextDecoderStream>(transform_stream, *decoder, lowercase_encoding_name, error_mode, ignore_bom);
 
@@ -146,8 +142,6 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
 
     // 10. Set up transformStream with transformAlgorithm set to transformAlgorithm and flushAlgorithm set to flushAlgorithm.
     transform_stream->set_up(realm, transform_algorithm, flush_algorithm);
-    (void)Bindings::wrap(wrapper_world, realm, transform_stream->readable());
-    (void)Bindings::wrap(wrapper_world, realm, transform_stream->writable());
 
     // 11. Set this’s transform to transformStream.
     // NB: Done via the GenericTransformStreamMixin constructor above.
@@ -156,8 +150,7 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
 }
 
 TextDecoderStream::TextDecoderStream(GC::Ref<Streams::TransformStream> transform, TextCodec::Decoder& decoder, FlyString encoding, ErrorMode error_mode, bool ignore_bom)
-    : Bindings::Wrappable()
-    , Streams::GenericTransformStreamMixin(transform)
+    : Streams::GenericTransformStreamMixin(transform)
     , TextDecoderCommonMixin(decoder, move(encoding), error_mode, ignore_bom)
 {
 }
@@ -182,7 +175,7 @@ WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Realm&
     // 2. Push a copy of bufferSource to decoder's I/O queue.
     auto buffer_or_error = WebIDL::get_buffer_source_copy(chunk.as_object());
     if (buffer_or_error.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to copy bytes from BufferSource"_utf16);
+        return WebIDL::OperationError::create("Failed to copy bytes from BufferSource"_utf16);
     auto buffer = buffer_or_error.release_value();
     m_io_queue.append(buffer.bytes());
 

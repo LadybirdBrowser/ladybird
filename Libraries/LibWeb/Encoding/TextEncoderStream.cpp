@@ -8,11 +8,9 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Encoding/TextEncoderStream.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
@@ -24,18 +22,14 @@ namespace Web::Encoding {
 GC_DEFINE_ALLOCATOR(TextEncoderStream);
 
 // https://encoding.spec.whatwg.org/#dom-textencoderstream
-WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope)
+WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::create(JS::Realm& realm)
 {
-    auto& realm = HTML::relevant_realm(global_scope);
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-
     // 1. Set this’s encoder to an instance of the UTF-8 encoder.
     // NOTE: No-op, as AK::String is already in UTF-8 format.
 
     // NOTE: We do these steps first so that we may store it as nonnull in the GenericTransformStream.
     // 4. Let transformStream be a new TransformStream.
     auto transform_stream = GC::Heap::the().allocate<Streams::TransformStream>();
-    (void)Bindings::wrap(wrapper_world, realm, transform_stream);
 
     // 6. Set this's transform to a new TransformStream.
     auto stream = GC::Heap::the().allocate<TextEncoderStream>(transform_stream);
@@ -43,39 +37,39 @@ WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::construct_imp
     // 2. Let transformAlgorithm be an algorithm which takes a chunk argument and runs the encode and enqueue a chunk
     //    algorithm with this and chunk.
     auto transform_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-        auto& vm = realm->vm();
-
-        if (auto result = stream->encode_and_enqueue_chunk(realm, chunk); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, result.exception());
-            return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
-        }
+        if (auto result = stream->encode_and_enqueue_chunk(realm, chunk); result.is_error())
+            return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
 
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 3. Let flushAlgorithm be an algorithm which runs the encode and flush algorithm with this.
     auto flush_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)]() -> GC::Ref<WebIDL::Promise> {
-        auto& vm = realm->vm();
-
-        if (auto result = stream->encode_and_flush(realm); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, result.exception());
-            return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
-        }
+        if (auto result = stream->encode_and_flush(realm); result.is_error())
+            return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
 
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 5. Set up transformStream with transformAlgorithm set to transformAlgorithm and flushAlgorithm set to flushAlgorithm.
     transform_stream->set_up(realm, transform_algorithm, flush_algorithm);
-    (void)Bindings::wrap(wrapper_world, realm, transform_stream->readable());
-    (void)Bindings::wrap(wrapper_world, realm, transform_stream->writable());
+
+    return stream;
+}
+
+WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::create_for_constructor(JS::Realm& realm)
+{
+    auto stream = TRY(create(realm));
+
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    (void)Bindings::wrap(wrapper_world, realm, stream->readable());
+    (void)Bindings::wrap(wrapper_world, realm, stream->writable());
 
     return stream;
 }
 
 TextEncoderStream::TextEncoderStream(GC::Ref<Streams::TransformStream> transform)
-    : Bindings::Wrappable()
-    , Streams::GenericTransformStreamMixin(transform)
+    : Streams::GenericTransformStreamMixin(transform)
 {
 }
 

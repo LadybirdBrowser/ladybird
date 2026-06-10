@@ -12,13 +12,9 @@
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
-namespace Web::HTML {
-
-class WindowOrWorkerGlobalScopeMixin;
-
-}
-
 namespace Web::MediaSourceExtensions {
+
+using BufferedChangeEventInit = Bindings::BufferedChangeEventInit;
 
 // https://w3c.github.io/media-source/#bufferedchangeevent-interface
 class BufferedChangeEvent : public DOM::Event {
@@ -26,10 +22,10 @@ class BufferedChangeEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(BufferedChangeEvent);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<BufferedChangeEvent>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString const& type, Bindings::BufferedChangeEventInit const& = {});
+    [[nodiscard]] static GC::Ref<BufferedChangeEvent> create(FlyString const& type, BufferedChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
 private:
-    BufferedChangeEvent(FlyString const& type, Bindings::BufferedChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    BufferedChangeEvent(FlyString const& type, BufferedChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~BufferedChangeEvent() override;
 };

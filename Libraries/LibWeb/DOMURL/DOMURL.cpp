@@ -11,7 +11,6 @@
 #include <AK/IPv6Address.h>
 #include <LibGC/Heap.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/DOMURL.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
@@ -67,7 +66,7 @@ GC::Ref<DOMURL> DOMURL::initialize_a_url(URL::URL const& url_record)
 }
 
 // https://url.spec.whatwg.org/#dom-url-parse
-GC::Ptr<DOMURL> DOMURL::parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base)
+GC::Ptr<DOMURL> DOMURL::parse_for_bindings(String const& url, Optional<String> const& base)
 {
     // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
     auto parsed_url = parse_api_url(url, base);
@@ -83,7 +82,7 @@ GC::Ptr<DOMURL> DOMURL::parse_for_bindings(JS::VM&, String const& url, Optional<
 }
 
 // https://url.spec.whatwg.org/#dom-url-url
-WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(String const& url, Optional<String> const& base)
+WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::create_from_url(String const& url, Optional<String> const& base)
 {
     // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
     auto parsed_url = parse_api_url(url, base);
@@ -97,8 +96,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(String const& url, O
 }
 
 DOMURL::DOMURL(URL::URL url, GC::Ref<URLSearchParams> query)
-    : Bindings::Wrappable()
-    , m_url(move(url))
+    : m_url(move(url))
     , m_query(move(query))
 {
 }
@@ -112,14 +110,14 @@ void DOMURL::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/FileAPI/#dfn-createObjectURL
-WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(JS::VM& vm, FileAPI::BlobURLEntry::Object object)
+WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(FileAPI::BlobURLEntry::Object object)
 {
     // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for obj.
-    return TRY_OR_THROW_OOM(vm, FileAPI::add_entry_to_blob_url_store(object));
+    return TRY_OR_THROW_OOM(JS::VM::the(), FileAPI::add_entry_to_blob_url_store(object));
 }
 
 // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL
-void DOMURL::revoke_object_url(JS::VM&, StringView url)
+void DOMURL::revoke_object_url(StringView url)
 {
     // 1. Let url record be the result of parsing url.
     auto url_record = parse(url);
@@ -152,7 +150,7 @@ void DOMURL::revoke_object_url(JS::VM&, StringView url)
 }
 
 // https://url.spec.whatwg.org/#dom-url-canparse
-bool DOMURL::can_parse(JS::VM&, String const& url, Optional<String> const& base)
+bool DOMURL::can_parse(String const& url, Optional<String> const& base)
 {
     // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
     auto parsed_url = parse_api_url(url, base);

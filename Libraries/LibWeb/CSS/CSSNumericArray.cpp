@@ -18,8 +18,7 @@ GC::Ref<CSSNumericArray> CSSNumericArray::create(Vector<GC::Ref<CSSNumericValue>
 }
 
 CSSNumericArray::CSSNumericArray(Vector<GC::Ref<CSSNumericValue>> values)
-    : Bindings::Wrappable()
-    , m_values(move(values))
+    : m_values(move(values))
 {
 }
 
@@ -38,13 +37,11 @@ WebIDL::UnsignedLong CSSNumericArray::length() const
     return m_values.size();
 }
 
-// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericarray-indexed-property-getter
-Optional<JS::Value> CSSNumericArray::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
+GC::Ptr<CSSNumericValue> CSSNumericArray::value_at(size_t index) const
 {
-    // The indexed property getter of CSSNumericArray retrieves the CSSNumericValue at the provided index.
     if (auto item = m_values.get(index); item.has_value())
-        return Bindings::wrap(wrapper_world, realm, item.release_value());
-    return {};
+        return item.release_value().ptr();
+    return nullptr;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#equal-numeric-value

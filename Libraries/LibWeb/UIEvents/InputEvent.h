@@ -6,19 +6,23 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/DOM/StaticRange.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 
 namespace Web::UIEvents {
 
+using InputEventInit = Bindings::InputEventInit;
+
 class InputEvent final : public UIEvent {
     WEB_WRAPPABLE(InputEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(InputEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<InputEvent> create_from_platform_event(FlyString const& type, Bindings::InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
-    static WebIDL::ExceptionOr<GC::Ref<InputEvent>> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::InputEventInit const&);
+    [[nodiscard]] static GC::Ref<InputEvent> create(FlyString const& type, InputEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<InputEvent> create(FlyString const& type, InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<InputEvent> create_from_platform_event(FlyString const& type, InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
 
     virtual ~InputEvent() override;
 
@@ -34,7 +38,7 @@ public:
     ReadonlySpan<GC::Ref<DOM::StaticRange>> get_target_ranges() const;
 
 private:
-    InputEvent(FlyString const& event_name, Bindings::InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges, HighResolutionTime::DOMHighResTimeStamp);
+    InputEvent(FlyString const& event_name, InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(Visitor&) override;
 

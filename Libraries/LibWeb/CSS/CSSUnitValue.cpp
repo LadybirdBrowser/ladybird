@@ -6,7 +6,6 @@
 
 #include "CSSUnitValue.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -59,7 +58,7 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::create_from_sum_value_item(SumValueItem cons
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunitvalue-cssunitvalue
-WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(double value, FlyString unit)
+WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::create_for_constructor(double value, FlyString unit)
 {
     // 1. If creating a type from unit returns failure, throw a TypeError and abort this algorithm.
     auto numeric_type = NumericType::create_from_unit(unit);
@@ -201,7 +200,7 @@ Optional<double> CSSUnitValue::converted_value_to_unit(FlyString const& unit) co
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#convert-a-cssunitvalue
-GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(JS::Realm&, FlyString const& unit) const
+GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) const
 {
     auto converted_value = converted_value_to_unit(unit);
     if (!converted_value.has_value())

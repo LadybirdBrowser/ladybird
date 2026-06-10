@@ -17,8 +17,7 @@ GC::Ref<MediaError> MediaError::create(Code code, String message)
 }
 
 MediaError::MediaError(Code code, String message)
-    : Bindings::Wrappable()
-    , m_code(code)
+    : m_code(code)
     , m_message(move(message))
 {
 }

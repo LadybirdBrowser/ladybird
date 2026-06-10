@@ -27,6 +27,7 @@ public:
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotracklist-length
     size_t length() const { return m_audio_tracks.size(); }
 
+    GC::Ptr<AudioTrack> item(size_t index) const;
     GC::Ptr<AudioTrack> get_track_by_id(StringView id) const;
     bool has_enabled_track() const;
 
@@ -53,8 +54,6 @@ private:
     explicit AudioTrackList();
 
     virtual void visit_edges(Visitor&) override;
-
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     Vector<GC::Ref<AudioTrack>> m_audio_tracks;
 };

@@ -12,8 +12,7 @@ GC_DEFINE_ALLOCATOR(GeolocationPosition);
 
 GeolocationPosition::GeolocationPosition(GC::Ref<GeolocationCoordinates> coords,
     HighResolutionTime::EpochTimeStamp timestamp, bool is_high_accuracy)
-    : Bindings::Wrappable()
-    , m_coords(coords)
+    : m_coords(coords)
     , m_timestamp(timestamp)
     , m_is_high_accuracy(is_high_accuracy)
 {

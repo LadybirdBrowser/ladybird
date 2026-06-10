@@ -10,7 +10,6 @@
 #include <LibGC/Heap.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Compositor/CompositorHost.h>
@@ -723,13 +722,10 @@ void Page::toggle_media_play_state()
     if (!media_element)
         return;
 
-    // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
-
     if (media_element->potentially_playing())
         media_element->pause();
     else
-        media_element->play();
+        media_element->play_from_user_interaction();
 }
 
 void Page::toggle_media_mute_state()
@@ -1010,15 +1006,15 @@ void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches, C
     selection->add_range(*current_range);
 
     if (auto element = common_ancestor_container->parent_element()) {
-        Bindings::ScrollIntoViewOptions scroll_options;
-        scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
-        scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
-        scroll_options.behavior = Bindings::ScrollBehavior::Instant;
-        (void)element->scroll_into_view(scroll_options);
+        DOM::Element::ScrollIntoViewOptions scroll_options;
+        scroll_options.block = DOM::Element::ScrollLogicalPosition::Nearest;
+        scroll_options.inline_ = DOM::Element::ScrollLogicalPosition::Nearest;
+        scroll_options.behavior = DOM::Element::ScrollBehavior::Instant;
+        element->scroll_into_view(scroll_options, nullptr);
     }
 }
 
-void Page::enqueue_fullscreen_enter(GC::Ref<DOM::Element> element, GC::Ref<DOM::Document> pending_doc, DOM::RequestFullscreenError error, GC::Ref<WebIDL::Promise> promise)
+void Page::enqueue_fullscreen_enter(GC::Ref<DOM::Element> element, GC::Ref<DOM::Document> pending_doc, DOM::RequestFullscreenError error, GC::Ptr<WebIDL::Promise> promise)
 {
     m_pending_fullscreen_operations.enqueue(PendingFullscreenEnter { element, pending_doc, error, promise });
     // NOTE: Processing is deferred because the spec says "run the remaining steps in parallel",
@@ -1028,7 +1024,7 @@ void Page::enqueue_fullscreen_enter(GC::Ref<DOM::Element> element, GC::Ref<DOM::
     }));
 }
 
-void Page::enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::Ref<WebIDL::Promise> promise)
+void Page::enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::Ptr<WebIDL::Promise> promise)
 {
     m_pending_fullscreen_operations.enqueue(PendingFullscreenExit { doc, resize, promise });
     // NOTE: Processing is deferred because the spec says "run the remaining steps in parallel",
@@ -1091,7 +1087,8 @@ void Page::process_pending_fullscreen_operations()
                     enter.pending_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Error, enter.element);
 
                     // 2. Reject promise with a TypeError exception and terminate these steps.
-                    WebIDL::reject_promise(realm, enter.promise, JS::TypeError::create(realm, DOM::request_fullscreen_error_to_string(enter.error)));
+                    if (enter.promise)
+                        WebIDL::reject_promise(realm, *enter.promise, JS::TypeError::create(realm, DOM::request_fullscreen_error_to_string(enter.error)));
                     return true;
                 }
 
@@ -1136,7 +1133,8 @@ void Page::process_pending_fullscreen_operations()
                 }
 
                 // 14. Resolve promise with undefined
-                WebIDL::resolve_promise(realm, enter.promise, JS::js_undefined());
+                if (enter.promise)
+                    WebIDL::resolve_promise(realm, *enter.promise, JS::js_undefined());
                 return true;
             },
             [&](PendingFullscreenExit& exit) -> bool {
@@ -1161,7 +1159,8 @@ void Page::process_pending_fullscreen_operations()
                 // 11. If doc's fullscreen element is null, then resolve promise with undefined and terminate these
                 //     steps.
                 if (!exit.doc->fullscreen_element()) {
-                    WebIDL::resolve_promise(realm, exit.promise, JS::js_undefined());
+                    if (exit.promise)
+                        WebIDL::resolve_promise(realm, *exit.promise, JS::js_undefined());
                     return true;
                 }
 
@@ -1201,7 +1200,8 @@ void Page::process_pending_fullscreen_operations()
                 }
 
                 // 16. Resolve promise with undefined.
-                WebIDL::resolve_promise(realm, exit.promise, JS::js_undefined());
+                if (exit.promise)
+                    WebIDL::resolve_promise(realm, *exit.promise, JS::js_undefined());
                 return true;
             });
 

@@ -19,11 +19,11 @@ interface WebSocket : EventTarget {
     attribute EventHandler onerror;
     attribute EventHandler onclose;
     readonly attribute DOMString extensions;
-    [NeedsCallerRealmForGetter] readonly attribute DOMString protocol;
-    [NeedsCallerRealm] undefined close(optional [Clamp] unsigned short code, optional USVString reason);
+    readonly attribute DOMString protocol;
+    undefined close(optional [Clamp] unsigned short code, optional USVString reason);
 
     // messaging
     attribute EventHandler onmessage;
     attribute DOMString binaryType;
-    [NeedsCallerRealm] undefined send((BufferSource or Blob or USVString) data);
+    undefined send((BufferSource or Blob or USVString) data);
 };

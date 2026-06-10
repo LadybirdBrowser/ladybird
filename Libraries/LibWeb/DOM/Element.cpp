@@ -17,14 +17,14 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibURL/Parser.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
 #include <LibWeb/Bindings/Element.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/Window.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -66,6 +66,7 @@
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/CustomElements/CustomElementName.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
+#include <LibWeb/HTML/CustomElements/CustomElementReactions.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/CustomElements/CustomStateSet.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -101,6 +102,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/ScrollOptions.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/XMLSerializer.h>
@@ -190,7 +192,32 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_part_list);
     visitor.visit(m_custom_element_registry);
     visitor.visit(m_custom_element_definition);
-    visitor.visit(m_custom_element_wrapper);
+    if (m_custom_element_reaction_queue) {
+        for (auto const& reaction : *m_custom_element_reaction_queue) {
+            reaction.visit(
+                [&](CustomElementUpgradeReaction const& upgrade_reaction) {
+                    visitor.visit(upgrade_reaction.custom_element_definition);
+                },
+                [&](CustomElementCallbackReaction const& callback_reaction) {
+                    visitor.visit(callback_reaction.callback);
+                    callback_reaction.arguments.visit(
+                        [](Empty) {},
+                        [&](CustomElementAdoptedCallbackReactionArguments const& adopted_arguments) {
+                            visitor.visit(adopted_arguments.old_document);
+                            visitor.visit(adopted_arguments.new_document);
+                        },
+                        [&](CustomElementAttributeChangedCallbackReactionArguments const&) {},
+                        [&](CustomElementFormAssociatedCallbackReactionArguments const& form_associated_arguments) {
+                            visitor.visit(form_associated_arguments.form);
+                        },
+                        [&](CustomElementFormDisabledCallbackReactionArguments const&) {});
+                },
+                [&](CustomElementConnectedMoveCallbackReaction const& connected_move_reaction) {
+                    visitor.visit(connected_move_reaction.disconnected_callback);
+                    visitor.visit(connected_move_reaction.connected_callback);
+                });
+        }
+    }
     visitor.visit(m_custom_state_set);
     visitor.visit(m_computed_style_map_cache);
     visitor.visit(m_attribute_style_map);
@@ -397,20 +424,9 @@ GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<FlyString> const& namespac
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattribute
-WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
+void Element::set_attribute(FlyString qualified_name, Utf16String const& verified_value)
 {
-    // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_attribute_local_name(qualified_name))
-        return WebIDL::InvalidCharacterError::create(document().relevant_settings_object().realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
-
-    // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to
-    //    qualifiedName in ASCII lowercase.
-    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
-        qualified_name = qualified_name.to_ascii_lowercase();
-
-    // 3. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
-    //    with qualifiedName, null, this, and value.
-    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(qualified_name, {}, *this, value));
+    // Steps 1-3 are performed by the binding-side set_attribute() helper.
 
     // 4. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
     auto* attribute = attributes()->get_attribute(qualified_name);
@@ -418,7 +434,7 @@ WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualifie
     // 5. If attribute is non-null, then change attribute to verifiedValue and return.
     if (attribute) {
         attribute->change_attribute(verified_value.to_utf8_but_should_be_ported_to_utf16());
-        return {};
+        return;
     }
 
     // 6. Set attribute to a new attribute whose local name is qualifiedName, value is verifiedValue,
@@ -427,17 +443,6 @@ WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualifie
 
     // 7. Append attribute to this.
     m_attributes->append_attribute(*attribute);
-
-    return {};
-}
-
-// https://dom.spec.whatwg.org/#dom-element-setattribute
-WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, String> const& value)
-{
-    return set_attribute_for_bindings(move(qualified_name),
-        value.visit(
-            [](auto const& trusted_type) -> Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> { return trusted_type; },
-            [](String const& string) -> Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> { return Utf16String::from_utf8(string); }));
 }
 
 // https://dom.spec.whatwg.org/#valid-namespace-prefix
@@ -490,7 +495,7 @@ bool is_valid_element_local_name(FlyString const& name)
 }
 
 // https://dom.spec.whatwg.org/#validate-and-extract
-WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context)
+ErrorOr<QualifiedName, ValidateAndExtractError> validate_and_extract(Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context)
 {
     // To validate and extract a namespace and qualifiedName, run these steps:
 
@@ -516,7 +521,7 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
 
         // 3. If prefix is not a valid namespace prefix, then throw an "InvalidCharacterError" DOMException.
         if (!is_valid_namespace_prefix(*prefix))
-            return WebIDL::InvalidCharacterError::create(realm, "Prefix not a valid namespace prefix."_utf16);
+            return ValidateAndExtractError::InvalidNamespacePrefix;
     }
 
     // 5. Assert: prefix is either null or a valid namespace prefix.
@@ -524,50 +529,57 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
 
     // 6. If context is "attribute" and localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (context == ValidationContext::Attribute && !is_valid_attribute_local_name(local_name))
-        return WebIDL::InvalidCharacterError::create(realm, "Local name not a valid attribute local name."_utf16);
+        return ValidateAndExtractError::InvalidAttributeLocalName;
 
     // 7. If context is "element" and localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
     if (context == ValidationContext::Element && !is_valid_element_local_name(local_name))
-        return WebIDL::InvalidCharacterError::create(realm, "Local name not a valid element local name."_utf16);
+        return ValidateAndExtractError::InvalidElementLocalName;
 
     // 8. If prefix is non-null and namespace is null, then throw a "NamespaceError" DOMException.
     if (prefix.has_value() && !namespace_.has_value())
-        return WebIDL::NamespaceError::create(realm, "Prefix is non-null and namespace is null."_utf16);
+        return ValidateAndExtractError::PrefixWithNullNamespace;
 
     // 9. If prefix is "xml" and namespace is not the XML namespace, then throw a "NamespaceError" DOMException.
     if (prefix == "xml"sv && namespace_ != Namespace::XML)
-        return WebIDL::NamespaceError::create(realm, "Prefix is 'xml' and namespace is not the XML namespace."_utf16);
+        return ValidateAndExtractError::XMLPrefixWithNonXMLNamespace;
 
     // 10. If either qualifiedName or prefix is "xmlns" and namespace is not the XMLNS namespace, then throw a "NamespaceError" DOMException.
     if ((qualified_name == "xmlns"sv || prefix == "xmlns"sv) && namespace_ != Namespace::XMLNS)
-        return WebIDL::NamespaceError::create(realm, "Either qualifiedName or prefix is 'xmlns' and namespace is not the XMLNS namespace."_utf16);
+        return ValidateAndExtractError::XMLNSPrefixWithNonXMLNSNamespace;
 
     // 11. If namespace is the XMLNS namespace and neither qualifiedName nor prefix is "xmlns", then throw a "NamespaceError" DOMException.
     if (namespace_ == Namespace::XMLNS && !(qualified_name == "xmlns"sv || prefix == "xmlns"sv))
-        return WebIDL::NamespaceError::create(realm, "Namespace is the XMLNS namespace and neither qualifiedName nor prefix is 'xmlns'."_utf16);
+        return ValidateAndExtractError::XMLNSNamespaceWithoutXMLNSPrefix;
 
     // 12. Return (namespace, prefix, localName).
     return QualifiedName { local_name, prefix, namespace_ };
 }
 
-// https://dom.spec.whatwg.org/#dom-element-setattributens
-WebIDL::ExceptionOr<void> Element::set_attribute_ns_for_bindings(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
+GC::Ref<WebIDL::DOMException> validate_and_extract_error_to_dom_exception(ValidateAndExtractError error)
 {
-    // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "attribute".
-    auto extracted_qualified_name = TRY(validate_and_extract(document().relevant_settings_object().realm(), namespace_, qualified_name, ValidationContext::Attribute));
+    switch (error) {
+    case ValidateAndExtractError::InvalidNamespacePrefix:
+        return WebIDL::InvalidCharacterError::create("Prefix not a valid namespace prefix."_utf16);
+    case ValidateAndExtractError::InvalidAttributeLocalName:
+        return WebIDL::InvalidCharacterError::create("Local name not a valid attribute local name."_utf16);
+    case ValidateAndExtractError::InvalidElementLocalName:
+        return WebIDL::InvalidCharacterError::create("Local name not a valid element local name."_utf16);
+    case ValidateAndExtractError::PrefixWithNullNamespace:
+        return WebIDL::NamespaceError::create("Prefix is non-null and namespace is null."_utf16);
+    case ValidateAndExtractError::XMLPrefixWithNonXMLNamespace:
+        return WebIDL::NamespaceError::create("Prefix is 'xml' and namespace is not the XML namespace."_utf16);
+    case ValidateAndExtractError::XMLNSPrefixWithNonXMLNSNamespace:
+        return WebIDL::NamespaceError::create("Either qualifiedName or prefix is 'xmlns' and namespace is not the XMLNS namespace."_utf16);
+    case ValidateAndExtractError::XMLNSNamespaceWithoutXMLNSPrefix:
+        return WebIDL::NamespaceError::create("Namespace is the XMLNS namespace and neither qualifiedName nor prefix is 'xmlns'."_utf16);
+    }
+    VERIFY_NOT_REACHED();
+}
 
-    // 2. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
-    //    with localName, namespace, this, and value.
-    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
-        extracted_qualified_name.local_name(),
-        extracted_qualified_name.namespace_().has_value() ? Utf16String::from_utf8(extracted_qualified_name.namespace_().value()) : Optional<Utf16String>(),
-        *this,
-        value));
-
-    // 3. Set an attribute value for this using localName, verifiedValue, and also prefix and namespace.
-    set_attribute_value(extracted_qualified_name.local_name(), verified_value.to_utf8_but_should_be_ported_to_utf16(), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
-
-    return {};
+void Element::set_attribute_ns(QualifiedName const& qualified_name, Utf16String const& verified_value)
+{
+    // Set an attribute value for this using localName, verifiedValue, and also prefix and namespace.
+    set_attribute_value(qualified_name.local_name(), verified_value.to_utf8_but_should_be_ported_to_utf16(), qualified_name.prefix(), qualified_name.namespace_());
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
@@ -605,14 +617,14 @@ void Element::set_attribute_value(FlyString const& local_name, String const& val
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributenode
-WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node_for_bindings(Attr& attr)
+WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node(Attr& attr)
 {
     // The setAttributeNode(attr) and setAttributeNodeNS(attr) methods steps are to return the result of setting an attribute given attr and this.
     return attributes()->set_attribute(attr);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributenodens
-WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node_ns_for_bindings(Attr& attr)
+WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node_ns(Attr& attr)
 {
     // The setAttributeNode(attr) and setAttributeNodeNS(attr) methods steps are to return the result of setting an attribute given attr and this.
     return attributes()->set_attribute(attr);
@@ -669,7 +681,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
 {
     // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_attribute_local_name(name))
-        return WebIDL::InvalidCharacterError::create(document().relevant_settings_object().realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
+        return WebIDL::InvalidCharacterError::create("Attribute name must not be empty or contain invalid characters"_utf16);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
     bool insert_as_lowercase = namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML;
@@ -1228,15 +1240,15 @@ static bool is_valid_shadow_host_name(FlyString const& name)
 }
 
 // https://dom.spec.whatwg.org/#concept-attach-a-shadow-root
-WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry)
+WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry)
 {
     // 1. If element’s namespace is not the HTML namespace, then throw a "NotSupportedError" DOMException.
     if (namespace_uri() != Namespace::HTML)
-        return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "Element's namespace is not the HTML namespace"_utf16);
+        return WebIDL::NotSupportedError::create("Element's namespace is not the HTML namespace"_utf16);
 
     // 2. If element’s local name is not a valid shadow host name, then throw a "NotSupportedError" DOMException.
     if (!is_valid_shadow_host_name(local_name()))
-        return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "Element's local name is not a valid shadow host name"_utf16);
+        return WebIDL::NotSupportedError::create("Element's local name is not a valid shadow host name"_utf16);
 
     // 3. If element’s local name is a valid custom element name, or element’s is value is not null:
     if (HTML::is_valid_custom_element_name(local_name()) || m_is_value.has_value()) {
@@ -1247,7 +1259,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
         // 2. If definition is non-null and definition’s disable shadow is true, then throw a "NotSupportedError"
         //    DOMException.
         if (definition && definition->disable_shadow())
-            return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "Cannot attach a shadow root to a custom element that has disabled shadow roots"_utf16);
+            return WebIDL::NotSupportedError::create("Cannot attach a shadow root to a custom element that has disabled shadow roots"_utf16);
     }
 
     // 4. If element is a shadow host:
@@ -1260,7 +1272,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
         // - currentShadowRoot’s mode is not mode,
         // then throw a "NotSupportedError" DOMException.
         if (!current_shadow_root->declarative() || current_shadow_root->mode() != mode) {
-            return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "Element already is a shadow host"_utf16);
+            return WebIDL::NotSupportedError::create("Element already is a shadow host"_utf16);
         }
 
         // 3. Otherwise:
@@ -1307,7 +1319,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 }
 
 // https://dom.spec.whatwg.org/#dom-element-attachshadow
-WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(Bindings::ShadowRootInit const& init)
+WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(ShadowRootOptions const& init)
 {
     // 1. Let registry be this’s node document’s custom element registry.
     auto registry = document().custom_element_registry();
@@ -1319,7 +1331,7 @@ WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(Bindings::Shadow
     // 3. If registry is non-null, registry’s is scoped is false, and registry is not this’s node document’s custom
     //    element registry, then throw a "NotSupportedError" DOMException.
     if (registry && !registry->is_scoped() && registry != document().custom_element_registry())
-        return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "'customElementRegistry' in ShadowRootInit must either be scoped or the document's custom element registry."_utf16);
+        return WebIDL::NotSupportedError::create("'customElementRegistry' in ShadowRootInit must either be scoped or the document's custom element registry."_utf16);
 
     // 4. Run attach a shadow root with this, init["mode"], init["clonable"], init["serializable"],
     //    init["delegatesFocus"], init["slotAssignment"], and registry.
@@ -1330,13 +1342,13 @@ WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(Bindings::Shadow
 }
 
 // https://dom.spec.whatwg.org/#dom-element-shadowroot
-GC::Ptr<ShadowRoot> Element::shadow_root_for_bindings() const
+GC::Ptr<ShadowRoot> Element::open_shadow_root() const
 {
     // 1. Let shadow be this’s shadow root.
     auto shadow = m_shadow_root;
 
     // 2. If shadow is null or its mode is "closed", then return null.
-    if (shadow == nullptr || shadow->mode() == Bindings::ShadowRootMode::Closed)
+    if (shadow == nullptr || shadow->mode() == ShadowRootMode::Closed)
         return nullptr;
 
     // 3. Return shadow.
@@ -1351,7 +1363,7 @@ WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(document().relevant_settings_object().realm(), "Failed to parse selector"_utf16);
+        return WebIDL::SyntaxError::create("Failed to parse selector"_utf16);
 
     // 3. If the result of match a selector against an element, using s, this, and scoping root this, returns success, then return true; otherwise, return false.
     for (auto const& s : maybe_selectors.value()) {
@@ -1370,7 +1382,7 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(document().relevant_settings_object().realm(), "Failed to parse selector"_utf16);
+        return WebIDL::SyntaxError::create("Failed to parse selector"_utf16);
 
     auto matches_selectors = [this](CSS::SelectorList const& selector_list, Element const* element) {
         // 4. For each element in elements, if match a selector against an element, using s, element, and scoping root this, returns success, return element.
@@ -1397,22 +1409,13 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
-WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrString const& value)
+WebIDL::ExceptionOr<void> Element::set_inner_html(StringView html)
 {
-    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, the given value, "Element innerHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(*this),
-        value,
-        TrustedTypes::InjectionSink::Element_innerHTML,
-        TrustedTypes::Script.to_string()));
-
     // 2. Let context be this.
     DOM::Node* context = this;
 
     // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = TRY(as<Element>(*context).parse_fragment(html));
 
     // 4. If context is a template element, then set context to the template element's template contents (a DocumentFragment).
     auto* template_element = as_if<HTML::HTMLTemplateElement>(*context);
@@ -1436,7 +1439,7 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(TrustedTypes::TrustedHTMLOrStr
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
-WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> Element::inner_html() const
+WebIDL::ExceptionOr<Utf16String> Element::inner_html() const
 {
     return TRY(serialize_fragment(HTML::RequireWellFormed::Yes));
 }
@@ -1504,7 +1507,7 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
     set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ElementSetShadowRoot);
 }
 
-GC::Ref<CSS::CSSStyleProperties> Element::style_for_bindings()
+GC::Ref<CSS::CSSStyleProperties> Element::style()
 {
     if (!m_inline_style)
         m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
@@ -1514,7 +1517,7 @@ GC::Ref<CSS::CSSStyleProperties> Element::style_for_bindings()
 GC::Ref<CSS::StylePropertyMap> Element::attribute_style_map()
 {
     if (!m_attribute_style_map)
-        m_attribute_style_map = CSS::StylePropertyMap::create(style_for_bindings());
+        m_attribute_style_map = CSS::StylePropertyMap::create(style());
     return *m_attribute_style_map;
 }
 
@@ -1553,13 +1556,6 @@ bool Element::serializes_as_void() const
     return is_void_element() || local_name().is_one_of(HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::frame, HTML::TagNames::keygen);
 }
 
-// https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect
-GC::Ref<Geometry::DOMRect> Element::get_bounding_client_rect_for_bindings() const
-{
-    auto rect = get_bounding_client_rect();
-    return Geometry::DOMRect::create(static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height()));
-}
-
 static CSSPixelRect bounding_rect_from_client_rects(Vector<CSSPixelRect> const& list)
 {
     // 2. If the list is empty return a DOMRect object whose x, y, width and height members are zero.
@@ -1595,16 +1591,6 @@ CSSPixelRect Element::get_bounding_client_rect() const
 {
     // 1. Let list be the result of invoking getClientRects() on element.
     return bounding_rect_from_client_rects(get_client_rects());
-}
-
-// https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
-GC::Ref<Geometry::DOMRectList> Element::get_client_rects_for_bindings() const
-{
-    Vector<GC::Root<Geometry::DOMRect>> rects;
-    for (auto const& rect : get_client_rects()) {
-        rects.append(Geometry::DOMRect::create(static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height())));
-    }
-    return Geometry::DOMRectList::create(move(rects));
 }
 
 static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element const& element)
@@ -2296,7 +2282,7 @@ void Element::set_scroll_left(double x)
 
     // 8. If the element is the root element invoke scroll() on window with x as first argument and scrollY on window as second argument, and terminate these steps.
     if (document.document_element() == this) {
-        window->scroll(x, window->scroll_y());
+        window->scroll(x, window->scroll_y(), nullptr);
         return;
     }
 
@@ -2305,7 +2291,7 @@ void Element::set_scroll_left(double x)
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, invoke scroll() on window with x as first argument and scrollY on window as second argument, and terminate these steps.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable()) {
-        window->scroll(x, window->scroll_y());
+        window->scroll(x, window->scroll_y(), nullptr);
         return;
     }
 
@@ -2353,7 +2339,7 @@ void Element::set_scroll_top(double y)
 
     // 8. If the element is the root element invoke scroll() on window with scrollX on window as first argument and y as second argument, and terminate these steps.
     if (document.document_element() == this) {
-        window->scroll(window->scroll_x(), y);
+        window->scroll(window->scroll_x(), y, nullptr);
         return;
     }
 
@@ -2362,7 +2348,7 @@ void Element::set_scroll_top(double y)
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, invoke scroll() on window with scrollX as first argument and y as second argument, and terminate these steps.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable()) {
-        window->scroll(window->scroll_x(), y);
+        window->scroll(window->scroll_x(), y, nullptr);
         return;
     }
 
@@ -2524,23 +2510,14 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Stri
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
-WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> Element::outer_html() const
+WebIDL::ExceptionOr<Utf16String> Element::outer_html() const
 {
     return TRY(serialize_fragment(HTML::RequireWellFormed::Yes, FragmentSerializationMode::Outer));
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-outerhtml
-WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrString const& value)
+WebIDL::ExceptionOr<void> Element::set_outer_html(StringView html)
 {
-    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, the given value, "Element outerHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(*this),
-        value,
-        TrustedTypes::InjectionSink::Element_outerHTML,
-        TrustedTypes::Script.to_string()));
-
     // 2. Let parent be this's parent.
     auto* parent = this->parent();
 
@@ -2550,14 +2527,14 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
 
     // 4. If parent is a Document, throw a "NoModificationAllowedError" DOMException.
     if (parent->is_document())
-        return WebIDL::NoModificationAllowedError::create(document().relevant_settings_object().realm(), "Cannot set outer HTML on document"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot set outer HTML on document"_utf16);
 
     // 5. If parent is a DocumentFragment, set parent to the result of creating an element given this's node document, "body", and the HTML namespace.
     if (parent->is_document_fragment())
         parent = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
 
     // 6. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and compliantString.
-    auto fragment = TRY(as<Element>(*parent).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = TRY(as<Element>(*parent).parse_fragment(html));
 
     // 6. Replace this with fragment within this's parent.
     TRY(parent->replace_child(fragment, *this));
@@ -2566,17 +2543,8 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#the-insertadjacenthtml()-method
-WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, TrustedTypes::TrustedHTMLOrString const& string)
+WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, StringView html)
 {
-    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, string, "Element insertAdjacentHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(*this),
-        string,
-        TrustedTypes::InjectionSink::Element_insertAdjacentHTML,
-        TrustedTypes::Script.to_string()));
-
     // 2. Let context be null.
     GC::Ptr<Node> context;
 
@@ -2590,7 +2558,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 
         // 2. If context is null or a Document, throw a "NoModificationAllowedError" DOMException.
         if (!context || context->is_document())
-            return WebIDL::NoModificationAllowedError::create(document().relevant_settings_object().realm(), "insertAdjacentHTML: context is null or a Document"_utf16);
+            return WebIDL::NoModificationAllowedError::create("insertAdjacentHTML: context is null or a Document"_utf16);
     }
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
     // - If position is an ASCII case-insensitive match for the string "beforeend"
@@ -2602,7 +2570,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // Otherwise
     else {
         // Throw a "SyntaxError" DOMException.
-        return WebIDL::SyntaxError::create(document().relevant_settings_object().realm(), "insertAdjacentHTML: invalid position argument"_utf16);
+        return WebIDL::SyntaxError::create("insertAdjacentHTML: invalid position argument"_utf16);
     }
 
     // 4. If context is not an Element or the following are all true:
@@ -2618,7 +2586,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     }
 
     // 5. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto fragment = TRY(as<Element>(*context).parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = TRY(as<Element>(*context).parse_fragment(html));
 
     // 6. Use the first matching item from this list:
 
@@ -2649,20 +2617,16 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 }
 
 // https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
-GC::Ref<WebIDL::Promise> Element::request_fullscreen(FullscreenRequester fullscreen_requester)
+void Element::request_fullscreen(JS::Realm& realm, GC::Ptr<WebIDL::Promise> promise, FullscreenRequester fullscreen_requester)
 {
-    auto& realm = document().relevant_settings_object().realm();
-
     // 1. Let pendingDoc be this’s node document.
     auto pending_doc = m_document;
 
-    // 2. Let promise be a new promise.
-    auto promise = WebIDL::create_promise(realm);
-
     // 3. If pendingDoc is not fully active, then reject promise with a TypeError exception and return promise.
     if (!pending_doc->is_fully_active()) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Document not fully active."_string));
-        return promise;
+        if (promise)
+            WebIDL::reject_promise(realm, *promise, JS::TypeError::create(realm, "Document not fully active."_string));
+        return;
     }
 
     // 4. Let error be false.
@@ -2677,8 +2641,6 @@ GC::Ref<WebIDL::Promise> Element::request_fullscreen(FullscreenRequester fullscr
 
     // 7. Return promise, and run the remaining steps in parallel.
     pending_doc->page().enqueue_fullscreen_enter(*this, *pending_doc, error, promise);
-
-    return promise;
 }
 
 // https://fullscreen.spec.whatwg.org/#removing-steps
@@ -2700,7 +2662,7 @@ void Element::exit_fullscreen_on_element_removal()
 
         // 1. If node is document’s fullscreen element, exit fullscreen document.
         if (document.fullscreen_element() == element)
-            document.exit_fullscreen();
+            document.exit_fullscreen(document.relevant_settings_object().realm(), nullptr);
         // 2. Otherwise, unfullscreen node.
         else
             document.unfullscreen_element(*element);
@@ -2825,7 +2787,7 @@ WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC
 
     // -> Otherwise
     // Throw a "SyntaxError" DOMException.
-    return WebIDL::SyntaxError::create(document().relevant_settings_object().realm(), Utf16String::formatted("Unknown position '{}'. Must be one of 'beforebegin', 'afterbegin', 'beforeend' or 'afterend'", where));
+    return WebIDL::SyntaxError::create(Utf16String::formatted("Unknown position '{}'. Must be one of 'beforebegin', 'afterbegin', 'beforeend' or 'afterend'", where));
 }
 
 // https://dom.spec.whatwg.org/#dom-element-insertadjacentelement
@@ -2851,7 +2813,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_text(String const& where, Utf
 }
 
 // https://drafts.csswg.org/cssom-view-1/#determine-the-scroll-into-view-position
-static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bindings::ScrollLogicalPosition block, Bindings::ScrollLogicalPosition inline_, Node& scrolling_box)
+static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, Node& scrolling_box)
 {
     // To determine the scroll-into-view position of a target, which is an Element, pseudo-element, or Range, with a
     // block flow direction position block, an inline base direction position inline, and a scrolling box scrolling box,
@@ -2963,16 +2925,16 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         auto y = current_scroll_position.y();
 
         // 1. If block is "start", then align element edge A with scrolling box edge A.
-        if (block == Bindings::ScrollLogicalPosition::Start) {
+        if (block == Element::ScrollLogicalPosition::Start) {
             y += element_edge_a - scrolling_box_edge_a;
         }
         // 2. Otherwise, if block is "end", then align element edge B with scrolling box edge B.
-        else if (block == Bindings::ScrollLogicalPosition::End) {
+        else if (block == Element::ScrollLogicalPosition::End) {
             y += element_edge_b - scrolling_box_edge_b;
         }
         // 3. Otherwise, if block is "center", then align the center of target bounding border box with the center of
         //    scrolling box in scrolling box’s block flow direction.
-        else if (block == Bindings::ScrollLogicalPosition::Center) {
+        else if (block == Element::ScrollLogicalPosition::Center) {
             y += (element_edge_a + element_height / 2) - (scrolling_box_edge_a + scrolling_box_height / 2);
         }
         // 4. Otherwise, block is "nearest":
@@ -2996,16 +2958,16 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         }
 
         // 5. If inline is "start", then align element edge C with scrolling box edge C.
-        if (inline_ == Bindings::ScrollLogicalPosition::Start) {
+        if (inline_ == Element::ScrollLogicalPosition::Start) {
             x += element_edge_c - scrolling_box_edge_c;
         }
         // 6. Otherwise, if inline is "end", then align element edge D with scrolling box edge D.
-        else if (inline_ == Bindings::ScrollLogicalPosition::End) {
+        else if (inline_ == Element::ScrollLogicalPosition::End) {
             x += element_edge_d - scrolling_box_edge_d;
         }
         // 7. Otherwise, if inline is "center", then align the center of target bounding border box with the center of
         //    scrolling box in scrolling box’s inline base direction.
-        else if (inline_ == Bindings::ScrollLogicalPosition::Center) {
+        else if (inline_ == Element::ScrollLogicalPosition::Center) {
             x += (element_edge_c + element_width / 2) - (scrolling_box_edge_c + scrolling_box_width / 2);
         }
         // 8. Otherwise, inline is "nearest":
@@ -3041,7 +3003,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
 }
 
 // https://drafts.csswg.org/cssom-view-1/#scroll-a-target-into-view
-static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bindings::ScrollBehavior behavior, Bindings::ScrollLogicalPosition block, Bindings::ScrollLogicalPosition inline_, GC::Ptr<Element> container)
+static void scroll_an_element_into_view(Element& target, Element::ScrollBehavior behavior, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, GC::Ptr<Element> container, GC::Ptr<WebIDL::Promise> promise)
 {
     // FIXME: 1. Let ancestorPromises be an empty set of Promises.
 
@@ -3086,7 +3048,7 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
                 //           Add the Promise returned from this step in the set ancestorPromises.
                 (void)behavior;
 
-                document.navigable()->perform_a_scroll_of_the_viewport(position);
+                document.navigable()->perform_a_scroll_of_the_viewport(position, nullptr);
             }
         }
 
@@ -3098,70 +3060,60 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
             break;
     }
 
-    // 3. Let scrollPromise be a new Promise.
-    auto& target_realm = target.document().relevant_settings_object().realm();
-    auto scroll_promise = WebIDL::create_promise(target_realm);
-
     // 4. Return scrollPromise, and run the remaining steps in parallel.
     // 5. Resolve scrollPromise when all Promises in ancestorPromises have settled.
     // FIXME: Actually wait for those promises.
-    WebIDL::resolve_promise(target_realm, scroll_promise);
-
-    return scroll_promise;
+    if (promise)
+        WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview
-GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, Bindings::ScrollIntoViewOptions>> arg)
+void Element::scroll_into_view(Element::ScrollIntoViewOptions const& options, GC::Ptr<WebIDL::Promise> promise)
 {
     // 1. Let behavior be "auto".
-    auto behavior = Bindings::ScrollBehavior::Auto;
+    auto behavior = options.behavior;
 
     // 2. Let block be "start".
-    auto block = Bindings::ScrollLogicalPosition::Start;
+    auto block = options.block;
 
     // 3. Let inline be "nearest".
-    auto inline_ = Bindings::ScrollLogicalPosition::Nearest;
+    auto inline_ = options.inline_;
 
     // 4. Let container be null.
     GC::Ptr<Element> container = nullptr;
 
-    // 5. If arg is a ScrollIntoViewOptions dictionary, then:
-    if (arg.has_value() && arg->has<Bindings::ScrollIntoViewOptions>()) {
-        auto options = arg->get<Bindings::ScrollIntoViewOptions>();
-
-        // 1. Set behavior to the behavior dictionary member of options.
-        behavior = options.behavior;
-
-        // 2. Set block to the block dictionary member of options.
-        block = options.block;
-
-        // 3. Set inline to the inline dictionary member of options.
-        inline_ = options.inline_;
-
-        // 4. If the container dictionary member of options is "nearest", set container to the element.
-        if (options.container == Bindings::ScrollIntoViewContainer::Nearest)
-            container = this;
-    }
-    // 6. Otherwise, if arg is false, then set block to "end".
-    else if (arg.has_value() && arg->has<bool>() && arg->get<bool>() == false) {
-        block = Bindings::ScrollLogicalPosition::End;
-    }
+    // 5. If the container dictionary member of options is "nearest", set container to the element.
+    if (options.container == Element::ScrollIntoViewContainer::Nearest)
+        container = this;
 
     // 7. If the element does not have any associated box, or is not available to user-agent features, then return a
     //    resolved Promise and abort the remaining steps.
     document().update_layout(UpdateLayoutReason::ElementScrollIntoView);
     HTML::TemporaryExecutionContext temporary_execution_context { document().relevant_settings_object() };
-    if (!layout_node())
-        return WebIDL::create_resolved_promise(document().relevant_settings_object().realm(), JS::js_undefined());
+    if (!layout_node()) {
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
+    }
 
     // 8. Scroll the element into view with behavior, block, inline, and container. Let scrollPromise be the Promise
     //    returned from this step.
-    auto scroll_promise = scroll_an_element_into_view(*this, behavior, block, inline_, container);
+    scroll_an_element_into_view(*this, behavior, block, inline_, container, promise);
 
     // FIXME: 9. Optionally perform some other action that brings the element to the user’s attention.
+}
 
-    // 10. Return scrollPromise.
-    return scroll_promise;
+void Element::scroll_into_view(Variant<bool, ScrollIntoViewOptions> const& arg, GC::Ptr<WebIDL::Promise> promise)
+{
+    if (arg.has<bool>()) {
+        ScrollIntoViewOptions options;
+        if (!arg.get<bool>())
+            options.block = ScrollLogicalPosition::End;
+        scroll_into_view(options, promise);
+        return;
+    }
+
+    scroll_into_view(arg.get<ScrollIntoViewOptions>(), promise);
 }
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)                  \
@@ -3312,7 +3264,7 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
             auto& reactions_stack = HTML::relevant_similar_origin_window_agent(*this).custom_element_reactions_stack;
 
             // 1. Invoke custom element reactions in reactionsStack's backup element queue.
-            Bindings::invoke_custom_element_reactions(reactions_stack.backup_element_queue);
+            HTML::invoke_custom_element_reactions(reactions_stack.backup_element_queue);
 
             // 2. Unset reactionsStack's processing the backup element queue flag.
             reactions_stack.processing_the_backup_element_queue = false;
@@ -3336,7 +3288,44 @@ void Element::enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefin
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#enqueue-a-custom-element-callback-reaction
-void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, GC::RootVector<JS::Value> arguments)
+void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callback_name)
+{
+    enqueue_a_custom_element_callback_reaction(callback_name, Empty {});
+}
+
+void Element::enqueue_an_adopted_callback_reaction(Document& old_document, Document& new_document)
+{
+    enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::adoptedCallback, CustomElementAdoptedCallbackReactionArguments {
+                                                                                                      .old_document = old_document,
+                                                                                                      .new_document = new_document,
+                                                                                                  });
+}
+
+void Element::enqueue_an_attribute_changed_callback_reaction(FlyString const& attribute_name, Optional<String> const& old_value, Optional<String> const& new_value, Optional<FlyString> const& namespace_uri)
+{
+    enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, CustomElementAttributeChangedCallbackReactionArguments {
+                                                                                                               .attribute_name = attribute_name,
+                                                                                                               .old_value = old_value,
+                                                                                                               .new_value = new_value,
+                                                                                                               .namespace_uri = namespace_uri,
+                                                                                                           });
+}
+
+void Element::enqueue_a_form_associated_callback_reaction(GC::Ptr<HTML::HTMLFormElement> form)
+{
+    enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::formAssociatedCallback, CustomElementFormAssociatedCallbackReactionArguments {
+                                                                                                             .form = form,
+                                                                                                         });
+}
+
+void Element::enqueue_a_form_disabled_callback_reaction(bool is_disabled)
+{
+    enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::formDisabledCallback, CustomElementFormDisabledCallbackReactionArguments {
+                                                                                                           .is_disabled = is_disabled,
+                                                                                                       });
+}
+
+void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, CustomElementCallbackReactionArguments arguments)
 {
     // 1. Let definition be element's custom element definition.
     auto& definition = m_custom_element_definition;
@@ -3362,26 +3351,13 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
         if (!connected_callback && !disconnected_callback)
             return;
 
-        // 4. Set callback to the following steps:
-        auto steps = JS::NativeFunction::create(document().relevant_settings_object().realm(), [this, disconnected_callback, connected_callback](JS::VM&) {
-            GC::RootVector<JS::Value> no_arguments;
-
-            // 1. If disconnectedCallback is not null, then call disconnectedCallback with no arguments.
-            if (disconnected_callback) {
-                auto& realm = disconnected_callback->callback->shape().realm();
-                auto this_value = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
-                (void)WebIDL::invoke_callback(*disconnected_callback, this_value.ptr(), WebIDL::ExceptionBehavior::Report, no_arguments);
-            }
-
-            // 2. If connectedCallback is not null, then call connectedCallback with no arguments.
-            if (connected_callback) {
-                auto& realm = connected_callback->callback->shape().realm();
-                auto this_value = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
-                (void)WebIDL::invoke_callback(*connected_callback, this_value.ptr(), WebIDL::ExceptionBehavior::Report, no_arguments);
-            }
-
-            return JS::js_undefined(); }, 0, Utf16FlyString {}, &document().relevant_settings_object().realm());
-        callback = GC::Heap::the().allocate<WebIDL::CallbackType>(steps, document().relevant_settings_object().realm());
+        // 4. Set callback to the following steps.
+        ensure_custom_element_reaction_queue().append(CustomElementConnectedMoveCallbackReaction {
+            .disconnected_callback = disconnected_callback,
+            .connected_callback = connected_callback,
+        });
+        enqueue_an_element_on_the_appropriate_element_queue();
+        return;
     }
 
     // 3. If callback is null, then return.
@@ -3391,10 +3367,8 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
     // 5. If callbackName is "attributeChangedCallback":
     if (callback_name == HTML::CustomElementReactionNames::attributeChangedCallback) {
         // 1. Let attributeName be the first element of args.
-        VERIFY(!arguments.is_empty());
-        auto& attribute_name_value = arguments.first();
-        VERIFY(attribute_name_value.is_string());
-        auto attribute_name = attribute_name_value.as_string().utf8_string();
+        VERIFY(arguments.has<CustomElementAttributeChangedCallbackReactionArguments>());
+        auto const& attribute_name = arguments.get<CustomElementAttributeChangedCallbackReactionArguments>().attribute_name;
 
         // 2. If definition's observed attributes does not contain attributeName, then return.
         if (!definition->observed_attributes().contains_slow(attribute_name))
@@ -3402,122 +3376,10 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
     }
 
     // 6. Add a new callback reaction to element's custom element reaction queue, with callback function callback and arguments args.
-    ensure_custom_element_reaction_queue().append(CustomElementCallbackReaction { .callback = callback, .arguments = move(arguments) });
+    ensure_custom_element_reaction_queue().append(CustomElementCallbackReaction { .callback = *callback, .arguments = move(arguments) });
 
     // 7. Enqueue an element on the appropriate element queue given element.
     enqueue_an_element_on_the_appropriate_element_queue();
-}
-
-// https://html.spec.whatwg.org/multipage/custom-elements.html#concept-upgrade-an-element
-JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElementDefinition> custom_element_definition)
-{
-    auto& realm = document().relevant_settings_object().realm();
-    auto& vm = this->vm();
-
-    // 1. If element's custom element state is not "undefined" or "uncustomized", then return.
-    if (m_custom_element_state != CustomElementState::Undefined && m_custom_element_state != CustomElementState::Uncustomized)
-        return {};
-
-    // 2. Set element's custom element definition to definition.
-    m_custom_element_definition = custom_element_definition;
-
-    // 3. Set element's custom element state to "failed".
-    set_custom_element_state(CustomElementState::Failed);
-
-    // 4. For each attribute in element's attribute list, in order, enqueue a custom element callback reaction with
-    //    element, callback name "attributeChangedCallback", and « attribute's local name, null, attribute's value,
-    //    attribute's namespace ».
-    size_t attribute_count = m_attributes ? m_attributes->length() : 0;
-    for (size_t attribute_index = 0; attribute_index < attribute_count; ++attribute_index) {
-        auto const* attribute = m_attributes->item(attribute_index);
-        VERIFY(attribute);
-
-        GC::RootVector<JS::Value> arguments;
-
-        arguments.append(JS::PrimitiveString::create(vm, attribute->local_name()));
-        arguments.append(JS::js_null());
-        arguments.append(JS::PrimitiveString::create(vm, attribute->value()));
-        arguments.append(attribute->namespace_uri().has_value() ? JS::PrimitiveString::create(vm, attribute->namespace_uri().value()) : JS::js_null());
-
-        enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
-    }
-
-    // 5. If element is connected, then enqueue a custom element callback reaction with element, callback name
-    //    "connectedCallback", and « ».
-    if (is_connected()) {
-        GC::RootVector<JS::Value> empty_arguments;
-        enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
-    }
-
-    // 6. Add element to the end of definition's construction stack.
-    custom_element_definition->construction_stack().append(GC::Ref { *this });
-
-    // 7. Let C be definition's constructor.
-    auto& constructor = custom_element_definition->constructor();
-
-    // 8. Set the surrounding agent's active custom element constructor map[C] to element's custom element registry.
-    auto& surrounding_agent = HTML::relevant_similar_origin_window_agent(*this);
-    surrounding_agent.active_custom_element_constructor_map.set(static_cast<JS::FunctionObject&>(*constructor.callback), custom_element_registry());
-
-    // 9. Run the following steps while catching any exceptions:
-    auto attempt_to_construct_custom_element = [&]() -> JS::ThrowCompletionOr<void> {
-        // 1. If definition's disable shadow is true and element's shadow root is non-null, then throw a
-        //    "NotSupportedError" DOMException.
-        if (custom_element_definition->disable_shadow() && shadow_root())
-            return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Custom element definition disables shadow DOM and the custom element has a shadow root"_utf16));
-
-        // 2. Set element's custom element state to "precustomized".
-        set_custom_element_state(CustomElementState::Precustomized);
-
-        // 3. Let constructResult be the result of constructing C, with no arguments.
-        auto construct_result = TRY(WebIDL::construct(constructor, {}));
-
-        // 4. If SameValue(constructResult, element) is false, then throw a TypeError.
-        auto this_value = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
-        if (!JS::same_value(construct_result, this_value.ptr()))
-            return vm.throw_completion<JS::TypeError>("Constructing the custom element returned a different element from the custom element"sv);
-
-        m_custom_element_wrapper = this_value;
-        return {};
-    };
-
-    auto maybe_exception = attempt_to_construct_custom_element();
-
-    // Then, perform the following steps, regardless of whether the above steps threw an exception or not:
-    // 1. Remove the surrounding agent's active custom element constructor map[C].
-    surrounding_agent.active_custom_element_constructor_map.remove(static_cast<JS::FunctionObject&>(*constructor.callback));
-
-    // 2. Remove the last entry from the end of definition's construction stack.
-    (void)custom_element_definition->construction_stack().take_last();
-
-    // Finally, if the above steps threw an exception, then:
-    if (maybe_exception.is_throw_completion()) {
-        // 1. Set element's custom element definition to null.
-        m_custom_element_definition = nullptr;
-
-        // 2. Empty element's custom element reaction queue.
-        if (m_custom_element_reaction_queue)
-            m_custom_element_reaction_queue->clear();
-
-        // 3. Rethrow the exception (thus terminating this algorithm).
-        return maybe_exception.release_error();
-    }
-
-    // 10. If element is a form-associated custom element, then:
-    if (auto* html_element = as_if<HTML::HTMLElement>(this); html_element && html_element->is_form_associated_custom_element()) {
-        // 1. Reset the form owner of element.
-        // FIXME: If element is associated with a form element, then enqueue a custom element callback reaction with element, callback name "formAssociatedCallback", and « the associated form ».
-        // AD-HOC: We don't do the second part of this step here, because it's inside reset_form_owner.
-        html_element->reset_form_owner();
-
-        // 2. If element is disabled, then enqueue a custom element callback reaction with element, callback name "formDisabledCallback", and « true ».
-        html_element->update_face_disabled_state();
-    }
-
-    // 11. Set element's custom element state to "custom".
-    set_custom_element_state(CustomElementState::Custom);
-
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-try-upgrade
@@ -3555,6 +3417,12 @@ void Element::set_custom_element_state(CustomElementState state)
     CSS::Invalidation::invalidate_style_after_custom_element_state_change(*this);
 }
 
+void Element::clear_custom_element_reaction_queue()
+{
+    if (m_custom_element_reaction_queue)
+        m_custom_element_reaction_queue->clear();
+}
+
 // https://html.spec.whatwg.org/multipage/dom.html#html-element-constructors
 void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<String> const& is_value)
 {
@@ -3566,9 +3434,6 @@ void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinitio
 
     // 7.8. Set element's is value to is value.
     m_is_value = is_value;
-
-    auto& realm = document().relevant_settings_object().realm();
-    m_custom_element_wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
 }
 
 void Element::set_prefix(Optional<FlyString> value)
@@ -3827,7 +3692,7 @@ bool Element::refresh_inherited_custom_property_data()
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll
-GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
+void Element::scroll(double x, double y, GC::Ptr<WebIDL::Promise> promise)
 {
     // 1. If invoked with one argument, follow these substeps:
     //    NOTE: Not relevant here.
@@ -3844,21 +3709,30 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
     auto& document = this->document();
 
     // 4. If document is not the active document, return a resolved Promise and abort the remaining steps.
-    if (!document.is_active())
-        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
+    if (!document.is_active()) {
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
+    }
 
     // 5. Let window be the value of document’s defaultView attribute.
     // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
     auto window = document.window();
 
     // 6. If window is null, return a resolved Promise and abort the remaining steps.
-    if (!window)
-        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
+    if (!window) {
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
+    }
 
     // 7. If the element is the root element and document is in quirks mode, return a resolved Promise and abort the
     //    remaining steps.
-    if (document.document_element() == this && document.in_quirks_mode())
-        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
+    if (document.document_element() == this && document.in_quirks_mode()) {
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
+    }
 
     // OPTIMIZATION: Scrolling an unscrolled element to (0, 0) is a no-op as long
     //               as the element is not eligible to be the Document.scrollingElement.
@@ -3867,7 +3741,9 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
         && scroll_offset({}).is_zero()
         && this != document.body()
         && this != document.document_element()) {
-        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
     }
 
     // NB: Ensure that layout is up-to-date before looking at metrics.
@@ -3875,20 +3751,27 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
 
     // 8. If the element is the root element, return the Promise returned by scroll() on window after the method is
     //    invoked with scrollX on window as first argument and y as second argument, and abort the remaining steps.
-    if (document.document_element() == this)
-        return window->scroll(window->scroll_x(), y);
+    if (document.document_element() == this) {
+        window->scroll(window->scroll_x(), y, promise);
+        return;
+    }
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially
     //    scrollable, return the Promise returned by scroll() on window after the method is invoked with options as the
     //    only argument, and abort the remaining steps.
-    if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable())
-        return window->scroll(x, y);
+    if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable()) {
+        window->scroll(x, y, promise);
+        return;
+    }
 
     // 10. If the element does not have any associated box, the element has no associated scrolling box, or the element
     //     has no overflow, return a resolved Promise and abort the remaining steps.
     // FIXME: or the element has no overflow
-    if (!paintable_box())
-        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
+    if (!paintable_box()) {
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
+    }
 
     // 11. Scroll the element to x,y, with the scroll behavior being the value of the behavior dictionary member of
     //     options. Let scrollPromise be the Promise returned from this step.
@@ -3897,14 +3780,13 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
     scroll_offset.set_x(CSSPixels::nearest_value_for(x));
     scroll_offset.set_y(CSSPixels::nearest_value_for(y));
     paintable_box()->set_scroll_offset(scroll_offset);
-    auto scroll_promise = WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
-
-    // 12. Return scrollPromise.
-    return scroll_promise;
+    // FIXME: Actually wait for scroll to occur. For now, all our scrolls are instant.
+    if (promise)
+        WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll
-GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
+void Element::scroll(ScrollToOptions options, GC::Ptr<WebIDL::Promise> promise)
 {
     // 1. If invoked with one argument, follow these substeps:
     //     1. Let options be the argument.
@@ -3914,28 +3796,28 @@ GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
     // NOTE: remaining steps performed by Element::scroll(double x, double y)
     auto x = options.left.has_value() ? HTML::normalize_non_finite_values(options.left.value()) : scroll_left();
     auto y = options.top.has_value() ? HTML::normalize_non_finite_values(options.top.value()) : scroll_top();
-    return scroll(x, y);
+    scroll(x, y, promise);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollby
-GC::Ref<WebIDL::Promise> Element::scroll_by(double x, double y)
+void Element::scroll_by(double x, double y, GC::Ptr<WebIDL::Promise> promise)
 {
     // 2. If invoked with two arguments, follow these substeps:
     //    1. Let options be null converted to a ScrollToOptions dictionary. [WEBIDL]
-    Bindings::ScrollToOptions options;
+    ScrollToOptions options;
 
     //    2. Let x and y be the arguments, respectively.
     //    3. Normalize non-finite values for x and y.
     //    4. Let the left dictionary member of options have the value x.
     //    5. Let the top dictionary member of options have the value y.
-    // NOTE: Element::scroll_by(Bindings::ScrollToOptions) performs the normalization and following steps.
+    // NOTE: Element::scroll_by(ScrollToOptions) performs the normalization and following steps.
     options.left = x;
     options.top = y;
-    return scroll_by(options);
+    scroll_by(options, promise);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollby
-GC::Ref<WebIDL::Promise> Element::scroll_by(Bindings::ScrollToOptions options)
+void Element::scroll_by(ScrollToOptions options, GC::Ptr<WebIDL::Promise> promise)
 {
     // 1. If invoked with one argument, follow these substeps:
     //    1. Let options be the argument.
@@ -3952,11 +3834,11 @@ GC::Ref<WebIDL::Promise> Element::scroll_by(Bindings::ScrollToOptions options)
     options.top = scroll_top() + top;
 
     // 5. Return the Promise returned by scroll() after the method is invoked with options as the only argument.
-    return scroll(options);
+    scroll(options, promise);
 }
 
 // https://drafts.csswg.org/cssom-view-1/#dom-element-checkvisibility
-bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> options)
+bool Element::check_visibility(CheckVisibilityOptions const& options)
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     document().update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementCheckVisibility);
@@ -3971,13 +3853,9 @@ bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> option
             return false;
     }
 
-    // AD-HOC: Since the rest of the steps use the options, we can return early if we haven't been given any options.
-    if (!options.has_value())
-        return true;
-
     // 3. If either the opacityProperty or the checkOpacity dictionary members of options are true, and this, or an
     //    ancestor of this in the flat tree, has a computed opacity value of 0, return false.
-    if (options->opacity_property || options->check_opacity) {
+    if (options.opacity_property || options.check_opacity) {
         for (auto* element = this; element; element = element->flat_tree_parent_element()) {
             if (element->computed_properties()->opacity() == 0.0f)
                 return false;
@@ -3986,7 +3864,7 @@ bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> option
 
     // 4. If either the visibilityProperty or the checkVisibilityCSS dictionary members of options are true, and this
     //    is invisible, return false.
-    if (options->visibility_property || options->check_visibility_css) {
+    if (options.visibility_property || options.check_visibility_css) {
         if (computed_properties()->visibility() == CSS::Visibility::Hidden)
             return false;
     }
@@ -3995,7 +3873,7 @@ bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> option
     //    skips its contents due to content-visibility: auto, return false.
     // FIXME: Currently we do not skip any content if content-visibility is auto: https://drafts.csswg.org/css-contain-2/#proximity-to-the-viewport
     auto const skipped_contents_due_to_content_visibility_auto = false;
-    if (options->content_visibility_auto && skipped_contents_due_to_content_visibility_auto) {
+    if (options.content_visibility_auto && skipped_contents_due_to_content_visibility_auto) {
         for (auto* element = flat_tree_parent_element(); element; element = element->flat_tree_parent_element()) {
             if (element->computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
                 return false;
@@ -4688,7 +4566,7 @@ ElementByIdMap& Element::document_or_shadow_root_element_by_id_map()
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml
-WebIDL::ExceptionOr<String> Element::get_html(Bindings::GetHTMLOptions const& options) const
+WebIDL::ExceptionOr<String> Element::get_html(HTMLSerializationOptions const& options) const
 {
     // Element's getHTML(options) method steps are to return the result
     // of HTML fragment serialization algorithm with this,
@@ -4700,24 +4578,15 @@ WebIDL::ExceptionOr<String> Element::get_html(Bindings::GetHTMLOptions const& op
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-sethtmlunsafe
-WebIDL::ExceptionOr<void> Element::set_html_unsafe(TrustedTypes::TrustedHTMLOrString const& html)
+WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
 {
-    // 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, html, "Element setHTMLUnsafe", and "script".
-    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(*this),
-        html,
-        TrustedTypes::InjectionSink::Element_setHTMLUnsafe,
-        TrustedTypes::Script.to_string()));
-
     // 2. Let target be this's template contents if this is a template element; otherwise this.
     DOM::Node* target = this;
     if (is<HTML::HTMLTemplateElement>(*this))
         target = as<HTML::HTMLTemplateElement>(*this).content().ptr();
 
     // 3. Unsafe set HTML given target, this, and compliantHTML.
-    TRY(target->unsafely_set_html(*this, compliant_html.to_utf8_but_should_be_ported_to_utf16()));
+    TRY(target->unsafely_set_html(*this, html));
 
     return {};
 }
@@ -5062,13 +4931,10 @@ double Element::ensure_css_random_base_value(CSS::RandomCachingKey const& random
     });
 }
 
-GC::Ref<WebIDL::Promise> Element::request_pointer_lock(Optional<Bindings::PointerLockOptions>)
+WebIDL::ExceptionOr<void> Element::request_pointer_lock(PointerLockOptions const&)
 {
     dbgln("FIXME: request_pointer_lock()");
-    auto promise = WebIDL::create_promise(document().relevant_settings_object().realm());
-    auto error = WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "request_pointer_lock() is not implemented"_utf16);
-    WebIDL::reject_promise(document().relevant_settings_object().realm(), promise, error);
-    return promise;
+    return WebIDL::NotSupportedError::create("request_pointer_lock() is not implemented"_utf16);
 }
 
 // The element to inherit style from.
@@ -5113,6 +4979,244 @@ bool Element::is_potentially_render_blocking()
     // FIXME: its blocking tokens set contains "render",
     // or if it is implicitly potentially render-blocking, which will be defined at the individual elements.
     return is_implicitly_potentially_render_blocking();
+}
+
+}
+
+namespace Web::Bindings {
+
+struct ReflectedElementArrayCacheEntry {
+    GC::Weak<DOM::Element> element;
+    FlyString reflected_attribute;
+    WrapperWorldWeakValueCache<JS::Array> arrays;
+};
+
+static Vector<ReflectedElementArrayCacheEntry>& reflected_element_array_caches()
+{
+    static NeverDestroyed<Vector<ReflectedElementArrayCacheEntry>> caches;
+    return *caches;
+}
+
+static void prune_reflected_element_array_caches()
+{
+    reflected_element_array_caches().remove_all_matching([](auto const& entry) {
+        return !entry.element;
+    });
+}
+
+static WrapperWorldWeakValueCache<JS::Array>& reflected_element_array_cache_for(DOM::Element& element, FlyString const& reflected_attribute)
+{
+    auto& caches = reflected_element_array_caches();
+    prune_reflected_element_array_caches();
+
+    for (auto& entry : caches) {
+        if (entry.element.ptr() == &element && entry.reflected_attribute == reflected_attribute)
+            return entry.arrays;
+    }
+
+    caches.append(ReflectedElementArrayCacheEntry { element, reflected_attribute, {} });
+    return caches.last().arrays;
+}
+
+GC::Ptr<JS::Array> cached_reflected_element_array(DOM::Element& element, WrapperWorld const& wrapper_world, FlyString const& reflected_attribute)
+{
+    return reflected_element_array_cache_for(element, reflected_attribute).get(wrapper_world);
+}
+
+void set_cached_reflected_element_array(DOM::Element& element, WrapperWorld const& wrapper_world, FlyString const& reflected_attribute, GC::Ptr<JS::Array> array)
+{
+    reflected_element_array_cache_for(element, reflected_attribute).set(wrapper_world, array);
+}
+
+// Used by generated [SameObject] cache checks for reflected element arrays.
+bool cached_reflected_element_array_contains_same_elements(GC::Ptr<JS::Array> array, Optional<GC::RootVector<GC::Ref<DOM::Element>>> const& elements)
+{
+    if (!array || !elements.has_value())
+        return !array && !elements.has_value();
+
+    bool is_equivalent = array->indexed_array_like_size() == elements->size();
+
+    for (size_t i = 0; is_equivalent && i < elements->size(); ++i) {
+        auto cached_value = array->get_without_side_effects(JS::PropertyKey { i });
+        auto const* cached_element = element_from_value(cached_value);
+        VERIFY(cached_element);
+
+        auto it = elements->find_if([&](auto const& element) { return element.ptr() == cached_element; });
+        if (it == elements->end())
+            is_equivalent = false;
+    }
+
+    return is_equivalent;
+}
+
+JS::Value element(JS::Realm& realm, GC::Ref<DOM::Element> element)
+{
+    return wrap(host_defined_wrapper_world(realm), realm, element);
+}
+
+DOM::Element* element_from_value(JS::Value value)
+{
+    if (!value.is_object())
+        return nullptr;
+    return Bindings::impl_from<DOM::Element>(&value.as_object());
+}
+
+static GC::Ref<Geometry::DOMRect> create_dom_rect(CSSPixelRect const& rect)
+{
+    return Geometry::DOMRect::create(static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height()));
+}
+
+GC::Ref<Geometry::DOMRect> get_bounding_client_rect(JS::Realm&, DOM::Element const& element)
+{
+    return create_dom_rect(element.get_bounding_client_rect());
+}
+
+GC::Ref<Geometry::DOMRectList> get_client_rects(JS::Realm&, DOM::Element const& element)
+{
+    Vector<GC::Root<Geometry::DOMRect>> rects;
+    for (auto const& rect : element.get_client_rects())
+        rects.append(create_dom_rect(rect));
+
+    return Geometry::DOMRectList::create(move(rects));
+}
+
+GC::Ref<WebIDL::Promise> request_pointer_lock(JS::Realm& realm, DOM::Element& element, Optional<PointerLockOptions> const& options)
+{
+    DOM::Element::PointerLockOptions dom_options;
+    if (options.has_value()) {
+        dom_options = DOM::Element::PointerLockOptions {
+            .unadjusted_movement = options->unadjusted_movement,
+        };
+    }
+    auto promise = WebIDL::create_promise(realm);
+    auto result = element.request_pointer_lock(dom_options);
+    if (result.is_error())
+        WebIDL::reject_promise_with_exception(realm, promise, result.release_error());
+    else
+        WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+    return promise;
+}
+
+WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> inner_html(JS::Realm&, DOM::Element& element)
+{
+    return TRY(element.inner_html());
+}
+
+WebIDL::ExceptionOr<void> set_inner_html(JS::Realm&, DOM::Element& element, TrustedTypes::TrustedHTMLOrString const& value)
+{
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, the given value, "Element innerHTML", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(element),
+        value,
+        TrustedTypes::InjectionSink::Element_innerHTML,
+        TrustedTypes::Script.to_string()));
+
+    return element.set_inner_html(compliant_string.to_utf8_but_should_be_ported_to_utf16());
+}
+
+WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> outer_html(JS::Realm&, DOM::Element& element)
+{
+    return TRY(element.outer_html());
+}
+
+WebIDL::ExceptionOr<void> set_outer_html(JS::Realm&, DOM::Element& element, TrustedTypes::TrustedHTMLOrString const& value)
+{
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, the given value, "Element outerHTML", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(element),
+        value,
+        TrustedTypes::InjectionSink::Element_outerHTML,
+        TrustedTypes::Script.to_string()));
+
+    return element.set_outer_html(compliant_string.to_utf8_but_should_be_ported_to_utf16());
+}
+
+WebIDL::ExceptionOr<void> set_html_unsafe(JS::Realm&, DOM::Element& element, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html)
+{
+    // 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, html, "Element setHTMLUnsafe", and "script".
+    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(element),
+        html,
+        TrustedTypes::InjectionSink::Element_setHTMLUnsafe,
+        TrustedTypes::Script.to_string()));
+
+    return element.set_html_unsafe(compliant_html.to_utf8_but_should_be_ported_to_utf16());
+}
+
+WebIDL::ExceptionOr<void> insert_adjacent_html(JS::Realm&, DOM::Element& element, String const& position, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& text)
+{
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, string, "Element insertAdjacentHTML", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(element),
+        text,
+        TrustedTypes::InjectionSink::Element_insertAdjacentHTML,
+        TrustedTypes::Script.to_string()));
+
+    return element.insert_adjacent_html(position, compliant_string.to_utf8_but_should_be_ported_to_utf16());
+}
+
+// https://dom.spec.whatwg.org/#dom-element-setattribute
+WebIDL::ExceptionOr<void> set_attribute(JS::Realm& realm, DOM::Element& element, FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
+{
+    // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
+    if (!DOM::is_valid_attribute_local_name(qualified_name))
+        return WebIDL::InvalidCharacterError::create(realm, "Attribute name must not be empty or contain invalid characters"_utf16);
+
+    // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to
+    //    qualifiedName in ASCII lowercase.
+    if (element.namespace_uri() == Namespace::HTML && element.document().document_type() == DOM::Document::Type::HTML)
+        qualified_name = qualified_name.to_ascii_lowercase();
+
+    // 3. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
+    //    with qualifiedName, null, this, and value.
+    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(qualified_name, {}, element, value));
+    element.set_attribute(move(qualified_name), verified_value);
+    return {};
+}
+
+static GC::Ref<WebIDL::DOMException> validate_and_extract_error_to_dom_exception(JS::Realm& realm, DOM::ValidateAndExtractError error)
+{
+    switch (error) {
+    case DOM::ValidateAndExtractError::InvalidNamespacePrefix:
+        return WebIDL::InvalidCharacterError::create(realm, "Prefix not a valid namespace prefix."_utf16);
+    case DOM::ValidateAndExtractError::InvalidAttributeLocalName:
+        return WebIDL::InvalidCharacterError::create(realm, "Local name not a valid attribute local name."_utf16);
+    case DOM::ValidateAndExtractError::InvalidElementLocalName:
+        return WebIDL::InvalidCharacterError::create(realm, "Local name not a valid element local name."_utf16);
+    case DOM::ValidateAndExtractError::PrefixWithNullNamespace:
+        return WebIDL::NamespaceError::create(realm, "Prefix is non-null and namespace is null."_utf16);
+    case DOM::ValidateAndExtractError::XMLPrefixWithNonXMLNamespace:
+        return WebIDL::NamespaceError::create(realm, "Prefix is 'xml' and namespace is not the XML namespace."_utf16);
+    case DOM::ValidateAndExtractError::XMLNSPrefixWithNonXMLNSNamespace:
+        return WebIDL::NamespaceError::create(realm, "Either qualifiedName or prefix is 'xmlns' and namespace is not the XMLNS namespace."_utf16);
+    case DOM::ValidateAndExtractError::XMLNSNamespaceWithoutXMLNSPrefix:
+        return WebIDL::NamespaceError::create(realm, "Namespace is the XMLNS namespace and neither qualifiedName nor prefix is 'xmlns'."_utf16);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+WebIDL::ExceptionOr<void> set_attribute_ns(JS::Realm& realm, DOM::Element& element, Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
+{
+    auto extracted_qualified_name_or_error = DOM::validate_and_extract(namespace_, qualified_name, DOM::ValidationContext::Attribute);
+    if (extracted_qualified_name_or_error.is_error())
+        return validate_and_extract_error_to_dom_exception(realm, extracted_qualified_name_or_error.release_error());
+    auto extracted_qualified_name = extracted_qualified_name_or_error.release_value();
+
+    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(
+        extracted_qualified_name.local_name(),
+        extracted_qualified_name.namespace_().has_value() ? Utf16String::from_utf8(extracted_qualified_name.namespace_().value()) : Optional<Utf16String>(),
+        element,
+        value));
+    element.set_attribute_ns(extracted_qualified_name, verified_value);
+    return {};
 }
 
 }

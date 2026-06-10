@@ -21,7 +21,7 @@ class CSSKeywordValue final : public CSSStyleValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSKeywordValue> create(FlyString value);
-    static WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> construct_impl(FlyString value);
+    static WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> create_for_constructor(FlyString value);
 
     virtual ~CSSKeywordValue() override = default;
 

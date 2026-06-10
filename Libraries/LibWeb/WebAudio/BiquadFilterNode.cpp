@@ -6,9 +6,6 @@
 
 #include <AK/Math.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/AudioParam.h>
-#include <LibWeb/Bindings/BiquadFilterNode.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
@@ -18,26 +15,26 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(BiquadFilterNode);
 
-BiquadFilterNode::BiquadFilterNode(GC::Ref<BaseAudioContext> context, Bindings::BiquadFilterOptions const& options)
+BiquadFilterNode::BiquadFilterNode(GC::Ref<BaseAudioContext> context, BiquadFilterOptions const& options)
     : AudioNode(context)
     , m_type(options.type)
-    , m_frequency(AudioParam::create(context, options.frequency, 0, context->nyquist_frequency(), Bindings::AutomationRate::ARate))
-    , m_detune(AudioParam::create(context, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
-    , m_q(AudioParam::create(context, options.q, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_gain(AudioParam::create(context, options.gain, NumericLimits<float>::lowest(), 40 * AK::log10(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
+    , m_frequency(AudioParam::create(context, options.frequency, 0, context->nyquist_frequency(), AutomationRate::ARate))
+    , m_detune(AudioParam::create(context, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), AutomationRate::ARate))
+    , m_q(AudioParam::create(context, options.q, NumericLimits<float>::lowest(), NumericLimits<float>::max(), AutomationRate::ARate))
+    , m_gain(AudioParam::create(context, options.gain, NumericLimits<float>::lowest(), 40 * AK::log10(NumericLimits<float>::max()), AutomationRate::ARate))
 {
 }
 
 BiquadFilterNode::~BiquadFilterNode() = default;
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-type
-void BiquadFilterNode::set_type(Bindings::BiquadFilterType type)
+void BiquadFilterNode::set_type(BiquadFilterType type)
 {
     m_type = type;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-type
-Bindings::BiquadFilterType BiquadFilterNode::type() const
+BiquadFilterType BiquadFilterNode::type() const
 {
     return m_type;
 }
@@ -76,7 +73,7 @@ WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(GC::Ref<JS::F
     return {};
 }
 
-WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::create(GC::Ref<BaseAudioContext> context, Bindings::BiquadFilterOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::create(GC::Ref<BaseAudioContext> context, BiquadFilterOptions const& options)
 {
     // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
     // MUST initialize the AudioNode this, with context and options as arguments.
@@ -85,8 +82,8 @@ WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::create(GC::Ref<
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#BiquadFilterNode
     AudioNodeDefaultOptions default_options;
-    default_options.channel_count_mode = Bindings::ChannelCountMode::Max;
-    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    default_options.channel_count_mode = ChannelCountMode::Max;
+    default_options.channel_interpretation = ChannelInterpretation::Speakers;
     default_options.channel_count = 2;
     // FIXME: Set tail-time to yes
 
@@ -96,7 +93,7 @@ WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::create(GC::Ref<
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-biquadfilternode
-WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::construct_impl(GC::Ref<BaseAudioContext> context, Bindings::BiquadFilterOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::create_for_constructor(GC::Ref<BaseAudioContext> context, BiquadFilterOptions const& options)
 {
     return create(context, options);
 }

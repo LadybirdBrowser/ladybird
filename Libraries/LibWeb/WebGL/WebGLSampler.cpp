@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WebGLSampler.h>
 #include <LibWeb/WebGL/WebGLSampler.h>
 
 namespace Web::WebGL {

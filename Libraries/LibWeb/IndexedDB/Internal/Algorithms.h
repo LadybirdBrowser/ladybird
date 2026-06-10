@@ -6,9 +6,12 @@
 
 #pragma once
 
+#include <AK/StringView.h>
 #include <AK/Variant.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/IDBCursor.h>
+#include <LibWeb/Bindings/IDBObjectStore.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
@@ -17,6 +20,8 @@
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::IndexedDB {
+
+class IDBCursor;
 
 enum class RecordKind {
     Key,
@@ -27,6 +32,8 @@ enum class RecordKind {
 using KeyPath = Variant<String, Vector<String>>;
 using RecordSource = Variant<GC::Ref<ObjectStore>, GC::Ref<Index>>;
 
+using RetrieveMultipleItemsOptions = Bindings::IDBGetAllOptions;
+
 void open_a_database_connection(JS::Realm&, StorageAPI::StorageKey, String, Optional<u64>, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<GC::Ref<IDBDatabase>>)>>);
 bool fire_a_version_change_event(JS::Realm&, FlyString const&, GC::Ref<DOM::EventTarget>, u64, Optional<u64>);
 WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm&, JS::Value, Vector<JS::Value> = {});
@@ -35,6 +42,7 @@ void upgrade_a_database(JS::Realm&, GC::Ref<IDBDatabase>, u64, GC::Ref<IDBReques
 void delete_a_database(JS::Realm&, StorageAPI::StorageKey, String, GC::Ref<IDBRequest>, GC::Ref<GC::Function<void(WebIDL::ExceptionOr<u64>)>>);
 void abort_a_transaction(GC::Ref<IDBTransaction>, GC::Ptr<WebIDL::DOMException>);
 JS::Value convert_a_key_to_a_value(JS::Realm&, GC::Ref<Key>);
+JS::ThrowCompletionOr<JS::Value> convert_a_key_path_to_a_value(JS::Realm&, KeyPath const&);
 bool is_valid_key_path(KeyPath const&);
 GC::Ref<HTML::DOMStringList> create_a_sorted_name_list(Vector<String>);
 void commit_a_transaction(JS::Realm&, GC::Ref<IDBTransaction>);
@@ -64,8 +72,20 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm&, GC::Ref<In
 void queue_a_database_task(GC::Ref<GC::Function<void()>>);
 bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop>);
 bool is_a_potentially_valid_key_range(JS::Realm&, JS::Value);
-GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, RecordKind, Bindings::IDBCursorDirection, Optional<WebIDL::UnsignedLong>);
-GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, RecordKind, Bindings::IDBCursorDirection, Optional<WebIDL::UnsignedLong>);
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, RecordKind, CursorDirection, Optional<WebIDL::UnsignedLong>);
+GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, RecordKind, CursorDirection, Optional<WebIDL::UnsignedLong>);
 WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_items(JS::Realm&, IDBRequestSource, RecordKind, JS::Value, Optional<WebIDL::UnsignedLong>);
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_items(JS::Realm&, IDBRequestSource, RecordKind, RetrieveMultipleItemsOptions const&);
+
+}
+
+namespace Web::Bindings {
+
+WEB_API void set_idb_request_result(JS::Realm&, IndexedDB::IDBRequest&, GC::Ref<IndexedDB::IDBDatabase>);
+WEB_API void resolve_database_info_list_promise(JS::Realm&, WebIDL::Promise const&, Vector<GC::Weak<IndexedDB::Database>> const&);
+WEB_API void append_idb_record(JS::Realm&, JS::Array&, u32, GC::Ref<IndexedDB::IDBRecord>);
+WEB_API JS::Value idb_cursor_result(JS::Realm&, GC::Ptr<IndexedDB::IDBCursor>);
+WEB_API Optional<JS::Value> key_path_value_for_blob_or_file(JS::Realm&, JS::Value, StringView);
+WEB_API GC::Ptr<IndexedDB::IDBKeyRange> idb_key_range_from_value(JS::Value);
 
 }

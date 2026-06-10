@@ -23,7 +23,8 @@ class SharedWorker final
     GC_DECLARE_ALLOCATOR(SharedWorker);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> construct_impl(WindowOrWorkerGlobalScopeMixin&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, Bindings::WorkerOptions>& options);
+    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> create_for_constructor(JS::Realm&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, WorkerOptions> options);
+    static WebIDL::ExceptionOr<GC::Ref<SharedWorker>> create(WindowOrWorkerGlobalScopeMixin&, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, WorkerOptions> options);
 
     virtual ~SharedWorker();
 
@@ -37,7 +38,7 @@ public:
     void set_agent(WorkerAgentParent& agent) { m_agent = agent; }
 
 private:
-    SharedWorker(GC::Ref<DOM::EventTarget> relevant_global_object, URL::URL script_url, Bindings::WorkerOptions,
+    SharedWorker(GC::Ref<DOM::EventTarget> relevant_global_object, URL::URL script_url, WorkerOptions,
         MessagePort&);
 
     JS::Object& relevant_global_object() const;
@@ -47,7 +48,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     URL::URL m_script_url;
-    Bindings::WorkerOptions m_options;
+    WorkerOptions m_options;
 
     // Each SharedWorker has a port, a MessagePort set when the object is created.
     // https://html.spec.whatwg.org/multipage/workers.html#concept-sharedworker-port

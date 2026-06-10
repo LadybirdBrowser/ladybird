@@ -12,6 +12,8 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/Variant.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSRule.h>
@@ -22,6 +24,7 @@
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/StyleInvalidationReason.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::ViewTransition {
@@ -36,6 +39,13 @@ class CSSImportRule;
 class StyleScope;
 struct ShadowRootStylesheetEffects;
 struct StyleCache;
+
+using CSSStyleSheetOptions = Bindings::CSSStyleSheetInit;
+
+WEB_API CSSStyleSheet* css_style_sheet_from_value(JS::Value);
+WEB_API JS::Value css_style_sheet(JS::Realm&, CSSStyleSheet&);
+WEB_API void resolve_css_style_sheet_promise(JS::Realm&, WebIDL::Promise const&, CSSStyleSheet&);
+WEB_API GC::Ref<JS::SyntheticModule> create_css_style_sheet_default_export_module(JS::Realm&, CSSStyleSheet&, StringView filename);
 
 // https://drafts.csswg.org/cssom-1/#cssstylesheet
 class WEB_API CSSStyleSheet final : public StyleSheet {
@@ -65,9 +75,9 @@ public:
         LoadingState m_loading_state { LoadingState::Unloaded };
     };
 
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, CSSStyleSheetOptions const& options = {});
     [[nodiscard]] static GC::Ref<CSSStyleSheet> create(CSSRuleList&, MediaList&, Optional<::URL::URL> location);
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> create_constructed(DOM::Document const&, Optional<Bindings::CSSStyleSheetInit> const& options = {});
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(HTML::Window&, Optional<Bindings::CSSStyleSheetInit> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> create_constructed(DOM::Document const&, CSSStyleSheetOptions const& options = {});
 
     virtual ~CSSStyleSheet() override;
 
@@ -83,14 +93,15 @@ public:
     CSSRuleList* css_rules() { return m_rules; }
     CSSRuleList const* css_rules() const { return m_rules; }
 
-    WebIDL::ExceptionOr<unsigned> insert_rule(JS::Realm&, StringView rule, unsigned index);
-    WebIDL::ExceptionOr<WebIDL::Long> add_rule(JS::Realm&, Optional<String> selector, Optional<String> style, Optional<WebIDL::UnsignedLong> index);
-    WebIDL::ExceptionOr<void> remove_rule(JS::Realm&, Optional<WebIDL::UnsignedLong> index);
-    WebIDL::ExceptionOr<void> delete_rule(JS::Realm&, unsigned index);
+    WebIDL::ExceptionOr<unsigned> insert_rule(StringView rule, unsigned index);
+    WebIDL::ExceptionOr<WebIDL::Long> add_rule(Optional<String> selector, Optional<String> style, Optional<WebIDL::UnsignedLong> index);
+    WebIDL::ExceptionOr<void> remove_rule(Optional<WebIDL::UnsignedLong> index);
+    WebIDL::ExceptionOr<void> delete_rule(unsigned index);
     void delete_rule_without_validation(Badge<::Web::ViewTransition::ViewTransition>, unsigned index);
 
-    GC::Ref<WebIDL::Promise> replace(JS::Realm&, String text);
-    WebIDL::ExceptionOr<void> replace_sync(JS::Realm&, StringView text);
+    WebIDL::ExceptionOr<void> replace(JS::Realm&, String, GC::Ref<WebIDL::Promise>);
+    WebIDL::ExceptionOr<void> replace_a_stylesheet(String text, Function<void()> did_replace);
+    WebIDL::ExceptionOr<void> replace_sync(StringView text);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     void for_each_effective_style_producing_rule(Function<void(CSSRule const&)> const& callback) const;

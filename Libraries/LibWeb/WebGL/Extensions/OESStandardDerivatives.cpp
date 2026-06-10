@@ -13,14 +13,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESStandardDerivatives);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESStandardDerivatives::create(GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> OESStandardDerivatives::create(GC::Ref<WebGLRenderingContextBase> context)
 {
     auto extension = GC::Heap::the().allocate<OESStandardDerivatives>(context);
-    return GC::Ref<Bindings::Wrappable> { extension };
+    return GC::Ref<WebGLExtension> { extension };
 }
 
 OESStandardDerivatives::OESStandardDerivatives(GC::Ref<WebGLRenderingContextBase> context)
-    : Bindings::Wrappable()
+    : WebGLExtension()
     , m_context(context)
 {
 }

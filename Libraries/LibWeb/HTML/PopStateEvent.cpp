@@ -5,29 +5,31 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/PopStateEvent.h>
 #include <LibWeb/HTML/PopStateEvent.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PopStateEvent);
 
-[[nodiscard]] GC::Ref<PopStateEvent> PopStateEvent::create(FlyString const& event_name, Bindings::PopStateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+[[nodiscard]] GC::Ref<PopStateEvent> PopStateEvent::create(FlyString const& event_name, PopStateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     return GC::Heap::the().allocate<PopStateEvent>(event_name, event_init, time_stamp);
 }
 
-GC::Ref<PopStateEvent> PopStateEvent::construct_impl(Window& window, FlyString const& event_name, Bindings::PopStateEventInit const& event_init)
+GC::Ref<PopStateEvent> PopStateEvent::create(FlyString const& event_name, JS::Value state, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return GC::Heap::the().allocate<PopStateEvent>(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(window)));
+    return GC::Heap::the().allocate<PopStateEvent>(event_name, state, time_stamp);
 }
 
-PopStateEvent::PopStateEvent(FlyString const& event_name, Bindings::PopStateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+PopStateEvent::PopStateEvent(FlyString const& event_name, PopStateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : DOM::Event(event_name, event_init, time_stamp)
     , m_state(event_init.state)
+{
+}
+
+PopStateEvent::PopStateEvent(FlyString const& event_name, JS::Value state, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, time_stamp)
+    , m_state(state)
 {
 }
 

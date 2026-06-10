@@ -57,7 +57,7 @@ Variant<DOM::Document*, HTML::WorkerGlobalScope*> CanvasTextDrawingStyles<Canvas
             return &(window->associated_document());
 
         // 3. Assert: global implements WorkerGlobalScope.
-        auto* worker_global_scope = Bindings::impl_from<HTML::WorkerGlobalScope>(&global_object);
+        auto* worker_global_scope = Bindings::worker_global_scope_from_global_object(global_object);
         VERIFY(worker_global_scope);
 
         // 4. Return global.

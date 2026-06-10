@@ -198,7 +198,7 @@ static void dump_element(Web::DOM::Element const& element, size_t indent)
 
     if (auto shadow_root = element.shadow_root(); shadow_root && !shadow_root->is_user_agent_internal()) {
         dump_line_prefix(indent + 1);
-        out("#shadow-root mode=\"{}\"", shadow_root->mode() == Web::Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv);
+        out("#shadow-root mode=\"{}\"", shadow_root->mode() == Web::DOM::ShadowRootMode::Open ? "open"sv : "closed"sv);
         if (shadow_root->declarative())
             out(" declarative");
         if (shadow_root->clonable())
@@ -332,7 +332,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     [[maybe_unused]] auto& event_loop = Core::EventLoop::initialize_for_current_thread();
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(false));
-    Web::Bindings::initialize_main_thread_vm(Web::Bindings::AgentType::SimilarOriginWindow);
+    Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
 
     auto& vm = Web::Bindings::main_thread_vm();
     auto page_client = DumpHTMLTreePageClient::create(vm);

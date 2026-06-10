@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/GeolocationPositionError.h>
+#include <AK/String.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Types.h>
 

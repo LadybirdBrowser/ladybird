@@ -13,20 +13,21 @@
 
 namespace Web::HTML {
 
-class Window;
+using PopStateEventInit = Bindings::PopStateEventInit;
 
 class PopStateEvent final : public DOM::Event {
     WEB_WRAPPABLE(PopStateEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(PopStateEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<PopStateEvent> create(FlyString const& event_name, Bindings::PopStateEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<PopStateEvent> construct_impl(Window&, FlyString const& event_name, Bindings::PopStateEventInit const&);
+    [[nodiscard]] static GC::Ref<PopStateEvent> create(FlyString const& event_name, PopStateEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<PopStateEvent> create(FlyString const& event_name, JS::Value state, HighResolutionTime::DOMHighResTimeStamp);
 
     JS::Value const& state() const { return m_state; }
 
 private:
-    PopStateEvent(FlyString const& event_name, Bindings::PopStateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    PopStateEvent(FlyString const& event_name, PopStateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    PopStateEvent(FlyString const& event_name, JS::Value state, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 

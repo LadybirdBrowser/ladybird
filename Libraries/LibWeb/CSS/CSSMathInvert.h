@@ -17,7 +17,7 @@ class CSSMathInvert final : public CSSMathValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMathInvert> create(NumericType, GC::Ref<CSSNumericValue>);
-    static GC::Ref<CSSMathInvert> construct_impl(CSSNumberish);
+    static GC::Ref<CSSMathInvert> create_from_numberish(CSSNumberish);
 
     virtual ~CSSMathInvert() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;

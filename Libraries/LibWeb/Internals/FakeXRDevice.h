@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/XRSystem.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/WebXR/XRSession.h>
 
@@ -23,7 +23,8 @@ public:
 
     void simulate_user_activation(GC::Ref<WebIDL::CallbackType>) const;
 
-    GC::Ref<WebIDL::Promise> disconnect() const;
+    GC::Ref<WebIDL::Promise> disconnect(JS::Realm&) const;
+    void disconnect(GC::Ref<WebIDL::Promise>) const;
 
 private:
     explicit FakeXRDevice(HTML::Window&);

@@ -7,11 +7,16 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/DataTransferItem.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EntriesAPI/FileSystemEntry.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/DragDataStore.h>
+
+namespace Web::WebIDL {
+
+class CallbackType;
+
+}
 
 namespace Web::HTML {
 
@@ -28,7 +33,8 @@ public:
     String type() const;
     void set_item_index(Badge<DataTransfer>, Optional<size_t> index) { m_item_index = move(index); }
 
-    void get_as_string(JS::Realm&, GC::Ptr<WebIDL::CallbackType>) const;
+    Optional<String> string_data() const;
+    void get_as_string(GC::Ptr<WebIDL::CallbackType>) const;
     GC::Ptr<FileAPI::File> get_as_file() const;
 
     GC::Ptr<EntriesAPI::FileSystemEntry> webkit_get_as_entry() const;

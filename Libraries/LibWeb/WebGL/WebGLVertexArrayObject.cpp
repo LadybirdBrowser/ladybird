@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WebGLVertexArrayObject.h>
 #include <LibWeb/WebGL/WebGLVertexArrayObject.h>
 
 namespace Web::WebGL {

@@ -31,7 +31,7 @@ static void fire_a_focus_event(GC::Ptr<DOM::EventTarget> focus_event_target, GC:
     // To fire a focus event named e at an element t with a given related target r, fire an event named e at t, using FocusEvent,
     // with the relatedTarget attribute initialized to r, the view attribute initialized to t's node document's relevant global
     // object, and the composed flag set.
-    Bindings::FocusEventInit focus_event_init {};
+    UIEvents::FocusEventInit focus_event_init {};
     focus_event_init.related_target = related_focus_target;
 
     auto& realm = [&]() -> JS::Realm& {

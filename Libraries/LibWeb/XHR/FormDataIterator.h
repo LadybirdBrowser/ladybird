@@ -25,7 +25,6 @@ public:
 private:
     FormDataIterator(JS::Realm&, FormData const&, JS::Object::PropertyKind iterator_kind);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<FormData const> m_form_data;

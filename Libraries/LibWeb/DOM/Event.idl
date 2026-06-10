@@ -6,7 +6,7 @@ interface Event {
     readonly attribute DOMString type;
     readonly attribute EventTarget? target;
     readonly attribute EventTarget? srcElement; // legacy
-    [ImplementedAs=current_target_value_for_bindings, ReturnsJSValue] readonly attribute EventTarget? currentTarget;
+    [ImplementedAs=current_target_value, ImplementedInBindings, ReturnsJSValue] readonly attribute EventTarget? currentTarget;
     sequence<EventTarget> composedPath();
 
     const unsigned short NONE = 0;

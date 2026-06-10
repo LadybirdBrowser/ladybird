@@ -18,8 +18,7 @@ GC::Ref<ValidityState> ValidityState::create(FormAssociatedElement const& contro
 }
 
 ValidityState::ValidityState(FormAssociatedElement const& control)
-    : Bindings::Wrappable()
-    , m_control(control)
+    : m_control(control)
 {
 }
 

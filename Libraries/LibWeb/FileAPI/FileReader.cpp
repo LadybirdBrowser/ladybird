@@ -9,12 +9,12 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Time.h>
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/FileReader.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/FileAPI/Blob.h>
@@ -76,9 +76,6 @@ void FileReader::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_error);
-    m_result.visit(
-        [&](GC::Ref<JS::ArrayBuffer> const& array_buffer) { visitor.visit(array_buffer); },
-        [](auto&) {});
     visitor.visit(m_global_object);
 }
 
@@ -87,14 +84,31 @@ GC::Ref<FileReader> FileReader::create(GC::Ref<DOM::EventTarget> relevant_global
     return GC::Heap::the().allocate<FileReader>(relevant_global_object);
 }
 
-GC::Ref<FileReader> FileReader::construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object)
+WebIDL::ExceptionOr<GC::Ref<FileReader>> FileReader::create_for_constructor(JS::Realm& realm)
 {
-    return FileReader::create(relevant_global_object);
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(realm.global_object());
+    VERIFY(global_scope);
+    return FileReader::create(global_scope->this_impl());
 }
 
 JS::Object& FileReader::relevant_global_object() const
 {
     return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
+}
+
+WebIDL::ExceptionOr<JS::Value> FileReader::result(JS::Realm& realm) const
+{
+    auto& vm = realm.vm();
+    return m_result.visit(
+        [](Empty const&) -> WebIDL::ExceptionOr<JS::Value> {
+            return JS::js_null();
+        },
+        [&](String const& string) -> WebIDL::ExceptionOr<JS::Value> {
+            return JS::PrimitiveString::create(vm, string);
+        },
+        [&](ByteBuffer const& bytes) -> WebIDL::ExceptionOr<JS::Value> {
+            return JS::ArrayBuffer::create(realm, TRY_OR_THROW_OOM(vm, ByteBuffer::copy(bytes.bytes())));
+        });
 }
 
 GC::Ref<DOM::Event> FileReader::create_associated_event(FlyString const& event_name) const
@@ -104,7 +118,7 @@ GC::Ref<DOM::Event> FileReader::create_associated_event(FlyString const& event_n
 }
 
 // https://w3c.github.io/FileAPI/#blob-package-data
-WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm& realm, ByteBuffer bytes, Type type, Optional<String> const& mime_type, Optional<String> const& encoding_name)
+WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(ByteBuffer bytes, Type type, Optional<String> const& mime_type, Optional<String> const& encoding_name)
 {
     // A Blob has an associated package data algorithm, given bytes, a type, a optional mimeType, and a optional encodingName, which switches on type and runs the associated steps:
     switch (type) {
@@ -142,11 +156,12 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         // 5. Decode bytes using fallback encoding encoding, and return the result.
         auto decoder = TextCodec::decoder_for(encoding.value_or("UTF-8"sv));
         VERIFY(decoder.has_value());
-        return TRY_OR_THROW_OOM(realm.vm(), convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder.value(), bytes));
+        return TRY_OR_THROW_OOM(JS::VM::the(), convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder.value(), bytes));
     }
     case Type::ArrayBuffer:
-        // Return a new ArrayBuffer whose contents are bytes.
-        return JS::ArrayBuffer::create(realm, move(bytes));
+        // Return bytes. The binding wrapper performs the ArrayBuffer allocation
+        // for the caller's realm.
+        return bytes;
     case Type::BinaryString:
         // Return bytes as a binary string, in which every byte is represented by a code unit of equal value [0..255].
         StringBuilder builder(StringBuilder::Mode::UTF16, bytes.size());
@@ -185,7 +200,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
 
     // 1. If fr’s state is "loading", throw an InvalidStateError DOMException.
     if (m_state == State::Loading)
-        return WebIDL::InvalidStateError::create(realm, "Read already in progress"_utf16);
+        return WebIDL::InvalidStateError::create("Read already in progress"_utf16);
 
     // 2. Set fr’s state to "loading".
     m_state = State::Loading;
@@ -270,12 +285,12 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                 }
                 // 5. Otherwise, if chunkPromise is fulfilled with an object whose done property is true, queue a task to run the following steps and abort this algorithm:
                 else if (done.as_bool()) {
-                    queue_a_task(GC::create_function(GC::Heap::the(), [this, packaged_bytes = move(state->bytes), type, &realm, encoding_name, blobs_type]() mutable {
+                    queue_a_task(GC::create_function(GC::Heap::the(), [this, packaged_bytes = move(state->bytes), type, encoding_name, blobs_type]() mutable {
                         // 1. Set fr’s state to "done".
                         m_state = State::Done;
 
                         // 2. Let result be the result of package data given bytes, type, blob’s type, and encodingName.
-                        auto result = blob_package_data(realm, move(packaged_bytes), type, blobs_type, encoding_name);
+                        auto result = blob_package_data(move(packaged_bytes), type, blobs_type, encoding_name);
 
                         // 3. If package data threw an exception error:
                         if (result.is_error()) {

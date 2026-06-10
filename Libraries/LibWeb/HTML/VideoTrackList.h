@@ -29,6 +29,7 @@ public:
     // https://html.spec.whatwg.org/multipage/media.html#dom-videotracklist-length
     size_t length() const { return m_video_tracks.size(); }
 
+    GC::Ptr<VideoTrack> item(size_t index) const;
     GC::Ptr<VideoTrack> get_track_by_id(StringView id) const;
     i32 selected_index() const;
 
@@ -55,8 +56,6 @@ private:
     explicit VideoTrackList(GC::Ptr<HTMLMediaElement> = nullptr);
 
     virtual void visit_edges(Visitor&) override;
-
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     GC::Ptr<HTMLMediaElement> m_media_element;
 

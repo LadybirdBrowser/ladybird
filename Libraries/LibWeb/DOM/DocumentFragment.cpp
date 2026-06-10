@@ -5,8 +5,8 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentFragment.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::DOM {
@@ -34,10 +34,9 @@ GC::Ref<DocumentFragment> DocumentFragment::create(Document& document)
     return GC::Heap::the().allocate<DocumentFragment>(document);
 }
 
-// https://dom.spec.whatwg.org/#dom-documentfragment-documentfragment
-WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> DocumentFragment::construct_impl(HTML::Window& window)
+GC::Ref<DocumentFragment> DocumentFragment::construct_impl(JS::Realm& realm)
 {
-    return create(window.associated_document());
+    return create(HTML::relevant_window(realm.global_object()).associated_document());
 }
 
 }

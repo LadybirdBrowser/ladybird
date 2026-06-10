@@ -9,9 +9,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/ARIA/Roles.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HTMLElement.h>
-#include <LibWeb/Bindings/PointerEvent.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -167,7 +164,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_e
         set_attribute_value(HTML::AttributeNames::contenteditable, "false"_string);
         return {};
     }
-    return WebIDL::SyntaxError::create(HTML::relevant_realm(*this), "Invalid contentEditable value, must be 'true', 'false', 'plaintext-only' or 'inherit'"_utf16);
+    return WebIDL::SyntaxError::create("Invalid contentEditable value, must be 'true', 'false', 'plaintext-only' or 'inherit'"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#set-the-inner-text-steps
@@ -205,7 +202,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(Utf16View const& value)
 {
     // 1. If this's parent is null, then throw a "NoModificationAllowedError" DOMException.
     if (!parent())
-        return WebIDL::NoModificationAllowedError::create(HTML::relevant_realm(*this), "setOuterText: parent is null"_utf16);
+        return WebIDL::NoModificationAllowedError::create("setOuterText: parent is null"_utf16);
 
     // 2. Let next be this's next sibling.
     auto* next = next_sibling();
@@ -1086,11 +1083,11 @@ Optional<ARIA::Role> HTMLElement::default_role() const
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-attachinternals
-WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
 {
     // 1. If this's is value is not null, then throw a "NotSupportedError" DOMException.
     if (is_value().has_value())
-        return WebIDL::NotSupportedError::create(realm, "ElementInternals cannot be attached to a customized built-in element"_utf16);
+        return WebIDL::NotSupportedError::create("ElementInternals cannot be attached to a customized built-in element"_utf16);
 
     // 2. Let definition be the result of looking up a custom element definition given this's custom element registry,
     //    this's namespace, this's local name, and null.
@@ -1098,19 +1095,19 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals(JS:
 
     // 3. If definition is null, then throw an "NotSupportedError" DOMException.
     if (!definition)
-        return WebIDL::NotSupportedError::create(realm, "ElementInternals cannot be attached to an element that is not a custom element"_utf16);
+        return WebIDL::NotSupportedError::create("ElementInternals cannot be attached to an element that is not a custom element"_utf16);
 
     // 4. If definition's disable internals is true, then throw a "NotSupportedError" DOMException.
     if (definition->disable_internals())
-        return WebIDL::NotSupportedError::create(realm, "ElementInternals are disabled for this custom element"_utf16);
+        return WebIDL::NotSupportedError::create("ElementInternals are disabled for this custom element"_utf16);
 
     // 5. If this's attached internals is non-null, then throw an "NotSupportedError" DOMException.
     if (m_attached_internals)
-        return WebIDL::NotSupportedError::create(realm, "ElementInternals already attached"_utf16);
+        return WebIDL::NotSupportedError::create("ElementInternals already attached"_utf16);
 
     // 6. If this's custom element state is not "precustomized" or "custom", then throw a "NotSupportedError" DOMException.
     if (!first_is_one_of(custom_element_state(), DOM::CustomElementState::Precustomized, DOM::CustomElementState::Custom))
-        return WebIDL::NotSupportedError::create(realm, "Custom element is in an invalid state to attach ElementInternals"_utf16);
+        return WebIDL::NotSupportedError::create("Custom element is in an invalid state to attach ElementInternals"_utf16);
 
     // 7. Set this's attached internals to a new ElementInternals instance whose target element is this.
     auto internals = ElementInternals::create(*this);
@@ -1172,7 +1169,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
     if (ignore_dom_state == IgnoreDomState::No && !popover().has_value()) {
         // 1.1. If throwExceptions is true, then throw a "NotSupportedError" DOMException.
         if (throw_exceptions == ThrowExceptions::Yes)
-            return WebIDL::NotSupportedError::create(HTML::relevant_realm(*this), "Element is not a popover"_utf16);
+            return WebIDL::NotSupportedError::create("Element is not a popover"_utf16);
         // 1.2. Return false.
         return false;
     }
@@ -1200,7 +1197,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
         || (ignore_dom_state == IgnoreDomState::No && expected_document && &document() != expected_document)
         || (is<HTMLDialogElement>(*this) && as<HTMLDialogElement>(*this).is_modal())) {
         if (throw_exceptions == ThrowExceptions::Yes)
-            return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "Element is not in a valid state to show a popover"_utf16);
+            return WebIDL::InvalidStateError::create("Element is not in a valid state to show a popover"_utf16);
         return false;
     }
 
@@ -1209,10 +1206,10 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#dom-showpopover
-WebIDL::ExceptionOr<void> HTMLElement::show_popover_for_bindings(Bindings::ShowPopoverOptions const& options)
+WebIDL::ExceptionOr<void> HTMLElement::show_popover(ShowPopoverOptions const& options)
 {
     // 1. Let source be options["source"] if it exists; otherwise, null.
-    auto source = GC::Ptr<HTMLElement> { options.source };
+    auto source = options.source;
     // 2. Run show popover given this, true, and source.
     return show_popover(ThrowExceptions::Yes, source);
 }
@@ -1254,7 +1251,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     //    initialized to true, the oldState attribute initialized to "closed", the newState attribute initialized to
     //    "open" at element, and the source attribute initialized to source at element is false,
     //    then run cleanupShowingFlag and return.
-    Bindings::ToggleEventInit event_init {};
+    ToggleEventInit event_init {};
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
     event_init.cancelable = true;
@@ -1353,7 +1350,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         if (original_type != popover()) {
             // 1. If throwExceptions is true, then throw an "InvalidStateError" DOMException.
             if (throw_exceptions == ThrowExceptions::Yes)
-                return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "Element is not in a valid state to show a popover"_utf16);
+                return WebIDL::InvalidStateError::create("Element is not in a valid state to show a popover"_utf16);
 
             // 2. Return.
             return {};
@@ -1494,7 +1491,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     if (fire_events == FireEvents::Yes) {
         // 1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open",
         //    the newState attribute initialized to "closed", and the source attribute set to source at element.
-        Bindings::ToggleEventInit event_init {};
+        ToggleEventInit event_init {};
         event_init.old_state = "open"_string;
         event_init.new_state = "closed"_string;
         event_init.source = GC::make_root<DOM::Element>(source.ptr());
@@ -1582,7 +1579,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::toggle_popover(TogglePopoverOptionsOrForc
         [&force](bool forceBool) {
             force = forceBool;
         },
-        [&force, &source](Bindings::TogglePopoverOptions options) {
+        [&force, &source](TogglePopoverOptions const& options) {
             // 3. Otherwise, if options["force"] exists, set force to options["force"].
             force = options.force;
             // 4. Let source be options["source"] if it exists; otherwise, null.
@@ -1895,7 +1892,7 @@ void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new
     auto task_id = queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state), source]() mutable {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
         //    oldState, the newState attribute initialized to newState, and the source attribute initialized to source.
-        Bindings::ToggleEventInit event_init {};
+        ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
         event_init.source = GC::make_root<DOM::Element>(source.ptr());

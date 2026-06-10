@@ -77,7 +77,6 @@ private:
         GC::Weak<DOM::IDLEventListener> listener;
     };
     Vector<RegisteredEventListener> m_registered_event_listeners;
-    GC::Ptr<WebIDL::CallbackType> m_request_animation_frame_callback;
     u32 m_request_animation_frame_id { 0 };
 
     enum class Scrubbing : u8 {

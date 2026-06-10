@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/String.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/HashChangeEvent.h>
 #include <LibWeb/DOM/Event.h>
@@ -13,21 +14,22 @@
 
 namespace Web::HTML {
 
-class Window;
+using HashChangeEventInit = Bindings::HashChangeEventInit;
 
 class HashChangeEvent final : public DOM::Event {
     WEB_WRAPPABLE(HashChangeEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(HashChangeEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<HashChangeEvent> create(FlyString const& event_name, Bindings::HashChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<HashChangeEvent> construct_impl(Window&, FlyString const& event_name, Bindings::HashChangeEventInit const&);
+    [[nodiscard]] static GC::Ref<HashChangeEvent> create(FlyString const& event_name, HashChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<HashChangeEvent> create(FlyString const& event_name, String old_url, String new_url, HighResolutionTime::DOMHighResTimeStamp);
 
     String old_url() const { return m_old_url; }
     String new_url() const { return m_new_url; }
 
 private:
-    HashChangeEvent(FlyString const& event_name, Bindings::HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    HashChangeEvent(FlyString const& event_name, HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    HashChangeEvent(FlyString const& event_name, String old_url, String new_url, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 

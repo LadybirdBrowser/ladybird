@@ -12,10 +12,8 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Origin.h>
-#include <LibWeb/Bindings/Blob.h>
-#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/WebSocket.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -46,7 +44,7 @@ namespace Web::WebSockets {
 GC_DEFINE_ALLOCATOR(WebSocket);
 
 // https://websockets.spec.whatwg.org/#dom-websocket-websocket
-WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, String const& url, Optional<Variant<String, Vector<String>>> const& protocols)
+WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::create(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, String const& url, Optional<Variant<String, Vector<String>>> const& protocols)
 {
     auto web_socket = GC::Heap::the().allocate<WebSocket>(global_scope.this_impl());
     global_scope.register_web_socket({}, web_socket);
@@ -121,6 +119,12 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(HTML::WindowOr
     }));
 
     return web_socket;
+}
+
+WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::create_for_constructor(JS::Realm& realm, String const& url, Optional<Variant<String, Vector<String>>> const& protocols)
+{
+    auto& global_scope = HTML::relevant_window_or_worker_global_scope(realm.global_object());
+    return create(global_scope, url, protocols);
 }
 
 WebSocket::WebSocket(GC::Ref<DOM::EventTarget> relevant_global_object)
@@ -277,25 +281,25 @@ String WebSocket::extensions() const
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-protocol
-WebIDL::ExceptionOr<String> WebSocket::protocol(JS::Realm& realm) const
+WebIDL::ExceptionOr<String> WebSocket::protocol() const
 {
     if (!m_websocket)
         return String {};
-    return TRY_OR_THROW_OOM(realm.vm(), String::from_byte_string(m_websocket->subprotocol_in_use()));
+    return TRY_OR_THROW_OOM(JS::VM::the(), String::from_byte_string(m_websocket->subprotocol_in_use()));
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-close
-WebIDL::ExceptionOr<void> WebSocket::close(JS::Realm& realm, Optional<u16> code, Optional<String> reason)
+WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<String> reason)
 {
     // 1. If code is present, but is neither an integer equal to 1000 nor an integer in the range 3000 to 4999, inclusive, throw an "InvalidAccessError" DOMException.
     if (code.has_value() && *code != 1000 && (*code < 3000 || *code > 4999))
-        return WebIDL::InvalidAccessError::create(realm, "The close error code is invalid"_utf16);
+        return WebIDL::InvalidAccessError::create("The close error code is invalid"_utf16);
     // 2. If reason is present, then run these substeps:
     if (reason.has_value()) {
         // 1. Let reasonBytes be the result of encoding reason.
         // 2. If reasonBytes is longer than 123 bytes, then throw a "SyntaxError" DOMException.
         if (reason->bytes().size() > 123)
-            return WebIDL::SyntaxError::create(realm, "The close reason is longer than 123 bytes"_utf16);
+            return WebIDL::SyntaxError::create("The close reason is longer than 123 bytes"_utf16);
     }
     // 3. Run the first matching steps from the following list:
     auto state = ready_state();
@@ -316,11 +320,11 @@ WebIDL::ExceptionOr<void> WebSocket::close(JS::Realm& realm, Optional<u16> code,
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-send
-WebIDL::ExceptionOr<void> WebSocket::send(JS::Realm& realm, SendData const& data)
+WebIDL::ExceptionOr<void> WebSocket::send(SendData const& data)
 {
     auto state = ready_state();
     if (state == Requests::WebSocket::ReadyState::Connecting)
-        return WebIDL::InvalidStateError::create(realm, "Websocket is still CONNECTING"_utf16);
+        return WebIDL::InvalidStateError::create("Websocket is still CONNECTING"_utf16);
     if (state == Requests::WebSocket::ReadyState::Open) {
         data.visit(
             [this](String const& string) {
@@ -357,6 +361,44 @@ void WebSocket::on_open()
 }
 
 // https://websockets.spec.whatwg.org/#feedback-from-the-protocol
+void WebSocket::on_message(ByteBuffer message, bool is_text)
+{
+    if (m_websocket->ready_state() != Requests::WebSocket::ReadyState::Open)
+        return;
+
+    // When a WebSocket message has been received with type type and data data, the user agent must queue a task to follow these steps:
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, message = move(message), is_text] {
+        auto& realm = HTML::relevant_realm(relevant_global_object());
+        if (is_text) {
+            auto text_message = ByteString(ReadonlyBytes(message));
+            HTML::MessageEventInit event_init;
+            event_init.data = JS::PrimitiveString::create(realm.vm(), text_message);
+            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
+            return;
+        }
+
+        if (m_binary_type == "blob") {
+            // type indicates that the data is Binary and binaryType is "blob"
+            HTML::MessageEventInit event_init;
+            event_init.data = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(move(message), "text/plain;charset=utf-8"_string));
+            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
+            return;
+        }
+
+        if (m_binary_type == "arraybuffer") {
+            // type indicates that the data is Binary and binaryType is "arraybuffer"
+            HTML::MessageEventInit event_init;
+            event_init.data = JS::ArrayBuffer::create(realm, message);
+            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
+            return;
+        }
+
+        dbgln("Unsupported WebSocket message type {}", m_binary_type);
+        TODO();
+    }));
+}
+
+// https://websockets.spec.whatwg.org/#feedback-from-the-protocol
 void WebSocket::on_error()
 {
     // When the WebSocket connection is closed, possibly cleanly, the user agent must queue a task to run the following substeps:
@@ -372,47 +414,11 @@ void WebSocket::on_close(u16 code, String reason, bool was_clean)
     HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, code, reason = move(reason), was_clean] {
         // 1. Change the readyState attribute's value to CLOSED. This is handled by the Protocol's WebSocket
         // 2. If [needed], fire an event named error at the WebSocket object. This is handled by the Protocol's WebSocket
-        Bindings::CloseEventInit event_init {};
+        HTML::CloseEventInit event_init {};
         event_init.was_clean = was_clean;
         event_init.code = code;
         event_init.reason = reason;
         dispatch_event(HTML::CloseEvent::create(HTML::EventNames::close, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object())));
-    }));
-}
-
-// https://websockets.spec.whatwg.org/#feedback-from-the-protocol
-void WebSocket::on_message(ByteBuffer message, bool is_text)
-{
-    if (m_websocket->ready_state() != Requests::WebSocket::ReadyState::Open)
-        return;
-
-    // When a WebSocket message has been received with type type and data data, the user agent must queue a task to follow these steps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, message = move(message), is_text] {
-        auto& realm = HTML::relevant_realm(relevant_global_object());
-        if (is_text) {
-            auto text_message = ByteString(ReadonlyBytes(message));
-            Bindings::MessageEventInit event_init;
-            event_init.data = JS::PrimitiveString::create(realm.vm(), text_message);
-            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
-            return;
-        }
-
-        if (m_binary_type == "blob") {
-            // type indicates that the data is Binary and binaryType is "blob"
-            Bindings::MessageEventInit event_init;
-            event_init.data = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(message, "text/plain;charset=utf-8"_string));
-            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
-            return;
-        } else if (m_binary_type == "arraybuffer") {
-            // type indicates that the data is Binary and binaryType is "arraybuffer"
-            Bindings::MessageEventInit event_init;
-            event_init.data = JS::ArrayBuffer::create(realm, message);
-            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
-            return;
-        }
-
-        dbgln("Unsupported WebSocket message type {}", m_binary_type);
-        TODO();
     }));
 }
 

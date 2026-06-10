@@ -7,7 +7,6 @@
 #include "CSSContainerRule.h"
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CSSContainerRule.h>
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/DOM/AbstractElement.h>

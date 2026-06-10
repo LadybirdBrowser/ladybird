@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/UserActivation.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 

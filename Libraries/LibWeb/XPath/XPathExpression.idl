@@ -2,5 +2,5 @@
 [Exposed=Window]
 interface XPathExpression {
   // XPathResult.ANY_TYPE = 0
-    [NeedsCallerRealm] XPathResult evaluate(Node contextNode, optional unsigned short type = 0, optional XPathResult? result = null);
+    XPathResult evaluate(Node contextNode, optional unsigned short type = 0, optional XPathResult? result = null);
 };

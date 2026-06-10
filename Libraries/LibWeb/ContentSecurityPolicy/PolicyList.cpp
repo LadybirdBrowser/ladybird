@@ -4,15 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
-#include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/SandboxingFlagSet.h>
 
 namespace Web::ContentSecurityPolicy {
 
@@ -34,24 +31,6 @@ GC::Ref<PolicyList> PolicyList::create(GC::Heap& heap, Vector<SerializedPolicy> 
         policy_list->m_policies.append(policy);
     }
     return policy_list;
-}
-
-// https://w3c.github.io/webappsec-csp/#get-csp-of-object
-GC::Ptr<PolicyList> PolicyList::from_object(JS::Object& object)
-{
-    // 1. If object is a Document return object’s policy container's CSP list.
-    if (auto* document = Bindings::impl_from<DOM::Document>(&object))
-        return document->policy_container()->csp_list;
-
-    // 2. If object is a Window or a WorkerGlobalScope or a WorkletGlobalScope, return environment settings object’s
-    //    policy container's CSP list.
-    if (HTML::window_or_worker_global_scope_from_global_object(object)) {
-        auto& settings = HTML::relevant_settings_object(object);
-        return settings.policy_container()->csp_list;
-    }
-
-    // 3. Return null.
-    return nullptr;
 }
 
 void PolicyList::visit_edges(Cell::Visitor& visitor)

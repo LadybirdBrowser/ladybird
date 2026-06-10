@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -25,8 +24,7 @@ GC::Ref<MediaList> MediaList::create(Vector<NonnullRefPtr<MediaQuery>>&& media)
 }
 
 MediaList::MediaList(Vector<NonnullRefPtr<MediaQuery>>&& media)
-    : Bindings::Wrappable()
-    , m_media(move(media))
+    : m_media(move(media))
 {
 }
 
@@ -98,7 +96,7 @@ void MediaList::append_medium(StringView medium)
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-deletemedium
-WebIDL::ExceptionOr<void> MediaList::delete_medium(JS::Realm& realm, StringView medium)
+WebIDL::ExceptionOr<void> MediaList::delete_medium(StringView medium)
 {
     // 1. Let m be the result of parsing the given value.
     auto m = parse_media_query(Parser::ParsingParams {}, medium);
@@ -117,7 +115,7 @@ WebIDL::ExceptionOr<void> MediaList::delete_medium(JS::Realm& realm, StringView 
         return m->to_string() == existing->to_string();
     });
     if (!was_removed)
-        return WebIDL::NotFoundError::create(realm, "Media query not found in list"_utf16);
+        return WebIDL::NotFoundError::create("Media query not found in list"_utf16);
 
     if (m_associated_style_sheet)
         as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListDeleteMedium, previous_sheet_effects.has_value() ? &previous_sheet_effects.value() : nullptr);
@@ -143,13 +141,6 @@ bool MediaList::matches() const
             return true;
     }
     return false;
-}
-
-Optional<JS::Value> MediaList::item_value(Bindings::WrapperWorld&, JS::Realm& realm, size_t index) const
-{
-    if (index >= m_media.size())
-        return {};
-    return JS::PrimitiveString::create(realm.vm(), m_media[index]->to_string());
 }
 
 void MediaList::dump(StringBuilder& builder, int indent_levels) const

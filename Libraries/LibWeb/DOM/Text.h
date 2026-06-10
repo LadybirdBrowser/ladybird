@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Slottable.h>
@@ -25,7 +26,7 @@ public:
     virtual ~Text() override = default;
 
     [[nodiscard]] static GC::Ref<Text> create(Document&, Utf16String data);
-    static WebIDL::ExceptionOr<GC::Ref<Text>> construct_impl(HTML::Window&, Utf16String data);
+    [[nodiscard]] static GC::Ref<Text> construct_impl(JS::Realm&, Utf16String data);
 
     // ^Node
     virtual FlyString node_name() const override { return "#text"_fly_string; }

@@ -8,13 +8,14 @@
 #include "ConsoleGlobalEnvironmentExtensions.h"
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace WebContent {
 
@@ -81,7 +82,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
         if (!node)
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Node");
 
-        auto element = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, realm, [&]() {
+        auto element = TRY(Web::WebIDL::throw_dom_exception_if_needed(vm, realm, [&]() {
             return node->query_selector(selector);
         }));
         if (!element)
@@ -89,7 +90,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
         return Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, element);
     }
 
-    auto element = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, realm, [&]() {
+    auto element = TRY(Web::WebIDL::throw_dom_exception_if_needed(vm, realm, [&]() {
         return window.associated_document().query_selector(selector);
     }));
     if (!element)
@@ -114,7 +115,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
         element = node;
     }
 
-    auto node_list = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, realm, [&]() {
+    auto node_list = TRY(Web::WebIDL::throw_dom_exception_if_needed(vm, realm, [&]() {
         return element->query_selector_all(selector);
     }));
 

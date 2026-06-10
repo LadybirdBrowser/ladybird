@@ -16,14 +16,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLCompressedTextureS3tcSrgb);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> WebGLCompressedTextureS3tcSrgb::create(GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> WebGLCompressedTextureS3tcSrgb::create(GC::Ref<WebGLRenderingContextBase> context)
 {
     auto extension = GC::Heap::the().allocate<WebGLCompressedTextureS3tcSrgb>(context);
-    return GC::Ref<Bindings::Wrappable> { extension };
+    return GC::Ref<WebGLExtension> { extension };
 }
 
 WebGLCompressedTextureS3tcSrgb::WebGLCompressedTextureS3tcSrgb(GC::Ref<WebGLRenderingContextBase> context)
-    : Bindings::Wrappable()
+    : WebGLExtension()
     , m_context(context)
 {
     m_context->enable_compressed_texture_format(GL_COMPRESSED_SRGB_S3TC_DXT1_EXT);

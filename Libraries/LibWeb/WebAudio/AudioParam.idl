@@ -8,7 +8,7 @@ enum AutomationRate {
 [Exposed=Window]
 interface AudioParam {
     attribute float value;
-    [NeedsThisObjectRealmForSetter] attribute AutomationRate automationRate;
+    attribute AutomationRate automationRate;
     readonly attribute float defaultValue;
     readonly attribute float minValue;
     readonly attribute float maxValue;

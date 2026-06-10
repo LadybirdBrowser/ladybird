@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
@@ -52,15 +50,6 @@ String CSSStyleDeclaration::css_text() const
 
     // 2. Return the result of serializing the declarations.
     return serialized();
-}
-
-Optional<JS::Value> CSSStyleDeclaration::item_value(Bindings::WrapperWorld&, JS::Realm& realm, size_t index) const
-{
-    auto value = item(index);
-    if (value.is_empty())
-        return {};
-
-    return JS::PrimitiveString::create(realm.vm(), value);
 }
 
 void CSSStyleDeclaration::visit_edges(GC::Cell::Visitor& visitor)

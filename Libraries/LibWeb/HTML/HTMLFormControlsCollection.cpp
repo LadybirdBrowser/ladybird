@@ -5,28 +5,35 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/HTML/HTMLFormControlsCollection.h>
+#include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/RadioNodeList.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLFormControlsCollection);
 
-GC::Ref<HTMLFormControlsCollection> HTMLFormControlsCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
+GC::Ref<HTMLFormControlsCollection> HTMLFormControlsCollection::create(DOM::ParentNode& root, Scope scope, HTMLFormElement& form, Function<bool(DOM::Element const&)> filter)
 {
-    return GC::Heap::the().allocate<HTMLFormControlsCollection>(root, scope, move(filter));
+    return GC::Heap::the().allocate<HTMLFormControlsCollection>(root, scope, form, move(filter));
 }
 
-HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
+HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Scope scope, HTMLFormElement& form, Function<bool(DOM::Element const&)> filter)
     : DOM::HTMLCollection(root, scope, move(filter))
+    , m_form(form)
 {
 }
 
 HTMLFormControlsCollection::~HTMLFormControlsCollection() = default;
+
+void HTMLFormControlsCollection::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_form);
+}
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlformcontrolscollection-nameditem
 Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCollection::named_item_or_radio_node_list(FlyString const& name) const
@@ -69,14 +76,6 @@ Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCo
         auto const& element = as<DOM::Element>(node);
         return element.id() == name || element.name() == name;
     });
-}
-
-JS::Value HTMLFormControlsCollection::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
-{
-    return named_item_or_radio_node_list(name).visit(
-        [](Empty) -> JS::Value { return JS::js_undefined(); },
-        [&wrapper_world, &realm](GC::Ref<DOM::Element> const& value) -> JS::Value { return Bindings::wrap(wrapper_world, realm, value); },
-        [&wrapper_world, &realm](GC::Ref<RadioNodeList> const& value) -> JS::Value { return Bindings::wrap(wrapper_world, realm, value); });
 }
 
 }

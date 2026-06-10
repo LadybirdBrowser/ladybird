@@ -8,9 +8,14 @@
 
 #include <LibWeb/Bindings/ScreenOrientation.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::CSS {
+
+using OrientationLockType = Bindings::OrientationLockType;
+using OrientationType = Bindings::OrientationType;
 
 class ScreenOrientation final : public DOM::EventTarget {
     WEB_WRAPPABLE(ScreenOrientation, DOM::EventTarget);
@@ -19,9 +24,10 @@ class ScreenOrientation final : public DOM::EventTarget {
 public:
     [[nodiscard]] static GC::Ref<ScreenOrientation> create();
 
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> lock(JS::Realm&, Bindings::OrientationLockType);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> lock(JS::Realm&, OrientationLockType);
+    WebIDL::ExceptionOr<void> lock();
     void unlock();
-    Bindings::OrientationType type() const;
+    OrientationType type() const;
     WebIDL::UnsignedShort angle() const;
 
     void set_onchange(GC::Ptr<WebIDL::CallbackType>);

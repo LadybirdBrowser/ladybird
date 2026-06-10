@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibJS/Runtime/MapIterator.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesMap.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/FontFeatureData.h>

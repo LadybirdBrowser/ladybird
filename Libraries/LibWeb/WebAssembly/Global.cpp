@@ -5,11 +5,9 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/VM.h>
 #include <LibWasm/Types.h>
 #include <LibWeb/Bindings/Global.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/WebAssembly/Global.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 
@@ -17,55 +15,19 @@ namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Global);
 
-// https://webassembly.github.io/spec/js-api/#tovaluetype
-static Wasm::ValueType to_value_type(Bindings::ValueType type)
-{
-    switch (type) {
-    case Bindings::ValueType::I32:
-        return Wasm::ValueType { Wasm::ValueType::I32 };
-    case Bindings::ValueType::I64:
-        return Wasm::ValueType { Wasm::ValueType::I64 };
-    case Bindings::ValueType::F32:
-        return Wasm::ValueType { Wasm::ValueType::F32 };
-    case Bindings::ValueType::F64:
-        return Wasm::ValueType { Wasm::ValueType::F64 };
-    case Bindings::ValueType::V128:
-        return Wasm::ValueType { Wasm::ValueType::V128 };
-    case Bindings::ValueType::Anyfunc:
-        return Wasm::ValueType { Wasm::ValueType::FunctionReference };
-    case Bindings::ValueType::Externref:
-        return Wasm::ValueType { Wasm::ValueType::ExternReference };
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
 // https://webassembly.github.io/spec/js-api/#dom-global-global
-WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, Bindings::GlobalDescriptor const& descriptor, Optional<JS::Value> v)
+WebIDL::ExceptionOr<GC::Ref<Global>> Global::create(NonnullRefPtr<Detail::WebAssemblyCache> cache, GlobalDescriptor const& descriptor, Wasm::Value value)
 {
-    auto& realm = HTML::relevant_realm(global_scope);
-    auto& vm = realm.vm();
-
     // 1. Let mutable be descriptor["mutable"].
     auto mutable_ = descriptor.mutable_;
 
     // 2. Let valuetype be ToValueType(descriptor["value"]).
-    auto value_type = to_value_type(descriptor.value);
+    auto value_type = descriptor.value;
 
     // 3. If valuetype is v128,
     // 3.1 Throw a TypeError exception.
     if (value_type.kind() == Wasm::ValueType::V128)
-        return vm.throw_completion<JS::TypeError>("V128 is not supported as a global value type"sv);
-
-    // 4. If v is missing,
-    // 4.1 Let value be DefaultValue(valuetype).
-    // 5. Otherwise,
-    // 5.1 Let value be ToWebAssemblyValue(v, valuetype).
-    // FIXME: https://github.com/WebAssembly/spec/issues/1861
-    //        Is there a difference between *missing* and undefined for optional any values?
-    auto value = !v.has_value()
-        ? Detail::default_webassembly_value(realm, value_type)
-        : TRY(Detail::to_webassembly_value(realm, *v, value_type));
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "V128 is not supported as a global value type"sv };
 
     // 6. If mutable is true, let globaltype be var valuetype; otherwise, let globaltype be const valuetype.
     auto global_type = Wasm::GlobalType { value_type, mutable_ };
@@ -75,10 +37,9 @@ WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(HTML::WindowOrWorker
     // 9. Set the current agent’s associated store to store.
     // 10. Initialize this from globaladdr.
 
-    auto cache = Detail::get_cache(realm);
     auto address = cache->abstract_machine().store().allocate(global_type, value);
     if (!address.has_value())
-        return vm.throw_completion<JS::TypeError>("Wasm Global allocation failed"sv);
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Wasm Global allocation failed"sv };
 
     return Global::create(cache, *address);
 }
@@ -107,47 +68,46 @@ void Global::visit_edges(Visitor& visitor)
     m_cache->visit_edges(visitor);
 }
 
-// https://webassembly.github.io/spec/js-api/#getglobalvalue
-static WebIDL::ExceptionOr<JS::Value> get_global_value(JS::Realm& realm, Global const& global)
+WebIDL::ExceptionOr<Wasm::GlobalType> Global::type() const
 {
-    auto& vm = realm.vm();
-
     // 1. Let store be the current agent’s associated store.
     // 2. Let globaladdr be global.[[Global]].
     // 3. Let globaltype be global_type(store, globaladdr).
     // 4. If globaltype is of the form mut v128, throw a TypeError.
 
-    auto* global_instance = global.cache().abstract_machine().store().get(global.address());
+    auto* global_instance = cache().abstract_machine().store().get(address());
     if (!global_instance)
-        return vm.throw_completion<JS::RangeError>("Could not find the global instance"sv);
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Could not find the global instance"sv };
 
-    auto value_type = global_instance->type().type();
+    return global_instance->type();
+}
+
+WebIDL::ExceptionOr<Wasm::ValueType> Global::value_type() const
+{
+    auto global_type = TRY(type());
+    auto value_type = global_type.type();
     if (value_type.kind() == Wasm::ValueType::V128)
-        return vm.throw_completion<JS::TypeError>("V128 is not supported as a global value type"sv);
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "V128 is not supported as a global value type"sv };
+
+    return value_type;
+}
+
+WebIDL::ExceptionOr<Wasm::Value> Global::value() const
+{
+    auto* global_instance = cache().abstract_machine().store().get(address());
+    if (!global_instance)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Could not find the global instance"sv };
+
+    (void)TRY(value_type());
 
     // 5. Let value be global_read(store, globaladdr).
-    auto value = global_instance->value();
-
-    // 6. Return ToJSValue(value).
-    return Detail::to_js_value(realm, value, value_type);
+    // 6. Return value.
+    return global_instance->value();
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-global-value
-WebIDL::ExceptionOr<JS::Value> Global::value(JS::Realm& realm) const
+WebIDL::ExceptionOr<void> Global::set_value(Wasm::Value value)
 {
-    return get_global_value(realm, *this);
-}
-
-// https://webassembly.github.io/spec/js-api/#dom-global-valueof
-WebIDL::ExceptionOr<JS::Value> Global::value_of(JS::Realm& realm) const
-{
-    return get_global_value(realm, *this);
-}
-
-// https://webassembly.github.io/spec/js-api/#dom-global-value
-WebIDL::ExceptionOr<void> Global::set_value(JS::Realm& realm, JS::Value the_given_value)
-{
-    auto& vm = realm.vm();
     // 1. Let store be the current agent’s associated store.
     // 2. Let globaladdr be this.[[Global]].
     // 3. Let mut valuetype be global_type(store, globaladdr).
@@ -156,17 +116,14 @@ WebIDL::ExceptionOr<void> Global::set_value(JS::Realm& realm, JS::Value the_give
 
     auto* global_instance = cache().abstract_machine().store().get(address());
     if (!global_instance)
-        return vm.throw_completion<JS::RangeError>("Could not find the global instance"sv);
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Could not find the global instance"sv };
 
-    auto mut_value_type = global_instance->type();
+    auto mut_value_type = TRY(type());
     if (mut_value_type.type().kind() == Wasm::ValueType::V128)
-        return vm.throw_completion<JS::TypeError>("Cannot set the value of a V128 global"sv);
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set the value of a V128 global"sv };
 
     if (!mut_value_type.is_mutable())
-        return vm.throw_completion<JS::TypeError>("Cannot set the value of a const global"sv);
-
-    // 6. Let value be ToWebAssemblyValue(the given value, valuetype).
-    auto value = TRY(Detail::to_webassembly_value(realm, the_given_value, mut_value_type.type()));
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set the value of a const global"sv };
 
     // 7. Let store be global_write(store, globaladdr, value).
     // 8. If store is error, throw a RangeError exception.
@@ -176,6 +133,90 @@ WebIDL::ExceptionOr<void> Global::set_value(JS::Realm& realm, JS::Value the_give
     global_instance->set_value(value);
 
     return {};
+}
+
+}
+
+namespace Web::Bindings {
+
+// https://webassembly.github.io/spec/js-api/#tovaluetype
+static Wasm::ValueType to_value_type(ValueType type)
+{
+    switch (type) {
+    case ValueType::I32:
+        return Wasm::ValueType { Wasm::ValueType::I32 };
+    case ValueType::I64:
+        return Wasm::ValueType { Wasm::ValueType::I64 };
+    case ValueType::F32:
+        return Wasm::ValueType { Wasm::ValueType::F32 };
+    case ValueType::F64:
+        return Wasm::ValueType { Wasm::ValueType::F64 };
+    case ValueType::V128:
+        return Wasm::ValueType { Wasm::ValueType::V128 };
+    case ValueType::Anyfunc:
+        return Wasm::ValueType { Wasm::ValueType::FunctionReference };
+    case ValueType::Externref:
+        return Wasm::ValueType { Wasm::ValueType::ExternReference };
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+static WebAssembly::GlobalDescriptor global_descriptor_from_bindings(GlobalDescriptor const& descriptor)
+{
+    return {
+        .value = to_value_type(descriptor.value),
+        .mutable_ = descriptor.mutable_,
+    };
+}
+
+WebIDL::ExceptionOr<GC::Ref<WebAssembly::Global>> construct_global(JS::Realm& realm, GlobalDescriptor const& descriptor, Optional<JS::Value> value)
+{
+    auto cache = WebAssembly::Detail::get_cache(realm);
+    auto global_descriptor = global_descriptor_from_bindings(descriptor);
+
+    // FIXME: https://github.com/WebAssembly/spec/issues/1861
+    //        Is there a difference between *missing* and undefined for optional any values?
+    auto wasm_value = !value.has_value()
+        ? WebAssembly::Detail::default_webassembly_value(realm, global_descriptor.value)
+        : TRY(WebAssembly::Detail::to_webassembly_value(realm, *value, global_descriptor.value));
+
+    return WebAssembly::Global::create(move(cache), global_descriptor, wasm_value);
+}
+
+// https://webassembly.github.io/spec/js-api/#getglobalvalue
+static WebIDL::ExceptionOr<JS::Value> get_global_value(JS::Realm& realm, WebAssembly::Global& global)
+{
+    auto value = TRY(global.value());
+    auto value_type = TRY(global.value_type());
+    return WebAssembly::Detail::to_js_value(realm, value, value_type);
+}
+
+// https://webassembly.github.io/spec/js-api/#dom-global-value
+WebIDL::ExceptionOr<JS::Value> value(JS::Realm& realm, WebAssembly::Global& global)
+{
+    return get_global_value(realm, global);
+}
+
+// https://webassembly.github.io/spec/js-api/#dom-global-value
+WebIDL::ExceptionOr<void> set_value(JS::Realm& realm, WebAssembly::Global& global, JS::Value the_given_value)
+{
+    auto global_type = TRY(global.type());
+    auto value_type = global_type.type();
+    if (value_type.kind() == Wasm::ValueType::V128)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set the value of a V128 global"sv };
+
+    if (!global_type.is_mutable())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set the value of a const global"sv };
+
+    auto value = TRY(WebAssembly::Detail::to_webassembly_value(realm, the_given_value, value_type));
+    return global.set_value(value);
+}
+
+// https://webassembly.github.io/spec/js-api/#dom-global-valueof
+WebIDL::ExceptionOr<JS::Value> value_of(JS::Realm& realm, WebAssembly::Global& global)
+{
+    return get_global_value(realm, global);
 }
 
 }

@@ -72,7 +72,7 @@ class ReadableStreamDefaultReader final
     GC_DECLARE_ALLOCATOR(ReadableStreamDefaultReader);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ref<ReadableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> create(JS::Realm&, GC::Ref<ReadableStream>);
 
     virtual ~ReadableStreamDefaultReader() override = default;
 

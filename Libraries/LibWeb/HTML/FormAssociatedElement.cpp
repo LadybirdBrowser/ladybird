@@ -8,8 +8,6 @@
 
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
-#include <LibWeb/Bindings/HTMLFormElement.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
@@ -84,8 +82,7 @@ void FormAssociatedElement::reset_algorithm()
     if (!html_element.is_form_associated_custom_element())
         return;
 
-    GC::RootVector<JS::Value> empty_arguments;
-    html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formResetCallback, move(empty_arguments));
+    html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formResetCallback);
 }
 
 void FormAssociatedElement::set_form(HTMLFormElement* form)
@@ -260,16 +257,8 @@ void FormAssociatedElement::reset_form_owner()
     }
 
     // See the AD-HOC comment above.
-    if (m_form != old_form && html_element.is_form_associated_custom_element()) {
-        GC::RootVector<JS::Value> arguments;
-        if (m_form) {
-            auto& realm = HTML::relevant_realm(*m_form);
-            arguments.append(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *m_form }));
-        } else {
-            arguments.append(JS::js_null());
-        }
-        html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formAssociatedCallback, move(arguments));
-    }
+    if (m_form != old_form && html_element.is_form_associated_custom_element())
+        html_element.enqueue_a_form_associated_callback_reaction(m_form.ptr());
 }
 
 void FormAssociatedElement::form_associated_element_was_inserted()
@@ -309,9 +298,7 @@ void FormAssociatedElement::update_face_disabled_state()
 
     m_face_disabled_state = is_disabled;
 
-    GC::RootVector<JS::Value> arguments;
-    arguments.append(JS::Value(is_disabled));
-    html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formDisabledCallback, move(arguments));
+    html_element.enqueue_a_form_disabled_callback_reaction(is_disabled);
 }
 
 // https://w3c.github.io/webdriver/#dfn-clear-algorithm
@@ -424,11 +411,11 @@ bool FormAssociatedElement::report_validity_steps()
         // FIXME: Does this align with other browsers?
         if (report && element.check_visibility({})) {
             run_focusing_steps(&element);
-            Bindings::ScrollIntoViewOptions scroll_options;
-            scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
-            scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
-            scroll_options.behavior = Bindings::ScrollBehavior::Instant;
-            (void)element.scroll_into_view(scroll_options);
+            DOM::Element::ScrollIntoViewOptions scroll_options;
+            scroll_options.block = DOM::Element::ScrollLogicalPosition::Nearest;
+            scroll_options.inline_ = DOM::Element::ScrollLogicalPosition::Nearest;
+            scroll_options.behavior = DOM::Element::ScrollBehavior::Instant;
+            element.scroll_into_view(scroll_options, nullptr);
         }
 
         // 3. Return false.
@@ -609,7 +596,7 @@ bool FormAssociatedElement::suffering_from_a_custom_error() const
     return !m_custom_validity_error_message.is_empty();
 }
 
-void FormAssociatedElement::set_face_validity_flags(Badge<ElementInternals>, Bindings::ValidityStateFlags const& value)
+void FormAssociatedElement::set_face_validity_flags(Badge<ElementInternals>, ValidityStateFlags const& value)
 {
     m_face_validity_flags = value;
 }
@@ -734,7 +721,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_start_
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
         if (!input_element.selection_or_range_applies())
-            return WebIDL::InvalidStateError::create(HTML::relevant_realm(html_element), "setSelectionStart does not apply to this input type"_utf16);
+            return WebIDL::InvalidStateError::create("setSelectionStart does not apply to this input type"_utf16);
     }
 
     // 2. Let end be the value of this element's selectionEnd attribute.
@@ -787,7 +774,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_end_bi
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
         if (!input_element.selection_or_range_applies())
-            return WebIDL::InvalidStateError::create(HTML::relevant_realm(html_element), "setSelectionEnd does not apply to this input type"_utf16);
+            return WebIDL::InvalidStateError::create("setSelectionEnd does not apply to this input type"_utf16);
     }
 
     // 2. Set the selection range with the value of this element's selectionStart attribute, the
@@ -840,7 +827,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
     if (is<HTMLInputElement>(html_element)) {
         auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
         if (!input_element.selection_direction_applies())
-            return WebIDL::InvalidStateError::create(HTML::relevant_realm(input_element), "selectionDirection does not apply to element"_utf16);
+            return WebIDL::InvalidStateError::create("selectionDirection does not apply to element"_utf16);
     }
 
     set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(direction));
@@ -848,29 +835,14 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16String const& replacement)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16String const& replacement)
 {
-    return set_range_text_binding(replacement, m_selection_start, m_selection_end);
+    return set_range_text(replacement, m_selection_start, m_selection_end);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, SelectionMode selection_mode)
 {
-    auto& html_element = text_control_to_html_element();
-
-    // 1. If this element is an input element, and setRangeText() does not apply to this element,
-    //    throw an "InvalidStateError" DOMException.
-    if (is<HTMLInputElement>(html_element) && !static_cast<HTMLInputElement&>(html_element).selection_or_range_applies())
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(html_element), "setRangeText does not apply to this input type"_utf16);
-
-    return set_range_text(replacement, start, end, selection_mode);
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
-{
-    auto& html_element = text_control_to_html_element();
-
     // 2. Set this element's dirty value flag to true.
     set_dirty_value_flag(true);
 
@@ -880,7 +852,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16
 
     // 4. If start is greater than end, then throw an "IndexSizeError" DOMException.
     if (start > end)
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(html_element), "The start argument must be less than or equal to the end argument"_utf16);
+        return WebIDL::IndexSizeError::create("The start argument must be less than or equal to the end argument"_utf16);
 
     // 5. If start is greater than the length of the relevant value of the text control, then set it to the length of the relevant value of the text control.
     auto the_relevant_value = relevant_value();
@@ -926,7 +898,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16
     // 13. Run the appropriate set of substeps from the following list:
     switch (selection_mode) {
     // If the fourth argument's value is "select"
-    case Bindings::SelectionMode::Select:
+    case SelectionMode::Select:
         // Let selection start be start.
         selection_start = start;
 
@@ -935,20 +907,20 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16
         break;
 
     // If the fourth argument's value is "start"
-    case Bindings::SelectionMode::Start:
+    case SelectionMode::Start:
         // Let selection start and selection end be start.
         selection_start = start;
         selection_end = start;
         break;
 
     // If the fourth argument's value is "end"
-    case Bindings::SelectionMode::End:
+    case SelectionMode::End:
         selection_start = new_end;
         selection_end = new_end;
         break;
 
     // If the fourth argument's value is "preserve"
-    case Bindings::SelectionMode::Preserve:
+    case SelectionMode::Preserve:
         // 1. Let old length be end minus start.
         auto old_length = end - start;
 
@@ -987,7 +959,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
     //    element, throw an "InvalidStateError" DOMException.
     auto& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element) && !static_cast<HTMLInputElement&>(html_element).selection_or_range_applies())
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(html_element), "setSelectionRange does not apply to this input type"_utf16);
+        return WebIDL::InvalidStateError::create("setSelectionRange does not apply to this input type"_utf16);
 
     // 2. Set the selection range with start, end, and direction.
     set_the_selection_range(start, end, string_to_selection_direction(direction));
@@ -1071,7 +1043,7 @@ void FormAssociatedTextControlElement::handle_insert(FlyString const& input_type
 
     auto selection_start = this->selection_start();
     auto selection_end = this->selection_end();
-    MUST(set_range_text(data_for_insertion, selection_start, selection_end, Bindings::SelectionMode::End));
+    MUST(set_range_text(data_for_insertion, selection_start, selection_end, SelectionMode::End));
 
     text_node->invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
 
@@ -1104,7 +1076,7 @@ void FormAssociatedTextControlElement::handle_delete(FlyString const& input_type
         }
     }
 
-    MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
+    MUST(set_range_text({}, selection_start, selection_end, SelectionMode::End));
 
     text_node->invalidate_style(DOM::StyleInvalidationReason::EditingDeletion);
     did_edit_text_node(input_type, {});

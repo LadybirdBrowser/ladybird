@@ -15,14 +15,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationTransition);
 
-GC::Ref<NavigationTransition> NavigationTransition::create(Bindings::NavigationType navigation_type, GC::Ref<NavigationHistoryEntry> from_entry, GC::Ref<NavigationDestination> destination, GC::Ref<WebIDL::Promise> committed_promise, GC::Ref<WebIDL::Promise> finished_promise)
+GC::Ref<NavigationTransition> NavigationTransition::create(NavigationType navigation_type, GC::Ref<NavigationHistoryEntry> from_entry, GC::Ref<NavigationDestination> destination, GC::Ref<WebIDL::Promise> committed_promise, GC::Ref<WebIDL::Promise> finished_promise)
 {
     return GC::Heap::the().allocate<NavigationTransition>(navigation_type, from_entry, destination, committed_promise, finished_promise);
 }
 
-NavigationTransition::NavigationTransition(Bindings::NavigationType navigation_type, GC::Ref<NavigationHistoryEntry> from_entry, GC::Ref<NavigationDestination> destination, GC::Ref<WebIDL::Promise> committed_promise, GC::Ref<WebIDL::Promise> finished_promise)
-    : Bindings::Wrappable()
-    , m_navigation_type(navigation_type)
+NavigationTransition::NavigationTransition(NavigationType navigation_type, GC::Ref<NavigationHistoryEntry> from_entry, GC::Ref<NavigationDestination> destination, GC::Ref<WebIDL::Promise> committed_promise, GC::Ref<WebIDL::Promise> finished_promise)
+    : m_navigation_type(navigation_type)
     , m_from_entry(from_entry)
     , m_destination(destination)
     , m_committed_promise(committed_promise)

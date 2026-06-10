@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/SpeechSynthesis.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/Speech/SpeechSynthesis.h>
 #include <LibWeb/Speech/SpeechSynthesisVoice.h>

@@ -7,7 +7,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibGfx/Rect.h>
-#include <LibWeb/Bindings/Screen.h>
 #include <LibWeb/CSS/Screen.h>
 #include <LibWeb/CSS/ScreenOrientation.h>
 #include <LibWeb/DOM/Document.h>

@@ -9,9 +9,8 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/TransformStreamDefaultController.h>
-#include <LibWeb/Bindings/Transformer.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultController.h>
@@ -23,6 +22,8 @@
 #include <LibWeb/Streams/WritableStreamDefaultController.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
@@ -31,6 +32,32 @@ static JS::Realm& promise_realm(WebIDL::Promise const& promise)
 {
     return WebIDL::promise_realm(promise);
 }
+
+}
+
+namespace Web::Bindings {
+
+WebIDL::ExceptionOr<JS::Value> invoke_transform_stream_start_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value transformer, GC::Ref<Streams::TransformStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return TRY(WebIDL::invoke_callback(callback, transformer, { { wrapped_controller } }));
+}
+
+GC::Ref<WebIDL::Promise> invoke_transform_stream_transform_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value transformer, JS::Value chunk, GC::Ref<Streams::TransformStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return WebIDL::invoke_promise_callback(callback, transformer, { { chunk, wrapped_controller } });
+}
+
+GC::Ref<WebIDL::Promise> invoke_transform_stream_flush_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value transformer, GC::Ref<Streams::TransformStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return WebIDL::invoke_promise_callback(callback, transformer, { { wrapped_controller } });
+}
+
+}
+
+namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#initialize-transform-stream
 void initialize_transform_stream(TransformStream& stream, GC::Ref<WebIDL::Promise> start_promise, double writable_high_water_mark, GC::Ref<SizeAlgorithm> writable_size_algorithm, double readable_high_water_mark, GC::Ref<SizeAlgorithm> readable_size_algorithm)
@@ -175,12 +202,12 @@ void set_up_transform_stream_default_controller(TransformStream& stream, Transfo
 }
 
 // https://streams.spec.whatwg.org/#set-up-transform-stream-default-controller-from-transformer
-void set_up_transform_stream_default_controller_from_transformer(TransformStream& stream, JS::Value transformer, Bindings::Transformer& transformer_dict)
+void set_up_transform_stream_default_controller_from_transformer(TransformStream& stream, JS::Value transformer, Transformer const& transformer_dict)
 {
     set_up_transform_stream_default_controller_from_transformer(stream.backpressure_change_promise_realm(), stream, transformer, transformer_dict);
 }
 
-void set_up_transform_stream_default_controller_from_transformer(JS::Realm& realm, TransformStream& stream, JS::Value transformer, Bindings::Transformer& transformer_dict)
+void set_up_transform_stream_default_controller_from_transformer(JS::Realm& realm, TransformStream& stream, JS::Value transformer, Transformer const& transformer_dict)
 {
     auto& vm = realm.vm();
 
@@ -194,7 +221,7 @@ void set_up_transform_stream_default_controller_from_transformer(JS::Realm& real
 
         // 2. If result is an abrupt completion, return a promise rejected with result.[[Value]].
         if (result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, result.exception());
+            auto throw_completion = WebIDL::exception_to_throw_completion(vm, realm, result.exception());
             return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
         }
 
@@ -217,8 +244,7 @@ void set_up_transform_stream_default_controller_from_transformer(JS::Realm& real
     //    callback this value transformer.
     if (transformer_dict.transform) {
         transform_algorithm = GC::create_function(GC::Heap::the(), [transformer, controller, callback = transformer_dict.transform, realm = GC::Ref(realm)](JS::Value chunk) {
-            auto wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
-            return WebIDL::invoke_promise_callback(*callback, transformer, { { chunk, wrapped_controller } });
+            return Bindings::invoke_transform_stream_transform_algorithm_callback(realm, *callback, transformer, chunk, controller);
         });
     }
 
@@ -226,8 +252,7 @@ void set_up_transform_stream_default_controller_from_transformer(JS::Realm& real
     //    transformerDict["flush"] with argument list « controller » and callback this value transformer.
     if (transformer_dict.flush) {
         flush_algorithm = GC::create_function(GC::Heap::the(), [transformer, callback = transformer_dict.flush, controller, realm = GC::Ref(realm)]() {
-            auto wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
-            return WebIDL::invoke_promise_callback(*callback, transformer, { { wrapped_controller } });
+            return Bindings::invoke_transform_stream_flush_algorithm_callback(realm, *callback, transformer, controller);
         });
     }
 
@@ -283,7 +308,7 @@ WebIDL::ExceptionOr<void> transform_stream_default_controller_enqueue(JS::Realm&
 
     // 5. If enqueueResult is an abrupt completion,
     if (enqueue_result.is_error()) {
-        auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, enqueue_result.exception());
+        auto throw_completion = WebIDL::exception_to_throw_completion(vm, realm, enqueue_result.exception());
 
         // 1. Perform ! TransformStreamErrorWritableAndUnblockWrite(stream, enqueueResult.[[Value]]).
         transform_stream_error_writable_and_unblock_write(*stream, throw_completion.value());

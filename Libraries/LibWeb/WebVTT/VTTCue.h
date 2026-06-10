@@ -13,6 +13,12 @@
 
 namespace Web::WebVTT {
 
+using AutoKeyword = Bindings::AutoKeyword;
+using DirectionSetting = Bindings::DirectionSetting;
+using LineAlignSetting = Bindings::LineAlignSetting;
+using PositionAlignSetting = Bindings::PositionAlignSetting;
+using AlignSetting = Bindings::AlignSetting;
+
 // https://w3c.github.io/webvtt/#vttcue
 class VTTCue final : public HTML::TextTrackCue {
     WEB_WRAPPABLE(VTTCue, HTML::TextTrackCue);
@@ -30,37 +36,37 @@ public:
         VerticalGrowingRight,
     };
 
-    using LineAndPositionSetting = Variant<double, Bindings::AutoKeyword>;
+    using LineAndPositionSetting = Variant<double, AutoKeyword>;
 
-    static WebIDL::ExceptionOr<GC::Ref<VTTCue>> construct_impl(double start_time, double end_time, String const& text);
+    static WebIDL::ExceptionOr<GC::Ref<VTTCue>> create(double start_time, double end_time, String const& text);
     virtual ~VTTCue() override = default;
 
     GC::Ptr<VTTRegion> region() const { return m_region; }
     void set_region(GC::Ptr<VTTRegion> region) { m_region = region; }
 
-    Bindings::DirectionSetting vertical() const;
-    void set_vertical(Bindings::DirectionSetting);
+    DirectionSetting vertical() const;
+    void set_vertical(DirectionSetting);
 
     bool snap_to_lines() const { return m_snap_to_lines; }
     void set_snap_to_lines(bool snap_to_lines) { m_snap_to_lines = snap_to_lines; }
 
-    LineAndPositionSetting line() const { return m_line; }
-    void set_line(LineAndPositionSetting line) { m_line = line; }
+    LineAndPositionSetting line() const;
+    void set_line(LineAndPositionSetting);
 
-    Bindings::LineAlignSetting line_align() const { return m_line_alignment; }
-    void set_line_align(Bindings::LineAlignSetting line_align) { m_line_alignment = line_align; }
+    LineAlignSetting line_align() const;
+    void set_line_align(LineAlignSetting);
 
-    LineAndPositionSetting position() const { return m_position; }
-    void set_position(LineAndPositionSetting position) { m_position = position; }
+    LineAndPositionSetting position() const;
+    void set_position(LineAndPositionSetting);
 
-    Bindings::PositionAlignSetting position_align() const { return m_position_alignment; }
-    void set_position_align(Bindings::PositionAlignSetting position_align) { m_position_alignment = position_align; }
+    PositionAlignSetting position_align() const;
+    void set_position_align(PositionAlignSetting);
 
     double size() const { return m_size; }
     void set_size(double size) { m_size = size; }
 
-    Bindings::AlignSetting align() const { return m_text_alignment; }
-    void set_align(Bindings::AlignSetting align) { m_text_alignment = align; }
+    AlignSetting align() const;
+    void set_align(AlignSetting);
 
     String const& text() const { return m_text; }
     void set_text(String const& text) { m_text = text; }
@@ -68,7 +74,7 @@ public:
 protected:
     double computed_line();
     double computed_position();
-    Bindings::PositionAlignSetting computed_position_alignment();
+    PositionAlignSetting computed_position_alignment();
 
 private:
     VTTCue(GC::Ptr<HTML::TextTrack>);
@@ -85,22 +91,22 @@ private:
     bool m_snap_to_lines { true };
 
     // https://w3c.github.io/webvtt/#webvtt-cue-line
-    LineAndPositionSetting m_line { Bindings::AutoKeyword::Auto };
+    LineAndPositionSetting m_line { AutoKeyword::Auto };
 
     // https://w3c.github.io/webvtt/#webvtt-cue-line-alignment
-    Bindings::LineAlignSetting m_line_alignment { Bindings::LineAlignSetting::Start };
+    LineAlignSetting m_line_alignment { LineAlignSetting::Start };
 
     // https://w3c.github.io/webvtt/#webvtt-cue-position
-    LineAndPositionSetting m_position { Bindings::AutoKeyword::Auto };
+    LineAndPositionSetting m_position { AutoKeyword::Auto };
 
     // https://w3c.github.io/webvtt/#webvtt-cue-position-alignment
-    Bindings::PositionAlignSetting m_position_alignment { Bindings::PositionAlignSetting::Auto };
+    PositionAlignSetting m_position_alignment { PositionAlignSetting::Auto };
 
     // https://w3c.github.io/webvtt/#webvtt-cue-size
     double m_size { 100 };
 
     // https://w3c.github.io/webvtt/#webvtt-cue-text-alignment
-    Bindings::AlignSetting m_text_alignment { Bindings::AlignSetting::Center };
+    AlignSetting m_text_alignment { AlignSetting::Center };
 
     // https://w3c.github.io/webvtt/#webvtt-cue-region
     GC::Ptr<VTTRegion> m_region;

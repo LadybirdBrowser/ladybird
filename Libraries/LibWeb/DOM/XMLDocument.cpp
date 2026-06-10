@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/XMLDocument.h>
 #include <LibWeb/DOM/XMLDocument.h>
 
 namespace Web::DOM {

@@ -16,11 +16,8 @@
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/MessagePort.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
@@ -241,14 +238,14 @@ WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Realm& realm, JS::Value 
     GC::Ptr<MessagePort> target_port = m_remote_port;
 
     // 2. Let options be «[ "transfer" → transfer ]».
-    auto options = Bindings::StructuredSerializeOptions { transfer };
+    auto options = StructuredSerializeOptions { transfer };
 
     // 3. Run the message port post message steps providing this, targetPort, message and options.
     return message_port_post_message_steps(realm, target_port, message, options);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
-WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Realm& realm, JS::Value message, StructuredSerializeOptions const& options)
 {
     // 1. Let targetPort be the port with which this MessagePort is entangled, if any; otherwise let it be null.
     GC::Ptr<MessagePort> target_port = m_remote_port;
@@ -257,28 +254,29 @@ WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Realm& realm, JS::Value 
     return message_port_post_message_steps(realm, target_port, message, options);
 }
 
+WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
+{
+    return post_message(realm, message, StructuredSerializeOptions { .transfer = options.transfer });
+}
+
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-port-post-message-steps
-WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(JS::Realm& realm, GC::Ptr<MessagePort> target_port, JS::Value message, Bindings::StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(JS::Realm& realm, GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options)
 {
     // 1. Let transfer be options["transfer"].
     auto const& transfer = options.transfer;
 
     // 2. If transfer contains this MessagePort, then throw a "DataCloneError" DOMException.
-    for (auto const& handle : transfer) {
-        if (Bindings::impl_from<MessagePort>(&*handle) == this)
-            return WebIDL::DataCloneError::create(realm, "Cannot transfer a MessagePort to itself"_utf16);
-    }
+    if (Bindings::transfer_list_contains_message_port(transfer, *this))
+        return WebIDL::DataCloneError::create("Cannot transfer a MessagePort to itself"_utf16);
 
     // 3. Let doomed be false.
     bool doomed = false;
 
     // 4. If targetPort is not null and transfer contains targetPort, then set doomed to true and optionally report to a developer console that the target port was posted to itself, causing the communication channel to be lost.
     if (target_port) {
-        for (auto const& handle : transfer) {
-            if (Bindings::impl_from<MessagePort>(&*handle) == target_port.ptr()) {
-                doomed = true;
-                dbgln("FIXME: Report to a developer console that the target port was posted to itself, causing the communication channel to be lost");
-            }
+        if (Bindings::transfer_list_contains_message_port(transfer, *target_port)) {
+            doomed = true;
+            dbgln("FIXME: Report to a developer console that the target port was posted to itself, causing the communication channel to be lost");
         }
     }
 
@@ -412,7 +410,7 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     if (deserialize_record_or_error.is_error()) {
         // If this throws an exception, catch it, fire an event named messageerror at finalTargetPort, using MessageEvent, and then return.
         auto exception = deserialize_record_or_error.release_error();
-        Bindings::MessageEventInit event_init;
+        MessageEventInit event_init;
         message_event_target->dispatch_event(MessageEvent::create(target_realm.global_object(), HTML::EventNames::messageerror, event_init));
         return;
     }
@@ -423,14 +421,10 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
 
     // 5. Let newPorts be a new frozen array consisting of all MessagePort objects in deserializeRecord.[[TransferredValues]], if any, maintaining their relative order.
     // FIXME: Use a FrozenArray
-    GC::RootVector<GC::Ref<MessagePort>> new_ports;
-    for (auto const& object : deserialize_record.transferred_values) {
-        if (auto* message_port = Bindings::impl_from<MessagePort>(&*object))
-            new_ports.append(*message_port);
-    }
+    auto new_ports = Bindings::message_ports_from_transferred_values(deserialize_record.transferred_values);
 
     // 6. Fire an event named message at finalTargetPort, using MessageEvent, with the data attribute initialized to messageClone and the ports attribute initialized to newPorts.
-    Bindings::MessageEventInit event_init { Bindings::EventInit {}, message_clone, String {}, String {}, move(new_ports), Empty {} };
+    MessageEventInit event_init { {}, message_clone, String {}, String {}, move(new_ports), Empty {} };
     auto event = MessageEvent::create(target_realm.global_object(), HTML::EventNames::message, event_init);
     event->set_is_trusted(true);
     message_event_target->dispatch_event(event);
@@ -497,6 +491,53 @@ void MessagePort::set_onmessage(GC::Ptr<WebIDL::CallbackType> value)
 GC::Ptr<WebIDL::CallbackType> MessagePort::onmessage()
 {
     return event_handler_attribute(EventNames::message);
+}
+
+}
+
+namespace Web::Bindings {
+
+GC::Ref<PlatformObject> message_port(JS::Realm& realm, GC::Ref<HTML::MessagePort> message_port)
+{
+    return wrap(host_defined_wrapper_world(realm), realm, message_port);
+}
+
+HTML::MessagePort* message_port_from_value(JS::Value value)
+{
+    if (!value.is_object())
+        return nullptr;
+    return Bindings::impl_from<HTML::MessagePort>(&value.as_object());
+}
+
+GC::RootVector<GC::Ref<HTML::MessagePort>> message_ports_from_transferred_values(Vector<GC::Root<JS::Object>> const& transferred_values)
+{
+    GC::RootVector<GC::Ref<HTML::MessagePort>> ports;
+    for (auto const& object : transferred_values) {
+        if (auto* message_port = message_port_from_value(object))
+            ports.append(*message_port);
+    }
+    return ports;
+}
+
+bool transfer_list_contains_message_port(GC::RootVector<GC::Ref<JS::Object>> const& transfer, HTML::MessagePort const& port)
+{
+    for (auto const& handle : transfer) {
+        if (message_port_from_value(handle) == &port)
+            return true;
+    }
+    return false;
+}
+
+HTML::MessagePort* message_port_from_object(JS::Object& object)
+{
+    return Bindings::impl_from<HTML::MessagePort>(&object);
+}
+
+void serialize_message_port_with_transfer(JS::Realm& realm, HTML::TransferDataEncoder& data_holder, GC::Ref<HTML::MessagePort> port)
+{
+    auto port_wrapper = Bindings::message_port(realm, port);
+    auto result = MUST(HTML::structured_serialize_with_transfer(realm, JS::Value { port_wrapper }, { { port_wrapper } }));
+    data_holder.extend(move(result.transfer_data_holders));
 }
 
 }

@@ -6,7 +6,14 @@
 
 #pragma once
 
+#include <LibGC/Forward.h>
 #include <LibWeb/WebAudio/AudioNode.h>
+
+namespace Web::Bindings {
+
+struct MediaElementAudioSourceOptions;
+
+}
 
 namespace Web::WebAudio {
 
@@ -18,8 +25,9 @@ class MediaElementAudioSourceNode final : public AudioNode {
 public:
     virtual ~MediaElementAudioSourceNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create(GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
-    static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> construct_impl(GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create(GC::Ref<AudioContext>, GC::Ref<HTML::HTMLMediaElement>);
+    static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create_for_constructor(GC::Ref<AudioContext>, GC::Ref<HTML::HTMLMediaElement>);
+    static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create_for_constructor(GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
 
     virtual WebIDL::UnsignedLong number_of_inputs() override { return 0; }
     virtual WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -27,7 +35,7 @@ public:
     GC::Ref<HTML::HTMLMediaElement> media_element() const { return m_media_element; }
 
 private:
-    MediaElementAudioSourceNode(GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
+    MediaElementAudioSourceNode(GC::Ref<AudioContext>, GC::Ref<HTML::HTMLMediaElement>);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<HTML::HTMLMediaElement> m_media_element;

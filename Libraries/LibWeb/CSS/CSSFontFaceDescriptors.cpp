@@ -5,8 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -27,9 +25,9 @@ CSSFontFaceDescriptors::CSSFontFaceDescriptors(Vector<Descriptor> descriptors)
 
 CSSFontFaceDescriptors::~CSSFontFaceDescriptors() = default;
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_property(JS::Realm& realm, Utf16FlyString const& property, StringView value, StringView priority)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_property(Utf16FlyString const& property, StringView value, StringView priority)
 {
-    TRY(Base::set_property(realm, property, value, priority));
+    TRY(Base::set_property(property, value, priority));
 
     if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
         font_face_rule->handle_descriptor_change(property);
@@ -37,144 +35,144 @@ WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_property(JS::Realm& realm,
     return {};
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_ascent_override(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_ascent_override(StringView value)
 {
-    return set_property(realm, "ascent-override"_fly_string, value, ""sv);
+    return set_property("ascent-override"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::ascent_override() const
 {
-    return get_property_value("ascent-override"_fly_string);
+    return get_property_value("ascent-override"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_descent_override(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_descent_override(StringView value)
 {
-    return set_property(realm, "descent-override"_fly_string, value, ""sv);
+    return set_property("descent-override"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::descent_override() const
 {
-    return get_property_value("descent-override"_fly_string);
+    return get_property_value("descent-override"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_display(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_display(StringView value)
 {
-    return set_property(realm, "font-display"_fly_string, value, ""sv);
+    return set_property("font-display"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::font_display() const
 {
-    return get_property_value("font-display"_fly_string);
+    return get_property_value("font-display"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_family(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_family(StringView value)
 {
-    return set_property(realm, "font-family"_fly_string, value, ""sv);
+    return set_property("font-family"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::font_family() const
 {
-    return get_property_value("font-family"_fly_string);
+    return get_property_value("font-family"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_feature_settings(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_feature_settings(StringView value)
 {
-    return set_property(realm, "font-feature-settings"_fly_string, value, ""sv);
+    return set_property("font-feature-settings"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::font_feature_settings() const
 {
-    return get_property_value("font-feature-settings"_fly_string);
+    return get_property_value("font-feature-settings"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_language_override(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_language_override(StringView value)
 {
-    return set_property(realm, "font-language-override"_fly_string, value, ""sv);
+    return set_property("font-language-override"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::font_language_override() const
 {
-    return get_property_value("font-language-override"_fly_string);
+    return get_property_value("font-language-override"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_named_instance(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_named_instance(StringView value)
 {
-    return set_property(realm, "font-named-instance"_fly_string, value, ""sv);
+    return set_property("font-named-instance"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::font_named_instance() const
 {
-    return get_property_value("font-named-instance"_fly_string);
+    return get_property_value("font-named-instance"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_style(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_style(StringView value)
 {
-    return set_property(realm, "font-style"_fly_string, value, ""sv);
+    return set_property("font-style"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::font_style() const
 {
-    return get_property_value("font-style"_fly_string);
+    return get_property_value("font-style"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_variation_settings(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_variation_settings(StringView value)
 {
-    return set_property(realm, "font-variation-settings"_fly_string, value, ""sv);
+    return set_property("font-variation-settings"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::font_variation_settings() const
 {
-    return get_property_value("font-variation-settings"_fly_string);
+    return get_property_value("font-variation-settings"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_weight(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_weight(StringView value)
 {
-    return set_property(realm, "font-weight"_fly_string, value, ""sv);
+    return set_property("font-weight"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::font_weight() const
 {
-    return get_property_value("font-weight"_fly_string);
+    return get_property_value("font-weight"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_width(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_font_width(StringView value)
 {
-    return set_property(realm, "font-width"_fly_string, value, ""sv);
+    return set_property("font-width"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::font_width() const
 {
-    return get_property_value("font-width"_fly_string);
+    return get_property_value("font-width"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_line_gap_override(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_line_gap_override(StringView value)
 {
-    return set_property(realm, "line-gap-override"_fly_string, value, ""sv);
+    return set_property("line-gap-override"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::line_gap_override() const
 {
-    return get_property_value("line-gap-override"_fly_string);
+    return get_property_value("line-gap-override"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_src(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_src(StringView value)
 {
-    return set_property(realm, "src"_fly_string, value, ""sv);
+    return set_property("src"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::src() const
 {
-    return get_property_value("src"_fly_string);
+    return get_property_value("src"_utf16_fly_string);
 }
 
-WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_unicode_range(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_unicode_range(StringView value)
 {
-    return set_property(realm, "unicode-range"_fly_string, value, ""sv);
+    return set_property("unicode-range"_utf16_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::unicode_range() const
 {
-    return get_property_value("unicode-range"_fly_string);
+    return get_property_value("unicode-range"_utf16_fly_string);
 }
 
 }

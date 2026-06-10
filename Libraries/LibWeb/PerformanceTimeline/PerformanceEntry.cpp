@@ -9,8 +9,7 @@
 namespace Web::PerformanceTimeline {
 
 PerformanceEntry::PerformanceEntry(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration)
-    : Bindings::Wrappable()
-    , m_name(name)
+    : m_name(name)
     , m_start_time(start_time)
     , m_duration(duration)
 {

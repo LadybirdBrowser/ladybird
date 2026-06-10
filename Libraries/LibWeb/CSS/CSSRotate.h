@@ -18,14 +18,14 @@ class CSSRotate final : public CSSTransformComponent {
 
 public:
     [[nodiscard]] static GC::Ref<CSSRotate> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z, GC::Ref<CSSNumericValue> angle);
-    static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> construct_impl(GC::Ref<CSSNumericValue> angle);
-    static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> construct_impl(CSSNumberish x, CSSNumberish y, CSSNumberish z, GC::Ref<CSSNumericValue> angle);
+    static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> create_for_constructor(GC::Ref<CSSNumericValue> angle);
+    static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> create_for_constructor(CSSNumberish x, CSSNumberish y, CSSNumberish z, GC::Ref<CSSNumericValue> angle);
 
     virtual ~CSSRotate() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
 
     CSSNumberish x() const { return m_x; }
     CSSNumberish y() const { return m_y; }

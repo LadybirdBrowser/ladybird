@@ -17,17 +17,17 @@ namespace Web::UserTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceMeasure);
 
-PerformanceMeasure::PerformanceMeasure(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
+PerformanceMeasure::PerformanceMeasure(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, Optional<HTML::SerializationRecord> detail)
     : PerformanceTimeline::PerformanceEntry(name, start_time, duration)
-    , m_detail(detail)
+    , m_detail(move(detail))
 {
 }
 
 PerformanceMeasure::~PerformanceMeasure() = default;
 
-GC::Ref<PerformanceMeasure> PerformanceMeasure::create(String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
+GC::Ref<PerformanceMeasure> PerformanceMeasure::create(String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, Optional<HTML::SerializationRecord> detail)
 {
-    return GC::Heap::the().allocate<PerformanceMeasure>(measure_name, start_time, duration, detail);
+    return GC::Heap::the().allocate<PerformanceMeasure>(measure_name, start_time, duration, move(detail));
 }
 
 FlyString const& PerformanceMeasure::entry_type() const
@@ -35,10 +35,17 @@ FlyString const& PerformanceMeasure::entry_type() const
     return PerformanceTimeline::EntryTypes::measure;
 }
 
+WebIDL::ExceptionOr<JS::Value> PerformanceMeasure::detail(JS::Realm& realm) const
+{
+    if (!m_detail.has_value())
+        return JS::js_null();
+
+    return HTML::structured_deserialize(realm.vm(), m_detail.value(), realm);
+}
+
 void PerformanceMeasure::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_detail);
 }
 
 }

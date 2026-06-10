@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/XRRenderState.h>
+#include <LibWeb/Export.h>
 
 namespace Web::WebXR {
 

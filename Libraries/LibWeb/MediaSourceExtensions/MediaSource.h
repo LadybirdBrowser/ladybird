@@ -12,17 +12,21 @@
 
 namespace Web::MediaSourceExtensions {
 
+using EndOfStreamError = Bindings::EndOfStreamError;
+using ReadyState = Bindings::ReadyState;
+
 // https://w3c.github.io/media-source/#dom-mediasource
 class MediaSource : public DOM::EventTarget {
     WEB_WRAPPABLE(MediaSource, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaSource);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<MediaSource>> construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object);
+    [[nodiscard]] static GC::Ref<MediaSource> create(GC::Ref<DOM::EventTarget> relevant_global_object);
+    [[nodiscard]] static GC::Ref<MediaSource> create_for_constructor(JS::Realm&);
 
     void queue_a_media_source_task(GC::Ref<GC::Function<void()>>);
 
-    Bindings::ReadyState ready_state() const;
+    ReadyState ready_state() const { return m_ready_state; }
     bool ready_state_is_closed() const;
     void set_has_ever_been_attached();
     void set_ready_state_to_open_and_fire_sourceopen_event();
@@ -35,7 +39,7 @@ public:
     Utf16String next_track_id();
 
     // https://w3c.github.io/media-source/#dom-mediasource-canconstructindedicatedworker
-    static bool can_construct_in_dedicated_worker(JS::VM&) { return false; }
+    static bool can_construct_in_dedicated_worker() { return false; }
 
     void set_assigned_to_media_element(Badge<HTML::HTMLMediaElement>, HTML::HTMLMediaElement&);
     void unassign_from_media_element(Badge<HTML::HTMLMediaElement>);
@@ -50,20 +54,19 @@ public:
     void set_onsourceclose(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onsourceclose();
 
-    WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(JS::Realm&, String const& type);
+    WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(String const& type);
 
-    WebIDL::ExceptionOr<void> end_of_stream(JS::Realm&, Optional<Bindings::EndOfStreamError> const& error = {});
-    void run_end_of_stream_algorithm(Badge<SourceBuffer>, Optional<Bindings::EndOfStreamError> const& error) { run_end_of_stream_algorithm(error); }
+    WebIDL::ExceptionOr<void> end_of_stream(Optional<EndOfStreamError> const& error = {});
+    void run_end_of_stream_algorithm(Badge<SourceBuffer>, Optional<EndOfStreamError> const& error) { run_end_of_stream_algorithm(error); }
 
     // https://w3c.github.io/media-source/#dom-mediasource-duration
     double duration() const;
-    WebIDL::ExceptionOr<void> set_duration(JS::Realm&, double);
+    WebIDL::ExceptionOr<void> set_duration(double);
 
     // https://w3c.github.io/media-source/#duration-change-algorithm
     void run_duration_change_algorithm(double new_duration);
 
     static bool is_type_supported(String const&);
-    static bool is_type_supported(JS::VM&, String const& type) { return is_type_supported(type); }
 
 protected:
     MediaSource(GC::Ref<DOM::EventTarget> relevant_global_object);
@@ -73,9 +76,9 @@ protected:
 
 private:
     // https://w3c.github.io/media-source/#end-of-stream-algorithm
-    void run_end_of_stream_algorithm(Optional<Bindings::EndOfStreamError> const&);
+    void run_end_of_stream_algorithm(Optional<EndOfStreamError> const&);
 
-    Bindings::ReadyState m_ready_state { Bindings::ReadyState::Closed };
+    ReadyState m_ready_state { ReadyState::Closed };
     bool m_has_ever_been_attached { false };
     GC::Ptr<HTML::HTMLMediaElement> m_media_element_assigned_to;
 

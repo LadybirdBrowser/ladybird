@@ -30,7 +30,7 @@ class SpeechSynthesisUtterance final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(SpeechSynthesisUtterance);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SpeechSynthesisUtterance>> construct_impl(String const& text = {});
+    static GC::Ref<SpeechSynthesisUtterance> create(String const& text = {});
     virtual ~SpeechSynthesisUtterance() override;
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesisutterance-text

@@ -8,7 +8,6 @@
 
 #include <AK/StringConversions.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibWeb/Bindings/SVGFilterElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Text.h>

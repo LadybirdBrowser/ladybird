@@ -17,8 +17,7 @@ GC::Ref<SVGAnimatedTransformList> SVGAnimatedTransformList::create(GC::Ref<SVGTr
 }
 
 SVGAnimatedTransformList::SVGAnimatedTransformList(GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val)
-    : Bindings::Wrappable()
-    , m_base_val(base_val)
+    : m_base_val(base_val)
     , m_anim_val(anim_val)
 {
 }

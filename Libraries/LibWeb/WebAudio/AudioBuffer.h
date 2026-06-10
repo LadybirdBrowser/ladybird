@@ -9,7 +9,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Vector.h>
-#include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioBuffer.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -17,13 +16,9 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
-namespace Web::HTML {
-
-class WindowOrWorkerGlobalScopeMixin;
-
-}
-
 namespace Web::WebAudio {
+
+using AudioBufferOptions = Bindings::AudioBufferOptions;
 
 // https://webaudio.github.io/web-audio-api/#AudioBuffer
 class AudioBuffer final : public Bindings::Wrappable {
@@ -31,8 +26,8 @@ class AudioBuffer final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(AudioBuffer);
 
 public:
+    static WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> construct_impl(JS::Realm&, AudioBufferOptions const&);
     static ErrorOr<GC::Ref<AudioBuffer>> create(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
-    static WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, Bindings::AudioBufferOptions const&);
 
     virtual ~AudioBuffer() override;
 
@@ -40,17 +35,17 @@ public:
     WebIDL::UnsignedLong length() const;
     double duration() const;
     WebIDL::UnsignedLong number_of_channels() const;
-    WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> get_channel_data(JS::Realm&, WebIDL::UnsignedLong channel) const;
-    WebIDL::ExceptionOr<void> copy_from_channel(JS::Realm&, GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0) const;
-    WebIDL::ExceptionOr<void> copy_to_channel(JS::Realm&, GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
+    WebIDL::ExceptionOr<ByteBuffer*> channel_data(WebIDL::UnsignedLong channel);
+    WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> get_channel_data(JS::Realm&, WebIDL::UnsignedLong channel);
+    WebIDL::ExceptionOr<void> copy_from_channel(GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0) const;
+    WebIDL::ExceptionOr<void> copy_to_channel(GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
 
 private:
     struct Channel {
         ByteBuffer data;
-        mutable Vector<GC::Weak<JS::Float32Array>> views;
     };
 
-    explicit AudioBuffer(Bindings::AudioBufferOptions const&);
+    explicit AudioBuffer(AudioBufferOptions const&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;

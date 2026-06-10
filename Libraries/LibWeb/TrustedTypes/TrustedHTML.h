@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/TrustedHTML.h>
+#include <AK/Utf16String.h>
+#include <AK/Variant.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::TrustedTypes {

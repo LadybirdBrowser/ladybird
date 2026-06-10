@@ -7,8 +7,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Attr.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -118,17 +116,8 @@ void Attr::handle_attribute_changes(Element& element, Optional<String> const& ol
 
     // 2. If element is custom, then enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
     //    and « attribute’s local name, oldValue, newValue, attribute’s namespace ».
-    if (element.is_custom()) {
-        auto& vm = this->vm();
-
-        GC::RootVector<JS::Value> arguments;
-        arguments.append(JS::PrimitiveString::create(vm, local_name()));
-        arguments.append(!old_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, old_value.value()));
-        arguments.append(!new_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, new_value.value()));
-        arguments.append(!namespace_uri().has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, namespace_uri().value()));
-
-        element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
-    }
+    if (element.is_custom())
+        element.enqueue_an_attribute_changed_callback_reaction(local_name(), old_value, new_value, namespace_uri());
 
     // 3. Run the attribute change steps with element, attribute’s local name, oldValue, newValue, and attribute’s namespace.
     element.run_attribute_change_steps(local_name(), old_value, new_value, namespace_uri());

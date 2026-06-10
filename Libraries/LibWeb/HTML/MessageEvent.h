@@ -11,19 +11,25 @@
 #include <AK/FlyString.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 
-class WindowOrWorkerGlobalScopeMixin;
-
 // FIXME: Include ServiceWorker
 // https://html.spec.whatwg.org/multipage/comms.html#messageeventsource
 using MessageEventSource = Variant<GC::Ref<WindowProxy>, GC::Ref<MessagePort>>;
 using NullableMessageEventSource = Variant<GC::Ref<WindowProxy>, GC::Ref<MessagePort>, Empty>;
+
+struct MessageEventInit : DOM::EventInit {
+    JS::Value data { JS::js_null() };
+    String last_event_id {};
+    String origin {};
+    GC::RootVector<GC::Ref<MessagePort>> ports {};
+    NullableMessageEventSource source { Empty {} };
+};
 
 // https://html.spec.whatwg.org/multipage/comms.html#messageevent
 class WEB_API MessageEvent : public DOM::Event {
@@ -31,18 +37,20 @@ class WEB_API MessageEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(MessageEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::MessageEventInit const&);
-    [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::MessageEventInit const&, URL::Origin const&);
-    [[nodiscard]] static GC::Ref<MessageEvent> create(FlyString const& event_name, Bindings::MessageEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<MessageEvent> create(FlyString const& event_name, Bindings::MessageEventInit const&, URL::Origin const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<MessageEvent>> construct_impl(WindowOrWorkerGlobalScopeMixin&, FlyString const& event_name, Bindings::MessageEventInit const&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<MessageEvent>> construct_impl(JS::Realm&, String const& event_name, Bindings::MessageEventInit const&);
+    [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Object const& relevant_global_object, FlyString const& event_name, MessageEventInit const&);
+    [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Object const& relevant_global_object, FlyString const& event_name, MessageEventInit const&, URL::Origin const&);
+    [[nodiscard]] static GC::Ref<MessageEvent> create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<MessageEvent> create(FlyString const& event_name, MessageEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<MessageEvent> create(FlyString const& event_name, MessageEventInit const&, URL::Origin const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~MessageEvent() override;
 
-    JS::Value data() const { return m_data; }
+    JS::Value const& data() const { return m_data; }
     String origin() const;
     String const& last_event_id() const { return m_last_event_id; }
-    GC::Ref<JS::Object> ports(JS::Realm&) const;
+    Vector<GC::Ref<MessagePort>> const& message_ports() const { return m_ports; }
+    JS::Value ports(JS::Realm&);
 
     NullableMessageEventSource source() const;
 
@@ -53,9 +61,10 @@ public:
 private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    MessageEvent(FlyString const& event_name, Bindings::MessageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-    MessageEvent(FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const&, HighResolutionTime::DOMHighResTimeStamp);
-    MessageEvent(FlyString const& event_name, Bindings::MessageEventInit const& event_init, Variant<URL::Origin, String, Empty>, HighResolutionTime::DOMHighResTimeStamp);
+    MessageEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
+    MessageEvent(FlyString const& event_name, MessageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    MessageEvent(FlyString const& event_name, MessageEventInit const& event_init, URL::Origin const&, HighResolutionTime::DOMHighResTimeStamp);
+    MessageEvent(FlyString const& event_name, MessageEventInit const& event_init, Variant<URL::Origin, String, Empty>, HighResolutionTime::DOMHighResTimeStamp);
 
     JS::Value m_data;
 
@@ -66,7 +75,6 @@ private:
     String m_last_event_id;
     NullableMessageEventSource m_source;
     Vector<GC::Ref<MessagePort>> m_ports;
-    mutable Bindings::WrapperWorldWeakValueCache<JS::Array> m_ports_arrays;
 };
 
 }

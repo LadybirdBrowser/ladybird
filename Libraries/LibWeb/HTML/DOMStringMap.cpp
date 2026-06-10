@@ -111,12 +111,8 @@ String DOMStringMap::determine_value_of_named_property(FlyString const& name) co
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-setitem
-WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(JS::Realm& realm, String const& name, JS::Value unconverted_value)
+WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_named_property(String const& name, String const& value)
 {
-    // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
-    //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_string(realm.vm()));
-
     StringBuilder builder;
 
     // 3. Insert the string data- at the front of name.
@@ -132,7 +128,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(JS::Real
         if (current_character == '-' && character_index + 1 < name_view.length()) {
             auto next_character = name_view[character_index + 1];
             if (is_ascii_lower_alpha(next_character))
-                return WebIDL::SyntaxError::create(realm, "Name cannot contain a '-' followed by a lowercase character."_utf16);
+                return WebIDL::SyntaxError::create("Name cannot contain a '-' followed by a lowercase character."_utf16);
         }
 
         // 2. For each ASCII upper alpha in name, insert a U+002D HYPHEN-MINUS character (-) before the character and replace the character with the same character converted to ASCII lowercase.
@@ -149,7 +145,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(JS::Real
 
     // 4. If name is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!DOM::is_valid_attribute_local_name(data_name))
-        return WebIDL::InvalidCharacterError::create(realm, "Name is not a valid attribute local name."_utf16);
+        return WebIDL::InvalidCharacterError::create("Name is not a valid attribute local name."_utf16);
 
     // 5. Set an attribute value for the DOMStringMap's associated element using name and value.
     m_associated_element->set_attribute_value(data_name, value);
@@ -157,14 +153,8 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(JS::Real
     return {};
 }
 
-// https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-setitem
-WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_existing_named_property(JS::Realm& realm, String const& name, JS::Value value)
-{
-    return set_value_of_new_named_property(realm, name, value);
-}
-
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-removeitem
-WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> DOMStringMap::delete_value(JS::Realm&, String const& name)
+void DOMStringMap::delete_named_property(String const& name)
 {
     StringBuilder builder;
 
@@ -186,14 +176,6 @@ WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> DOMStringMap::delete_
     // Remove an attribute by name given name and the DOMStringMap's associated element.
     auto data_name = MUST(builder.to_string());
     m_associated_element->remove_attribute(data_name);
-
-    // The spec doesn't have the step. This indicates that the deletion was successful.
-    return Bindings::NamedPropertyDeletionResult::DidNotFail;
-}
-
-JS::Value DOMStringMap::named_item_value(Bindings::WrapperWorld&, JS::Realm& realm, FlyString const& name) const
-{
-    return JS::PrimitiveString::create(realm.vm(), determine_value_of_named_property(name));
 }
 
 }

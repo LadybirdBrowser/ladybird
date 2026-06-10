@@ -8,10 +8,16 @@
 #pragma once
 
 #include <LibGfx/Rect.h>
-#include <LibWeb/Bindings/DOMRectReadOnly.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
+
+namespace Web::Bindings {
+
+struct DOMRectInit;
+
+}
 
 namespace Web::Geometry {
 
@@ -23,11 +29,9 @@ class DOMRectReadOnly
     GC_DECLARE_ALLOCATOR(DOMRectReadOnly);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DOMRectReadOnly>> construct_impl(double x = 0, double y = 0, double width = 0, double height = 0);
     [[nodiscard]] static GC::Ref<DOMRectReadOnly> create(double x, double y, double width, double height);
-    [[nodiscard]] static GC::Ref<DOMRectReadOnly> from_rect(JS::VM&, Bindings::DOMRectInit const&);
-    [[nodiscard]] static GC::Ref<DOMRectReadOnly> from_rect(Bindings::DOMRectInit const&);
     static GC::Ref<DOMRectReadOnly> create();
+    [[nodiscard]] static GC::Ref<DOMRectReadOnly> dom_rect_read_only_from_rect(Bindings::DOMRectInit const&);
 
     virtual ~DOMRectReadOnly() override;
 

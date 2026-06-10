@@ -13,14 +13,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTTextureFilterAnisotropic);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> EXTTextureFilterAnisotropic::create(GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> EXTTextureFilterAnisotropic::create(GC::Ref<WebGLRenderingContextBase> context)
 {
     auto extension = GC::Heap::the().allocate<EXTTextureFilterAnisotropic>(context);
-    return GC::Ref<Bindings::Wrappable> { extension };
+    return GC::Ref<WebGLExtension> { extension };
 }
 
 EXTTextureFilterAnisotropic::EXTTextureFilterAnisotropic(GC::Ref<WebGLRenderingContextBase> context)
-    : Bindings::Wrappable()
+    : WebGLExtension()
     , m_context(context)
 {
 }

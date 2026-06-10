@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibWeb/Bindings/HTMLElement.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -18,6 +17,8 @@
 #include <LibWeb/HTML/TokenizedFeatures.h>
 
 namespace Web::HTML {
+
+class HTMLElement;
 
 // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
 #define ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTES   \
@@ -33,7 +34,10 @@ enum class ContentEditableState : u8 {
     Inherit,
 };
 
-using TogglePopoverOptionsOrForceBoolean = Variant<Bindings::TogglePopoverOptions, bool>;
+using ShowPopoverOptions = Bindings::ShowPopoverOptions;
+using TogglePopoverOptions = Bindings::TogglePopoverOptions;
+
+using TogglePopoverOptionsOrForceBoolean = Variant<TogglePopoverOptions, bool>;
 
 enum class ThrowExceptions {
     Yes,
@@ -146,7 +150,7 @@ public:
 
     virtual Optional<ARIA::Role> default_role() const override;
 
-    WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals(JS::Realm&);
+    WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals();
 
     void set_popover(Optional<String> value);
     Optional<String> popover() const;
@@ -161,7 +165,7 @@ public:
     };
     PopoverVisibilityState popover_visibility_state() const { return m_popover_visibility_state; }
 
-    WebIDL::ExceptionOr<void> show_popover_for_bindings(Bindings::ShowPopoverOptions const& = {});
+    WebIDL::ExceptionOr<void> show_popover(ShowPopoverOptions const& = {});
     WebIDL::ExceptionOr<void> hide_popover_for_bindings();
     WebIDL::ExceptionOr<bool> toggle_popover(TogglePopoverOptionsOrForceBoolean const&);
 

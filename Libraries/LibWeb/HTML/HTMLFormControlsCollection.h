@@ -10,22 +10,25 @@
 
 namespace Web::HTML {
 
+class HTMLFormElement;
+
 class HTMLFormControlsCollection : public DOM::HTMLCollection {
     WEB_WRAPPABLE(HTMLFormControlsCollection, DOM::HTMLCollection);
     GC_DECLARE_ALLOCATOR(HTMLFormControlsCollection);
 
 public:
-    [[nodiscard]] static GC::Ref<HTMLFormControlsCollection> create(DOM::ParentNode& root, Scope, ESCAPING Function<bool(DOM::Element const&)> filter);
+    [[nodiscard]] static GC::Ref<HTMLFormControlsCollection> create(DOM::ParentNode& root, Scope, HTMLFormElement& form, ESCAPING Function<bool(DOM::Element const&)> filter);
 
     virtual ~HTMLFormControlsCollection() override;
 
     Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> named_item_or_radio_node_list(FlyString const& name) const;
 
-protected:
-    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const final;
-
 private:
-    HTMLFormControlsCollection(DOM::ParentNode& root, Scope, ESCAPING Function<bool(DOM::Element const&)> filter);
+    HTMLFormControlsCollection(DOM::ParentNode& root, Scope, HTMLFormElement& form, ESCAPING Function<bool(DOM::Element const&)> filter);
+
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    GC::Ref<HTMLFormElement> m_form;
 };
 
 }

@@ -18,13 +18,13 @@ class CSSScale final : public CSSTransformComponent {
 
 public:
     [[nodiscard]] static GC::Ref<CSSScale> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
-    static WebIDL::ExceptionOr<GC::Ref<CSSScale>> construct_impl(CSSNumberish x, CSSNumberish y, Optional<CSSNumberish> z = {});
+    static WebIDL::ExceptionOr<GC::Ref<CSSScale>> create_for_constructor(CSSNumberish x, CSSNumberish y, Optional<CSSNumberish> z = {});
 
     virtual ~CSSScale() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
 
     CSSNumberish x() const { return m_x; }
     CSSNumberish y() const { return m_y; }

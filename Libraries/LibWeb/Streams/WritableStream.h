@@ -9,10 +9,11 @@
 #include <AK/Forward.h>
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Streams/Algorithms.h>
+#include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
@@ -47,7 +48,8 @@ public:
         Errored,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ptr<JS::Object> underlying_sink, Bindings::QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> create_for_constructor(JS::Realm&, GC::Ptr<JS::Object> underlying_sink_object, QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> create(JS::Realm&, GC::Ptr<JS::Object> underlying_sink_object, UnderlyingSink const&, QueuingStrategy const& = {});
 
     virtual ~WritableStream() = default;
 

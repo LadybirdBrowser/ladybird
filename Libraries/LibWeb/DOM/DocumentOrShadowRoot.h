@@ -60,16 +60,15 @@ GC::Ptr<Element> calculate_active_element(T& self)
 
 // https://drafts.csswg.org/web-animations-1/#dom-documentorshadowroot-getanimations
 template<DocumentOrShadowRoot T>
-WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> calculate_get_animations(JS::Realm& realm, T& self)
+WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> calculate_get_animations(T& self)
 {
     // Returns the set of relevant animations for a subtree for the document or shadow root on which this
     // method is called.
     Vector<GC::Ref<Animations::Animation>> relevant_animations;
     TRY(self.template for_each_child_of_type_fallible<Element>([&](auto& child) -> WebIDL::ExceptionOr<IterationDecision> {
         relevant_animations.extend(TRY(child.get_animations_internal(
-            realm,
             Animations::Animatable::GetAnimationsSorted::No,
-            Bindings::GetAnimationsOptions { .subtree = true })));
+            Animations::Animatable::GetAnimationsOptions { .subtree = true, .pseudo_element = {} })));
         return IterationDecision::Continue;
     }));
 

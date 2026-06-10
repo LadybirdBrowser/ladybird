@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/SVG/SVGNumber.h>
 
 namespace Web::SVG {
@@ -18,18 +17,17 @@ GC::Ref<SVGNumber> SVGNumber::create(float value, ReadOnly read_only)
 }
 
 SVGNumber::SVGNumber(float value, ReadOnly read_only)
-    : Bindings::Wrappable()
-    , m_value(value)
+    : m_value(value)
     , m_read_only(read_only)
 {
 }
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNumber__value
-WebIDL::ExceptionOr<void> SVGNumber::set_value(JS::Realm& realm, float value)
+WebIDL::ExceptionOr<void> SVGNumber::set_value(float value)
 {
     // 1. If the SVGNumber is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnly::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify value of read-only SVGNumber"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify value of read-only SVGNumber"_utf16);
 
     // 2. Set the SVGNumber's value to the value being assigned to the value member.
     m_value = value;

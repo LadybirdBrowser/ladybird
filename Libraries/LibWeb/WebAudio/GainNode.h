@@ -11,6 +11,8 @@
 
 namespace Web::WebAudio {
 
+using GainOptions = Bindings::GainOptions;
+
 // https://webaudio.github.io/web-audio-api/#GainNode
 class GainNode : public AudioNode {
     WEB_WRAPPABLE(GainNode, AudioNode);
@@ -19,8 +21,8 @@ class GainNode : public AudioNode {
 public:
     virtual ~GainNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<GainNode>> create(GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<GainNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<GainNode>> create(GC::Ref<BaseAudioContext>, GainOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<GainNode>> create_for_constructor(GC::Ref<BaseAudioContext>, GainOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -28,7 +30,7 @@ public:
     GC::Ref<AudioParam const> gain() const { return m_gain; }
 
 protected:
-    GainNode(GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
+    GainNode(GC::Ref<BaseAudioContext>, GainOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

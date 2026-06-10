@@ -22,8 +22,7 @@ GC::Ref<WebGLUniformLocation> WebGLUniformLocation::create(GLuint handle, GC::Pt
 }
 
 WebGLUniformLocation::WebGLUniformLocation(GLuint handle, GC::Ptr<WebGLProgram> parent_shader)
-    : Bindings::Wrappable()
-    , m_handle(handle)
+    : m_handle(handle)
     , m_parent_shader(parent_shader)
 {
 }

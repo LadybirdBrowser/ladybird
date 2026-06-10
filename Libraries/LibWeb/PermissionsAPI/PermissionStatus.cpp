@@ -6,8 +6,6 @@
 
 #include <AK/Types.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PermissionStatus.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -25,10 +23,10 @@ namespace Web::PermissionsAPI {
 GC_DEFINE_ALLOCATOR(PermissionStatus);
 
 PermissionStatus::PermissionStatus(GC::Ref<DOM::EventTarget> relevant_global_object, String const& name,
-    Bindings::PermissionDescriptor const& query)
+    PermissionDescriptor query)
     : DOM::EventTarget()
     , m_name(name)
-    , m_query(query)
+    , m_query(move(query))
     , m_global_object(relevant_global_object)
 {
 }
@@ -39,7 +37,7 @@ void PermissionStatus::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_global_object);
 }
 
-GC::Ref<PermissionStatus> PermissionStatus::create(GC::Ref<DOM::EventTarget> relevant_global_object, Bindings::PermissionDescriptor permission_desc)
+GC::Ref<PermissionStatus> PermissionStatus::create(GC::Ref<DOM::EventTarget> relevant_global_object, PermissionDescriptor permission_desc)
 {
     // 1. Let name be permissionDesc's name.
     String name = permission_desc.name;
@@ -52,10 +50,15 @@ GC::Ref<PermissionStatus> PermissionStatus::create(GC::Ref<DOM::EventTarget> rel
     // If unspecified, this defaults to PermissionStatus. No subtypes exist yet in Ladybird.
     // 1. Initialize status's [[query]] internal slot to permissionDesc.
     // 2. Initialize status's name to name.
-    auto status = GC::Heap::the().allocate<PermissionStatus>(relevant_global_object, name, permission_desc);
+    auto status = GC::Heap::the().allocate<PermissionStatus>(relevant_global_object, name, move(permission_desc));
 
     // 4. Return status.
     return status;
+}
+
+PermissionState PermissionStatus::state() const
+{
+    return m_state;
 }
 
 JS::Object& PermissionStatus::relevant_global_object() const

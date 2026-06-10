@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/HTMLIFrameElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/EmbeddedContentInvalidator.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>

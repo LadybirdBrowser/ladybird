@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/WritableStreamDefaultController.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultController.h>
@@ -62,7 +61,6 @@ void WritableStreamDefaultController::error_steps()
 }
 
 WritableStreamDefaultController::WritableStreamDefaultController()
-    : Bindings::Wrappable()
 {
 }
 

@@ -10,8 +10,6 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/CrossOrigin/Reporting.h>
@@ -24,14 +22,6 @@
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(WindowProxy);
-
-static Bindings::PlatformObject& wrapper_for_window(Window& window)
-{
-    auto* wrapper = as_if<Bindings::PlatformObject>(window.realm().global_object());
-    VERIFY(wrapper);
-    VERIFY(Bindings::impl_from<Window>(wrapper) == &window);
-    return *wrapper;
-}
 
 // 7.4 The WindowProxy exotic object, https://html.spec.whatwg.org/multipage/window-object.html#the-windowproxy-exotic-object
 WindowProxy::WindowProxy(JS::Realm& realm)
@@ -46,7 +36,7 @@ JS::ThrowCompletionOr<JS::Object*> WindowProxy::internal_get_prototype_of() cons
 
     // 2. If IsPlatformObjectSameOrigin(W) is true, then return ! OrdinaryGetPrototypeOf(W).
     if (is_platform_object_same_origin(*m_window))
-        return MUST(wrapper_for_window(*m_window).internal_get_prototype_of());
+        return MUST(Bindings::platform_object_for_window(*m_window).internal_get_prototype_of());
 
     // 3. Return null.
     return nullptr;
@@ -107,7 +97,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
                 return Optional<JS::PropertyDescriptor> {};
 
             // 2. Throw a "SecurityError" DOMException.
-            return throw_completion(m_window->realm(), WebIDL::SecurityError::create(m_window->realm(), Utf16String::formatted("Can't access property '{}' on cross-origin object", property_key)));
+            return throw_completion(m_window->realm(), WebIDL::SecurityError::create(Utf16String::formatted("Can't access property '{}' on cross-origin object", property_key)));
         }
 
         // 6. Return PropertyDescriptor { [[Value]]: value, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true }.
@@ -117,7 +107,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
     // 3. If IsPlatformObjectSameOrigin(W) is true, then return ! OrdinaryGetOwnProperty(W, P).
     // NOTE: This is a willful violation of the JavaScript specification's invariants of the essential internal methods to maintain compatibility with existing web content. See tc39/ecma262 issue #672 for more information.
     if (is_platform_object_same_origin(*m_window))
-        return wrapper_for_window(*m_window).internal_get_own_property(property_key);
+        return Bindings::platform_object_for_window(*m_window).internal_get_own_property(property_key);
 
     // 4. Let property be CrossOriginGetOwnPropertyHelper(W, P).
     auto property = cross_origin_get_own_property_helper(*const_cast<Window*>(m_window.ptr()), property_key);
@@ -156,11 +146,11 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_define_own_property(JS::Proper
 
         // 2. Return ? OrdinaryDefineOwnProperty(W, P, Desc).
         // NOTE: This is a willful violation of the JavaScript specification's invariants of the essential internal methods to maintain compatibility with existing web content. See tc39/ecma262 issue #672 for more information.
-        return wrapper_for_window(*m_window).internal_define_own_property(property_key, descriptor);
+        return Bindings::platform_object_for_window(*m_window).internal_define_own_property(property_key, descriptor);
     }
 
     // 3. Throw a "SecurityError" DOMException.
-    return throw_completion(m_window->realm(), WebIDL::SecurityError::create(m_window->realm(), Utf16String::formatted("Can't define property '{}' on cross-origin object", property_key)));
+    return throw_completion(m_window->realm(), WebIDL::SecurityError::create(Utf16String::formatted("Can't define property '{}' on cross-origin object", property_key)));
 }
 
 // 7.4.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-get
@@ -202,7 +192,7 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_set(JS::PropertyKey const& pro
             return false;
 
         // 2. Return ? OrdinarySet(W, P, V, Receiver).
-        return wrapper_for_window(*m_window).internal_set(property_key, value, receiver);
+        return Bindings::platform_object_for_window(*m_window).internal_set(property_key, value, receiver);
     }
 
     // 4. Return ? CrossOriginSet(this, P, V, Receiver).
@@ -231,11 +221,11 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_delete(JS::PropertyKey const& 
         }
 
         // 2. Return ? OrdinaryDelete(W, P).
-        return wrapper_for_window(*m_window).internal_delete(property_key);
+        return Bindings::platform_object_for_window(*m_window).internal_delete(property_key);
     }
 
     // 3. Throw a "SecurityError" DOMException.
-    return throw_completion(m_window->realm(), WebIDL::SecurityError::create(m_window->realm(), Utf16String::formatted("Can't delete property '{}' on cross-origin object", property_key)));
+    return throw_completion(m_window->realm(), WebIDL::SecurityError::create(Utf16String::formatted("Can't delete property '{}' on cross-origin object", property_key)));
 }
 
 // 7.4.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/window-object.html#windowproxy-ownpropertykeys
@@ -263,7 +253,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> WindowProxy::internal_own_prope
 
     // 6. If IsPlatformObjectSameOrigin(W) is true, then return the concatenation of keys and OrdinaryOwnPropertyKeys(W).
     if (is_platform_object_same_origin(*m_window)) {
-        keys.extend(MUST(wrapper_for_window(*m_window).internal_own_property_keys()));
+        keys.extend(MUST(Bindings::platform_object_for_window(*m_window).internal_own_property_keys()));
         return keys;
     }
 

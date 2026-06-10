@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/KeyframeEffect.h>
+#include <AK/Types.h>
+#include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -31,6 +32,6 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element&, CalculationContext
 RefPtr<StyleValue const> interpolate_color(StyleValue const& from, StyleValue const& to, float delta, Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod>, ColorResolutionContext const&);
 
 Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& underlying_list, FilterValueListStyleValue const& animated_list);
-RefPtr<StyleValue const> composite_value(PropertyID, StyleValue const& a_underlying_value, StyleValue const& a_animated_value, Bindings::CompositeOperation);
+RefPtr<StyleValue const> composite_value(PropertyID, StyleValue const& a_underlying_value, StyleValue const& a_animated_value, Animations::CompositeOperation);
 
 }

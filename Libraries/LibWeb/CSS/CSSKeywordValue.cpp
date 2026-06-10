@@ -7,7 +7,6 @@
 #include "CSSKeywordValue.h"
 #include <AK/StringBuilder.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSKeywordValue.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -26,7 +25,7 @@ GC::Ref<CSSKeywordValue> CSSKeywordValue::create(FlyString value)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csskeywordvalue-csskeywordvalue
-WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> CSSKeywordValue::construct_impl(FlyString value)
+WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> CSSKeywordValue::create_for_constructor(FlyString value)
 {
     // 1. If value is an empty string, throw a TypeError.
     if (value.is_empty())

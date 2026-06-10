@@ -8,7 +8,9 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/Storage.h>
+#include <AK/FlyString.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
@@ -34,10 +36,13 @@ public:
 
     ~Storage();
 
+    Window& window() { return m_window; }
+    Window const& window() const { return m_window; }
+
     size_t length() const;
     Optional<String> key(size_t index);
     Optional<String> get_item(String const& key) const;
-    WebIDL::ExceptionOr<void> set_item(JS::Realm&, String const& key, String const& value);
+    WebIDL::ExceptionOr<void> set_item(String const& key, String const& value);
     void remove_item(String const& key);
     void clear();
     Type type() const { return m_type; }
@@ -50,11 +55,7 @@ private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // ^Wrappable
-    virtual JS::Value named_item_value(Bindings::WrapperWorld&, JS::Realm&, FlyString const&) const override;
-    virtual WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> delete_value(JS::Realm&, String const&) override;
     virtual Vector<FlyString> supported_property_names() const override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm&, String const& key, JS::Value value) override;
-
     void reorder();
     void broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value);
 

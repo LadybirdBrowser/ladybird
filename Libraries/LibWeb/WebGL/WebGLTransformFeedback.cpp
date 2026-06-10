@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WebGLTransformFeedback.h>
 #include <LibWeb/WebGL/WebGLTransformFeedback.h>
 
 namespace Web::WebGL {

@@ -17,8 +17,7 @@ GC::Ref<PerformanceNavigation> PerformanceNavigation::create(u16 type, u16 redir
 }
 
 PerformanceNavigation::PerformanceNavigation(u16 type, u16 redirect_count)
-    : Bindings::Wrappable()
-    , m_type(type)
+    : m_type(type)
     , m_redirect_count(redirect_count)
 {
 }

@@ -6,10 +6,8 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Credential.h>
+#include <AK/String.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CredentialManagement {
 
@@ -19,6 +17,7 @@ class Credential : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(Credential);
 
 public:
+    static bool is_conditional_mediation_available();
     static GC::Ref<WebIDL::Promise> is_conditional_mediation_available(JS::Realm&);
 
     virtual ~Credential() override;

@@ -11,8 +11,7 @@ namespace Web::Geolocation {
 GC_DEFINE_ALLOCATOR(GeolocationPositionError);
 
 GeolocationPositionError::GeolocationPositionError(ErrorCode code)
-    : Bindings::Wrappable()
-    , m_code(code)
+    : m_code(code)
 {
 }
 

@@ -6,18 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/WebGLDebugRendererInfo.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 
 namespace Web::WebGL {
 
-class WebGLDebugRendererInfo : public Bindings::Wrappable {
-    WEB_WRAPPABLE(WebGLDebugRendererInfo, Bindings::Wrappable);
+class WebGLDebugRendererInfo : public WebGLExtension {
+    WEB_WRAPPABLE(WebGLDebugRendererInfo, WebGLExtension);
     GC_DECLARE_ALLOCATOR(WebGLDebugRendererInfo);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;

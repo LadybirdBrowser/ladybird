@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMathValue);
 
-CSSMathValue::CSSMathValue(Bindings::CSSMathOperator operator_, NumericType type)
+CSSMathValue::CSSMathValue(CSSMathOperator operator_, NumericType type)
     : CSSNumericValue(move(type))
     , m_operator(operator_)
 {

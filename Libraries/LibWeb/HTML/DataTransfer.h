@@ -7,9 +7,10 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/DataTransfer.h>
+#include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/DragDataStore.h>
 
 namespace Web::HTML {
@@ -40,7 +41,7 @@ class DataTransfer : public Bindings::Wrappable {
 
 public:
     static GC::Ref<DataTransfer> create(NonnullRefPtr<DragDataStore>);
-    static GC::Ref<DataTransfer> construct_impl();
+    static GC::Ref<DataTransfer> create_for_constructor();
     virtual ~DataTransfer() override;
 
     FlyString const& drop_effect() const { return m_drop_effect; }
@@ -54,11 +55,9 @@ public:
 
     GC::Ref<DataTransferItemList> items();
 
-    ReadonlySpan<String> types() const;
-    GC::Ptr<JS::Object> cached_types(Bindings::WrapperWorld const&) const;
-    void set_cached_types(Bindings::WrapperWorld const&, GC::Ptr<JS::Object>);
-    void set_cached_types(GC::Ptr<JS::Object>);
-    void clear_cached_types();
+    ReadonlySpan<String> types_list() const;
+    JS::ThrowCompletionOr<JS::Value> types(JS::Realm&);
+    u64 types_revision() const { return m_types_revision; }
     String get_data(String const& format) const;
     void set_data(String const& format_argument, String const& value);
     void clear_data(Optional<String> maybe_format = {});
@@ -93,7 +92,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
     Vector<String> m_types;
-    mutable Bindings::WrapperWorldWeakValueCache<JS::Object> m_cached_types;
+    u64 m_types_revision { 0 };
 
     // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface:drag-data-store-3
     RefPtr<DragDataStore> m_associated_drag_data_store;

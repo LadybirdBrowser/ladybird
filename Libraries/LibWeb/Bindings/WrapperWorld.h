@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
@@ -32,13 +31,20 @@ public:
     [[nodiscard]] Type type() const { return m_type; }
     [[nodiscard]] bool is_main_world() const { return m_type == Type::Main; }
 
-    [[nodiscard]] GC::Ptr<PlatformObject> wrapper_for(Wrappable const&) const;
+    [[nodiscard]] GC::Ptr<PlatformObject> wrapper_for(Wrappable const&, JS::Realm&) const;
     void set_wrapper(Wrappable&, PlatformObject&);
     void clear_wrapper(Wrappable&, PlatformObject const&);
 
 private:
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    struct WrapperEntry {
+        GC::Weak<Wrappable const> wrappable;
+        GC::Weak<PlatformObject> wrapper;
+    };
+
     Type m_type { Type::Main };
-    HashMap<Wrappable const*, GC::Weak<PlatformObject>> m_wrappers;
+    Vector<WrapperEntry> m_wrappers;
 };
 
 WEB_API WrapperWorld& host_defined_wrapper_world(JS::Realm&);
@@ -113,6 +119,37 @@ private:
 
     GC::Weak<T> m_main_world_value;
     Vector<Entry> m_values;
+};
+
+template<typename Key, typename Value>
+class WrapperWorldWeakValueCacheMap {
+public:
+    [[nodiscard]] WrapperWorldWeakValueCache<Value>& cache_for(Key& key)
+    {
+        prune();
+        for (auto& entry : m_entries) {
+            if (entry.key.ptr() == &key)
+                return entry.cache;
+        }
+
+        m_entries.append(Entry { key, {} });
+        return m_entries.last().cache;
+    }
+
+private:
+    struct Entry {
+        GC::Weak<Key> key;
+        WrapperWorldWeakValueCache<Value> cache;
+    };
+
+    void prune()
+    {
+        m_entries.remove_all_matching([](auto const& entry) {
+            return !entry.key;
+        });
+    }
+
+    Vector<Entry> m_entries;
 };
 
 }

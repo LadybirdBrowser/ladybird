@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/Bindings/File.h>
 #include <LibWeb/Bindings/FormData.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -22,16 +23,17 @@ void Intrinsics::create_web_prototype_and_constructor<FormDataIteratorPrototype>
     m_prototypes.set("FormDataIterator"_fly_string, prototype);
 }
 
+static void set_form_data_iterator_prototype(JS::Realm& realm, XHR::FormDataIterator& iterator)
+{
+    static auto const& name = *new FlyString("FormDataIterator"_fly_string);
+    Detail::set_prototype_for_interface_on<FormDataIteratorPrototype>(realm, iterator, name);
+}
+
 }
 
 namespace Web::XHR {
 
 GC_DEFINE_ALLOCATOR(FormDataIterator);
-
-GC::Ref<FormDataIterator> FormDataIterator::create(JS::Realm& realm, FormData const& form_data, JS::Object::PropertyKind iterator_kind)
-{
-    return realm.create<FormDataIterator>(realm, form_data, iterator_kind);
-}
 
 FormDataIterator::FormDataIterator(JS::Realm& realm, Web::XHR::FormData const& form_data, JS::Object::PropertyKind iterator_kind)
     : JS::Object(realm, nullptr)
@@ -42,21 +44,21 @@ FormDataIterator::FormDataIterator(JS::Realm& realm, Web::XHR::FormData const& f
 
 FormDataIterator::~FormDataIterator() = default;
 
-void FormDataIterator::initialize(JS::Realm& realm)
+static JS::Value form_data_entry_value(JS::Realm& realm, FormDataEntryValue const& value)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FormDataIterator);
-    Base::initialize(realm);
-}
-
-void FormDataIterator::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_form_data);
+    return value.visit(
+        [&](GC::Ref<FileAPI::File> const& file) -> JS::Value {
+            return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, file);
+        },
+        [&](String const& string) -> JS::Value {
+            return JS::PrimitiveString::create(realm.vm(), string);
+        });
 }
 
 JS::Object* FormDataIterator::next()
 {
     auto& vm = this->vm();
+    auto& realm = *vm.current_realm();
 
     if (m_index >= m_form_data->m_entry_list.size())
         return create_iterator_result_object(vm, JS::js_undefined(), true);
@@ -65,19 +67,25 @@ JS::Object* FormDataIterator::next()
     if (m_iterator_kind == JS::Object::PropertyKind::Key)
         return create_iterator_result_object(vm, JS::PrimitiveString::create(vm, entry.name), false);
 
-    auto entry_value = entry.value.visit(
-        [&](GC::Ref<FileAPI::File> file) -> JS::Value {
-            auto& realm = shape().realm();
-            return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, file);
-        },
-        [&](String const& string) -> JS::Value {
-            return JS::PrimitiveString::create(vm, string);
-        });
+    auto entry_value = form_data_entry_value(realm, entry.value);
 
     if (m_iterator_kind == JS::Object::PropertyKind::Value)
         return create_iterator_result_object(vm, entry_value, false);
 
-    return create_iterator_result_object(vm, JS::Array::create_from(shape().realm(), { JS::PrimitiveString::create(vm, entry.name), entry_value }), false).ptr();
+    return create_iterator_result_object(vm, JS::Array::create_from(realm, { JS::PrimitiveString::create(vm, entry.name), entry_value }), false).ptr();
+}
+
+GC::Ref<FormDataIterator> FormDataIterator::create(JS::Realm& realm, FormData const& form_data, JS::Object::PropertyKind iterator_kind)
+{
+    auto iterator = realm.create<FormDataIterator>(realm, form_data, iterator_kind);
+    Bindings::set_form_data_iterator_prototype(realm, iterator);
+    return iterator;
+}
+
+void FormDataIterator::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_form_data);
 }
 
 }

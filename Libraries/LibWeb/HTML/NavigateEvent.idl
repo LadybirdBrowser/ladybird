@@ -16,7 +16,7 @@ interface NavigateEvent : Event {
     readonly attribute Element? sourceElement;
 
     [NeedsCallerRealm] undefined intercept(optional NavigationInterceptOptions options = {});
-    [NeedsCallerRealm] undefined scroll();
+    undefined scroll();
 };
 
 dictionary NavigateEventInit : EventInit {

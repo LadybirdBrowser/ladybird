@@ -6,12 +6,19 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PeriodicWave.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::WebAudio {
+
+class BaseAudioContext;
+
+using PeriodicWaveConstraints = Bindings::PeriodicWaveConstraints;
+using PeriodicWaveOptions = Bindings::PeriodicWaveOptions;
 
 // https://webaudio.github.io/web-audio-api/#PeriodicWave
 class PeriodicWave : public Bindings::Wrappable {
@@ -19,7 +26,7 @@ class PeriodicWave : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(PeriodicWave);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::PeriodicWaveOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> create_for_constructor(GC::Ref<BaseAudioContext>, PeriodicWaveOptions const&);
 
     PeriodicWave();
     virtual ~PeriodicWave() override;

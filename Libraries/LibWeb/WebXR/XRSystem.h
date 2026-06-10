@@ -6,11 +6,18 @@
 
 #pragma once
 
+#include <AK/Vector.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/XRSystem.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebXR {
+
+using XRSessionMode = Bindings::XRSessionMode;
+
+using XRSessionInit = Bindings::XRSessionInit;
 
 // https://immersive-web.github.io/webxr/#xrsystem-interface
 class XRSystem final : public DOM::EventTarget {
@@ -22,10 +29,11 @@ public:
     virtual ~XRSystem() override = default;
 
     // https://immersive-web.github.io/webxr/#dom-xrsystem-issessionsupported
-    GC::Ref<WebIDL::Promise> is_session_supported(JS::Realm&, Bindings::XRSessionMode) const;
+    bool is_session_mode_supported(XRSessionMode) const;
+    void is_session_supported(JS::Realm&, XRSessionMode, GC::Ref<WebIDL::Promise>) const;
 
     // https://immersive-web.github.io/webxr/#dom-xrsystem-requestsession
-    GC::Ref<WebIDL::Promise> request_session(JS::Realm&, Bindings::XRSessionMode, Bindings::XRSessionInit const&);
+    void request_session(JS::Realm&, XRSessionMode, XRSessionInit const&, GC::Ref<WebIDL::Promise>);
 
     JS::Object& relevant_global_object() const;
 

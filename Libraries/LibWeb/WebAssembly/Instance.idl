@@ -1,7 +1,7 @@
 // https://webassembly.github.io/spec/js-api/#instances
 [LegacyNamespace=WebAssembly, Exposed=*]
 interface Instance {
-    constructor(Module module, optional object importObject);
+    [ImplementedInBindings] constructor(Module module, optional object importObject);
 
-    [NeedsCallerRealmForGetter] readonly attribute object exports;
+    [ImplementedInBindings, NeedsCallerRealmForGetter] readonly attribute object exports;
 };

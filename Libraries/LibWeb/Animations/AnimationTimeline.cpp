@@ -6,7 +6,6 @@
 
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
-#include <LibWeb/Bindings/AnimationTimeline.h>
 #include <LibWeb/DOM/Document.h>
 
 namespace Web::Animations {
@@ -67,8 +66,7 @@ bool AnimationTimeline::is_inactive() const
 }
 
 AnimationTimeline::AnimationTimeline(GC::Ref<DOM::Document> document)
-    : Bindings::Wrappable()
-    , m_associated_document(document)
+    : m_associated_document(document)
 {
     m_associated_document->associate_with_timeline(*this);
 }

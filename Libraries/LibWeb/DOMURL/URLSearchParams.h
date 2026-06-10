@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/IterationDecision.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -27,7 +28,7 @@ class URLSearchParams : public Bindings::Wrappable {
 public:
     static GC::Ref<URLSearchParams> create(StringView);
     static GC::Ref<URLSearchParams> create(Vector<QueryParam> list);
-    static WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> construct_impl(Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init);
+    static WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> create_from_init(Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init);
 
     virtual ~URLSearchParams() override;
 
@@ -43,8 +44,8 @@ public:
 
     String to_string() const;
 
-    using ForEachCallback = Function<JS::ThrowCompletionOr<void>(String const&, String const&)>;
-    JS::ThrowCompletionOr<void> for_each(ForEachCallback);
+    using ForEachCallback = Function<IterationDecision(String const&, String const&)>;
+    void for_each(ForEachCallback);
 
 private:
     friend class DOMURL;

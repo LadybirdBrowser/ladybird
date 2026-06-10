@@ -12,7 +12,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/ARIA/Roles.h>
-#include <LibWeb/Bindings/HTMLImageElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -513,12 +512,19 @@ String HTMLImageElement::current_src() const
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
+GC::Ref<WebIDL::Promise> HTMLImageElement::decode(JS::Realm& realm) const
+{
+    auto promise = WebIDL::create_promise(realm);
+    decode(promise);
+    return promise;
+}
+
+// https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
+void HTMLImageElement::decode(GC::Ref<WebIDL::Promise> promise) const
 {
     auto& realm = HTML::relevant_realm(*this);
 
     // 1. Let promise be a new promise.
-    auto promise = WebIDL::create_promise(realm);
 
     // 2. Queue a microtask to perform the following steps:
     queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), [this, promise, &realm]() mutable {
@@ -526,7 +532,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
         auto& global = relevant_global_object(*this);
 
         auto reject_promise = [promise, &realm](Utf16String const& message) {
-            auto exception = WebIDL::EncodingError::create(realm, message);
+            auto exception = WebIDL::EncodingError::create(message);
             HTML::TemporaryExecutionContext context(realm);
             WebIDL::reject_promise(realm, promise, exception);
         };
@@ -623,7 +629,6 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
     }));
 
     // 3. Return promise.
-    return promise;
 }
 
 Optional<ARIA::Role> HTMLImageElement::default_role() const

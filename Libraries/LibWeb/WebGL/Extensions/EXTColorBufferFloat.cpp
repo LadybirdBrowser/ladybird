@@ -13,14 +13,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTColorBufferFloat);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> EXTColorBufferFloat::create(GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> EXTColorBufferFloat::create(GC::Ref<WebGLRenderingContextBase> context)
 {
     auto extension = GC::Heap::the().allocate<EXTColorBufferFloat>(context);
-    return GC::Ref<Bindings::Wrappable> { extension };
+    return GC::Ref<WebGLExtension> { extension };
 }
 
 EXTColorBufferFloat::EXTColorBufferFloat(GC::Ref<WebGLRenderingContextBase> context)
-    : Bindings::Wrappable()
+    : WebGLExtension()
     , m_context(context)
 {
 }

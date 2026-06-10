@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/AbortController.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/AbortSignal.h>
 
@@ -18,7 +17,7 @@ class AbortController final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(AbortController);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<AbortController>> construct_impl();
+    static GC::Ref<AbortController> create();
 
     virtual ~AbortController() override;
 

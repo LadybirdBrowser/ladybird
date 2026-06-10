@@ -69,9 +69,11 @@ public:
     [[nodiscard]] GC::Ref<Serial::Serial> serial();
     [[nodiscard]] GC::Ref<UserActivation> user_activation();
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
-    [[nodiscard]] GC::Ref<WebIDL::Promise> get_battery();
-    [[nodiscard]] GC::Ref<WebXR::XRSystem> xr();
+    GC::Ref<WebIDL::Promise> get_battery(JS::Realm&);
+    void start_get_battery_steps(GC::Ref<WebIDL::Promise>);
+    [[nodiscard]] GC::Ref<WebXR::XRSystem> xr(JS::Realm&);
     [[nodiscard]] GC::Ref<PermissionsAPI::Permissions> permissions();
+    void request_media_key_system_access(JS::Realm&, Utf16String key_system, Vector<EncryptedMediaExtensions::MediaKeySystemConfiguration> supported_configurations, GC::Ref<WebIDL::Promise>);
 
     GC::Ref<ServiceWorker::ServiceWorkerContainer> service_worker();
 
@@ -119,9 +121,6 @@ private:
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     GC::Ptr<CredentialManagement::CredentialsContainer> m_credentials;
-
-    // https://w3c.github.io/battery/
-    GC::Ptr<WebIDL::Promise> m_battery_promise;
 
     // https://immersive-web.github.io/webxr/#dom-navigator-xr
     GC::Ptr<WebXR::XRSystem> m_xr;

@@ -20,8 +20,15 @@ namespace Web::XHR {
 
 GC_DEFINE_ALLOCATOR(FormData);
 
-// https://xhr.spec.whatwg.org/#dom-formdata
 WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
+{
+    if (!form)
+        return create(GC::ConservativeVector<FormDataEntry> {});
+    return create_from_form(form, submitter);
+}
+
+// https://xhr.spec.whatwg.org/#dom-formdata
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create_from_form(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
 {
     GC::ConservativeVector<FormDataEntry> list;
     // 1. If form is given, then:
@@ -53,12 +60,7 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(GC::Ptr<HTML::HT
         list = move(entry_list.release_value());
     }
 
-    return construct_impl(move(list));
-}
-
-WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(GC::ConservativeVector<FormDataEntry> entry_list)
-{
-    return create(move(entry_list));
+    return create(move(list));
 }
 
 GC::Ref<FormData> FormData::create(Vector<DOMURL::QueryParam> entry_list)
@@ -206,14 +208,13 @@ WebIDL::ExceptionOr<void> FormData::set_impl(String const& name, Variant<GC::Ref
     return {};
 }
 
-JS::ThrowCompletionOr<void> FormData::for_each(ForEachCallback callback)
+void FormData::for_each(ForEachCallback callback)
 {
     for (auto i = 0u; i < m_entry_list.size(); ++i) {
         auto& entry = m_entry_list[i];
-        TRY(callback(entry.name, entry.value));
+        if (callback(entry.name, entry.value) == IterationDecision::Break)
+            break;
     }
-
-    return {};
 }
 
 }

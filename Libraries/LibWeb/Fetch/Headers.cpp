@@ -21,7 +21,7 @@ GC::Ref<Headers> Headers::create(NonnullRefPtr<HTTP::HeaderList> header_list)
 }
 
 // https://fetch.spec.whatwg.org/#dom-headers
-WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::construct_impl(Optional<HeadersInit> const& init)
+WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::create_from_init(Optional<HeadersInit> const& init)
 {
     // The new Headers(init) constructor steps are:
     auto headers = create(HTTP::HeaderList::create());
@@ -37,8 +37,7 @@ WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::construct_impl(Optional<HeadersIn
 }
 
 Headers::Headers(NonnullRefPtr<HTTP::HeaderList> header_list)
-    : Bindings::Wrappable()
-    , m_header_list(move(header_list))
+    : m_header_list(move(header_list))
 {
 }
 
@@ -157,7 +156,7 @@ WebIDL::ExceptionOr<void> Headers::set(String const& name, String const& value)
 }
 
 // https://webidl.spec.whatwg.org/#es-iterable, Step 4
-JS::ThrowCompletionOr<void> Headers::for_each(ForEachCallback callback)
+void Headers::for_each(ForEachCallback callback)
 {
     // The value pairs to iterate over are the return value of running sort and combine with this’s header list.
     auto value_pairs_to_iterate_over = [&]() {
@@ -178,7 +177,8 @@ JS::ThrowCompletionOr<void> Headers::for_each(ForEachCallback callback)
         auto const& pair = pairs[i];
 
         // 2. Invoke idlCallback with « pair’s value, pair’s key, idlObject » and with thisArg as the callback this value.
-        TRY(callback(TextCodec::isomorphic_decode(pair.name), TextCodec::isomorphic_decode(pair.value)));
+        if (callback(TextCodec::isomorphic_decode(pair.name), TextCodec::isomorphic_decode(pair.value)) == IterationDecision::Break)
+            break;
 
         // 3. Set pairs to idlObject’s current list of value pairs to iterate over. (It might have changed.)
         pairs = value_pairs_to_iterate_over();
@@ -186,8 +186,6 @@ JS::ThrowCompletionOr<void> Headers::for_each(ForEachCallback callback)
         // 4. Set i to i + 1.
         ++i;
     }
-
-    return {};
 }
 
 // https://fetch.spec.whatwg.org/#headers-validate

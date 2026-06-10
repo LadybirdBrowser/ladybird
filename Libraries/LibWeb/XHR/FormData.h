@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/FormData.h>
+#include <AK/IterationDecision.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -27,8 +28,8 @@ public:
     static GC::Ref<FormData> create(GC::ConservativeVector<FormDataEntry> entry_list);
     static GC::Ref<FormData> create(Vector<DOMURL::QueryParam> entry_list);
 
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(GC::Ptr<HTML::HTMLFormElement> form = {}, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(GC::ConservativeVector<FormDataEntry> entry_list);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> create_from_form(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
 
     WebIDL::ExceptionOr<void> append(String const& name, String const& value);
     WebIDL::ExceptionOr<void> append(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
@@ -41,8 +42,8 @@ public:
 
     GC::ConservativeVector<FormDataEntry> entry_list() const;
 
-    using ForEachCallback = Function<JS::ThrowCompletionOr<void>(String const&, FormDataEntryValue const&)>;
-    JS::ThrowCompletionOr<void> for_each(ForEachCallback);
+    using ForEachCallback = Function<IterationDecision(String const&, FormDataEntryValue const&)>;
+    void for_each(ForEachCallback);
 
 private:
     friend class FormDataIterator;

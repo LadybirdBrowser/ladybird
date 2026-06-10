@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WebGLQuery.h>
 #include <LibWeb/WebGL/WebGLQuery.h>
 
 namespace Web::WebGL {

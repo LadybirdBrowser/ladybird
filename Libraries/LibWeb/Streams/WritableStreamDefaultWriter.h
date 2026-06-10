@@ -21,7 +21,7 @@ class WritableStreamDefaultWriter final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(WritableStreamDefaultWriter);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ref<WritableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> create(JS::Realm&, GC::Ref<WritableStream>);
 
     virtual ~WritableStreamDefaultWriter() override = default;
 

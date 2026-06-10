@@ -36,7 +36,6 @@ class SpeechRecognition final : public DOM::EventTarget {
 
 public:
     static GC::Ref<SpeechRecognition> create();
-    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognition>> construct_impl();
     virtual ~SpeechRecognition() override;
 
     // https://wicg.github.io/speech-api/#dom-speechrecognition-grammars

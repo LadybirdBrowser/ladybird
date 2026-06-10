@@ -11,6 +11,8 @@
 
 namespace Web::WebAudio {
 
+using ChannelMergerOptions = Bindings::ChannelMergerOptions;
+
 // https://webaudio.github.io/web-audio-api/#ChannelMergerNode
 class ChannelMergerNode final : public AudioNode {
     WEB_WRAPPABLE(ChannelMergerNode, AudioNode);
@@ -19,19 +21,19 @@ class ChannelMergerNode final : public AudioNode {
 public:
     virtual ~ChannelMergerNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create(GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const& = {});
-    static WebIDL::ExceptionOr<void> validate_options(Bindings::ChannelMergerOptions const&);
-    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create(GC::Ref<BaseAudioContext>, ChannelMergerOptions const& = {});
+    static WebIDL::ExceptionOr<void> validate_options(ChannelMergerOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create_for_constructor(GC::Ref<BaseAudioContext>, ChannelMergerOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return m_number_of_inputs; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
     // ^AudioNode
     virtual WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
-    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
+    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(ChannelCountMode) override;
 
 private:
-    ChannelMergerNode(GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const&);
+    ChannelMergerNode(GC::Ref<BaseAudioContext>, ChannelMergerOptions const&);
 
     WebIDL::UnsignedLong m_number_of_inputs;
 };

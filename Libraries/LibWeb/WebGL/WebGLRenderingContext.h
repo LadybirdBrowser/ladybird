@@ -21,7 +21,7 @@ class WebGLRenderingContext final : public WebGLRenderingContextOverloads {
     GC_DECLARE_ALLOCATOR(WebGLRenderingContext);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> create(HTML::HTMLCanvasElement& canvas_element, JS::Value options);
+    static GC::Ptr<WebGLRenderingContext> create(HTML::HTMLCanvasElement& canvas_element, WebGLContextAttributes);
 
     virtual ~WebGLRenderingContext() override;
 

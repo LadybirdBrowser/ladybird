@@ -20,31 +20,31 @@ public:
 
     virtual ~CSSPageDescriptors() override;
 
-    WebIDL::ExceptionOr<void> set_margin(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_margin(StringView value);
     String margin() const;
 
-    WebIDL::ExceptionOr<void> set_margin_top(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_margin_top(StringView value);
     String margin_top() const;
 
-    WebIDL::ExceptionOr<void> set_margin_right(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_margin_right(StringView value);
     String margin_right() const;
 
-    WebIDL::ExceptionOr<void> set_margin_bottom(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_margin_bottom(StringView value);
     String margin_bottom() const;
 
-    WebIDL::ExceptionOr<void> set_margin_left(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_margin_left(StringView value);
     String margin_left() const;
 
-    WebIDL::ExceptionOr<void> set_size(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_size(StringView value);
     String size() const;
 
-    WebIDL::ExceptionOr<void> set_page_orientation(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_page_orientation(StringView value);
     String page_orientation() const;
 
-    WebIDL::ExceptionOr<void> set_marks(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_marks(StringView value);
     String marks() const;
 
-    WebIDL::ExceptionOr<void> set_bleed(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_bleed(StringView value);
     String bleed() const;
 
 private:

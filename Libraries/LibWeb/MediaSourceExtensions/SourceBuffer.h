@@ -8,11 +8,14 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/Types.h>
 #include <LibWeb/Bindings/SourceBuffer.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::MediaSourceExtensions {
+
+using AppendMode = Bindings::AppendMode;
 
 class SourceBufferProcessor;
 struct InitializationSegmentData;
@@ -41,8 +44,8 @@ public:
     GC::Ptr<WebIDL::CallbackType> onabort();
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
-    Bindings::AppendMode mode() const;
-    WebIDL::ExceptionOr<void> set_mode(JS::Realm&, Bindings::AppendMode);
+    AppendMode mode() const;
+    WebIDL::ExceptionOr<void> set_mode(AppendMode);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
     bool updating() const;
@@ -53,13 +56,13 @@ public:
     void set_content_type(String const& type);
 
     // https://w3c.github.io/media-source/#addsourcebuffer-method
-    WebIDL::ExceptionOr<void> append_buffer(JS::Realm&, WebIDL::BufferSourceVariant const&);
+    WebIDL::ExceptionOr<void> append_buffer(WebIDL::BufferSourceVariant const&);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-abort
-    WebIDL::ExceptionOr<void> abort(JS::Realm&);
+    WebIDL::ExceptionOr<void> abort();
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-changetype
-    WebIDL::ExceptionOr<void> change_type(JS::Realm&, String const& type);
+    WebIDL::ExceptionOr<void> change_type(String const& type);
 
     void set_reached_end_of_stream(Badge<MediaSource>);
     void clear_reached_end_of_stream(Badge<MediaSource>);
@@ -71,7 +74,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    WebIDL::ExceptionOr<void> prepare_append(JS::Realm&, size_t new_data_size, AK::Duration current_time);
+    WebIDL::ExceptionOr<void> prepare_append(size_t new_data_size, AK::Duration current_time);
     void run_buffer_append_algorithm();
     void run_append_error_algorithm();
     void on_first_initialization_segment_processed(InitializationSegmentData const&);

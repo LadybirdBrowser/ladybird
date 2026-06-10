@@ -6,9 +6,18 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
+namespace Web::Bindings {
+
+struct QuotaExceededErrorOptions;
+
+}
+
 namespace Web::WebIDL {
+
+using QuotaExceededErrorOptions = Bindings::QuotaExceededErrorOptions;
 
 // https://webidl.spec.whatwg.org/#quotaexceedederror
 class WEB_API QuotaExceededError final : public DOMException {
@@ -18,10 +27,8 @@ class WEB_API QuotaExceededError final : public DOMException {
 public:
     static GC::Ref<QuotaExceededError> create(Utf16String const& message);
     static GC::Ref<QuotaExceededError> create();
-    static GC::Ref<QuotaExceededError> create(JS::Realm&, Utf16String const& message);
-    static GC::Ref<QuotaExceededError> create(JS::Realm&);
 
-    static ExceptionOr<GC::Ref<QuotaExceededError>> construct_impl(JS::Realm&, Utf16String const& message, Bindings::QuotaExceededErrorOptions const&);
+    static ExceptionOr<GC::Ref<QuotaExceededError>> create(JS::VM&, Utf16String const& message, QuotaExceededErrorOptions const&);
 
     virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;

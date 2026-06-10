@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/WorkerLocation.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 

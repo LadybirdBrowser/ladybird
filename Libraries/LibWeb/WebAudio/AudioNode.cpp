@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 
@@ -30,7 +28,7 @@ JS::Object& AudioNode::relevant_global_object() const
     return m_context->relevant_global_object();
 }
 
-WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(Bindings::AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options)
+WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options)
 {
     // Set channel count, fallback to default if not provided
     if (given_options.channel_count.has_value()) {
@@ -71,19 +69,19 @@ WebIDL::ExceptionOr<GC::Ref<AudioNode>> AudioNode::connect(GC::Ref<AudioNode> de
 
     // If the destination parameter is an AudioNode that has been created using another AudioContext, an InvalidAccessError MUST be thrown.
     if (m_context != destination_node->m_context) {
-        return WebIDL::InvalidAccessError::create(HTML::relevant_realm(relevant_global_object()), "Cannot connect to an AudioNode in a different AudioContext"_utf16);
+        return WebIDL::InvalidAccessError::create("Cannot connect to an AudioNode in a different AudioContext"_utf16);
     }
 
     // The output parameter is an index describing which output of the AudioNode from which to connect.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (output >= number_of_outputs()) {
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("Output index {} exceeds number of outputs", output));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("Output index {} exceeds number of outputs", output));
     }
 
     // The input parameter is an index describing which input of the destination AudioNode to connect to.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (input >= destination_node->number_of_inputs()) {
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("Input index '{}' exceeds number of inputs", input));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("Input index '{}' exceeds number of inputs", input));
     }
     // Connect node's output to destination_node input.
     m_output_connections.append(output_connection);
@@ -108,13 +106,13 @@ WebIDL::ExceptionOr<void> AudioNode::connect(GC::Ref<AudioParam> destination_par
     // If destinationParam belongs to an AudioNode that belongs to a BaseAudioContext that is different from the BaseAudioContext
     // that has created the AudioNode on which this method was called, an InvalidAccessError MUST be thrown.
     if (m_context != destination_param->context()) {
-        return WebIDL::InvalidAccessError::create(HTML::relevant_realm(relevant_global_object()), "Cannot connect to an AudioParam in a different AudioContext"_utf16);
+        return WebIDL::InvalidAccessError::create("Cannot connect to an AudioParam in a different AudioContext"_utf16);
     }
 
     // The output parameter is an index describing which output of the AudioNode from which to connect.
     // If the parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (output >= number_of_outputs()) {
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("Output index {} exceeds number of outputs", output));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("Output index {} exceeds number of outputs", output));
     }
 
     // Connect node's output to destination_param.
@@ -145,7 +143,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(WebIDL::UnsignedLong output)
     // It disconnects all outgoing connections from the given output.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (output >= number_of_outputs()) {
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("Output index {} exceeds number of outputs", output));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("Output index {} exceeds number of outputs", output));
     }
 
     m_output_connections.remove_all_matching([&](AudioNodeConnection& connection) {
@@ -184,7 +182,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     });
     // If there is no connection to the destinationNode, an InvalidAccessError exception MUST be thrown.
     if (m_output_connections.size() == before) {
-        return WebIDL::InvalidAccessError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("No connection to given AudioNode"));
+        return WebIDL::InvalidAccessError::create(Utf16String::formatted("No connection to given AudioNode"));
     }
 
     return {};
@@ -196,7 +194,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     // The output parameter is an index describing which output of the AudioNode from which to disconnect.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (output >= number_of_outputs()) {
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("Output index {} exceeds number of outputs", output));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("Output index {} exceeds number of outputs", output));
     }
 
     // The destinationNode parameter is the AudioNode to disconnect.
@@ -214,7 +212,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
 
     //  If there is no connection to the destinationNode from the given output, an InvalidAccessError exception MUST be thrown.
     if (m_output_connections.size() == before) {
-        return WebIDL::InvalidAccessError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("No connection from output {} to given AudioNode", output));
+        return WebIDL::InvalidAccessError::create(Utf16String::formatted("No connection from output {} to given AudioNode", output));
     }
 
     return {};
@@ -226,13 +224,13 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     // The output parameter is an index describing which output of the AudioNode from which to disconnect.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (output >= number_of_outputs()) {
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("Output index {} exceeds number of outputs", output));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("Output index {} exceeds number of outputs", output));
     }
 
     // The input parameter is an index describing which input of the destination AudioNode to disconnect.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (input >= destination_node->number_of_inputs()) {
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("Input index '{}' exceeds number of inputs", input));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("Input index '{}' exceeds number of inputs", input));
     }
 
     // The destinationNode parameter is the AudioNode to disconnect.
@@ -250,7 +248,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
 
     // If there is no connection to the destinationNode from the given output to the given input, an InvalidAccessError exception MUST be thrown.
     if (m_output_connections.size() == before) {
-        return WebIDL::InvalidAccessError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("No connection from output {} to input {} of given AudioNode", output, input));
+        return WebIDL::InvalidAccessError::create(Utf16String::formatted("No connection from output {} to input {} of given AudioNode", output, input));
     }
 
     return {};
@@ -267,7 +265,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_
 
     // If there is no connection to the destinationParam, an InvalidAccessError exception MUST be thrown.
     if (m_param_connections.size() == before) {
-        return WebIDL::InvalidAccessError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("No connection to given AudioParam"));
+        return WebIDL::InvalidAccessError::create(Utf16String::formatted("No connection to given AudioParam"));
     }
 
     return {};
@@ -279,7 +277,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_
     // The output parameter is an index describing which output of the AudioNode from which to disconnect.
     // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
     if (output >= number_of_outputs()) {
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("Output index {} exceeds number of outputs", output));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("Output index {} exceeds number of outputs", output));
     }
     // The destinationParam parameter is the AudioParam to disconnect.
     auto before = m_param_connections.size();
@@ -289,7 +287,7 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_
 
     // If there is no connection to the destinationParam, an InvalidAccessError exception MUST be thrown.
     if (m_param_connections.size() == before) {
-        return WebIDL::InvalidAccessError::create(HTML::relevant_realm(relevant_global_object()), Utf16String::formatted("No connection from output {} to given AudioParam", output));
+        return WebIDL::InvalidAccessError::create(Utf16String::formatted("No connection from output {} to given AudioParam", output));
     }
 
     return {};
@@ -301,34 +299,34 @@ WebIDL::ExceptionOr<void> AudioNode::set_channel_count(WebIDL::UnsignedLong chan
     // If this value is set to zero or to a value greater than the implementation’s maximum number
     // of channels the implementation MUST throw a NotSupportedError exception.
     if (channel_count == 0 || channel_count > BaseAudioContext::MAX_NUMBER_OF_CHANNELS)
-        return WebIDL::NotSupportedError::create(HTML::relevant_realm(relevant_global_object()), "Invalid channel count"_utf16);
+        return WebIDL::NotSupportedError::create("Invalid channel count"_utf16);
 
     m_channel_count = channel_count;
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcountmode
-WebIDL::ExceptionOr<void> AudioNode::set_channel_count_mode(Bindings::ChannelCountMode channel_count_mode)
+WebIDL::ExceptionOr<void> AudioNode::set_channel_count_mode(ChannelCountMode channel_count_mode)
 {
     m_channel_count_mode = channel_count_mode;
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcountmode
-Bindings::ChannelCountMode AudioNode::channel_count_mode()
+ChannelCountMode AudioNode::channel_count_mode()
 {
     return m_channel_count_mode;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelinterpretation
-WebIDL::ExceptionOr<void> AudioNode::set_channel_interpretation(Bindings::ChannelInterpretation channel_interpretation)
+WebIDL::ExceptionOr<void> AudioNode::set_channel_interpretation(ChannelInterpretation channel_interpretation)
 {
     m_channel_interpretation = channel_interpretation;
     return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelinterpretation
-Bindings::ChannelInterpretation AudioNode::channel_interpretation()
+ChannelInterpretation AudioNode::channel_interpretation()
 {
     return m_channel_interpretation;
 }

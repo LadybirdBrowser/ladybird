@@ -20,8 +20,7 @@ GC::Ref<MutationRecord> MutationRecord::create(FlyString const& type, Node const
 }
 
 MutationRecord::MutationRecord(FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<String> const& old_value)
-    : Bindings::Wrappable()
-    , m_type(type)
+    : m_type(type)
     , m_target(GC::make_root(target))
     , m_added_nodes(added_nodes)
     , m_removed_nodes(removed_nodes)

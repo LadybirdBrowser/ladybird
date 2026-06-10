@@ -8,7 +8,6 @@
 
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/SpeechGrammar.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -20,7 +19,7 @@ class SpeechGrammar final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SpeechGrammar);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SpeechGrammar>> construct_impl();
+    static GC::Ref<SpeechGrammar> create();
     virtual ~SpeechGrammar() override;
 
     // https://wicg.github.io/speech-api/#dom-speechgrammar-src

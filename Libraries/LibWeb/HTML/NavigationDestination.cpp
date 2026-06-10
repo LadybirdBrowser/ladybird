@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/NavigationDestination.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -79,7 +78,7 @@ bool NavigationDestination::same_document() const
 WebIDL::ExceptionOr<JS::Value> NavigationDestination::get_state(JS::Realm& realm)
 {
     // The getState() method steps are to return StructuredDeserialize(this's state).
-    return structured_deserialize(realm.vm(), m_state, realm);
+    return HTML::structured_deserialize(realm.vm(), m_state, realm);
 }
 
 }

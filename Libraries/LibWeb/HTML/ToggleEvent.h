@@ -17,15 +17,14 @@
 
 namespace Web::HTML {
 
-class Window;
+using ToggleEventInit = Bindings::ToggleEventInit;
 
 class ToggleEvent : public DOM::Event {
     WEB_WRAPPABLE(ToggleEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(ToggleEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ToggleEvent> create(FlyString const& event_name, Bindings::ToggleEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
-    static WebIDL::ExceptionOr<GC::Ref<ToggleEvent>> construct_impl(Window&, FlyString const& event_name, Bindings::ToggleEventInit const&);
+    [[nodiscard]] static GC::Ref<ToggleEvent> create(FlyString const& event_name, ToggleEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-toggleevent-oldstate
     String const& old_state() const { return m_old_state; }
@@ -43,7 +42,7 @@ public:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    ToggleEvent(FlyString const& event_name, Bindings::ToggleEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    ToggleEvent(FlyString const& event_name, ToggleEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     String m_old_state;
     String m_new_state;

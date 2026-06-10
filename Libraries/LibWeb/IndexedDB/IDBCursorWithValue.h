@@ -18,11 +18,11 @@ class IDBCursorWithValue : public IDBCursor {
 public:
     virtual ~IDBCursorWithValue() override;
 
-    // https://w3c.github.io/IndexedDB/#dom-idbcursorwithvalue-value
-    [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
+    [[nodiscard]] Optional<JS::Value> const& current_value() const { return m_value; }
+    [[nodiscard]] JS::Value value() const { return m_value.value_or(JS::js_undefined()); }
 
 private:
-    explicit IDBCursorWithValue(CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
+    explicit IDBCursorWithValue(CursorSourceHandle, GC::Ptr<Key>, CursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
 };
 
 }

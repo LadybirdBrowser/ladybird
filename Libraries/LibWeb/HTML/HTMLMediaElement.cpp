@@ -16,7 +16,6 @@
 #include <LibMedia/VideoFrame.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLMediaElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -473,14 +472,13 @@ double HTMLMediaElement::duration() const
     return m_duration;
 }
 
-// https://html.spec.whatwg.org/multipage/media.html#dom-media-getstartdate
-JS::Object* HTMLMediaElement::get_start_date()
+JS::Object* HTMLMediaElement::get_start_date(JS::Realm& realm) const
 {
     // The getStartDate() method must return a new Date object representing the current timeline offset.
-    auto date_value = m_timeline_offset.has_value()
+    auto start_date_value = m_timeline_offset.has_value()
         ? static_cast<double>(m_timeline_offset->milliseconds_since_epoch())
         : NAN;
-    return JS::Date::create(HTML::relevant_realm(*this), date_value).ptr();
+    return JS::Date::create(realm, start_date_value).ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-ended
@@ -517,7 +515,7 @@ void HTMLMediaElement::set_duration(double duration)
     set_needs_repaint();
 }
 
-GC::Ref<WebIDL::Promise> HTMLMediaElement::play()
+void HTMLMediaElement::play(GC::Ref<WebIDL::Promise> promise)
 {
     auto& realm = HTML::relevant_realm(*this);
 
@@ -526,19 +524,21 @@ GC::Ref<WebIDL::Promise> HTMLMediaElement::play()
     // 2. If the media element's error attribute is not null and its code is MEDIA_ERR_SRC_NOT_SUPPORTED, then return a promise
     //    rejected with a "NotSupportedError" DOMException.
     if (m_error && m_error->code() == MediaError::Code::SrcNotSupported) {
-        auto exception = WebIDL::NotSupportedError::create(realm, Utf16String::from_utf8(m_error->message()));
-        return WebIDL::create_rejected_promise_from_exception(realm, exception);
+        auto exception = WebIDL::NotSupportedError::create(Utf16String::from_utf8(m_error->message()));
+        WebIDL::reject_promise(realm, promise, exception);
+        return;
     }
 
     // 3. Let promise be a new promise and append promise to the list of pending play promises.
-    auto promise = WebIDL::create_promise(realm);
     m_pending_play_promises.append(promise);
 
     // 4. Run the internal play steps for the media element.
     play_element();
+}
 
-    // 5. Return promise.
-    return promise;
+void HTMLMediaElement::play_from_user_interaction()
+{
+    play_element();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-pause
@@ -563,7 +563,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_volume(double volume)
     // set to the new value. If the new value is outside the range 0.0 to 1.0 inclusive, then, on setting, an
     // "IndexSizeError" DOMException must be thrown instead.
     if (volume < 0.0 || volume > 1.0)
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*this), "Volume must be in the range 0.0 to 1.0, inclusive"_utf16);
+        return WebIDL::IndexSizeError::create("Volume must be in the range 0.0 to 1.0, inclusive"_utf16);
 
     m_volume = volume;
     volume_or_muted_attribute_changed();
@@ -587,9 +587,11 @@ void HTMLMediaElement::toggle_fullscreen()
     auto& document = this->document();
 
     if (document.fullscreen_element() == this)
-        document.exit_fullscreen();
-    else
-        request_fullscreen();
+        document.exit_fullscreen(document.relevant_settings_object().realm(), nullptr);
+    else {
+        auto& realm = document.relevant_settings_object().realm();
+        request_fullscreen(realm, nullptr);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#user-interface:dom-media-volume-3
@@ -641,7 +643,7 @@ void HTMLMediaElement::update_volume()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
-GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language)
+GC::Ref<TextTrack> HTMLMediaElement::add_text_track(TextTrackKind kind, String const& label, String const& language)
 {
     // 1. Create a new TextTrack object.
     auto text_track = TextTrack::create();
@@ -653,7 +655,7 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
     text_track->set_label(label);
     text_track->set_language(language);
     text_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
-    text_track->set_mode(Bindings::TextTrackMode::Hidden);
+    text_track->set_mode(TextTrackMode::Hidden);
     // FIXME: set text track list of cues to an empty list
 
     // FIXME: 3. Initially, the text track list of cues is not associated with any rules for updating the text track rendering.
@@ -665,7 +667,7 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
     //    textTracks attribute's TextTrackList object, using TrackEvent, with the track attribute initialized to the new
     //    text track's TextTrack object.
     queue_a_media_element_task([this, text_track] {
-        Bindings::TrackEventInit event_init {};
+        TrackEventInit event_init {};
         event_init.track = text_track;
 
         auto event = TrackEvent::create(HTML::EventNames::addtrack, move(event_init), event_time_stamp_for_element(*this));
@@ -1653,7 +1655,7 @@ void HTMLMediaElement::on_audio_track_added(Media::Track const& track)
         audio_track->set_enabled(true);
 
     // 7. Fire an event named addtrack at this AudioTrackList object, using TrackEvent, with the track attribute initialized to the new AudioTrack object.
-    Bindings::TrackEventInit event_init {};
+    TrackEventInit event_init {};
     event_init.track = audio_track;
 
     auto event = TrackEvent::create(EventNames::addtrack, move(event_init), event_time_stamp_for_element(*this));
@@ -1694,7 +1696,7 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
         video_track->set_selected(true);
 
     // 7. Fire an event named addtrack at this VideoTrackList object, using TrackEvent, with the track attribute initialized to the new VideoTrack object.
-    Bindings::TrackEventInit event_init {};
+    TrackEventInit event_init {};
     event_init.track = video_track;
 
     auto event = TrackEvent::create(HTML::EventNames::addtrack, move(event_init), event_time_stamp_for_element(*this));
@@ -2410,7 +2412,7 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
         Optional<double> other_nearest_point = {};
         double distance = INFINITY;
         for (size_t i = 0; i < time_ranges->length(); i++) {
-            for (double point : { MUST(time_ranges->start(HTML::relevant_realm(*this), i)), MUST(time_ranges->end(HTML::relevant_realm(*this), i)) }) {
+            for (double point : { MUST(time_ranges->start(i)), MUST(time_ranges->end(i)) }) {
                 auto point_distance = abs(playback_position - point);
                 if (point_distance < distance) {
                     nearest_point = point;
@@ -2592,7 +2594,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_playback_rate(double new_value)
 
     // 1. If the given value is not supported by the user agent, then throw a "NotSupportedError" DOMException.
     if (!isfinite(new_value) || new_value < 0.0 || new_value > 64.0)
-        return WebIDL::NotSupportedError::create(HTML::relevant_realm(*this), "Playback rate is outside of the supported range."_utf16);
+        return WebIDL::NotSupportedError::create("Playback rate is outside of the supported range."_utf16);
 
     // When the defaultPlaybackRate or playbackRate attributes change value (either by being set by script or by being changed directly by the user agent, e.g. in response to user
     // control), the user agent must queue a media element task given the media element to fire an event named ratechange at the media element.

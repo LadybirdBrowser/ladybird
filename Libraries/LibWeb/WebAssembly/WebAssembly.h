@@ -130,8 +130,6 @@ JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::Realm&);
 JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM&, JS::ArrayBuffer&, size_t);
 JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM&, JS::ArrayBuffer&, size_t);
 
-extern HashMap<GC::Ptr<JS::Object>, NonnullRefPtr<WebAssemblyCache>> s_caches;
-
 }
 
 #define WASM_ENUMERATE_NATIVE_ERRORS                                                                                          \

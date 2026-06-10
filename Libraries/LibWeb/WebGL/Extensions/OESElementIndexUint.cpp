@@ -13,14 +13,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESElementIndexUint);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESElementIndexUint::create(GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> OESElementIndexUint::create(GC::Ref<WebGLRenderingContextBase> context)
 {
     auto extension = GC::Heap::the().allocate<OESElementIndexUint>(context);
-    return GC::Ref<Bindings::Wrappable> { extension };
+    return GC::Ref<WebGLExtension> { extension };
 }
 
 OESElementIndexUint::OESElementIndexUint(GC::Ref<WebGLRenderingContextBase> context)
-    : Bindings::Wrappable()
+    : WebGLExtension()
     , m_context(context)
 {
 }

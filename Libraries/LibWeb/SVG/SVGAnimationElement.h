@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/SVGAnimationElement.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::SVG {

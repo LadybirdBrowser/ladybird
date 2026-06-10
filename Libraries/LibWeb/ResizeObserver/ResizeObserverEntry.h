@@ -6,12 +6,10 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/ResizeObserver.h>
-#include <LibWeb/Bindings/ResizeObserverEntry.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/ResizeObserver/ResizeObserverSize.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::ResizeObserver {
 

@@ -6,7 +6,6 @@
 
 #include "CSSTranslate.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSTranslate.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -24,7 +23,7 @@ GC::Ref<CSSTranslate> CSSTranslate::create(Is2D is_2d, GC::Ref<CSSNumericValue> 
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstranslate-csstranslate
-WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> CSSTranslate::construct_impl(GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z)
+WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> CSSTranslate::create_for_constructor(GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z)
 {
     // The CSSTranslate(x, y, z) constructor must, when invoked, perform the following steps:
 
@@ -122,7 +121,7 @@ WebIDL::ExceptionOr<Utf16String> CSSTranslate::to_string() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix
-WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTranslate::to_matrix(JS::Realm& realm) const
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTranslate::to_matrix() const
 {
     // 1. Let matrix be a new DOMMatrix object, initialized to this’s equivalent 4x4 transform matrix, as defined in
     //    CSS Transforms 1 § 12. Mathematical Description of Transform Functions, and with its is2D internal slot set
@@ -135,10 +134,10 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTranslate::to_matrix(JS::Re
     auto matrix = Geometry::DOMMatrix::create();
 
     // NB: to() throws a TypeError if the conversion can't be done.
-    matrix->set_m41(TRY(m_x->to(realm, "px"_fly_string))->value());
-    matrix->set_m42(TRY(m_y->to(realm, "px"_fly_string))->value());
+    matrix->set_m41(TRY(m_x->to("px"_fly_string))->value());
+    matrix->set_m42(TRY(m_y->to("px"_fly_string))->value());
     if (!is_2d())
-        matrix->set_m43(TRY(m_z->to(realm, "px"_fly_string))->value());
+        matrix->set_m43(TRY(m_z->to("px"_fly_string))->value());
 
     // 2. Return matrix.
     return matrix;

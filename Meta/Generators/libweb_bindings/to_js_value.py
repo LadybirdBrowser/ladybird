@@ -239,12 +239,45 @@ def object_to_javascript_value(value: str) -> str:
 
 
 # 3.2.15. Interface types, https://webidl.spec.whatwg.org/#js-interface
-def interface_to_javascript_value(value: str, includes: GeneratedIncludes, interface_like_type) -> str:
+def interface_to_javascript_value(
+    value: str,
+    includes: GeneratedIncludes,
+    interface_like_type,
+    realm: str,
+    wrapper_world: str = "",
+) -> str:
     includes.add(interface_like_type.implementation_header)
-    # FIXME: Do we need this const cast?
+    if interface_like_type.name == "WindowProxy":
+        # WindowProxy is already a PlatformObject, but is not a Wrappable.
+        return f"""[&]() -> JS::Value {{
+        auto* object_ptr = [&]<typename Value>(Value&& idl_value) -> {interface_like_type.fully_qualified_name}* {{
+            if constexpr (requires {{ idl_value.ptr(); }})
+                return const_cast<{interface_like_type.fully_qualified_name}*>(idl_value.ptr());
+            else
+                return const_cast<{interface_like_type.fully_qualified_name}*>(idl_value);
+        }}({value});
+        auto object = GC::Ptr {{ object_ptr }};
+        if (!object)
+            return JS::js_null();
+        return object.ptr();
+    }}()"""
+    includes.add("LibWeb/Bindings/Wrappable.h")
+    includes.add("LibWeb/Bindings/WrapperWorld.h")
     # The result of converting an IDL interface type value to a JavaScript value is the Object value that represents a
     # reference to the same object that the IDL interface type value represents.
-    return f"JS::Value({value})"
+    wrapper_world_argument = wrapper_world or f"host_defined_wrapper_world({realm})"
+    return f"""[&]() -> JS::Value {{
+        auto* object_ptr = [&]<typename Value>(Value&& idl_value) -> {interface_like_type.fully_qualified_name}* {{
+            if constexpr (requires {{ idl_value.ptr(); }})
+                return const_cast<{interface_like_type.fully_qualified_name}*>(idl_value.ptr());
+            else
+                return const_cast<{interface_like_type.fully_qualified_name}*>(idl_value);
+        }}({value});
+        auto object = GC::Ptr {{ object_ptr }};
+        if (!object)
+            return JS::js_null();
+        return wrap({wrapper_world_argument}, {realm}, object).ptr();
+    }}()"""
 
 
 # 3.2.16. Callback interface types, https://webidl.spec.whatwg.org/#js-callback-interface
@@ -260,6 +293,7 @@ def dictionary_member_to_javascript_conversion(
     dictionary_value: str,
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm: str = "realm",
 ) -> tuple[str, str]:
     member_value = f"{dictionary_value}.{cpp_name(member)}"
     member_type = member.type
@@ -275,7 +309,7 @@ def dictionary_member_to_javascript_conversion(
             if member.type.nullable and not isinstance(member.type, IDLUnionType) and not cpp_type.is_optional_presence:
                 member_type = member.type.without_nullable()
 
-    return member_exists, to_javascript_value(member_type, member_value, includes, context)
+    return member_exists, to_javascript_value(member_type, member_value, includes, context, realm)
 
 
 # 3.2.17. Dictionary types, https://webidl.spec.whatwg.org/#js-dictionary
@@ -284,15 +318,16 @@ def dictionary_to_javascript_value(
     value: str,
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm: str = "realm",
 ) -> str:
     dictionary = context.dictionary(idl_type)
     if dictionary is None:
         raise RuntimeError(f"Unknown dictionary '{idl_type.name}'")
     add_binding_include_for_type(idl_type, includes, context)
     includes.add("LibJS/Runtime/Object.h")
-    generated_conversion = """[&]() -> JS::Value {
+    generated_conversion = f"""[&]() -> JS::Value {{
         // 1. Let O be OrdinaryObjectCreate(%Object.prototype%).
-        auto dictionary_object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+        auto dictionary_object = JS::Object::create({realm}, {realm}.intrinsics().object_prototype());
 """
 
     # 2. Let dictionaries be a list consisting of D and all of D's inherited dictionaries, in order from least to most derived.
@@ -301,7 +336,7 @@ def dictionary_to_javascript_value(
         # 1. For each dictionary member member declared on dictionary, in lexicographical order:
         for member in dictionary_in_stack.members:
             member_exists, converted_member_value = dictionary_member_to_javascript_conversion(
-                member, value, includes, context
+                member, value, includes, context, realm
             )
 
             generated_conversion += """
@@ -355,6 +390,8 @@ def nullable_to_javascript_value(
     value: str,
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm: str = "realm",
+    wrapper_world: str = "",
 ) -> str:
     inner_type = idl_type.clone_with_nullable(False)
     value_is_nullable_pointer = bool(cpp_type_for_idl_type_details(idl_type, context).gc_ref_target_type)
@@ -366,7 +403,7 @@ def nullable_to_javascript_value(
             return JS::js_null();
 
         // 2. Otherwise, the JavaScript value is the result of converting the IDL nullable type value to the inner IDL type T.
-        return JS::Value({to_javascript_value(inner_type, inner_value, includes, context)});
+        return JS::Value({to_javascript_value(inner_type, inner_value, includes, context, realm, wrapper_world)});
     }}()"""
 
 
@@ -376,6 +413,8 @@ def sequence_to_javascript_value(
     value: str,
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm: str = "realm",
+    wrapper_world: str = "",
     freeze: bool = False,
 ) -> str:
     includes.add("LibJS/Runtime/Array.h")
@@ -385,7 +424,7 @@ def sequence_to_javascript_value(
     index_name = "sequence_index"
     element_name = "sequence_element"
     js_element_name = "js_sequence_element"
-    converted_element = to_javascript_value(element_type, element_name, includes, context)
+    converted_element = to_javascript_value(element_type, element_name, includes, context, realm, wrapper_world)
 
     freeze_array = ""
     if freeze:
@@ -399,7 +438,7 @@ def sequence_to_javascript_value(
         auto {length_name} = {value}.size();
 
         // 2. Let A be a new Array object created as if by the expression [].
-        auto {array_name} = MUST(JS::Array::create(realm, {length_name}));
+        auto {array_name} = MUST(JS::Array::create({realm}, {length_name}));
 
         // 3. Initialize i to be 0.
         // 4. While i < n:
@@ -428,6 +467,8 @@ def record_to_javascript_value(
     value: str,
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm: str = "realm",
+    wrapper_world: str = "",
 ) -> str:
     if len(record_type.parameters) != 2:
         raise RuntimeError("Record type must have two parameters")
@@ -441,11 +482,11 @@ def record_to_javascript_value(
     object_name = "record_object"
     key_name = "record_key"
     value_name = "record_value"
-    converted_value = to_javascript_value(value_type, value_name, includes, context)
+    converted_value = to_javascript_value(value_type, value_name, includes, context, realm, wrapper_world)
 
     return f"""[&]() -> JS::Value {{
         // 1. Let result be OrdinaryObjectCreate(%Object.prototype%).
-        auto {object_name} = JS::Object::create(realm, realm.intrinsics().object_prototype());
+        auto {object_name} = JS::Object::create({realm}, {realm}.intrinsics().object_prototype());
 
         // 2. For each key → value of D:
         for (auto const& [{key_name}, {value_name}] : {value}) {{
@@ -477,6 +518,8 @@ def union_to_javascript_value(
     value: str,
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm: str = "realm",
+    wrapper_world: str = "",
 ) -> str:
     includes.add("AK/Variant.h")
     # An IDL union type value is converted to a JavaScript value according to the rules for converting the specific type of the
@@ -488,7 +531,7 @@ def union_to_javascript_value(
         inner_type = member_type.clone_with_nullable(False)
         visited_value = f"visited_union_value{index}"
         visited_cpp_type = cpp_type_for_idl_type(inner_type, context)
-        converted_value = to_javascript_value(inner_type, visited_value, includes, context)
+        converted_value = to_javascript_value(inner_type, visited_value, includes, context, realm, wrapper_world)
         conversions.append(
             f"""        [&]({visited_cpp_type} const& {visited_value}) -> JS::Value
         {{
@@ -531,10 +574,12 @@ def frozen_array_to_javascript_value(
     value: str,
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm: str = "realm",
+    wrapper_world: str = "",
 ) -> str:
     # The result of converting an IDL FrozenArray<T> value to a JavaScript value is the Object value that represents a
     # reference to the same object that the IDL FrozenArray<T> represents.
-    return sequence_to_javascript_value(frozen_array_type, value, includes, context, freeze=True)
+    return sequence_to_javascript_value(frozen_array_type, value, includes, context, realm, wrapper_world, freeze=True)
 
 
 def to_javascript_value(
@@ -542,15 +587,17 @@ def to_javascript_value(
     value: str,
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm: str = "realm",
+    wrapper_world: str = "",
 ) -> str:
     includes.add("LibJS/Runtime/Value.h")
     type_name = idl_type.name
 
     if isinstance(idl_type, IDLUnionType):
-        return union_to_javascript_value(idl_type, value, includes, context)
+        return union_to_javascript_value(idl_type, value, includes, context, realm, wrapper_world)
 
     if idl_type.nullable:
-        return nullable_to_javascript_value(idl_type, value, includes, context)
+        return nullable_to_javascript_value(idl_type, value, includes, context, realm, wrapper_world)
 
     if type_name == "undefined":
         return undefined_to_javascript_value()
@@ -598,14 +645,14 @@ def to_javascript_value(
         return enumeration_to_javascript_value(idl_type, value, includes, context)
 
     if context.dictionary(idl_type) is not None:
-        return dictionary_to_javascript_value(idl_type, value, includes, context)
+        return dictionary_to_javascript_value(idl_type, value, includes, context, realm)
 
     if type_name == "Promise":
         return promise_to_javascript_value(value, includes)
 
     interface_like_type = interface_like_type_for_idl_type(idl_type, context)
     if interface_like_type is not None:
-        return interface_to_javascript_value(value, includes, interface_like_type)
+        return interface_to_javascript_value(value, includes, interface_like_type, realm, wrapper_world)
 
     interface = context.interface(idl_type)
     if interface is not None and interface.is_callback_interface:
@@ -615,12 +662,12 @@ def to_javascript_value(
         return callback_function_to_javascript_value(value, includes)
 
     if isinstance(idl_type, IDLParameterizedType) and type_name == "sequence":
-        return sequence_to_javascript_value(idl_type, value, includes, context)
+        return sequence_to_javascript_value(idl_type, value, includes, context, realm, wrapper_world)
 
     if isinstance(idl_type, IDLParameterizedType) and type_name == "record":
-        return record_to_javascript_value(idl_type, value, includes, context)
+        return record_to_javascript_value(idl_type, value, includes, context, realm, wrapper_world)
 
     if isinstance(idl_type, IDLParameterizedType) and type_name == "FrozenArray":
-        return frozen_array_to_javascript_value(idl_type, value, includes, context)
+        return frozen_array_to_javascript_value(idl_type, value, includes, context, realm, wrapper_world)
 
     return unsupported_to_javascript_value(idl_type)

@@ -11,6 +11,7 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
+#include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -460,7 +461,7 @@ public:
         GC::Ref<TraversableNavigable> traversable, int step, int target_step,
         GC::Ptr<SourceSnapshotParams> source_snapshot_params,
         UserNavigationInvolvement user_involvement,
-        Optional<Bindings::NavigationType> navigation_type,
+        Optional<NavigationType> navigation_type,
         TraversableNavigable::SynchronousNavigation synchronous_navigation,
         Navigable::NavigationAPIAbortBehavior navigation_api_abort_behavior,
         GC::Ptr<DOM::Document> pending_document,
@@ -577,7 +578,7 @@ private:
     int m_target_step;
     GC::Ptr<SourceSnapshotParams> m_source_snapshot_params;
     UserNavigationInvolvement m_user_involvement;
-    Optional<Bindings::NavigationType> m_navigation_type;
+    Optional<NavigationType> m_navigation_type;
     TraversableNavigable::SynchronousNavigation m_synchronous_navigation;
     Navigable::NavigationAPIAbortBehavior m_navigation_api_abort_behavior;
     GC::Ptr<DOM::Document> m_pending_document;
@@ -707,20 +708,20 @@ void ApplyHistoryStepState::start()
             // 5. Switch on navigationType:
             if (m_navigation_type.has_value()) {
                 switch (m_navigation_type.value()) {
-                case Bindings::NavigationType::Reload:
+                case NavigationType::Reload:
                     // - "reload": Assert: targetEntry's document state's reload pending is true.
                     VERIFY(target_entry->document_state()->reload_pending());
                     break;
-                case Bindings::NavigationType::Traverse:
+                case NavigationType::Traverse:
                     // - "traverse": Assert: targetEntry's document state's ever populated is true.
                     VERIFY(target_entry->document_state()->ever_populated());
                     break;
-                case Bindings::NavigationType::Replace:
+                case NavigationType::Replace:
                     // FIXME: Add ever populated check
                     // - "replace": Assert: targetEntry's step is displayedEntry's step and targetEntry's document state's ever populated is false.
                     VERIFY(target_entry->step() == displayed_entry->step());
                     break;
-                case Bindings::NavigationType::Push:
+                case NavigationType::Push:
                     // FIXME: Add ever populated check, and fix the bug where top level traversable's step is not updated when a child navigable navigates
                     // - "push": Assert: targetEntry's step is displayedEntry's step + 1 and targetEntry's document state's ever populated is false.
                     VERIFY(target_entry != displayed_entry);
@@ -984,7 +985,10 @@ void ApplyHistoryStepState::process_continuations()
             //    targetEntry's document, targetEntry, changingNavigableContinuation's update-only, scriptHistoryLength,
             //    scriptHistoryIndex, navigationType, entriesForNavigationAPI, and previousEntry.
             auto update_document = [script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), target_entry, update_only, navigation_type, previous_entry, resolved_document] {
-                resolved_document->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api, previous_entry, navigation_type.has_value());
+                Optional<NavigationType> document_navigation_type;
+                if (navigation_type.has_value())
+                    document_navigation_type = navigation_type.value();
+                resolved_document->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, document_navigation_type, entries_for_navigation_api, previous_entry, navigation_type.has_value());
             };
 
             // 4. If targetEntry's document is equal to displayedDocument, then perform updateDocument.
@@ -1110,7 +1114,7 @@ void TraversableNavigable::apply_the_history_step(
     GC::Ptr<SourceSnapshotParams> source_snapshot_params,
     GC::Ptr<Navigable> initiator_to_check,
     UserNavigationInvolvement user_involvement,
-    Optional<Bindings::NavigationType> navigation_type,
+    Optional<NavigationType> navigation_type,
     SynchronousNavigation synchronous_navigation,
     Navigable::NavigationAPIAbortBehavior navigation_api_abort_behavior,
     GC::Ptr<DOM::Document> pending_document,
@@ -1143,7 +1147,7 @@ void TraversableNavigable::apply_the_history_step(
 
     // NB: Same-document traversals finish their NavigateEvent during the Navigation API entry
     //     update, after currententrychange. Preserve that event while applying the history step.
-    if (navigation_type == Bindings::NavigationType::Traverse && navigables_crossing_documents.is_empty())
+    if (navigation_type == NavigationType::Traverse && navigables_crossing_documents.is_empty())
         navigation_api_abort_behavior = Navigable::NavigationAPIAbortBehavior::Preserve;
 
     // 5. If checkForCancelation is true, and the result of checking if unloading is canceled given navigablesCrossingDocuments, traversable, targetStep,
@@ -1173,7 +1177,7 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
     int target_step,
     GC::Ptr<SourceSnapshotParams> source_snapshot_params,
     UserNavigationInvolvement user_involvement,
-    Optional<Bindings::NavigationType> navigation_type,
+    Optional<NavigationType> navigation_type,
     SynchronousNavigation synchronous_navigation,
     Navigable::NavigationAPIAbortBehavior navigation_api_abort_behavior,
     GC::Ptr<DOM::Document> pending_document,
@@ -1610,21 +1614,21 @@ void TraversableNavigable::apply_the_reload_history_step(UserNavigationInvolveme
     auto step = current_session_history_step();
 
     // 2. Return the result of applying the history step step to traversable given true, null, null, null, and "reload".
-    apply_the_history_step(step, true, {}, {}, user_involvement, Bindings::NavigationType::Reload, SynchronousNavigation::No, Navigable::NavigationAPIAbortBehavior::Abort, nullptr, on_complete);
+    apply_the_history_step(step, true, {}, {}, user_involvement, NavigationType::Reload, SynchronousNavigation::No, Navigable::NavigationAPIAbortBehavior::Abort, nullptr, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-push/replace-history-step
 void TraversableNavigable::apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, SynchronousNavigation synchronous_navigation, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // 1. Return the result of applying the history step step to traversable given false, null, null, userInvolvement, and historyHandling.
-    auto navigation_type = history_handling == HistoryHandlingBehavior::Replace ? Bindings::NavigationType::Replace : Bindings::NavigationType::Push;
+    auto navigation_type = history_handling == HistoryHandlingBehavior::Replace ? NavigationType::Replace : NavigationType::Push;
     apply_the_history_step(step, false, {}, {}, user_involvement, navigation_type, synchronous_navigation, Navigable::NavigationAPIAbortBehavior::Abort, pending_document, on_complete);
 }
 
 void TraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<Navigable> initiator_to_check, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     // 1. Return the result of applying the history step step to traversable given true, sourceSnapshotParams, initiatorToCheck, userInvolvement, and "traverse".
-    apply_the_history_step(step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No, Navigable::NavigationAPIAbortBehavior::Abort, nullptr, on_complete);
+    apply_the_history_step(step, true, source_snapshot_params, initiator_to_check, user_involvement, NavigationType::Traverse, SynchronousNavigation::No, Navigable::NavigationAPIAbortBehavior::Abort, nullptr, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#resume-applying-the-traverse-history-step
@@ -1638,7 +1642,7 @@ void TraversableNavigable::resume_applying_the_traverse_history_step(int step, U
     //       same-document traversal. Hence, we can pass false and null for those arguments.
     // NB: The committed navigate event remains ongoing until the same-document entry update runs
     //     the navigate event intercept commit handler steps.
-    apply_the_history_step(step, false, {}, {}, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No, Navigable::NavigationAPIAbortBehavior::Preserve, nullptr, on_complete);
+    apply_the_history_step(step, false, {}, {}, user_involvement, NavigationType::Traverse, SynchronousNavigation::No, Navigable::NavigationAPIAbortBehavior::Preserve, nullptr, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable

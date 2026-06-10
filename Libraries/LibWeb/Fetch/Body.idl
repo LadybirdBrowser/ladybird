@@ -2,10 +2,10 @@
 interface mixin Body {
     readonly attribute ReadableStream? body;
     readonly attribute boolean bodyUsed;
-    [NeedsCallerRealm, NewObject] Promise<ArrayBuffer> arrayBuffer();
-    [NeedsCallerRealm, NewObject] Promise<Blob> blob();
-    [NeedsCallerRealm, NewObject] Promise<Uint8Array> bytes();
-    [NeedsCallerRealm, NewObject] Promise<FormData> formData();
-    [NeedsCallerRealm, NewObject] Promise<any> json();
-    [NeedsCallerRealm, NewObject] Promise<USVString> text();
+    [CreatesPromise, NeedsCallerRealm, NewObject] Promise<ArrayBuffer> arrayBuffer();
+    [CreatesPromise, NeedsCallerRealm, NewObject] Promise<Blob> blob();
+    [CreatesPromise, NeedsCallerRealm, NewObject] Promise<Uint8Array> bytes();
+    [CreatesPromise, NeedsCallerRealm, NewObject] Promise<FormData> formData();
+    [CreatesPromise, NeedsCallerRealm, NewObject] Promise<any> json();
+    [CreatesPromise, NeedsCallerRealm, NewObject] Promise<USVString> text();
 };

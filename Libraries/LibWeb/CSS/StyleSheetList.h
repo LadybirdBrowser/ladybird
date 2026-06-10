@@ -8,7 +8,9 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/StyleSheetList.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
+#include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/Export.h>
@@ -45,8 +47,6 @@ public:
     }
 
     size_t length() const { return m_sheets.size(); }
-
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     [[nodiscard]] DOM::Document& document();
     [[nodiscard]] DOM::Document const& document() const;

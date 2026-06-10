@@ -35,7 +35,7 @@ interface HTMLMediaElement : HTMLElement {
     [Reflect, CEReactions, Enumerated=Preload] attribute DOMString preload;
     readonly attribute TimeRanges buffered;
     undefined load();
-    CanPlayTypeResult canPlayType(DOMString type);
+    [ImplementedAs=can_play_type] CanPlayTypeResult canPlayType(DOMString type);
 
     // ready state
     const unsigned short HAVE_NOTHING = 0;
@@ -50,7 +50,7 @@ interface HTMLMediaElement : HTMLElement {
     attribute double currentTime;
     undefined fastSeek(double time);
     readonly attribute unrestricted double duration;
-    object getStartDate();
+    [NeedsCallerRealm] object getStartDate();
     readonly attribute boolean paused;
     attribute double defaultPlaybackRate;
     attribute double playbackRate;
@@ -60,7 +60,7 @@ interface HTMLMediaElement : HTMLElement {
     readonly attribute boolean ended;
     [Reflect, CEReactions] attribute boolean autoplay;
     [Reflect, CEReactions] attribute boolean loop;
-    Promise<undefined> play();
+    [CreatesPromise, NeedsThisObjectRealm] Promise<undefined> play();
     undefined pause();
 
     // controls
@@ -73,6 +73,6 @@ interface HTMLMediaElement : HTMLElement {
     [SameObject] readonly attribute AudioTrackList audioTracks;
     [SameObject] readonly attribute VideoTrackList videoTracks;
     [SameObject] readonly attribute TextTrackList textTracks;
-    TextTrack addTextTrack(TextTrackKind kind, optional DOMString label = "", optional DOMString language = "");
+    [ImplementedAs=add_text_track] TextTrack addTextTrack(TextTrackKind kind, optional DOMString label = "", optional DOMString language = "");
 
 };

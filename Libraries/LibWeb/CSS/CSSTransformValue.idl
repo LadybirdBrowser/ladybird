@@ -8,5 +8,5 @@ interface CSSTransformValue : CSSStyleValue {
     setter undefined (unsigned long index, CSSTransformComponent val);
 
     [ImplementedAs=is_2d] readonly attribute boolean is2D;
-    [NeedsCallerRealm] DOMMatrix toMatrix();
+    DOMMatrix toMatrix();
 };

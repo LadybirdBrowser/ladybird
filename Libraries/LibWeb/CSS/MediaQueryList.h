@@ -7,8 +7,23 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Export.h>
+
+namespace Web::CSS {
+
+class MediaQueryList;
+
+}
+
+namespace Web::Bindings {
+
+class WrapperWorld;
+WEB_API JS::Realm& wrapper_realm_for_media_query_list(WrapperWorld const&, JS::Realm&, CSS::MediaQueryList&);
+
+}
 
 namespace Web::CSS {
 
@@ -36,6 +51,8 @@ public:
     void set_has_changed_state(bool has_changed_state) { m_has_changed_state = has_changed_state; }
 
 private:
+    friend JS::Realm& Bindings::wrapper_realm_for_media_query_list(Bindings::WrapperWorld const&, JS::Realm&, MediaQueryList&);
+
     MediaQueryList(DOM::Document&, Vector<NonnullRefPtr<MediaQuery>>&&);
     virtual void visit_edges(Cell::Visitor&) override;
 

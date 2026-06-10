@@ -32,15 +32,21 @@ WrapperWorld::WrapperWorld(Type type)
 
 WrapperWorld::~WrapperWorld() = default;
 
-GC::Ptr<PlatformObject> WrapperWorld::wrapper_for(Wrappable const& wrappable) const
+void WrapperWorld::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+}
+
+GC::Ptr<PlatformObject> WrapperWorld::wrapper_for(Wrappable const& wrappable, JS::Realm& realm) const
 {
     if (is_main_world())
         return wrappable.cached_main_world_wrapper();
 
-    auto it = m_wrappers.find(&wrappable);
-    if (it == m_wrappers.end())
-        return nullptr;
-    return it->value.ptr();
+    for (auto const& entry : m_wrappers) {
+        if (entry.wrappable.ptr() == &wrappable && entry.wrapper && &entry.wrapper->realm() == &realm)
+            return entry.wrapper.ptr();
+    }
+    return nullptr;
 }
 
 void WrapperWorld::set_wrapper(Wrappable& wrappable, PlatformObject& wrapper)
@@ -52,11 +58,17 @@ void WrapperWorld::set_wrapper(Wrappable& wrappable, PlatformObject& wrapper)
         return;
     }
 
-    if (auto it = m_wrappers.find(&wrappable); it != m_wrappers.end()) {
-        if (auto existing_wrapper = it->value.ptr())
-            VERIFY(existing_wrapper == &wrapper);
+    m_wrappers.remove_all_matching([](auto const& entry) {
+        return !entry.wrappable || !entry.wrapper;
+    });
+
+    for (auto const& entry : m_wrappers) {
+        if (entry.wrappable.ptr() == &wrappable && &entry.wrapper->realm() == &wrapper.realm()) {
+            VERIFY(entry.wrapper.ptr() == &wrapper);
+            return;
+        }
     }
-    m_wrappers.set(&wrappable, wrapper);
+    m_wrappers.append({ &wrappable, wrapper });
 }
 
 void WrapperWorld::clear_wrapper(Wrappable& wrappable, PlatformObject const& wrapper)
@@ -68,9 +80,9 @@ void WrapperWorld::clear_wrapper(Wrappable& wrappable, PlatformObject const& wra
         return;
     }
 
-    auto it = m_wrappers.find(&wrappable);
-    if (it != m_wrappers.end() && it->value.ptr() == &wrapper)
-        m_wrappers.remove(it);
+    m_wrappers.remove_all_matching([&](auto const& entry) {
+        return !entry.wrappable || !entry.wrapper || (entry.wrappable.ptr() == &wrappable && entry.wrapper.ptr() == &wrapper);
+    });
 }
 
 WrapperWorld& host_defined_wrapper_world(JS::Realm& realm)

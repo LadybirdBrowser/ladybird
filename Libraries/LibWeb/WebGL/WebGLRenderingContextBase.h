@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -53,11 +54,8 @@ public:
     bool xr_compatible() const { return m_xr_compatible; }
     void set_xr_compatible(bool xr_compatible) { m_xr_compatible = xr_compatible; }
 
-    // https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
-    GC::Ref<WebIDL::Promise> make_xr_compatible();
-
     Optional<Vector<String>> get_supported_extensions();
-    JS::Object* get_extension(JS::Realm&, String const& name);
+    GC::Ptr<WebGLExtension> get_extension(String const& name);
 
     void enable_compressed_texture_format(WebIDL::UnsignedLong format);
 
@@ -184,7 +182,7 @@ private:
 
     // Extensions
     // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
-    HashMap<String, GC::Ref<Bindings::Wrappable>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_extensions;
+    HashMap<String, GC::Ref<WebGLExtension>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_extensions;
 };
 
 }

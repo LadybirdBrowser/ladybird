@@ -17,7 +17,6 @@ GC::Ref<External> External::create()
 }
 
 External::External()
-    : Bindings::Wrappable()
 {
 }
 

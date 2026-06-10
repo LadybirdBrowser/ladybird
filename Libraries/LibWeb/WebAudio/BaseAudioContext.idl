@@ -20,7 +20,7 @@ interface BaseAudioContext : EventTarget {
 
     AnalyserNode createAnalyser ();
     BiquadFilterNode createBiquadFilter ();
-    [NeedsCallerRealm] AudioBuffer createBuffer(unsigned long numberOfChannels, unsigned long length, float sampleRate);
+    AudioBuffer createBuffer(unsigned long numberOfChannels, unsigned long length, float sampleRate);
     AudioBufferSourceNode createBufferSource ();
     ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);
     ChannelSplitterNode createChannelSplitter (optional unsigned long numberOfOutputs = 6);
@@ -37,5 +37,5 @@ interface BaseAudioContext : EventTarget {
     StereoPannerNode createStereoPanner ();
     [FIXME] WaveShaperNode createWaveShaper ();
 
-    Promise<AudioBuffer> decodeAudioData (ArrayBuffer audioData, optional DecodeSuccessCallback? successCallback, optional DecodeErrorCallback? errorCallback);
+    [NeedsThisObjectRealm] Promise<AudioBuffer> decodeAudioData (ArrayBuffer audioData, optional DecodeSuccessCallback? successCallback, optional DecodeErrorCallback? errorCallback);
 };

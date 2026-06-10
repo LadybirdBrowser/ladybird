@@ -7,9 +7,14 @@
 #pragma once
 
 #include <LibWeb/Animations/AnimationTimeline.h>
-#include <LibWeb/Bindings/DocumentTimeline.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+
+namespace Web::Bindings {
+
+struct DocumentTimelineOptions;
+
+}
 
 namespace Web::HTML {
 
@@ -26,7 +31,7 @@ class DocumentTimeline : public AnimationTimeline {
 
 public:
     static GC::Ref<DocumentTimeline> create(DOM::Document&, HighResolutionTime::DOMHighResTimeStamp origin_time);
-    static WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> construct_impl(HTML::Window&, Bindings::DocumentTimelineOptions options = {});
+    static WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> create_for_constructor(JS::Realm&, Bindings::DocumentTimelineOptions const&);
 
     virtual Optional<TimeValue> duration() const override { return {}; }
 

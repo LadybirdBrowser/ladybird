@@ -18,8 +18,7 @@ GC::Ref<FileSystemEntry> FileSystemEntry::create(EntryType entry_type, ByteStrin
 }
 
 FileSystemEntry::FileSystemEntry(EntryType entry_type, ByteString name)
-    : Bindings::Wrappable()
-    , m_entry_type(entry_type)
+    : m_entry_type(entry_type)
     , m_name(move(name))
 {
 }

@@ -7,11 +7,12 @@
 #include <AK/Debug.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Worker.h>
+#include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/SharedWorker.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Worker.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -21,7 +22,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(Worker);
 
 // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
-Worker::Worker(String const& script_url, Bindings::WorkerOptions const& options)
+Worker::Worker(String const& script_url, WorkerOptions const& options)
     : DOM::EventTarget()
     , m_script_url(script_url)
     , m_options(options)
@@ -35,13 +36,8 @@ void Worker::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_agent);
 }
 
-WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::construct_impl(WindowOrWorkerGlobalScopeMixin& global_scope, TrustedTypes::TrustedScriptURLOrString const& script_url, Bindings::WorkerOptions const& options)
-{
-    return Worker::create(global_scope, script_url, options);
-}
-
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker
-WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(WindowOrWorkerGlobalScopeMixin& global_scope, TrustedTypes::TrustedScriptURLOrString const& script_url, Bindings::WorkerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(WindowOrWorkerGlobalScopeMixin& global_scope, TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options)
 {
     // Returns a new Worker object. scriptURL will be fetched and executed in the background,
     // creating a new global environment for which worker represents the communication channel.
@@ -96,11 +92,18 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(WindowOrWorkerGlobalScopeMix
     return worker;
 }
 
+WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options)
+{
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(realm.global_object());
+    VERIFY(global_scope);
+    return create(*global_scope, script_url, options);
+}
+
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> port, Bindings::WorkerOptions const& options)
+void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> port, WorkerOptions const& options)
 {
     // 1. Let is shared be true if worker is a SharedWorker object, and false otherwise.
-    Bindings::AgentType agent_type = worker.has<GC::Ref<SharedWorker>>() ? Bindings::AgentType::SharedWorker : Bindings::AgentType::DedicatedWorker;
+    AgentType agent_type = worker.has<GC::Ref<SharedWorker>>() ? AgentType::SharedWorker : AgentType::DedicatedWorker;
 
     // FIXME: 2. Let owner be the relevant owner to add given outside settings.
 
@@ -126,7 +129,7 @@ WebIDL::ExceptionOr<void> Worker::terminate()
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage
-WebIDL::ExceptionOr<void> Worker::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> Worker::post_message(JS::Realm& realm, JS::Value message, StructuredSerializeOptions const& options)
 {
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Post Message: {}", message);
 
@@ -135,6 +138,11 @@ WebIDL::ExceptionOr<void> Worker::post_message(JS::Realm& realm, JS::Value messa
     // postMessage(message, options) on the port, with the same arguments, and returned the same return value.
 
     return m_outside_port->post_message(realm, message, options);
+}
+
+WebIDL::ExceptionOr<void> Worker::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
+{
+    return post_message(realm, message, StructuredSerializeOptions { .transfer = options.transfer });
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage

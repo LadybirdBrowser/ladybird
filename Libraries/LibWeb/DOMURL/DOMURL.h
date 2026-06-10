@@ -25,15 +25,15 @@ class DOMURL : public Bindings::Wrappable {
 
 public:
     [[nodiscard]] static GC::Ref<DOMURL> create(URL::URL, GC::Ref<URLSearchParams> query);
-    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> construct_impl(String const& url, Optional<String> const& base = {});
+    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> create_from_url(String const& url, Optional<String> const& base = {});
 
     virtual ~DOMURL() override;
 
-    static WebIDL::ExceptionOr<Utf16String> create_object_url(JS::VM&, FileAPI::BlobURLEntry::Object object);
-    static void revoke_object_url(JS::VM&, StringView url);
+    static WebIDL::ExceptionOr<Utf16String> create_object_url(FileAPI::BlobURLEntry::Object object);
+    static void revoke_object_url(StringView url);
 
-    static GC::Ptr<DOMURL> parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base = {});
-    static bool can_parse(JS::VM&, String const& url, Optional<String> const& base = {});
+    static GC::Ptr<DOMURL> parse_for_bindings(String const& url, Optional<String> const& base = {});
+    static bool can_parse(String const& url, Optional<String> const& base = {});
 
     String href() const;
     WebIDL::ExceptionOr<void> set_href(String const&);

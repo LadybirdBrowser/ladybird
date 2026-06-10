@@ -139,8 +139,7 @@ GC::Ref<Gamepad> Gamepad::create(HTML::Window& window, SDL_JoystickID sdl_joysti
 }
 
 Gamepad::Gamepad(HTML::Window& window, SDL_JoystickID sdl_joystick_id)
-    : Bindings::Wrappable()
-    , m_window(window)
+    : m_window(window)
     , m_sdl_joystick_id(sdl_joystick_id)
 {
     m_sdl_gamepad = SDL_OpenGamepad(m_sdl_joystick_id);
@@ -402,19 +401,19 @@ void Gamepad::select_a_mapping()
             });
 
         if (!has_standard_button) {
-            m_mapping = Bindings::GamepadMappingType::Empty;
+            m_mapping = GamepadMappingType::Empty;
             return;
         }
     }
 
     for (auto const standard_gamepad_axis : standard_gamepad_axes_layout) {
         if (!SDL_GamepadHasAxis(m_sdl_gamepad, standard_gamepad_axis)) {
-            m_mapping = Bindings::GamepadMappingType::Empty;
+            m_mapping = GamepadMappingType::Empty;
             return;
         }
     }
 
-    m_mapping = Bindings::GamepadMappingType::Standard;
+    m_mapping = GamepadMappingType::Standard;
 }
 
 // https://w3c.github.io/gamepad/#dfn-map-and-normalize-axes
@@ -572,14 +571,7 @@ void Gamepad::update_gamepad_state(Badge<NavigatorGamepadPartial>)
                 //    to fire an event named gamepadconnected at gamepad's relevant global object using GamepadEvent
                 //    with its gamepad attribute initialized to connectedGamepad.
                 if (document.is_fully_active()) {
-                    auto gamepad_connected_event_init = Bindings::GamepadEventInit {
-                        {
-                            .bubbles = false,
-                            .cancelable = false,
-                            .composed = false,
-                        },
-                        connected_gamepad,
-                    };
+                    GamepadEventInit gamepad_connected_event_init { {}, connected_gamepad };
                     auto gamepad_connected_event = GamepadEvent::create(EventNames::gamepadconnected, gamepad_connected_event_init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
                     window.dispatch_event(gamepad_connected_event);
                 }

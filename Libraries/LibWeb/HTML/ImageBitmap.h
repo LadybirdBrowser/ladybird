@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/OwnPtr.h>
+#include <AK/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/ImageBitmap.h>
 #include <LibWeb/Bindings/Serializable.h>
@@ -19,13 +20,10 @@ namespace Web::HTML {
 
 using ImageBitmapSource = FlattenVariant<CanvasImageSource, Variant<GC::Ref<FileAPI::Blob>, GC::Ref<ImageData>>>;
 
+using ResizeQuality = Bindings::ResizeQuality;
+
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmapoptions
-struct ImageBitmapOptions {
-    // FIXME: Implement the rest of the fields
-    Optional<WebIDL::UnsignedLong> resize_width;
-    Optional<WebIDL::UnsignedLong> resize_height;
-    Bindings::ResizeQuality resize_quality = Bindings::ResizeQuality::Low;
-};
+using ImageBitmapOptions = Bindings::ImageBitmapOptions;
 
 class ImageBitmap final
     : public Bindings::Wrappable

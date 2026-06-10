@@ -6,8 +6,6 @@
 
 #include <AK/StringBuilder.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGGElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/SVG/SVGGElement.h>

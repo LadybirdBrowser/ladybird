@@ -2,6 +2,6 @@
 [Exposed=Window]
 interface CSSGroupingRule : CSSRule {
     [SameObject, ImplementedAs=css_rules_for_bindings] readonly attribute CSSRuleList cssRules;
-    [NeedsCallerRealm] unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
-    [NeedsThisObjectRealm] undefined deleteRule(unsigned long index);
+    unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
+    undefined deleteRule(unsigned long index);
 };

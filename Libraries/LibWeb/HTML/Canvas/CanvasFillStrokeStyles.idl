@@ -2,8 +2,8 @@
 interface mixin CanvasFillStrokeStyles {
     attribute (DOMString or CanvasGradient or CanvasPattern) strokeStyle;
     attribute (DOMString or CanvasGradient or CanvasPattern) fillStyle;
-    [NeedsThisObjectRealm] CanvasGradient createLinearGradient(double x0, double y0, double x1, double y1);
-    [NeedsThisObjectRealm] CanvasGradient createRadialGradient(double x0, double y0, double r0, double x1, double y1, double r1);
-    [NeedsThisObjectRealm] CanvasGradient createConicGradient(double startAngle, double x, double y);
-    [NeedsThisObjectRealm] CanvasPattern? createPattern(CanvasImageSource image, [LegacyNullToEmptyString] DOMString repetition);
+    CanvasGradient createLinearGradient(double x0, double y0, double x1, double y1);
+    CanvasGradient createRadialGradient(double x0, double y0, double r0, double x1, double y1, double r1);
+    CanvasGradient createConicGradient(double startAngle, double x, double y);
+    CanvasPattern? createPattern(CanvasImageSource image, [LegacyNullToEmptyString] DOMString repetition);
 };

@@ -10,8 +10,7 @@
 
 #include <AK/GenericShorthands.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/UnderlyingSink.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Bindings/WritableStreamDefaultController.h>
 #include <LibWeb/DOM/AbortSignal.h>
@@ -21,6 +20,8 @@
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
@@ -43,6 +44,26 @@ static JS::Realm& promise_realm(WebIDL::Promise const& promise)
 {
     return WebIDL::promise_realm(promise);
 }
+
+}
+
+namespace Web::Bindings {
+
+WebIDL::ExceptionOr<JS::Value> invoke_writable_stream_start_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_sink, GC::Ref<Streams::WritableStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return TRY(WebIDL::invoke_callback(callback, underlying_sink, WebIDL::ExceptionBehavior::Rethrow, { { wrapped_controller } }));
+}
+
+GC::Ref<WebIDL::Promise> invoke_writable_stream_write_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_sink, JS::Value chunk, GC::Ref<Streams::WritableStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return WebIDL::invoke_promise_callback(callback, underlying_sink, { { chunk, wrapped_controller } });
+}
+
+}
+
+namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#acquire-writable-stream-default-writer
 WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> acquire_writable_stream_default_writer(JS::Realm& realm, WritableStream& stream)
@@ -197,7 +218,7 @@ GC::Ref<WebIDL::Promise> writable_stream_abort(JS::Realm& realm, WritableStream&
     // 2. Signal abort on stream.[[controller]].[[signal]] with reason.
     auto signal_abort_reason = reason;
     if (signal_abort_reason.is_undefined())
-        signal_abort_reason = throw_completion(realm, WebIDL::AbortError::create(realm, "Aborted without reason"_utf16)).value();
+        signal_abort_reason = throw_completion(realm, WebIDL::AbortError::create("Aborted without reason"_utf16)).value();
     stream.controller()->signal()->signal_abort(signal_abort_reason, realm.global_object());
 
     // 3. Let state be stream.[[state]].
@@ -941,7 +962,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(JS::Realm& r
 }
 
 // https://streams.spec.whatwg.org/#set-up-writable-stream-default-controller-from-underlying-sink
-WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(JS::Realm& realm, WritableStream& stream, JS::Value underlying_sink_value, Bindings::UnderlyingSink& underlying_sink, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
+WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(JS::Realm& realm, WritableStream& stream, JS::Value underlying_sink_value, UnderlyingSink const& underlying_sink, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
 {
     // 1. Let controller be a new WritableStreamDefaultController.
     auto controller = GC::Heap::the().allocate<WritableStreamDefaultController>();
@@ -969,8 +990,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    callback this value underlyingSink.
     if (underlying_sink.start) {
         start_algorithm = GC::create_function(GC::Heap::the(), [controller, underlying_sink_value, callback = underlying_sink.start, realm = GC::Ref(realm)]() -> WebIDL::ExceptionOr<JS::Value> {
-            auto wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
-            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, WebIDL::ExceptionBehavior::Rethrow, { { wrapped_controller } }));
+            return Bindings::invoke_writable_stream_start_algorithm_callback(realm, *callback, underlying_sink_value, controller);
         });
     }
 
@@ -979,8 +999,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    callback this value underlyingSink.
     if (underlying_sink.write) {
         write_algorithm = GC::create_function(GC::Heap::the(), [controller, underlying_sink_value, callback = underlying_sink.write, realm = GC::Ref(realm)](JS::Value chunk) {
-            auto wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
-            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, { { chunk, wrapped_controller } });
+            return Bindings::invoke_writable_stream_write_algorithm_callback(realm, *callback, underlying_sink_value, chunk, controller);
         });
     }
 
@@ -1252,7 +1271,7 @@ void writable_stream_default_controller_write(JS::Realm& realm, WritableStreamDe
 
     // 2. If enqueueResult is an abrupt completion,
     if (enqueue_result.is_exception()) {
-        auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, realm, [&] { return enqueue_result; }).throw_completion();
+        auto throw_completion = WebIDL::exception_to_throw_completion(vm, realm, enqueue_result.exception());
 
         // 1. Perform ! WritableStreamDefaultControllerErrorIfNeeded(controller, enqueueResult.[[Value]]).
         writable_stream_default_controller_error_if_needed(controller, throw_completion.release_value());

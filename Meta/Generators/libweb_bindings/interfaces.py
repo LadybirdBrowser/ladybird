@@ -23,14 +23,19 @@ from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.interface_declaration import interface_requires_custom_prototype
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
-from Generators.libweb_bindings.wrappers import interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import has_legacy_override_built_ins_interface_extended_attribute
+from Generators.libweb_bindings.wrappers import interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import needs_legacy_platform_object_flags_initialization
 from Generators.libweb_bindings.wrappers import wrapper_base_class_name
 from Generators.libweb_bindings.wrappers import wrapper_class_name
 from Generators.libweb_bindings.wrappers import wrapper_needs_wrappable_impl
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
+
+GENERATED_GLOBAL_SCOPE_EXPOSURE_PREFIXES = {
+    "DedicatedWorkerGlobalScope": "DedicatedWorker",
+    "SharedWorkerGlobalScope": "SharedWorker",
+}
 
 
 def interface_needs_impl_from(interface: Interface) -> bool:
@@ -47,6 +52,7 @@ def interface_needs_impl_from(interface: Interface) -> bool:
         or interface.iterable is not None
         or interface.async_iterable is not None
     )
+
 
 def legacy_platform_object_flags_initialization(interface: Interface) -> str:
     if not needs_legacy_platform_object_flags_initialization(interface):
@@ -73,15 +79,22 @@ def legacy_platform_object_flags_initialization(interface: Interface) -> str:
         if interface.named_property_deleter.name:
             lines.append("    m_legacy_platform_object_flags->named_property_deleter_has_identifier = true;")
     if "LegacyUnenumerableNamedProperties" in interface.extended_attributes:
-        lines.append("    m_legacy_platform_object_flags->has_legacy_unenumerable_named_properties_interface_extended_attribute = true;")
+        lines.append(
+            "    m_legacy_platform_object_flags->has_legacy_unenumerable_named_properties_interface_extended_attribute = true;"
+        )
     if has_legacy_override_built_ins_interface_extended_attribute(interface):
-        lines.append("    m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute = true;")
+        lines.append(
+            "    m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute = true;"
+        )
     if "Global" in interface.extended_attributes:
         lines.append("    m_legacy_platform_object_flags->has_global_interface_extended_attribute = true;")
 
     return "\n".join(lines)
 
-def write_wrapper_implementation(out: TextIO, context: GenerationContext, interface: Interface) -> None:
+
+def write_wrapper_implementation(
+    out: TextIO, context: GenerationContext, includes: GeneratedIncludes, interface: Interface
+) -> None:
     if not interface_needs_wrapper(interface):
         return
 
@@ -89,7 +102,7 @@ def write_wrapper_implementation(out: TextIO, context: GenerationContext, interf
     base_class = wrapper_base_class_name(context, interface)
     impl_type = fully_qualified_name_for_interface(interface)
     location_object_constructor_argument = ""
-    if "LocationObject" in interface.extended_attributes:
+    if interface.name == "Location":
         location_object_constructor_argument = ", MayInterfereWithIndexedPropertyAccess::Yes"
 
     out.write(
@@ -188,6 +201,9 @@ JS::ErrorData const* {wrapper_class}::error_data() const
 """
         )
 
+    named_and_indexed_properties.write_legacy_platform_object_hook_implementations(out, context, includes, interface)
+    named_and_indexed_properties.write_named_item_value_implementation(out, context, includes, interface)
+
     out.write(
         f"""void {wrapper_class}::initialize(JS::Realm& realm)
 {{
@@ -202,11 +218,24 @@ JS::ErrorData const* {wrapper_class}::error_data() const
 """
         )
     out.write(
-        f"""    static auto name = "{interface.namespaced_name}"_fly_string;
+        f"""    static auto const& name = *new FlyString("{interface.namespaced_name}"_fly_string);
     if (!shape().prototype())
         set_prototype(&ensure_web_prototype<{interface.prototype_class}>(realm, name));
     Base::initialize(realm);
-}}
+"""
+    )
+    if "Global" not in interface.extended_attributes:
+        out.write(
+            f"""    {interface.prototype_class}::define_unforgeable_attributes(realm, *this);
+"""
+        )
+    if interface.name == "Location":
+        out.write(
+            """    initialize_location_object(realm);
+"""
+        )
+    out.write(
+        """}
 
 """
     )
@@ -236,7 +265,7 @@ JS::ErrorData const* {wrapper_class}::error_data() const
     visitor.visit(m_impl);
 """
         )
-        if "LocationObject" in interface.extended_attributes:
+        if interface.name == "Location":
             out.write(
                 """    visitor.visit(m_default_properties);
     visitor.visit(m_cross_origin_property_descriptor_map);
@@ -247,22 +276,7 @@ JS::ErrorData const* {wrapper_class}::error_data() const
 
 """
         )
-    out.write(
-        f"""}} // namespace Web::Bindings
 
-namespace Web {{
-
-GC::Ref<Bindings::PlatformObject> {impl_type}::create_wrapper(JS::Realm& realm)
-{{
-    return realm.create<Bindings::{wrapper_class}>(realm, GC::Ref {{ *this }});
-}}
-
-}} // namespace Web
-
-namespace Web::Bindings {{
-
-"""
-    )
 
 def write_impl_from(out: TextIO, includes: GeneratedIncludes, interface: Interface) -> None:
     if not interface_needs_impl_from(interface):
@@ -326,6 +340,7 @@ def write_implementation(
 
     includes.add("LibJS/Runtime/ValueInlines.h")
     includes.add("LibWeb/Bindings/Intrinsics.h")
+    includes.add("LibWeb/WebIDL/Types.h")
     includes.add("LibWeb/WebIDL/Tracing.h")
     includes.add_binding(interface.implemented_name)
     if interface_needs_wrapper(interface):
@@ -339,16 +354,50 @@ def write_implementation(
     includes.add(implementation_header_for_interface(interface))
     if interface_needs_impl_from(interface):
         includes.add("LibJS/Runtime/Error.h")
-        includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+        includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
     if interface.name in ("EventTarget", "Window") and interface_needs_impl_from(interface):
         includes.add("LibWeb/HTML/Window.h")
         includes.add("LibWeb/HTML/WindowProxy.h")
     if interface.constructors:
         includes.add("LibJS/Runtime/AbstractOperations.h")
         includes.add("LibJS/Runtime/Realm.h")
-        includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+        includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
+    if interface.name in GENERATED_GLOBAL_SCOPE_EXPOSURE_PREFIXES:
+        exposure_prefix = GENERATED_GLOBAL_SCOPE_EXPOSURE_PREFIXES[interface.name]
+        includes.add(f"LibWeb/Bindings/{exposure_prefix}ExposedInterfaces.h")
+        includes.add_binding(f"{interface.name}GlobalMixin")
 
-    write_wrapper_implementation(out, context, interface)
+    write_wrapper_implementation(out, context, includes, interface)
+
+    if interface.name in GENERATED_GLOBAL_SCOPE_EXPOSURE_PREFIXES:
+        exposure_prefix = GENERATED_GLOBAL_SCOPE_EXPOSURE_PREFIXES[interface.name]
+        add_exposed_interfaces_function = {
+            "DedicatedWorker": "add_dedicated_worker_exposed_interfaces",
+            "SharedWorker": "add_shared_worker_exposed_interfaces",
+        }[exposure_prefix]
+        out.write(
+            f"""}} // namespace Web::Bindings
+
+namespace Web::HTML {{
+
+void {interface.name}::initialize_web_interfaces_impl()
+{{
+    auto& realm = this->realm();
+    auto& global_object = realm.global_object();
+
+    Bindings::{add_exposed_interfaces_function}(global_object);
+
+    Bindings::{interface.name}GlobalMixin global_mixin;
+    global_mixin.initialize(realm, global_object);
+
+    Base::initialize_web_interfaces_impl();
+}}
+
+}} // namespace Web::HTML
+
+namespace Web::Bindings {{
+"""
+        )
 
     parent_prototype = "realm.intrinsics().object_prototype()"
     if interface.name == "DOMException":
@@ -460,9 +509,6 @@ void {interface.prototype_class}::initialize(JS::Realm& realm)
         global_mixins.write_global_mixin_implementation(out, context, includes, interface)
         return
     attributes.define_the_regular_attributes(out, includes, interface)
-    if interface.name == "CSSStyleProperties":
-        includes.add("LibWeb/CSS/GeneratedCSSStyleProperties.h")
-        out.write("    GeneratedCSSStyleProperties::initialize(realm, object);\n")
     operations.define_the_regular_operations(out, includes, interface)
     operations.define_the_stringifier(out, includes, interface)
     named_and_indexed_properties.define_the_indexed_property_getter(out, includes, interface)

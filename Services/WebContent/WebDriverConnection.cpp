@@ -27,6 +27,7 @@
 #include <LibIPC/Transport.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -61,6 +62,7 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/XMLSerializer.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
@@ -134,19 +136,19 @@ static Gfx::IntRect compute_window_rect(Web::Page const& page)
 static void scroll_element_into_view(Web::DOM::Element& element)
 {
     // 1. Let options be the following ScrollIntoViewOptions:
-    Web::Bindings::ScrollIntoViewOptions options {};
+    Web::DOM::Element::ScrollIntoViewOptions options {};
     // "behavior"
     //     "instant"
-    options.behavior = Web::Bindings::ScrollBehavior::Instant;
+    options.behavior = Web::DOM::Element::ScrollBehavior::Instant;
     // Logical scroll position "block"
     //     "end"
-    options.block = Web::Bindings::ScrollLogicalPosition::End;
+    options.block = Web::DOM::Element::ScrollLogicalPosition::End;
     // Logical scroll position "inline"
     //     "nearest"
-    options.inline_ = Web::Bindings::ScrollLogicalPosition::Nearest;
+    options.inline_ = Web::DOM::Element::ScrollLogicalPosition::Nearest;
 
     // 2. Run Function.[[Call]](scrollIntoView, options) with element as the this value.
-    (void)element.scroll_into_view(options);
+    element.scroll_into_view(options, nullptr);
 }
 
 // https://w3c.github.io/webdriver/#dfn-container
@@ -201,7 +203,7 @@ static bool fire_an_event(FlyString const& name, Optional<Web::DOM::Element&> ta
 
     GC::Ref<T> event = [&] {
         if constexpr (IsSame<T, Web::UIEvents::MouseEvent>)
-            return T::create(Web::HTML::relevant_global_object(*target), name, {});
+            return T::create(name, {}, 0, 0, 0, 0, Web::HighResolutionTime::unsafe_shared_current_time());
         else
             return T::create(Web::HTML::relevant_global_object(*target), name);
     }();
@@ -964,7 +966,9 @@ Messages::WebDriverClient::FullscreenWindowResponse WebDriverConnection::fullscr
             //    document element.
             // FIXME: Spec issue: invoking "fullscreen an element" would not actually fullscreen the document.
             //        https://github.com/w3c/webdriver/issues/1888
-            auto promise = document->document_element()->request_fullscreen(Web::DOM::Element::FullscreenRequester::WebDriver);
+            auto& realm = document->relevant_settings_object().realm();
+            auto promise = Web::WebIDL::create_promise(realm);
+            document->document_element()->request_fullscreen(realm, promise, Web::DOM::Element::FullscreenRequester::WebDriver);
             ++m_pending_window_rect_requests;
 
             Web::WebIDL::upon_rejection(promise, GC::create_function(GC::Heap::the(), [this, document](JS::Value) -> Web::WebIDL::ExceptionOr<JS::Value> {
@@ -1785,14 +1789,14 @@ Web::WebDriver::Response WebDriverConnection::element_clear_impl(StringView elem
     // https://w3c.github.io/webdriver/#dfn-clear-a-content-editable-element
     auto clear_content_editable_element = [&](Web::DOM::Element& element) {
         // 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
-        if (auto result = element.inner_html(); result.is_error() || result.value().get<Utf16String>().is_empty())
+        if (auto result = element.inner_html(); result.is_error() || result.value().is_empty())
             return;
 
         // 2. Run the focusing steps for element.
         Web::HTML::run_focusing_steps(&element);
 
         // 3. Set element's innerHTML IDL attribute to an empty string.
-        (void)element.set_inner_html(""_utf16);
+        (void)element.set_inner_html(""sv);
 
         // 4. Run the unfocusing steps for the element.
         Web::HTML::run_unfocusing_steps(&element);

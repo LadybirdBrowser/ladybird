@@ -16,11 +16,16 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(ByteLengthQueuingStrategy);
 
 // https://streams.spec.whatwg.org/#blqs-constructor
-GC::Ref<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::construct_impl(Bindings::QueuingStrategyInit const& init)
+GC::Ref<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::create(double high_water_mark)
 {
     // The new ByteLengthQueuingStrategy(init) constructor steps are:
     // 1. Set this.[[highWaterMark]] to init["highWaterMark"].
-    return GC::Heap::the().allocate<ByteLengthQueuingStrategy>(init.high_water_mark);
+    return GC::Heap::the().allocate<ByteLengthQueuingStrategy>(high_water_mark);
+}
+
+GC::Ref<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::create_for_constructor(Bindings::QueuingStrategyInit const& init)
+{
+    return create(init.high_water_mark);
 }
 
 ByteLengthQueuingStrategy::ByteLengthQueuingStrategy(double high_water_mark)

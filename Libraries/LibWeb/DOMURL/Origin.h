@@ -6,8 +6,9 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <LibJS/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/Origin.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -20,8 +21,9 @@ class Origin : public Bindings::Wrappable {
 
 public:
     static GC::Ref<Origin> create(URL::Origin);
+    static GC::Ref<Origin> create_opaque();
     static GC::Ref<Origin> construct_impl();
-    static WebIDL::ExceptionOr<GC::Ref<Origin>> from(JS::VM&, JS::Value);
+    static WebIDL::ExceptionOr<GC::Ref<Origin>> from(JS::Value);
 
     bool opaque() const;
     bool is_same_origin(Origin const&) const;

@@ -12,13 +12,12 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechGrammarList);
 
-WebIDL::ExceptionOr<GC::Ref<SpeechGrammarList>> SpeechGrammarList::construct_impl()
+GC::Ref<SpeechGrammarList> SpeechGrammarList::create()
 {
     return GC::Heap::the().allocate<SpeechGrammarList>();
 }
 
 SpeechGrammarList::SpeechGrammarList()
-    : Bindings::Wrappable()
 {
 }
 

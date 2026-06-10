@@ -16,8 +16,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom/#cssstyleproperties
 class WEB_API CSSStyleProperties
-    : public CSSStyleDeclaration
-    , public Bindings::GeneratedCSSStyleProperties {
+    : public CSSStyleDeclaration {
     WEB_WRAPPABLE(CSSStyleProperties, CSSStyleDeclaration);
     GC_DECLARE_ALLOCATOR(CSSStyleProperties);
 
@@ -38,8 +37,8 @@ public:
     WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv);
     WebIDL::ExceptionOr<String> remove_property(PropertyID);
 
-    virtual WebIDL::ExceptionOr<void> set_property(JS::Realm&, Utf16FlyString const& property_name, StringView css_text, StringView priority) override;
-    virtual WebIDL::ExceptionOr<String> remove_property(JS::Realm&, Utf16FlyString const& property_name) override;
+    virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property_name, StringView css_text, StringView priority) override;
+    virtual WebIDL::ExceptionOr<String> remove_property(Utf16FlyString const& property_name) override;
 
     virtual String get_property_value(Utf16FlyString const& property_name) const override;
     virtual StringView get_property_priority(Utf16FlyString const& property_name) const override;
@@ -54,20 +53,19 @@ public:
 
     virtual RefPtr<StyleValue const> get_property_style_value(PropertyNameAndID const&) const override;
     RefPtr<StyleValue const> get_property_style_value(PropertyID) const;
-    virtual WebIDL::ExceptionOr<void> set_property_style_value(JS::Realm&, PropertyNameAndID const&, NonnullRefPtr<StyleValue const>) override;
+    virtual WebIDL::ExceptionOr<void> set_property_style_value(PropertyNameAndID const&, NonnullRefPtr<StyleValue const>) override;
 
     String css_float() const;
-    WebIDL::ExceptionOr<void> set_css_float(JS::Realm&, StringView);
+    WebIDL::ExceptionOr<void> set_css_float(StringView);
+
+    ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES
 
     virtual String serialized() const final override;
     String serialize_a_css_value(StyleProperty const&) const;
     String serialize_a_css_value(Vector<StyleProperty>) const;
-    virtual WebIDL::ExceptionOr<void> set_css_text(JS::Realm&, StringView) override;
+    virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
     void set_declarations_from_text(StringView);
-
-    // ^Bindings::GeneratedCSSStyleProperties
-    virtual CSSStyleProperties& generated_style_properties_to_css_style_properties() override { return *this; }
 
 private:
     CSSStyleProperties(Computed, Readonly, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement>);
@@ -90,5 +88,7 @@ private:
     Vector<StyleProperty> m_properties;
     OrderedHashMap<Utf16FlyString, StyleProperty> m_custom_properties;
 };
+
+#undef ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES
 
 }

@@ -5,9 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMPointReadOnly.h>
-#include <LibWeb/Bindings/SVGTextContentElement.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
@@ -50,7 +49,7 @@ WebIDL::ExceptionOr<WebIDL::Long> SVGTextContentElement::get_number_of_chars() c
 GC::Ref<Geometry::DOMPoint> SVGTextContentElement::get_start_position_of_char(WebIDL::UnsignedLong charnum)
 {
     dbgln("(STUBBED) SVGTextContentElement::get_start_position_of_char(charnum={}). Called on: {}", charnum, debug_description());
-    return Geometry::DOMPoint::from_point(vm(), Bindings::DOMPointInit {});
+    return Geometry::DOMPoint::create();
 }
 
 }

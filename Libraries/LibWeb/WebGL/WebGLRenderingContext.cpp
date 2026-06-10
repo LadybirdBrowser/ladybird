@@ -9,8 +9,6 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/WebGLContextEvent.h>
-#include <LibWeb/Bindings/WebGLRenderingContext.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -35,7 +33,7 @@ void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString
 {
     // To fire a WebGL context event named e means that an event using the WebGLContextEvent interface, with its type attribute [DOM4] initialized to e, its cancelable attribute initialized to true, and its isTrusted attribute [DOM4] initialized to true, is to be dispatched at the given object.
     // FIXME: Consider setting a status message.
-    auto event = WebGLContextEvent::create(type, Bindings::WebGLContextEventInit {}, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(canvas_element)));
+    auto event = WebGLContextEvent::create(type, {}, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(canvas_element)));
     event->set_is_trusted(true);
     event->set_cancelable(true);
     canvas_element.dispatch_event(*event);
@@ -48,11 +46,8 @@ void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_element)
     fire_webgl_context_event(canvas_element, EventNames::webglcontextcreationerror);
 }
 
-JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::create(HTML::HTMLCanvasElement& canvas_element, JS::Value options)
+GC::Ptr<WebGLRenderingContext> WebGLRenderingContext::create(HTML::HTMLCanvasElement& canvas_element, WebGLContextAttributes context_attributes)
 {
-    // We should be coming here from getContext being called on a wrapped <canvas> element.
-    auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
-
     auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
     if (!skia_backend_context) {
         fire_webgl_context_creation_error(canvas_element);

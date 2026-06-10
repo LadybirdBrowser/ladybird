@@ -13,14 +13,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTRenderSnorm);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> EXTRenderSnorm::create(GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> EXTRenderSnorm::create(GC::Ref<WebGLRenderingContextBase> context)
 {
     auto extension = GC::Heap::the().allocate<EXTRenderSnorm>(context);
-    return GC::Ref<Bindings::Wrappable> { extension };
+    return GC::Ref<WebGLExtension> { extension };
 }
 
 EXTRenderSnorm::EXTRenderSnorm(GC::Ref<WebGLRenderingContextBase> context)
-    : Bindings::Wrappable()
+    : WebGLExtension()
     , m_context(context)
 {
 }

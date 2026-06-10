@@ -5,10 +5,21 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibWeb/Bindings/MutationRecord.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::DOM {
 
@@ -16,15 +27,14 @@ GC_DEFINE_ALLOCATOR(MutationObserver);
 GC_DEFINE_ALLOCATOR(RegisteredObserver);
 GC_DEFINE_ALLOCATOR(TransientRegisteredObserver);
 
-WebIDL::ExceptionOr<GC::Ref<MutationObserver>> MutationObserver::construct_impl(GC::Ptr<WebIDL::CallbackType> callback)
+WebIDL::ExceptionOr<GC::Ref<MutationObserver>> MutationObserver::create(GC::Ptr<WebIDL::CallbackType> callback)
 {
     return GC::Heap::the().allocate<MutationObserver>(callback);
 }
 
 // https://dom.spec.whatwg.org/#dom-mutationobserver-mutationobserver
 MutationObserver::MutationObserver(GC::Ptr<WebIDL::CallbackType> callback)
-    : Bindings::Wrappable()
-    , m_callback(move(callback))
+    : m_callback(move(callback))
 {
     // The new MutationObserver(callback) constructor steps are to set this’s callback to callback.
 }
@@ -38,8 +48,38 @@ void MutationObserver::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_record_queue);
 }
 
+static MutationObserverOptions to_dom_options(Bindings::MutationObserverInit const& options)
+{
+    return {
+        .attribute_filter = options.attribute_filter,
+        .attribute_old_value = options.attribute_old_value,
+        .attributes = options.attributes,
+        .character_data = options.character_data,
+        .character_data_old_value = options.character_data_old_value,
+        .child_list = options.child_list,
+        .subtree = options.subtree,
+    };
+}
+
+static void invoke_mutation_observer_callback(MutationObserver& mutation_observer, Vector<GC::Root<MutationRecord>>& records)
+{
+    auto& callback = mutation_observer.callback();
+    auto& settings = callback.callback_context;
+
+    auto wrapped_records = MUST(JS::Array::create(settings->realm(), 0));
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(settings->realm());
+    for (size_t i = 0; i < records.size(); ++i) {
+        auto& record = records.at(i);
+        auto property_index = JS::PropertyKey { i };
+        MUST(wrapped_records->create_data_property(property_index, Bindings::wrap(wrapper_world, settings->realm(), GC::Ref { *record })));
+    }
+
+    auto wrapped_mutation_observer = Bindings::wrap(wrapper_world, settings->realm(), GC::Ref { mutation_observer });
+    (void)WebIDL::invoke_callback(callback, wrapped_mutation_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, wrapped_mutation_observer } });
+}
+
 // https://dom.spec.whatwg.org/#dom-mutationobserver-observe
-WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, Bindings::MutationObserverInit options)
+WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserverOptions options)
 {
     // 1. If either options["attributeOldValue"] or options["attributeFilter"] exists, and options["attributes"] does not exist, then set options["attributes"] to true.
     if ((options.attribute_old_value.has_value() || options.attribute_filter.has_value()) && !options.attributes.has_value())
@@ -92,7 +132,7 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, Bindings::Muta
             }
 
             // 2. Set registered’s options to options.
-            registered_observer->set_options(options);
+            registered_observer->set_options(move(options));
             break;
         }
     }
@@ -108,6 +148,11 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, Bindings::Muta
     }
 
     return {};
+}
+
+WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, Bindings::MutationObserverInit const& options)
+{
+    return observe(target, to_dom_options(options));
 }
 
 // https://dom.spec.whatwg.org/#dom-mutationobserver-disconnect
@@ -145,12 +190,72 @@ Vector<GC::Root<MutationRecord>> MutationObserver::take_records()
     return records;
 }
 
-GC::Ref<RegisteredObserver> RegisteredObserver::create(MutationObserver& observer, Bindings::MutationObserverInit const& options)
+// https://dom.spec.whatwg.org/#queue-a-mutation-observer-compound-microtask
+void queue_mutation_observer_microtask(HTML::SimilarOriginWindowAgent& surrounding_agent)
+{
+    // 1. If the surrounding agent’s mutation observer microtask queued is true, then return.
+    if (surrounding_agent.mutation_observer_microtask_queued)
+        return;
+
+    // 2. Set the surrounding agent’s mutation observer microtask queued to true.
+    surrounding_agent.mutation_observer_microtask_queued = true;
+
+    // 3. Queue a microtask to notify mutation observers.
+    HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [&surrounding_agent]() {
+        // https://dom.spec.whatwg.org/#notify-mutation-observers
+        // 1. Set the surrounding agent’s mutation observer microtask queued to false.
+        surrounding_agent.mutation_observer_microtask_queued = false;
+
+        // 2. Let notifySet be a clone of the surrounding agent’s pending mutation observers.
+        // 3. Empty the surrounding agent’s pending mutation observers.
+        auto notify_set = move(surrounding_agent.pending_mutation_observers);
+
+        // 4. Let signalSet be a clone of the surrounding agent’s signal slots.
+        // 5. Empty the surrounding agent’s signal slots.
+        auto signal_set = move(surrounding_agent.signal_slots);
+
+        // 6. For each mo of notifySet:
+        for (auto& mutation_observer : notify_set) {
+            // 1. Let records be a clone of mo’s record queue.
+            // 2. Empty mo’s record queue.
+            auto records = mutation_observer->take_records();
+
+            // 3. For each node of mo’s node list, remove all transient registered observers whose observer is mo from
+            //    node’s registered observer list.
+            for (auto& node : mutation_observer->node_list()) {
+                // FIXME: Is this correct?
+                if (!node)
+                    continue;
+
+                if (node->registered_observer_list()) {
+                    node->registered_observer_list()->remove_all_matching([&mutation_observer](RegisteredObserver& registered_observer) {
+                        return is<TransientRegisteredObserver>(registered_observer) && static_cast<TransientRegisteredObserver&>(registered_observer).observer().ptr() == mutation_observer;
+                    });
+                }
+            }
+
+            // 4. If records is not empty, then invoke mo’s callback with « records, mo » and "report", and with
+            //    callback this value mo.
+            if (!records.is_empty()) {
+                invoke_mutation_observer_callback(*mutation_observer, records);
+            }
+        }
+
+        // 7. For each slot of signalSet, fire an event named slotchange, with its bubbles attribute set to true, at slot.
+        for (auto& slot : signal_set) {
+            EventInit event_init;
+            event_init.bubbles = true;
+            slot->dispatch_event(Event::create(HTML::EventNames::slotchange, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*slot))));
+        }
+    }));
+}
+
+GC::Ref<RegisteredObserver> RegisteredObserver::create(MutationObserver& observer, MutationObserverOptions const& options)
 {
     return GC::Heap::the().allocate<RegisteredObserver>(observer, options);
 }
 
-RegisteredObserver::RegisteredObserver(MutationObserver& observer, Bindings::MutationObserverInit const& options)
+RegisteredObserver::RegisteredObserver(MutationObserver& observer, MutationObserverOptions const& options)
     : m_observer(observer)
     , m_options(options)
 {
@@ -164,12 +269,12 @@ void RegisteredObserver::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_observer);
 }
 
-GC::Ref<TransientRegisteredObserver> TransientRegisteredObserver::create(MutationObserver& observer, Bindings::MutationObserverInit const& options, RegisteredObserver& source)
+GC::Ref<TransientRegisteredObserver> TransientRegisteredObserver::create(MutationObserver& observer, MutationObserverOptions const& options, RegisteredObserver& source)
 {
     return GC::Heap::the().allocate<TransientRegisteredObserver>(observer, options, source);
 }
 
-TransientRegisteredObserver::TransientRegisteredObserver(MutationObserver& observer, Bindings::MutationObserverInit const& options, RegisteredObserver& source)
+TransientRegisteredObserver::TransientRegisteredObserver(MutationObserver& observer, MutationObserverOptions const& options, RegisteredObserver& source)
     : RegisteredObserver(observer, options)
     , m_source(source)
 {

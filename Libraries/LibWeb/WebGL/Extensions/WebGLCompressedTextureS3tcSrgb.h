@@ -6,18 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/WebGLCompressedTextureS3tcSrgb.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 
 namespace Web::WebGL {
 
-class WebGLCompressedTextureS3tcSrgb : public Bindings::Wrappable {
-    WEB_WRAPPABLE(WebGLCompressedTextureS3tcSrgb, Bindings::Wrappable);
+class WebGLCompressedTextureS3tcSrgb : public WebGLExtension {
+    WEB_WRAPPABLE(WebGLCompressedTextureS3tcSrgb, WebGLExtension);
     GC_DECLARE_ALLOCATOR(WebGLCompressedTextureS3tcSrgb);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;

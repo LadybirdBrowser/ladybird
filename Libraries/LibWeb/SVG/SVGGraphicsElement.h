@@ -19,6 +19,12 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace Web::Bindings {
+
+struct SVGBoundingBoxOptions;
+
+}
+
 namespace Web::SVG {
 
 class WEB_API SVGGraphicsElement : public SVGElement {
@@ -64,7 +70,7 @@ public:
     GC::Ptr<SVG::SVGPatternElement const> fill_pattern() const;
     GC::Ptr<SVG::SVGPatternElement const> stroke_pattern() const;
 
-    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Optional<Bindings::SVGBoundingBoxOptions> const&);
+    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Bindings::SVGBoundingBoxOptions const&);
     GC::Ref<SVGAnimatedTransformList> transform() const;
 
     GC::Ptr<Geometry::DOMMatrix> get_ctm();

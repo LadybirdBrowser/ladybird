@@ -27,7 +27,7 @@ public:
     bool is_2d() const { return m_is_2d; }
     virtual void set_is_2d(bool value) { m_is_2d = value; }
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const = 0;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const = 0;
 
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const = 0;
 

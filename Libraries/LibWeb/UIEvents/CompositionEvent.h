@@ -11,13 +11,14 @@
 
 namespace Web::UIEvents {
 
+using CompositionEventInit = Bindings::CompositionEventInit;
+
 class CompositionEvent final : public UIEvent {
     WEB_WRAPPABLE(CompositionEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(CompositionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CompositionEvent> create(FlyString const& event_name, Bindings::CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::CompositionEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CompositionEvent> create(FlyString const& event_name, CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~CompositionEvent() override;
 
@@ -27,7 +28,7 @@ public:
     void init_composition_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data);
 
 private:
-    CompositionEvent(FlyString const& event_name, Bindings::CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    CompositionEvent(FlyString const& event_name, CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     String m_data;
 };

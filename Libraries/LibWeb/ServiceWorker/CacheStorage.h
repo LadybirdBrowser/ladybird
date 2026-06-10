@@ -20,11 +20,15 @@ class CacheStorage : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CacheStorage);
 
 public:
-    GC::Ref<WebIDL::Promise> match(JS::Realm&, Fetch::RequestInfo, Bindings::MultiCacheQueryOptions);
-    GC::Ref<WebIDL::Promise> has(JS::Realm&, String const& cache_name);
-    GC::Ref<WebIDL::Promise> open(JS::Realm&, String const& cache_name);
-    GC::Ref<WebIDL::Promise> delete_(JS::Realm&, String const& cache_name);
-    GC::Ref<WebIDL::Promise> keys(JS::Realm&);
+    void match(JS::Realm&, Fetch::RequestInfo, MultiCacheQueryOptions, GC::Ref<WebIDL::Promise>);
+    void has(JS::Realm&, String const& cache_name, GC::Ref<WebIDL::Promise>);
+    void open(JS::Realm&, String const& cache_name, GC::Ref<WebIDL::Promise>);
+    void delete_(JS::Realm&, String const& cache_name, GC::Ref<WebIDL::Promise>);
+    void keys(JS::Realm&, GC::Ref<WebIDL::Promise>);
+    bool contains_cache(String const& cache_name);
+    bool delete_cache(String const& cache_name);
+    Vector<String> cache_keys();
+    GC::Ref<RequestResponseList> get_or_create_cache(String const& cache_name);
 
 private:
     CacheStorage();

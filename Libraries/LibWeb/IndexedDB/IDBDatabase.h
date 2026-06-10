@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/IDBDatabase.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/IndexedDB/ConnectionState.h>
@@ -19,8 +18,8 @@
 
 namespace Web::IndexedDB {
 
-using KeyPath = Variant<String, Vector<String>>;
-using NullableKeyPath = Variant<String, Vector<String>, Empty>;
+using ObjectStoreParameters = Bindings::IDBObjectStoreParameters;
+using TransactionOptions = Bindings::IDBTransactionOptions;
 
 // https://w3c.github.io/IndexedDB/#IDBDatabase-interface
 // https://www.w3.org/TR/IndexedDB/#database-connection
@@ -59,10 +58,10 @@ public:
     [[nodiscard]] HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
     [[nodiscard]] JS::Object& relevant_global_object() const;
     [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names();
-    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> create_object_store(String const&, Bindings::IDBObjectStoreParameters const&);
+    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> create_object_store(String const&, ObjectStoreParameters const&);
     WebIDL::ExceptionOr<void> delete_object_store(String const&);
 
-    WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> transaction(Variant<String, Vector<String>>, Bindings::IDBTransactionMode = Bindings::IDBTransactionMode::Readonly, Bindings::IDBTransactionOptions = { .durability = Bindings::IDBTransactionDurability::Default });
+    WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> transaction(Variant<String, Vector<String>>, TransactionMode = TransactionMode::Readonly, TransactionOptions = {});
 
     void close();
 

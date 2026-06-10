@@ -8,16 +8,13 @@
 
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/MediaDeviceInfo.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
-namespace Web::Bindings {
-
-enum class MediaDeviceKind : u8;
-
-}
-
 namespace Web::MediaCapture {
+
+using MediaDeviceKind = Bindings::MediaDeviceKind;
 
 // https://w3c.github.io/mediacapture-main/#device-info
 class MediaDeviceInfo final : public Bindings::Wrappable {
@@ -25,19 +22,20 @@ class MediaDeviceInfo final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(MediaDeviceInfo);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaDeviceInfo> create(String device_id, Bindings::MediaDeviceKind kind, String label, String group_id);
+    [[nodiscard]] static GC::Ref<MediaDeviceInfo> create(String device_id, MediaDeviceKind kind, String label, String group_id);
     virtual ~MediaDeviceInfo() override;
 
     String device_id() const { return m_device_id; }
-    Bindings::MediaDeviceKind kind() const { return m_kind; }
+    MediaDeviceKind kind() const { return m_kind; }
     String label() const { return m_label; }
     String group_id() const { return m_group_id; }
+    JS::Object* to_json(JS::Realm&) const;
 
 private:
-    MediaDeviceInfo(String device_id, Bindings::MediaDeviceKind kind, String label, String group_id);
+    MediaDeviceInfo(String device_id, MediaDeviceKind kind, String label, String group_id);
 
     String m_device_id;
-    Bindings::MediaDeviceKind m_kind;
+    MediaDeviceKind m_kind;
     String m_label;
     String m_group_id;
 };

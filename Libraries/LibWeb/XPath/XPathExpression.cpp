@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
 
@@ -24,8 +23,7 @@ GC::Ref<XPathExpression> XPathExpression::create(String const& expression, GC::P
 }
 
 XPathExpression::XPathExpression(String const& expression, GC::Ptr<XPathNSResolver> resolver)
-    : Bindings::Wrappable()
-    , m_expression(expression)
+    : m_expression(expression)
     , m_resolver(resolver)
 {
 }
@@ -38,9 +36,9 @@ void XPathExpression::visit_edges(GC::Cell::Visitor& visitor)
 
 XPathExpression::~XPathExpression() = default;
 
-WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathExpression::evaluate(JS::Realm& realm, DOM::Node const& context_node, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
+WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathExpression::evaluate(DOM::Node const& context_node, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
 {
-    return XPath::evaluate(realm, m_expression, context_node, m_resolver, type, result);
+    return XPath::throw_evaluation_error_if_needed(XPath::evaluate(m_expression, context_node, m_resolver, type, result));
 }
 
 }

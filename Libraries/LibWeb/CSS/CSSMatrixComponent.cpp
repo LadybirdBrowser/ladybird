@@ -23,7 +23,7 @@ GC::Ref<CSSMatrixComponent> CSSMatrixComponent::create(Is2D is_2d, GC::Ref<Geome
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmatrixcomponent-cssmatrixcomponent
-WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::construct_impl(GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Optional<Bindings::CSSMatrixComponentOptions> options)
+WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::create_from_dom_matrix_read_only(GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Optional<bool> is_2d_option)
 {
     // The CSSMatrixComponent(matrix, options) constructor must, when invoked, perform the following steps:
 
@@ -33,13 +33,18 @@ WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::construct_i
     // 2. If options was passed and has a is2D field, set this’s is2D internal slot to the value of that field.
     // 3. Otherwise, set this’s is2D internal slot to the value of matrix’s is2D internal slot.
     auto is_2d = matrix->is2d() ? Is2D::Yes : Is2D::No;
-    if (options.has_value() && options->is2d.has_value())
-        is_2d = options->is2d.value() ? Is2D::Yes : Is2D::No;
+    if (is_2d_option.has_value())
+        is_2d = is_2d_option.value() ? Is2D::Yes : Is2D::No;
 
     auto this_ = CSSMatrixComponent::create(is_2d, Geometry::DOMMatrix::create_from_dom_matrix_read_only(matrix));
 
     // 4. Return this.
     return this_;
+}
+
+WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::create_for_constructor(GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Bindings::CSSMatrixComponentOptions const& options)
+{
+    return create_from_dom_matrix_read_only(matrix, options.is2d);
 }
 
 CSSMatrixComponent::CSSMatrixComponent(Is2D is_2d, GC::Ref<Geometry::DOMMatrix> matrix)
@@ -64,7 +69,7 @@ WebIDL::ExceptionOr<Utf16String> CSSMatrixComponent::to_string() const
     return Utf16String::from_utf8(TRY(m_matrix->to_string()));
 }
 
-WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSMatrixComponent::to_matrix(JS::Realm&) const
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSMatrixComponent::to_matrix() const
 {
     // AD-HOC: Not specced, but we already have a matrix so use that.
     //          https://github.com/w3c/css-houdini-drafts/issues/1153

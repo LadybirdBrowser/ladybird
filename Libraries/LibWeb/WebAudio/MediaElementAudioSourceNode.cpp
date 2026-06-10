@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaElementAudioSourceNode.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/WebAudio/AudioContext.h>
@@ -15,22 +14,27 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(MediaElementAudioSourceNode);
 
-MediaElementAudioSourceNode::MediaElementAudioSourceNode(GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
+MediaElementAudioSourceNode::MediaElementAudioSourceNode(GC::Ref<AudioContext> context, GC::Ref<HTML::HTMLMediaElement> media_element)
     : AudioNode(context)
-    , m_media_element(*options.media_element)
+    , m_media_element(media_element)
 {
 }
 
 MediaElementAudioSourceNode::~MediaElementAudioSourceNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create(GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create(GC::Ref<AudioContext> context, GC::Ref<HTML::HTMLMediaElement> media_element)
 {
-    return GC::Heap::the().allocate<MediaElementAudioSourceNode>(context, options);
+    return GC::Heap::the().allocate<MediaElementAudioSourceNode>(context, media_element);
 }
 
-WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::construct_impl(GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create_for_constructor(GC::Ref<AudioContext> context, GC::Ref<HTML::HTMLMediaElement> media_element)
 {
-    return create(context, options);
+    return create(context, media_element);
+}
+
+WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create_for_constructor(GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
+{
+    return create_for_constructor(context, *options.media_element);
 }
 
 void MediaElementAudioSourceNode::visit_edges(Cell::Visitor& visitor)

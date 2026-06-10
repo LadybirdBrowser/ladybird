@@ -8,11 +8,27 @@
 #pragma once
 
 #include <LibGC/WeakHashSet.h>
+#include <LibWeb/Bindings/CustomElementRegistry.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 
 namespace Web::HTML {
+
+class CustomElementRegistry;
+
+}
+
+namespace Web::Bindings {
+
+class WrapperWorld;
+WEB_API JS::Realm& wrapper_realm_for_custom_element_registry(WrapperWorld const&, JS::Realm&, HTML::CustomElementRegistry&);
+
+}
+
+namespace Web::HTML {
+
+using ElementDefinitionOptions = Bindings::ElementDefinitionOptions;
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#customelementregistry
 class WEB_API CustomElementRegistry : public Bindings::Wrappable {
@@ -20,17 +36,19 @@ class WEB_API CustomElementRegistry : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CustomElementRegistry);
 
 public:
-    [[nodiscard]] static GC::Ref<CustomElementRegistry> construct_impl();
+    [[nodiscard]] static GC::Ref<CustomElementRegistry> create_scoped();
     [[nodiscard]] static GC::Ref<CustomElementRegistry> create_global(DOM::Document&);
 
     virtual ~CustomElementRegistry() override;
 
-    JS::ThrowCompletionOr<void> define(JS::Realm&, String const& name, WebIDL::CallbackType* constructor, Bindings::ElementDefinitionOptions const&);
+    JS::ThrowCompletionOr<void> define(JS::Realm&, String const& name, WebIDL::CallbackType* constructor, ElementDefinitionOptions const&);
     Variant<GC::Ref<WebIDL::CallbackType>, Empty> get(String const& name) const;
     Optional<String> get_name(GC::Ref<WebIDL::CallbackType> constructor) const;
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> when_defined(JS::Realm&, String const& name);
+    GC::Ptr<WebIDL::CallbackType> constructor_for_defined_name(String const& name) const;
+    GC::Ptr<WebIDL::Promise> when_defined_promise(String const& name) const;
+    void set_when_defined_promise(String const& name, GC::Ref<WebIDL::Promise>);
     void upgrade(GC::Ref<DOM::Node> root) const;
-    WebIDL::ExceptionOr<void> initialize_for_bindings(JS::Realm&, GC::Ref<DOM::Node> root);
+    WebIDL::ExceptionOr<void> initialize_for_bindings(GC::Ref<DOM::Node> root);
 
     bool is_scoped() const { return m_is_scoped; }
     void append_scoped_document(GC::Ref<DOM::Document>);
@@ -39,6 +57,8 @@ public:
     GC::Ptr<CustomElementDefinition> get_definition_from_new_target(JS::FunctionObject const& new_target) const;
 
 private:
+    friend JS::Realm& Bindings::wrapper_realm_for_custom_element_registry(Bindings::WrapperWorld const&, JS::Realm&, CustomElementRegistry&);
+
     CustomElementRegistry();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;

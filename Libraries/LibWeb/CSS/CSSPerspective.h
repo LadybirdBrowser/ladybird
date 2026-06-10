@@ -24,13 +24,13 @@ class CSSPerspective final : public CSSTransformComponent {
 
 public:
     [[nodiscard]] static GC::Ref<CSSPerspective> create(CSSPerspectiveValueInternal);
-    static WebIDL::ExceptionOr<GC::Ref<CSSPerspective>> construct_impl(CSSPerspectiveValue);
+    static WebIDL::ExceptionOr<GC::Ref<CSSPerspective>> create_for_constructor(CSSPerspectiveValue);
 
     virtual ~CSSPerspective() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
 
     CSSPerspectiveValue length() const;
     WebIDL::ExceptionOr<void> set_length(CSSPerspectiveValue value);

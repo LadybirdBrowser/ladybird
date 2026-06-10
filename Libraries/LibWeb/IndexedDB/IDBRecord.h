@@ -8,8 +8,9 @@
 
 #include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/IDBRecord.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 
@@ -53,9 +54,9 @@ public:
     [[nodiscard]] static GC::Ref<IDBRecord> create(GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
     virtual ~IDBRecord();
 
-    JS::Value value() const { return m_value; }
-    WebIDL::ExceptionOr<JS::Value> key(JS::Realm&) const;
-    WebIDL::ExceptionOr<JS::Value> primary_key(JS::Realm&) const;
+    JS::Value key(JS::Realm&) const;
+    JS::Value primary_key(JS::Realm&) const;
+    JS::Value const& value() const { return m_value; }
 
 protected:
     explicit IDBRecord(GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);

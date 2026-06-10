@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFEMergeElement.h>
 #include <LibWeb/SVG/SVGFEMergeElement.h>
 
 namespace Web::SVG {

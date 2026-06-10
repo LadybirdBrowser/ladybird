@@ -19,6 +19,14 @@ WEB_API void cache_global_object_wrapper(JS::Realm&);
 WEB_API Wrappable* wrappable_impl_from(JS::Object*);
 WEB_API Wrappable const* wrappable_impl_from(JS::Object const*);
 
+enum class NamedPropertyDeletionResult : u8 {
+    // If the named property deleter has an identifier, but does not return a boolean.
+    // This is done because we don't know the return type of the deleter outside of the IDL generator.
+    NotRelevant,
+    DidNotFail,
+    DidFail,
+};
+
 #define WEB_NON_IDL_PLATFORM_OBJECT(class_, base_class) \
     JS_OBJECT(class_, base_class)
 
@@ -85,39 +93,38 @@ protected:
     };
     JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> legacy_platform_object_get_own_property(JS::PropertyKey const&, IgnoreNamedProps ignore_named_props) const;
 
-    Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const;
-    JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const;
+    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const;
     Vector<FlyString> supported_property_names() const;
     bool is_supported_property_name(FlyString const&) const;
     bool is_supported_property_index(u32) const;
 
-    // NOTE: These forward to the Wrappable implementation and crash if the implementation does not support the hook.
+    // NOTE: These dispatch to binding-side helpers and crash if the wrapped implementation does not support the hook.
     // NOTE: This is only used if named_property_setter_has_identifier returns false, otherwise set_value_of_named_property is used instead.
-    WebIDL::ExceptionOr<void> set_value_of_new_named_property(JS::Realm&, String const&, JS::Value);
-    WebIDL::ExceptionOr<void> set_value_of_existing_named_property(JS::Realm&, String const&, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(JS::Realm&, String const&, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(JS::Realm&, String const&, JS::Value);
 
-    // NOTE: This forwards to the Wrappable implementation and crashes if the implementation does not support the hook.
+    // NOTE: This dispatches to binding-side helpers and crashes if the wrapped implementation does not support the hook.
     // NOTE: This is only used if you make named_property_setter_has_identifier return true, otherwise set_value_of_{new,existing}_named_property is used instead.
-    WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm&, String const&, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm&, String const&, JS::Value);
 
-    // NOTE: These forward to the Wrappable implementation and crash if the implementation does not support the hook.
+    // NOTE: These dispatch to binding-side helpers and crash if the wrapped implementation does not support the hook.
     // NOTE: This is only used if indexed_property_setter_has_identifier returns false, otherwise set_value_of_indexed_property is used instead.
-    WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value);
-    WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value);
 
-    // NOTE: This forwards to the Wrappable implementation and crashes if the implementation does not support the hook.
+    // NOTE: This dispatches to binding-side helpers and crashes if the wrapped implementation does not support the hook.
     // NOTE: This is only used if indexed_property_setter_has_identifier returns true, otherwise set_value_of_{new,existing}_indexed_property is used instead.
-    WebIDL::ExceptionOr<void> set_value_of_indexed_property(JS::Realm&, u32, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(JS::Realm&, u32, JS::Value);
 
-    // NOTE: This forwards to the Wrappable implementation and crashes if the implementation does not support the hook.
-    WebIDL::ExceptionOr<NamedPropertyDeletionResult> delete_value(JS::Realm&, String const&);
+    virtual WebIDL::ExceptionOr<NamedPropertyDeletionResult> delete_value(String const&);
 
     virtual bool eligible_for_own_property_enumeration_fast_path() const override final { return false; }
 
 private:
-    friend Bindings::Wrappable* wrappable_impl_from(JS::Object*);
-    friend Bindings::Wrappable const* wrappable_impl_from(JS::Object const*);
-    friend void cache_global_object_wrapper(JS::Realm&);
+    friend WEB_API Bindings::Wrappable* wrappable_impl_from(JS::Object*);
+    friend WEB_API Bindings::Wrappable const* wrappable_impl_from(JS::Object const*);
+    friend WEB_API void cache_global_object_wrapper(JS::Realm&);
 
     WebIDL::ExceptionOr<void> invoke_indexed_property_setter(JS::PropertyKey const&, JS::Value);
     WebIDL::ExceptionOr<void> invoke_named_property_setter(FlyString const&, JS::Value);

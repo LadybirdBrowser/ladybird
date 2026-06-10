@@ -7,8 +7,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibUnicode/CharacterTypes.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Text.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -34,17 +32,15 @@ GC::Ref<Text> Text::create(Document& document, Utf16String data)
     return GC::Heap::the().allocate<Text>(document, move(data));
 }
 
+GC::Ref<Text> Text::construct_impl(JS::Realm& realm, Utf16String data)
+{
+    return create(HTML::relevant_window(realm.global_object()).associated_document(), move(data));
+}
+
 void Text::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     SlottableMixin::visit_edges(visitor);
-}
-
-// https://dom.spec.whatwg.org/#dom-text-text
-WebIDL::ExceptionOr<GC::Ref<Text>> Text::construct_impl(HTML::Window& window, Utf16String data)
-{
-    // The new Text(data) constructor steps are to set this’s data to data and this’s node document to current global object’s associated Document.
-    return create(window.associated_document(), move(data));
 }
 
 // https://dom.spec.whatwg.org/#dom-text-splittext
@@ -56,7 +52,7 @@ WebIDL::ExceptionOr<GC::Ref<Text>> Text::split_text(size_t offset)
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*this), "Split offset is greater than length"_utf16);
+        return WebIDL::IndexSizeError::create("Split offset is greater than length"_utf16);
 
     // 3. Let count be length minus offset.
     auto count = length - offset;

@@ -13,18 +13,19 @@
 
 namespace Web::UIEvents {
 
+using FocusEventInit = Bindings::FocusEventInit;
+
 class FocusEvent final : public UIEvent {
     WEB_WRAPPABLE(FocusEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(FocusEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<FocusEvent> create(FlyString const& event_name, Bindings::FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<FocusEvent>> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::FocusEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<FocusEvent> create(FlyString const& event_name, FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~FocusEvent() override;
 
 private:
-    FocusEvent(FlyString const& event_name, Bindings::FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    FocusEvent(FlyString const& event_name, FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 };
 
 }

@@ -18,17 +18,17 @@ class CSSTransformValue final : public CSSStyleValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSTransformValue> create(ReadonlySpan<GC::Ref<CSSTransformComponent>>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> construct_impl(ReadonlySpan<GC::Ref<CSSTransformComponent>> const&);
+    static WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> create_for_constructor(ReadonlySpan<GC::Ref<CSSTransformComponent>>);
 
     virtual ~CSSTransformValue() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value) override;
+    GC::Ptr<CSSTransformComponent> component_at(size_t index) const;
+    WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, GC::Ref<CSSTransformComponent>);
+    WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, GC::Ref<CSSTransformComponent>);
 
     bool is_2d() const;
-    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const;
+    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const;
 
     virtual WebIDL::ExceptionOr<String> to_string() const override;
 

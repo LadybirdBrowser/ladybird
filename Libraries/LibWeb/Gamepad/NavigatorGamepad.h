@@ -16,7 +16,7 @@ namespace Web::Gamepad {
 
 class NavigatorGamepadPartial {
 public:
-    WebIDL::ExceptionOr<GC::RootVector<GC::Ptr<Gamepad>>> get_gamepads(JS::Realm&);
+    WebIDL::ExceptionOr<GC::RootVector<GC::Ptr<Gamepad>>> get_gamepads();
 
     size_t select_an_unused_gamepad_index(Badge<Gamepad>);
 

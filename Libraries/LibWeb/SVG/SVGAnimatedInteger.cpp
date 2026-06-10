@@ -31,8 +31,7 @@ SVGAnimatedInteger::SVGAnimatedInteger(
     WebIDL::Long initial_value,
     SupportsSecondValue supports_second_value,
     ValueRepresented value_represented)
-    : Bindings::Wrappable()
-    , m_element(element)
+    : m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
     , m_initial_value(initial_value)
     , m_supports_second_value(supports_second_value)

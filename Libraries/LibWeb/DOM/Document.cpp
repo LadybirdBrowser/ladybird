@@ -28,9 +28,7 @@
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibJS/Console.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
@@ -41,14 +39,7 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/Document.h>
-#include <LibWeb/Bindings/IntersectionObserver.h>
-#include <LibWeb/Bindings/IntersectionObserverEntry.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/Bindings/MessageEvent.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/PointerEvent.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/Window.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/AnimationEvent.h>
@@ -173,6 +164,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
+#include <LibWeb/HTML/Scripting/WindowRealm.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StorageEvent.h>
@@ -231,6 +223,7 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XPath/XPath.h>
 
 namespace Web::DOM {
@@ -373,17 +366,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         // FIXME: 4. Let agent be the result of obtaining a similar-origin window agent given navigationParams's origin, browsingContext's group, and requestsOAC.
 
         // 5. Let realm execution context be the result of creating a new JavaScript realm given agent and the following customizations:
-        auto realm_execution_context = Bindings::create_a_new_javascript_realm(
-            Bindings::main_thread_vm(),
-            [&](JS::Realm& realm) -> JS::Object* {
-                // - For the global object, create a new Window object.
-                window = HTML::Window::create();
-                return Bindings::create_global_object_wrapper(realm, GC::Ref { *window }).ptr();
-            },
-            [&](JS::Realm&) -> JS::Object* {
-                // - For the global this binding, use browsingContext's WindowProxy object.
-                return browsing_context->window_proxy();
-            });
+        auto realm_execution_context = HTML::create_window_realm(window, *browsing_context);
 
         // 6. Set window to the global object of realmExecutionContext's Realm component.
         window = HTML::window_from_global_object(realm_execution_context->realm->global_object());
@@ -518,19 +501,18 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     return document;
 }
 
-// https://dom.spec.whatwg.org/#dom-document-document
-GC::Ref<Document> Document::construct_impl(HTML::Window& window)
-{
-    // The new Document() constructor steps are to set this’s origin to the origin of current global object’s associated Document. [HTML]
-    auto document = Document::create(window.page(), window);
-    document->set_origin(window.associated_document().origin());
-    return document;
-}
-
 GC::Ref<Document> Document::create(Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url)
 {
     auto document = GC::Heap::the().allocate<Document>(page, relevant_global_event_target, url);
     document->initialize_document();
+    return document;
+}
+
+GC::Ref<Document> Document::create_for_constructor(JS::Realm& realm)
+{
+    auto& window = HTML::relevant_window(realm.global_object());
+    auto document = DOM::Document::create(window.page(), window);
+    document->set_origin(window.associated_document().origin());
     return document;
 }
 
@@ -868,56 +850,25 @@ GC::Ptr<Selection::Selection> Document::get_selection() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-write
-WebIDL::ExceptionOr<void> Document::write(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
+WebIDL::ExceptionOr<void> Document::write(StringView text)
 {
     // The document.write(...text) method steps are to run the document write steps with this, text, false, and "Document write".
-    return run_the_document_write_steps(text, AddLineFeed::No, TrustedTypes::InjectionSink::Document_write);
+    return run_the_document_write_steps(text, AddLineFeed::No);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-writeln
-WebIDL::ExceptionOr<void> Document::writeln(Vector<TrustedTypes::TrustedHTMLOrString> const& text)
+WebIDL::ExceptionOr<void> Document::writeln(StringView text)
 {
     // The document.writeln(...text) method steps are to run the document write steps with this, text, true, and "Document writeln".
-    return run_the_document_write_steps(text, AddLineFeed::Yes, TrustedTypes::InjectionSink::Document_writeln);
+    return run_the_document_write_steps(text, AddLineFeed::Yes);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#document-write-steps
-WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedTypes::TrustedHTMLOrString> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink)
+WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(StringView text, AddLineFeed line_feed)
 {
-    // 1. Let string be the empty string.
+    // 1-4. The binding layer concatenates text and validates it with Trusted Types.
     StringBuilder string;
-
-    // 2. Let isTrusted be false if text contains a string; otherwise true.
-    auto is_trusted = true;
-    for (auto const& value : text) {
-        if (value.has<Utf16String>()) {
-            is_trusted = false;
-            break;
-        }
-    }
-
-    // 3. For each value of text:
-    for (auto const& value : text) {
-        string.append(value.visit(
-                               // 1. If value is a TrustedHTML object, then append value's associated data to string.
-                               [](GC::Root<TrustedTypes::TrustedHTML> const& value) { return value->to_string(); },
-                               // 2. Otherwise, append value to string.
-                               [](Utf16String const& value) { return value; })
-                .to_utf8_but_should_be_ported_to_utf16());
-    }
-
-    // 4. If isTrusted is false, set string to the result of invoking the Get Trusted Type compliant string algorithm
-    //    with TrustedHTML, this's relevant global object, string, sink, and "script".
-    if (!is_trusted) {
-        auto const new_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
-            TrustedTypes::TrustedTypeName::TrustedHTML,
-            relevant_global_object(*this),
-            Utf16String::from_utf8(MUST(string.to_string())),
-            sink,
-            TrustedTypes::Script.to_string()));
-        string.clear();
-        string.append(new_string.to_utf8_but_should_be_ported_to_utf16());
-    }
+    string.append(text);
 
     // 5. If lineFeed is true, append U+000A LINE FEED to string.
     if (line_feed == AddLineFeed::Yes)
@@ -925,11 +876,11 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
 
     // 6. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "write() called on XML document."_utf16);
+        return WebIDL::InvalidStateError::create("write() called on XML document."_utf16);
 
     // 7. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
+        return WebIDL::InvalidStateError::create("throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 8. If document's active parser was aborted is true, then return.
     if (m_active_parser_was_aborted)
@@ -963,11 +914,11 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 {
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "open() called on XML document."_utf16);
+        return WebIDL::InvalidStateError::create("open() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
+        return WebIDL::InvalidStateError::create("throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 3. Let entryDocument be the entry global object's associated Document.
     auto* entry_window = HTML::window_from_global_object(HTML::entry_global_object());
@@ -976,7 +927,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 
     // 4. If document's origin is not same origin to entryDocument's origin, then throw a "SecurityError" DOMException.
     if (origin() != entry_document.origin())
-        return WebIDL::SecurityError::create(relevant_settings_object().realm(), "Document.origin() not the same as entryDocument's."_utf16);
+        return WebIDL::SecurityError::create("Document.origin() not the same as entryDocument's."_utf16);
 
     // 5. If document has an active parser whose script nesting level is greater than 0, then return document.
     if (m_parser && m_parser->script_nesting_level() > 0)
@@ -1057,7 +1008,7 @@ WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> Document::open(StringView url, S
 {
     // 1. If this is not fully active, then throw an "InvalidAccessError" DOMException.
     if (!is_fully_active())
-        return WebIDL::InvalidAccessError::create(relevant_settings_object().realm(), "Cannot perform open on a document that isn't fully active."_utf16);
+        return WebIDL::InvalidAccessError::create("Cannot perform open on a document that isn't fully active."_utf16);
 
     // 2. Return the result of running the window open steps with url, name, and features.
     return window()->window_open_steps(url, name, features);
@@ -1068,11 +1019,11 @@ WebIDL::ExceptionOr<void> Document::close()
 {
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException exception.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "close() called on XML document."_utf16);
+        return WebIDL::InvalidStateError::create("close() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
+        return WebIDL::InvalidStateError::create("throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 3. If there is no script-created parser associated with the document, then return.
     if (!m_parser || !m_parser->is_script_created())
@@ -1245,7 +1196,7 @@ HTML::HTMLElement* Document::body()
 WebIDL::ExceptionOr<void> Document::set_body(HTML::HTMLElement* new_body)
 {
     if (!is<HTML::HTMLBodyElement>(new_body) && !is<HTML::HTMLFrameSetElement>(new_body))
-        return WebIDL::HierarchyRequestError::create(relevant_settings_object().realm(), "Invalid document body element, must be 'body' or 'frameset'"_utf16);
+        return WebIDL::HierarchyRequestError::create("Invalid document body element, must be 'body' or 'frameset'"_utf16);
 
     auto* existing_body = body();
     if (existing_body) {
@@ -1255,7 +1206,7 @@ WebIDL::ExceptionOr<void> Document::set_body(HTML::HTMLElement* new_body)
 
     auto* document_element = this->document_element();
     if (!document_element)
-        return WebIDL::HierarchyRequestError::create(relevant_settings_object().realm(), "Missing document element"_utf16);
+        return WebIDL::HierarchyRequestError::create("Missing document element"_utf16);
 
     (void)TRY(document_element->append_child(*new_body));
     return {};
@@ -2800,23 +2751,23 @@ static Node* find_common_ancestor(Node* a, Node* b)
     return nullptr;
 }
 
-static void populate_mouse_event_init_from_hover_event_data(Bindings::MouseEventInit& event_init, HoverEventData const& hover_event_data, GC::Ptr<HTML::WindowProxy> window_proxy)
+static void populate_mouse_event_options_from_hover_event_data(UIEvents::MouseEventOptions& options, HoverEventData const& hover_event_data, GC::Ptr<HTML::WindowProxy> window_proxy)
 {
-    event_init.ctrl_key = hover_event_data.modifiers & UIEvents::KeyModifier::Mod_Ctrl;
-    event_init.shift_key = hover_event_data.modifiers & UIEvents::KeyModifier::Mod_Shift;
-    event_init.alt_key = hover_event_data.modifiers & UIEvents::KeyModifier::Mod_Alt;
-    event_init.meta_key = hover_event_data.modifiers & UIEvents::KeyModifier::Mod_Super;
-    event_init.screen_x = hover_event_data.screen_position.x().to_double();
-    event_init.screen_y = hover_event_data.screen_position.y().to_double();
-    event_init.client_x = hover_event_data.viewport_position.x().to_double();
-    event_init.client_y = hover_event_data.viewport_position.y().to_double();
-    event_init.view = window_proxy;
+    options.ctrl_key = hover_event_data.modifiers & UIEvents::KeyModifier::Mod_Ctrl;
+    options.shift_key = hover_event_data.modifiers & UIEvents::KeyModifier::Mod_Shift;
+    options.alt_key = hover_event_data.modifiers & UIEvents::KeyModifier::Mod_Alt;
+    options.meta_key = hover_event_data.modifiers & UIEvents::KeyModifier::Mod_Super;
+    options.screen_x = hover_event_data.screen_position.x().to_double();
+    options.screen_y = hover_event_data.screen_position.y().to_double();
+    options.client_x = hover_event_data.viewport_position.x().to_double();
+    options.client_y = hover_event_data.viewport_position.y().to_double();
+    options.view = window_proxy;
     if (hover_event_data.movement.has_value()) {
-        event_init.movement_x = hover_event_data.movement->x().to_double();
-        event_init.movement_y = hover_event_data.movement->y().to_double();
+        options.movement_x = hover_event_data.movement->x().to_double();
+        options.movement_y = hover_event_data.movement->y().to_double();
     }
-    event_init.button = UIEvents::mouse_button_to_button_code(static_cast<UIEvents::MouseButton>(hover_event_data.button));
-    event_init.buttons = hover_event_data.buttons;
+    options.button = UIEvents::mouse_button_to_button_code(static_cast<UIEvents::MouseButton>(hover_event_data.button));
+    options.buttons = hover_event_data.buttons;
 }
 
 static CSSPixelPoint hover_event_page_offset(Optional<HoverEventData> const& hover_event_data)
@@ -2934,16 +2885,16 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     auto current_event_time_stamp = [&] {
         return HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
     };
-    auto create_pointer_event = [&](FlyString const& event_name, Bindings::PointerEventInit const& event_init, CSSPixelPoint offset) {
+    auto create_pointer_event = [&](FlyString const& event_name, UIEvents::PointerEventOptions options, CSSPixelPoint offset) {
         return UIEvents::PointerEvent::create(
-            event_name, event_init,
+            event_name, move(options),
             page_offset.x().to_double(), page_offset.y().to_double(),
             offset.x().to_double(), offset.y().to_double(),
             current_event_time_stamp());
     };
-    auto create_mouse_event = [&](FlyString const& event_name, Bindings::MouseEventInit const& event_init, CSSPixelPoint offset) {
+    auto create_mouse_event = [&](FlyString const& event_name, UIEvents::MouseEventOptions const& options, CSSPixelPoint offset) {
         return UIEvents::MouseEvent::create(
-            event_name, event_init,
+            event_name, options,
             page_offset.x().to_double(), page_offset.y().to_double(),
             offset.x().to_double(), offset.y().to_double(),
             current_event_time_stamp());
@@ -2951,34 +2902,34 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
 
     // https://w3c.github.io/pointerevents/#the-pointerout-event
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
-        Bindings::PointerEventInit pointer_event_init;
-        pointer_event_init.bubbles = true;
-        pointer_event_init.cancelable = true;
-        pointer_event_init.composed = true;
-        pointer_event_init.related_target = m_hovered_node;
-        pointer_event_init.is_primary = true;
-        pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
-        pointer_event_init.view = window_proxy;
+        UIEvents::PointerEventOptions pointer_event_options;
+        pointer_event_options.bubbles = true;
+        pointer_event_options.cancelable = true;
+        pointer_event_options.composed = true;
+        pointer_event_options.related_target = m_hovered_node;
+        pointer_event_options.is_primary = true;
+        pointer_event_options.pointer_type = UIEvents::PointerTypes::Mouse;
+        pointer_event_options.view = window_proxy;
         if (hover_event_data.has_value())
-            populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
+            populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
         auto offset = *old_hovered_node_offset;
-        auto event = create_pointer_event(UIEvents::EventNames::pointerout, pointer_event_init, offset);
+        auto event = create_pointer_event(UIEvents::EventNames::pointerout, move(pointer_event_options), offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         old_hovered_node->dispatch_event(event);
     }
 
     // https://w3c.github.io/uievents/#mouseout
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
-        Bindings::MouseEventInit mouse_event_init {};
-        mouse_event_init.bubbles = true;
-        mouse_event_init.cancelable = true;
-        mouse_event_init.composed = true;
-        mouse_event_init.related_target = m_hovered_node;
-        mouse_event_init.view = window_proxy;
+        UIEvents::MouseEventOptions mouse_event_options;
+        mouse_event_options.bubbles = true;
+        mouse_event_options.cancelable = true;
+        mouse_event_options.composed = true;
+        mouse_event_options.related_target = m_hovered_node;
+        mouse_event_options.view = window_proxy;
         if (hover_event_data.has_value())
-            populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
+            populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
         auto offset = *old_hovered_node_offset;
-        auto event = create_mouse_event(UIEvents::EventNames::mouseout, mouse_event_init, offset);
+        auto event = create_mouse_event(UIEvents::EventNames::mouseout, mouse_event_options, offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         old_hovered_node->dispatch_event(event);
     }
@@ -2986,15 +2937,15 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     // https://w3c.github.io/pointerevents/#the-pointerleave-event
     if (!pointer_leave_targets.is_empty()) {
         for (auto const& target : pointer_leave_targets) {
-            Bindings::PointerEventInit pointer_event_init;
-            pointer_event_init.related_target = m_hovered_node;
-            pointer_event_init.is_primary = true;
-            pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
-            pointer_event_init.view = window_proxy;
+            UIEvents::PointerEventOptions pointer_event_options;
+            pointer_event_options.related_target = m_hovered_node;
+            pointer_event_options.is_primary = true;
+            pointer_event_options.pointer_type = UIEvents::PointerTypes::Mouse;
+            pointer_event_options.view = window_proxy;
             if (hover_event_data.has_value())
-                populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
+                populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
             auto offset = target.offset;
-            auto event = create_pointer_event(UIEvents::EventNames::pointerleave, pointer_event_init, offset);
+            auto event = create_pointer_event(UIEvents::EventNames::pointerleave, move(pointer_event_options), offset);
             mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
             target.node->dispatch_event(event);
         }
@@ -3003,12 +2954,12 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     // https://w3c.github.io/uievents/#mouseleave
     if (!mouse_leave_targets.is_empty()) {
         for (auto const& target : mouse_leave_targets) {
-            Bindings::MouseEventInit mouse_event_init {};
-            mouse_event_init.related_target = m_hovered_node;
+            UIEvents::MouseEventOptions mouse_event_options;
+            mouse_event_options.related_target = m_hovered_node;
             if (hover_event_data.has_value())
-                populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
+                populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
             auto offset = target.offset;
-            auto event = create_mouse_event(UIEvents::EventNames::mouseleave, mouse_event_init, offset);
+            auto event = create_mouse_event(UIEvents::EventNames::mouseleave, mouse_event_options, offset);
             mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
             target.node->dispatch_event(event);
         }
@@ -3016,34 +2967,34 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
 
     // https://w3c.github.io/pointerevents/#the-pointerover-event
     if (m_hovered_node && m_hovered_node != old_hovered_node) {
-        Bindings::PointerEventInit pointer_event_init;
-        pointer_event_init.bubbles = true;
-        pointer_event_init.cancelable = true;
-        pointer_event_init.composed = true;
-        pointer_event_init.related_target = old_hovered_node;
-        pointer_event_init.is_primary = true;
-        pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
-        pointer_event_init.view = window_proxy;
+        UIEvents::PointerEventOptions pointer_event_options;
+        pointer_event_options.bubbles = true;
+        pointer_event_options.cancelable = true;
+        pointer_event_options.composed = true;
+        pointer_event_options.related_target = old_hovered_node;
+        pointer_event_options.is_primary = true;
+        pointer_event_options.pointer_type = UIEvents::PointerTypes::Mouse;
+        pointer_event_options.view = window_proxy;
         if (hover_event_data.has_value())
-            populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
+            populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
         auto offset = *hovered_node_offset;
-        auto event = create_pointer_event(UIEvents::EventNames::pointerover, pointer_event_init, offset);
+        auto event = create_pointer_event(UIEvents::EventNames::pointerover, move(pointer_event_options), offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         m_hovered_node->dispatch_event(event);
     }
 
     // https://w3c.github.io/uievents/#mouseover
     if (m_hovered_node && m_hovered_node != old_hovered_node) {
-        Bindings::MouseEventInit mouse_event_init {};
-        mouse_event_init.bubbles = true;
-        mouse_event_init.cancelable = true;
-        mouse_event_init.composed = true;
-        mouse_event_init.related_target = old_hovered_node;
-        mouse_event_init.view = window_proxy;
+        UIEvents::MouseEventOptions mouse_event_options;
+        mouse_event_options.bubbles = true;
+        mouse_event_options.cancelable = true;
+        mouse_event_options.composed = true;
+        mouse_event_options.related_target = old_hovered_node;
+        mouse_event_options.view = window_proxy;
         if (hover_event_data.has_value())
-            populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
+            populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
         auto offset = *hovered_node_offset;
-        auto event = create_mouse_event(UIEvents::EventNames::mouseover, mouse_event_init, offset);
+        auto event = create_mouse_event(UIEvents::EventNames::mouseover, mouse_event_options, offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         m_hovered_node->dispatch_event(event);
     }
@@ -3054,22 +3005,22 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     // Leave events are dispatched in the opposite order.
     if (!entered_ancestors.is_empty()) {
         for (auto target : entered_ancestors.in_reverse()) {
-            Bindings::PointerEventInit pointer_event_init;
-            pointer_event_init.related_target = old_hovered_node;
-            pointer_event_init.is_primary = true;
-            pointer_event_init.pointer_type = UIEvents::PointerTypes::Mouse;
-            pointer_event_init.view = window_proxy;
+            UIEvents::PointerEventOptions pointer_event_options;
+            pointer_event_options.related_target = old_hovered_node;
+            pointer_event_options.is_primary = true;
+            pointer_event_options.pointer_type = UIEvents::PointerTypes::Mouse;
+            pointer_event_options.view = window_proxy;
             if (hover_event_data.has_value())
-                populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
+                populate_mouse_event_options_from_hover_event_data(pointer_event_options, *hover_event_data, window_proxy);
             auto offset = target.offset;
-            auto pointer_event = create_pointer_event(UIEvents::EventNames::pointerenter, pointer_event_init, offset);
+            auto pointer_event = create_pointer_event(UIEvents::EventNames::pointerenter, move(pointer_event_options), offset);
             mark_mouse_transition_event_as_trusted_if_needed(pointer_event, hover_event_data);
             target.node->dispatch_event(pointer_event);
-            Bindings::MouseEventInit mouse_event_init {};
-            mouse_event_init.related_target = old_hovered_node;
+            UIEvents::MouseEventOptions mouse_event_options;
+            mouse_event_options.related_target = old_hovered_node;
             if (hover_event_data.has_value())
-                populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
-            auto mouse_event = create_mouse_event(UIEvents::EventNames::mouseenter, mouse_event_init, offset);
+                populate_mouse_event_options_from_hover_event_data(mouse_event_options, *hover_event_data, window_proxy);
+            auto mouse_event = create_mouse_event(UIEvents::EventNames::mouseenter, mouse_event_options, offset);
             mark_mouse_transition_event_as_trusted_if_needed(mouse_event, hover_event_data);
             target.node->dispatch_event(mouse_event);
         }
@@ -3225,11 +3176,11 @@ HTML::EnvironmentSettingsObject& Document::relevant_settings_object() const
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
-WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& local_name, Variant<String, Bindings::ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& local_name, ElementCreationOptions const& options)
 {
     // 1. If localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_element_local_name(local_name))
-        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "Invalid character in tag name."_utf16);
+        return WebIDL::InvalidCharacterError::create("Invalid character in tag name."_utf16);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
     auto local_name_lower = document_type() == Type::HTML
@@ -3249,19 +3200,48 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& loc
     return TRY(DOM::create_element(*this, FlyString::from_utf8_without_validation(local_name_lower.bytes()), move(namespace_), {}, move(is_value), true, registry));
 }
 
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& local_name, Variant<String, ElementCreationOptions> const& options)
+{
+    ElementCreationOptions element_creation_options;
+    options.visit(
+        [&](String const& is) {
+            element_creation_options.is = is;
+        },
+        [&](ElementCreationOptions const& options) {
+            element_creation_options = options;
+        });
+    return create_element(local_name, element_creation_options);
+}
+
 // https://dom.spec.whatwg.org/#dom-document-createelementns
 // https://dom.spec.whatwg.org/#internal-createelementns-steps
-WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, Bindings::ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, ElementCreationOptions const& options)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName
     //    given "element".
-    auto extracted_qualified_name = TRY(validate_and_extract(relevant_settings_object().realm(), namespace_, qualified_name, ValidationContext::Element));
+    auto extracted_qualified_name_or_error = validate_and_extract(namespace_, qualified_name, ValidationContext::Element);
+    if (extracted_qualified_name_or_error.is_error())
+        return validate_and_extract_error_to_dom_exception(extracted_qualified_name_or_error.release_error());
+    auto extracted_qualified_name = extracted_qualified_name_or_error.release_value();
 
     // 2. Let registry and is be the result of flattening element creation options given options and this.
     auto [registry, is_value] = TRY(flatten_element_creation_options(options));
 
     // 3. Return the result of creating an element given document, localName, namespace, prefix, is, true, and registry.
     return TRY(DOM::create_element(*this, extracted_qualified_name.local_name(), extracted_qualified_name.namespace_(), extracted_qualified_name.prefix(), move(is_value), true, registry));
+}
+
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, ElementCreationOptions> const& options)
+{
+    ElementCreationOptions element_creation_options;
+    options.visit(
+        [&](String const& is) {
+            element_creation_options.is = is;
+        },
+        [&](ElementCreationOptions const& options) {
+            element_creation_options = options;
+        });
+    return create_element_ns(namespace_, qualified_name, element_creation_options);
 }
 
 GC::Ref<DocumentFragment> Document::create_document_fragment()
@@ -3279,11 +3259,11 @@ WebIDL::ExceptionOr<GC::Ref<CDATASection>> Document::create_cdata_section(Utf16S
 {
     // 1. If this is an HTML document, then throw a "NotSupportedError" DOMException.
     if (is_html_document())
-        return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "This operation is not supported for HTML documents"_utf16);
+        return WebIDL::NotSupportedError::create("This operation is not supported for HTML documents"_utf16);
 
     // 2. If data contains the string "]]>", then throw an "InvalidCharacterError" DOMException.
     if (data.contains("]]>"sv))
-        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "String may not contain ']]>'"_utf16);
+        return WebIDL::InvalidCharacterError::create("String may not contain ']]>'"_utf16);
 
     // 3. Return a new CDATASection node with its data set to data and node document set to this.
     return CDATASection::create(*this, move(data));
@@ -3299,11 +3279,11 @@ WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_
 {
     // 1. If target does not match the Name production, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_name(target))
-        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "Invalid character in target name."_utf16);
+        return WebIDL::InvalidCharacterError::create("Invalid character in target name."_utf16);
 
     // 2. If data contains the string "?>", then throw an "InvalidCharacterError" DOMException.
     if (data.contains("?>"sv))
-        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "String may not contain '?>'"_utf16);
+        return WebIDL::InvalidCharacterError::create("String may not contain '?>'"_utf16);
 
     // 3. Return a new ProcessingInstruction node, with target set to target, data set to data, and node document set to this.
     return ProcessingInstruction::create(*this, move(data), target);
@@ -3350,10 +3330,10 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
     } else if (interface.equals_ignoring_ascii_case("keyboardevent"sv)) {
         event = UIEvents::KeyboardEvent::create(String {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("messageevent"sv)) {
-        event = HTML::MessageEvent::create(realm.global_object(), FlyString {}, Bindings::MessageEventInit {});
+        event = HTML::MessageEvent::create(FlyString {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("mouseevent"sv)
         || interface.equals_ignoring_ascii_case("mouseevents"sv)) {
-        event = UIEvents::MouseEvent::create(FlyString {}, {}, 0, 0, 0, 0, time_stamp);
+        event = UIEvents::MouseEvent::create(FlyString {}, UIEvents::MouseEventOptions {}, 0, 0, 0, 0, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("storageevent"sv)) {
         event = HTML::StorageEvent::create(FlyString {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("svgevents"sv)) {
@@ -3369,7 +3349,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
 
     // 3. If constructor is null, then throw a "NotSupportedError" DOMException.
     if (!event) {
-        return WebIDL::NotSupportedError::create(realm, "No constructor for interface found"_utf16);
+        return WebIDL::NotSupportedError::create("No constructor for interface found"_utf16);
     }
 
     // FIXME: 4. If the interface indicated by constructor is not exposed on the relevant global object of this, then throw a "NotSupportedError" DOMException.
@@ -3422,51 +3402,49 @@ void Document::add_script_to_execute_when_parsing_has_finished(Badge<HTML::HTMLS
 }
 
 // https://dom.spec.whatwg.org/#dom-document-importnode
-WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Variant<bool, Bindings::ImportNodeOptions> options)
+WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, ImportNodeOptions const& options)
 {
     // 1. If node is a document or shadow root, then throw a "NotSupportedError" DOMException.
     if (is<Document>(*node) || is<ShadowRoot>(*node))
-        return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "Cannot import a document or shadow root."_utf16);
+        return WebIDL::NotSupportedError::create("Cannot import a document or shadow root."_utf16);
 
-    // 2. Let subtree be false.
-    bool subtree = false;
+    // 2. Let subtree be the negation of options["selfOnly"].
+    bool subtree = !options.self_only;
 
-    // 3. Let registry be null.
-    GC::Ptr<HTML::CustomElementRegistry> registry;
+    // 3. Let registry be options["customElementRegistry"] if it exists; otherwise null.
+    auto registry = options.custom_element_registry;
 
-    TRY(options.visit(
-        // 4. If options is a boolean, then set subtree to options.
-        [&subtree](bool const& value) -> WebIDL::ExceptionOr<void> {
-            subtree = value;
-            return {};
-        },
-        // 5. Otherwise:
-        [&subtree, &registry, this](Bindings::ImportNodeOptions const& options) -> WebIDL::ExceptionOr<void> {
-            // 1. Set subtree to the negation of options["selfOnly"].
-            subtree = !options.self_only;
+    // 4. If registry’s is scoped is false and registry is not this’s custom element registry, then throw a
+    //    "NotSupportedError" DOMException.
+    if (registry && !registry->is_scoped() && registry != custom_element_registry())
+        return WebIDL::NotSupportedError::create("'customElementRegistry' in ImportNodeOptions must either be scoped or the document's custom element registry."_utf16);
 
-            // 2. If options["customElementRegistry"] exists, then set registry to it.
-            if (options.custom_element_registry)
-                registry = options.custom_element_registry;
-
-            // 3. If registry’s is scoped is false and registry is not this’s custom element registry, then throw a
-            //    "NotSupportedError" DOMException.
-            if (registry && !registry->is_scoped() && registry != custom_element_registry())
-                return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "'customElementRegistry' in ImportNodeOptions must either be scoped or the document's custom element registry."_utf16);
-            return {};
-        }));
-
-    // 6. If registry is null, then set registry to the result of looking up a custom element registry given this.
+    // 5. If registry is null, then set registry to the result of looking up a custom element registry given this.
     if (!registry)
         registry = HTML::look_up_a_custom_element_registry(*this);
 
-    // 7. Return the result of cloning a node given node with document set to this, subtree set to subtree, and
+    // 6. Return the result of cloning a node given node with document set to this, subtree set to subtree, and
     //   fallbackRegistry set to registry.
     return node->clone_node(this, subtree, nullptr, registry);
 }
 
+WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Variant<bool, ImportNodeOptions> const& options)
+{
+    auto import_node_options = options.visit(
+        [](bool value) -> ImportNodeOptions {
+            return {
+                .custom_element_registry = nullptr,
+                .self_only = !value,
+            };
+        },
+        [](ImportNodeOptions const& options) {
+            return options;
+        });
+    return import_node(node, import_node_options);
+}
+
 // https://dom.spec.whatwg.org/#concept-node-adopt
-void Document::adopt_node(Node& node)
+void Document::adopt_node_steps(Node& node)
 {
     // 1. Let oldDocument be node’s node document.
     auto& old_document = node.document();
@@ -3518,15 +3496,8 @@ void Document::adopt_node(Node& node)
         //    enqueue a custom element callback reaction with inclusiveDescendant, callback name "adoptedCallback", and
         //    « oldDocument, document ».
         node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
-            if (auto* element = as_if<Element>(inclusive_descendant); element && element->is_custom()) {
-                GC::RootVector<JS::Value> arguments;
-                auto& old_document_realm = old_document.relevant_settings_object().realm();
-                auto& new_document_realm = relevant_settings_object().realm();
-                arguments.append(Bindings::wrap(Bindings::host_defined_wrapper_world(old_document_realm), old_document_realm, GC::Ref { old_document }));
-                arguments.append(Bindings::wrap(Bindings::host_defined_wrapper_world(new_document_realm), new_document_realm, GC::Ref { *this }));
-
-                element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::adoptedCallback, move(arguments));
-            }
+            if (auto* element = as_if<Element>(inclusive_descendant); element && element->is_custom())
+                element->enqueue_an_adopted_callback_reaction(old_document, *this);
 
             return TraversalDecision::Continue;
         });
@@ -3554,18 +3525,18 @@ void Document::adopt_node(Node& node)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-adoptnode
-WebIDL::ExceptionOr<GC::Ref<Node>> Document::adopt_node_binding(GC::Ref<Node> node)
+WebIDL::ExceptionOr<GC::Ref<Node>> Document::adopt_node(GC::Ref<Node> node)
 {
     if (is<Document>(*node))
-        return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "Cannot adopt a document into a document"_utf16);
+        return WebIDL::NotSupportedError::create("Cannot adopt a document into a document"_utf16);
 
     if (is<ShadowRoot>(*node))
-        return WebIDL::HierarchyRequestError::create(relevant_settings_object().realm(), "Cannot adopt a shadow root into a document"_utf16);
+        return WebIDL::HierarchyRequestError::create("Cannot adopt a shadow root into a document"_utf16);
 
     if (auto* fragment = as_if<DocumentFragment>(*node); fragment && fragment->host())
         return node;
 
-    adopt_node(*node);
+    adopt_node_steps(*node);
 
     return node;
 }
@@ -3620,10 +3591,10 @@ void Document::set_focused_area(GC::Ptr<Node> node)
         new_focused_element->queue_an_element_task(HTML::Task::Source::UserInteraction, [new_focused_element] {
             if (new_focused_element->document().focused_area().ptr() != new_focused_element)
                 return;
-            Bindings::ScrollIntoViewOptions scroll_options;
-            scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
-            scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
-            (void)new_focused_element->scroll_into_view(scroll_options);
+            Element::ScrollIntoViewOptions scroll_options;
+            scroll_options.block = Element::ScrollLogicalPosition::Nearest;
+            scroll_options.inline_ = Element::ScrollLogicalPosition::Nearest;
+            new_focused_element->scroll_into_view(scroll_options, nullptr);
         });
     }
 
@@ -3898,21 +3869,17 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
             break;
         }
 
-        Bindings::TransitionEventInit event_init {};
-        event_init.bubbles = true;
-        event_init.property_name = MUST(String::from_utf8(transition->transition_property()));
-        event_init.elapsed_time = elapsed_time_output;
-        event_init.pseudo_element = transition->owning_element()->pseudo_element().map([](auto it) {
-                                                                                      return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
-                                                                                  })
-                                        .value_or({});
-
         auto timeline = transition->timeline();
 
         append_pending_animation_event({
             .event = CSS::TransitionEvent::create(
                 type,
-                event_init,
+                MUST(String::from_utf8(transition->transition_property())),
+                elapsed_time_output,
+                transition->owning_element()->pseudo_element().map([](auto it) {
+                                                                  return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
+                                                              })
+                    .value_or({}),
                 HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(transition->owning_element()->element().document()))),
             .animation = transition,
             .target = transition->owning_element()->element(),
@@ -4006,21 +3973,18 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
             break;
         }
 
-        Bindings::AnimationEventInit event_init {};
-        event_init.bubbles = true;
-        event_init.animation_name = static_cast<String>(css_animation.animation_name());
-        event_init.elapsed_time = elapsed_time_output;
-        event_init.pseudo_element = owning_element->pseudo_element().map([](auto it) {
-                                                                        return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
-                                                                    })
-                                        .value_or({});
-
         auto timeline = animation->timeline();
 
         append_pending_animation_event({
             .event = CSS::AnimationEvent::create(
                 name,
-                event_init,
+                css_animation.animation_name(),
+                elapsed_time_output,
+                owning_element->pseudo_element().map([](auto it) {
+                                                    auto pseudo_element = MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
+                                                    return MUST(FlyString::from_utf8(pseudo_element.bytes_as_string_view()));
+                                                })
+                    .value_or({}),
                 HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(owning_element->element().document()))),
             .animation = css_animation,
             .target = owning_element->element(),
@@ -4129,10 +4093,10 @@ void Document::scroll_to_the_fragment()
         // FIXME: 4. Run the ancestor revealing algorithm on target.
 
         // 5. Scroll target into view, with behavior set to "auto", block set to "start", and inline set to "nearest". [CSSOMVIEW]
-        Bindings::ScrollIntoViewOptions scroll_options;
-        scroll_options.block = Bindings::ScrollLogicalPosition::Start;
-        scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
-        (void)target->scroll_into_view(scroll_options);
+        Element::ScrollIntoViewOptions scroll_options;
+        scroll_options.block = Element::ScrollLogicalPosition::Start;
+        scroll_options.inline_ = Element::ScrollLogicalPosition::Nearest;
+        target->scroll_into_view(scroll_options, nullptr);
 
         // 6. Run the focusing steps for target, with the Document's viewport as the fallback target.
         HTML::run_focusing_steps(target, this);
@@ -4353,7 +4317,7 @@ WebIDL::ExceptionOr<String> Document::cookie()
 
     // Otherwise, if the Document's origin is an opaque origin, the user agent must throw a "SecurityError" DOMException.
     if (origin().is_opaque())
-        return WebIDL::SecurityError::create(relevant_settings_object().realm(), "Document origin is opaque"_utf16);
+        return WebIDL::SecurityError::create("Document origin is opaque"_utf16);
 
     // Otherwise, the user agent must return the cookie-string for the document's URL for a "non-HTTP" API, decoded using
     // UTF-8 decode without BOM.
@@ -4381,7 +4345,7 @@ WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string)
 
     // Otherwise, if the Document's origin is an opaque origin, the user agent must throw a "SecurityError" DOMException.
     if (origin().is_opaque())
-        return WebIDL::SecurityError::create(relevant_settings_object().realm(), "Document origin is opaque"_utf16);
+        return WebIDL::SecurityError::create("Document origin is opaque"_utf16);
 
     // Otherwise, the user agent must act as it would when receiving a set-cookie-string for the document's URL via a
     // "non-HTTP" API, consisting of the new value encoded as UTF-8.
@@ -4727,14 +4691,11 @@ void Document::evaluate_media_queries_and_report_changes()
         media_query_list->set_has_changed_state(false);
 
         if (did_change_internally == true || did_match != now_matches) {
-            Bindings::MediaQueryListEventInit init;
-            init.media = media_query_list->media();
-            init.matches = now_matches;
             auto event = CSS::MediaQueryListEvent::create(
                 HTML::EventNames::change,
-                init,
+                media_query_list->media(),
+                now_matches,
                 HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
-            event->set_is_trusted(true);
             media_query_list->dispatch_event(*event);
         }
     }
@@ -4753,13 +4714,6 @@ DOMImplementation* Document::implementation()
     if (!m_implementation)
         m_implementation = DOMImplementation::create(*this);
     return m_implementation;
-}
-
-// https://html.spec.whatwg.org/multipage/interaction.html#dom-document-hasfocus
-bool Document::has_focus_for_bindings() const
-{
-    // The Document hasFocus() method steps are to return the result of running the has focus steps given this.
-    return has_focus();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#has-focus-steps
@@ -5141,26 +5095,24 @@ bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_str
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-document-domain
 WebIDL::ExceptionOr<void> Document::set_domain(String const& domain)
 {
-    auto& realm = relevant_settings_object().realm();
-
     // 1. If this's browsing context is null, then throw a "SecurityError" DOMException.
     if (!m_browsing_context)
-        return WebIDL::SecurityError::create(realm, "Document.domain setter requires a browsing context"_utf16);
+        return WebIDL::SecurityError::create("Document.domain setter requires a browsing context"_utf16);
 
     // 2. If this's active sandboxing flag set has its sandboxed document.domain browsing context flag set, then throw a "SecurityError" DOMException.
     if (has_flag(active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedDocumentDomain))
-        return WebIDL::SecurityError::create(realm, "Document.domain setter is sandboxed"_utf16);
+        return WebIDL::SecurityError::create("Document.domain setter is sandboxed"_utf16);
 
     // 3. Let effectiveDomain be this's origin's effective domain.
     auto effective_domain = origin().effective_domain();
 
     // 4. If effectiveDomain is null, then throw a "SecurityError" DOMException.
     if (!effective_domain.has_value())
-        return WebIDL::SecurityError::create(realm, "Document.domain setter called on a Document with a null effective domain"_utf16);
+        return WebIDL::SecurityError::create("Document.domain setter called on a Document with a null effective domain"_utf16);
 
     // 5. If the given value is not a registrable domain suffix of and is not equal to effectiveDomain, then throw a "SecurityError" DOMException.
     if (!is_a_registrable_domain_suffix_of_or_is_equal_to(domain, effective_domain.value()))
-        return WebIDL::SecurityError::create(realm, "Document.domain setter called for an invalid domain"_utf16);
+        return WebIDL::SecurityError::create("Document.domain setter called for an invalid domain"_utf16);
 
     // FIXME: 6. If the surrounding agent's agent cluster's is origin-keyed is true, then return.
 
@@ -5924,7 +5876,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& loca
 {
     // 1. If localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_attribute_local_name(local_name))
-        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "Invalid character in attribute name."_utf16);
+        return WebIDL::InvalidCharacterError::create("Invalid character in attribute name."_utf16);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
     // 3. Return a new attribute whose local name is localName and node document is this.
@@ -5935,7 +5887,10 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& loca
 WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute_ns(Optional<FlyString> const& namespace_, String const& qualified_name)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "attribute".
-    auto extracted_qualified_name = TRY(validate_and_extract(relevant_settings_object().realm(), namespace_, qualified_name, ValidationContext::Attribute));
+    auto extracted_qualified_name_or_error = validate_and_extract(namespace_, qualified_name, ValidationContext::Attribute);
+    if (extracted_qualified_name_or_error.is_error())
+        return validate_and_extract_error_to_dom_exception(extracted_qualified_name_or_error.release_error());
+    auto extracted_qualified_name = extracted_qualified_name_or_error.release_value();
 
     // 2. Return a new attribute whose namespace is namespace, namespace prefix is prefix, local name is localName, and node document is this.
     return Attr::create(*this, extracted_qualified_name);
@@ -6094,23 +6049,10 @@ void Document::queue_intersection_observer_task()
             if (queue.is_empty())
                 continue;
 
-            auto& callback = observer->callback();
-            auto& callback_realm = callback.callback_context->realm();
-
-            auto wrapped_queue = MUST(JS::Array::create(callback_realm, 0));
-            auto& wrapper_world = Bindings::host_defined_wrapper_world(callback_realm);
-            for (size_t i = 0; i < queue.size(); ++i) {
-                auto& record = queue.at(i);
-                auto property_index = JS::PropertyKey { i };
-                MUST(wrapped_queue->create_data_property(property_index, Bindings::wrap(wrapper_world, callback_realm, GC::Ref { *record })));
-            }
-
             // 4. Let callback be the value of observer’s internal [[callback]] slot.
 
             // 5. Invoke callback with queue as the first argument, observer as the second argument, and observer as the callback this value. If this throws an exception, report the exception.
-            // NOTE: This does not follow the spec as written precisely, but this is the same thing we do elsewhere and there is a WPT test that relies on this.
-            auto wrapped_observer = Bindings::wrap(wrapper_world, callback_realm, observer);
-            (void)WebIDL::invoke_callback(callback, wrapped_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_queue, wrapped_observer } });
+            IntersectionObserver::invoke_intersection_observer_callback(*observer, queue);
         }
     }));
 }
@@ -6320,61 +6262,17 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
 {
     VERIFY(element.is_lazy_loading());
 
-    auto& realm = relevant_settings_object().realm();
-
     // 1. Let doc be element's node document.
     VERIFY(&element.document() == this);
 
     // 2. If doc's lazy load intersection observer is null, set it to a new IntersectionObserver instance, initialized as follows:
     if (!m_lazy_load_intersection_observer) {
-        // - The callback is these steps, with arguments entries and observer:
-        auto callback = JS::NativeFunction::create(realm, Utf16FlyString {}, [this](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-            // For each entry in entries using a method of iteration which does not trigger developer-modifiable array accessors or iteration hooks:
-            auto& entries = as<JS::Array>(vm.argument(0).as_object());
-            auto entries_length = MUST(MUST(entries.get(vm.names.length)).to_length(vm));
-
-            for (size_t i = 0; i < entries_length; ++i) {
-                auto property_key = JS::PropertyKey { i };
-                auto& entry_object = entries.get_without_side_effects(property_key).as_object();
-                auto* entry = Bindings::impl_from<IntersectionObserver::IntersectionObserverEntry>(&entry_object);
-                VERIFY(entry);
-
-                // 1. Let resumptionSteps be null.
-                GC::Ptr<GC::Function<void()>> resumption_steps;
-
-                // 2. If entry.isIntersecting is true, then set resumptionSteps to entry.target's lazy load resumption steps.
-                if (entry->is_intersecting()) {
-                    // 5. Set entry.target's lazy load resumption steps to null.
-                    VERIFY(entry->target()->is_lazy_loading());
-                    resumption_steps = entry->target()->take_lazy_load_resumption_steps({});
-                }
-
-                // 3. If resumptionSteps is null, then return.
-                if (!resumption_steps) {
-                    // NOTE: This is wrong in the spec, since we want to keep processing
-                    //       entries even if one of them doesn't have resumption steps.
-                    // FIXME: Spec bug: https://github.com/whatwg/html/issues/10019
-                    continue;
-                }
-
-                // 4. Stop intersection-observing a lazy loading element for entry.target.
-                stop_intersection_observing_a_lazy_loading_element(entry->target());
-
-                // 5. Set entry.target's lazy load resumption steps to null.
-                entry->target()->take_lazy_load_resumption_steps({});
-
-                // 6. Invoke resumptionSteps.
-                resumption_steps->function()();
-            }
-
-            return JS::js_undefined();
-        });
-
-        // FIXME: The options is an IntersectionObserverInit dictionary with the following dictionary members: «[ "rootMargin" → lazy load root margin ]»
+        // FIXME: Set rootMargin to the lazy load root margin.
         // Spec Note: This allows for fetching the image during scrolling, when it does not yet — but is about to — intersect the viewport.
-        auto options = Bindings::IntersectionObserverInit {};
+        auto options = IntersectionObserver::IntersectionObserverOptions {};
 
-        auto wrapped_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(callback, realm);
+        // The callback is these steps, with arguments entries and observer:
+        auto wrapped_callback = IntersectionObserver::create_lazy_load_intersection_observer_callback(*this);
         m_lazy_load_intersection_observer = IntersectionObserver::IntersectionObserver::create_with_implicit_root_document(wrapped_callback, options, *this).release_value_but_fixme_should_propagate_errors();
     }
 
@@ -6394,6 +6292,41 @@ void Document::stop_intersection_observing_a_lazy_loading_element(Element& eleme
 
     // 3. Call doc's lazy load intersection observer unobserve method with element as the argument.
     m_lazy_load_intersection_observer->unobserve(element);
+}
+
+void Document::process_lazy_load_intersection_observer_entries(ReadonlySpan<GC::Ref<IntersectionObserver::IntersectionObserverEntry>> entries)
+{
+    // For each entry in entries using a method of iteration which does not
+    // trigger developer-modifiable array accessors or iteration hooks:
+    for (auto entry : entries) {
+        // 1. Let resumptionSteps be null.
+        GC::Ptr<GC::Function<void()>> resumption_steps;
+
+        // 2. If entry.isIntersecting is true, then set resumptionSteps to
+        // entry.target's lazy load resumption steps.
+        if (entry->is_intersecting()) {
+            // 5. Set entry.target's lazy load resumption steps to null.
+            VERIFY(entry->target()->is_lazy_loading());
+            resumption_steps = entry->target()->take_lazy_load_resumption_steps({});
+        }
+
+        // 3. If resumptionSteps is null, then return.
+        if (!resumption_steps) {
+            // NOTE: This is wrong in the spec, since we want to keep processing
+            //       entries even if one of them doesn't have resumption steps.
+            // FIXME: Spec bug: https://github.com/whatwg/html/issues/10019
+            continue;
+        }
+
+        // 4. Stop intersection-observing a lazy loading element for entry.target.
+        stop_intersection_observing_a_lazy_loading_element(entry->target());
+
+        // 5. Set entry.target's lazy load resumption steps to null.
+        entry->target()->take_lazy_load_resumption_steps({});
+
+        // 6. Invoke resumptionSteps.
+        resumption_steps->function()();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#shared-declarative-refresh-steps
@@ -6537,7 +6470,7 @@ void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::
         if (!navigable || navigable->has_been_destroyed())
             return;
 
-        MUST(navigable->navigate({ .url = url_record, .source_document = *this, .history_handling = Bindings::NavigationHistoryBehavior::Replace }));
+        MUST(navigable->navigate({ .url = url_record, .source_document = *this, .history_handling = HTML::NavigationHistoryBehavior::Replace }));
     });
 
     // For the purposes of the previous paragraph, a refresh is said to have come due as soon as the later of the
@@ -6605,7 +6538,7 @@ void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHisto
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
-void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool update_navigation_api)
+void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool update_navigation_api)
 {
     (void)previous_entry_for_activation;
 
@@ -6655,11 +6588,12 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             //    with the state attribute initialized to document's history object's state and hasUAVisualTransition initialized to true
             //    if a visual transition, to display a cached rendered state of the latest entry, was done by the user agent.
             // FIXME: Initialise hasUAVisualTransition
-            Bindings::PopStateEventInit popstate_event_init;
-            popstate_event_init.state = history()->unsafe_state();
             auto& relevant_global_object = HTML::relevant_global_object(*this);
             auto& window = HTML::relevant_window(*this);
-            auto pop_state_event = HTML::PopStateEvent::create("popstate"_fly_string, popstate_event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+            auto pop_state_event = HTML::PopStateEvent::create(
+                "popstate"_fly_string,
+                history()->state_value(),
+                HighResolutionTime::current_high_resolution_time(relevant_global_object));
             window.dispatch_event(pop_state_event);
 
             // FIXME: 4. Restore persisted state given entry.
@@ -6669,10 +6603,11 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             //    using HashChangeEvent, with the oldURL attribute initialized to the serialization of oldURL and the newURL attribute
             //    initialized to the serialization of entry's URL.
             if (old_url.fragment() != entry->url().fragment()) {
-                Bindings::HashChangeEventInit hashchange_event_init;
-                hashchange_event_init.old_url = old_url.serialize();
-                hashchange_event_init.new_url = entry->url().serialize();
-                auto hashchange_event = HTML::HashChangeEvent::create("hashchange"_fly_string, hashchange_event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+                auto hashchange_event = HTML::HashChangeEvent::create(
+                    "hashchange"_fly_string,
+                    old_url.serialize(),
+                    entry->url().serialize(),
+                    HighResolutionTime::current_high_resolution_time(relevant_global_object));
                 HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), [hashchange_event, &window]() {
                     window.dispatch_event(hashchange_event);
                 }));
@@ -7000,7 +6935,7 @@ void Document::remove_replaced_animations()
             if (!animation.is_replaceable())
                 continue;
 
-            if (animation.replace_state() != Bindings::AnimationReplaceState::Active)
+            if (animation.replace_state() != Animations::AnimationReplaceState::Active)
                 continue;
 
             // Composite order is only defined for KeyframeEffects
@@ -7036,17 +6971,18 @@ void Document::remove_replaced_animations()
             // perform the following steps:
 
             // - Set animation’s replace state to removed.
-            animation->set_replace_state(Bindings::AnimationReplaceState::Removed);
+            animation->set_replace_state(Animations::AnimationReplaceState::Removed);
 
             // - Create an AnimationPlaybackEvent, removeEvent.
             // - Set removeEvent’s type attribute to remove.
             // - Set removeEvent’s currentTime attribute to the current time of animation.
             // - Set removeEvent’s timelineTime attribute to the current time of the timeline with which animation is
             //   associated.
-            Bindings::AnimationPlaybackEventInit init;
-            init.current_time = animation->current_time().has_value() ? Animations::NullableCSSNumberish { animation->current_time()->as_css_numberish() } : Animations::NullableCSSNumberish { Empty {} };
-            init.timeline_time = animation->timeline()->current_time().has_value() ? Animations::NullableCSSNumberish { animation->timeline()->current_time()->as_css_numberish() } : Animations::NullableCSSNumberish { Empty {} };
-            auto remove_event = Animations::AnimationPlaybackEvent::create(HTML::EventNames::remove, init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
+            auto remove_event = Animations::AnimationPlaybackEvent::create(
+                HTML::EventNames::remove,
+                animation->current_time().has_value() ? Animations::NullableCSSNumberish { animation->current_time()->as_css_numberish() } : Animations::NullableCSSNumberish { Empty {} },
+                animation->timeline()->current_time().has_value() ? Animations::NullableCSSNumberish { animation->timeline()->current_time()->as_css_numberish() } : Animations::NullableCSSNumberish { Empty {} },
+                HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
 
             // - If animation has a document for timing, then append removeEvent to its document for timing's pending
             //   animation event queue along with its target, animation. For the scheduled event time, use the result of
@@ -7072,10 +7008,10 @@ void Document::remove_replaced_animations()
     }
 }
 
-WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> Document::get_animations(JS::Realm& realm)
+WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> Document::get_animations()
 {
     update_style();
-    return calculate_get_animations(realm, *this);
+    return calculate_get_animations(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem-filter
@@ -7338,7 +7274,7 @@ GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double 
     return sequence;
 }
 
-static bool shadow_root_is_allowed_for_caret_position(ShadowRoot const& shadow_root, Bindings::CaretPositionFromPointOptions const& options)
+static bool shadow_root_is_allowed_for_caret_position(ShadowRoot const& shadow_root, Document::CaretPositionFromPointOptions const& options)
 {
     for (auto const& allowed_shadow_root : options.shadow_roots) {
         if (shadow_root.is_shadow_including_inclusive_ancestor_of(allowed_shadow_root))
@@ -7348,7 +7284,7 @@ static bool shadow_root_is_allowed_for_caret_position(ShadowRoot const& shadow_r
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-document-caretpositionfrompoint
-GC::Ptr<CaretPosition> Document::caret_position_from_point(double x, double y, Bindings::CaretPositionFromPointOptions const& options)
+GC::Ptr<CaretPosition> Document::caret_position_from_point(double x, double y, CaretPositionFromPointOptions const& options)
 {
     // 1. If there is no viewport associated with the document, return null.
     // 2. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll
@@ -7465,7 +7401,7 @@ Vector<FlyString> Document::supported_property_names() const
     return names.values();
 }
 
-static bool is_named_element_with_name(Element const& element, FlyString const& name)
+bool Document::is_named_element_with_name(Element const& element, FlyString const& name)
 {
     // Named elements with the name name, for the purposes of the above algorithm, are those that are either:
 
@@ -7496,42 +7432,16 @@ static bool is_named_element_with_name(Element const& element, FlyString const& 
     return false;
 }
 
-static Vector<GC::Ref<DOM::Element>> named_elements_with_name(Document const& document, FlyString const& name)
+Vector<GC::Ref<DOM::Element>> Document::named_elements_with_name(FlyString const& name) const
 {
     Vector<GC::Ref<DOM::Element>> named_elements;
 
-    for (auto const& element : document.potentially_named_elements()) {
+    for (auto const& element : potentially_named_elements()) {
         if (is_named_element_with_name(element, name))
             named_elements.append(element);
     }
 
     return named_elements;
-}
-
-// https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem
-JS::Value Document::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
-{
-    // 1. Let elements be the list of named elements with the name name that are in a document tree with the Document as their root.
-    // NOTE: There will be at least one such element, since the algorithm would otherwise not have been invoked by Web IDL.
-    auto elements = named_elements_with_name(*this, name);
-
-    // 2. If elements has only one element, and that element is an iframe element, and that iframe element's content navigable is not null,
-    //    then return the active WindowProxy of the element's content navigable.
-    if (elements.size() == 1 && is<HTML::HTMLIFrameElement>(*elements.first())) {
-        auto& iframe_element = static_cast<HTML::HTMLIFrameElement&>(*elements.first());
-        if (iframe_element.content_navigable() != nullptr)
-            return iframe_element.content_navigable()->active_window_proxy();
-    }
-
-    // 3. Otherwise, if elements has only one element, return that element.
-    if (elements.size() == 1)
-        return Bindings::wrap(wrapper_world, realm, elements.first()).ptr();
-
-    // 4. Otherwise return an HTMLCollection rooted at the Document node, whose filter matches only named elements with the name name.
-    auto collection = HTMLCollection::create(*const_cast<Document*>(this), HTMLCollection::Scope::Descendants, [name](auto& element) {
-        return is_named_element_with_name(element, name);
-    });
-    return Bindings::wrap(wrapper_world, realm, collection);
 }
 
 // https://drafts.csswg.org/resize-observer-1/#calculate-depth-for-node
@@ -7630,20 +7540,18 @@ size_t Document::broadcast_active_resize_observations()
 
             // 3. Set observation.lastReportedSizes to matching entry sizes.
             switch (observation->observed_box()) {
-            case Bindings::ResizeObserverBoxOptions::BorderBox:
+            case ResizeObserver::ObservedBox::BorderBox:
                 // Matching sizes are entry.borderBoxSize if observation.observedBox is "border-box"
                 observation->set_last_reported_sizes(entry->border_box_size());
                 break;
-            case Bindings::ResizeObserverBoxOptions::ContentBox:
+            case ResizeObserver::ObservedBox::ContentBox:
                 // Matching sizes are entry.contentBoxSize if observation.observedBox is "content-box"
                 observation->set_last_reported_sizes(entry->content_box_size());
                 break;
-            case Bindings::ResizeObserverBoxOptions::DevicePixelContentBox:
+            case ResizeObserver::ObservedBox::DevicePixelContentBox:
                 // Matching sizes are entry.devicePixelContentBoxSize if observation.observedBox is "device-pixel-content-box"
                 observation->set_last_reported_sizes(entry->device_pixel_content_box_size());
                 break;
-            default:
-                VERIFY_NOT_REACHED();
             }
 
             // 4. Set targetDepth to the result of calculate depth for node for observation.target.
@@ -7660,7 +7568,7 @@ size_t Document::broadcast_active_resize_observations()
         }
 
         // 4. Invoke observer.[[callback]] with entries.
-        observer->invoke_callback(entries);
+        ResizeObserver::invoke_resize_observer_callback(*observer, entries);
 
         // 5. Clear observer.[[activeTargets]].
         observer->active_targets().clear();
@@ -7702,23 +7610,6 @@ GC::Ref<WebIDL::ObservableArray> Document::adopted_style_sheets() const
     if (!m_adopted_style_sheets)
         m_adopted_style_sheets = create_adopted_style_sheets_list(const_cast<Document&>(*this));
     return *m_adopted_style_sheets;
-}
-
-WebIDL::ExceptionOr<void> Document::set_adopted_style_sheets(JS::Value new_value)
-{
-    if (!m_adopted_style_sheets)
-        m_adopted_style_sheets = create_adopted_style_sheets_list(const_cast<Document&>(*this));
-
-    m_adopted_style_sheets->clear();
-    auto iterator_record = TRY(get_iterator(vm(), new_value, JS::IteratorHint::Sync));
-    while (true) {
-        auto next = TRY(iterator_step_value(vm(), iterator_record));
-        if (!next.has_value())
-            break;
-        TRY(m_adopted_style_sheets->append(*next));
-    }
-
-    return {};
 }
 
 void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const
@@ -8079,15 +7970,13 @@ void Document::run_fullscreen_steps()
         // 2. Fire an event named type, with its bubbles and composed attributes set to true, at target.
         switch (type) {
         case PendingFullscreenEvent::Type::Change:
-            target->dispatch_event(Event::create(
+            target->dispatch_event(Event::create_bubbling_composed(
                 HTML::EventNames::fullscreenchange,
-                Bindings::EventInit { .bubbles = true, .composed = true },
                 HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
             break;
         case PendingFullscreenEvent::Type::Error:
-            target->dispatch_event(Event::create(
+            target->dispatch_event(Event::create_bubbling_composed(
                 HTML::EventNames::fullscreenerror,
-                Bindings::EventInit { .bubbles = true, .composed = true },
                 HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
             break;
         }
@@ -8150,14 +8039,14 @@ GC::Ptr<Element> Document::fullscreen_element() const
 }
 
 // https://fullscreen.spec.whatwg.org/#dom-document-fullscreenelement
-GC::Ptr<Element> Document::fullscreen_element_for_bindings() const
+GC::Ptr<Element> Document::retargeted_fullscreen_element() const
 {
     auto fullscreen_element = this->fullscreen_element();
     if (!fullscreen_element)
         return nullptr;
 
     // 1. If this is a shadow root and its host is not connected, then return null.
-    // NB: We're not a shadow root. See ShadowRoot::fullscreen_element_for_bindings().
+    // NB: We're not a shadow root. See ShadowRoot::retargeted_fullscreen_element().
 
     // 2. Let candidate be the result of retargeting fullscreen element against this.
     auto* candidate = retarget(fullscreen_element, const_cast<Document*>(this));
@@ -8206,22 +8095,18 @@ void Document::fully_exit_fullscreen()
 
     // 3. Exit fullscreen document.
     HTML::TemporaryExecutionContext context { relevant_settings_object(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-    exit_fullscreen();
+    exit_fullscreen(relevant_settings_object().realm(), nullptr);
 }
 
 // https://fullscreen.spec.whatwg.org/#exit-fullscreen
-GC::Ref<WebIDL::Promise> Document::exit_fullscreen()
+void Document::exit_fullscreen(JS::Realm& realm, GC::Ptr<WebIDL::Promise> promise)
 {
-    auto& realm = relevant_settings_object().realm();
-
-    // 1. Let promise be a new promise.
-    auto promise = WebIDL::create_promise(realm);
-
     // 2. If doc is not fully active or doc’s fullscreen element is null, then reject promise with a TypeError exception
     //    and return promise.
     if (!is_fully_active() || !fullscreen_element()) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Document not fully active or no fullscreen element."sv));
-        return promise;
+        if (promise)
+            WebIDL::reject_promise(realm, *promise, JS::TypeError::create(realm, "Document not fully active or no fullscreen element."sv));
+        return;
     }
 
     // 3. Let resize be false.
@@ -8251,8 +8136,6 @@ GC::Ref<WebIDL::Promise> Document::exit_fullscreen()
 
     // 8. Return promise, and run the remaining steps in parallel.
     page().enqueue_fullscreen_exit(doc, resize, promise);
-
-    return promise;
 }
 
 // https://fullscreen.spec.whatwg.org/#unfullscreen-a-document
@@ -8344,10 +8227,8 @@ void Document::set_allow_declarative_shadow_roots(bool allow)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#parse-html-from-a-string
-void Document::parse_html_from_a_string(JS::Realm& realm, StringView html)
+void Document::parse_html_from_a_string(StringView html)
 {
-    [[maybe_unused]] auto wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
-
     // 1. Set document's type to "html".
     set_document_type(DOM::Document::Type::HTML);
 
@@ -8359,40 +8240,6 @@ void Document::parse_html_from_a_string(JS::Realm& realm, StringView html)
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
     parser->run(url());
-}
-
-// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
-WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::Realm& realm, TrustedTypes::TrustedHTMLOrString const& html)
-{
-    // FIXME: update description once https://github.com/whatwg/html/issues/11778 gets solved
-    // 1. Let compliantHTML to the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
-    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::current_global_object(),
-        html,
-        TrustedTypes::InjectionSink::Document_parseHTMLUnsafe,
-        TrustedTypes::Script.to_string()));
-
-    // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
-    auto* window = HTML::window_from_global_object(realm.global_object());
-    VERIFY(window);
-
-    // 2. Let document be a new Document, whose content type is "text/html".
-    auto document = Document::create_for_fragment_parsing(window->page(), *window);
-    document->set_content_type("text/html"_string);
-
-    // 3. Set document's allow declarative shadow roots to true.
-    document->set_allow_declarative_shadow_roots(true);
-
-    // 4. Parse HTML from a string given document and compliantHTML.
-    document->parse_html_from_a_string(realm, compliant_html.to_utf8_but_should_be_ported_to_utf16());
-
-    auto& associated_document = window->associated_document();
-    document->set_origin(associated_document.origin());
-
-    // 5. Return document.
-    return document;
 }
 
 InputEventsTarget* Document::active_input_events_target(Node const* for_node)
@@ -8856,7 +8703,7 @@ void Document::run_csp_initialization() const
 }
 
 // https://dom.spec.whatwg.org/#flatten-element-creation-options
-WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_options(Variant<String, Bindings::ElementCreationOptions> const& options) const
+WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_options(ElementCreationOptions const& options) const
 {
     // 1. Let registry be the result of looking up a custom element registry given document.
     GC::Ptr<HTML::CustomElementRegistry> registry = HTML::look_up_a_custom_element_registry(*this);
@@ -8864,29 +8711,26 @@ WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_
     // 2. Let is be null.
     Optional<String> is;
 
-    // 3. If options is a dictionary:
-    if (auto* dictionary = options.get_pointer<Bindings::ElementCreationOptions>()) {
-        // 1. If options["is"] exists, then set is to it.
-        if (dictionary->is.has_value())
-            is = dictionary->is;
+    // 3. If options["is"] exists, then set is to it.
+    if (options.is.has_value())
+        is = options.is;
 
-        // 2. If options["customElementRegistry"] exists:
-        if (dictionary->custom_element_registry.has_value()) {
-            // 1. If is is non-null, then throw a "NotSupportedError" DOMException.
-            if (is.has_value())
-                return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "Cannot specify both 'is' and 'customElementRegistry' in ElementCreationOptions."_utf16);
+    // 4. If options["customElementRegistry"] exists:
+    if (options.custom_element_registry.has_value()) {
+        // 1. If is is non-null, then throw a "NotSupportedError" DOMException.
+        if (is.has_value())
+            return WebIDL::NotSupportedError::create("Cannot specify both 'is' and 'customElementRegistry' in ElementCreationOptions."_utf16);
 
-            // 2. Set registry to options["customElementRegistry"].
-            registry = dictionary->custom_element_registry.value();
-        }
-
-        // 3. If registry is non-null, registry’s is scoped is false, and registry is not document’s custom element
-        //    registry, then throw a "NotSupportedError" DOMException.
-        if (registry && !registry->is_scoped() && registry != custom_element_registry())
-            return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "'customElementRegistry' in ElementCreationOptions must either be scoped or the document's custom element registry."_utf16);
+        // 2. Set registry to options["customElementRegistry"].
+        registry = options.custom_element_registry.value();
     }
 
-    // 4. Return registry and is.
+    // 5. If registry is non-null, registry’s is scoped is false, and registry is not document’s custom element
+    //    registry, then throw a "NotSupportedError" DOMException.
+    if (registry && !registry->is_scoped() && registry != custom_element_registry())
+        return WebIDL::NotSupportedError::create("'customElementRegistry' in ElementCreationOptions must either be scoped or the document's custom element registry."_utf16);
+
+    // 6. Return registry and is.
     return RegistryAndIs { registry, move(is) };
 }
 
@@ -8931,14 +8775,12 @@ void Document::set_onfullscreenerror(WebIDL::CallbackType* value)
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
-GC::Ptr<ViewTransition::ViewTransition> Document::start_view_transition(GC::Ptr<WebIDL::CallbackType> update_callback)
+GC::Ptr<ViewTransition::ViewTransition> Document::start_view_transition(GC::Ptr<WebIDL::CallbackType> update_callback, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<WebIDL::Promise> update_callback_done_promise, GC::Ref<WebIDL::Promise> finished_promise)
 {
     // The method steps for startViewTransition(updateCallback) are as follows:
 
     // 1. Let transition be a new ViewTransition object in this’s relevant Realm.
-    auto& realm = relevant_settings_object().realm();
-    auto transition = ViewTransition::ViewTransition::create(GC::Ref { *this },
-        WebIDL::create_promise(realm), WebIDL::create_promise(realm), WebIDL::create_promise(realm));
+    auto transition = ViewTransition::ViewTransition::create(GC::Ref { *this }, ready_promise, update_callback_done_promise, finished_promise);
 
     // 2. If updateCallback is provided, set transition’s update callback to updateCallback.
     if (update_callback != nullptr)
@@ -8950,14 +8792,14 @@ GC::Ptr<ViewTransition::ViewTransition> Document::start_view_transition(GC::Ptr<
     // 4. If document’s visibility state is "hidden", then skip transition with an "InvalidStateError" DOMException,
     //    and return transition.
     if (m_visibility_state == HTML::VisibilityState::Hidden) {
-        transition->skip_the_view_transition(WebIDL::InvalidStateError::create(realm, "The document's visibility state is \"hidden\""_utf16));
+        transition->skip_the_view_transition(WebIDL::InvalidStateError::create("The document's visibility state is \"hidden\""_utf16));
         return transition;
     }
 
     // 5. If document’s active view transition is not null, then skip that view transition with an "AbortError"
     //    DOMException in this’s relevant Realm.
     if (document.m_active_view_transition)
-        document.m_active_view_transition->skip_the_view_transition(WebIDL::AbortError::create(realm, "Document.startViewTransition() was called"_utf16));
+        document.m_active_view_transition->skip_the_view_transition(WebIDL::AbortError::create("Document.startViewTransition() was called"_utf16));
 
     // 6. Set document’s active view transition to transition.
     m_active_view_transition = transition;
@@ -9023,7 +8865,7 @@ void Document::view_transition_page_visibility_change_steps()
             // 1. If document’s active view transition is not null, then skip document’s active view transition with an
             //    "InvalidStateError" DOMException.
             if (m_active_view_transition) {
-                m_active_view_transition->skip_the_view_transition(WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "The document's visibility state is \"hidden\"."_utf16));
+                m_active_view_transition->skip_the_view_transition(WebIDL::InvalidStateError::create("The document's visibility state is \"hidden\"."_utf16));
             }
         }
         // 2. Otherwise, assert: active view transition is null.
@@ -9256,14 +9098,14 @@ HashMap<Utf16FlyString, CSS::CustomPropertyRegistration>& Document::registered_p
     return m_registered_property_set;
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> Document::create_expression(JS::Realm&, String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver)
+WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> Document::create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver)
 {
     return XPath::create_expression(expression, resolver);
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> Document::evaluate(JS::Realm& realm, String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPath::XPathResult> result)
+WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> Document::evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPath::XPathResult> result)
 {
-    return XPath::evaluate(realm, expression, context_node, resolver, type, result);
+    return XPath::throw_evaluation_error_if_needed(XPath::evaluate(expression, context_node, resolver, type, result));
 }
 
 GC::Ref<DOM::Node> Document::create_ns_resolver(GC::Ref<DOM::Node> node_resolver)
@@ -9450,6 +9292,161 @@ Optional<CSS::SelectorList> const& Document::parse_or_cache_selector_list(String
     auto it = m_selector_query_cache.find(selector_text_string);
     VERIFY(it != m_selector_query_cache.end());
     return it->value;
+}
+
+}
+
+namespace Web::Bindings {
+
+JS::Value document(JS::Realm& realm, GC::Ref<DOM::Document> document)
+{
+    return wrap(host_defined_wrapper_world(realm), realm, document);
+}
+
+GC::Ref<CSS::StyleSheetList> style_sheets(JS::Realm&, DOM::Document& document)
+{
+    return document.style_sheets();
+}
+
+JS::Value adopted_style_sheets(JS::Realm& realm, DOM::Document& document)
+{
+    (void)realm;
+    return DOM::AdoptedStyleSheetsAccess::adopted_style_sheets(document).ptr();
+}
+
+WebIDL::ExceptionOr<void> set_adopted_style_sheets(JS::Realm&, DOM::Document& document, JS::Value new_value)
+{
+    auto adopted_style_sheets = DOM::AdoptedStyleSheetsAccess::adopted_style_sheets(document);
+    adopted_style_sheets->clear();
+
+    auto iterator_record = TRY(JS::get_iterator(document.vm(), new_value, JS::IteratorHint::Sync));
+    while (true) {
+        auto next = TRY(JS::iterator_step_value(document.vm(), iterator_record));
+        if (!next.has_value())
+            break;
+        TRY(adopted_style_sheets->append(*next));
+    }
+
+    return {};
+}
+
+WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::Realm& realm, TrustedTypes::TrustedHTMLOrString const& html)
+{
+    // FIXME: update description once https://github.com/whatwg/html/issues/11778 gets solved
+    // 1. Let compliantHTML to the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
+    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::current_global_object(),
+        html,
+        TrustedTypes::InjectionSink::Document_parseHTMLUnsafe,
+        TrustedTypes::Script.to_string()));
+
+    // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
+    auto* window = HTML::window_from_global_object(realm.global_object());
+    VERIFY(window);
+
+    // 2. Let document be a new Document, whose content type is "text/html".
+    auto document = DOM::Document::create_for_fragment_parsing(window->page(), *window);
+    document->set_content_type("text/html"_string);
+
+    // 3. Set document's allow declarative shadow roots to true.
+    document->set_allow_declarative_shadow_roots(true);
+
+    // 4. Parse HTML from a string given document and compliantHTML.
+    [[maybe_unused]] auto wrapper = wrap(host_defined_wrapper_world(realm), realm, GC::Ref { *document });
+    document->parse_html_from_a_string(compliant_html.to_utf8_but_should_be_ported_to_utf16());
+
+    auto& associated_document = window->associated_document();
+    document->set_origin(associated_document.origin());
+
+    // 5. Return document.
+    return document;
+}
+
+static WebIDL::ExceptionOr<String> document_write_compliant_string(DOM::Document& document, Vector<TrustedTypes::TrustedHTMLOrString> const& text, TrustedTypes::InjectionSink sink)
+{
+    // 1. Let string be the empty string.
+    StringBuilder string;
+
+    // 2. Let isTrusted be false if text contains a string; otherwise true.
+    auto is_trusted = true;
+    for (auto const& value : text) {
+        if (value.has<Utf16String>()) {
+            is_trusted = false;
+            break;
+        }
+    }
+
+    // 3. For each value of text:
+    for (auto const& value : text) {
+        string.append(value.visit(
+                               // 1. If value is a TrustedHTML object, then append value's associated data to string.
+                               [](GC::Root<TrustedTypes::TrustedHTML> const& value) { return value->to_string(); },
+                               // 2. Otherwise, append value to string.
+                               [](Utf16String const& value) { return value; })
+                .to_utf8_but_should_be_ported_to_utf16());
+    }
+
+    // 4. If isTrusted is false, set string to the result of invoking the Get Trusted Type compliant string algorithm
+    //    with TrustedHTML, this's relevant global object, string, sink, and "script".
+    if (!is_trusted) {
+        auto const new_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+            TrustedTypes::TrustedTypeName::TrustedHTML,
+            HTML::relevant_global_object(document),
+            Utf16String::from_utf8(MUST(string.to_string())),
+            sink,
+            TrustedTypes::Script.to_string()));
+        string.clear();
+        string.append(new_string.to_utf8_but_should_be_ported_to_utf16());
+    }
+
+    return MUST(string.to_string());
+}
+
+WebIDL::ExceptionOr<void> write(JS::Realm&, DOM::Document& document, Vector<TrustedTypes::TrustedHTMLOrString> const& text)
+{
+    return document.write(TRY(document_write_compliant_string(document, text, TrustedTypes::InjectionSink::Document_write)));
+}
+
+WebIDL::ExceptionOr<void> writeln(JS::Realm&, DOM::Document& document, Vector<TrustedTypes::TrustedHTMLOrString> const& text)
+{
+    return document.writeln(TRY(document_write_compliant_string(document, text, TrustedTypes::InjectionSink::Document_writeln)));
+}
+
+GC::Ptr<ViewTransition::ViewTransition> start_view_transition(JS::Realm& realm, DOM::Document& document, GC::Ptr<WebIDL::CallbackType> update_callback)
+{
+    return document.start_view_transition(
+        update_callback,
+        WebIDL::create_promise(realm),
+        WebIDL::create_promise(realm),
+        WebIDL::create_promise(realm));
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem
+JS::Value document_named_item_value(WrapperWorld& wrapper_world, JS::Realm& realm, DOM::Document const& document, FlyString const& name)
+{
+    // 1. Let elements be the list of named elements with the name name that are in a document tree with the Document as their root.
+    // NOTE: There will be at least one such element, since the algorithm would otherwise not have been invoked by Web IDL.
+    auto elements = document.named_elements_with_name(name);
+
+    // 2. If elements has only one element, and that element is an iframe element, and that iframe element's content navigable is not null,
+    //    then return the active WindowProxy of the element's content navigable.
+    if (elements.size() == 1 && is<HTML::HTMLIFrameElement>(*elements.first())) {
+        auto& iframe_element = static_cast<HTML::HTMLIFrameElement&>(*elements.first());
+        if (iframe_element.content_navigable() != nullptr)
+            return iframe_element.content_navigable()->active_window_proxy();
+    }
+
+    // 3. Otherwise, if elements has only one element, return that element.
+    if (elements.size() == 1)
+        return wrap(wrapper_world, realm, elements.first()).ptr();
+
+    // 4. Otherwise return an HTMLCollection rooted at the Document node, whose filter matches only named elements with the name name.
+    auto collection = DOM::HTMLCollection::create(*const_cast<DOM::Document*>(&document), DOM::HTMLCollection::Scope::Descendants, [name](auto& element) {
+        return DOM::Document::is_named_element_with_name(element, name);
+    });
+    return wrap(wrapper_world, realm, collection);
 }
 
 }

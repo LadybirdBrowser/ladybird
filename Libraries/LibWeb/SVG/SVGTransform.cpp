@@ -18,7 +18,6 @@ GC::Ref<SVGTransform> SVGTransform::create()
 }
 
 SVGTransform::SVGTransform()
-    : Bindings::Wrappable()
 {
 }
 

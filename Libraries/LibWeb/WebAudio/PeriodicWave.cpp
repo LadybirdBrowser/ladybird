@@ -30,7 +30,7 @@ static ErrorOr<Vector<float>> zeroed_float_vector(size_t size)
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-periodicwave-periodicwave
-WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::construct_impl(GC::Ref<BaseAudioContext>, Bindings::PeriodicWaveOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::create_for_constructor(GC::Ref<BaseAudioContext>, PeriodicWaveOptions const& options)
 {
     auto& vm = JS::VM::the();
 
@@ -95,7 +95,6 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::construct_impl(GC::Ref<
 }
 
 PeriodicWave::PeriodicWave()
-    : Bindings::Wrappable()
 {
 }
 

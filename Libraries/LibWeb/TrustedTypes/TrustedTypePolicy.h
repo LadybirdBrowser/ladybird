@@ -7,12 +7,19 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Optional.h>
+#include <AK/Utf16String.h>
+#include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/TrustedTypePolicy.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::TrustedTypes {
+
+using TrustedTypePolicyOptions = Bindings::TrustedTypePolicyOptions;
 
 // https://www.w3.org/TR/trusted-types/#typedefdef-trustedtype
 using TrustedType = Variant<
@@ -53,7 +60,7 @@ public:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    explicit TrustedTypePolicy(Utf16String const&, Bindings::TrustedTypePolicyOptions const&);
+    explicit TrustedTypePolicy(Utf16String const&, TrustedTypePolicyOptions const&);
 
     TrustedTypesVariants create_a_trusted_type(JS::Realm&, TrustedTypeName, Utf16String const&, GC::RootVector<JS::Value> const& values);
 
@@ -68,6 +75,15 @@ WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(T
 WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeName, JS::Object&, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String> input, InjectionSink sink, String sink_group);
 
 WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(FlyString const& attribute_name, Optional<Utf16String> attribute_ns, DOM::Element const& element, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String> const& new_value);
+TrustedHTML* trusted_html_from_value(JS::Value);
+TrustedScript* trusted_script_from_value(JS::Value);
+TrustedScriptURL* trusted_script_url_from_value(JS::Value);
+bool is_trusted_html_value(JS::Value);
+bool is_trusted_script_value(JS::Value);
+bool is_trusted_script_url_value(JS::Value);
+bool trusted_script_value_matches(JS::Value, StringView expected);
+bool trusted_script_values_match(ReadonlySpan<JS::Value>, ReadonlySpan<String> expected);
+JS::Completion invoke_trusted_type_policy_callback(WebIDL::CallbackType&, GC::RootVector<JS::Value> const& arguments);
 
 // FIXME: Add-hoc definition of an element interface
 struct ElementInterface {

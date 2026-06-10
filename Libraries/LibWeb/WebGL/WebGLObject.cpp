@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/WebGLObject.h>
 #include <LibWeb/WebGL/WebGLObject.h>
 
 #include <GLES2/gl2.h>
@@ -14,8 +13,7 @@
 namespace Web::WebGL {
 
 WebGLObject::WebGLObject(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : Bindings::Wrappable()
-    , m_context(context)
+    : m_context(context)
     , m_handle(handle)
 {
 }

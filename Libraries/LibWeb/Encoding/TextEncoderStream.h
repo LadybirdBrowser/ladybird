@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Encoding/TextEncoderCommon.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
 
 namespace Web::Encoding {
@@ -20,7 +21,8 @@ class TextEncoderStream final
     GC_DECLARE_ALLOCATOR(TextEncoderStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&);
+    static WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> create(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> create_for_constructor(JS::Realm&);
     virtual ~TextEncoderStream() override;
 
 private:

@@ -16,11 +16,16 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(CountQueuingStrategy);
 
 // https://streams.spec.whatwg.org/#blqs-constructor
-GC::Ref<CountQueuingStrategy> CountQueuingStrategy::construct_impl(Bindings::QueuingStrategyInit const& init)
+GC::Ref<CountQueuingStrategy> CountQueuingStrategy::create(double high_water_mark)
 {
     // The new CountQueuingStrategy(init) constructor steps are:
     // 1. Set this.[[highWaterMark]] to init["highWaterMark"].
-    return GC::Heap::the().allocate<CountQueuingStrategy>(init.high_water_mark);
+    return GC::Heap::the().allocate<CountQueuingStrategy>(high_water_mark);
+}
+
+GC::Ref<CountQueuingStrategy> CountQueuingStrategy::create_for_constructor(Bindings::QueuingStrategyInit const& init)
+{
+    return create(init.high_water_mark);
 }
 
 CountQueuingStrategy::CountQueuingStrategy(double high_water_mark)

@@ -32,12 +32,12 @@ void TextTrack::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-kind
-Bindings::TextTrackKind TextTrack::kind()
+TextTrackKind TextTrack::kind()
 {
     return m_kind;
 }
 
-void TextTrack::set_kind(Bindings::TextTrackKind kind)
+void TextTrack::set_kind(TextTrackKind kind)
 {
     m_kind = kind;
 }
@@ -76,12 +76,12 @@ void TextTrack::set_id(String id)
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-mode
-Bindings::TextTrackMode TextTrack::mode()
+TextTrackMode TextTrack::mode()
 {
     return m_mode;
 }
 
-void TextTrack::set_mode(Bindings::TextTrackMode mode)
+void TextTrack::set_mode(TextTrackMode mode)
 {
     m_mode = mode;
 }
@@ -120,27 +120,27 @@ void TextTrack::unregister_observer(Badge<TextTrackObserver>, TextTrackObserver&
     VERIFY(was_removed);
 }
 
-Bindings::TextTrackKind text_track_kind_from_string(String value)
+TextTrackKind text_track_kind_from_string(String value)
 {
     // https://html.spec.whatwg.org/multipage/media.html#attr-track-kind
 
     if (value.is_empty() || value.equals_ignoring_ascii_case("subtitles"sv)) {
-        return Bindings::TextTrackKind::Subtitles;
+        return TextTrackKind::Subtitles;
     }
     if (value.equals_ignoring_ascii_case("captions"sv)) {
-        return Bindings::TextTrackKind::Captions;
+        return TextTrackKind::Captions;
     }
     if (value.equals_ignoring_ascii_case("descriptions"sv)) {
-        return Bindings::TextTrackKind::Descriptions;
+        return TextTrackKind::Descriptions;
     }
     if (value.equals_ignoring_ascii_case("chapters"sv)) {
-        return Bindings::TextTrackKind::Chapters;
+        return TextTrackKind::Chapters;
     }
     if (value.equals_ignoring_ascii_case("metadata"sv)) {
-        return Bindings::TextTrackKind::Metadata;
+        return TextTrackKind::Metadata;
     }
 
-    return Bindings::TextTrackKind::Metadata;
+    return TextTrackKind::Metadata;
 }
 
 }

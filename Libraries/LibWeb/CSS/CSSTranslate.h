@@ -17,13 +17,13 @@ class CSSTranslate final : public CSSTransformComponent {
 
 public:
     [[nodiscard]] static GC::Ref<CSSTranslate> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
-    static WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> construct_impl(GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z = {});
+    static WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> create_for_constructor(GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z = {});
 
     virtual ~CSSTranslate() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
 
     GC::Ref<CSSNumericValue> x() const { return m_x; }
     GC::Ref<CSSNumericValue> y() const { return m_y; }

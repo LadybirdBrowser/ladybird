@@ -6,7 +6,6 @@
 
 #include "CSSMathProduct.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSMathProduct.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -43,7 +42,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::multiply_all_types_
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathproduct-cssmathproduct
-WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::construct_impl(ReadonlySpan<CSSNumberish> values)
+WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::create_for_constructor(ReadonlySpan<CSSNumberish> values)
 {
     // The CSSMathProduct(...args) constructor is defined identically to the above, except that in step 3 it multiplies
     // the types instead of adding, and in the last step it returns a CSSMathProduct.
@@ -66,7 +65,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::construct_impl(Read
 }
 
 CSSMathProduct::CSSMathProduct(NumericType type, GC::Ref<CSSNumericArray> values)
-    : CSSMathValue(Bindings::CSSMathOperator::Product, move(type))
+    : CSSMathValue(CSSMathOperator::Product, move(type))
     , m_values(move(values))
 {
 }

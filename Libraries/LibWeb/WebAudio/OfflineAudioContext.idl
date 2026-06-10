@@ -11,9 +11,9 @@ dictionary OfflineAudioContextOptions {
 interface OfflineAudioContext : BaseAudioContext {
     constructor(OfflineAudioContextOptions contextOptions);
     constructor(unsigned long numberOfChannels, unsigned long length, float sampleRate);
-    Promise<AudioBuffer> startRendering();
-    Promise<undefined> resume();
-    Promise<undefined> suspend(double suspendTime);
+    [CreatesPromise, NeedsThisObjectRealm] Promise<AudioBuffer> startRendering();
+    [CreatesPromise] Promise<undefined> resume();
+    [CreatesPromise] Promise<undefined> suspend(double suspendTime);
     readonly attribute unsigned long length;
     attribute EventHandler oncomplete;
 };

@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/WebGLShaderPrecisionFormat.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebGL/Types.h>
 

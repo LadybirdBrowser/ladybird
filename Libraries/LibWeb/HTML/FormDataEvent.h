@@ -14,22 +14,21 @@
 
 namespace Web::HTML {
 
-class Window;
+using FormDataEventInit = Bindings::FormDataEventInit;
 
 class FormDataEvent final : public DOM::Event {
     WEB_WRAPPABLE(FormDataEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(FormDataEvent);
 
 public:
-    static GC::Ref<FormDataEvent> create(FlyString const& event_name, Bindings::FormDataEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<FormDataEvent>> construct_impl(Window&, FlyString const& event_name, Bindings::FormDataEventInit const& event_init);
+    static GC::Ref<FormDataEvent> create(FlyString const& event_name, FormDataEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~FormDataEvent() override;
 
     GC::Ptr<XHR::FormData> form_data() const { return m_form_data; }
 
 private:
-    FormDataEvent(FlyString const& event_name, Bindings::FormDataEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    FormDataEvent(FlyString const& event_name, FormDataEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

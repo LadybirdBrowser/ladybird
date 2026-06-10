@@ -14,6 +14,8 @@
 
 namespace Web::WebAudio {
 
+using AnalyserOptions = Bindings::AnalyserOptions;
+
 // https://webaudio.github.io/web-audio-api/#AnalyserNode
 class AnalyserNode : public AudioNode {
     WEB_WRAPPABLE(AnalyserNode, AudioNode);
@@ -41,12 +43,12 @@ public:
     WebIDL::ExceptionOr<void> set_min_decibels(double);
     WebIDL::ExceptionOr<void> set_smoothing_time_constant(double);
 
-    static WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> create(GC::Ref<BaseAudioContext>, Bindings::AnalyserOptions const& = {});
-    static WebIDL::ExceptionOr<void> validate_options(Bindings::AnalyserOptions const&);
-    static WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::AnalyserOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> create(GC::Ref<BaseAudioContext>, AnalyserOptions const& = {});
+    static WebIDL::ExceptionOr<void> validate_options(AnalyserOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> create_for_constructor(GC::Ref<BaseAudioContext>, AnalyserOptions const& = {});
 
 protected:
-    AnalyserNode(GC::Ref<BaseAudioContext>, Bindings::AnalyserOptions const& = {});
+    AnalyserNode(GC::Ref<BaseAudioContext>, AnalyserOptions const& = {});
 
 private:
     unsigned long m_fft_size;

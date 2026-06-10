@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Streams/AbstractOperations.h>
@@ -14,6 +13,7 @@
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/ReadableStreamTee.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams::Detail {
@@ -81,7 +81,7 @@ void ReadableStreamTeeReadRequest::on_chunk(JS::Value chunk)
 
             // 2. If cloneResult is an abrupt completion,
             if (clone_result.is_exception()) {
-                auto completion = Bindings::exception_to_throw_completion(promise_realm().vm(), promise_realm(), clone_result.release_error());
+                auto completion = WebIDL::exception_to_throw_completion(promise_realm().vm(), promise_realm(), clone_result.release_error());
 
                 // 1. Perform ! ReadableStreamDefaultControllerError(branch1.[[controller]], cloneResult.[[Value]]).
                 readable_stream_default_controller_error(controller1, completion.value());
@@ -232,7 +232,7 @@ void ReadableByteStreamTeeDefaultReadRequest::on_chunk(JS::Value chunk)
 
             // 2. If cloneResult is an abrupt completion,
             if (clone_result.is_exception()) {
-                auto completion = Bindings::exception_to_throw_completion(promise_realm().vm(), promise_realm(), clone_result.release_error());
+                auto completion = WebIDL::exception_to_throw_completion(promise_realm().vm(), promise_realm(), clone_result.release_error());
 
                 // 1. Perform ! ReadableByteStreamControllerError(branch1.[[controller]], cloneResult.[[Value]]).
                 readable_byte_stream_controller_error(controller1, completion.value());
@@ -386,7 +386,7 @@ void ReadableByteStreamTeeBYOBReadRequest::on_chunk(JS::Value chunk)
 
             // 2. If cloneResult is an abrupt completion,
             if (clone_result.is_exception()) {
-                auto completion = Bindings::exception_to_throw_completion(promise_realm().vm(), promise_realm(), clone_result.release_error());
+                auto completion = WebIDL::exception_to_throw_completion(promise_realm().vm(), promise_realm(), clone_result.release_error());
 
                 // 1. Perform ! ReadableByteStreamControllerError(byobBranch.[[controller]], cloneResult.[[Value]]).
                 readable_byte_stream_controller_error(byob_controller, completion.value());

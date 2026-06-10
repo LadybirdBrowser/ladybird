@@ -5,8 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/VM.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
@@ -43,8 +41,15 @@ WebIDL::UnsignedLong DataTransferItemList::length() const
     return m_data_transfer->length();
 }
 
+GC::Ptr<DataTransferItem> DataTransferItemList::item(size_t index) const
+{
+    if (index >= m_data_transfer->length())
+        return nullptr;
+    return m_data_transfer->item(index);
+}
+
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-add
-WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> DataTransferItemList::add(JS::Realm& realm, String const& data, String const& type)
+WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> DataTransferItemList::add(String const& data, String const& type)
 {
     // 1. If the DataTransferItemList object is not in the read/write mode, return null.
     if (m_data_transfer->mode() != DragDataStore::Mode::ReadWrite)
@@ -57,7 +62,7 @@ WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> DataTransferItemList::add(JS::Rea
     // to the value of the method's second argument, converted to ASCII lowercase, then throw a "NotSupportedError"
     // DOMException.
     if (m_data_transfer->contains_item_with_type(DragDataStoreItem::Kind::Text, type))
-        return WebIDL::NotSupportedError::create(realm, Utf16String::formatted("There is already a DataTransferItem with type {}", type));
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("There is already a DataTransferItem with type {}", type));
 
     // Otherwise, add an item to the drag data store item list whose kind is text, whose type string is equal to the
     // value of the method's second argument, converted to ASCII lowercase, and whose data is the string given by the
@@ -99,11 +104,11 @@ GC::Ptr<DataTransferItem> DataTransferItemList::add(GC::Ref<FileAPI::File> file)
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-remove
-WebIDL::ExceptionOr<void> DataTransferItemList::remove(JS::Realm& realm, WebIDL::UnsignedLong index)
+WebIDL::ExceptionOr<void> DataTransferItemList::remove(WebIDL::UnsignedLong index)
 {
     // 1. If the DataTransferItemList object is not in the read/write mode, throw an "InvalidStateError" DOMException.
     if (m_data_transfer->mode() != DragDataStore::Mode::ReadWrite)
-        return WebIDL::InvalidStateError::create(realm, "DataTransferItemList is not in read/write mode"_utf16);
+        return WebIDL::InvalidStateError::create("DataTransferItemList is not in read/write mode"_utf16);
 
     // 2. If the drag data store does not contain an indexth item, then return.
     if (index >= m_data_transfer->length())
@@ -122,18 +127,6 @@ void DataTransferItemList::clear()
     // the drag data store. Otherwise, it must do nothing.
     if (m_data_transfer->mode() == DragDataStore::Mode::ReadWrite)
         m_data_transfer->clear_data();
-}
-
-// https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-item
-Optional<JS::Value> DataTransferItemList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
-{
-    // To determine the value of an indexed property i of a DataTransferItemList object, the user agent must return a
-    // DataTransferItem object representing the ith item in the drag data store. The same object must be returned each
-    // time a particular item is obtained from this DataTransferItemList object. The DataTransferItem object must be
-    // associated with the same DataTransfer object as the DataTransferItemList object when it is first created.
-    if (index < m_data_transfer->length())
-        return Bindings::wrap(wrapper_world, realm, m_data_transfer->item(index));
-    return {};
 }
 
 }

@@ -21,13 +21,13 @@
 #include <LibJS/Runtime/Shape.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Internals.h>
-#include <LibWeb/Bindings/MessageEvent.h>
+#include <LibWeb/Bindings/IdleRequest.h>
+#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
+#include <LibWeb/Bindings/WindowGlobalMixin.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -69,6 +69,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
+#include <LibWeb/HTML/ScrollOptions.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
@@ -88,6 +89,108 @@
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
+
+namespace Web::Bindings {
+
+HTML::Window* window_from_global_object(JS::Object& object)
+{
+    return Bindings::impl_from<HTML::Window>(&object);
+}
+
+HTML::Window const* window_from_global_object(JS::Object const& object)
+{
+    return Bindings::impl_from<HTML::Window>(&object);
+}
+
+PlatformObject& platform_object_for_window(HTML::Window& window)
+{
+    auto* wrapper = as_if<PlatformObject>(window.realm().global_object());
+    VERIFY(wrapper);
+    VERIFY(window_from_global_object(*wrapper) == &window);
+    return *wrapper;
+}
+
+WebIDL::ExceptionOr<void> initialize_window_web_interfaces(HTML::Window& window)
+{
+    auto& realm = window.realm();
+    auto& global_object = realm.global_object();
+
+    Bindings::add_window_exposed_interfaces(global_object);
+
+    WEB_SET_PROTOTYPE_FOR_INTERFACE_ON(global_object, Window);
+
+    Bindings::WindowGlobalMixin window_global_mixin;
+    window_global_mixin.initialize(realm, global_object);
+    window_global_mixin.define_unforgeable_attributes(realm, global_object);
+    window.WindowOrWorkerGlobalScopeMixin::initialize();
+
+    if (window.is_internals_object_exposed())
+        Bindings::define_internals_property(realm, window, global_object);
+
+    return {};
+}
+
+static HTML::Window::PostMessageOptions window_post_message_options_from_bindings(WindowPostMessageOptions const& options)
+{
+    return {
+        .structured_serialize_options = { .transfer = options.transfer },
+        .target_origin = options.target_origin,
+    };
+}
+
+WebIDL::ExceptionOr<void> post_message(JS::Realm& realm, HTML::Window& window, JS::Value message, WindowPostMessageOptions const& options)
+{
+    return window.post_message(realm, message, window_post_message_options_from_bindings(options));
+}
+
+JS::ThrowCompletionOr<void> post_message_with_options(JS::Realm& realm, HTML::Window& window, JS::Value message, JS::Value options)
+{
+    auto& vm = realm.vm();
+    Bindings::WindowPostMessageOptions options_from_bindings {};
+    if (!options.is_undefined())
+        options_from_bindings = TRY(Bindings::convert_to_idl_value_for_window_post_message_options(vm, options));
+    TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {
+        return window.post_message(realm, message, Bindings::window_post_message_options_from_bindings(options_from_bindings));
+    }));
+    return {};
+}
+
+WebIDL::UnsignedLong request_animation_frame(JS::Realm&, HTML::Window& window, WebIDL::CallbackType& callback)
+{
+    auto handler = [callback = GC::make_root(callback)](double now) {
+        auto& callback_realm = callback->callback->shape().realm();
+        auto result = WebIDL::invoke_callback(*callback, {}, { { JS::Value(now) } });
+        if (result.is_error())
+            HTML::report_exception(result, callback_realm);
+    };
+    return window.request_animation_frame(move(handler));
+}
+
+WebIDL::UnsignedLong request_idle_callback(JS::Realm&, HTML::Window& window, WebIDL::CallbackType& callback, IdleRequestOptions const& options)
+{
+    auto handler = [callback = GC::make_root(callback)](GC::Ref<RequestIdleCallback::IdleDeadline> deadline) -> JS::Completion {
+        auto& callback_realm = callback->callback->shape().realm();
+        return WebIDL::invoke_callback(*callback, {}, { { wrap(host_defined_wrapper_world(callback_realm), callback_realm, deadline) } });
+    };
+    return window.request_idle_callback(move(handler), options);
+}
+
+void define_internals_property(JS::Realm& realm, HTML::Window& window, JS::Object& global_object)
+{
+    global_object.define_direct_property("internals"_utf16_fly_string, wrap(host_defined_wrapper_world(realm), realm, GC::Heap::the().allocate<Internals::Internals>(window)), JS::default_attributes);
+}
+
+JS::Value window_named_item_value(WrapperWorld& wrapper_world, JS::Realm& realm, HTML::Window const& window, FlyString const& name)
+{
+    return window.named_item(name).visit(
+        [](Empty) -> JS::Value { return JS::js_undefined(); },
+        [](GC::Ref<HTML::WindowProxy> const& value) -> JS::Value { return value.ptr(); },
+        [&wrapper_world, &realm](GC::Ref<DOM::Element> const& value) -> JS::Value { return wrap(wrapper_world, realm, value); },
+        [&wrapper_world, &realm](GC::Ref<DOM::HTMLCollection> const& value) -> JS::Value { return wrap(wrapper_world, realm, value); });
+}
+
+}
 
 namespace Web::HTML {
 
@@ -123,7 +226,7 @@ void run_animation_frame_callbacks(DOM::Document& document, double now)
 
 class IdleCallback : public RefCounted<IdleCallback> {
 public:
-    explicit IdleCallback(ESCAPING Function<JS::Completion(GC::Ref<RequestIdleCallback::IdleDeadline>)> handler, u32 handle)
+    explicit IdleCallback(IdleCallbackHandler handler, u32 handle)
         : m_handler(move(handler))
         , m_handle(handle)
     {
@@ -134,7 +237,7 @@ public:
     u32 handle() const { return m_handle; }
 
 private:
-    Function<JS::Completion(GC::Ref<RequestIdleCallback::IdleDeadline>)> m_handler;
+    IdleCallbackHandler m_handler;
     u32 m_handle { 0 };
 };
 
@@ -271,7 +374,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
         // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
         if (!url_record.has_value())
-            return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid URL '{}'", url));
     }
 
     // 5. If target is the empty string, then set target to "_blank".
@@ -499,7 +602,7 @@ void Window::fire_a_page_transition_event(FlyString const& event_name, bool pers
     // To fire a page transition event named eventName at a Window window with a boolean persisted,
     // fire an event named eventName at window, using PageTransitionEvent,
     // with the persisted attribute initialized to persisted,
-    Bindings::PageTransitionEventInit event_init {};
+    PageTransitionEventInit event_init {};
     event_init.persisted = persisted;
     auto event = PageTransitionEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
 
@@ -519,8 +622,6 @@ void Window::fire_a_page_transition_event(FlyString const& event_name, bool pers
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-localstorage
 WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
 {
-    auto& realm = this->realm();
-
     // 1. If this's associated Document's local storage holder is non-null, then return this's associated Document's local storage holder.
     auto& associated_document = this->associated_document();
     if (auto storage = associated_document.local_storage_holder())
@@ -535,7 +636,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.
     if (!map)
-        return WebIDL::SecurityError::create(realm, "localStorage is not available"_utf16);
+        return WebIDL::SecurityError::create("localStorage is not available"_utf16);
 
     // 4. Let storage be a new Storage object whose map is map.
     auto storage = Storage::create(*this, Storage::Type::Local, *map);
@@ -550,8 +651,6 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-sessionstorage
 WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
 {
-    auto& realm = this->realm();
-
     // 1. If this's associated Document's session storage holder is non-null, then return this's associated Document's session storage holder.
     auto& associated_document = this->associated_document();
     if (auto storage = associated_document.session_storage_holder())
@@ -562,7 +661,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.
     if (!map)
-        return WebIDL::SecurityError::create(realm, "sessionStorage is not available"_utf16);
+        return WebIDL::SecurityError::create("sessionStorage is not available"_utf16);
 
     // 4. Let storage be a new Storage object whose map is map.
     auto storage = Storage::create(*this, Storage::Type::Session, *map);
@@ -825,25 +924,6 @@ void Window::set_internals_object_exposed(bool exposed)
 bool Window::is_internals_object_exposed()
 {
     return s_internals_object_exposed;
-}
-
-WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironmentSettingsObject>)
-{
-    auto& realm = this->realm();
-    auto& global_object = realm.global_object();
-
-    Bindings::add_window_exposed_interfaces(global_object);
-
-    WEB_SET_PROTOTYPE_FOR_INTERFACE_ON(global_object, Window);
-
-    Bindings::WindowGlobalMixin::initialize(realm, global_object);
-    Bindings::WindowGlobalMixin::define_unforgeable_attributes(realm, global_object);
-    WindowOrWorkerGlobalScopeMixin::initialize();
-
-    if (s_internals_object_exposed)
-        global_object.define_direct_property("internals"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Heap::the().allocate<Internals::Internals>(*this)), JS::default_attributes);
-
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#dom-window
@@ -1245,7 +1325,7 @@ Optional<String> Window::prompt(Optional<String> const& message, Optional<String
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
-WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, Bindings::WindowPostMessageOptions const& options)
+WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Realm& realm, JS::Value message, PostMessageOptions const& options)
 {
     // 1. Let targetRealm be targetWindow's realm.
     auto& target_realm = this->realm();
@@ -1268,18 +1348,18 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // 2. If parsedURL is failure, then throw a "SyntaxError" DOMException.
         if (!parsed_url.has_value())
             return Web::throw_completion(
-                target_realm,
-                WebIDL::SyntaxError::create(target_realm, Utf16String::formatted("Invalid URL for targetOrigin: '{}'", options.target_origin)));
+                realm,
+                WebIDL::SyntaxError::create(Utf16String::formatted("Invalid URL for targetOrigin: '{}'", options.target_origin)));
 
         // 3. Set targetOrigin to parsedURL's origin.
         target_origin = parsed_url->origin();
     }
 
     // 6. Let transfer be options["transfer"].
-    auto& transfer = options.transfer;
+    auto& transfer = options.structured_serialize_options.transfer;
 
     // 7. Let serializeWithTransferResult be StructuredSerializeWithTransfer(message, transfer). Rethrow any exceptions.
-    auto serialize_with_transfer_result = TRY(structured_serialize_with_transfer(target_realm, message, transfer));
+    auto serialize_with_transfer_result = TRY(structured_serialize_with_transfer(realm, message, transfer));
 
     // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
     queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result), target_origin = move(target_origin), &incumbent_settings, &target_realm]() mutable {
@@ -1306,7 +1386,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
         // with its origin initialized to origin and the source attribute initialized to source, and then return.
         if (deserialize_record_or_error.is_exception()) {
-            Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, JS::js_null(), String {}, String {}, {}, GC::Ref { source } };
+            MessageEventInit message_event_init { {}, JS::js_null(), String {}, String {}, {}, GC::Ref { source } };
 
             auto message_error_event = MessageEvent::create(target_realm.global_object(), EventNames::messageerror, message_event_init, origin);
             dispatch_event(message_error_event);
@@ -1320,17 +1400,12 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // 6. Let newPorts be a new frozen array consisting of all MessagePort objects in deserializeRecord.[[TransferredValues]],
         //    if any, maintaining their relative order.
         // FIXME: Use a FrozenArray
-        GC::RootVector<GC::Ref<MessagePort>> new_ports;
-        for (auto const& object : deserialize_record.transferred_values) {
-            if (auto* message_port = Bindings::impl_from<HTML::MessagePort>(&*object)) {
-                new_ports.append(*message_port);
-            }
-        }
+        auto new_ports = Bindings::message_ports_from_transferred_values(deserialize_record.transferred_values);
 
         // 7. Fire an event named message at targetWindow, using MessageEvent, with its origin initialized to origin,
         //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports
         //    attribute initialized to newPorts.
-        Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, message_clone, String {}, String {}, move(new_ports), GC::Ref { source } };
+        MessageEventInit message_event_init { {}, message_clone, String {}, String {}, move(new_ports), GC::Ref { source } };
 
         auto message_event = MessageEvent::create(target_realm.global_object(), EventNames::message, message_event_init, origin);
         message_event->set_is_trusted(true);
@@ -1341,19 +1416,19 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage-options
-WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, Bindings::WindowPostMessageOptions const& options)
+WebIDL::ExceptionOr<void> Window::post_message(JS::Realm& realm, JS::Value message, PostMessageOptions const& options)
 {
     // The Window interface's postMessage(message, options) method steps are to run the window post message steps given
     // this, message, and options.
-    return window_post_message_steps(message, options);
+    return window_post_message_steps(realm, message, options);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage
-WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, String const& target_origin, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> Window::post_message(JS::Realm& realm, JS::Value message, String const& target_origin, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
 {
     // The Window interface's postMessage(message, targetOrigin, transfer) method steps are to run the window post message
     // steps given this, message, and «[ "targetOrigin" → targetOrigin, "transfer" → transfer ]».
-    return window_post_message_steps(message, Bindings::WindowPostMessageOptions { { .transfer = transfer }, target_origin });
+    return window_post_message_steps(realm, message, PostMessageOptions { { .transfer = transfer }, target_origin });
 }
 
 // https://dom.spec.whatwg.org/#dom-window-event
@@ -1553,13 +1628,16 @@ double Window::scroll_y() const
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scroll
-GC::Ref<WebIDL::Promise> Window::scroll(Bindings::ScrollToOptions const& options)
+void Window::scroll(ScrollToOptions const& options, GC::Ptr<WebIDL::Promise> promise)
 {
     // 4. If there is no viewport, return a resolved Promise and abort the remaining steps.
     // AD-HOC: Done here as step 1 requires the viewport.
     auto navigable = associated_document().navigable();
-    if (!navigable)
-        return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+    if (!navigable) {
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
+    }
 
     // 1. If invoked with one argument, follow these substeps:
     // NB: This Window::scroll() overload always has one argument.
@@ -1626,7 +1704,9 @@ GC::Ref<WebIDL::Promise> Window::scroll(Bindings::ScrollToOptions const& options
     //     smooth scroll, return a resolved Promise and abort the remaining steps.
     if (position == viewport_rect.location()) {
         TemporaryExecutionContext temporary_execution_context { relevant_settings_object() };
-        return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+        if (promise)
+            WebIDL::resolve_promise(WebIDL::promise_realm(*promise), *promise);
+        return;
     }
 
     // 11. Let document be the viewport’s associated Document.
@@ -1635,31 +1715,28 @@ GC::Ref<WebIDL::Promise> Window::scroll(Bindings::ScrollToOptions const& options
     // 12. Perform a scroll of the viewport to position, document’s root element as the associated element, if there is
     //     one, or null otherwise, and the scroll behavior being the value of the behavior dictionary member of options.
     //     Let scrollPromise be the Promise returned from this step.
-    auto scroll_promise = navigable->perform_a_scroll_of_the_viewport({ x, y });
-
-    // 13. Return scrollPromise.
-    return scroll_promise;
+    navigable->perform_a_scroll_of_the_viewport({ x, y }, promise);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scroll
-GC::Ref<WebIDL::Promise> Window::scroll(double x, double y)
+void Window::scroll(double x, double y, GC::Ptr<WebIDL::Promise> promise)
 {
     // NB: This just implements step 2, and then forwards to the other Window::scroll() overload.
 
     // 2. If invoked with two arguments, follow these substeps:
 
     //    1. Let options be null converted to a ScrollToOptions dictionary. [WEBIDL]
-    auto options = Bindings::ScrollToOptions {};
+    auto options = ScrollToOptions {};
 
     //    2. Let x and y be the arguments, respectively.
     options.left = x;
     options.top = y;
 
-    return scroll(options);
+    scroll(options, promise);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scrollby
-GC::Ref<WebIDL::Promise> Window::scroll_by(Bindings::ScrollToOptions options)
+void Window::scroll_by(ScrollToOptions options, GC::Ptr<WebIDL::Promise> promise)
 {
     // 1. If invoked with two arguments, follow these substeps:
     // NB: Implemented by the other overload, which then calls this.
@@ -1675,16 +1752,16 @@ GC::Ref<WebIDL::Promise> Window::scroll_by(Bindings::ScrollToOptions options)
     options.top = top + scroll_y();
 
     // 5. Return the Promise returned from scroll() after the method is invoked with options as the only argument.
-    return scroll(options);
+    scroll(options, promise);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-window-scrollby
-GC::Ref<WebIDL::Promise> Window::scroll_by(double x, double y)
+void Window::scroll_by(double x, double y, GC::Ptr<WebIDL::Promise> promise)
 {
     // 1. If invoked with two arguments, follow these substeps:
 
     //    1. Let options be null converted to a ScrollToOptions dictionary. [WEBIDL]
-    auto options = Bindings::ScrollToOptions {};
+    auto options = ScrollToOptions {};
 
     //    2. Let x and y be the arguments, respectively.
 
@@ -1695,7 +1772,7 @@ GC::Ref<WebIDL::Promise> Window::scroll_by(double x, double y)
     options.top = y;
 
     // NB: Complete the algorithm using the other overload.
-    return scroll_by(options);
+    scroll_by(options, promise);
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-window-screenx
@@ -1741,15 +1818,10 @@ double Window::device_pixel_ratio() const
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-animationframeprovider-requestanimationframe
-WebIDL::UnsignedLong Window::request_animation_frame(GC::Ref<WebIDL::CallbackType> callback)
+WebIDL::UnsignedLong Window::request_animation_frame(AnimationFrameCallbackHandler callback)
 {
     // FIXME: Make this fully spec compliant. Currently implements a mix of 'requestAnimationFrame()' and 'run the animation frame callbacks'.
-    auto handle = animation_frame_callback_driver().add(GC::create_function(GC::Heap::the(), [this, callback](double now) {
-        // 3. Invoke callback, passing now as the only argument, and if an exception is thrown, report the exception.
-        auto result = WebIDL::invoke_callback(*callback, {}, { { JS::Value(now) } });
-        if (result.is_error())
-            report_exception(result, realm());
-    }));
+    auto handle = animation_frame_callback_driver().add(GC::create_function(GC::Heap::the(), move(callback)));
     page().client().request_frame();
     return handle;
 }
@@ -1781,7 +1853,7 @@ bool Window::has_animation_frame_callbacks()
 }
 
 // https://w3c.github.io/requestidlecallback/#dom-window-requestidlecallback
-u32 Window::request_idle_callback(WebIDL::CallbackType& callback, Bindings::IdleRequestOptions const& options)
+u32 Window::request_idle_callback(IdleCallbackHandler callback, IdleRequestOptions const& options)
 {
     // 1. Let window be this Window object.
 
@@ -1792,11 +1864,7 @@ u32 Window::request_idle_callback(WebIDL::CallbackType& callback, Bindings::Idle
     auto handle = m_idle_callback_identifier;
 
     // 4. Push callback to the end of window's list of idle request callbacks, associated with handle.
-    auto handler = [callback = GC::make_root(callback)](GC::Ref<RequestIdleCallback::IdleDeadline> deadline) -> JS::Completion {
-        auto& callback_realm = callback->callback->shape().realm();
-        return WebIDL::invoke_callback(*callback, {}, { { Bindings::wrap(Bindings::host_defined_wrapper_world(callback_realm), callback_realm, deadline) } });
-    };
-    m_idle_request_callbacks.append(adopt_ref(*new IdleCallback(move(handler), handle)));
+    m_idle_request_callbacks.append(adopt_ref(*new IdleCallback(move(callback), handle)));
 
     // 5. Return handle and then continue running this algorithm asynchronously.
     return handle;
@@ -1955,7 +2023,7 @@ Vector<FlyString> Window::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object
-JS::Value Window::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
+Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<DOM::Element>, GC::Ref<DOM::HTMLCollection>> Window::named_item(FlyString const& name) const
 {
     // FIXME: Make the const-correctness of the methods this method calls less cowboy.
     auto& mutable_this = const_cast<Window&>(*this);
@@ -1981,12 +2049,14 @@ JS::Value Window::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Re
         });
         // 2. Return container's content navigable's active WindowProxy.
         VERIFY(container);
-        return container->content_navigable()->active_window_proxy();
+        if (auto window_proxy = container->content_navigable()->active_window_proxy())
+            return GC::Ref { *window_proxy };
+        return Empty {};
     }
 
     // 3. Otherwise, if objects has only one element, return that element.
     if (objects.elements.size() == 1)
-        return Bindings::wrap(wrapper_world, realm, objects.elements[0]);
+        return objects.elements[0];
 
     // 4. Otherwise return an HTMLCollection rooted at window's associated Document,
     //    whose filter matches only named objects of window with the name name. (By definition, these will all be elements.)
@@ -1996,7 +2066,7 @@ JS::Value Window::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Re
             return true;
         return element.id() == name;
     });
-    return Bindings::wrap(wrapper_world, realm, collection);
+    return collection;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-nameditem-filter

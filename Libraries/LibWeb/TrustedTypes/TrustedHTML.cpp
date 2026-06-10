@@ -13,8 +13,7 @@ namespace Web::TrustedTypes {
 GC_DEFINE_ALLOCATOR(TrustedHTML);
 
 TrustedHTML::TrustedHTML(Utf16String data)
-    : Bindings::Wrappable()
-    , m_data(move(data))
+    : m_data(move(data))
 {
 }
 

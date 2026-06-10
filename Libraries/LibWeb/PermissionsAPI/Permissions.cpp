@@ -5,8 +5,9 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/PermissionStatus.h>
+#include <LibJS/Runtime/Error.h>
+#include <LibWeb/Bindings/Permissions.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -30,13 +31,13 @@ bool is_permission_supported(String const& name)
 }
 
 // https://w3c.github.io/permissions/#dfn-request-permission-to-use
-Bindings::PermissionState request_permission(Bindings::PermissionDescriptor const& descriptor)
+PermissionState request_permission(PermissionDescriptor const& descriptor)
 {
     // 1. Let current state be the descriptor's permission state.
     auto current_state = permission_state(descriptor);
 
     // 2. If current state is not "prompt", return current state and abort these steps.
-    if (current_state != Bindings::PermissionState::Prompt)
+    if (current_state != PermissionState::Prompt)
         return current_state;
 
     // FIXME: 3. Ask the user for express permission for the calling algorithm to use the powerful feature described by descriptor.
@@ -44,9 +45,9 @@ Bindings::PermissionState request_permission(Bindings::PermissionDescriptor cons
     // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
     // The user's interaction may provide new information about the user's intent for the origin.
     if (false) {
-        current_state = Bindings::PermissionState::Granted;
+        current_state = PermissionState::Granted;
     } else {
-        current_state = Bindings::PermissionState::Denied;
+        current_state = PermissionState::Denied;
     }
 
     // 5. Let settings be the current settings object.
@@ -66,14 +67,14 @@ Bindings::PermissionState request_permission(Bindings::PermissionDescriptor cons
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-state
-Bindings::PermissionState permission_state(Bindings::PermissionDescriptor descriptor, Optional<HTML::EnvironmentSettingsObject&> settings)
+PermissionState permission_state(PermissionDescriptor descriptor, Optional<HTML::EnvironmentSettingsObject&> settings)
 {
     // 1. If settings wasn't passed, set it to the current settings object.
     auto& settings_object = settings.has_value() ? settings.value() : HTML::current_settings_object();
 
     // 2. If settings is a non-secure context, return "denied".
     if (!HTML::is_secure_context(settings_object))
-        return Bindings::PermissionState::Denied;
+        return PermissionState::Denied;
 
     // FIXME: 3. Let feature be descriptor's name.
 
@@ -95,7 +96,7 @@ Bindings::PermissionState permission_state(Bindings::PermissionDescriptor descri
         return entry.release_value().state;
 
     // 8. Return the PermissionState enum value that represents the permission state of feature, taking into account any permission state constraints for descriptor's name.
-    return Bindings::PermissionState::Prompt;
+    return PermissionState::Prompt;
 }
 
 GC_DEFINE_ALLOCATOR(Permissions);
@@ -108,7 +109,7 @@ GC::Ref<Permissions> Permissions::create()
 Permissions::Permissions() = default;
 
 // https://w3c.github.io/permissions/#query-method
-GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Realm& realm, JS::Value permission_desc)
+void Permissions::query(JS::Realm& realm, GC::Ref<JS::Object> permission_desc, GC::Ref<WebIDL::Promise> promise)
 {
     auto& vm = realm.vm();
     auto& relevant_global_object = HTML::current_global_object();
@@ -118,7 +119,8 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Realm& realm, JS::Value per
         // 1. If the current settings object's associated Document is not fully active, return a promise rejected with an "InvalidStateError" DOMException.
         if (!window->associated_document().is_fully_active()) {
             auto error = WebIDL::InvalidStateError::create(realm, "The document is not fully active."_utf16);
-            return WebIDL::create_rejected_promise_from_exception(realm, error);
+            WebIDL::reject_promise(realm, promise, error);
+            return;
         }
     }
 
@@ -126,23 +128,22 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Realm& realm, JS::Value per
     // 3. If the conversion throws an exception, return a promise rejected with that exception.
     auto root_desc_or_error = Bindings::convert_to_idl_value_for_permission_descriptor(vm, permission_desc);
     if (root_desc_or_error.is_error()) {
-        return WebIDL::create_rejected_promise_from_exception(realm, root_desc_or_error.release_error());
+        WebIDL::reject_promise(realm, promise, root_desc_or_error.release_error().value());
+        return;
     }
     auto root_desc = root_desc_or_error.release_value();
 
     // 4. If rootDesc["name"] is not supported, return a promise rejected with a TypeError.
-    if (!is_permission_supported(root_desc.name)) {
+    if (!PermissionsAPI::is_permission_supported(root_desc.name)) {
         auto error = vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, root_desc.name, "PermissionName"sv);
-        return WebIDL::create_rejected_promise_from_exception(realm, error.release_error());
+        WebIDL::reject_promise(realm, promise, error.release_error().value());
+        return;
     }
 
     // 5. Let typedDescriptor be the object permissionDesc refers to, converted to an IDL value of rootDesc's name's permission descriptor type.
     // 6. If the conversion throws an exception, return a promise rejected with that exception.
     // FIXME: Support specific permission descriptor types. For now, we only support the base PermissionDescriptor.
     auto typed_descriptor = root_desc;
-
-    // 7. Let promise be a new promise.
-    auto promise = WebIDL::create_promise(realm);
 
     // 8. Return promise and continue in parallel:
     // FIXME: Continue in parallel.
@@ -166,22 +167,20 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Realm& realm, JS::Value per
             WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, status));
         }));
     }
-
-    return promise;
 }
 
 // https://w3c.github.io/permissions/#dfn-getting-the-current-permission-state
-Bindings::PermissionState get_current_permission_state(String const& name, Optional<HTML::EnvironmentSettingsObject&> settings)
+PermissionState get_current_permission_state(String const& name, Optional<HTML::EnvironmentSettingsObject&> settings)
 {
     // 1. Let descriptor be a newly-created PermissionDescriptor with name initialized to name.
-    Bindings::PermissionDescriptor descriptor { name };
+    PermissionDescriptor descriptor { name };
 
     // 2. Return the permission state of descriptor with settings.
     return permission_state(descriptor, settings);
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-query-algorithm
-void permission_query_algorithm(Bindings::PermissionDescriptor const& permission_desc, PermissionStatus& status)
+void permission_query_algorithm(PermissionDescriptor const& permission_desc, PermissionStatus& status)
 {
     // 1. Set status's state to permissionDesc's permission state.
     status.set_state(permission_state(permission_desc));

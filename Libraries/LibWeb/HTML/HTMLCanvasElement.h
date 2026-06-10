@@ -7,10 +7,14 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibGC/Function.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibWeb/HTML/Canvas/CanvasSettings.h>
+#include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
+#include <LibWeb/WebGL/WebGLContextAttributes.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
@@ -28,23 +32,29 @@ public:
 
     Gfx::IntSize bitmap_size_for_canvas(size_t minimum_width = 0, size_t minimum_height = 0) const;
 
-    JS::ThrowCompletionOr<RenderingContext> get_context(String const& type, JS::Value options);
     enum class HasOrCreatedContext {
         No,
         Yes,
     };
-    JS::ThrowCompletionOr<HasOrCreatedContext> create_2d_context(JS::Value options);
+    HasOrCreatedContext create_2d_context(CanvasRenderingContext2DSettings);
+    HasOrCreatedContext create_webgl_context(WebGL::WebGLContextAttributes);
+    HasOrCreatedContext create_webgl2_context(WebGL::WebGLContextAttributes);
+    RenderingContext const& context() const { return m_context; }
 
     WebIDL::UnsignedLong width() const;
     WebIDL::UnsignedLong height() const;
 
     void set_width(WebIDL::UnsignedLong);
     void set_height(WebIDL::UnsignedLong);
+    JS::ThrowCompletionOr<RenderingContext> get_context(String const& context_id, JS::Value options);
 
     virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
-    String to_data_url(StringView type, Optional<JS::Value> quality);
-    WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, Optional<JS::Value> quality);
+    String to_data_url(String const& type, Optional<JS::Value> quality);
+    String to_data_url(StringView type, Optional<double> quality);
+    using ToBlobCompletionCallback = GC::Function<void(Optional<SerializeBitmapResult>)>;
+    WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType>, String const& type, Optional<JS::Value> quality);
+    WebIDL::ExceptionOr<void> to_blob(StringView type, Optional<double> quality, GC::Ref<ToBlobCompletionCallback>);
     RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
 
     void present();
@@ -72,7 +82,7 @@ private:
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     template<typename ContextType>
-    JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
+    HasOrCreatedContext create_webgl_context(WebGL::WebGLContextAttributes);
     void reset_context_to_default_state();
     void notify_context_about_canvas_size_change();
     void clear_compositor_surface();

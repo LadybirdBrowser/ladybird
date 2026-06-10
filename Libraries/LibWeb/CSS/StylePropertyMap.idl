@@ -1,10 +1,10 @@
 // https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap
 [Exposed=Window]
 interface StylePropertyMap : StylePropertyMapReadOnly {
-    [NeedsCallerRealm] undefined set(USVString property, (CSSStyleValue or USVString)... values);
-    [NeedsCallerRealm] undefined append(USVString property, (CSSStyleValue or USVString)... values);
-    [NeedsCallerRealm] undefined delete(USVString property);
-    [NeedsThisObjectRealm] undefined clear();
+    undefined set(Utf16USVString property, (CSSStyleValue or USVString)... values);
+    undefined append(Utf16USVString property, (CSSStyleValue or USVString)... values);
+    undefined delete(Utf16USVString property);
+    undefined clear();
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#declared-stylepropertymap-objects

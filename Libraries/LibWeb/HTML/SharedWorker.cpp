@@ -5,9 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/MessageEvent.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/SharedWorker.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -26,8 +23,15 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SharedWorker);
 
+WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::create_for_constructor(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, WorkerOptions> options)
+{
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(realm.global_object());
+    VERIFY(global_scope);
+    return create(*global_scope, script_url, move(options));
+}
+
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
-WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(WindowOrWorkerGlobalScopeMixin& global_scope, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, Bindings::WorkerOptions>& options_value)
+WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::create(WindowOrWorkerGlobalScopeMixin& global_scope, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, WorkerOptions> options_value)
 {
     // 1. Let compliantScriptURL be the result of invoking the get trusted type compliant string algorithm with
     //    TrustedScriptURL, this's relevant global object, scriptURL, "SharedWorker constructor", and "script".
@@ -42,9 +46,9 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(WindowOr
     //    value of options and whose other members are set to their default values.
     auto options = options_value.visit(
         [&](String& options) {
-            return Bindings::WorkerOptions { .name = move(options) };
+            return WorkerOptions { .name = move(options) };
         },
-        [&](Bindings::WorkerOptions& options) {
+        [&](WorkerOptions& options) {
             return move(options);
         });
 
@@ -80,7 +84,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(WindowOr
 }
 
 SharedWorker::SharedWorker(GC::Ref<DOM::EventTarget> relevant_global_object, URL::URL script_url,
-    Bindings::WorkerOptions options, MessagePort& port)
+    WorkerOptions options, MessagePort& port)
     : DOM::EventTarget()
     , m_script_url(move(script_url))
     , m_options(move(options))

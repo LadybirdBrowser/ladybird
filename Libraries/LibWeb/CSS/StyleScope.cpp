@@ -522,7 +522,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                             composition = AnimationComposition::Add;
                         else if (composition_str == "accumulate"sv)
                             composition = AnimationComposition::Accumulate;
-                        resolved_keyframe.composite = Animations::css_animation_composition_to_bindings_composite_operation_or_auto(composition);
+                        resolved_keyframe.composite = Animations::css_animation_composition_to_composite_operation_or_auto(composition);
                         continue;
                     }
                     if (!is_animatable_property(it.property_id))
@@ -538,7 +538,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                 if (auto* existing_keyframe = keyframe_set->keyframes_by_key.find(key)) {
                     for (auto& [property_id, value] : resolved_keyframe.properties)
                         existing_keyframe->properties.set(property_id, move(value));
-                    if (resolved_keyframe.composite != Bindings::CompositeOperationOrAuto::Auto)
+                    if (resolved_keyframe.composite != Animations::CompositeOperationOrAuto::Auto)
                         existing_keyframe->composite = resolved_keyframe.composite;
                     if (!resolved_keyframe.easing.has<Empty>())
                         existing_keyframe->easing = move(resolved_keyframe.easing);

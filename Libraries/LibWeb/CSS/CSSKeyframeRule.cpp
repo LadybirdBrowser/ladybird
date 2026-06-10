@@ -7,7 +7,6 @@
 
 #include "CSSKeyframeRule.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSKeyframeRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/Dump.h>
 

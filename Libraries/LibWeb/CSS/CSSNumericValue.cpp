@@ -27,6 +27,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNumericValue);
 
+CSSNumericValue::CSSNumericValue(NumericType type)
+    : CSSStyleValue()
+    , m_type(move(type))
+{
+}
+
 static Bindings::CSSNumericBaseType to_om_numeric_base_type(NumericType::BaseType source)
 {
     switch (source) {
@@ -50,10 +56,45 @@ static Bindings::CSSNumericBaseType to_om_numeric_base_type(NumericType::BaseTyp
     VERIFY_NOT_REACHED();
 }
 
-CSSNumericValue::CSSNumericValue(NumericType type)
-    : CSSStyleValue()
-    , m_type(move(type))
+Bindings::CSSNumericType CSSNumericValue::type_for_bindings() const
 {
+    Bindings::CSSNumericType result {};
+
+    type().for_each_type_and_exponent([&result](NumericType::BaseType base_type, auto power) {
+        if (power == 0)
+            return;
+
+        switch (base_type) {
+        case NumericType::BaseType::Length:
+            result.length = power;
+            break;
+        case NumericType::BaseType::Angle:
+            result.angle = power;
+            break;
+        case NumericType::BaseType::Time:
+            result.time = power;
+            break;
+        case NumericType::BaseType::Frequency:
+            result.frequency = power;
+            break;
+        case NumericType::BaseType::Resolution:
+            result.resolution = power;
+            break;
+        case NumericType::BaseType::Flex:
+            result.flex = power;
+            break;
+        case NumericType::BaseType::Percent:
+            result.percent = power;
+            break;
+        case NumericType::BaseType::__Count:
+            VERIFY_NOT_REACHED();
+        }
+    });
+
+    if (auto percent_hint = type().percent_hint(); percent_hint.has_value())
+        result.percent_hint = to_om_numeric_base_type(percent_hint.value());
+
+    return result;
 }
 
 static bool all_values_are_css_unit_values_with_the_same_unit(ReadonlySpan<GC::Ref<CSSNumericValue>> const& values)
@@ -67,7 +108,7 @@ static bool all_values_are_css_unit_values_with_the_same_unit(ReadonlySpan<GC::R
 }
 
 template<typename Operation>
-static GC::Ref<CSSNumericValue> apply_math_operation_on_css_unit_values(JS::Realm&, ReadonlySpan<GC::Ref<CSSNumericValue>> values, Operation&& operation)
+static GC::Ref<CSSNumericValue> apply_math_operation_on_css_unit_values(ReadonlySpan<GC::Ref<CSSNumericValue>> values, Operation&& operation)
 {
     auto& first_unit_value = as<CSSUnitValue>(*values[0]);
     auto& unit = first_unit_value.unit();
@@ -79,7 +120,7 @@ static GC::Ref<CSSNumericValue> apply_math_operation_on_css_unit_values(JS::Real
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-add
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(JS::Realm& realm, ReadonlySpan<CSSNumberish> initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(ReadonlySpan<CSSNumberish> initial_values)
 {
     // 1. Replace each item of values with the result of rectifying a numberish value for the item.
     // 2. If this is a CSSMathSum object, prepend the items in this’s values internal slot to values.
@@ -101,7 +142,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(JS::Realm& re
     //    be (((1 + 2) + 3) + 4). (This detail is necessary to ensure interoperability in the presence of floating-point
     //    arithmetic.)
     if (all_values_are_css_unit_values_with_the_same_unit(values))
-        return apply_math_operation_on_css_unit_values(realm, values, [](double a, double b) { return a + b; });
+        return apply_math_operation_on_css_unit_values(values, [](double a, double b) { return a + b; });
 
     // 4. Let type be the result of adding the types of every item in values. If type is failure, throw a TypeError.
     // 5. Return a new CSSMathSum object whose values internal slot is set to values.
@@ -109,7 +150,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(JS::Realm& re
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-sub
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::sub(JS::Realm& realm, ReadonlySpan<CSSNumberish> initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::sub(ReadonlySpan<CSSNumberish> initial_values)
 {
     // 1. Replace each item of values with the result of rectifying a numberish value for the item, then negating the value.
     Vector<CSSNumberish> values;
@@ -117,7 +158,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::sub(JS::Realm& re
         values.append(rectify_a_numberish_value(value)->negate());
 
     // 2. Return the result of calling the add() internal algorithm with this and values.
-    return add(realm, values);
+    return add(values);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmath-negate-a-cssnumericvalue
@@ -133,7 +174,7 @@ CSSNumberish CSSNumericValue::negate()
         return GC::Ref<CSSNumericValue> { CSSUnitValue::create(-unit_value->value(), unit_value->unit()) };
 
     // 3. Otherwise, return a new CSSMathNegate object whose value internal slot is set to this.
-    return GC::Ref<CSSNumericValue> { CSSMathNegate::construct_impl(GC::Ref<CSSNumericValue> { *this }) };
+    return GC::Ref<CSSNumericValue> { CSSMathNegate::create_from_numberish(GC::Ref<CSSNumericValue> { *this }) };
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-mul
@@ -227,11 +268,11 @@ WebIDL::ExceptionOr<CSSNumberish> CSSNumericValue::invert()
     }
 
     // 3. Otherwise, return a new CSSMathInvert object whose value internal slot is set to this.
-    return CSSNumberish { GC::Ref<CSSNumericValue> { CSSMathInvert::construct_impl(GC::Ref<CSSNumericValue> { *this }) } };
+    return CSSNumberish { GC::Ref<CSSNumericValue> { CSSMathInvert::create_from_numberish(GC::Ref<CSSNumericValue> { *this }) } };
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-min
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(JS::Realm& realm, ReadonlySpan<CSSNumberish> initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(ReadonlySpan<CSSNumberish> initial_values)
 {
     // 1. Replace each item of values with the result of rectifying a numberish value for the item.
     // 2. If this is a CSSMathMin object, prepend the items in this’s values internal slot to values.
@@ -251,7 +292,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(JS::Realm& re
     //    internal slot is set to that unit, and value internal slot is set to the minimum of the value internal slots
     //    of the items in values.
     if (all_values_are_css_unit_values_with_the_same_unit(values))
-        return apply_math_operation_on_css_unit_values(realm, values, [](double a, double b) { return AK::min(a, b); });
+        return apply_math_operation_on_css_unit_values(values, [](double a, double b) { return AK::min(a, b); });
 
     // 4. Let type be the result of adding the types of every item in values. If type is failure, throw a TypeError.
     // 5. Return a new CSSMathMin object whose values internal slot is set to values.
@@ -259,7 +300,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(JS::Realm& re
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-max
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::max(JS::Realm& realm, ReadonlySpan<CSSNumberish> initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::max(ReadonlySpan<CSSNumberish> initial_values)
 {
     // 1. Replace each item of values with the result of rectifying a numberish value for the item.
     // 2. If this is a CSSMathMax object, prepend the items in this’s values internal slot to values.
@@ -279,7 +320,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::max(JS::Realm& re
     //    internal slot is set to that unit, and value internal slot is set to the maximum of the value internal slots
     //    of the items in values.
     if (all_values_are_css_unit_values_with_the_same_unit(values))
-        return apply_math_operation_on_css_unit_values(realm, values, [](double a, double b) { return AK::max(a, b); });
+        return apply_math_operation_on_css_unit_values(values, [](double a, double b) { return AK::max(a, b); });
 
     // 4. Let type be the result of adding the types of every item in values. If type is failure, throw a TypeError.
     // 5. Return a new CSSMathMax object whose values internal slot is set to values.
@@ -304,7 +345,7 @@ bool CSSNumericValue::equals_for_bindings(ReadonlySpan<CSSNumberish> values) con
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-to
-WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(JS::Realm& realm, FlyString const& unit) const
+WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(FlyString const& unit) const
 {
     // The to(unit) method converts an existing CSSNumericValue this into another one with the specified unit, if
     // possible. When called, it must perform the following steps:
@@ -312,7 +353,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(JS::Realm& realm,
     // 1. Let type be the result of creating a type from unit. If type is failure, throw a SyntaxError.
     auto maybe_type = NumericType::create_from_unit(unit);
     if (!maybe_type.has_value())
-        return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Unrecognized unit '{}'", unit));
+        return WebIDL::SyntaxError::create(Utf16String::formatted("Unrecognized unit '{}'", unit));
 
     // 2. Let sum be the result of creating a sum value from this. If sum is failure, throw a TypeError.
     auto sum = create_a_sum_value();
@@ -328,61 +369,12 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(JS::Realm& realm,
     if (!item)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create CSSUnitValue from input '{}'", MUST(to_string()))) };
 
-    auto converted_item = item->converted_to_unit(realm, unit);
+    auto converted_item = item->converted_to_unit(unit);
     if (!converted_item)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to convert input '{}' to unit '{}'", MUST(to_string()), unit)) };
 
     // 4. Return item.
     return converted_item.as_nonnull();
-}
-
-// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-type
-Bindings::CSSNumericType CSSNumericValue::type_for_bindings() const
-{
-    // 1. Let result be a new CSSNumericType.
-    Bindings::CSSNumericType result {};
-
-    // 2. For each baseType → power in the type of this,
-    m_type.for_each_type_and_exponent([&result](NumericType::BaseType base_type, auto power) {
-        // 1. If power is not 0, set result[baseType] to power.
-        if (power == 0)
-            return;
-
-        switch (base_type) {
-        case NumericType::BaseType::Length:
-            result.length = power;
-            break;
-        case NumericType::BaseType::Angle:
-            result.angle = power;
-            break;
-        case NumericType::BaseType::Time:
-            result.time = power;
-            break;
-        case NumericType::BaseType::Frequency:
-            result.frequency = power;
-            break;
-        case NumericType::BaseType::Resolution:
-            result.resolution = power;
-            break;
-        case NumericType::BaseType::Flex:
-            result.flex = power;
-            break;
-        case NumericType::BaseType::Percent:
-            result.percent = power;
-            break;
-        case NumericType::BaseType::__Count:
-            VERIFY_NOT_REACHED();
-        }
-    });
-
-    // 3. If the percent hint of this is not null,
-    if (auto percent_hint = m_type.percent_hint(); percent_hint.has_value()) {
-        // 1. Set result[percentHint] to the percent hint of this.
-        result.percent_hint = to_om_numeric_base_type(percent_hint.value());
-    }
-
-    // 4. Return result.
-    return result;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssnumericvalue
@@ -425,7 +417,7 @@ GC::Ref<CSSNumericValue> rectify_a_numberish_value(CSSNumberish const& numberish
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-numeric-value
-static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(JS::Realm& realm, Parser::ComponentValue const& numeric_value)
+static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(Parser::ComponentValue const& numeric_value)
 {
     // To reify a numeric value num:
     // 1. If num is a math function, reify a math expression from num and return the result.
@@ -433,16 +425,16 @@ static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(JS::R
         // AD-HOC: The only feasible way is to parse it as a StyleValue and rely on the reification code there.
         auto parser = Parser::Parser::create(Parser::ParsingParams {}, {});
         if (auto calculation = parser.parse_calculated_value(numeric_value, {})) {
-            auto reified = calculation->reify(realm, {});
+            auto reified = calculation->reify({});
             // AD-HOC: Not all math functions can be reified. Until we have clear guidance on that, throw a SyntaxError.
             // See: https://github.com/w3c/css-houdini-drafts/issues/1090#issuecomment-3200229996
             if (auto* reified_numeric = as_if<CSSNumericValue>(*reified)) {
                 return GC::Ref { *reified_numeric };
             }
-            return WebIDL::SyntaxError::create(realm, "Unable to reify this math function."_utf16);
+            return WebIDL::SyntaxError::create("Unable to reify this math function."_utf16);
         }
         // AD-HOC: If we failed to parse it, I guess we throw a SyntaxError like in step 1 of CSSNumericValue::parse().
-        return WebIDL::SyntaxError::create(realm, "Unable to parse input as a calculation tree."_utf16);
+        return WebIDL::SyntaxError::create("Unable to parse input as a calculation tree."_utf16);
     }
 
     // 2. If num is the unitless value 0 and num is a <dimension>, return a new CSSUnitValue with its value internal
@@ -465,7 +457,7 @@ static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(JS::R
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(JS::Realm& realm, String const& css_text)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(String const& css_text)
 {
     // The parse(cssText) method, when called, must perform the following steps:
 
@@ -473,7 +465,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(JS::Realm& 
     //    SyntaxError and abort this algorithm.
     auto maybe_component_value = Parser::Parser::create(Parser::ParsingParams {}, css_text).parse_as_component_value();
     if (!maybe_component_value.has_value()) {
-        return WebIDL::SyntaxError::create(realm, "Unable to parse input as a component value."_utf16);
+        return WebIDL::SyntaxError::create("Unable to parse input as a component value."_utf16);
     }
     auto& result = maybe_component_value.value();
 
@@ -488,19 +480,19 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(JS::Realm& 
             || result.is(Parser::Token::Type::Percentage)
             || result.is(Parser::Token::Type::Dimension)
             || is_a_math_function(result))) {
-        return WebIDL::SyntaxError::create(realm, "Input not a <number-token>, <percentage-token>, <dimension-token>, or a math function."_utf16);
+        return WebIDL::SyntaxError::create("Input not a <number-token>, <percentage-token>, <dimension-token>, or a math function."_utf16);
     }
 
     // 3. If result is a <dimension-token> and creating a type from result’s unit returns failure, throw a SyntaxError
     //    and abort this algorithm.
     if (result.is(Parser::Token::Type::Dimension)) {
         if (!NumericType::create_from_unit(result.token().dimension_unit()).has_value()) {
-            return WebIDL::SyntaxError::create(realm, "Input is <dimension> with an unrecognized unit."_utf16);
+            return WebIDL::SyntaxError::create("Input is <dimension> with an unrecognized unit."_utf16);
         }
     }
 
     // 4. Reify a numeric value result, and return the result.
-    return reify_a_numeric_value(realm, result);
+    return reify_a_numeric_value(result);
 }
 
 }

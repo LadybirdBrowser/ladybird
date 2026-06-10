@@ -9,9 +9,6 @@
 
 #include <AK/Utf16View.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/HTMLTextAreaElement.h>
-#include <LibWeb/Bindings/InputEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
@@ -132,7 +129,7 @@ void HTMLTextAreaElement::clear_algorithm()
     // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
     // changes caused by the user (and thus, e.g. do cause input events to fire).
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
-        Bindings::InputEventInit input_event_init;
+        UIEvents::InputEventInit input_event_init;
         input_event_init.bubbles = true;
         input_event_init.composed = true;
         auto input_event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, input_event_init, {}, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
@@ -251,7 +248,7 @@ WebIDL::Long HTMLTextAreaElement::max_length() const
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_max_length(WebIDL::Long value)
 {
     // The maxLength IDL attribute must reflect the maxlength content attribute, limited to only non-negative numbers.
-    set_attribute_value(HTML::AttributeNames::maxlength, TRY(convert_non_negative_integer_to_string(HTML::relevant_realm(*this), value)));
+    set_attribute_value(HTML::AttributeNames::maxlength, TRY(convert_non_negative_integer_to_string(value)));
     return {};
 }
 
@@ -269,7 +266,7 @@ WebIDL::Long HTMLTextAreaElement::min_length() const
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_min_length(WebIDL::Long value)
 {
     // The minLength IDL attribute must reflect the minlength content attribute, limited to only non-negative numbers.
-    set_attribute_value(HTML::AttributeNames::minlength, TRY(convert_non_negative_integer_to_string(HTML::relevant_realm(*this), value)));
+    set_attribute_value(HTML::AttributeNames::minlength, TRY(convert_non_negative_integer_to_string(value)));
     return {};
 }
 
@@ -347,7 +344,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return;
 
-    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
@@ -394,11 +391,11 @@ void HTMLTextAreaElement::update_placeholder_visibility()
         return;
     auto placeholder_text = get_attribute(AttributeNames::placeholder);
     if (placeholder_text.has_value() && m_text_node->data().is_empty()) {
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "inline"sv));
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "inline"sv));
+        MUST(m_inner_text_element->style()->set_property(CSS::PropertyID::Display, "inline"sv));
+        MUST(m_placeholder_element->style()->set_property(CSS::PropertyID::Display, "inline"sv));
     } else {
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"sv));
+        MUST(m_inner_text_element->style()->set_property(CSS::PropertyID::Display, "block"sv));
+        MUST(m_placeholder_element->style()->set_property(CSS::PropertyID::Display, "none"sv));
     }
 }
 
@@ -445,7 +442,7 @@ void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type, Option
     // interaction task source given the textarea element to fire an event named input at the textarea element, with the
     // bubbles and composed attributes initialized to true.
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this, input_type, data]() {
-        Bindings::InputEventInit input_event_init;
+        UIEvents::InputEventInit input_event_init;
         input_event_init.bubbles = true;
         input_event_init.composed = true;
         input_event_init.input_type = input_type.to_string();

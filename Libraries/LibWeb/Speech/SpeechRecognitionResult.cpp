@@ -18,7 +18,6 @@ GC::Ref<SpeechRecognitionResult> SpeechRecognitionResult::create()
 }
 
 SpeechRecognitionResult::SpeechRecognitionResult()
-    : Bindings::Wrappable()
 {
 }
 

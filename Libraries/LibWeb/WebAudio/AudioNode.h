@@ -16,11 +16,16 @@
 
 namespace Web::WebAudio {
 
+using ChannelCountMode = Bindings::ChannelCountMode;
+using ChannelInterpretation = Bindings::ChannelInterpretation;
+
 struct AudioNodeDefaultOptions {
     WebIDL::UnsignedLong channel_count;
-    Bindings::ChannelCountMode channel_count_mode;
-    Bindings::ChannelInterpretation channel_interpretation;
+    ChannelCountMode channel_count_mode;
+    ChannelInterpretation channel_interpretation;
 };
+
+using AudioNodeOptions = Bindings::AudioNodeOptions;
 
 struct AudioNodeConnection {
     GC::Ref<AudioNode> destination_node;
@@ -72,12 +77,12 @@ public:
     virtual WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong);
     virtual WebIDL::UnsignedLong channel_count() const { return m_channel_count; }
 
-    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
-    Bindings::ChannelCountMode channel_count_mode();
-    virtual WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation);
-    Bindings::ChannelInterpretation channel_interpretation();
+    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(ChannelCountMode);
+    ChannelCountMode channel_count_mode();
+    virtual WebIDL::ExceptionOr<void> set_channel_interpretation(ChannelInterpretation);
+    ChannelInterpretation channel_interpretation();
 
-    WebIDL::ExceptionOr<void> initialize_audio_node_options(Bindings::AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options);
+    WebIDL::ExceptionOr<void> initialize_audio_node_options(AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options);
 
     NodeID node_id() const { return m_node_id; }
     JS::Object& relevant_global_object() const;
@@ -89,8 +94,8 @@ protected:
 private:
     GC::Ref<BaseAudioContext> m_context;
     WebIDL::UnsignedLong m_channel_count { 2 };
-    Bindings::ChannelCountMode m_channel_count_mode { Bindings::ChannelCountMode::Max };
-    Bindings::ChannelInterpretation m_channel_interpretation { Bindings::ChannelInterpretation::Speakers };
+    ChannelCountMode m_channel_count_mode { ChannelCountMode::Max };
+    ChannelInterpretation m_channel_interpretation { ChannelInterpretation::Speakers };
     // Connections from other AudioNode outputs into this node's inputs.
     Vector<AudioNodeConnection> m_input_connections;
     // Connections from this node's outputs into other AudioNode inputs.

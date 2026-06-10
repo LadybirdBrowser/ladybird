@@ -6,11 +6,14 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/XRRenderState.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebXR/XRRenderState.h>
 #include <LibWeb/WebXR/XRSystem.h>
 
 namespace Web::WebXR {
+
+using XRRenderStateInit = Bindings::XRRenderStateInit;
 
 // https://immersive-web.github.io/webxr/#XRSession-interface
 class XRSession final : public DOM::EventTarget {
@@ -22,13 +25,11 @@ public:
     virtual ~XRSession() override = default;
 
     // https://immersive-web.github.io/webxr/#dom-xrsession-updaterenderstate
-    void update_render_state(Bindings::XRRenderStateInit const&);
-
-    // https://immersive-web.github.io/webxr/#dom-xrsession-end
-    GC::Ref<WebIDL::Promise> end(JS::Realm&);
+    void update_render_state(XRRenderStateInit const&);
 
     // https://immersive-web.github.io/webxr/#shut-down-the-session
     void shut_down(JS::Realm&);
+    GC::Ref<WebIDL::Promise> end(JS::Realm&);
 
     GC::Ptr<WebIDL::CallbackType> onend();
     void set_onend(GC::Ptr<WebIDL::CallbackType>);
@@ -39,7 +40,7 @@ public:
     bool ended() const { return m_ended; }
 
     // https://immersive-web.github.io/webxr/#immersive-session
-    bool is_immersive() const { return m_mode != Bindings::XRSessionMode::Inline; }
+    bool is_immersive() const { return m_mode != XRSessionMode::Inline; }
 
 private:
     XRSession(XRSystem&);
@@ -50,9 +51,6 @@ private:
 
     // NB: These are for step 4 of Shut Down the Session, which requires us to reject all outstanding promises created by this session.
     Vector<GC::Ref<WebIDL::Promise>> m_outstanding_promises {};
-    GC::Ref<WebIDL::Promise> create_promise(JS::Realm&);
-    void resolve_promise(JS::Realm&, WebIDL::Promise const&, JS::Value = JS::js_undefined());
-    void reject_promise(JS::Realm&, WebIDL::Promise const&, JS::Value);
 
     // https://immersive-web.github.io/webxr/#xrsession-promise-resolved
     bool m_promise_resolved { false };
@@ -61,7 +59,7 @@ private:
     bool m_ended { false };
 
     // https://immersive-web.github.io/webxr/#xrsession-mode
-    Bindings::XRSessionMode m_mode {};
+    XRSessionMode m_mode {};
 };
 
 }

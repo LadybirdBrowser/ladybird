@@ -17,14 +17,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(ANGLEInstancedArrays);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> ANGLEInstancedArrays::create(GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> ANGLEInstancedArrays::create(GC::Ref<WebGLRenderingContextBase> context)
 {
     auto extension = GC::Heap::the().allocate<ANGLEInstancedArrays>(context);
-    return GC::Ref<Bindings::Wrappable> { extension };
+    return GC::Ref<WebGLExtension> { extension };
 }
 
 ANGLEInstancedArrays::ANGLEInstancedArrays(GC::Ref<WebGLRenderingContextBase> context)
-    : Bindings::Wrappable()
+    : WebGLExtension()
     , m_context(context)
 {
 }

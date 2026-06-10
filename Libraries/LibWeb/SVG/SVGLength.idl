@@ -15,7 +15,7 @@ interface SVGLength {
 
     readonly attribute unsigned short unitType;
 
-    [NeedsThisObjectRealmForSetter] attribute float value;
+    attribute float value;
     [FIXME] attribute float valueInSpecifiedUnits;
     [FIXME] attribute DOMString valueAsString;
 

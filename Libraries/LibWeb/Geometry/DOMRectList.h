@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/DOMRectList.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRect.h>
 
@@ -26,8 +26,6 @@ public:
 
     u32 length() const;
     DOMRect const* item(u32 index) const;
-
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
 private:
     explicit DOMRectList(Vector<GC::Ref<DOMRect>>);

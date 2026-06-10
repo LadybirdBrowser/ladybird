@@ -7,7 +7,6 @@
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ErrorEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
@@ -36,18 +35,25 @@ static HashMap<WorkerAgentOwnerToken, GC::Ref<WorkerAgentParent>>& worker_agent_
     return *map;
 }
 
-GC::Ref<WorkerAgentParent> WorkerAgentParent::create(URL::URL url, Bindings::WorkerOptions const& options,
+static void report_worker_exception(WindowOrWorkerGlobalScopeMixin& window_or_worker, ErrorEvent& error)
+{
+    auto& realm = relevant_realm(window_or_worker);
+    auto wrapped_error = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { error });
+    window_or_worker.report_an_exception(wrapped_error, WindowOrWorkerGlobalScopeMixin::OmitError::Yes);
+}
+
+GC::Ref<WorkerAgentParent> WorkerAgentParent::create(URL::URL url, WorkerOptions const& options,
     GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings,
-    GC::Ref<DOM::EventTarget> worker_event_target, Bindings::AgentType agent_type)
+    GC::Ref<DOM::EventTarget> worker_event_target, AgentType agent_type)
 {
     auto agent = GC::Heap::the().allocate<WorkerAgentParent>(move(url), options, outside_port, outside_settings, worker_event_target, agent_type);
     agent->start();
     return agent;
 }
 
-WorkerAgentParent::WorkerAgentParent(URL::URL url, Bindings::WorkerOptions const& options, GC::Ptr<MessagePort> outside_port,
+WorkerAgentParent::WorkerAgentParent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port,
     GC::Ref<EnvironmentSettingsObject> outside_settings, GC::Ref<DOM::EventTarget> worker_event_target,
-    Bindings::AgentType agent_type)
+    AgentType agent_type)
     : m_worker_options(options)
     , m_agent_type(agent_type)
     , m_url(move(url))
@@ -161,7 +167,7 @@ void WorkerAgentParent::dispatch_worker_exception(String message, String filenam
 
         // 2. Set notHandled to the result of firing an event named error at workerObject, using ErrorEvent, with the
         //    cancelable attribute initialized to true, and additional attributes initialized according to errorInfo.
-        Bindings::ErrorEventInit event_init {};
+        ErrorEventInit event_init {};
         event_init.cancelable = true;
         event_init.message = message;
         event_init.filename = filename;
@@ -173,10 +179,9 @@ void WorkerAgentParent::dispatch_worker_exception(String message, String filenam
 
         // 3. If notHandled is true, then report exception for workerObject's relevant global object with omitError set to true.
         if (not_handled) {
-            auto wrapped_error = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, error);
             auto* window_or_worker = window_or_worker_global_scope_from_global_object(m_outside_settings->global_object());
             VERIFY(window_or_worker);
-            window_or_worker->report_an_exception(wrapped_error, WindowOrWorkerGlobalScopeMixin::OmitError::Yes);
+            report_worker_exception(*window_or_worker, error);
         }
     }));
 }

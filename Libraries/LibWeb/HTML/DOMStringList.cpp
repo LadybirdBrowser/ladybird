@@ -18,8 +18,7 @@ GC::Ref<DOMStringList> DOMStringList::create(Vector<String> list)
 }
 
 DOMStringList::DOMStringList(Vector<String> list)
-    : Bindings::Wrappable()
-    , m_list(move(list))
+    : m_list(move(list))
 {
 }
 
@@ -46,14 +45,6 @@ bool DOMStringList::contains(StringView string)
 {
     // The contains(string) method steps are to return true if this's associated list contains string, and false otherwise.
     return m_list.contains_slow(string);
-}
-
-Optional<JS::Value> DOMStringList::item_value(Bindings::WrapperWorld&, JS::Realm& realm, size_t index) const
-{
-    if (index >= m_list.size())
-        return {};
-
-    return JS::PrimitiveString::create(realm.vm(), m_list.at(index));
 }
 
 }

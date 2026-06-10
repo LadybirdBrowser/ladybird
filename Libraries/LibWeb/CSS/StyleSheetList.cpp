@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetList.h>
@@ -142,14 +141,6 @@ void StyleSheetList::visit_edges(GC::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_document_or_shadow_root);
     visitor.visit(m_sheets);
-}
-
-Optional<JS::Value> StyleSheetList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
-{
-    if (index >= m_sheets.size())
-        return {};
-
-    return Bindings::wrap(wrapper_world, realm, m_sheets[index]);
 }
 
 DOM::Document& StyleSheetList::document()

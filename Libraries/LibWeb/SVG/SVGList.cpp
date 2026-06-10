@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/SVG/SVGLength.h>
 #include <LibWeb/SVG/SVGList.h>
 #include <LibWeb/SVG/SVGNumber.h>
@@ -42,11 +41,11 @@ WebIDL::UnsignedLong SVGList<T>::length() const
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNameList__clear
 template<typename T>
-WebIDL::ExceptionOr<void> SVGList<T>::clear(JS::Realm& realm)
+WebIDL::ExceptionOr<void> SVGList<T>::clear()
 {
     // 1. If the list is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnlyList::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify a read-only list"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
     // 2. Detach and then remove all elements in the list.
     // FIXME: Detach items.
@@ -60,11 +59,11 @@ WebIDL::ExceptionOr<void> SVGList<T>::clear(JS::Realm& realm)
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNameList__initialize
 template<typename T>
-WebIDL::ExceptionOr<T> SVGList<T>::initialize_(JS::Realm& realm, T new_item)
+WebIDL::ExceptionOr<T> SVGList<T>::initialize_(T new_item)
 {
     // 1. If the list is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnlyList::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify a read-only list"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
     // 2. Detach and then remove all elements in the list.
     // FIXME: Detach items.
@@ -87,11 +86,11 @@ WebIDL::ExceptionOr<T> SVGList<T>::initialize_(JS::Realm& realm, T new_item)
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNameList__getItem
 template<typename T>
-WebIDL::ExceptionOr<T> SVGList<T>::get_item(JS::Realm& realm, WebIDL::UnsignedLong index)
+WebIDL::ExceptionOr<T> SVGList<T>::get_item(WebIDL::UnsignedLong index)
 {
     // 1. If index is greater than or equal to the length of the list, then throw an IndexSizeError.
     if (index >= m_items.size())
-        return WebIDL::IndexSizeError::create(realm, "List index out of bounds"_utf16);
+        return WebIDL::IndexSizeError::create("List index out of bounds"_utf16);
 
     // 2. Return the element in the list at position index.
     return m_items[index];
@@ -99,11 +98,11 @@ WebIDL::ExceptionOr<T> SVGList<T>::get_item(JS::Realm& realm, WebIDL::UnsignedLo
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNameList__insertItemBefore
 template<typename T>
-WebIDL::ExceptionOr<T> SVGList<T>::insert_item_before(JS::Realm& realm, T new_item, WebIDL::UnsignedLong index)
+WebIDL::ExceptionOr<T> SVGList<T>::insert_item_before(T new_item, WebIDL::UnsignedLong index)
 {
     // 1. If the list is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnlyList::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify a read-only list"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
     // FIXME: 2. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
     //    object of the same type as newItem and which has the same (number or length) value.
@@ -126,15 +125,15 @@ WebIDL::ExceptionOr<T> SVGList<T>::insert_item_before(JS::Realm& realm, T new_it
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNameList__replaceItem
 template<typename T>
-WebIDL::ExceptionOr<T> SVGList<T>::replace_item(JS::Realm& realm, T new_item, WebIDL::UnsignedLong index)
+WebIDL::ExceptionOr<T> SVGList<T>::replace_item(T new_item, WebIDL::UnsignedLong index)
 {
     // 1. If the list is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnlyList::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify a read-only list"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
     // 2. If index is greater than or equal to the length of the list, then throw an IndexSizeError.
     if (index >= m_items.size())
-        return WebIDL::IndexSizeError::create(realm, "List index out of bounds"_utf16);
+        return WebIDL::IndexSizeError::create("List index out of bounds"_utf16);
 
     // FIXME: 3. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
     //    object of the same type as newItem and which has the same (number or length) value.
@@ -155,15 +154,15 @@ WebIDL::ExceptionOr<T> SVGList<T>::replace_item(JS::Realm& realm, T new_item, We
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNameList__removeItem
 template<typename T>
-WebIDL::ExceptionOr<T> SVGList<T>::remove_item(JS::Realm& realm, WebIDL::UnsignedLong index)
+WebIDL::ExceptionOr<T> SVGList<T>::remove_item(WebIDL::UnsignedLong index)
 {
     // 1. If the list is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnlyList::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify a read-only list"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
     // 2. If index is greater than or equal to the length of the list, then throw an IndexSizeError with code.
     if (index >= m_items.size())
-        return WebIDL::IndexSizeError::create(realm, "List index out of bounds"_utf16);
+        return WebIDL::IndexSizeError::create("List index out of bounds"_utf16);
 
     // 3. Let item be the list element at index index.
     auto item = m_items[index];
@@ -179,11 +178,11 @@ WebIDL::ExceptionOr<T> SVGList<T>::remove_item(JS::Realm& realm, WebIDL::Unsigne
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNameList__appendItem
 template<typename T>
-WebIDL::ExceptionOr<T> SVGList<T>::append_item(JS::Realm& realm, T new_item)
+WebIDL::ExceptionOr<T> SVGList<T>::append_item(T new_item)
 {
     // 1. If the list is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnlyList::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify a read-only list"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify a read-only list"_utf16);
 
     // FIXME: 2. If newItem is an object type, and newItem is not a detached object, then set newItem to be a newly created
     //    object of the same type as newItem and which has the same (number or length) value.

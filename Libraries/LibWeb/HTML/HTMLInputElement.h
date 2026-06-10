@@ -24,6 +24,13 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace JS {
+
+class Object;
+class Realm;
+
+}
+
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-type
@@ -152,8 +159,10 @@ public:
     };
     SelectedCoordinate selected_coordinate() const { return m_selected_coordinate; }
 
-    JS::Object* value_as_date() const;
-    WebIDL::ExceptionOr<void> set_value_as_date(GC::Ptr<JS::Object>);
+    Optional<double> value_as_date() const;
+    WebIDL::ExceptionOr<void> set_value_as_date(Optional<double>);
+    GC::Ptr<JS::Object> value_as_date_object(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_value_as_date_object(GC::Ptr<JS::Object>);
 
     double value_as_number() const;
     WebIDL::ExceptionOr<void> set_value_as_number(double value);
@@ -234,6 +243,9 @@ public:
 
     static bool selection_or_range_applies_for_type_state(TypeAttributeState);
 
+    WebIDL::ExceptionOr<void> set_range_text(Utf16String const& replacement);
+    WebIDL::ExceptionOr<void> set_range_text(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, SelectionMode = SelectionMode::Preserve);
+
     Optional<String> selection_direction_binding() { return selection_direction(); }
 
     // ^FormAssociatedTextControlElement
@@ -303,9 +315,9 @@ private:
     Optional<double> convert_string_to_number(Utf16String const& input) const;
     Utf16String convert_number_to_string(double input) const;
 
-    WebIDL::ExceptionOr<GC::Ptr<JS::Date>> convert_string_to_date(StringView input) const;
-    WebIDL::ExceptionOr<GC::Ptr<JS::Date>> convert_string_to_date(Utf16String const& input) const;
-    Utf16String convert_date_to_string(GC::Ref<JS::Date> input) const;
+    WebIDL::ExceptionOr<Optional<double>> convert_string_to_date(StringView input) const;
+    WebIDL::ExceptionOr<Optional<double>> convert_string_to_date(Utf16String const& input) const;
+    Utf16String convert_date_to_string(double input) const;
 
     Optional<double> min() const;
     Optional<double> max() const;

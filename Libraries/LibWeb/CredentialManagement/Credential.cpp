@@ -5,26 +5,30 @@
  */
 
 #include <LibWeb/CredentialManagement/Credential.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CredentialManagement {
 
 // https://www.w3.org/TR/credential-management-1/#dom-credential-isconditionalmediationavailable
+bool Credential::is_conditional_mediation_available()
+{
+    // 1. Return false.
+    return false;
+}
+
 GC::Ref<WebIDL::Promise> Credential::is_conditional_mediation_available(JS::Realm& realm)
 {
-    // 1. Return a promise resolved with false.
-    return WebIDL::create_resolved_promise(realm, JS::Value(false));
+    return WebIDL::create_resolved_promise(realm, JS::Value(is_conditional_mediation_available()));
 }
 
 Credential::~Credential() { }
 
 Credential::Credential()
-    : Bindings::Wrappable()
 {
 }
 
 Credential::Credential(String id)
-    : Bindings::Wrappable()
-    , m_id(move(id))
+    : m_id(move(id))
 {
 }
 

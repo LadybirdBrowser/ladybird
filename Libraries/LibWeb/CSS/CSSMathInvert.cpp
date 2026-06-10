@@ -6,7 +6,6 @@
 
 #include "CSSMathInvert.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSMathInvert.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -20,7 +19,7 @@ GC::Ref<CSSMathInvert> CSSMathInvert::create(NumericType type, GC::Ref<CSSNumeri
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathinvert-cssmathinvert
-GC::Ref<CSSMathInvert> CSSMathInvert::construct_impl(CSSNumberish value)
+GC::Ref<CSSMathInvert> CSSMathInvert::create_from_numberish(CSSNumberish value)
 {
     // The CSSMathInvert(arg) constructor is defined identically to the above, except that in the last step it returns
     // a new CSSMathInvert object.
@@ -34,7 +33,7 @@ GC::Ref<CSSMathInvert> CSSMathInvert::construct_impl(CSSNumberish value)
 }
 
 CSSMathInvert::CSSMathInvert(NumericType type, GC::Ref<CSSNumericValue> values)
-    : CSSMathValue(Bindings::CSSMathOperator::Invert, move(type))
+    : CSSMathValue(CSSMathOperator::Invert, move(type))
     , m_value(move(values))
 {
 }

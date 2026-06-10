@@ -35,9 +35,8 @@ public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     [[nodiscard]] static GC::Ref<Range> create(Document&);
-    [[nodiscard]] static GC::Ref<Range> create(HTML::Window&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Range>> create_for_constructor(JS::Realm&);
     [[nodiscard]] static GC::Ref<Range> create(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset);
-    static WebIDL::ExceptionOr<GC::Ref<Range>> construct_impl(HTML::Window&);
 
     virtual ~Range() override;
 
@@ -94,7 +93,8 @@ public:
 
     void set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection>);
 
-    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const& fragment);
+    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const&);
+    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(StringView fragment);
 
     template<typename Callback>
     void for_each_contained(Callback callback) const

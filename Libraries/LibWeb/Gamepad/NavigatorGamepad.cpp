@@ -22,7 +22,7 @@
 namespace Web::Gamepad {
 
 // https://w3c.github.io/gamepad/#dom-navigator-getgamepads
-WebIDL::ExceptionOr<GC::RootVector<GC::Ptr<Gamepad>>> NavigatorGamepadPartial::get_gamepads(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ptr<Gamepad>>> NavigatorGamepadPartial::get_gamepads()
 {
     // 1. Let doc be the current global object's associated Document.
     auto& window = HTML::current_window();
@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ptr<Gamepad>>> NavigatorGamepadPartial::g
 
     // 3. If doc is not allowed to use the "gamepad" permission, then throw a "SecurityError" DOMException and abort these steps.
     if (!document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::Gamepad))
-        return WebIDL::SecurityError::create(realm, "Not allowed to use gamepads"_utf16);
+        return WebIDL::SecurityError::create("Not allowed to use gamepads"_utf16);
 
     // 4. If this.[[hasGamepadGesture]] is false, then return an empty list.
     if (!m_has_gamepad_gesture)
@@ -136,14 +136,7 @@ void NavigatorGamepadPartial::handle_gamepad_connected(SDL_JoystickID sdl_joysti
             // 2. If document is not null and is fully active, then fire an event named gamepadconnected at gamepad's
             //    relevant global object using GamepadEvent with its gamepad attribute initialized to gamepad.
             if (document.is_fully_active()) {
-                auto gamepad_connected_event_init = Bindings::GamepadEventInit {
-                    {
-                        .bubbles = false,
-                        .cancelable = false,
-                        .composed = false,
-                    },
-                    gamepad,
-                };
+                GamepadEventInit gamepad_connected_event_init { {}, gamepad };
                 auto gamepad_connected_event = GamepadEvent::create(EventNames::gamepadconnected, gamepad_connected_event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window)));
                 window.dispatch_event(gamepad_connected_event);
             }
@@ -201,14 +194,7 @@ void NavigatorGamepadPartial::handle_gamepad_disconnected(Badge<EventHandler>, S
         //    gamepaddisconnected at gamepad's relevant global object using GamepadEvent with its gamepad attribute
         //    initialized to gamepad.
         if (gamepad->exposed() && document.is_fully_active()) {
-            auto gamepad_disconnected_event_init = Bindings::GamepadEventInit {
-                {
-                    .bubbles = false,
-                    .cancelable = false,
-                    .composed = false,
-                },
-                gamepad,
-            };
+            GamepadEventInit gamepad_disconnected_event_init { {}, gamepad };
             auto gamepad_disconnected_event = GamepadEvent::create(EventNames::gamepaddisconnected, gamepad_disconnected_event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window)));
             window.dispatch_event(gamepad_disconnected_event);
         }

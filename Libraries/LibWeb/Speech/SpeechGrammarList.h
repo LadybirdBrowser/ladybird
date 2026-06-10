@@ -8,7 +8,6 @@
 
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/SpeechGrammarList.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Speech/SpeechGrammar.h>
@@ -21,7 +20,7 @@ class SpeechGrammarList final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SpeechGrammarList);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SpeechGrammarList>> construct_impl();
+    static GC::Ref<SpeechGrammarList> create();
     virtual ~SpeechGrammarList() override;
 
     // https://wicg.github.io/speech-api/#dom-speechgrammarlist-length

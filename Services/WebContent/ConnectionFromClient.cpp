@@ -1246,7 +1246,7 @@ void ConnectionFromClient::get_dom_node_inner_html(u64 page_id, Web::UniqueNodeI
 
     if (dom_node->is_element()) {
         auto const& element = static_cast<Web::DOM::Element const&>(*dom_node);
-        html = element.inner_html().release_value_but_fixme_should_propagate_errors().get<Utf16String>();
+        html = element.inner_html().release_value_but_fixme_should_propagate_errors();
     } else if (dom_node->is_text() || dom_node->is_comment()) {
         auto const& character_data = static_cast<Web::DOM::CharacterData const&>(*dom_node);
         html = character_data.data();
@@ -1267,7 +1267,7 @@ void ConnectionFromClient::get_dom_node_outer_html(u64 page_id, Web::UniqueNodeI
 
     if (dom_node->is_element()) {
         auto const& element = static_cast<Web::DOM::Element const&>(*dom_node);
-        html = element.outer_html().release_value_but_fixme_should_propagate_errors().get<Utf16String>();
+        html = element.outer_html().release_value_but_fixme_should_propagate_errors();
     } else if (dom_node->is_text() || dom_node->is_comment()) {
         auto const& character_data = static_cast<Web::DOM::CharacterData const&>(*dom_node);
         html = character_data.data();
@@ -1288,7 +1288,7 @@ void ConnectionFromClient::set_dom_node_outer_html(u64 page_id, Web::UniqueNodeI
 
     if (dom_node->is_element()) {
         auto& element = static_cast<Web::DOM::Element&>(*dom_node);
-        element.set_outer_html(Utf16String::from_utf8(html)).release_value_but_fixme_should_propagate_errors();
+        element.set_outer_html(html).release_value_but_fixme_should_propagate_errors();
     } else if (dom_node->is_text() || dom_node->is_comment()) {
         auto& character_data = static_cast<Web::DOM::CharacterData&>(*dom_node);
         character_data.set_data(Utf16String::from_utf8(html));

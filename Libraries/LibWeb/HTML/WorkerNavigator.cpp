@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WorkerNavigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerNavigator.h>
@@ -22,8 +21,7 @@ GC::Ref<WorkerNavigator> WorkerNavigator::create(WorkerGlobalScope& global_scope
 }
 
 WorkerNavigator::WorkerNavigator(WorkerGlobalScope& global_scope)
-    : Bindings::Wrappable()
-    , m_global_scope(global_scope)
+    : m_global_scope(global_scope)
 {
 }
 

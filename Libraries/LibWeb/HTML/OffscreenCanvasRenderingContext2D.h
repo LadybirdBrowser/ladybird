@@ -60,7 +60,7 @@ class OffscreenCanvasRenderingContext2D : public Bindings::Wrappable
     GC_DECLARE_ALLOCATOR(OffscreenCanvasRenderingContext2D);
 
 public:
-    [[nodiscard]] static JS::ThrowCompletionOr<GC::Ref<OffscreenCanvasRenderingContext2D>> create(OffscreenCanvas&, JS::Value);
+    [[nodiscard]] static GC::Ref<OffscreenCanvasRenderingContext2D> create(OffscreenCanvas&, HTML::CanvasRenderingContext2DSettings);
     virtual ~OffscreenCanvasRenderingContext2D() override;
 
     GC::Ref<OffscreenCanvas> canvas();
@@ -81,15 +81,15 @@ public:
     virtual void fill(StringView fill_rule) override;
     virtual void fill(Path2D& path, StringView fill_rule) override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<ImageData::Settings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(ImageData const& image_data) const override;
-    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<ImageData::Settings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height) override;
 
     virtual void reset_to_default_state() override;
 
-    virtual Bindings::CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
+    virtual HTML::CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
 
     virtual GC::Ref<TextMetrics> measure_text(Utf16String const&) override;
 
@@ -101,8 +101,8 @@ public:
 
     virtual bool image_smoothing_enabled() const override;
     virtual void set_image_smoothing_enabled(bool) override;
-    virtual Bindings::ImageSmoothingQuality image_smoothing_quality() const override;
-    virtual void set_image_smoothing_quality(Bindings::ImageSmoothingQuality) override;
+    virtual ImageSmoothingQuality image_smoothing_quality() const override;
+    virtual void set_image_smoothing_quality(ImageSmoothingQuality) override;
 
     virtual float global_alpha() const override;
     virtual void set_global_alpha(float) override;
@@ -132,12 +132,12 @@ protected:
     Gfx::Path& mutable_path() override { return path(); }
 
 private:
-    explicit OffscreenCanvasRenderingContext2D(OffscreenCanvas&, Bindings::CanvasRenderingContext2DSettings);
+    explicit OffscreenCanvasRenderingContext2D(OffscreenCanvas&, HTML::CanvasRenderingContext2DSettings);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     GC::Ref<OffscreenCanvas> m_canvas;
     Gfx::IntSize m_size;
-    Bindings::CanvasRenderingContext2DSettings m_context_attributes;
+    HTML::CanvasRenderingContext2DSettings m_context_attributes;
 };
 
 }

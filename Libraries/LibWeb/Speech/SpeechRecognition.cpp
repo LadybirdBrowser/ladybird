@@ -5,8 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechRecognition.h>
 #include <LibWeb/Speech/SpeechRecognition.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -19,14 +17,9 @@ GC::Ref<SpeechRecognition> SpeechRecognition::create()
     return GC::Heap::the().allocate<SpeechRecognition>();
 }
 
-WebIDL::ExceptionOr<GC::Ref<SpeechRecognition>> SpeechRecognition::construct_impl()
-{
-    return create();
-}
-
 SpeechRecognition::SpeechRecognition()
     : DOM::EventTarget()
-    , m_grammars(GC::Heap::the().allocate<SpeechGrammarList>())
+    , m_grammars(SpeechGrammarList::create())
 {
 }
 

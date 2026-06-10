@@ -6,7 +6,6 @@
 
 #include "CSSImageValue.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSImageValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

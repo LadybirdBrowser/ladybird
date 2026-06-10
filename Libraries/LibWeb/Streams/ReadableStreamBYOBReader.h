@@ -19,6 +19,8 @@
 
 namespace Web::Streams {
 
+using ReadableStreamBYOBReaderReadOptions = Bindings::ReadableStreamBYOBReaderReadOptions;
+
 // https://streams.spec.whatwg.org/#read-into-request
 class ReadIntoRequest : public JS::Cell {
     GC_CELL(ReadIntoRequest, JS::Cell);
@@ -44,11 +46,11 @@ class ReadableStreamBYOBReader final
     GC_DECLARE_ALLOCATOR(ReadableStreamBYOBReader);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ref<ReadableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> create(JS::Realm&, GC::Ref<ReadableStream>);
 
     virtual ~ReadableStreamBYOBReader() override = default;
 
-    GC::Ref<WebIDL::Promise> read(WebIDL::ArrayBufferView, Bindings::ReadableStreamBYOBReaderReadOptions options = {});
+    GC::Ref<WebIDL::Promise> read(WebIDL::ArrayBufferView, ReadableStreamBYOBReaderReadOptions options = {});
 
     void release_lock();
 

@@ -7,13 +7,15 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/CredentialManagement/FederatedCredential.h>
 #include <LibWeb/CredentialManagement/FederatedCredentialOperations.h>
+#include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CredentialManagement {
 
 GC_DEFINE_ALLOCATOR(FederatedCredential);
 
 // https://www.w3.org/TR/credential-management-1/#dom-federatedcredential-federatedcredential
-WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> FederatedCredential::construct_impl(Bindings::FederatedCredentialInit const& data)
+WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> FederatedCredential::create(FederatedCredentialInit const& data)
 {
     // 1. Let r be the result of executing Create a FederatedCredential from FederatedCredentialInit on data. If that
     // threw an exception, rethrow that exception.
@@ -35,10 +37,11 @@ FederatedCredential::~FederatedCredential()
 {
 }
 
-FederatedCredential::FederatedCredential(Bindings::FederatedCredentialInit const& init, URL::Origin origin)
-    : Credential(init.id)
+FederatedCredential::FederatedCredential(FederatedCredentialInit init, URL::Origin origin)
+    : Credential(move(init.id))
     , CredentialUserData(init.name.value_or(String {}), init.icon_url.value_or(String {}))
-    , m_provider(init.provider)
+    , m_provider(move(init.provider))
+    , m_protocol(move(init.protocol))
     , m_origin(move(origin))
 {
 }

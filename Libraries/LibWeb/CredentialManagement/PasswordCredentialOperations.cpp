@@ -15,12 +15,12 @@ namespace Web::CredentialManagement {
 WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(GC::Ref<HTML::HTMLFormElement> form, URL::Origin origin)
 {
     // 1. Let data be a new PasswordCredentialData dictionary.
-    Bindings::PasswordCredentialData data;
+    PasswordCredentialData data;
 
     // 2. Set data’s origin member’s value to origin’s value.
 
     // 3. Let formData be the result of executing the FormData constructor on form.
-    auto form_data = TRY(XHR::FormData::construct_impl(form));
+    auto form_data = TRY(XHR::FormData::create_from_form(form));
 
     // 4. Let elements be a list of all the submittable elements whose form owner is form, in tree order.
     auto elements = form->get_submittable_elements();
@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(GC::
 }
 
 // https://www.w3.org/TR/credential-management-1/#abstract-opdef-create-a-passwordcredential-from-passwordcredentialdata
-WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(Bindings::PasswordCredentialData const& data, URL::Origin origin)
+WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(PasswordCredentialData data, URL::Origin origin)
 {
     // 1. Let c be a new PasswordCredential object.
     // 2. If any of the following are the empty string, throw a TypeError exception:
@@ -125,7 +125,7 @@ WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(Bind
     //      - data’s origin member’s value.
     //        NOTE: origin is retrieved from the current settings object in the constructor.
     // 4. Return c.
-    return GC::Heap::the().allocate<PasswordCredential>(data, move(origin));
+    return GC::Heap::the().allocate<PasswordCredential>(move(data), move(origin));
 }
 
 }

@@ -8,11 +8,11 @@ interface Internals {
     DOMString setTimeZone(DOMString timeZone);
 
     undefined gc();
-    Promise<undefined> gcAsync();
+    [CreatesPromise, NeedsThisObjectRealm] Promise<undefined> gcAsync();
     // Clears a named environment binding and forces its current cell to be treated as garbage.
     // This does not work for values stored only in optimized locals or registers.
     undefined markAsGarbage(DOMString variableName);
-    object hitTest(double x, double y);
+    [ImplementedAs=hit_test_result, NeedsThisObjectRealm] object hitTest(double x, double y);
 
     const unsigned short MOD_NONE = 0;
     const unsigned short MOD_ALT = 1;
@@ -39,7 +39,7 @@ interface Internals {
     // High-level mouse conveniences
     undefined click(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
     undefined clickAndHold(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
-    Promise<undefined> wheel(double x, double y, double deltaX, double deltaY);
+    [CreatesPromise, NeedsThisObjectRealm] Promise<undefined> wheel(double x, double y, double deltaX, double deltaY);
     undefined pinch(double x, double y, double scaleDelta, optional unsigned short modifiers = 0);
 
     DOMString currentCursor();
@@ -113,7 +113,7 @@ interface Internals {
     // Returns a snapshot of the style-invalidation and recomputation counters for the current document.
     // Keys include hasAncestorWalkInvocations, hasInvalidationRuleCacheBuilds,
     // styleInvalidations, elementStyleRecomputations, and elementStyleNoopRecomputations.
-    object getStyleInvalidationCounters();
+    [ImplementedAs=style_invalidation_counters_object, NeedsThisObjectRealm] object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
     // Flushes pending style work without forcing layout.
     undefined updateStyle();
@@ -123,7 +123,7 @@ interface Internals {
     boolean styleSheetMayHaveHasSelectors(CSSStyleSheet sheet);
     unsigned long long activeImageStyleValueAnimationCount();
 
-    object asyncScrollingState();
+    [ImplementedAs=async_scrolling_state_object, NeedsThisObjectRealm] object asyncScrollingState();
     boolean asyncScrollingStateBlocksWheelEventAt(double x, double y);
     boolean asyncScrollingStateCanWheelScrollAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
     DOMString asyncScrollingStateWheelRoutingAdmission();

@@ -6,11 +6,11 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ModuleRequest.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::HTML {
 
@@ -63,7 +63,7 @@ void ImportMapParseResult::register_import_map(Window& global)
 {
     // 1. If result's error to rethrow is not null, then report the exception given by result's error to rethrow and return.
     if (m_error_to_rethrow.has_value()) {
-        auto completion = Web::Bindings::exception_to_throw_completion(global.vm(), global.realm(), m_error_to_rethrow.value());
+        auto completion = WebIDL::exception_to_throw_completion(global.vm(), global.realm(), m_error_to_rethrow.value());
         HTML::report_exception(completion, global.realm());
         return;
     }

@@ -3,5 +3,5 @@
 interface CSSTransformComponent {
     stringifier;
     [ImplementedAs=is_2d] attribute boolean is2D;
-    [NeedsCallerRealm] DOMMatrix toMatrix();
+    DOMMatrix toMatrix();
 };

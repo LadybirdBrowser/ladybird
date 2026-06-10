@@ -10,8 +10,10 @@
 
 #include <AK/Badge.h>
 #include <AK/Function.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/CSSRuleList.h>
+#include <AK/HashTable.h>
+#include <AK/StringView.h>
+#include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
@@ -54,15 +56,13 @@ public:
     auto end() const { return m_rules.end(); }
     auto end() { return m_rules.end(); }
 
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
-
-    WebIDL::ExceptionOr<void> remove_a_css_rule(JS::Realm&, u32 index);
+    WebIDL::ExceptionOr<void> remove_a_css_rule(u32 index);
     void remove_a_css_rule_without_validation(Badge<CSSStyleSheet>, u32 index);
     enum class Nested {
         No,
         Yes,
     };
-    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(JS::Realm&, Variant<StringView, CSSRule*>, u32 index, Nested, HashTable<FlyString> const& declared_namespaces);
+    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(Variant<StringView, CSSRule*>, u32 index, Nested, HashTable<FlyString> const& declared_namespaces);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     // Returns whether the match state of any media queries changed after evaluation.

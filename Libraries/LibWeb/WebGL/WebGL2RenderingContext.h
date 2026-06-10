@@ -22,7 +22,7 @@ class WebGL2RenderingContext final : public WebGL2RenderingContextOverloads {
     GC_DECLARE_ALLOCATOR(WebGL2RenderingContext);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> create(HTML::HTMLCanvasElement& canvas_element, JS::Value options);
+    static GC::Ptr<WebGL2RenderingContext> create(HTML::HTMLCanvasElement& canvas_element, WebGLContextAttributes);
 
     virtual ~WebGL2RenderingContext() override;
 

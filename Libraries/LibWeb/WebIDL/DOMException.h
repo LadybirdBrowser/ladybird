@@ -6,8 +6,11 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibJS/Forward.h>
 #include <LibJS/Runtime/ErrorData.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -103,12 +106,7 @@ class WEB_API DOMException
 public:
     static GC::Ref<DOMException> create(FlyString name, Utf16String const& message);
     static GC::Ref<DOMException> create();
-    static GC::Ref<DOMException> create(JS::Realm& realm, FlyString name, Utf16String const& message);
-    static GC::Ref<DOMException> create(JS::Realm& realm);
-
-    // JS constructor has message first, name second
-    // FIXME: This is a completely pointless footgun, let's use the same order for both factories.
-    static GC::Ref<DOMException> construct_impl(JS::Realm& realm, Utf16String const& message, FlyString name);
+    static GC::Ref<DOMException> create_for_constructor(Utf16String const& message, FlyString const& name) { return create(name, message); }
 
     virtual ~DOMException() override;
 
@@ -149,6 +147,18 @@ ENUMERATE_DOM_EXCEPTION_ERROR_NAMES
 namespace Web {
 
 WEB_API JS::Completion throw_completion(JS::Realm&, GC::Ref<WebIDL::DOMException> exception);
+
+}
+
+namespace Web::Bindings {
+
+struct DOMExceptionReportDetails {
+    String name;
+    String message;
+};
+
+WEB_API WebIDL::DOMException* dom_exception_from_object(JS::Object&);
+WEB_API Optional<DOMExceptionReportDetails> dom_exception_report_details(JS::Object&);
 
 }
 

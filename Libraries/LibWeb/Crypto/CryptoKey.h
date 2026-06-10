@@ -15,11 +15,24 @@
 #include <LibWeb/Bindings/CryptoKey.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Crypto/CryptoBindings.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace Web::Bindings {
+
+enum class KeyType : u8;
+
+}
+
 namespace Web::Crypto {
+
+using KeyUsage = Bindings::KeyUsage;
+
+enum class KeyType {
+    Public,
+    Private,
+    Secret,
+};
 
 class CryptoKey final
     : public Bindings::Wrappable
@@ -100,19 +113,21 @@ public:
     [[nodiscard]] static GC::Ref<CryptoKey> create();
 
     bool extractable() const { return m_extractable; }
-    Bindings::KeyType type() const { return m_type; }
-    JS::ThrowCompletionOr<JS::Object const*> algorithm(JS::Realm&) const;
-    JS::Object const* usages(JS::Realm&) const;
+    KeyType type() const { return m_type; }
+    Bindings::KeyType bindings_type() const;
+    JS::ThrowCompletionOr<JS::Value> algorithm(JS::Realm&);
+    JS::ThrowCompletionOr<JS::Value> usages(JS::Realm&);
 
-    Vector<Bindings::KeyUsage> internal_usages() const { return m_key_usages; }
+    InternalAlgorithmData const& internal_algorithm() const { return m_algorithm; }
+    Vector<KeyUsage> internal_usages() const { return m_key_usages; }
     RsaHashedKeyAlgorithmData const& rsa_hashed_algorithm() const { return m_algorithm.get<RsaHashedKeyAlgorithmData>(); }
     EcKeyAlgorithmData const& ec_algorithm() const { return m_algorithm.get<EcKeyAlgorithmData>(); }
     HmacKeyAlgorithmData const& hmac_algorithm() const { return m_algorithm.get<HmacKeyAlgorithmData>(); }
 
     void set_extractable(bool extractable) { m_extractable = extractable; }
-    void set_type(Bindings::KeyType type) { m_type = type; }
+    void set_type(KeyType type) { m_type = type; }
     void set_algorithm(InternalAlgorithmData);
-    void set_usages(Vector<Bindings::KeyUsage>);
+    void set_usages(Vector<KeyUsage>);
 
     InternalKeyData const& handle() const { return m_key_data; }
     String algorithm_name() const;
@@ -127,44 +142,17 @@ private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
-    JS::ThrowCompletionOr<GC::Ref<JS::Object>> algorithm_for_bindings(JS::Realm&, Bindings::WrapperWorld const&) const;
-    GC::Ref<JS::Object> create_usages_object(JS::Realm&) const;
-    void clear_cached_algorithm_objects() const;
-    void clear_cached_usages_objects() const;
-
-    Bindings::KeyType m_type;
+    KeyType m_type;
     bool m_extractable { false };
     InternalAlgorithmData m_algorithm;
 
-    Vector<Bindings::KeyUsage> m_key_usages;
+    Vector<KeyUsage> m_key_usages;
     InternalKeyData m_key_data; // [[handle]]
-
-    mutable Bindings::WrapperWorldWeakValueCache<JS::Object> m_algorithm_objects;
-    mutable Bindings::WrapperWorldWeakValueCache<JS::Object> m_usages_objects;
 };
 
-// https://w3c.github.io/webcrypto/#ref-for-dfn-CryptoKeyPair-2
-class CryptoKeyPair : public JS::Object {
-    JS_OBJECT(CryptoKeyPair, JS::Object);
-    GC_DECLARE_ALLOCATOR(CryptoKeyPair);
-
-public:
-    static GC::Ref<CryptoKeyPair> create(JS::Realm&, GC::Ref<CryptoKey> public_key, GC::Ref<CryptoKey> private_key);
-    virtual ~CryptoKeyPair() override = default;
-
-    GC::Ref<CryptoKey> public_key() const { return m_public_key; }
-    GC::Ref<CryptoKey> private_key() const { return m_private_key; }
-
-private:
-    CryptoKeyPair(JS::Realm&, GC::Ref<CryptoKey> public_key, GC::Ref<CryptoKey> private_key);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
-
-    JS_DECLARE_NATIVE_FUNCTION(public_key_getter);
-    JS_DECLARE_NATIVE_FUNCTION(private_key_getter);
-
-    GC::Ref<CryptoKey> m_public_key;
-    GC::Ref<CryptoKey> m_private_key;
+struct CryptoKeyPair {
+    GC::Ref<CryptoKey> public_key;
+    GC::Ref<CryptoKey> private_key;
 };
 
 }

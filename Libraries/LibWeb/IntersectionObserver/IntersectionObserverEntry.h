@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/IntersectionObserverEntry.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
@@ -19,7 +19,6 @@ class IntersectionObserverEntry final : public Bindings::Wrappable {
 
 public:
     static GC::Ref<IntersectionObserverEntry> create(HighResolutionTime::DOMHighResTimeStamp time, GC::Ptr<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<DOM::Element> target);
-    static WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> construct_impl(Bindings::IntersectionObserverEntryInit const&);
 
     virtual ~IntersectionObserverEntry() override;
 

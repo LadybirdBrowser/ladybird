@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/WebGLActiveInfo.h>
+#include <AK/String.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 typedef unsigned int GLenum;

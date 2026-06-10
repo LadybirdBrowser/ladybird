@@ -6,8 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/CSSMatrixComponent.h>
 #include <LibWeb/CSS/CSSTransformComponent.h>
+#include <LibWeb/Export.h>
+
+namespace Web::Bindings {
+
+struct CSSMatrixComponentOptions;
+
+}
 
 namespace Web::CSS {
 
@@ -18,13 +24,14 @@ class CSSMatrixComponent final : public CSSTransformComponent {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMatrixComponent> create(Is2D, GC::Ref<Geometry::DOMMatrix>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> construct_impl(GC::Ref<Geometry::DOMMatrixReadOnly>, Optional<Bindings::CSSMatrixComponentOptions> = {});
+    static WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> create_from_dom_matrix_read_only(GC::Ref<Geometry::DOMMatrixReadOnly>, Optional<bool> is_2d = {});
+    static WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> create_for_constructor(GC::Ref<Geometry::DOMMatrixReadOnly>, Bindings::CSSMatrixComponentOptions const&);
 
     virtual ~CSSMatrixComponent() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
 
     GC::Ref<Geometry::DOMMatrix> matrix() const { return m_matrix; }
     WebIDL::ExceptionOr<void> set_matrix(GC::Ref<Geometry::DOMMatrix> matrix);

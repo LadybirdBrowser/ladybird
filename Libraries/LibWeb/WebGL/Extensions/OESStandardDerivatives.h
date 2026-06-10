@@ -6,18 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/OESStandardDerivatives.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 
 namespace Web::WebGL {
 
-class OESStandardDerivatives : public Bindings::Wrappable {
-    WEB_WRAPPABLE(OESStandardDerivatives, Bindings::Wrappable);
+class OESStandardDerivatives : public WebGLExtension {
+    WEB_WRAPPABLE(OESStandardDerivatives, WebGLExtension);
     GC_DECLARE_ALLOCATOR(OESStandardDerivatives);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;

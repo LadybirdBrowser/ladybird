@@ -307,6 +307,7 @@ function (generate_js_bindings target)
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/namespaces.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/operations.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/overload_resolution.py"
+        "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/structured_serialize.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/to_idl_value.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/to_js_value.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Utils/lexer.py"
@@ -318,7 +319,8 @@ function (generate_js_bindings target)
         IntrinsicDefinitions.cpp IntrinsicDefinitions.h
         DedicatedWorkerExposedInterfaces.cpp DedicatedWorkerExposedInterfaces.h
         SharedWorkerExposedInterfaces.cpp SharedWorkerExposedInterfaces.h
-        WindowExposedInterfaces.cpp WindowExposedInterfaces.h)
+        WindowExposedInterfaces.cpp WindowExposedInterfaces.h
+        WrapperFactory.cpp)
     list(TRANSFORM exposed_interface_sources PREPEND "Bindings/")
     target_sources(${target} PRIVATE ${exposed_interface_sources})
 
@@ -335,6 +337,20 @@ function (generate_js_bindings target)
 
     include("idl_files.cmake")
     list(REMOVE_DUPLICATES LIBWEB_ALL_PARSED_IDL_FILES)
+
+    set(GLOBAL_MIXIN_HEADERS
+        "${CMAKE_CURRENT_BINARY_DIR}/Bindings/DedicatedWorkerGlobalScopeGlobalMixin.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/Bindings/SharedWorkerGlobalScopeGlobalMixin.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/Bindings/WindowGlobalMixin.h")
+    if (ENABLE_INSTALL_HEADERS)
+        install(FILES ${GLOBAL_MIXIN_HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
+    endif()
+    list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${GLOBAL_MIXIN_HEADERS})
+    list(APPEND LIBWEB_ALL_BINDINGS_SOURCES ${GLOBAL_MIXIN_HEADERS})
+
+    set(STRUCTURED_SERIALIZE_BINDINGS_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/Bindings/StructuredSerializeBindings.cpp")
+    target_sources(${target} PRIVATE ${STRUCTURED_SERIALIZE_BINDINGS_SOURCE})
+    list(APPEND LIBWEB_ALL_BINDINGS_SOURCES ${STRUCTURED_SERIALIZE_BINDINGS_SOURCE})
 
     set(LIBWEB_ALL_IDL_FILES_ARGUMENT ${LIBWEB_ALL_IDL_FILES})
     set(LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT ${LIBWEB_ALL_PARSED_IDL_FILES})

@@ -562,6 +562,9 @@ def add_binding_include_for_type(idl_type: IDLType, includes: GeneratedIncludes,
 
     dictionary = context.dictionary(idl_type)
     if dictionary is not None:
+        if dictionary.name == "StructuredSerializeOptions":
+            includes.add("LibWeb/Bindings/MessagePort.h")
+            return
         includes.add_binding(dictionary.path.stem)
         return
 

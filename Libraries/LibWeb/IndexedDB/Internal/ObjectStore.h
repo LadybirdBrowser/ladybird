@@ -35,7 +35,7 @@ public:
 
     String name() const { return m_name; }
     void set_name(String name) { m_name = move(name); }
-    Optional<KeyPath> key_path() const { return m_key_path; }
+    Optional<KeyPath> const& key_path() const { return m_key_path; }
     bool uses_inline_keys() const { return m_key_path.has_value(); }
     bool uses_out_of_line_keys() const { return !m_key_path.has_value(); }
     KeyGenerator& key_generator() { return *m_key_generator; }

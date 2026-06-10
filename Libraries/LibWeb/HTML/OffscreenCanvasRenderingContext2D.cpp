@@ -10,7 +10,6 @@
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
 #include <LibUnicode/Segmenter.h>
-#include <LibWeb/Bindings/OffscreenCanvasRenderingContext2D.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -34,15 +33,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(OffscreenCanvasRenderingContext2D);
 
-JS::ThrowCompletionOr<GC::Ref<OffscreenCanvasRenderingContext2D>> OffscreenCanvasRenderingContext2D::create(OffscreenCanvas& offscreen_canvas, JS::Value options)
+GC::Ref<OffscreenCanvasRenderingContext2D> OffscreenCanvasRenderingContext2D::create(OffscreenCanvas& offscreen_canvas, HTML::CanvasRenderingContext2DSettings context_attributes)
 {
-    auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(offscreen_canvas.vm(), options));
     return GC::Heap::the().allocate<OffscreenCanvasRenderingContext2D>(offscreen_canvas, context_attributes);
 }
 
-OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(OffscreenCanvas& offscreen_canvas, Bindings::CanvasRenderingContext2DSettings context_attributes)
-    : Bindings::Wrappable()
-    , CanvasPath(static_cast<CanvasState const&>(*this))
+OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(OffscreenCanvas& offscreen_canvas, HTML::CanvasRenderingContext2DSettings context_attributes)
+    : CanvasPath(static_cast<CanvasState const&>(*this))
     , m_canvas(offscreen_canvas)
     , m_size(offscreen_canvas.bitmap_size_for_canvas())
     , m_context_attributes(context_attributes)
@@ -132,22 +129,19 @@ void OffscreenCanvasRenderingContext2D::fill(Path2D&, StringView)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
-WebIDL::ExceptionOr<GC::Ref<ImageData>> OffscreenCanvasRenderingContext2D::create_image_data(int, int, Optional<Bindings::ImageDataSettings> const&) const
+WebIDL::ExceptionOr<GC::Ref<ImageData>> OffscreenCanvasRenderingContext2D::create_image_data(int, int, Optional<ImageData::Settings> const&) const
 {
-    auto& realm = HTML::relevant_realm(m_canvas->relevant_global_object());
-    return WebIDL::NotSupportedError::create(realm, "(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(int, int)"_utf16);
+    return WebIDL::NotSupportedError::create("(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(int, int)"_utf16);
 }
 
 WebIDL::ExceptionOr<GC::Ref<ImageData>> OffscreenCanvasRenderingContext2D::create_image_data(ImageData const&) const
 {
-    auto& realm = HTML::relevant_realm(m_canvas->relevant_global_object());
-    return WebIDL::NotSupportedError::create(realm, "(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(ImageData&)"_utf16);
+    return WebIDL::NotSupportedError::create("(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(ImageData&)"_utf16);
 }
 
-WebIDL::ExceptionOr<GC::Ptr<ImageData>> OffscreenCanvasRenderingContext2D::get_image_data(int, int, int, int, Optional<Bindings::ImageDataSettings> const&) const
+WebIDL::ExceptionOr<GC::Ptr<ImageData>> OffscreenCanvasRenderingContext2D::get_image_data(int, int, int, int, Optional<ImageData::Settings> const&) const
 {
-    auto& realm = HTML::relevant_realm(m_canvas->relevant_global_object());
-    return WebIDL::NotSupportedError::create(realm, "(STUBBED) OffscreenCanvasRenderingContext2D::get_image_data()"_utf16);
+    return WebIDL::NotSupportedError::create("(STUBBED) OffscreenCanvasRenderingContext2D::get_image_data()"_utf16);
 }
 
 WebIDL::ExceptionOr<void> OffscreenCanvasRenderingContext2D::put_image_data(ImageData&, float, float)
@@ -207,12 +201,12 @@ void OffscreenCanvasRenderingContext2D::set_image_smoothing_enabled(bool enabled
     drawing_state().image_smoothing_enabled = enabled;
 }
 
-Bindings::ImageSmoothingQuality OffscreenCanvasRenderingContext2D::image_smoothing_quality() const
+ImageSmoothingQuality OffscreenCanvasRenderingContext2D::image_smoothing_quality() const
 {
     return drawing_state().image_smoothing_quality;
 }
 
-void OffscreenCanvasRenderingContext2D::set_image_smoothing_quality(Bindings::ImageSmoothingQuality quality)
+void OffscreenCanvasRenderingContext2D::set_image_smoothing_quality(ImageSmoothingQuality quality)
 {
     drawing_state().image_smoothing_quality = quality;
 }

@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Encoding/TextDecoder.h>
 #include <LibWeb/Encoding/TextDecoderCommon.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
 
 namespace Web::Encoding {
@@ -23,7 +24,8 @@ class TextDecoderStream final
     GC_DECLARE_ALLOCATOR(TextDecoderStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString label, Bindings::TextDecoderOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> create_for_constructor(JS::Realm&, String const& label, TextDecoderOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> create(JS::Realm&, FlyString label, TextDecoderOptions const&);
     virtual ~TextDecoderStream() override;
 
 private:

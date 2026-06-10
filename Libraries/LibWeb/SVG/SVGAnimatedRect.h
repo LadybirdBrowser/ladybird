@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SVGAnimatedRect.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRect.h>
 

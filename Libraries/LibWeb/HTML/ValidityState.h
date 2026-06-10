@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/ValidityState.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 

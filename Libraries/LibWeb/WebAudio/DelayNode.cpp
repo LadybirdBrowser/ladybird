@@ -5,8 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/DelayNode.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/DelayNode.h>
 
@@ -14,15 +12,15 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(DelayNode);
 
-DelayNode::DelayNode(GC::Ref<BaseAudioContext> context, Bindings::DelayOptions const& options)
+DelayNode::DelayNode(GC::Ref<BaseAudioContext> context, DelayOptions const& options)
     : AudioNode(context)
-    , m_delay_time(AudioParam::create(context, options.delay_time, 0, options.max_delay_time, Bindings::AutomationRate::ARate))
+    , m_delay_time(AudioParam::create(context, options.delay_time, 0, options.max_delay_time, AutomationRate::ARate))
 {
 }
 
 DelayNode::~DelayNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::create(GC::Ref<BaseAudioContext> context, Bindings::DelayOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::create(GC::Ref<BaseAudioContext> context, DelayOptions const& options)
 {
     auto node = GC::Heap::the().allocate<DelayNode>(context, options);
 
@@ -30,8 +28,8 @@ WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::create(GC::Ref<BaseAudioConte
     // https://webaudio.github.io/web-audio-api/#DelayNode
     AudioNodeDefaultOptions default_options;
     default_options.channel_count = 2;
-    default_options.channel_count_mode = Bindings::ChannelCountMode::Max;
-    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    default_options.channel_count_mode = ChannelCountMode::Max;
+    default_options.channel_interpretation = ChannelInterpretation::Speakers;
     // FIXME: Set tail-time to yes
 
     TRY(node->initialize_audio_node_options(options, default_options));
@@ -39,7 +37,7 @@ WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::create(GC::Ref<BaseAudioConte
     return node;
 }
 
-WebIDL::ExceptionOr<void> DelayNode::validate_options(Bindings::DelayOptions const& options)
+WebIDL::ExceptionOr<void> DelayNode::validate_options(DelayOptions const& options)
 {
     // https://webaudio.github.io/web-audio-api/#dom-delayoptions-maxdelaytime
     // If specified, this value MUST be greater than zero and less than three minutes or a NotSupportedError exception MUST be thrown.
@@ -50,7 +48,7 @@ WebIDL::ExceptionOr<void> DelayNode::validate_options(Bindings::DelayOptions con
     return {};
 }
 
-WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::construct_impl(GC::Ref<BaseAudioContext> context, Bindings::DelayOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<DelayNode>> DelayNode::create_for_constructor(GC::Ref<BaseAudioContext> context, DelayOptions const& options)
 {
     TRY(validate_options(options));
     return create(context, options);

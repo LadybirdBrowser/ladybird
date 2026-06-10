@@ -8,7 +8,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBCursor.h>
-#include <LibWeb/Bindings/IDBCursorWithValue.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
@@ -38,12 +37,12 @@ class IDBCursor : public Bindings::Wrappable {
 
 public:
     virtual ~IDBCursor() override;
-    [[nodiscard]] static GC::Ref<IDBCursor> create(CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
+    [[nodiscard]] static GC::Ref<IDBCursor> create(CursorSourceHandle, GC::Ptr<Key>, CursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
 
     [[nodiscard]] CursorSourceHandle source_handle() { return m_source_handle; }
-    [[nodiscard]] Bindings::IDBCursorDirection direction() { return m_direction; }
-    [[nodiscard]] JS::Value key();
-    [[nodiscard]] JS::Value primary_key() const;
+    [[nodiscard]] CursorDirection direction() { return m_direction; }
+    JS::Value key(JS::Realm&);
+    JS::Value primary_key(JS::Realm&);
     [[nodiscard]] GC::Ptr<IDBRequest> request() { return m_request; }
 
     WebIDL::ExceptionOr<void> advance(WebIDL::UnsignedLong);
@@ -57,6 +56,7 @@ public:
 
     [[nodiscard]] GC::Ref<IDBKeyRange> range() { return m_range; }
     [[nodiscard]] GC::Ptr<Key> position() { return m_position; }
+    [[nodiscard]] GC::Ptr<Key> current_key() const { return m_key; }
     [[nodiscard]] GC::Ptr<Key> object_store_position() { return m_object_store_position; }
     [[nodiscard]] bool key_only() const { return m_key_only; }
     [[nodiscard]] bool got_value() const { return m_got_value; }
@@ -74,7 +74,7 @@ public:
     void set_object_store_position(GC::Ptr<Key> object_store_position) { m_object_store_position = object_store_position; }
 
 protected:
-    explicit IDBCursor(CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
+    explicit IDBCursor(CursorSourceHandle, GC::Ptr<Key>, CursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
     // A cursor has a value which represent the value of the last iterated record.
@@ -88,7 +88,7 @@ private:
     GC::Ptr<Key> m_object_store_position;
 
     // A cursor has a direction that determines whether it moves in monotonically increasing or decreasing order of the record keys when iterated, and if it skips duplicated values when iterating indexes.
-    Bindings::IDBCursorDirection m_direction;
+    CursorDirection m_direction;
 
     // A cursor has a got value flag.
     bool m_got_value { false };

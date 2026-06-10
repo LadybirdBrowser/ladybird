@@ -5,16 +5,16 @@
  */
 
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLImageElement.h>
 #include <LibWeb/Bindings/ImageConstructor.h>
+#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Bindings {
 
@@ -52,12 +52,12 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionO
     auto& document = window.associated_document();
 
     // 2. Let img be the result of creating an element given document, "img", and the HTML namespace.
-    auto image_element = TRY(Bindings::throw_dom_exception_if_needed(vm, realm, [&]() { return DOM::create_element(document, HTML::TagNames::img, Namespace::HTML); }));
+    auto image_element = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&]() { return DOM::create_element(document, HTML::TagNames::img, Namespace::HTML); }));
     auto& html_image_element = as<HTML::HTMLImageElement>(*image_element);
     auto wrapped_image_element = Bindings::wrap(host_defined_wrapper_world(realm), realm, GC::Ref { html_image_element });
 
     // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
-    TRY(WebIDL::set_prototype_from_new_target<HTMLImageElementPrototype>(vm, new_target, "HTMLImageElement"_fly_string, *wrapped_image_element));
+    TRY(set_prototype_from_new_target<HTMLImageElementPrototype>(vm, new_target, "HTMLImageElement"_fly_string, *wrapped_image_element));
 
     // 3. If width is given, then set an attribute value for img using "width" and width.
     if (vm.argument_count() > 0) {

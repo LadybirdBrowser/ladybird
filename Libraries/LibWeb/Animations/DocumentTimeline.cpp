@@ -31,12 +31,9 @@ GC::Ref<DocumentTimeline> DocumentTimeline::create(DOM::Document& document, High
     return timeline;
 }
 
-// https://www.w3.org/TR/web-animations-1/#dom-documenttimeline-documenttimeline
-WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::construct_impl(HTML::Window& window, Bindings::DocumentTimelineOptions options)
+WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::create_for_constructor(JS::Realm& realm, Bindings::DocumentTimelineOptions const& options)
 {
-    // Creates a new DocumentTimeline. The Document with which the timeline is associated is the Document associated
-    // with the Window that is the current global object.
-    return create(window.associated_document(), options.origin_time);
+    return create(HTML::relevant_window(realm.global_object()).associated_document(), options.origin_time);
 }
 
 // https://www.w3.org/TR/web-animations-1/#ref-for-timeline-time-to-origin-relative-time

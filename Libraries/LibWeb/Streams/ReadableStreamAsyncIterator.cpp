@@ -20,25 +20,17 @@ void Intrinsics::create_web_prototype_and_constructor<ReadableStreamAsyncIterato
     m_prototypes.set("ReadableStreamAsyncIterator"_fly_string, prototype);
 }
 
+static void set_readable_stream_async_iterator_prototype(JS::Realm& realm, Streams::ReadableStreamAsyncIterator& iterator)
+{
+    static auto const& name = *new FlyString("ReadableStreamAsyncIterator"_fly_string);
+    Detail::set_prototype_for_interface_on<ReadableStreamAsyncIteratorPrototype>(realm, iterator, name);
+}
+
 }
 
 namespace Web::Streams {
 
 GC_DEFINE_ALLOCATOR(ReadableStreamAsyncIterator);
-
-// https://streams.spec.whatwg.org/#ref-for-asynchronous-iterator-initialization-steps
-WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> ReadableStreamAsyncIterator::create(JS::Realm& realm, JS::Object::PropertyKind kind, ReadableStream& stream, Bindings::ReadableStreamIteratorOptions options)
-{
-    // 1. Let reader be ? AcquireReadableStreamDefaultReader(stream).
-    // 2. Set iterator’s reader to reader.
-    auto reader = TRY(acquire_readable_stream_default_reader(realm, stream));
-
-    // 3. Let preventCancel be args[0]["preventCancel"].
-    // 4. Set iterator’s prevent cancel to preventCancel.
-    auto prevent_cancel = options.prevent_cancel;
-
-    return realm.create<ReadableStreamAsyncIterator>(realm, kind, reader, prevent_cancel);
-}
 
 ReadableStreamAsyncIterator::ReadableStreamAsyncIterator(JS::Realm& realm, JS::Object::PropertyKind kind, GC::Ref<ReadableStreamDefaultReader> reader, bool prevent_cancel)
     : AsyncIterator(realm, kind)
@@ -49,10 +41,18 @@ ReadableStreamAsyncIterator::ReadableStreamAsyncIterator(JS::Realm& realm, JS::O
 
 ReadableStreamAsyncIterator::~ReadableStreamAsyncIterator() = default;
 
-void ReadableStreamAsyncIterator::initialize(JS::Realm& realm)
+// https://streams.spec.whatwg.org/#ref-for-asynchronous-iterator-initialization-steps
+WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> ReadableStreamAsyncIterator::create(JS::Realm& realm, JS::Object::PropertyKind kind, ReadableStream& stream, Options options)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamAsyncIterator);
-    Base::initialize(realm);
+    // 1. Let reader be ? AcquireReadableStreamDefaultReader(stream).
+    // 2. Set iterator’s reader to reader.
+    auto reader = TRY(acquire_readable_stream_default_reader(realm, stream));
+
+    // 3. Let preventCancel be args[0]["preventCancel"].
+    // 4. Set iterator’s prevent cancel to preventCancel.
+    auto iterator = realm.create<ReadableStreamAsyncIterator>(realm, kind, reader, options.prevent_cancel);
+    Bindings::set_readable_stream_async_iterator_prototype(realm, iterator);
+    return iterator;
 }
 
 void ReadableStreamAsyncIterator::visit_edges(GC::Cell::Visitor& visitor)

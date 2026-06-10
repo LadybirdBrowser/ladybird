@@ -12,7 +12,6 @@
 #include <LibCompress/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/DecompressionStream.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Compression/CompressionStream.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
@@ -33,7 +32,8 @@ class DecompressionStream final
     GC_DECLARE_ALLOCATOR(DecompressionStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, Bindings::CompressionFormat);
+    static WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> create(JS::Realm&, Decompressor, NonnullOwnPtr<AllocatingMemoryStream>);
+    static WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> create_for_constructor(JS::Realm&, Bindings::CompressionFormat);
     virtual ~DecompressionStream() override;
 
 private:

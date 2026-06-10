@@ -6,10 +6,9 @@
 
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
-#include <LibGC/Root.h>
 #include <LibJS/Runtime/PrimitiveString.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Set.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
 #include <LibWeb/DOM/Element.h>
@@ -34,6 +33,41 @@ void CustomStateSet::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);
+}
+
+bool CustomStateSet::has_state(FlyString const& state) const
+{
+    return m_states.contains(state);
+}
+
+void CustomStateSet::add_state(FlyString const& state)
+{
+    m_states.set(state, AK::HashSetExistingEntryBehavior::Keep);
+}
+
+bool CustomStateSet::remove_state(FlyString const& state)
+{
+    return m_states.remove(state);
+}
+
+void CustomStateSet::clear_states()
+{
+    m_states.clear();
+}
+
+}
+
+namespace Web::Bindings {
+
+static WrapperWorldWeakValueCacheMap<HTML::CustomStateSet const, JS::Set>& custom_state_set_caches()
+{
+    static NeverDestroyed<WrapperWorldWeakValueCacheMap<HTML::CustomStateSet const, JS::Set>> caches;
+    return *caches;
+}
+
+static WrapperWorldWeakValueCache<JS::Set>& custom_state_set_cache_for(HTML::CustomStateSet const& custom_state_set)
+{
+    return custom_state_set_caches().cache_for(custom_state_set);
 }
 
 static FlyString state_from_set_value(JS::Value value)
@@ -64,58 +98,54 @@ static GC::Root<JS::Set> create_set_entries(JS::Realm& realm, OrderedHashTable<F
     return set_entries;
 }
 
-GC::Ref<JS::Set> CustomStateSet::set_entries(JS::Realm& realm, Bindings::WrapperWorld const& wrapper_world) const
+GC::Ref<JS::Set> setlike_entries(JS::Realm& realm, WrapperWorld const& wrapper_world, HTML::CustomStateSet const& custom_state_set)
 {
-    if (auto set_entries = m_set_entries.get(wrapper_world))
+    auto& cache = custom_state_set_cache_for(custom_state_set);
+    if (auto set_entries = cache.get(wrapper_world))
         return *set_entries;
 
-    auto set_entries = create_set_entries(realm, m_states);
-    m_set_entries.set(wrapper_world, set_entries.ptr());
+    auto set_entries = create_set_entries(realm, custom_state_set.states());
+    cache.set(wrapper_world, set_entries.ptr());
     return GC::Ref { *set_entries };
 }
 
-bool CustomStateSet::set_has(JS::Value value) const
+bool setlike_has(HTML::CustomStateSet const& custom_state_set, JS::Value value)
 {
-    return m_states.contains(state_from_set_value(value));
+    return custom_state_set.has_state(state_from_set_value(value));
 }
 
-void CustomStateSet::set_add(JS::Value value)
+void setlike_add(HTML::CustomStateSet& custom_state_set, JS::Value value)
 {
     auto state = state_from_set_value(value);
-    m_states.set(state, AK::HashSetExistingEntryBehavior::Keep);
-    m_set_entries.for_each([&](auto& set_entries) {
+    custom_state_set.add_state(state);
+    custom_state_set_cache_for(custom_state_set).for_each([&](auto& set_entries) {
         add_state_to_set(set_entries, state);
     });
 }
 
-bool CustomStateSet::set_remove(JS::Value value)
+bool setlike_remove(HTML::CustomStateSet& custom_state_set, JS::Value value)
 {
     auto state = state_from_set_value(value);
-    auto removed = m_states.remove(state);
+    auto removed = custom_state_set.remove_state(state);
     if (removed) {
-        m_set_entries.for_each([&](auto& set_entries) {
+        custom_state_set_cache_for(custom_state_set).for_each([&](auto& set_entries) {
             remove_state_from_set(set_entries, state);
         });
     }
     return removed;
 }
 
-void CustomStateSet::set_clear()
+void setlike_clear(HTML::CustomStateSet& custom_state_set)
 {
-    m_states.clear();
-    m_set_entries.for_each([&](auto& set_entries) {
+    custom_state_set.clear_states();
+    custom_state_set_cache_for(custom_state_set).for_each([&](auto& set_entries) {
         set_entries.set_clear();
     });
 }
 
-bool CustomStateSet::has_state(FlyString const& state) const
+void setlike_on_set_modified_from_js(HTML::CustomStateSet& custom_state_set)
 {
-    return m_states.contains(state);
-}
-
-void CustomStateSet::on_set_modified_from_js(Badge<Bindings::CustomStateSetPrototype>)
-{
-    CSS::Invalidation::invalidate_style_after_custom_state_set_change(*m_element);
+    CSS::Invalidation::invalidate_style_after_custom_state_set_change(custom_state_set.element());
 }
 
 }

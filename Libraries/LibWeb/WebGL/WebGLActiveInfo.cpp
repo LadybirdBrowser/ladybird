@@ -17,8 +17,7 @@ GC::Ptr<WebGLActiveInfo> WebGLActiveInfo::create(String name, GLenum type, GLsiz
 }
 
 WebGLActiveInfo::WebGLActiveInfo(String name, GLenum type, GLsizei size)
-    : Bindings::Wrappable()
-    , m_name(move(name))
+    : m_name(move(name))
     , m_type(type)
     , m_size(size)
 {

@@ -17,8 +17,7 @@ GC::Ref<SVGAnimatedLengthList> SVGAnimatedLengthList::create(GC::Ref<SVGLengthLi
 }
 
 SVGAnimatedLengthList::SVGAnimatedLengthList(GC::Ref<SVGLengthList> base_val)
-    : Bindings::Wrappable()
-    , m_base_val(base_val)
+    : m_base_val(base_val)
 {
 }
 

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PerformanceNavigation.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::NavigationTiming {

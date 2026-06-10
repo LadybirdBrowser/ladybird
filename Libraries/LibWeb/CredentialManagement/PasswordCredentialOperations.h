@@ -11,6 +11,6 @@
 namespace Web::CredentialManagement {
 
 WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(GC::Ref<HTML::HTMLFormElement>, URL::Origin);
-WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(Bindings::PasswordCredentialData const&, URL::Origin);
+WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_password_credential(PasswordCredentialData, URL::Origin);
 
 }

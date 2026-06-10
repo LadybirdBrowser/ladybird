@@ -14,12 +14,6 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 
-namespace Web::HTML {
-
-class WindowOrWorkerGlobalScopeMixin;
-
-}
-
 namespace Web::Animations {
 
 // Sorted by composite order:
@@ -31,6 +25,9 @@ enum class AnimationClass {
     None,
 };
 
+using AnimationReplaceState = Bindings::AnimationReplaceState;
+using AnimationPlayState = Bindings::AnimationPlayState;
+
 // https://www.w3.org/TR/web-animations-1/#the-animation-interface
 class Animation : public DOM::EventTarget {
     WEB_WRAPPABLE(Animation, DOM::EventTarget);
@@ -39,8 +36,7 @@ class Animation : public DOM::EventTarget {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<Animation> create(HTML::EnvironmentSettingsObject&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
-    static GC::Ref<Animation> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>, size_t argument_count);
+    static GC::Ref<Animation> create(HTML::EnvironmentSettingsObject&, GC::Ptr<AnimationEffect>, GC::Ptr<AnimationTimeline>);
 
     FlyString const& id() const { return m_id; }
     void set_id(FlyString value) { m_id = move(value); }
@@ -75,14 +71,14 @@ public:
     double playback_rate() const { return m_playback_rate; }
     WebIDL::ExceptionOr<void> set_playback_rate(double value);
 
-    Bindings::AnimationPlayState play_state_for_bindings() const;
-    Bindings::AnimationPlayState play_state() const;
+    AnimationPlayState play_state() const;
+    AnimationPlayState play_state_for_bindings();
 
     bool is_relevant() const;
 
     bool is_replaceable() const;
-    Bindings::AnimationReplaceState replace_state() const { return m_replace_state; }
-    void set_replace_state(Bindings::AnimationReplaceState value);
+    AnimationReplaceState replace_state() const { return m_replace_state; }
+    void set_replace_state(AnimationReplaceState value);
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-pending
     bool pending() const { return m_pending_play_task == TaskState::Scheduled || m_pending_pause_task == TaskState::Scheduled; }
@@ -94,7 +90,7 @@ public:
     GC::Ref<WebIDL::Promise> finished() const { return current_finished_promise(); }
     bool is_finished() const { return m_is_finished; }
 
-    bool is_idle() const { return play_state() == Bindings::AnimationPlayState::Idle; }
+    bool is_idle() const { return play_state() == AnimationPlayState::Idle; }
 
     GC::Ptr<WebIDL::CallbackType> onfinish();
     void set_onfinish(GC::Ptr<WebIDL::CallbackType>);
@@ -222,7 +218,7 @@ private:
     Optional<double> m_pending_playback_rate {};
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-replacestate
-    Bindings::AnimationReplaceState m_replace_state { Bindings::AnimationReplaceState::Active };
+    AnimationReplaceState m_replace_state { AnimationReplaceState::Active };
 
     // Note: The following promises are initialized lazily to avoid constructing them outside of an execution context
     // https://www.w3.org/TR/web-animations-1/#current-ready-promise

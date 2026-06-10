@@ -8,8 +8,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibMedia/PlaybackManager.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SourceBuffer.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -81,41 +79,19 @@ SourceBuffer::SourceBuffer(MediaSource& media_source, GC::Ref<HTML::AudioTrackLi
 
 SourceBuffer::~SourceBuffer() = default;
 
-static Bindings::AppendMode processor_mode_to_bindings(AppendMode mode)
-{
-    switch (mode) {
-    case AppendMode::Segments:
-        return Bindings::AppendMode::Segments;
-    case AppendMode::Sequence:
-        return Bindings::AppendMode::Sequence;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static AppendMode bindings_mode_to_processor(Bindings::AppendMode mode)
-{
-    switch (mode) {
-    case Bindings::AppendMode::Segments:
-        return AppendMode::Segments;
-    case Bindings::AppendMode::Sequence:
-        return AppendMode::Sequence;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static Bindings::TextTrackKind media_track_kind_to_text_track_kind(Media::Track::Kind kind)
+static HTML::TextTrackKind media_track_kind_to_text_track_kind(Media::Track::Kind kind)
 {
     switch (kind) {
     case Media::Track::Kind::Captions:
-        return Bindings::TextTrackKind::Captions;
+        return HTML::TextTrackKind::Captions;
     case Media::Track::Kind::Descriptions:
-        return Bindings::TextTrackKind::Descriptions;
+        return HTML::TextTrackKind::Descriptions;
     case Media::Track::Kind::Metadata:
-        return Bindings::TextTrackKind::Metadata;
+        return HTML::TextTrackKind::Metadata;
     case Media::Track::Kind::Subtitles:
-        return Bindings::TextTrackKind::Subtitles;
+        return HTML::TextTrackKind::Subtitles;
     default:
-        return Bindings::TextTrackKind::Metadata;
+        return HTML::TextTrackKind::Metadata;
     }
 }
 
@@ -203,9 +179,9 @@ void SourceBuffer::set_content_type(String const& type)
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
-Bindings::AppendMode SourceBuffer::mode() const
+AppendMode SourceBuffer::mode() const
 {
-    return processor_mode_to_bindings(m_processor->mode());
+    return m_processor->mode();
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
@@ -232,24 +208,24 @@ GC::Ref<HTML::TimeRanges> SourceBuffer::buffered()
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
-WebIDL::ExceptionOr<void> SourceBuffer::set_mode(JS::Realm& realm, Bindings::AppendMode mode)
+WebIDL::ExceptionOr<void> SourceBuffer::set_mode(AppendMode mode)
 {
     // 1. If this object has been removed from the sourceBuffers attribute of the parent media source
     //    then throw an InvalidStateError exception and abort these steps.
     if (!m_media_source->source_buffers()->contains(*this))
-        return WebIDL::InvalidStateError::create(realm, "SourceBuffer has been removed"_utf16);
+        return WebIDL::InvalidStateError::create("SourceBuffer has been removed"_utf16);
 
     // 2. If the updating attribute equals true, then throw an InvalidStateError exception and abort these steps.
     if (updating())
-        return WebIDL::InvalidStateError::create(realm, "SourceBuffer is updating"_utf16);
+        return WebIDL::InvalidStateError::create("SourceBuffer is updating"_utf16);
 
     // 3. If the [[generate timestamps flag]] equals true and the new value equals "segments",
     //    then throw a TypeError exception and abort these steps.
-    if (m_processor->generate_timestamps_flag() && mode == Bindings::AppendMode::Segments)
+    if (m_processor->generate_timestamps_flag() && mode == AppendMode::Segments)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set mode to 'segments' when generate timestamps flag is true"sv };
 
     // 4. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
-    if (m_media_source->ready_state() == Bindings::ReadyState::Ended) {
+    if (m_media_source->ready_state() == ReadyState::Ended) {
         // 1. Set the readyState attribute of the parent media source to "open"
         // 2. Queue a task to fire an event named sourceopen at the parent media source.
         m_media_source->set_ready_state_to_open_and_fire_sourceopen_event();
@@ -258,33 +234,33 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_mode(JS::Realm& realm, Bindings::App
     // 5. If the [[append state]] equals PARSING_MEDIA_SEGMENT, then throw an InvalidStateError exception
     //    and abort these steps.
     if (m_processor->is_parsing_media_segment())
-        return WebIDL::InvalidStateError::create(realm, "Cannot change mode while parsing a media segment"_utf16);
+        return WebIDL::InvalidStateError::create("Cannot change mode while parsing a media segment"_utf16);
 
     // 6. If the new value equals "sequence", then set the [[group start timestamp]] to the [[group end timestamp]].
-    if (mode == Bindings::AppendMode::Sequence)
+    if (mode == AppendMode::Sequence)
         m_processor->set_group_start_timestamp(m_processor->group_end_timestamp());
 
     // 7. Update the attribute to the new value.
-    m_processor->set_mode(bindings_mode_to_processor(mode));
+    m_processor->set_mode(mode);
 
     return {};
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-prepare-append
-WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(JS::Realm& realm, size_t new_data_size, AK::Duration current_time)
+WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size, AK::Duration current_time)
 {
     // FIXME: Support MediaSourceExtensions in workers.
     if (!m_media_source->media_element_assigned_to())
-        return WebIDL::InvalidStateError::create(realm, "Unsupported in workers"_utf16);
+        return WebIDL::InvalidStateError::create("Unsupported in workers"_utf16);
 
     // 1. If the SourceBuffer has been removed from the sourceBuffers attribute of the parent media source then throw an
     //    InvalidStateError exception and abort these steps.
     if (!m_media_source->source_buffers()->contains(*this))
-        return WebIDL::InvalidStateError::create(realm, "SourceBuffer has been removed"_utf16);
+        return WebIDL::InvalidStateError::create("SourceBuffer has been removed"_utf16);
 
     // 2. If the updating attribute equals true, then throw an InvalidStateError exception and abort these steps.
     if (updating())
-        return WebIDL::InvalidStateError::create(realm, "SourceBuffer is already updating"_utf16);
+        return WebIDL::InvalidStateError::create("SourceBuffer is already updating"_utf16);
 
     // 3. Let recent element error be determined as follows:
     auto recent_element_error = [&] {
@@ -304,10 +280,10 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(JS::Realm& realm, size_t 
 
     // 4. If recent element error is true, then throw an InvalidStateError exception and abort these steps.
     if (recent_element_error)
-        return WebIDL::InvalidStateError::create(realm, "Element has a recent error"_utf16);
+        return WebIDL::InvalidStateError::create("Element has a recent error"_utf16);
 
     // 5. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
-    if (m_media_source->ready_state() == Bindings::ReadyState::Ended) {
+    if (m_media_source->ready_state() == ReadyState::Ended) {
         // 1. Set the readyState attribute of the parent media source to "open"
         // 2. Queue a task to fire an event named sourceopen at the parent media source.
         m_media_source->set_ready_state_to_open_and_fire_sourceopen_event();
@@ -318,18 +294,18 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(JS::Realm& realm, size_t 
 
     // 7. If the [[buffer full flag]] equals true, then throw a QuotaExceededError exception and abort these steps.
     if (m_processor->is_buffer_full())
-        return WebIDL::QuotaExceededError::create(realm, "Buffer is full"_utf16);
+        return WebIDL::QuotaExceededError::create("Buffer is full"_utf16);
 
     return {};
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-appendbuffer
-WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(JS::Realm& realm, WebIDL::BufferSourceVariant const& data)
+WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSourceVariant const& data)
 {
     WebIDL::BufferSource buffer_source { data };
 
     // 1. Run the prepare append algorithm.
-    TRY(prepare_append(realm, buffer_source.byte_length(), m_media_source->media_element_assigned_to()->playback_manager().current_time()));
+    TRY(prepare_append(buffer_source.byte_length(), m_media_source->media_element_assigned_to()->playback_manager().current_time()));
 
     // 2. Add data to the end of the [[input buffer]].
     if (auto array_buffer = buffer_source.viewed_array_buffer(); array_buffer && !array_buffer->is_detached()) {
@@ -354,17 +330,17 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(JS::Realm& realm, WebIDL::
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-abort
-WebIDL::ExceptionOr<void> SourceBuffer::abort(JS::Realm& realm)
+WebIDL::ExceptionOr<void> SourceBuffer::abort()
 {
     // 1. If this object has been removed from the sourceBuffers attribute of the parent media source
     //    then throw an InvalidStateError exception and abort these steps.
     if (!m_media_source->source_buffers()->contains(*this))
-        return WebIDL::InvalidStateError::create(realm, "SourceBuffer has been removed"_utf16);
+        return WebIDL::InvalidStateError::create("SourceBuffer has been removed"_utf16);
 
     // 2. If the readyState attribute of the parent media source is not in the "open" state
     //    then throw an InvalidStateError exception and abort these steps.
-    if (m_media_source->ready_state() != Bindings::ReadyState::Open)
-        return WebIDL::InvalidStateError::create(realm, "MediaSource is not open"_utf16);
+    if (m_media_source->ready_state() != ReadyState::Open)
+        return WebIDL::InvalidStateError::create("MediaSource is not open"_utf16);
 
     // FIXME: 3. If the range removal algorithm is running, then throw an InvalidStateError exception and abort these steps.
 
@@ -398,7 +374,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::abort(JS::Realm& realm)
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-changetype
-WebIDL::ExceptionOr<void> SourceBuffer::change_type(JS::Realm& realm, String const& type)
+WebIDL::ExceptionOr<void> SourceBuffer::change_type(String const& type)
 {
     // 1. If type is an empty string then throw a TypeError exception and abort these steps.
     if (type.is_empty())
@@ -407,20 +383,20 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(JS::Realm& realm, String con
     // 2. If this object has been removed from the sourceBuffers attribute of the parent media source,
     //    then throw an InvalidStateError exception and abort these steps.
     if (!m_media_source->source_buffers()->contains(*this))
-        return WebIDL::InvalidStateError::create(realm, "SourceBuffer has been removed"_utf16);
+        return WebIDL::InvalidStateError::create("SourceBuffer has been removed"_utf16);
 
     // 3. If the updating attribute equals true, then throw an InvalidStateError exception and abort these steps.
     if (updating())
-        return WebIDL::InvalidStateError::create(realm, "SourceBuffer is updating"_utf16);
+        return WebIDL::InvalidStateError::create("SourceBuffer is updating"_utf16);
 
     // 4. If type contains a MIME type that is not supported or contains a MIME type that is not supported
     //    with the types specified (currently or previously) of SourceBuffer objects in the sourceBuffers
     //    attribute of the parent media source, then throw a NotSupportedError exception and abort these steps.
     if (!MediaSource::is_type_supported(type))
-        return WebIDL::NotSupportedError::create(realm, "Type is not supported"_utf16);
+        return WebIDL::NotSupportedError::create("Type is not supported"_utf16);
 
     // 5. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
-    if (m_media_source->ready_state() == Bindings::ReadyState::Ended) {
+    if (m_media_source->ready_state() == ReadyState::Ended) {
         // 5.1. Set the readyState attribute of the parent media source to "open"
         // 5.2. Queue a task to fire an event named sourceopen at the parent media source.
         m_media_source->set_ready_state_to_open_and_fire_sourceopen_event();
@@ -445,7 +421,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(JS::Realm& realm, String con
     //       Keep the previous value of the mode attribute on this SourceBuffer object, without running
     //       any associated steps for that attribute being set.
     if (m_processor->generate_timestamps_flag())
-        TRY(set_mode(realm, Bindings::AppendMode::Sequence));
+        TRY(set_mode(AppendMode::Sequence));
 
     // 9. Set the [[pending initialization segment for changeType flag]] on this SourceBuffer object to true.
     m_processor->set_pending_initialization_segment_for_change_type_flag(true);
@@ -491,7 +467,7 @@ void SourceBuffer::run_append_error_algorithm()
     }));
 
     // 5. Run the end of stream algorithm with the error parameter set to "decode".
-    m_media_source->run_end_of_stream_algorithm({}, Bindings::EndOfStreamError::Decode);
+    m_media_source->run_end_of_stream_algorithm({}, EndOfStreamError::Decode);
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-init-segment-received

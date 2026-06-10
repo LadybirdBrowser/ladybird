@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/RadioNodeList.h>
+#include <AK/FlyString.h>
 #include <LibWeb/DOM/LiveNodeList.h>
 
 namespace Web::HTML {

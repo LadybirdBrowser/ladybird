@@ -5,22 +5,16 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/Node.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeIterator.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(NodeIterator);
 
 NodeIterator::NodeIterator(Node& root)
-    : Bindings::Wrappable()
-    , m_root(root)
+    : m_root(root)
     , m_reference({ root })
 {
     root.document().register_node_iterator({}, *this);
@@ -71,7 +65,7 @@ void NodeIterator::detach()
 }
 
 // https://dom.spec.whatwg.org/#concept-nodeiterator-traverse
-JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::traverse(JS::Realm& realm, Direction direction)
+TraversalResult NodeIterator::traverse(TraversalFilter const& traversal_filter, Direction direction)
 {
     // 1. Let node be iterator’s reference.
     // 2. Let beforeNode be iterator’s pointer before reference.
@@ -89,7 +83,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::traverse(JS::Realm& realm, Di
             if (!m_traversal_pointer->is_before_node) {
                 auto* next_node = m_traversal_pointer->node->next_in_pre_order(m_root.ptr());
                 if (!next_node)
-                    return nullptr;
+                    return TraversalResult::null();
                 m_traversal_pointer->node = *next_node;
             } else {
                 // If beforeNode is true, then set it to false.
@@ -101,10 +95,10 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::traverse(JS::Realm& realm, Di
             // If there is no such node, then return null.
             if (m_traversal_pointer->is_before_node) {
                 if (m_traversal_pointer->node.ptr() == m_root.ptr())
-                    return nullptr;
+                    return TraversalResult::null();
                 auto* previous_node = m_traversal_pointer->node->previous_in_pre_order();
                 if (!previous_node)
-                    return nullptr;
+                    return TraversalResult::null();
                 m_traversal_pointer->node = *previous_node;
             } else {
                 // If beforeNode is false, then set it to true.
@@ -119,10 +113,14 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::traverse(JS::Realm& realm, Di
         candidate = m_traversal_pointer->node;
 
         // 2. Let result be the result of filtering node within iterator.
-        auto result = TRY(filter(realm, *m_traversal_pointer->node));
+        auto result = filter(traversal_filter, *m_traversal_pointer->node);
+        if (result.type == TraversalFilterResult::Type::AlreadyActive)
+            return TraversalResult::already_active();
+        if (result.type == TraversalFilterResult::Type::CallbackException)
+            return TraversalResult::callback_exception();
 
         // 3. If result is FILTER_ACCEPT, then break.
-        if (result == NodeFilter::Result::FILTER_ACCEPT)
+        if (result.is(NodeFilter::Result::FILTER_ACCEPT))
             break;
     }
 
@@ -131,7 +129,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::traverse(JS::Realm& realm, Di
     m_reference = m_traversal_pointer.release_value();
 
     // 6. Return node.
-    return candidate;
+    return TraversalResult::from_node(candidate);
 }
 
 // https://dom.spec.whatwg.org/#concept-traversal-filter
@@ -141,55 +139,51 @@ GC::Ptr<NodeFilter> NodeIterator::filter() const
 }
 
 // https://dom.spec.whatwg.org/#concept-node-filter
-JS::ThrowCompletionOr<NodeFilter::Result> NodeIterator::filter(JS::Realm& realm, Node& node)
+TraversalFilterResult NodeIterator::filter(TraversalFilter const& traversal_filter, Node& node)
 {
     // 1. If traverser’s active flag is set, then throw an "InvalidStateError" DOMException.
     if (m_active)
-        return throw_completion(realm, WebIDL::InvalidStateError::create(realm, "NodeIterator is already active"_utf16));
+        return TraversalFilterResult::already_active();
 
     // 2. Let n be node’s nodeType attribute value − 1.
     auto n = node.node_type() - 1;
 
     // 3. If the nth bit (where 0 is the least significant bit) of traverser’s whatToShow is not set, then return FILTER_SKIP.
     if (!(m_what_to_show & (1u << n)))
-        return NodeFilter::Result::FILTER_SKIP;
+        return TraversalFilterResult::skip();
 
     // 4. If traverser’s filter is null, then return FILTER_ACCEPT.
     if (!m_filter)
-        return NodeFilter::Result::FILTER_ACCEPT;
+        return TraversalFilterResult::accept();
 
     // 5. Set traverser’s active flag.
     m_active = true;
 
     // 6. Let result be the return value of call a user object’s operation with traverser’s filter, "acceptNode", and « node ».
     //    If this throws an exception, then unset traverser’s active flag and rethrow the exception.
-    auto& callback = m_filter->callback();
-    auto& callback_realm = callback.callback->shape().realm();
-    auto wrapped_node = Bindings::wrap(Bindings::host_defined_wrapper_world(callback_realm), callback_realm, GC::Ref { node });
-    auto result = WebIDL::call_user_object_operation(callback, "acceptNode"_utf16_fly_string, {}, { { wrapped_node } });
-    if (result.is_abrupt()) {
+    auto result = traversal_filter(node);
+    if (!result.has_value()) {
         m_active = false;
-        return result;
+        return TraversalFilterResult::callback_exception();
     }
 
     // 7. Unset traverser’s active flag.
     m_active = false;
 
     // 8. Return result.
-    auto result_value = TRY(result.value().to_i32(realm.vm()));
-    return static_cast<NodeFilter::Result>(result_value);
+    return TraversalFilterResult::from_result(*result);
 }
 
 // https://dom.spec.whatwg.org/#dom-nodeiterator-nextnode
-JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::next_node(JS::Realm& realm)
+TraversalResult NodeIterator::next_node(TraversalFilter const& traversal_filter)
 {
-    return traverse(realm, Direction::Next);
+    return traverse(traversal_filter, Direction::Next);
 }
 
 // https://dom.spec.whatwg.org/#dom-nodeiterator-previousnode
-JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::previous_node(JS::Realm& realm)
+TraversalResult NodeIterator::previous_node(TraversalFilter const& traversal_filter)
 {
-    return traverse(realm, Direction::Previous);
+    return traverse(traversal_filter, Direction::Previous);
 }
 
 void NodeIterator::run_pre_removing_steps_with_node_pointer(Node& to_be_removed_node, NodePointer& pointer)

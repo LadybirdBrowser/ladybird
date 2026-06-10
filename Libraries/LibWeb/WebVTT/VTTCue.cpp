@@ -13,7 +13,7 @@ namespace Web::WebVTT {
 GC_DEFINE_ALLOCATOR(VTTCue);
 
 // https://w3c.github.io/webvtt/#dom-vttcue-vttcue
-WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(double start_time, double end_time, String const& text)
+WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::create(double start_time, double end_time, String const& text)
 {
     // 1. Create a new WebVTT cue. Let cue be that WebVTT cue.
     auto cue = GC::Heap::the().allocate<VTTCue>(nullptr);
@@ -48,22 +48,22 @@ WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(double start_time, d
     cue->m_snap_to_lines = true;
 
     // 10. Let cue’s WebVTT cue line be auto.
-    cue->m_line = Bindings::AutoKeyword::Auto;
+    cue->m_line = AutoKeyword::Auto;
 
     // 11. Let cue’s WebVTT cue line alignment be start alignment.
-    cue->m_line_alignment = Bindings::LineAlignSetting::Start;
+    cue->m_line_alignment = LineAlignSetting::Start;
 
     // 12. Let cue’s WebVTT cue position be auto.
-    cue->m_position = Bindings::AutoKeyword::Auto;
+    cue->m_position = AutoKeyword::Auto;
 
     // 13. Let cue’s WebVTT cue position alignment be auto.
-    cue->m_position_alignment = Bindings::PositionAlignSetting::Auto;
+    cue->m_position_alignment = PositionAlignSetting::Auto;
 
     // 14. Let cue’s WebVTT cue size be 100.
     cue->m_size = 100;
 
     // 15. Let cue’s WebVTT cue text alignment be center alignment.
-    cue->m_text_alignment = Bindings::AlignSetting::Center;
+    cue->m_text_alignment = AlignSetting::Center;
 
     // 16. Return the VTTCue object representing cue.
     return cue;
@@ -81,33 +81,83 @@ void VTTCue::visit_edges(Visitor& visitor)
 }
 
 // https://w3c.github.io/webvtt/#dom-vttcue-vertical
-Bindings::DirectionSetting VTTCue::vertical() const
+DirectionSetting VTTCue::vertical() const
 {
     switch (m_writing_direction) {
     case WritingDirection::Horizontal:
-        return Bindings::DirectionSetting::Empty;
+        return DirectionSetting::Empty;
     case WritingDirection::VerticalGrowingLeft:
-        return Bindings::DirectionSetting::Rl;
+        return DirectionSetting::Rl;
     case WritingDirection::VerticalGrowingRight:
-        return Bindings::DirectionSetting::Lr;
+        return DirectionSetting::Lr;
     }
     VERIFY_NOT_REACHED();
 }
 
 // https://w3c.github.io/webvtt/#dom-vttcue-vertical
-void VTTCue::set_vertical(Bindings::DirectionSetting vertical)
+void VTTCue::set_vertical(DirectionSetting vertical)
 {
     switch (vertical) {
-    case Bindings::DirectionSetting::Empty:
+    case DirectionSetting::Empty:
         m_writing_direction = WritingDirection::Horizontal;
         break;
-    case Bindings::DirectionSetting::Rl:
+    case DirectionSetting::Rl:
         m_writing_direction = WritingDirection::VerticalGrowingLeft;
         break;
-    case Bindings::DirectionSetting::Lr:
+    case DirectionSetting::Lr:
         m_writing_direction = WritingDirection::VerticalGrowingRight;
         break;
     }
+}
+
+VTTCue::LineAndPositionSetting VTTCue::line() const
+{
+    return m_line;
+}
+
+void VTTCue::set_line(LineAndPositionSetting line)
+{
+    m_line = line;
+}
+
+LineAlignSetting VTTCue::line_align() const
+{
+    return m_line_alignment;
+}
+
+void VTTCue::set_line_align(LineAlignSetting line_align)
+{
+    m_line_alignment = line_align;
+}
+
+VTTCue::LineAndPositionSetting VTTCue::position() const
+{
+    return m_position;
+}
+
+void VTTCue::set_position(LineAndPositionSetting position)
+{
+    m_position = position;
+}
+
+PositionAlignSetting VTTCue::position_align() const
+{
+    return m_position_alignment;
+}
+
+void VTTCue::set_position_align(PositionAlignSetting position_align)
+{
+    m_position_alignment = position_align;
+}
+
+AlignSetting VTTCue::align() const
+{
+    return m_text_alignment;
+}
+
+void VTTCue::set_align(AlignSetting align)
+{
+    m_text_alignment = align;
 }
 
 // https://w3c.github.io/webvtt/#cue-computed-line
@@ -160,11 +210,11 @@ double VTTCue::computed_position()
         return m_position.get<double>();
 
     // 2. If the cue text alignment is left, return 0 and abort these steps.
-    if (m_text_alignment == Bindings::AlignSetting::Left)
+    if (m_text_alignment == AlignSetting::Left)
         return 0;
 
     // 3. If the cue text alignment is right, return 100 and abort these steps.
-    if (m_text_alignment == Bindings::AlignSetting::Right)
+    if (m_text_alignment == AlignSetting::Right)
         return 100;
 
     // 4. Otherwise, return 50 and abort these steps.
@@ -172,20 +222,20 @@ double VTTCue::computed_position()
 }
 
 // https://w3c.github.io/webvtt/#cue-computed-position-alignment
-Bindings::PositionAlignSetting VTTCue::computed_position_alignment()
+PositionAlignSetting VTTCue::computed_position_alignment()
 {
     // 1. If the WebVTT cue position alignment is not auto, then return the value of the WebVTT cue position alignment and abort these
     //    steps.
-    if (m_position_alignment != Bindings::PositionAlignSetting::Auto)
+    if (m_position_alignment != PositionAlignSetting::Auto)
         return m_position_alignment;
 
     // 2. If the WebVTT cue text alignment is left, return line-left and abort these steps.
-    if (m_text_alignment == Bindings::AlignSetting::Left)
-        return Bindings::PositionAlignSetting::LineLeft;
+    if (m_text_alignment == AlignSetting::Left)
+        return PositionAlignSetting::LineLeft;
 
     // 3. If the WebVTT cue text alignment is right, return line-right and abort these steps.
-    if (m_text_alignment == Bindings::AlignSetting::Right)
-        return Bindings::PositionAlignSetting::LineRight;
+    if (m_text_alignment == AlignSetting::Right)
+        return PositionAlignSetting::LineRight;
 
     // FIXME: 4. If the WebVTT cue text alignment is start, return line-left if the base direction of the cue text is left-to-right, line-right
     //    otherwise.
@@ -194,7 +244,7 @@ Bindings::PositionAlignSetting VTTCue::computed_position_alignment()
     //    otherwise.
 
     // 6. Otherwise, return center.
-    return Bindings::PositionAlignSetting::Center;
+    return PositionAlignSetting::Center;
 }
 
 }

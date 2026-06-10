@@ -57,7 +57,7 @@ class CanvasRenderingContext2D
     GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> create(HTMLCanvasElement&, JS::Value options);
+    static GC::Ref<CanvasRenderingContext2D> create(HTMLCanvasElement&, HTML::CanvasRenderingContext2DSettings);
     virtual ~CanvasRenderingContext2D() override;
 
     virtual void fill_rect(float x, float y, float width, float height) override;
@@ -76,18 +76,18 @@ public:
     virtual void fill(StringView fill_rule) override;
     virtual void fill(Path2D& path, StringView fill_rule) override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<ImageData::Settings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(ImageData const& image_data) const override;
-    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<ImageData::Settings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height) override;
-    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(JS::Realm&, ImageData&, Gfx::Painter&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
+    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Gfx::Painter&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
 
     virtual void reset_to_default_state() override;
 
     GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
 
-    virtual Bindings::CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
+    virtual HTML::CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
 
     virtual GC::Ref<TextMetrics> measure_text(Utf16String const&) override;
 
@@ -99,8 +99,8 @@ public:
 
     virtual bool image_smoothing_enabled() const override;
     virtual void set_image_smoothing_enabled(bool) override;
-    virtual Bindings::ImageSmoothingQuality image_smoothing_quality() const override;
-    virtual void set_image_smoothing_quality(Bindings::ImageSmoothingQuality) override;
+    virtual ImageSmoothingQuality image_smoothing_quality() const override;
+    virtual void set_image_smoothing_quality(ImageSmoothingQuality) override;
 
     virtual float global_alpha() const override;
     virtual void set_global_alpha(float) override;
@@ -134,7 +134,7 @@ protected:
     Gfx::Path& mutable_path() override { return path(); }
 
 private:
-    CanvasRenderingContext2D(HTMLCanvasElement&, Bindings::CanvasRenderingContext2DSettings);
+    CanvasRenderingContext2D(HTMLCanvasElement&, HTML::CanvasRenderingContext2DSettings);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
@@ -169,7 +169,7 @@ private:
 
     Gfx::IntSize m_size;
     RefPtr<Gfx::PaintingSurface> m_surface;
-    Bindings::CanvasRenderingContext2DSettings m_context_attributes;
+    HTML::CanvasRenderingContext2DSettings m_context_attributes;
 };
 
 enum class CanvasImageSourceUsability {
@@ -177,7 +177,7 @@ enum class CanvasImageSourceUsability {
     Good,
 };
 
-WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(JS::Realm&, CanvasImageSource const&);
+WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const&);
 bool image_is_not_origin_clean(CanvasImageSource const&);
 
 }

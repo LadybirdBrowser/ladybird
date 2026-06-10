@@ -69,12 +69,12 @@ Web::Page const& ConnectionFromClient::page() const
     return m_page_host->page();
 }
 
-void ConnectionFromClient::start_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings, Web::Bindings::AgentType agent_type)
+void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings, Web::HTML::AgentType agent_type)
 {
     m_worker_host = make_ref_counted<WorkerHost>(move(url), type, move(name));
 
-    bool const is_shared = agent_type == Web::Bindings::AgentType::SharedWorker;
-    VERIFY(is_shared || agent_type == Web::Bindings::AgentType::DedicatedWorker);
+    bool const is_shared = agent_type == Web::HTML::AgentType::SharedWorker;
+    VERIFY(is_shared || agent_type == Web::HTML::AgentType::DedicatedWorker);
 
     // FIXME: Add an assertion that the agent_type passed here is the same that was passed at process creation to initialize_main_thread_vm()
 

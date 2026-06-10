@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/TransformStreamDefaultController.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamDefaultController.h>
@@ -15,7 +14,6 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(TransformStreamDefaultController);
 
 TransformStreamDefaultController::TransformStreamDefaultController()
-    : Bindings::Wrappable()
 {
 }
 

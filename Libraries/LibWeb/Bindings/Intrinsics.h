@@ -13,6 +13,8 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Export.h>
 
@@ -147,6 +149,30 @@ template<typename T>
 [[nodiscard]] JS::Object& ensure_web_prototype(JS::Realm& realm, FlyString const& class_name)
 {
     return host_defined_intrinsics(realm).ensure_web_prototype<T>(class_name);
+}
+
+// https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
+// Steps from "internally create a new object implementing the interface"
+template<typename PrototypeType>
+JS::ThrowCompletionOr<void> set_prototype_from_new_target(JS::VM& vm, JS::FunctionObject& new_target, FlyString const& interface_name, JS::Object& object)
+{
+    // 3.2. Let prototype be ? Get(newTarget, "prototype").
+    auto prototype = TRY(new_target.get(vm.names.prototype));
+
+    // 3.3. If Type(prototype) is not Object, then:
+    if (!prototype.is_object()) {
+        // 1. Let targetRealm be ? GetFunctionRealm(newTarget).
+        auto* target_realm = TRY(JS::get_function_realm(vm, new_target));
+
+        // 2. Set prototype to the interface prototype object for interface in targetRealm.
+        VERIFY(target_realm);
+        prototype = &ensure_web_prototype<PrototypeType>(*target_realm, interface_name);
+    }
+
+    // 9. Set instance.[[Prototype]] to prototype.
+    VERIFY(prototype.is_object());
+    TRY(object.internal_set_prototype_of(&prototype.as_object()));
+    return {};
 }
 
 template<typename T>

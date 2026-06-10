@@ -8,6 +8,9 @@
 #include <AK/JsonObject.h>
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -49,7 +52,8 @@ WebUIConnection::WebUIConnection(NonnullOwnPtr<IPC::Transport> transport, Web::D
     , m_document(document)
 {
     auto& realm = m_document->relevant_settings_object().realm();
-    realm.global_object().define_direct_property(ladybird_property(), Web::Internals::WebUI::create(realm), JS::default_attributes);
+    auto& window = Web::HTML::relevant_window(realm.global_object());
+    realm.global_object().define_direct_property(ladybird_property(), Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, Web::Internals::WebUI::create(window)), JS::default_attributes);
 
     Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, m_document, GC::create_function(GC::Heap::the(), [&document = *m_document]() {
         document.dispatch_event(Web::DOM::Event::create(Web::HTML::relevant_global_object(document), web_ui_loaded_event()));
@@ -87,7 +91,7 @@ void WebUIConnection::send_message(String name, JsonValue data)
         return;
     }
 
-    Web::Bindings::CustomEventInit event_init {};
+    Web::DOM::CustomEventInit event_init {};
     event_init.detail = serialized_detail.value();
 
     m_document->dispatch_event(Web::DOM::CustomEvent::create(realm.global_object(), web_ui_message_event(), event_init));

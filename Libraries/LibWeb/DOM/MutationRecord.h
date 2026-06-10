@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/MutationRecord.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::DOM {

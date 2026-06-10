@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/SVGLength.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
@@ -41,7 +40,7 @@ public:
     virtual ~SVGLength() override;
 
     float value() const { return m_value; }
-    WebIDL::ExceptionOr<void> set_value(JS::Realm&, float value);
+    WebIDL::ExceptionOr<void> set_value(float value);
     void set_value_without_readonly_check(float value);
 
     u8 unit_type() const { return m_unit_type; }

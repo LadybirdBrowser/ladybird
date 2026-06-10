@@ -8,13 +8,11 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibJS/Forward.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/TextDecoder.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Encoding/TextDecoderCommon.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Encoding {
@@ -27,11 +25,13 @@ class TextDecoder
     GC_DECLARE_ALLOCATOR(TextDecoder);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextDecoder>> construct_impl(FlyString encoding, Optional<Bindings::TextDecoderOptions> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoder>> create(String const& label, TextDecoderOptions const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoder>> create(FlyString encoding, TextDecoderOptions const& options = {});
 
     virtual ~TextDecoder() override;
 
-    WebIDL::ExceptionOr<String> decode(JS::Realm&, Optional<WebIDL::BufferSourceVariant> const&, Optional<Bindings::TextDecodeOptions> const& options = {}) const;
+    WebIDL::ExceptionOr<String> decode(Optional<WebIDL::BufferSourceVariant> const& input, Optional<TextDecodeOptions> const&) const;
+    WebIDL::ExceptionOr<String> decode(Optional<ReadonlyBytes>) const;
 
 private:
     TextDecoder(TextCodec::Decoder&, FlyString encoding, ErrorMode error_mode, bool ignore_bom);

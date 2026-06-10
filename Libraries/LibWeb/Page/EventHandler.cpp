@@ -13,7 +13,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
-#include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
@@ -650,7 +649,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
             if (viewport_wheel_delta_x != 0 || viewport_wheel_delta_y != 0) {
                 auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
-                m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(viewport_wheel_delta_x), CSSPixels::nearest_value_for(viewport_wheel_delta_y) });
+                m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(viewport_wheel_delta_x), CSSPixels::nearest_value_for(viewport_wheel_delta_y) }, nullptr);
                 auto viewport_scroll_position_after = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
                 return viewport_scroll_position_before != viewport_scroll_position_after ? EventResult::Handled : EventResult::Accepted;
             }
@@ -1096,9 +1095,9 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             if (key == UIEvents::KeyCode::Key_Up)
                 document->scroll_to_the_beginning_of_the_document();
             else
-                document->window()->scroll_by(0, INT64_MAX);
+                document->window()->scroll_by(0, INT64_MAX, nullptr);
         } else {
-            document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
+            document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance, nullptr);
         }
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
@@ -1112,19 +1111,19 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (modifiers)
             document->page().traverse_the_history_by_delta(key == UIEvents::KeyCode::Key_Left ? -1 : 1);
         else
-            document->window()->scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+            document->window()->scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0, nullptr);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_PageUp:
     case UIEvents::KeyCode::Key_PageDown:
         if (modifiers != UIEvents::KeyModifier::Mod_None)
             break;
-        document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
+        document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance, nullptr);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Home:
         document->scroll_to_the_beginning_of_the_document();
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_End:
-        document->window()->scroll_by(0, INT64_MAX);
+        document->window()->scroll_by(0, INT64_MAX, nullptr);
         return EventResult::Handled;
     default:
         break;
@@ -1362,7 +1361,7 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
-    Bindings::InputEventInit input_event_init;
+    UIEvents::InputEventInit input_event_init;
 
     code_point_or_string.visit(
         [&](u32 code_point) {

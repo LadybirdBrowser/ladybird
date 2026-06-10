@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/FileSystemEntry.h>
+#include <AK/ByteString.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::EntriesAPI {

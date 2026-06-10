@@ -17,8 +17,7 @@ GC::Ref<SVGAnimatedRect> SVGAnimatedRect::create()
 }
 
 SVGAnimatedRect::SVGAnimatedRect()
-    : Bindings::Wrappable()
-    , m_base_val(Geometry::DOMRect::create({ 0, 0, 0, 0 }))
+    : m_base_val(Geometry::DOMRect::create({ 0, 0, 0, 0 }))
     , m_anim_val(Geometry::DOMRect::create({ 0, 0, 0, 0 }))
 {
 }

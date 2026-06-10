@@ -11,7 +11,6 @@ namespace Web::MediaSourceExtensions {
 GC_DEFINE_ALLOCATOR(MediaSourceHandle);
 
 MediaSourceHandle::MediaSourceHandle()
-    : Bindings::Wrappable()
 {
 }
 

@@ -14,22 +14,21 @@
 
 namespace Web::HTML {
 
-class Window;
+using PageTransitionEventInit = Bindings::PageTransitionEventInit;
 
 class PageTransitionEvent final : public DOM::Event {
     WEB_WRAPPABLE(PageTransitionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(PageTransitionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<PageTransitionEvent> create(FlyString const& event_name, Bindings::PageTransitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<PageTransitionEvent>> construct_impl(Window&, FlyString const& event_name, Bindings::PageTransitionEventInit const&);
+    [[nodiscard]] static GC::Ref<PageTransitionEvent> create(FlyString const& event_name, PageTransitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~PageTransitionEvent() override;
 
     bool persisted() const { return m_persisted; }
 
 private:
-    PageTransitionEvent(FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    PageTransitionEvent(FlyString const& event_name, PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     bool m_persisted { false };
 };

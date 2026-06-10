@@ -226,7 +226,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         //  - registration’s update via cache mode is not "all".
         //  - job’s force bypass cache flag is set.
         //  - newestWorker is not null and registration is stale.
-        if (registration.update_via_cache() != Bindings::ServiceWorkerUpdateViaCache::All
+        if (registration.update_via_cache() != ServiceWorkerUpdateViaCache::All
             || job->force_cache_bypass
             || (newest_worker != nullptr && registration.is_stale())) {
             request->set_cache_mode(HTTP::CacheMode::NoCache);
@@ -256,7 +256,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         //        Is this actually what the spec wants us to do?
         IGNORE_USE_IN_ESCAPING_LAMBDA auto process_response_completion_result = Optional<WebIDL::ExceptionOr<void>> {};
 
-        fetch_algorithms_input.process_response = [request, job, state, newest_worker, &realm, &registration, &process_response_completion_result](GC::Ref<Fetch::Infrastructure::Response> response) mutable -> void {
+        fetch_algorithms_input.process_response = [request, job, state, newest_worker, &registration, &process_response_completion_result](GC::Ref<Fetch::Infrastructure::Response> response) mutable -> void {
             // 7. Extract a MIME type from the response’s header list. If s MIME type (ignoring parameters) is not a JavaScript MIME type, then:
             auto mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
             if (!mime_type.has_value() || !mime_type->is_javascript()) {
@@ -264,7 +264,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script response is not a JavaScript MIME type"_utf16);
 
                 // 2. Asynchronously complete these steps with a network error.
-                process_response_completion_result = WebIDL::NetworkError::create(realm, "Service Worker script response is not a JavaScript MIME type"_utf16);
+                process_response_completion_result = WebIDL::NetworkError::create("Service Worker script response is not a JavaScript MIME type"_utf16);
                 return;
             }
 
@@ -280,7 +280,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 // FIXME: Should we reject the job promise with a security error here?
 
                 // 1. Asynchronously complete these steps with a network error.
-                process_response_completion_result = WebIDL::NetworkError::create(realm, "Failed to extract Service-Worker-Allowed header from fetch response"_utf16);
+                process_response_completion_result = WebIDL::NetworkError::create("Failed to extract Service-Worker-Allowed header from fetch response"_utf16);
                 return;
             }
 
@@ -326,7 +326,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script scope does not match Service-Worker-Allowed header"_utf16);
 
                 // 2. Asynchronously complete these steps with a network error.
-                process_response_completion_result = WebIDL::NetworkError::create(realm, "Service Worker script scope does not match Service-Worker-Allowed header"_utf16);
+                process_response_completion_result = WebIDL::NetworkError::create("Service Worker script scope does not match Service-Worker-Allowed header"_utf16);
                 return;
             }
 
@@ -384,11 +384,11 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
         // FIXME: This feels.. uncomfortable but it should work to block the current task until the fetch has progressed past our processResponse hook or aborted
         auto& event_loop = job->client ? job->client->responsible_event_loop() : HTML::main_thread_event_loop();
-        event_loop.spin_until(GC::create_function(GC::Heap::the(), [fetch_controller, &realm, &process_response_completion_result]() -> bool {
+        event_loop.spin_until(GC::create_function(GC::Heap::the(), [fetch_controller, &process_response_completion_result]() -> bool {
             if (process_response_completion_result.has_value())
                 return true;
             if (fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated || fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted) {
-                process_response_completion_result = WebIDL::AbortError::create(realm, "Service Worker fetch was terminated or aborted"_utf16);
+                process_response_completion_result = WebIDL::AbortError::create("Service Worker fetch was terminated or aborted"_utf16);
                 return true;
             }
             return false;
@@ -448,13 +448,13 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
     // 7. Switching on job’s worker type, run these substeps with the following options:
     switch (job->worker_type) {
-    case Bindings::WorkerType::Classic:
+    case WorkerType::Classic:
         // 1. Fetch a classic worker script given job’s serialized script url, job’s client, "serviceworker", and the to-be-created environment settings object for this service worker.
         // FIXME: Credentials mode
         // FIXME: Use a 'stub' service worker ESO as the fetch "environment"
         (void)HTML::fetch_classic_worker_script(job->script_url, *job->client, Fetch::Infrastructure::Request::Destination::ServiceWorker, *job->client, perform_the_fetch_hook, on_fetch_complete);
         break;
-    case Bindings::WorkerType::Module:
+    case WorkerType::Module:
         // 2. Fetch a module worker script graph given job’s serialized script url, job’s client, "serviceworker", "omit", and the to-be-created environment settings object for this service worker.
         // FIXME: Credentials mode
         // FIXME: Use a 'stub' service worker ESO as the fetch "environment"

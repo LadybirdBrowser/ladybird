@@ -16,7 +16,7 @@ class XMLSerializer final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(XMLSerializer);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<XMLSerializer>> construct_impl();
+    static GC::Ref<XMLSerializer> create();
 
     virtual ~XMLSerializer() override;
 

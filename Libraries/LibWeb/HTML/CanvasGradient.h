@@ -8,9 +8,8 @@
 #pragma once
 
 #include <LibGfx/PaintStyle.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/CanvasGradient.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
@@ -19,11 +18,11 @@ class CanvasGradient final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CanvasGradient);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_radial(JS::Realm&, double x0, double y0, double r0, double x1, double y1, double r1);
-    static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_linear(JS::Realm&, double x0, double y0, double x1, double y1);
-    static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_conic(JS::Realm&, double start_angle, double x, double y);
+    static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_radial(double x0, double y0, double r0, double x1, double y1, double r1);
+    static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_linear(double x0, double y0, double x1, double y1);
+    static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_conic(double start_angle, double x, double y);
 
-    WebIDL::ExceptionOr<void> add_color_stop(JS::Realm&, double offset, StringView color);
+    WebIDL::ExceptionOr<void> add_color_stop(double offset, StringView color);
 
     ~CanvasGradient();
 

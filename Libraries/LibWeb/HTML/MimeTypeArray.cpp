@@ -21,8 +21,7 @@ GC::Ref<MimeTypeArray> MimeTypeArray::create(Window& window)
 }
 
 MimeTypeArray::MimeTypeArray(Window& window)
-    : Bindings::Wrappable()
-    , m_window(window)
+    : m_window(window)
 {
 }
 
@@ -84,22 +83,6 @@ GC::Ptr<MimeType> MimeTypeArray::named_item(FlyString const& name) const
 
     // 2. Return null.
     return nullptr;
-}
-
-Optional<JS::Value> MimeTypeArray::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
-{
-    auto return_value = item(index);
-    if (!return_value)
-        return {};
-    return Bindings::wrap(wrapper_world, realm, return_value).ptr();
-}
-
-JS::Value MimeTypeArray::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
-{
-    auto return_value = named_item(name);
-    if (!return_value)
-        return JS::js_null();
-    return Bindings::wrap(wrapper_world, realm, return_value).ptr();
 }
 
 }

@@ -8,32 +8,28 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibJS/Forward.h>
+#include <AK/String.h>
+#include <LibWeb/Bindings/WebGLContextEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
-namespace Web::HTML {
-
-class WindowOrWorkerGlobalScopeMixin;
-
-}
-
 namespace Web::WebGL {
+
+using WebGLContextEventInit = Bindings::WebGLContextEventInit;
 
 class WebGLContextEvent final : public DOM::Event {
     WEB_WRAPPABLE(WebGLContextEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(WebGLContextEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<WebGLContextEvent> create(FlyString const& type, Bindings::WebGLContextEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<WebGLContextEvent>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString const& type, Bindings::WebGLContextEventInit const&);
+    [[nodiscard]] static GC::Ref<WebGLContextEvent> create(FlyString const& type, WebGLContextEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~WebGLContextEvent() override;
 
     String const& status_message() const { return m_status_message; }
 
 private:
-    WebGLContextEvent(FlyString const& type, Bindings::WebGLContextEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    WebGLContextEvent(FlyString const& type, WebGLContextEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     String m_status_message;
 };

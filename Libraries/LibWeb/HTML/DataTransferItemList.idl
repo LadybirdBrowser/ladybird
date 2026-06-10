@@ -3,8 +3,8 @@
 interface DataTransferItemList {
     readonly attribute unsigned long length;
     getter DataTransferItem (unsigned long index);
-    [NeedsCallerRealm] DataTransferItem? add(DOMString data, DOMString type);
+    DataTransferItem? add(DOMString data, DOMString type);
     DataTransferItem? add(File data);
-    [NeedsThisObjectRealm] undefined remove(unsigned long index);
+    undefined remove(unsigned long index);
     undefined clear();
 };

@@ -7,8 +7,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseCapability.h>
-#include <LibWeb/Bindings/WritableStreamDefaultWriter.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
@@ -18,9 +16,8 @@ namespace Web::Streams {
 
 GC_DEFINE_ALLOCATOR(WritableStreamDefaultWriter);
 
-WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStreamDefaultWriter::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, GC::Ref<WritableStream> stream)
+WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStreamDefaultWriter::create(JS::Realm& realm, GC::Ref<WritableStream> stream)
 {
-    auto& realm = HTML::relevant_realm(global_scope);
     auto writer = GC::Heap::the().allocate<WritableStreamDefaultWriter>();
 
     // 1. Perform ? SetUpWritableStreamDefaultWriter(this, stream).

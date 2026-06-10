@@ -6,8 +6,12 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PerformanceObserverEntryList.h>
+#include <AK/String.h>
+#include <AK/Vector.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::PerformanceTimeline {
 
@@ -21,9 +25,9 @@ public:
 
     virtual ~PerformanceObserverEntryList() override;
 
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries(JS::Realm&) const;
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(JS::Realm&, String const& type) const;
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(JS::Realm&, String const& name, Optional<String> type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries() const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(String const& type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(String const& name, Optional<String> type) const;
 
 private:
     explicit PerformanceObserverEntryList(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&&);

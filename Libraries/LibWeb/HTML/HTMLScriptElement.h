@@ -49,7 +49,7 @@ public:
     virtual void post_connection() override;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#dom-script-supports
-    static bool supports(JS::VM&, StringView type)
+    static bool supports(StringView type)
     {
         return type.is_one_of("classic"sv, "module"sv, "importmap"sv);
     }

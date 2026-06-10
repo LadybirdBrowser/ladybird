@@ -9,7 +9,6 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/XPathResult.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 

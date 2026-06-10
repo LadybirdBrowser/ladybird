@@ -9,14 +9,13 @@
 #include <AK/TypeCasts.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Event.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
@@ -25,7 +24,7 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(Event);
 
 // https://dom.spec.whatwg.org/#concept-event-create
-GC::Ref<Event> Event::create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::EventInit const& event_init)
+GC::Ref<Event> Event::create(JS::Object const& relevant_global_object, FlyString const& event_name, EventInit const& event_init)
 {
     return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
 }
@@ -39,8 +38,16 @@ GC::Ref<Event> Event::create(FlyString const& event_name, HighResolutionTime::DO
     return event;
 }
 
+GC::Ref<Event> Event::create_bubbling_composed(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    auto event = create(event_name, time_stamp);
+    event->set_bubbles(true);
+    event->set_composed(true);
+    return event;
+}
+
 // https://dom.spec.whatwg.org/#concept-event-create
-GC::Ref<Event> Event::create(FlyString const& event_name, Bindings::EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<Event> Event::create(FlyString const& event_name, EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     auto event = GC::Heap::the().allocate<Event>(event_name, event_init, time_stamp);
     // 4. Initialize event’s isTrusted attribute to true.
@@ -48,24 +55,27 @@ GC::Ref<Event> Event::create(FlyString const& event_name, Bindings::EventInit co
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<Event>> Event::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope, FlyString const& event_name, Bindings::EventInit const& event_init)
+GC::Ref<Event> Event::create_for_constructor(FlyString const& event_name, EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return GC::Heap::the().allocate<Event>(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(relevant_global_scope)));
+    return GC::Heap::the().allocate<Event>(event_name, event_init, time_stamp);
+}
+
+GC::Ref<Event> Event::create_for_constructor(FlyString const& event_name, Bindings::EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<Event>(event_name, event_init, time_stamp);
 }
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
 Event::Event(FlyString const& type, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : Bindings::Wrappable()
-    , m_type(type)
+    : m_type(type)
     , m_initialized(true)
     , m_time_stamp(time_stamp)
 {
 }
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
-Event::Event(FlyString const& type, Bindings::EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
-    : Bindings::Wrappable()
-    , m_type(type)
+Event::Event(FlyString const& type, EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : m_type(type)
     , m_bubbles(event_init.bubbles)
     , m_cancelable(event_init.cancelable)
     , m_composed(event_init.composed)
@@ -106,7 +116,7 @@ void Event::append_to_path(EventTarget& invocation_target, GC::Ptr<EventTarget> 
         if (is<ShadowRoot>(invocation_target_node)) {
             auto& invocation_target_shadow_root = as<ShadowRoot>(invocation_target_node);
             // 4. If invocationTarget is a shadow root whose mode is "closed", then set root-of-closed-tree to true.
-            root_of_closed_tree = invocation_target_shadow_root.mode() == Bindings::ShadowRootMode::Closed;
+            root_of_closed_tree = invocation_target_shadow_root.mode() == Web::DOM::ShadowRootMode::Closed;
         }
     }
 
@@ -277,16 +287,38 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
     return composed_path;
 }
 
-GC::Ptr<Bindings::PlatformObject> Event::current_target_wrapper_for_bindings(JS::Realm& realm) const
-{
-    if (auto* window = as_if<HTML::Window>(m_current_target.ptr()))
-        return window->window();
-    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, m_current_target);
 }
 
-JS::Value Event::current_target_value_for_bindings(JS::Realm& realm) const
+namespace Web::Bindings {
+
+DOM::Event* event_from_value(JS::Value value)
 {
-    if (auto current_target = current_target_wrapper_for_bindings(realm))
+    if (!value.is_object())
+        return nullptr;
+    return Bindings::impl_from<DOM::Event>(&value.as_object());
+}
+
+DOM::Event* event_from_callback_argument(JS::VM& vm)
+{
+    return event_from_value(vm.argument(0));
+}
+
+JS::Value event(JS::Realm& realm, GC::Ref<DOM::Event> event)
+{
+    return wrap(host_defined_wrapper_world(realm), realm, event);
+}
+
+GC::Ptr<PlatformObject> current_target_wrapper(JS::Realm& realm, DOM::Event const& event)
+{
+    auto current_target = event.current_target();
+    if (auto* window = as_if<HTML::Window>(current_target.ptr()))
+        return window->window();
+    return wrap(host_defined_wrapper_world(realm), realm, current_target);
+}
+
+JS::Value current_target_value(JS::Realm& realm, DOM::Event const& event)
+{
+    if (auto current_target = current_target_wrapper(realm, event))
         return current_target;
     return JS::js_null();
 }

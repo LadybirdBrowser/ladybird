@@ -20,14 +20,16 @@ class Window;
 
 namespace Web::Animations {
 
+using AnimationPlaybackEventInit = Bindings::AnimationPlaybackEventInit;
+
 // https://www.w3.org/TR/web-animations-1/#animationplaybackevent
 class AnimationPlaybackEvent : public DOM::Event {
     WEB_WRAPPABLE(AnimationPlaybackEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(AnimationPlaybackEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(FlyString const& type, Bindings::AnimationPlaybackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> construct_impl(HTML::Window&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(FlyString const& type, AnimationPlaybackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(FlyString const& type, NullableCSSNumberish current_time, NullableCSSNumberish timeline_time, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~AnimationPlaybackEvent() override = default;
 
@@ -35,7 +37,7 @@ public:
     NullableCSSNumberish timeline_time() const;
 
 private:
-    AnimationPlaybackEvent(FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    AnimationPlaybackEvent(FlyString const& type, AnimationPlaybackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(Visitor&) override;
 

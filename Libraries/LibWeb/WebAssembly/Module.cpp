@@ -10,7 +10,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/Module.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -20,9 +19,8 @@ namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Module);
 
-WebIDL::ExceptionOr<GC::Ref<Module>> Module::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, WebIDL::BufferSource bytes)
+WebIDL::ExceptionOr<GC::Ref<Module>> Module::create(JS::Realm& realm, WebIDL::BufferSource bytes)
 {
-    auto& realm = HTML::relevant_realm(global_scope);
     auto& vm = realm.vm();
 
     auto stable_bytes_or_error = WebIDL::get_buffer_source_copy(bytes);
@@ -37,7 +35,7 @@ WebIDL::ExceptionOr<GC::Ref<Module>> Module::construct_impl(HTML::WindowOrWorker
 }
 
 // https://webassembly.github.io/threads/js-api/index.html#dom-module-imports
-WebIDL::ExceptionOr<Vector<Bindings::ModuleImportDescriptor>> Module::imports(JS::VM&, GC::Ref<Module> module_object)
+WebIDL::ExceptionOr<Vector<Bindings::ModuleImportDescriptor>> Module::imports(GC::Ref<Module> module_object)
 {
     // 1. Let module be moduleObject.[[Module]].
     // 2. Let imports be « ».
@@ -76,7 +74,7 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleImportDescriptor>> Module::imports(JS
 }
 
 // https://webassembly.github.io/threads/js-api/index.html#dom-module-exports
-WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> Module::exports(JS::VM&, GC::Ref<Module> module_object)
+WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> Module::exports(GC::Ref<Module> module_object)
 {
     // 1. Let module be moduleObject.[[Module]].
     // 2. Let exports be « ».
@@ -110,6 +108,20 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> Module::exports(JS
     return export_objects;
 }
 
+WebIDL::ExceptionOr<Vector<ByteBuffer>> Module::custom_sections(GC::Ref<Module> module_object, String section_name)
+{
+    Vector<ByteBuffer> matching_sections;
+
+    auto& custom_sections = module_object->m_compiled_module->module->custom_sections();
+    for (auto& section : custom_sections) {
+        auto name = MUST(String::from_utf8(section.name().bytes()));
+        if (section_name == name)
+            matching_sections.append(MUST(ByteBuffer::copy(section.contents())));
+    }
+
+    return matching_sections;
+}
+
 // https://webassembly.github.io/threads/js-api/index.html#dom-module-customsections
 WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sections(JS::Realm& realm, GC::Ref<Module> module_object, String section_name)
 {
@@ -118,17 +130,12 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sec
     GC::RootVector<GC::Ref<JS::ArrayBuffer>> array_buffers;
 
     // 3. For each custom section customSection of bytes, interpreted according to the module grammar,
-    auto& custom_sections = module_object->m_compiled_module->module->custom_sections();
+    auto custom_sections = TRY(Module::custom_sections(module_object, move(section_name)));
     for (auto& section : custom_sections) {
-        // 3.1. Let name be the name of customSection, decoded as UTF-8.
-        // 3.2. Assert: name is not failure (moduleObject.[[Module]] is valid).
-        auto name = MUST(String::from_utf8(section.name().bytes()));
-        // 3.3. If name equals sectionName as string values,
-        if (section_name == name) {
-            // 3.3.1. Append a new ArrayBuffer containing a copy of the bytes in bytes for the range matched by this customsec production to customSections.
-            array_buffers.append(JS::ArrayBuffer::create(realm, section.contents()));
-        }
+        // 3.3.1. Append a new ArrayBuffer containing a copy of the bytes in bytes for the range matched by this customsec production to customSections.
+        array_buffers.append(JS::ArrayBuffer::create(realm, move(section)));
     }
+
     // 4. Return customSections.
     return array_buffers;
 }

@@ -8,16 +8,25 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/Optional.h>
 #include <AK/RefCounted.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Encoding/TextEncoderCommon.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace Web::Bindings {
+
+struct TextEncoderEncodeIntoResult;
+
+}
+
 namespace Web::Encoding {
+
+struct EncodeIntoResult {
+    WebIDL::UnsignedLongLong read { 0 };
+    WebIDL::UnsignedLongLong written { 0 };
+};
 
 // https://encoding.spec.whatwg.org/#textencoder
 class TextEncoder final
@@ -27,13 +36,14 @@ class TextEncoder final
     GC_DECLARE_ALLOCATOR(TextEncoder);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextEncoder>> construct_impl();
     [[nodiscard]] static GC::Ref<TextEncoder> create();
 
     virtual ~TextEncoder() override;
 
-    GC::Ref<JS::Uint8Array> encode(JS::Realm&, String const& input) const;
-    Bindings::TextEncoderEncodeIntoResult encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const;
+    ErrorOr<ByteBuffer> encode_to_byte_buffer(String const& input) const;
+    WebIDL::ExceptionOr<GC::Ref<JS::Uint8Array>> encode(JS::Realm&, String const& input) const;
+    EncodeIntoResult encode_into_result(String const& source, GC::Root<JS::Uint8Array> const& destination) const;
+    Bindings::TextEncoderEncodeIntoResult encode_into(JS::Realm&, String const& source, GC::Root<JS::Uint8Array> const& destination) const;
 
 protected:
     // https://encoding.spec.whatwg.org/#dom-textencoder

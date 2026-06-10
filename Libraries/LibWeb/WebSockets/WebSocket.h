@@ -36,7 +36,8 @@ public:
     static constexpr bool OVERRIDES_FINALIZE = true;
     static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = true;
 
-    static WebIDL::ExceptionOr<GC::Ref<WebSocket>> construct_impl(Web::HTML::WindowOrWorkerGlobalScopeMixin&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);
+    static WebIDL::ExceptionOr<GC::Ref<WebSocket>> create(Web::HTML::WindowOrWorkerGlobalScopeMixin&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);
+    static WebIDL::ExceptionOr<GC::Ref<WebSocket>> create_for_constructor(JS::Realm&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);
 
     virtual ~WebSocket() override;
 
@@ -52,14 +53,14 @@ public:
 
     Requests::WebSocket::ReadyState ready_state() const;
     String extensions() const;
-    WebIDL::ExceptionOr<String> protocol(JS::Realm&) const;
+    WebIDL::ExceptionOr<String> protocol() const;
 
     String const& binary_type() { return m_binary_type; }
     void set_binary_type(String const& type) { m_binary_type = type; }
 
-    WebIDL::ExceptionOr<void> close(JS::Realm&, Optional<u16> code, Optional<String> reason);
+    WebIDL::ExceptionOr<void> close(Optional<u16> code, Optional<String> reason);
     using SendData = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<FileAPI::Blob>, String>>;
-    WebIDL::ExceptionOr<void> send(JS::Realm&, SendData const& data);
+    WebIDL::ExceptionOr<void> send(SendData const& data);
 
     void make_disappear();
 

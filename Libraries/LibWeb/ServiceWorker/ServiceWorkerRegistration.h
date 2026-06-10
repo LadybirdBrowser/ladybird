@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/ServiceWorkerRegistration.h>
 #include <LibWeb/DOM/EventTarget.h>
 
 namespace Web::ServiceWorker {
@@ -33,7 +34,7 @@ public:
     String scope() const { return m_registration.scope_url().serialize(); }
 
     // https://w3c.github.io/ServiceWorker/#dom-serviceworkerregistration-updateviacache
-    Bindings::ServiceWorkerUpdateViaCache update_via_cache() const { return m_registration.update_via_cache(); }
+    ServiceWorkerUpdateViaCache update_via_cache() const { return m_registration.update_via_cache(); }
 
     explicit ServiceWorkerRegistration(Registration const&);
     virtual ~ServiceWorkerRegistration() override = default;

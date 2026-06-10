@@ -6,8 +6,9 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/DOMStringList.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
@@ -22,8 +23,6 @@ public:
     u32 length() const;
     Optional<String> item(u32 index) const;
     bool contains(StringView string);
-
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
 private:
     explicit DOMStringList(Vector<String>);

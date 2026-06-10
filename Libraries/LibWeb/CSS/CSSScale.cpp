@@ -6,7 +6,6 @@
 
 #include "CSSScale.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSScale.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -23,7 +22,7 @@ GC::Ref<CSSScale> CSSScale::create(Is2D is_2d, GC::Ref<CSSNumericValue> x, GC::R
     return GC::Heap::the().allocate<CSSScale>(is_2d, x, y, z);
 }
 
-WebIDL::ExceptionOr<GC::Ref<CSSScale>> CSSScale::construct_impl(CSSNumberish x, CSSNumberish y, Optional<CSSNumberish> z)
+WebIDL::ExceptionOr<GC::Ref<CSSScale>> CSSScale::create_for_constructor(CSSNumberish x, CSSNumberish y, Optional<CSSNumberish> z)
 {
     // The CSSScale(x, y, z) constructor must, when invoked, perform the following steps:
 
@@ -129,7 +128,7 @@ WebIDL::ExceptionOr<Utf16String> CSSScale::to_string() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix
-WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSScale::to_matrix(JS::Realm& realm) const
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSScale::to_matrix() const
 {
     // 1. Let matrix be a new DOMMatrix object, initialized to this’s equivalent 4x4 transform matrix, as defined in
     //    CSS Transforms 1 § 12. Mathematical Description of Transform Functions, and with its is2D internal slot set
@@ -144,13 +143,13 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSScale::to_matrix(JS::Realm&
     auto matrix = Geometry::DOMMatrix::create();
 
     // NB: to() throws a TypeError if the conversion can't be done.
-    auto x = TRY(m_x->to(realm, "number"_fly_string))->value();
-    auto y = TRY(m_y->to(realm, "number"_fly_string))->value();
+    auto x = TRY(m_x->to("number"_fly_string))->value();
+    auto y = TRY(m_y->to("number"_fly_string))->value();
 
     if (is_2d())
         return matrix->scale_self(x, y, {}, {}, {}, {});
 
-    auto z = TRY(m_z->to(realm, "number"_fly_string))->value();
+    auto z = TRY(m_z->to("number"_fly_string))->value();
     return matrix->scale_self(x, y, z, {}, {}, {});
 }
 

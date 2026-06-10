@@ -10,6 +10,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TagNames.h>
@@ -29,9 +30,8 @@ namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedTypePolicy);
 
-TrustedTypePolicy::TrustedTypePolicy(Utf16String const& name, Bindings::TrustedTypePolicyOptions const& options)
-    : Bindings::Wrappable()
-    , m_name(name)
+TrustedTypePolicy::TrustedTypePolicy(Utf16String const& name, TrustedTypePolicyOptions const& options)
+    : m_name(name)
     , m_create_html(options.create_html)
     , m_create_script(options.create_script)
     , m_create_script_url(options.create_script_url)
@@ -59,6 +59,67 @@ Utf16String to_string(TrustedTypeName trusted_type_name)
         VERIFY_NOT_REACHED();
     }
 }
+
+TrustedHTML* trusted_html_from_value(JS::Value value)
+{
+    if (!value.is_object())
+        return nullptr;
+    return Bindings::impl_from<TrustedHTML>(&value.as_object());
+}
+
+TrustedScript* trusted_script_from_value(JS::Value value)
+{
+    if (!value.is_object())
+        return nullptr;
+    return Bindings::impl_from<TrustedScript>(&value.as_object());
+}
+
+TrustedScriptURL* trusted_script_url_from_value(JS::Value value)
+{
+    if (!value.is_object())
+        return nullptr;
+    return Bindings::impl_from<TrustedScriptURL>(&value.as_object());
+}
+
+bool is_trusted_html_value(JS::Value value)
+{
+    return trusted_html_from_value(value);
+}
+
+bool is_trusted_script_value(JS::Value value)
+{
+    return trusted_script_from_value(value);
+}
+
+bool is_trusted_script_url_value(JS::Value value)
+{
+    return trusted_script_url_from_value(value);
+}
+
+bool trusted_script_value_matches(JS::Value value, StringView expected)
+{
+    auto* trusted_script = trusted_script_from_value(value);
+    return trusted_script && trusted_script->to_string() == expected;
+}
+
+bool trusted_script_values_match(ReadonlySpan<JS::Value> values, ReadonlySpan<String> expected)
+{
+    if (values.size() != expected.size())
+        return false;
+
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (!trusted_script_value_matches(values[i], expected[i]))
+            return false;
+    }
+
+    return true;
+}
+
+JS::Completion invoke_trusted_type_policy_callback(WebIDL::CallbackType& callback, GC::RootVector<JS::Value> const& arguments)
+{
+    return WebIDL::invoke_callback(callback, {}, WebIDL::ExceptionBehavior::Rethrow, arguments);
+}
+
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createhtml
 WebIDL::ExceptionOr<GC::Ref<TrustedHTML>> TrustedTypePolicy::create_html(JS::Realm& realm, Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
 {
@@ -188,7 +249,7 @@ WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(
     args.extend(values);
 
     // 6. Let policyValue be the result of invoking function with args and "rethrow".
-    auto const policy_value = TRY(WebIDL::invoke_callback(*function, {}, WebIDL::ExceptionBehavior::Rethrow, args));
+    auto const policy_value = TRY(invoke_trusted_type_policy_callback(*function, args));
 
     // 7. Return policyValue.
     return policy_value;

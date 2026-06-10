@@ -6,32 +6,30 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
+#include <AK/Vector.h>
+#include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
-namespace Web::HTML {
-
-class WindowOrWorkerGlobalScopeMixin;
-
-}
-
 namespace Web::CSS {
+
+class FontFace;
+
+using FontFaceSetLoadEventInit = Bindings::FontFaceSetLoadEventInit;
 
 class FontFaceSetLoadEvent : public DOM::Event {
     WEB_WRAPPABLE(FontFaceSetLoadEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(FontFaceSetLoadEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<FontFaceSetLoadEvent> create(FlyString const& type, Bindings::FontFaceSetLoadEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString const& type, Bindings::FontFaceSetLoadEventInit const&);
+    [[nodiscard]] static GC::Ref<FontFaceSetLoadEvent> create(FlyString const& type, FontFaceSetLoadEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~FontFaceSetLoadEvent() override = default;
 
     Vector<GC::Ref<FontFace>> const& fontfaces() const { return m_fontfaces; }
 
 private:
-    FontFaceSetLoadEvent(FlyString const& type, Bindings::FontFaceSetLoadEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    FontFaceSetLoadEvent(FlyString const& type, FontFaceSetLoadEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(Visitor&) override;
 

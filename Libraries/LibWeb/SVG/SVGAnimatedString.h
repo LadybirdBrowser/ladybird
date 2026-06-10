@@ -7,7 +7,8 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/SVGAnimatedString.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/QualifiedName.h>
 #include <LibWeb/Export.h>

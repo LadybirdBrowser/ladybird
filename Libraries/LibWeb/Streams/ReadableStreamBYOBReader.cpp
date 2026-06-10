@@ -8,8 +8,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/ReadableStreamBYOBReader.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamBYOBReader.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
@@ -25,9 +23,8 @@ ReadableStreamBYOBReader::ReadableStreamBYOBReader()
 }
 
 // https://streams.spec.whatwg.org/#byob-reader-constructor
-WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> ReadableStreamBYOBReader::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, GC::Ref<ReadableStream> stream)
+WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> ReadableStreamBYOBReader::create(JS::Realm& realm, GC::Ref<ReadableStream> stream)
 {
-    auto& realm = HTML::relevant_realm(global_scope);
     auto reader = GC::Heap::the().allocate<ReadableStreamBYOBReader>();
 
     // 1. Perform ? SetUpReadableStreamBYOBReader(this, stream).
@@ -104,7 +101,7 @@ private:
 GC_DEFINE_ALLOCATOR(BYOBReaderReadIntoRequest);
 
 // https://streams.spec.whatwg.org/#byob-reader-read
-GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(WebIDL::ArrayBufferView view, Bindings::ReadableStreamBYOBReaderReadOptions options)
+GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(WebIDL::ArrayBufferView view, ReadableStreamBYOBReaderReadOptions options)
 {
     auto& realm = closed_promise_realm();
 

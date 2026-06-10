@@ -7,7 +7,6 @@
 #include <AK/Debug.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -217,7 +216,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
             clean_up_after_running_script(settings);
 
             // 2. Throw a "NetworkError" DOMException.
-            return throw_completion(realm, WebIDL::NetworkError::create(realm, "Script error."_utf16));
+            return throw_completion(realm, WebIDL::NetworkError::create("Script error."_utf16));
         }
 
         // 3. Otherwise, rethrow errors is false. Perform the following steps:

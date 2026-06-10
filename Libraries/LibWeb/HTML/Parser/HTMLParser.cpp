@@ -12,8 +12,6 @@
 #include <AK/FFIHelpers.h>
 #include <LibGC/Heap.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -32,6 +30,7 @@
 #include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
+#include <LibWeb/HTML/CustomElements/CustomElementReactions.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -738,7 +737,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         auto queue = relevant_similar_origin_window_agent(document).custom_element_reactions_stack.element_queue_stack.take_last();
 
         // 2. Invoke custom element reactions in queue.
-        Bindings::invoke_custom_element_reactions(queue);
+        invoke_custom_element_reactions(queue);
 
         // 3. Decrement document's throw-on-dynamic-markup-insertion counter.
         document->decrement_throw_on_dynamic_markup_insertion_counter({});
@@ -1038,7 +1037,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     Vector<GC::Root<DOM::Node>> children;
     while (GC::Ptr<DOM::Node> child = root->first_child()) {
         MUST(root->remove_child(*child));
-        context_element.document().adopt_node(*child);
+        context_element.document().adopt_node_steps(*child);
         children.append(GC::make_root(*child));
     }
     return children;
@@ -1263,7 +1262,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                 builder.append("<template shadowrootmode=\""sv);
 
                 // 2. If shadow's mode is "open", then append "open". Otherwise, append "closed".
-                builder.append(shadow->mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv);
+                builder.append(shadow->mode() == Web::DOM::ShadowRootMode::Open ? "open"sv : "closed"sv);
 
                 // 3. Append """.
                 builder.append('"');
@@ -1277,7 +1276,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
                     builder.append(" shadowrootserializable=\"\""sv);
 
                 // 6. If shadow's slot assignment is "manual", then append " shadowrootslotassignment="manual"".
-                if (shadow->slot_assignment() == Bindings::SlotAssignmentMode::Manual)
+                if (shadow->slot_assignment() == Web::DOM::SlotAssignmentMode::Manual)
                     builder.append(" shadowrootslotassignment=\"manual\""sv);
 
                 // 7. If shadow's clonable is set, then append " shadowrootclonable=""".
@@ -2040,7 +2039,7 @@ extern "C" void ladybird_html_parser_insert_node(size_t parent, size_t before, s
 
     if (queue_custom_element_reactions && child_element) {
         auto queue = relevant_similar_origin_window_agent(*child_element).custom_element_reactions_stack.element_queue_stack.take_last();
-        Bindings::invoke_custom_element_reactions(queue);
+        invoke_custom_element_reactions(queue);
     }
 }
 
@@ -2069,11 +2068,11 @@ extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t hos
         registry = host_element.document().custom_element_registry();
 
     auto result = host_element.attach_a_shadow_root(
-        mode == RustFfiHtmlShadowRootMode::Open ? Bindings::ShadowRootMode::Open : Bindings::ShadowRootMode::Closed,
+        mode == RustFfiHtmlShadowRootMode::Open ? Web::DOM::ShadowRootMode::Open : Web::DOM::ShadowRootMode::Closed,
         clonable,
         serializable,
         delegates_focus,
-        slot_assignment == RustFfiHtmlSlotAssignmentMode::Manual ? Bindings::SlotAssignmentMode::Manual : Bindings::SlotAssignmentMode::Named,
+        slot_assignment == RustFfiHtmlSlotAssignmentMode::Manual ? Web::DOM::SlotAssignmentMode::Manual : Web::DOM::SlotAssignmentMode::Named,
         registry);
     if (result.is_error())
         return 0;

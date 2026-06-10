@@ -24,27 +24,21 @@
 
 namespace Web::Bindings {
 
-enum class NamedPropertyDeletionResult : u8 {
-    // If the named property deleter has an identifier, but does not return a boolean.
-    // This is done because we don't know the return type of the deleter outside of the IDL generator.
-    NotRelevant,
-    DidNotFail,
-    DidFail,
-};
-
 // The realm passed to these helpers is the preferred realm for wrapper allocation.
 // Wrapper identity is keyed by the caller's WrapperWorld.
 WEB_API GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
+WEB_API GC::Ref<PlatformObject> create_wrapper_for_wrappable(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
+WEB_API JS::Realm& wrapper_realm_for_wrappable(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
+WEB_API JS::Realm& wrapper_realm_for_node(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, DOM::Node&);
 WEB_API GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
+WEB_API JS::Realm& this_value_realm(JS::Realm& fallback_realm, JS::Value);
+WEB_API JS::ThrowCompletionOr<void> set_prototype_of_cached_main_world_wrapper(Wrappable&, JS::Object&);
 
 #ifndef WEB_WRAPPABLE
 #    define WEB_WRAPPABLE(class_, base_class)                           \
         GC_CELL(class_, base_class)                                     \
-    protected:                                                          \
-        virtual GC::Ref<Bindings::PlatformObject> create_wrapper(       \
-            JS::Realm& wrapper_realm) override;                         \
-                                                                        \
     public:                                                             \
+        using Base::initialize;                                         \
         virtual Bindings::InterfaceName interface_name() const override \
         {                                                               \
             return Bindings::InterfaceName::class_;                     \
@@ -55,11 +49,16 @@ WEB_API GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& pre
             if (interface == #class_)                                   \
                 return true;                                            \
             return Base::implements_interface(interface);               \
-        }
+        }                                                               \
+                                                                        \
+    public:
 #endif
 
 #ifndef WEB_NON_IDL_WRAPPABLE
-#    define WEB_NON_IDL_WRAPPABLE(class_, base_class) GC_CELL(class_, base_class)
+#    define WEB_NON_IDL_WRAPPABLE(class_, base_class) \
+        GC_CELL(class_, base_class)                   \
+    public:                                           \
+        using Base::initialize;
 #endif
 
 // Base class for internal implementation objects that can be reflected into JS
@@ -79,40 +78,31 @@ public:
     // Wrappers forward PlatformObject's extract an origin operation here.
     virtual Optional<URL::Origin> extract_an_origin() const;
 
-    // Wrappers forward legacy platform object indexed and named property hooks here.
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const;
-    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const;
+    // Wrappers forward legacy platform object enumeration hooks here.
     virtual Vector<FlyString> supported_property_names() const;
     virtual bool is_supported_property_name(FlyString const& name) const;
-    virtual JS::Realm& wrapper_realm(WrapperWorld const&, JS::Realm& preferred_realm) const;
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(JS::Realm&, String const&, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(JS::Realm&, String const&, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm&, String const&, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(JS::Realm&, u32, JS::Value);
-    virtual WebIDL::ExceptionOr<NamedPropertyDeletionResult> delete_value(JS::Realm&, String const&);
-
-protected:
-    Wrappable();
-
-    [[nodiscard]] GC::Ptr<PlatformObject> cached_main_world_wrapper() const { return m_main_world_wrapper.ptr(); }
-
-    virtual GC::Ref<PlatformObject> create_wrapper(JS::Realm& wrapper_realm) = 0;
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-private:
-    friend class WrapperWorld;
-    friend GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
-    friend GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
-
-    void set_cached_main_world_wrapper(PlatformObject&);
-    void clear_cached_main_world_wrapper(PlatformObject const&);
 
     // Wrappables are implementation objects, so they do not get a
     // realm-specific initialization hook. They still upcall JS::Cell while they
     // are allocated on the GC heap.
     virtual void initialize(JS::Realm&) final override;
+
+protected:
+    Wrappable();
+
+    [[nodiscard]] GC::Ptr<PlatformObject> cached_main_world_wrapper() const;
+
+    virtual GC::Ref<PlatformObject> create_wrapper(JS::Realm& wrapper_realm);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+private:
+    friend class WrapperWorld;
+    friend WEB_API GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
+    friend WEB_API GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
+    friend WEB_API JS::ThrowCompletionOr<void> set_prototype_of_cached_main_world_wrapper(Wrappable&, JS::Object&);
+
+    void set_cached_main_world_wrapper(PlatformObject&);
+    void clear_cached_main_world_wrapper(PlatformObject const&);
 
     GC::Weak<PlatformObject> m_main_world_wrapper;
 };

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SVGAnimatedNumberList.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGNumberList.h>
 

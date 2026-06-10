@@ -7,8 +7,6 @@
 
 #include <AK/GenericLexer.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/HTMLMetaElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
@@ -210,10 +208,7 @@ void HTMLMetaElement::inserted()
             policy->set_self_origin({}, document().origin());
 
             // 5. Enforce the policy policy.
-            auto& realm = HTML::relevant_realm(*this);
-            auto policy_list = ContentSecurityPolicy::PolicyList::from_object(realm.global_object());
-            VERIFY(policy_list);
-            policy_list->enforce_policy(policy);
+            document().relevant_settings_object().policy_container()->csp_list->enforce_policy(policy);
             break;
         }
         default:

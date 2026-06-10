@@ -6,11 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PerformanceEntry.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
+#include <LibWeb/Bindings/PerformanceObserver.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::PerformanceTimeline {
+
+using PerformanceObserverInit = Bindings::PerformanceObserverInit;
 
 enum class AvailableFromTimeline {
     No,
@@ -37,7 +41,7 @@ public:
     HighResolutionTime::DOMHighResTimeStamp duration() const { return m_duration; }
 
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<Bindings::PerformanceObserverInit const&> = {}) const = 0;
+    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceObserverInit const&> = {}) const = 0;
 
 protected:
     PerformanceEntry(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration);

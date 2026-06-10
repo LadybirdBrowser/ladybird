@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 
 namespace Web::HTML {

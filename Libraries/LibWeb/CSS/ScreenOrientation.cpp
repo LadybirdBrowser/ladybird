@@ -5,9 +5,9 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ScreenOrientation.h>
 #include <LibWeb/CSS/ScreenOrientation.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CSS {
 
@@ -24,9 +24,18 @@ GC::Ref<ScreenOrientation> ScreenOrientation::create()
 }
 
 // https://w3c.github.io/screen-orientation/#lock-method
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ScreenOrientation::lock(JS::Realm& realm, Bindings::OrientationLockType)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ScreenOrientation::lock(JS::Realm& realm, OrientationLockType)
 {
-    return WebIDL::NotSupportedError::create(realm, "FIXME: ScreenOrientation::lock() is not implemented"_utf16);
+    TRY(lock());
+    auto promise = WebIDL::create_promise(realm);
+    WebIDL::resolve_promise(realm, promise);
+    return promise;
+}
+
+// https://w3c.github.io/screen-orientation/#lock-method
+WebIDL::ExceptionOr<void> ScreenOrientation::lock()
+{
+    return WebIDL::NotSupportedError::create("FIXME: ScreenOrientation::lock() is not implemented"_utf16);
 }
 
 // https://w3c.github.io/screen-orientation/#unlock-method
@@ -36,10 +45,10 @@ void ScreenOrientation::unlock()
 }
 
 // https://w3c.github.io/screen-orientation/#type-attribute
-Bindings::OrientationType ScreenOrientation::type() const
+OrientationType ScreenOrientation::type() const
 {
     dbgln("FIXME: Stubbed ScreenOrientation::type()");
-    return Bindings::OrientationType::LandscapePrimary;
+    return OrientationType::LandscapePrimary;
 }
 
 // https://w3c.github.io/screen-orientation/#angle-attribute

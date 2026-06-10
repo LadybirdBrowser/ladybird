@@ -2,9 +2,9 @@
 [Exposed=Window, SecureContext]
 interface MediaDevices : EventTarget {
     attribute EventHandler ondevicechange;
-    [NeedsThisObjectRealm] Promise<sequence<MediaDeviceInfo>> enumerateDevices();
+    [CreatesPromise] Promise<sequence<MediaDeviceInfo>> enumerateDevices();
     // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getsupportedconstraints
     // Returns a dictionary whose members are the constrainable properties known to the User Agent.
     MediaTrackSupportedConstraints getSupportedConstraints();
-    [NeedsThisObjectRealm] Promise<MediaStream> getUserMedia(optional MediaStreamConstraints constraints = {});
+    [CreatesPromise, NeedsThisObjectRealm] Promise<MediaStream> getUserMedia(optional MediaStreamConstraints constraints = {});
 };

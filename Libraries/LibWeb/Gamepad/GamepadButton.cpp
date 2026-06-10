@@ -19,7 +19,6 @@ GC::Ref<GamepadButton> GamepadButton::create()
 }
 
 GamepadButton::GamepadButton()
-    : Bindings::Wrappable()
 {
 }
 

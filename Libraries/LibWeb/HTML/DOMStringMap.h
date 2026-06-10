@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/DOMStringMap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -24,11 +24,8 @@ public:
     virtual ~DOMStringMap() override;
 
     String determine_value_of_named_property(FlyString const&) const;
-
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(JS::Realm&, String const&, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(JS::Realm&, String const&, JS::Value) override;
-
-    virtual WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> delete_value(JS::Realm&, String const&) override;
+    WebIDL::ExceptionOr<void> set_value_of_named_property(String const&, String const&);
+    void delete_named_property(String const&);
 
 private:
     explicit DOMStringMap(DOM::Element&);
@@ -36,7 +33,6 @@ private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // ^Wrappable
-    virtual JS::Value named_item_value(Bindings::WrapperWorld&, JS::Realm&, FlyString const&) const override;
     virtual Vector<FlyString> supported_property_names() const override;
 
     struct NameValuePair {

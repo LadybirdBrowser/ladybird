@@ -4,13 +4,13 @@ interface SVGTransformList {
     readonly attribute unsigned long length;
     readonly attribute unsigned long numberOfItems;
 
-    [NeedsThisObjectRealm] undefined clear();
-    [NeedsCallerRealm] SVGTransform initialize(SVGTransform newItem);
-    [NeedsCallerRealm] getter SVGTransform getItem(unsigned long index);
-    [NeedsCallerRealm] SVGTransform insertItemBefore(SVGTransform newItem, unsigned long index);
-    [NeedsCallerRealm] SVGTransform replaceItem(SVGTransform newItem, unsigned long index);
-    [NeedsCallerRealm] SVGTransform removeItem(unsigned long index);
-    [NeedsCallerRealm] SVGTransform appendItem(SVGTransform newItem);
+    undefined clear();
+    SVGTransform initialize(SVGTransform newItem);
+    getter SVGTransform getItem(unsigned long index);
+    SVGTransform insertItemBefore(SVGTransform newItem, unsigned long index);
+    SVGTransform replaceItem(SVGTransform newItem, unsigned long index);
+    SVGTransform removeItem(unsigned long index);
+    SVGTransform appendItem(SVGTransform newItem);
     setter undefined (unsigned long index, SVGTransform newItem);
 
   // Additional methods not common to other list interfaces.

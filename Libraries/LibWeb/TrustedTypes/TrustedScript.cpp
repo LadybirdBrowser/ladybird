@@ -13,8 +13,7 @@ namespace Web::TrustedTypes {
 GC_DEFINE_ALLOCATOR(TrustedScript);
 
 TrustedScript::TrustedScript(Utf16String data)
-    : Bindings::Wrappable()
-    , m_data(move(data))
+    : m_data(move(data))
 {
 }
 

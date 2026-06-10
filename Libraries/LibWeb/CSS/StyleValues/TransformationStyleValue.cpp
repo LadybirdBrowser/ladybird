@@ -503,10 +503,10 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-function
-GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_function(JS::Realm& realm) const
+GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_function() const
 {
     auto reify_numeric_argument = [&](size_t index) {
-        return GC::Ref { as<CSSNumericValue>(*m_properties.values[index]->reify(realm, {})) };
+        return GC::Ref { as<CSSNumericValue>(*m_properties.values[index]->reify({})) };
     };
     auto reify_0 = [&] { return CSSUnitValue::create(0, "number"_fly_string); };
     auto reify_1 = [&] { return CSSUnitValue::create(1, "number"_fly_string); };
@@ -638,7 +638,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     //       and whose is2D internal slot is false.
     case TransformFunction::Perspective: {
         CSSPerspectiveValueInternal length = [&]() -> CSSPerspectiveValueInternal {
-            auto reified = m_properties.values[0]->reify(realm, {});
+            auto reified = m_properties.values[0]->reify({});
             if (auto* keyword = as_if<CSSKeywordValue>(*reified))
                 return GC::Ref { *keyword };
             if (auto* numeric = as_if<CSSNumericValue>(*reified))

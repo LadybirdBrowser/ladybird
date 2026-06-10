@@ -6,15 +6,24 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Clipboard.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace Web::Bindings {
+
+struct ClipboardUnsanitizedFormats;
+
+}
+
 namespace Web::Clipboard {
+
+using ClipboardReadOptions = Bindings::ClipboardUnsanitizedFormats;
 
 class Clipboard final : public DOM::EventTarget {
     WEB_WRAPPABLE(Clipboard, DOM::EventTarget);
@@ -24,11 +33,11 @@ public:
     static GC::Ref<Clipboard> create();
     virtual ~Clipboard() override;
 
-    GC::Ref<WebIDL::Promise> read(JS::Realm&, Bindings::ClipboardUnsanitizedFormats formats = {});
-    GC::Ref<WebIDL::Promise> read_text(JS::Realm&);
+    void read(JS::Realm&, ClipboardReadOptions formats, GC::Ref<WebIDL::Promise>);
+    void read_text(JS::Realm&, GC::Ref<WebIDL::Promise>);
 
-    GC::Ref<WebIDL::Promise> write(JS::Realm&, GC::RootVector<GC::Ref<ClipboardItem>> const&);
-    GC::Ref<WebIDL::Promise> write_text(JS::Realm&, String);
+    void write(JS::Realm&, GC::RootVector<GC::Ref<ClipboardItem>> const&, GC::Ref<WebIDL::Promise>);
+    void write_text(JS::Realm&, String, GC::Ref<WebIDL::Promise>);
 
 private:
     Clipboard();

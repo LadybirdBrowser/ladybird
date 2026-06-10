@@ -5,10 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaStream.h>
-#include <LibWeb/Bindings/MediaStreamTrack.h>
-#include <LibWeb/Bindings/MediaStreamTrackEvent.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -34,7 +30,7 @@ GC::Ref<MediaStream> MediaStream::create()
 }
 
 // https://w3c.github.io/mediacapture-main/#mediastream
-GC::Ref<MediaStream> MediaStream::construct_impl(ReadonlySpan<GC::Ref<MediaStreamTrack>> const& tracks)
+GC::Ref<MediaStream> MediaStream::create(ReadonlySpan<GC::Ref<MediaStreamTrack>> const& tracks)
 {
     // 1. Let stream be a newly constructed MediaStream object.
     // 2. Initialize stream.id attribute to a newly generated value.
@@ -51,6 +47,16 @@ GC::Ref<MediaStream> MediaStream::construct_impl(ReadonlySpan<GC::Ref<MediaStrea
 
     // 4. Return stream.
     return stream;
+}
+
+GC::Ref<MediaStream> MediaStream::create(GC::RootVector<GC::Ref<MediaStreamTrack>> const& tracks)
+{
+    Vector<GC::Ref<MediaStreamTrack>> track_refs;
+    track_refs.ensure_capacity(tracks.size());
+    for (auto const& track : tracks)
+        track_refs.unchecked_append(*track);
+
+    return create(track_refs);
 }
 
 void MediaStream::visit_edges(Cell::Visitor& visitor)
@@ -122,7 +128,7 @@ void MediaStream::add_track(JS::Object& global_object, GC::Ref<MediaStreamTrack>
     m_tracks.append(track);
 
     // 4. Fire a track event named addtrack with track at stream.
-    Bindings::MediaStreamTrackEventInit event_init { Bindings::EventInit {}, track };
+    MediaStreamTrackEventInit event_init { {}, track };
     auto event = MediaStreamTrackEvent::create(HTML::EventNames::addtrack, event_init,
         HighResolutionTime::current_high_resolution_time(global_object));
     dispatch_event(event);
@@ -155,7 +161,7 @@ void MediaStream::remove_track(JS::Object& global_object, GC::Ref<MediaStreamTra
         return;
 
     // 4. Fire a track event named removetrack with track at stream.
-    Bindings::MediaStreamTrackEventInit event_init { Bindings::EventInit {}, track };
+    MediaStreamTrackEventInit event_init { {}, track };
     auto event = MediaStreamTrackEvent::create(HTML::EventNames::removetrack, event_init,
         HighResolutionTime::current_high_resolution_time(global_object));
     dispatch_event(event);
@@ -180,7 +186,7 @@ bool MediaStream::active() const
 {
     // The active attribute MUST return true if this MediaStream is active and false otherwise.
     for (auto const& track : m_tracks) {
-        if (track->ready_state() != Bindings::MediaStreamTrackState::Ended)
+        if (track->track_ready_state() != MediaStreamTrackState::Ended)
             return true;
     }
     return false;

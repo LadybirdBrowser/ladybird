@@ -4,10 +4,10 @@ interface ServiceWorkerContainer : EventTarget {
     [FIXME] readonly attribute ServiceWorker? controller;
     [NeedsThisObjectRealmForGetter] readonly attribute Promise<ServiceWorkerRegistration> ready;
 
-    [NewObject, NeedsThisObjectRealm, ImplementedAs=register_] Promise<ServiceWorkerRegistration> register((TrustedScriptURL or Utf16USVString) scriptURL, optional RegistrationOptions options = {});
+    [NewObject, NeedsThisObjectRealm, CreatesPromise, ImplementedAs=register_] Promise<ServiceWorkerRegistration> register((TrustedScriptURL or Utf16USVString) scriptURL, optional RegistrationOptions options = {});
 
-    [NewObject, NeedsThisObjectRealm] Promise<(ServiceWorkerRegistration or undefined)> getRegistration(optional USVString clientURL = "");
-    [NewObject, NeedsThisObjectRealm] Promise<FrozenArray<ServiceWorkerRegistration>> getRegistrations();
+    [NewObject, NeedsThisObjectRealm, CreatesPromise] Promise<(ServiceWorkerRegistration or undefined)> getRegistration(optional USVString clientURL = "");
+    [NewObject, NeedsThisObjectRealm, CreatesPromise] Promise<FrozenArray<ServiceWorkerRegistration>> getRegistrations();
 
     [FIXME] undefined startMessages();
 

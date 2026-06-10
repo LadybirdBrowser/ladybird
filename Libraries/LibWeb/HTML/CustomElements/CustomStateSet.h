@@ -7,11 +7,8 @@
 #pragma once
 
 #include <AK/HashTable.h>
-#include <LibJS/Runtime/Set.h>
-#include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/CustomStateSet.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
@@ -25,14 +22,12 @@ public:
     virtual ~CustomStateSet() override = default;
 
     size_t set_size() const { return m_states.size(); }
-    GC::Ref<JS::Set> set_entries(JS::Realm&, Bindings::WrapperWorld const&) const;
-    bool set_has(JS::Value) const;
-    void set_add(JS::Value);
-    bool set_remove(JS::Value);
-    void set_clear();
+    OrderedHashTable<FlyString> const& states() const { return m_states; }
     bool has_state(FlyString const&) const;
-
-    void on_set_modified_from_js(Badge<Bindings::CustomStateSetPrototype>);
+    void add_state(FlyString const&);
+    bool remove_state(FlyString const&);
+    void clear_states();
+    DOM::Element& element() { return *m_element; }
 
 private:
     CustomStateSet(GC::Ref<DOM::Element>);
@@ -40,7 +35,6 @@ private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     OrderedHashTable<FlyString> m_states;
-    mutable Bindings::WrapperWorldWeakValueCache<JS::Set> m_set_entries;
     GC::Ref<DOM::Element> m_element;
 };
 

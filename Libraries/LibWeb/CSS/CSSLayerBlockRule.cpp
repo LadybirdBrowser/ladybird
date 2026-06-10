@@ -6,7 +6,6 @@
 
 #include "CSSLayerBlockRule.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
 

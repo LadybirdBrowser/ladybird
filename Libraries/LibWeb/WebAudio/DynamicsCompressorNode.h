@@ -11,6 +11,8 @@
 
 namespace Web::WebAudio {
 
+using DynamicsCompressorOptions = Bindings::DynamicsCompressorOptions;
+
 // https://webaudio.github.io/web-audio-api/#DynamicsCompressorNode
 class DynamicsCompressorNode : public AudioNode {
     WEB_WRAPPABLE(DynamicsCompressorNode, AudioNode);
@@ -19,8 +21,8 @@ class DynamicsCompressorNode : public AudioNode {
 public:
     virtual ~DynamicsCompressorNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create(GC::Ref<BaseAudioContext>, Bindings::DynamicsCompressorOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::DynamicsCompressorOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create(GC::Ref<BaseAudioContext>, DynamicsCompressorOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create_for_constructor(GC::Ref<BaseAudioContext>, DynamicsCompressorOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -32,11 +34,11 @@ public:
     GC::Ref<AudioParam const> release() const { return m_release; }
     float reduction() const { return m_reduction; }
 
-    WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
+    WebIDL::ExceptionOr<void> set_channel_count_mode(ChannelCountMode) override;
     WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
 
 protected:
-    DynamicsCompressorNode(GC::Ref<BaseAudioContext>, Bindings::DynamicsCompressorOptions const& = {});
+    DynamicsCompressorNode(GC::Ref<BaseAudioContext>, DynamicsCompressorOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

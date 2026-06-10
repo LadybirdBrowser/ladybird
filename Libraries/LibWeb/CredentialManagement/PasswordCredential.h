@@ -6,14 +6,16 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
+#include <LibURL/Origin.h>
 #include <LibWeb/Bindings/PasswordCredential.h>
 #include <LibWeb/CredentialManagement/Credential.h>
 #include <LibWeb/CredentialManagement/CredentialUserData.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
-#include <LibWeb/HTML/Window.h>
 
 namespace Web::CredentialManagement {
+
+// https://www.w3.org/TR/credential-management-1/#dictdef-passwordcredentialdata
+using PasswordCredentialData = Bindings::PasswordCredentialData;
 
 // https://www.w3.org/TR/credential-management-1/#passwordcredential
 class PasswordCredential final
@@ -23,8 +25,10 @@ class PasswordCredential final
     GC_DECLARE_ALLOCATOR(PasswordCredential);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(HTML::Window&, GC::Ref<HTML::HTMLFormElement>);
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(HTML::Window&, Bindings::PasswordCredentialData const&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create(URL::Origin, GC::Ref<HTML::HTMLFormElement>);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create(URL::Origin, PasswordCredentialData const&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_for_constructor(JS::Realm&, GC::Ref<HTML::HTMLFormElement>);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> create_for_constructor(JS::Realm&, PasswordCredentialData const&);
 
     virtual ~PasswordCredential() override;
 
@@ -34,7 +38,7 @@ public:
     String type() const override { return "password"_string; }
 
 private:
-    PasswordCredential(Bindings::PasswordCredentialData const&, URL::Origin);
+    PasswordCredential(PasswordCredentialData, URL::Origin);
 
     // TODO: Use Core::SecretString when it comes back
     String m_password;
@@ -42,8 +46,5 @@ private:
     // https://www.w3.org/TR/credential-management-1/#dom-credential-origin-slot
     URL::Origin m_origin;
 };
-
-// https://www.w3.org/TR/credential-management-1/#typedefdef-passwordcredentialinit
-using PasswordCredentialInit = Variant<Bindings::PasswordCredentialData, GC::Root<HTML::HTMLFormElement>>;
 
 }

@@ -6,8 +6,8 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/FakeXRDevice.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
-#include <LibWeb/Bindings/XRTest.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/Internals/XRTest.h>
@@ -30,34 +30,28 @@ XRTest::XRTest(HTML::Window& window)
 
 XRTest::~XRTest() = default;
 
-GC::Ref<WebIDL::Promise> XRTest::simulate_device_connection(Bindings::FakeXRDeviceInit const&) const
+void XRTest::simulate_device_connection(JS::Realm& realm, FakeXRDeviceInit const&, GC::Ref<WebIDL::Promise> promise) const
 {
     // Simulates connecting a device to the system.
     // Used to instantiate a fake device for use in tests.
     // FIXME: Actually perform whatever device connection steps are needed once those are implemented.
-    auto& realm = window().realm();
-    auto promise = WebIDL::create_promise(realm);
-    WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FakeXRDevice::create(window())));
-    return promise;
+    auto fake_device = FakeXRDevice::create(window());
+    WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, fake_device));
 }
 
-void XRTest::simulate_user_activation(GC::Ref<WebIDL::CallbackType> function) const
+WebIDL::ExceptionOr<void> XRTest::simulate_user_activation(WebIDL::CallbackType& function) const
 {
-    // Simulates a user activation (aka user gesture) for the current scope.
-    // The activation is only guaranteed to be valid in the provided function and only applies to WebXR
-    // Device API methods.
-    // FIXME: Actually simulate a user activation here
-    (void)WebIDL::invoke_callback(*function, {}, {});
+    // FIXME: Actually simulate a user activation here.
+    TRY(WebIDL::invoke_callback(function, {}, {}));
+    return {};
 }
 
-GC::Ref<WebIDL::Promise> XRTest::disconnect_all_devices() const
+void XRTest::disconnect_all_devices(GC::Ref<WebIDL::Promise> promise) const
 {
     // Disconnect all fake devices
     // FIXME: Actually disconnect fake devices once we have any.
     auto& realm = window().realm();
-    auto promise = WebIDL::create_promise(realm);
     WebIDL::resolve_promise(realm, promise);
-    return promise;
 }
 
 }

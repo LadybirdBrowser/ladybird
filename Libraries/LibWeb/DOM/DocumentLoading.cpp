@@ -8,6 +8,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
+#include <AK/FlyString.h>
 #include <AK/LexicalPath.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf16FlyString.h>
@@ -18,7 +19,6 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/Response.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/Document.h>
@@ -39,10 +39,29 @@
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
 #include <LibXML/Parser/Parser.h>
 
 namespace Web {
+
+static void add_pdf_viewer_ready_listener(DOM::Document& document, GC::Ref<Fetch::Infrastructure::Response> response)
+{
+    auto& realm = document.relevant_settings_object().realm();
+    auto js_response = Fetch::Response::create(response, Fetch::Headers::Guard::Response);
+
+    auto listener_function = JS::NativeFunction::create(
+        realm, [&document, js_response](JS::VM&) mutable -> JS::ThrowCompletionOr<JS::Value> {
+            DOM::CustomEventInit init;
+            auto& realm = document.relevant_settings_object().realm();
+            init.detail = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { js_response });
+            document.dispatch_event(*DOM::CustomEvent::create("ladybirdpdf"_fly_string, init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(document))));
+            return JS::js_undefined();
+        },
+        0, Utf16FlyString {}, &realm);
+    auto callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*listener_function, realm);
+    document.add_event_listener_without_options("ladybirdviewerready"_fly_string, *DOM::IDLEventListener::create(*callback));
+}
 
 // Replaces a document's content with a simple error message.
 static void convert_to_xml_error_document(DOM::Document& document, Utf16String error_string)
@@ -433,20 +452,7 @@ static GC::Ref<DOM::Document> load_pdf_document(HTML::NavigationParams const& na
     auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params));
     document->set_origin(URL::Origin("resource"_string, String {}, {}));
 
-    auto& realm = document->relevant_settings_object().realm();
-    auto js_response = Fetch::Response::create(GC::Ref(*navigation_params.response), Fetch::Headers::Guard::Response);
-
-    auto listener_fn = JS::NativeFunction::create(
-        realm, [document, js_response](JS::VM&) mutable -> JS::ThrowCompletionOr<JS::Value> {
-            Bindings::CustomEventInit init;
-            auto& realm = document->relevant_settings_object().realm();
-            init.detail = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, js_response);
-            document->dispatch_event(*DOM::CustomEvent::create("ladybirdpdf"_fly_string, init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document))));
-            return JS::js_undefined();
-        },
-        0, Utf16FlyString {}, &realm);
-    auto callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*listener_fn, realm);
-    document->add_event_listener_without_options("ladybirdviewerready"_fly_string, *DOM::IDLEventListener::create(*callback));
+    add_pdf_viewer_ready_listener(document, GC::Ref(*navigation_params.response));
 
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [document, pdf_url] {
         auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, *viewer_bytes);

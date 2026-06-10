@@ -4,15 +4,15 @@ interface TreeWalker {
     [SameObject] readonly attribute Node root;
     readonly attribute unsigned long whatToShow;
 
-    readonly attribute NodeFilter? filter;
+    [ImplementedInBindings, ReturnsJSValue] readonly attribute NodeFilter? filter;
 
     attribute Node currentNode;
 
-    [NeedsCallerRealm] Node? parentNode();
-    [NeedsCallerRealm] Node? firstChild();
-    [NeedsCallerRealm] Node? lastChild();
-    [NeedsCallerRealm] Node? previousSibling();
-    [NeedsCallerRealm] Node? nextSibling();
-    [NeedsCallerRealm] Node? previousNode();
-    [NeedsCallerRealm] Node? nextNode();
+    [ImplementedInBindings] Node? parentNode();
+    [ImplementedInBindings] Node? firstChild();
+    [ImplementedInBindings] Node? lastChild();
+    [ImplementedInBindings] Node? previousSibling();
+    [ImplementedInBindings] Node? nextSibling();
+    [ImplementedInBindings] Node? previousNode();
+    [ImplementedInBindings] Node? nextNode();
 };

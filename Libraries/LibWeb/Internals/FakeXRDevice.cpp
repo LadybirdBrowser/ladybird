@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/FakeXRDevice.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -26,14 +25,19 @@ FakeXRDevice::FakeXRDevice(HTML::Window& window)
 
 FakeXRDevice::~FakeXRDevice() = default;
 
-GC::Ref<WebIDL::Promise> FakeXRDevice::disconnect() const
+GC::Ref<WebIDL::Promise> FakeXRDevice::disconnect(JS::Realm& realm) const
+{
+    auto promise = WebIDL::create_promise(realm);
+    disconnect(promise);
+    return promise;
+}
+
+void FakeXRDevice::disconnect(GC::Ref<WebIDL::Promise> promise) const
 {
     // behaves as if device was disconnected
     // FIXME: Implement this once we have actual devices that can disconnect.
     auto& realm = window().realm();
-    auto promise = WebIDL::create_promise(realm);
     WebIDL::resolve_promise(realm, promise);
-    return promise;
 }
 
 }

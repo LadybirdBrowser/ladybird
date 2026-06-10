@@ -8,34 +8,26 @@
 
 #include <AK/Optional.h>
 #include <AK/RedBlackTree.h>
+#include <AK/Types.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
+#include <LibJS/Forward.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Bindings/KeyframeEffect.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
-namespace Web::HTML {
-
-class WindowOrWorkerGlobalScopeMixin;
-
-}
-
 namespace Web::Animations {
 
 using EasingValue = Variant<String, CSS::EasingFunction>;
 
-Bindings::CompositeOperation css_animation_composition_to_bindings_composite_operation(CSS::AnimationComposition composition);
-Bindings::CompositeOperationOrAuto css_animation_composition_to_bindings_composite_operation_or_auto(CSS::AnimationComposition composition);
+using CompositeOperation = Bindings::CompositeOperation;
+using CompositeOperationOrAuto = Bindings::CompositeOperationOrAuto;
 
-// https://www.w3.org/TR/web-animations-1/#dictdef-basepropertyindexedkeyframe
-// Note: This is an intermediate structure used only when parsing Keyframes provided by the caller in a slightly
-//       different format. It is converted to BaseKeyframe, which is why it doesn't need to store the parsed properties
-struct BasePropertyIndexedKeyframe {
-    Variant<Optional<double>, Vector<Optional<double>>> offset { Vector<Optional<double>> {} };
-    Variant<EasingValue, Vector<EasingValue>> easing { Vector<EasingValue> {} };
-    Variant<Bindings::CompositeOperationOrAuto, Vector<Bindings::CompositeOperationOrAuto>> composite { Vector<Bindings::CompositeOperationOrAuto> {} };
-
-    HashMap<String, Vector<String>> properties {};
-};
+CompositeOperation css_animation_composition_to_composite_operation(CSS::AnimationComposition composition);
+CompositeOperationOrAuto css_animation_composition_to_composite_operation_or_auto(CSS::AnimationComposition composition);
+StringView composite_operation_or_auto_to_string(CompositeOperationOrAuto);
 
 // https://www.w3.org/TR/web-animations-1/#dictdef-basekeyframe
 struct BaseKeyframe {
@@ -44,15 +36,19 @@ struct BaseKeyframe {
 
     Optional<double> offset {};
     EasingValue easing { "linear"_string };
-    Bindings::CompositeOperationOrAuto composite { Bindings::CompositeOperationOrAuto::Auto };
+    CompositeOperationOrAuto composite { CompositeOperationOrAuto::Auto };
 
     Optional<double> computed_offset {};
 
     Variant<UnparsedProperties, ParsedProperties> properties { UnparsedProperties {} };
 
     UnparsedProperties& unparsed_properties() { return properties.get<UnparsedProperties>(); }
+    UnparsedProperties const& unparsed_properties() const { return properties.get<UnparsedProperties>(); }
     ParsedProperties& parsed_properties() { return properties.get<ParsedProperties>(); }
+    ParsedProperties const& parsed_properties() const { return properties.get<ParsedProperties>(); }
 };
+
+void compute_missing_keyframe_offsets(Vector<BaseKeyframe>&);
 
 // https://www.w3.org/TR/web-animations-1/#the-keyframeeffect-interface
 class KeyframeEffect final : public AnimationEffect {
@@ -62,13 +58,19 @@ class KeyframeEffect final : public AnimationEffect {
 public:
     constexpr static double AnimationKeyFrameKeyScaleFactor = 1000.0; // 0..100000
 
+    struct Options {
+        OptionalEffectTiming timing {};
+        CompositeOperation composite { CompositeOperation::Replace };
+        Optional<CSS::Selector::PseudoElementSelector> pseudo_element;
+    };
+
     struct KeyFrameSet : public RefCounted<KeyFrameSet> {
         struct UseInitial { };
         struct ResolvedKeyFrame {
             // These StyleValue properties can be unresolved, as they may be generated from a @keyframes rule, well
             // before they are applied to an element
             HashMap<CSS::PropertyID, Variant<UseInitial, NonnullRefPtr<CSS::StyleValue const>>> properties {};
-            Bindings::CompositeOperationOrAuto composite { Bindings::CompositeOperationOrAuto::Auto };
+            CompositeOperationOrAuto composite { CompositeOperationOrAuto::Auto };
             Variant<Empty, CSS::EasingFunction, NonnullRefPtr<CSS::StyleValue const>> easing {};
         };
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
@@ -79,25 +81,25 @@ public:
 
     static GC::Ref<KeyframeEffect> create();
 
-    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(
-        HTML::WindowOrWorkerGlobalScopeMixin&,
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> create_from_processed_keyframes(
         GC::Ptr<DOM::Element> target,
-        GC::Ptr<JS::Object> keyframes,
-        Variant<double, Bindings::KeyframeEffectOptions> options = Bindings::KeyframeEffectOptions {});
-    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl_for_realm(
+        Vector<BaseKeyframe> keyframes,
+        Variant<double, Options> options);
+
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(
         JS::Realm&,
         GC::Ptr<DOM::Element> target,
         GC::Ptr<JS::Object> keyframes,
-        Variant<double, Bindings::KeyframeEffectOptions> options = Bindings::KeyframeEffectOptions {});
-
+        Variant<double, Bindings::KeyframeEffectOptions> const& options);
     static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(GC::Ref<KeyframeEffect> source);
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> create_copy(GC::Ref<KeyframeEffect> source);
 
     DOM::Element* target() const override { return m_target_element; }
     void set_target(DOM::Element* target);
 
     // JS bindings
     Optional<String> pseudo_element() const;
-    WebIDL::ExceptionOr<void> set_pseudo_element(JS::Realm&, Optional<String>);
+    WebIDL::ExceptionOr<void> set_pseudo_element(Optional<String>);
 
     Optional<DOM::AbstractElement> target_abstract_element() const;
     void set_target(DOM::AbstractElement);
@@ -105,11 +107,13 @@ public:
     Optional<CSS::PseudoElement> pseudo_element_type() const;
     void set_pseudo_element(Optional<CSS::Selector::PseudoElementSelector> pseudo_element) { m_target_pseudo_selector = pseudo_element; }
 
-    Bindings::CompositeOperation composite() const { return m_composite; }
-    void set_composite(Bindings::CompositeOperation value);
+    CompositeOperation composite() const { return m_composite; }
+    void set_composite(CompositeOperation value);
 
-    WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes(JS::Realm&);
-    WebIDL::ExceptionOr<void> set_keyframes(JS::Realm&, GC::Ptr<JS::Object>);
+    Vector<BaseKeyframe> const& keyframes() const { return m_keyframes; }
+    void set_keyframes(Vector<BaseKeyframe>);
+    WebIDL::ExceptionOr<void> set_keyframes_from_js(JS::Realm&, GC::Ptr<JS::Object>);
+    WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes(JS::Realm&) const;
 
     KeyFrameSet const* key_frame_set() { return m_key_frame_set; }
     void set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set) { m_key_frame_set = key_frame_set; }
@@ -133,12 +137,15 @@ private:
     Optional<CSS::Selector::PseudoElementSelector> m_target_pseudo_selector {};
 
     // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-composite
-    Bindings::CompositeOperation m_composite { Bindings::CompositeOperation::Replace };
+    CompositeOperation m_composite { CompositeOperation::Replace };
 
     // https://www.w3.org/TR/web-animations-1/#keyframe
     Vector<BaseKeyframe> m_keyframes {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
 };
+
+WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_keyframes(JS::Realm&, GC::Ptr<JS::Object>);
+WebIDL::ExceptionOr<KeyframeEffect::Options> keyframe_effect_options_from_bindings(Bindings::KeyframeEffectOptions const&);
 
 }

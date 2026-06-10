@@ -6,32 +6,24 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CustomEvent.h>
 #include <LibWeb/DOM/CustomEvent.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(CustomEvent);
 
-GC::Ref<CustomEvent> CustomEvent::create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::CustomEventInit const& event_init)
+GC::Ref<CustomEvent> CustomEvent::create(JS::Object const& relevant_global_object, FlyString const& event_name, CustomEventInit const& event_init)
 {
     return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
 }
 
-GC::Ref<CustomEvent> CustomEvent::create(FlyString const& event_name, Bindings::CustomEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<CustomEvent> CustomEvent::create(FlyString const& event_name, CustomEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     return GC::Heap::the().allocate<CustomEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<CustomEvent>> CustomEvent::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope, FlyString const& event_name, Bindings::CustomEventInit const& event_init)
-{
-    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(relevant_global_scope)));
-}
-
-CustomEvent::CustomEvent(FlyString const& event_name, Bindings::CustomEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+CustomEvent::CustomEvent(FlyString const& event_name, CustomEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : Event(event_name, event_init, time_stamp)
     , m_detail(event_init.detail)
 {

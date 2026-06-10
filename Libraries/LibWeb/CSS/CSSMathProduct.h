@@ -18,7 +18,7 @@ class CSSMathProduct final : public CSSMathValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMathProduct> create(NumericType, GC::Ref<CSSNumericArray>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> construct_impl(ReadonlySpan<CSSNumberish>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> create_for_constructor(ReadonlySpan<CSSNumberish>);
     static WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> multiply_all_types_into_math_product(GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathProduct() override;

@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/TimeRanges.h>
+#include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -25,10 +24,10 @@ public:
     size_t length() const;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-timeranges-start
-    WebIDL::ExceptionOr<double> start(JS::Realm&, u32 index) const;
+    WebIDL::ExceptionOr<double> start(u32 index) const;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-timeranges-end
-    WebIDL::ExceptionOr<double> end(JS::Realm&, u32 index) const;
+    WebIDL::ExceptionOr<double> end(u32 index) const;
 
     void add_range(double start, double end);
     bool in_range(double);

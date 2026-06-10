@@ -10,7 +10,6 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/WebGL2RenderingContext.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Infra/Strings.h>
@@ -30,11 +29,8 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGL2RenderingContext);
 
-JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::create(HTML::HTMLCanvasElement& canvas_element, JS::Value options)
+GC::Ptr<WebGL2RenderingContext> WebGL2RenderingContext::create(HTML::HTMLCanvasElement& canvas_element, WebGLContextAttributes context_attributes)
 {
-    // We should be coming here from getContext being called on a wrapped <canvas> element.
-    auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
-
     auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
     if (!skia_backend_context) {
         fire_webgl_context_creation_error(canvas_element);

@@ -5,7 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 
 namespace Web::WebIDL {
@@ -44,7 +44,7 @@ void ObservableArray::set_on_delete_an_indexed_value_callback(DeleteAnIndexedVal
 JS::ThrowCompletionOr<bool> ObservableArray::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* metadata, PropertyLookupPhase phase)
 {
     if (property_key.is_number() && m_on_set_an_indexed_value)
-        TRY(Bindings::throw_dom_exception_if_needed(vm(), shape().realm(), [&] { return m_on_set_an_indexed_value->function()(value); }));
+        TRY(WebIDL::throw_dom_exception_if_needed(vm(), shape().realm(), [&] { return m_on_set_an_indexed_value->function()(value); }));
     return TRY(Base::internal_set(property_key, value, receiver, metadata, phase));
 }
 
@@ -55,7 +55,7 @@ JS::ThrowCompletionOr<bool> ObservableArray::internal_delete(JS::PropertyKey con
         JS::Value deleted_value;
         if (maybe_value_and_attributes.has_value())
             deleted_value = maybe_value_and_attributes->value;
-        TRY(Bindings::throw_dom_exception_if_needed(vm(), shape().realm(), [&] { return m_on_delete_an_indexed_value->function()(deleted_value); }));
+        TRY(WebIDL::throw_dom_exception_if_needed(vm(), shape().realm(), [&] { return m_on_delete_an_indexed_value->function()(deleted_value); }));
     }
     return JS::Array::internal_delete(property_key);
 }
@@ -63,7 +63,7 @@ JS::ThrowCompletionOr<bool> ObservableArray::internal_delete(JS::PropertyKey con
 JS::ThrowCompletionOr<void> ObservableArray::append(JS::Value value)
 {
     if (m_on_set_an_indexed_value)
-        TRY(Bindings::throw_dom_exception_if_needed(vm(), shape().realm(), [&] { return m_on_set_an_indexed_value->function()(value); }));
+        TRY(WebIDL::throw_dom_exception_if_needed(vm(), shape().realm(), [&] { return m_on_set_an_indexed_value->function()(value); }));
     indexed_append(value);
     return {};
 }

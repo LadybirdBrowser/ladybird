@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Types.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/ScrollTimeline.h>
 
@@ -16,6 +17,8 @@ class Window;
 }
 
 namespace Web::Animations {
+
+using ScrollAxis = Bindings::ScrollAxis;
 
 // https://drafts.csswg.org/scroll-animations-1/#scrolltimeline
 class ScrollTimeline : public AnimationTimeline {
@@ -32,13 +35,13 @@ public:
 
     using Source = Variant<GC::Ptr<DOM::Element const>, AnonymousSource>;
 
-    static GC::Ref<ScrollTimeline> create(DOM::Document&, Source source, Bindings::ScrollAxis axis);
-    static GC::Ref<ScrollTimeline> construct_impl(HTML::Window&, Bindings::ScrollTimelineOptions options = {});
+    static GC::Ref<ScrollTimeline> create(DOM::Document&, Source source, ScrollAxis axis);
+    static GC::Ref<ScrollTimeline> create_for_constructor(JS::Realm&, Bindings::ScrollTimelineOptions const&);
 
     virtual Optional<TimeValue> duration() const override { return TimeValue { TimeValue::Type::Percentage, 100 }; }
 
     GC::Ptr<DOM::Element const> source() const;
-    Bindings::ScrollAxis axis() const { return m_axis; }
+    ScrollAxis axis() const { return m_axis; }
 
     Source source_internal() const { return m_source; }
 
@@ -49,7 +52,7 @@ public:
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const override { return false; }
 
 private:
-    ScrollTimeline(DOM::Document&, Source source, Bindings::ScrollAxis axis);
+    ScrollTimeline(DOM::Document&, Source source, ScrollAxis axis);
     virtual ~ScrollTimeline() override = default;
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
@@ -60,11 +63,11 @@ private:
     Source m_source;
 
     // https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-axis
-    Bindings::ScrollAxis m_axis { Bindings::ScrollAxis::Block };
+    ScrollAxis m_axis;
 
     Optional<double> m_last_max_scroll_offset;
 };
 
-Bindings::ScrollAxis css_axis_to_bindings_scroll_axis(CSS::Axis);
+ScrollAxis scroll_axis_from_css_axis(CSS::Axis);
 
 }

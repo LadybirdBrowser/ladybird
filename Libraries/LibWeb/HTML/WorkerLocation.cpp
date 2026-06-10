@@ -120,8 +120,7 @@ String WorkerLocation::hash() const
 }
 
 WorkerLocation::WorkerLocation(WorkerGlobalScope& global_scope)
-    : Bindings::Wrappable()
-    , m_global_scope(global_scope)
+    : m_global_scope(global_scope)
 {
 }
 

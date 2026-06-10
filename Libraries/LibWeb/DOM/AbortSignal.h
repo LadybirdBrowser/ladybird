@@ -41,14 +41,14 @@ public:
     WebIDL::CallbackType* onabort();
 
     // https://dom.spec.whatwg.org/#dom-abortsignal-reason
-    JS::Value reason() const { return m_abort_reason; }
+    JS::Value const& reason() const { return m_abort_reason; }
     void set_reason(JS::Value reason) { m_abort_reason = reason; }
 
     JS::ThrowCompletionOr<void> throw_if_aborted() const;
 
     static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> abort(JS::Realm&, Optional<JS::Value> reason);
     static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> timeout(JS::Realm&, Web::WebIDL::UnsignedLongLong milliseconds);
-    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> any(JS::Realm&, ReadonlySpan<GC::Ref<AbortSignal>>);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> any(ReadonlySpan<GC::Ref<AbortSignal>>);
 
     static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> create_dependent_abort_signal(ReadonlySpan<GC::Ref<AbortSignal>>);
 

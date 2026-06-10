@@ -5,12 +5,12 @@ interface SVGLengthList {
     readonly attribute unsigned long length;
     readonly attribute unsigned long numberOfItems;
 
-    [NeedsThisObjectRealm] undefined clear();
-    [NeedsCallerRealm] SVGLength initialize(SVGLength newItem);
-    [NeedsCallerRealm] getter SVGLength getItem(unsigned long index);
-    [NeedsCallerRealm] SVGLength insertItemBefore(SVGLength newItem, unsigned long index);
-    [NeedsCallerRealm] SVGLength replaceItem(SVGLength newItem, unsigned long index);
-    [NeedsCallerRealm] SVGLength removeItem(unsigned long index);
-    [NeedsCallerRealm] SVGLength appendItem(SVGLength newItem);
+    undefined clear();
+    SVGLength initialize(SVGLength newItem);
+    getter SVGLength getItem(unsigned long index);
+    SVGLength insertItemBefore(SVGLength newItem, unsigned long index);
+    SVGLength replaceItem(SVGLength newItem, unsigned long index);
+    SVGLength removeItem(unsigned long index);
+    SVGLength appendItem(SVGLength newItem);
     setter undefined (unsigned long index, SVGLength newItem);
 };

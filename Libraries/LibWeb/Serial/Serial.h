@@ -9,9 +9,12 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Serial.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Serial {
+
+using SerialPortRequestOptions = Bindings::SerialPortRequestOptions;
 
 // https://wicg.github.io/serial/#serial-interface
 class Serial : public DOM::EventTarget {
@@ -22,9 +25,9 @@ public:
     [[nodiscard]] static GC::Ref<Serial> create();
 
     // https://wicg.github.io/serial/#requestport-method
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> request_port(JS::Realm&, Bindings::SerialPortRequestOptions const& = {});
+    void request_port(JS::Realm&, SerialPortRequestOptions const&, GC::Ref<WebIDL::Promise>);
     // https://wicg.github.io/serial/#getports-method
-    GC::Ref<WebIDL::Promise> get_ports(JS::Realm&);
+    void get_ports(JS::Realm&, GC::Ref<WebIDL::Promise>);
 
     // https://wicg.github.io/serial/#onconnect-attribute
     void set_onconnect(WebIDL::CallbackType*);

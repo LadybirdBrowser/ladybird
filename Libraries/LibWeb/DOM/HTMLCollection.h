@@ -43,8 +43,6 @@ public:
 
     GC::RootVector<GC::Ref<Element>> collect_matching_elements() const;
 
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
-    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
     virtual bool is_supported_property_name(FlyString const&) const override;
 
@@ -54,8 +52,9 @@ protected:
     GC::Ref<ParentNode> root() { return *m_root; }
     GC::Ref<ParentNode const> root() const { return *m_root; }
 
-private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
+
+private:
     virtual void remove_dead_cells(Badge<GC::Heap>) override;
     virtual GC::Cell const& owner_cell(Badge<GC::Heap>) const override;
 

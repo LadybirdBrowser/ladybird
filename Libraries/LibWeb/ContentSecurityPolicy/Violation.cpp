@@ -263,19 +263,6 @@ ByteBuffer Violation::obtain_the_deprecated_serialization(JS::Realm& realm) cons
     return Infra::serialize_an_infra_value_to_json_bytes(realm, move(csp_report));
 }
 
-[[nodiscard]] static Bindings::SecurityPolicyViolationEventDisposition original_disposition_to_bindings_disposition(Policy::Disposition disposition)
-{
-    switch (disposition) {
-#define __ENUMERATE_DISPOSITION_TYPE(type, _) \
-    case Policy::Disposition::type:           \
-        return Bindings::SecurityPolicyViolationEventDisposition::type;
-        ENUMERATE_DISPOSITION_TYPES
-#undef __ENUMERATE_DISPOSITION_TYPE
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 // https://w3c.github.io/webappsec-csp/#report-violation
 void Violation::report_a_violation(JS::Realm& realm)
 {
@@ -325,7 +312,7 @@ void Violation::report_a_violation(JS::Realm& realm)
         // 3. If target implements EventTarget, fire an event named securitypolicyviolation that uses the
         //    SecurityPolicyViolationEvent interface at target with its attributes initialized as follows:
         if (event_target) {
-            Bindings::SecurityPolicyViolationEventInit event_init {};
+            SecurityPolicyViolationEventInit event_init {};
 
             // bubbles
             //    true
@@ -368,7 +355,7 @@ void Violation::report_a_violation(JS::Realm& realm)
 
             // disposition
             //    violation's disposition
-            event_init.disposition = original_disposition_to_bindings_disposition(disposition());
+            event_init.disposition = disposition();
 
             // sourceFile
             //    The result of executing § 5.4 Strip URL for use in reports on violation’s source file, if

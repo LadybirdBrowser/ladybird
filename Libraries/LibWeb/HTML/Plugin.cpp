@@ -21,8 +21,7 @@ GC::Ref<Plugin> Plugin::create(Window& window, String name)
 }
 
 Plugin::Plugin(Window& window, String name)
-    : Bindings::Wrappable()
-    , m_name(move(name))
+    : m_name(move(name))
     , m_window(window)
 {
 }
@@ -107,22 +106,6 @@ GC::Ptr<MimeType> Plugin::named_item(FlyString const& name) const
 
     // 2. Return null.
     return nullptr;
-}
-
-Optional<JS::Value> Plugin::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
-{
-    auto return_value = item(index);
-    if (!return_value)
-        return {};
-    return Bindings::wrap(wrapper_world, realm, return_value).ptr();
-}
-
-JS::Value Plugin::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
-{
-    auto return_value = named_item(name);
-    if (!return_value)
-        return JS::js_null();
-    return Bindings::wrap(wrapper_world, realm, return_value).ptr();
 }
 
 }

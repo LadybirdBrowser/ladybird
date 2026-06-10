@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/SVG/SVGLength.h>
 
@@ -55,8 +54,7 @@ GC::Ref<SVGLength> SVGLength::from_length_percentage(CSS::LengthPercentage const
 }
 
 SVGLength::SVGLength(u8 unit_type, float value, ReadOnly read_only)
-    : Bindings::Wrappable()
-    , m_value(value)
+    : m_value(value)
     , m_unit_type(unit_type)
     , m_read_only(read_only)
 {
@@ -65,11 +63,11 @@ SVGLength::SVGLength(u8 unit_type, float value, ReadOnly read_only)
 SVGLength::~SVGLength() = default;
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGLength__value
-WebIDL::ExceptionOr<void> SVGLength::set_value(JS::Realm& realm, float value)
+WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
 {
     // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnly::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify value of read-only SVGLength"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify value of read-only SVGLength"_utf16);
 
     // 2. Let value be the value being assigned to value.
     // 3. Set the SVGLength's value to a <number> whose value is value.

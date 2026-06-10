@@ -244,7 +244,7 @@ def write_dictionary_conversion(
     includes.add("LibJS/Runtime/VM.h")
     includes.add("LibJS/Runtime/Value.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
 
     parent_dictionary = context.dictionary_parent(dictionary)
 
@@ -285,7 +285,7 @@ JS::ThrowCompletionOr<{dictionary.name}> {converter_function_name(dictionary)}(J
             // 4. If jsMemberValue is not undefined, then:
             if (!js_member_value.is_undefined()) {{
                 // 1. Let idlMemberValue be the result of converting jsMemberValue to an IDL value whose type is the type member is declared to be of.
-                auto idl_member_value = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {conversion}; }}));
+                auto idl_member_value = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {conversion}; }}));
 
                 // 2. Set idlDict[key] to idlMemberValue.
                 return idl_member_value;
@@ -603,8 +603,17 @@ def interface_to_idl_value(
     includes.add("LibJS/Runtime/Value.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
     includes.add(interface_like_type.implementation_header)
+    if interface_like_type.name == "WindowProxy":
+        includes.add("AK/TypeCasts.h")
+        return f"""[&]() -> JS::ThrowCompletionOr<GC::Ref<{interface_like_type.fully_qualified_name}>> {{
+        if (!{value_name}.is_object())
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
+
+        if (auto* window_proxy = as_if<{interface_like_type.fully_qualified_name}>({value_name}.as_object()))
+            return GC::Ref {{ *window_proxy }};
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
+    }}()"""
     includes.add("LibWeb/Bindings/Wrappable.h")
-    interface = context.interfaces.get(interface_like_type.name)
 
     # 1. If V implements I, then return the IDL interface type value that represents a reference to that platform object.
     # 2. Throw a TypeError.
@@ -628,7 +637,7 @@ def callback_interface_to_idl_value(
     includes.add("LibJS/Runtime/Error.h")
     includes.add("LibJS/Runtime/Value.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
     includes.add("LibWeb/HTML/Scripting/Environments.h")
     includes.add("LibWeb/WebIDL/CallbackType.h")
     includes.add(implementation_header_for_interface(interface))
@@ -641,7 +650,7 @@ def callback_interface_to_idl_value(
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, {value_name});
 
         auto callback_type = vm.heap().allocate<WebIDL::CallbackType>({value_name}.as_object(), HTML::incumbent_realm());
-        return TRY(throw_dom_exception_if_needed(vm, [&] {{ return {cpp_type}::create(realm, callback_type); }}));
+        return {cpp_type}::create(callback_type);
     }}()"""
 
 
@@ -749,6 +758,12 @@ def sequence_to_idl_value(
     includes: GeneratedIncludes,
     context: GenerationContext,
 ) -> str:
+    includes.add("LibJS/Runtime/Error.h")
+    includes.add("LibJS/Runtime/Iterator.h")
+    includes.add("LibJS/Runtime/Value.h")
+    includes.add("LibJS/Runtime/ValueInlines.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
+
     element_type = sequence_type.parameters[0]
     element_cpp_type = cpp_type_for_idl_type_details(element_type, context)
     storage_type_name = element_cpp_type.contained_storage_type.value
@@ -782,7 +797,7 @@ def create_sequence_from_iterable(
     includes.add("LibJS/Runtime/Iterator.h")
     includes.add("LibJS/Runtime/Value.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
 
     element_type = sequence_type.parameters[0]
     element_cpp_type = cpp_type_for_idl_type_details(element_type, context)
@@ -807,7 +822,7 @@ def create_sequence_from_iterable(
 
             // 3. Initialize Si to the result of converting next to an IDL value of type T.
             auto next_value = next.release_value();
-            auto sequence_item = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value_from_type(element_type, identifier, {}, "next_value", includes, context)}; }}));
+            auto sequence_item = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value_from_type(element_type, identifier, {}, "next_value", includes, context)}; }}));
 
             // 4. Set i to i + 1.
             sequence.append(sequence_item);
@@ -996,6 +1011,12 @@ def union_to_idl_value(
             assert interface_like_type is not None
             platform_object_cpp_type = interface_like_type.fully_qualified_name
             includes.add(interface_like_type.implementation_header)
+            if interface_like_type.name == "WindowProxy":
+                append(f"""
+                if (auto* window_proxy = as_if<{platform_object_cpp_type}>(object))
+                    return {variant_type} {{ GC::Ref {{ *window_proxy }} }};
+""")
+                continue
             interface = context.interfaces.get(interface_type.name)
             if interface is not None and interface_needs_wrapper(interface):
                 append(f"""
@@ -1522,8 +1543,9 @@ def type_check_idl_value(
     if interface_like_type is None:
         raise RuntimeError(f"Unsupported IDL value type '{idl_type.name}' on '{interface_name}'")
 
-    includes.add("AK/TypeCasts.h")
+    includes.add("LibJS/Runtime/ValueInlines.h")
+    includes.add("LibWeb/Bindings/PlatformObject.h")
     includes.add(interface_like_type.implementation_header)
-    return f"""    if (!{value_name}.is<{interface_like_type.fully_qualified_name}>())
+    return f"""    if (!{value_name}.is_object() || !Web::Bindings::impl_from<{interface_like_type.fully_qualified_name}>(&{value_name}.as_object()))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.fully_qualified_name}");
 """

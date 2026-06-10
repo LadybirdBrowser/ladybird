@@ -16,6 +16,12 @@
 #include <LibWeb/HTML/Scripting/ImportMap.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace Web::Bindings {
+
+struct StructuredSerializeOptions;
+
+}
+
 namespace Web::HTML {
 
 // https://whatpr.org/html/9893/webappapis.html#universalglobalscope-mixin
@@ -26,11 +32,10 @@ public:
     virtual DOM::EventTarget& this_impl() = 0;
     virtual DOM::EventTarget const& this_impl() const = 0;
 
-    WebIDL::ExceptionOr<String> btoa(JS::Realm&, String const& data) const;
-    WebIDL::ExceptionOr<String> atob(JS::Realm&, String const& data) const;
+    WebIDL::ExceptionOr<String> btoa(String const& data) const;
+    WebIDL::ExceptionOr<String> atob(String const& data) const;
     void queue_microtask(WebIDL::CallbackType&);
-    WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Value, Bindings::StructuredSerializeOptions const&) const;
-
+    WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm&, JS::Value, Bindings::StructuredSerializeOptions const&);
     GC::Ref<WebIDL::CallbackType> count_queuing_strategy_size_function();
     GC::Ref<WebIDL::CallbackType> byte_length_queuing_strategy_size_function();
 

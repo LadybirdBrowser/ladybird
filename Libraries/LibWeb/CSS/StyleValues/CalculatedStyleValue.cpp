@@ -10,7 +10,6 @@
 #include "CalculatedStyleValue.h"
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSMathClamp.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSMathMax.h>
@@ -3206,7 +3205,7 @@ String CalculatedStyleValue::dump() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
-GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(Utf16FlyString const& associated_property) const
 {
     // NB: This spec algorithm isn't really implementable here - it's incomplete, and assumes we don't already have a
     //     calculation tree. So we have a per-node method instead.
@@ -3214,7 +3213,7 @@ GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyStr
         return *reified;
     // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
     // https://github.com/w3c/css-houdini-drafts/issues/1090
-    return StyleValue::reify(realm, associated_property);
+    return StyleValue::reify(associated_property);
 }
 
 struct NumericChildAndIndex {

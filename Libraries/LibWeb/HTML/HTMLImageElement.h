@@ -70,7 +70,8 @@ public:
     String current_src() const;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> decode() const;
+    GC::Ref<WebIDL::Promise> decode(JS::Realm&) const;
+    void decode(GC::Ref<WebIDL::Promise>) const;
 
     virtual Optional<ARIA::Role> default_role() const override;
 

@@ -8,7 +8,6 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/ImageBitmap.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -49,7 +48,7 @@ static void serialize_bitmap(HTML::TransferDataEncoder& encoder, RefPtr<Gfx::Bit
     auto const pitch = decoder.decode<size_t>();
     auto const format = decoder.decode<Gfx::BitmapFormat>();
     auto const alpha_type = decoder.decode<Gfx::AlphaType>();
-    auto data = TRY(decoder.decode_buffer(realm));
+    auto data = TRY(decoder.decode_buffer());
     return TRY(create_bitmap_from_bitmap_data(realm, format, alpha_type, width, height, pitch, move(data)));
 }
 

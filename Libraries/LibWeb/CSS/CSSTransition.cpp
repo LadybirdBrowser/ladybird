@@ -7,8 +7,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Bindings/CSSTransition.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/Interpolation.h>
@@ -133,7 +131,7 @@ CSSTransition::CSSTransition(
     // AD-HOC: CSS Transitions require the start value to apply during transition-delay. A default KeyframeEffect does
     //         not fill in the before phase, so use backwards fill to keep the transition value in the cascade until
     //         the active interval starts.
-    m_keyframe_effect->set_fill_mode(Bindings::FillMode::Backwards);
+    m_keyframe_effect->set_fill_mode(Animations::FillMode::Backwards);
     // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
     // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
     // timing requires rerunning the procedure to normalize specified timing.

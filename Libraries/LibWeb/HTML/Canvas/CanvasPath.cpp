@@ -6,7 +6,6 @@
  */
 
 #include <LibGfx/Vector2.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/Canvas/CanvasPath.h>
 
 namespace Web::HTML {
@@ -95,15 +94,15 @@ void CanvasPath::bezier_curve_to(double cp1x, double cp1y, double cp2x, double c
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-arc
-WebIDL::ExceptionOr<void> CanvasPath::arc(JS::Realm& realm, float x, float y, float radius, float start_angle, float end_angle, bool counter_clockwise)
+WebIDL::ExceptionOr<void> CanvasPath::arc(float x, float y, float radius, float start_angle, float end_angle, bool counter_clockwise)
 {
     if (radius < 0 && isfinite(radius))
-        return WebIDL::IndexSizeError::create(realm, Utf16String::formatted("The radius provided ({}) is negative.", radius));
-    return ellipse(realm, x, y, radius, radius, 0, start_angle, end_angle, counter_clockwise);
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("The radius provided ({}) is negative.", radius));
+    return ellipse(x, y, radius, radius, 0, start_angle, end_angle, counter_clockwise);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-ellipse
-WebIDL::ExceptionOr<void> CanvasPath::ellipse(JS::Realm& realm, float x, float y, float radius_x, float radius_y, float rotation, float start_angle, float end_angle, bool counter_clockwise)
+WebIDL::ExceptionOr<void> CanvasPath::ellipse(float x, float y, float radius_x, float radius_y, float rotation, float start_angle, float end_angle, bool counter_clockwise)
 {
     // 1. If any of the arguments are infinite or NaN, then return.
     if (!isfinite(x) || !isfinite(y) || !isfinite(radius_x) || !isfinite(radius_y) || !isfinite(rotation) || !isfinite(start_angle) || !isfinite(end_angle))
@@ -111,9 +110,9 @@ WebIDL::ExceptionOr<void> CanvasPath::ellipse(JS::Realm& realm, float x, float y
 
     // 2. If either radiusX or radiusY are negative, then throw an "IndexSizeError" DOMException.
     if (radius_x < 0)
-        return WebIDL::IndexSizeError::create(realm, Utf16String::formatted("The major-axis radius provided ({}) is negative.", radius_x));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("The major-axis radius provided ({}) is negative.", radius_x));
     if (radius_y < 0)
-        return WebIDL::IndexSizeError::create(realm, Utf16String::formatted("The minor-axis radius provided ({}) is negative.", radius_y));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("The minor-axis radius provided ({}) is negative.", radius_y));
 
     auto add_line_to_start_point = [this](Gfx::FloatPoint const& start_point) {
         if (!m_path.is_empty())
@@ -204,7 +203,7 @@ WebIDL::ExceptionOr<void> CanvasPath::ellipse(JS::Realm& realm, float x, float y
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-arcto
-WebIDL::ExceptionOr<void> CanvasPath::arc_to(JS::Realm& realm, double x1, double y1, double x2, double y2, double radius)
+WebIDL::ExceptionOr<void> CanvasPath::arc_to(double x1, double y1, double x2, double y2, double radius)
 {
     // 1. If any of the arguments are infinite or NaN, then return.
     if (!isfinite(x1) || !isfinite(y1) || !isfinite(x2) || !isfinite(y2) || !isfinite(radius))
@@ -215,7 +214,7 @@ WebIDL::ExceptionOr<void> CanvasPath::arc_to(JS::Realm& realm, double x1, double
 
     // 3. If radius is negative, then throw an "IndexSizeError" DOMException.
     if (radius < 0)
-        return WebIDL::IndexSizeError::create(realm, Utf16String::formatted("The radius provided ({}) is negative.", radius));
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("The radius provided ({}) is negative.", radius));
 
     auto transform = active_transform();
 
@@ -297,74 +296,73 @@ void CanvasPath::rect(double x, double y, double w, double h)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-roundrect
-WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, double h, Variant<double, Bindings::DOMPointInit, Vector<Variant<double, Bindings::DOMPointInit>>> radii)
+WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, double h, Variant<double, Bindings::DOMPointInit, Vector<Variant<double, Bindings::DOMPointInit>>> const& radii)
 {
-    using Radius = Variant<double, Bindings::DOMPointInit>;
+    auto append_radius = [](Vector<CanvasRoundRectRadius>& radius_list, Variant<double, Bindings::DOMPointInit> const& radius) {
+        if (radius.has<double>()) {
+            auto radius_as_double = radius.get<double>();
+            radius_list.append({ radius_as_double, radius_as_double });
+            return;
+        }
 
+        auto const& radius_as_dom_point = radius.get<Bindings::DOMPointInit>();
+        radius_list.append({ radius_as_dom_point.x, radius_as_dom_point.y });
+    };
+
+    Vector<CanvasRoundRectRadius> radius_list;
+    if (radii.has<double>()) {
+        auto radius = radii.get<double>();
+        radius_list.append({ radius, radius });
+    } else if (radii.has<Bindings::DOMPointInit>()) {
+        auto const& radius = radii.get<Bindings::DOMPointInit>();
+        radius_list.append({ radius.x, radius.y });
+    } else {
+        for (auto const& radius : radii.get<Vector<Variant<double, Bindings::DOMPointInit>>>())
+            append_radius(radius_list, radius);
+    }
+
+    return round_rect(x, y, w, h, radius_list);
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-roundrect
+WebIDL::ExceptionOr<void> CanvasPath::round_rect(double x, double y, double w, double h, ReadonlySpan<CanvasRoundRectRadius> radii)
+{
     // 1. If any of x, y, w, or h are infinite or NaN, then return.
     if (!isfinite(x) || !isfinite(y) || !isfinite(w) || !isfinite(h))
         return {};
 
     // 2. If radii is an unrestricted double or DOMPointInit, then set radii to « radii ».
-    if (radii.has<double>() || radii.has<Bindings::DOMPointInit>()) {
-        Vector<Radius> radii_list;
-        if (radii.has<double>())
-            radii_list.append(radii.get<double>());
-        else
-            radii_list.append(radii.get<Bindings::DOMPointInit>());
-        radii = radii_list;
-    }
+    // NB: This is handled by the binding helper.
 
     // 3. If radii is not a list of size one, two, three, or four, then throw a RangeError.
-    if (radii.get<Vector<Radius>>().is_empty() || radii.get<Vector<Radius>>().size() > 4)
+    if (radii.is_empty() || radii.size() > 4)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Can have between 1 and 4 radii"sv };
 
     // 4. Let normalizedRadii be an empty list.
-    Vector<Bindings::DOMPointInit> normalized_radii;
+    Vector<CanvasRoundRectRadius> normalized_radii;
 
     // 5. For each radius of radii:
-    for (auto const& radius : radii.get<Vector<Radius>>()) {
-        // 5.1. If radius is a DOMPointInit:
-        if (radius.has<Bindings::DOMPointInit>()) {
-            auto const& radius_as_dom_point = radius.get<Bindings::DOMPointInit>();
+    for (auto const& radius : radii) {
+        // 5.1.1. If radius["x"] or radius["y"] is infinite or NaN, then return.
+        if (!isfinite(radius.x) || !isfinite(radius.y))
+            return {};
 
-            // 5.1.1. If radius["x"] or radius["y"] is infinite or NaN, then return.
-            if (!isfinite(radius_as_dom_point.x) || !isfinite(radius_as_dom_point.y))
-                return {};
+        // 5.1.2. If radius["x"] or radius["y"] is negative, then throw a RangeError.
+        if (radius.x < 0 || radius.y < 0)
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Radius can't be negative"sv };
 
-            // 5.1.2. If radius["x"] or radius["y"] is negative, then throw a RangeError.
-            if (radius_as_dom_point.x < 0 || radius_as_dom_point.y < 0)
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Radius can't be negative"sv };
-
-            // 5.1.3. Otherwise, append radius to normalizedRadii.
-            normalized_radii.append(radius_as_dom_point);
-        }
+        // 5.1.3. Otherwise, append radius to normalizedRadii.
+        normalized_radii.append(radius);
 
         // 5.2. If radius is a unrestricted double:
-        if (radius.has<double>()) {
-            auto radius_as_double = radius.get<double>();
-
-            // 5.2.1. If radius is infinite or NaN, then return.
-            if (!isfinite(radius_as_double))
-                return {};
-
-            // 5.2.2. If radius is negative, then throw a RangeError.
-            if (radius_as_double < 0)
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "roundRect: Radius can't be negative"sv };
-
-            // 5.2.3. Otherwise append «[ "x" → radius, "y" → radius ]» to normalizedRadii.
-            Bindings::DOMPointInit normalized_radius {};
-            normalized_radius.x = radius_as_double;
-            normalized_radius.y = radius_as_double;
-            normalized_radii.append(normalized_radius);
-        }
+        // NB: This is handled by the binding helper.
     }
 
     // 6. Let upperLeft, upperRight, lowerRight, and lowerLeft be null.
-    Bindings::DOMPointInit upper_left {};
-    Bindings::DOMPointInit upper_right {};
-    Bindings::DOMPointInit lower_right {};
-    Bindings::DOMPointInit lower_left {};
+    CanvasRoundRectRadius upper_left {};
+    CanvasRoundRectRadius upper_right {};
+    CanvasRoundRectRadius lower_right {};
+    CanvasRoundRectRadius lower_left {};
 
     // 7. If normalizedRadii's size is 4, then set upperLeft to normalizedRadii[0], set upperRight to normalizedRadii[1], set lowerRight to normalizedRadii[2], and set lowerLeft to normalizedRadii[3].
     if (normalized_radii.size() == 4) {

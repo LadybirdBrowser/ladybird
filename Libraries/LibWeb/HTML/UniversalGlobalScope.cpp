@@ -17,7 +17,6 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MessagePort.h>
-#include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -43,7 +42,7 @@ void UniversalGlobalScopeMixin::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-btoa
-WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::btoa(JS::Realm& realm, String const& data) const
+WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::btoa(String const& data) const
 {
     auto& vm = this_impl().vm();
 
@@ -52,7 +51,7 @@ WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::btoa(JS::Realm& realm, St
     byte_string.ensure_capacity(data.bytes().size());
     for (u32 code_point : Utf8View(data)) {
         if (code_point > 0xff)
-            return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_utf16);
+            return WebIDL::InvalidCharacterError::create("Data contains characters outside the range U+0000 and U+00FF"_utf16);
         byte_string.append(code_point);
     }
 
@@ -62,7 +61,7 @@ WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::btoa(JS::Realm& realm, St
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-atob
-WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::atob(JS::Realm& realm, String const& data) const
+WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::atob(String const& data) const
 {
     auto& vm = this_impl().vm();
 
@@ -89,21 +88,21 @@ WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::atob(JS::Realm& realm, St
 
     // 3. If data's code point length divides by 4 leaving a remainder of 1, then return failure.
     if (stripped_data_bytes.length() % 4 == 1)
-        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_utf16);
+        return WebIDL::InvalidCharacterError::create("Input string is not valid base64 data"_utf16);
 
     // 4. If data contains a code point that is not one of
     //    U+002B (+), U+002F (/), ASCII alphanumeric, then return failure.
     for (auto byte : stripped_data_bytes.bytes()) {
         if (is_ascii_alphanumeric(byte) || byte == '+' || byte == '/')
             continue;
-        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_utf16);
+        return WebIDL::InvalidCharacterError::create("Input string is not valid base64 data"_utf16);
     }
 
     auto decoded_data = decode_base64(stripped_data_bytes);
 
     // 2. If decodedData is failure, then throw an "InvalidCharacterError" DOMException.
     if (decoded_data.is_error())
-        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_utf16);
+        return WebIDL::InvalidCharacterError::create("Input string is not valid base64 data"_utf16);
 
     // 3. Return decodedData.
     // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use isomorphic decoding to convert bytes to UTF-8.
@@ -124,15 +123,13 @@ void UniversalGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callback)
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#dom-structuredclone
-WebIDL::ExceptionOr<JS::Value> UniversalGlobalScopeMixin::structured_clone(JS::Value value, Bindings::StructuredSerializeOptions const& options) const
+WebIDL::ExceptionOr<JS::Value> UniversalGlobalScopeMixin::structured_clone(JS::Realm& realm, JS::Value value, Bindings::StructuredSerializeOptions const& options)
 {
-    auto& realm = HTML::relevant_realm(HTML::relevant_window_or_worker_global_scope(this_impl()));
-
     // 1. Let serialized be ? StructuredSerializeWithTransfer(value, options["transfer"]).
-    auto serialized = TRY(structured_serialize_with_transfer(realm, value, options.transfer));
+    auto serialized = TRY(HTML::structured_serialize_with_transfer(realm, value, options.transfer));
 
     // 2. Let deserializeRecord be ? StructuredDeserializeWithTransfer(serialized, this's relevant realm).
-    auto deserialized = TRY(structured_deserialize_with_transfer(serialized, realm));
+    auto deserialized = TRY(HTML::structured_deserialize_with_transfer(serialized, realm));
 
     // 3. Return deserializeRecord.[[Deserialized]].
     return deserialized.deserialized;
@@ -244,13 +241,13 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
 
             // 2. Let notHandled be the result of firing an event named unhandledrejection at global, using PromiseRejectionEvent, with the cancelable attribute initialized to true,
             //    the promise attribute initialized to p, and the reason attribute initialized to the value of p's [[PromiseResult]] internal slot.
-            Bindings::PromiseRejectionEventInit event_init {
+            PromiseRejectionEventInit event_init {
                 {
                     .bubbles = false,
                     .cancelable = true,
                     .composed = false,
                 },
-                // Sadly we can't use .promise and .reason here, as we can't use the designator on the initialization of Bindings::EventInit above.
+                // Sadly we can't use .promise and .reason here, as we can't use the designator on the initialization of EventInit above.
                 /* .promise = */ *promise,
                 /* .reason = */ promise->result(),
             };

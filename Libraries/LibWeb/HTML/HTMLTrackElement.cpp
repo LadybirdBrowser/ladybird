@@ -8,8 +8,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/HTMLTrackElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -99,7 +97,7 @@ void HTMLTrackElement::inserted()
     // AD-HOC: This is a hack to allow tracks to start loading, without needing to implement the entire
     //         "honor user preferences for automatic text track selection" AO detailed here:
     //         https://html.spec.whatwg.org/multipage/media.html#honor-user-preferences-for-automatic-text-track-selection
-    m_track->set_mode(Bindings::TextTrackMode::Hidden);
+    m_track->set_mode(TextTrackMode::Hidden);
 
     start_the_track_processing_model();
 }
@@ -137,7 +135,7 @@ void HTMLTrackElement::set_track_url(String track_url)
 
     m_track_url = move(track_url);
 
-    auto track_is_hidden_or_showing = first_is_one_of(m_track->mode(), Bindings::TextTrackMode::Hidden, Bindings::TextTrackMode::Showing);
+    auto track_is_hidden_or_showing = first_is_one_of(m_track->mode(), TextTrackMode::Hidden, TextTrackMode::Showing);
 
     // https://html.spec.whatwg.org/multipage/media.html#start-the-track-processing-model
     if (m_loading && m_fetch_controller && track_is_hidden_or_showing) {
@@ -163,7 +161,7 @@ void HTMLTrackElement::start_the_track_processing_model()
         return;
 
     // 2. If the text track's text track mode is not set to one of hidden or showing, then return.
-    if (!first_is_one_of(m_track->mode(), Bindings::TextTrackMode::Hidden, Bindings::TextTrackMode::Showing))
+    if (!first_is_one_of(m_track->mode(), TextTrackMode::Hidden, TextTrackMode::Showing))
         return;
 
     // 3. If the text track's track element does not have a media element as a parent, return.

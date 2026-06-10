@@ -12,9 +12,6 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/Encoder.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/URLSearchParams.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Infra/Strings.h>
@@ -24,8 +21,7 @@ namespace Web::DOMURL {
 GC_DEFINE_ALLOCATOR(URLSearchParams);
 
 URLSearchParams::URLSearchParams(Vector<QueryParam> list)
-    : Bindings::Wrappable()
-    , m_list(move(list))
+    : m_list(move(list))
 {
 }
 
@@ -136,7 +132,7 @@ GC::Ref<URLSearchParams> URLSearchParams::create(StringView init)
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-urlsearchparams
 // https://url.spec.whatwg.org/#urlsearchparams-initialize
-WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init)
+WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::create_from_init(Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init)
 {
     // 1. If init is a string and starts with U+003F (?), then remove the first code point from init.
     // NOTE: We do this when we know that it's a string on step 3 of initialization.
@@ -333,14 +329,13 @@ String URLSearchParams::to_string() const
     return url_encode(m_list);
 }
 
-JS::ThrowCompletionOr<void> URLSearchParams::for_each(ForEachCallback callback)
+void URLSearchParams::for_each(ForEachCallback callback)
 {
     for (auto i = 0u; i < m_list.size(); ++i) {
         auto& query_param = m_list[i]; // We are explicitly iterating over the indices here as the callback might delete items from the list
-        TRY(callback(query_param.name, query_param.value));
+        if (callback(query_param.name, query_param.value) == IterationDecision::Break)
+            break;
     }
-
-    return {};
 }
 
 }

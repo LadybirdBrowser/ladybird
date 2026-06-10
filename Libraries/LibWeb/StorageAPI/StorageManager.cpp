@@ -17,7 +17,6 @@ GC::Ref<StorageManager> StorageManager::create()
 }
 
 StorageManager::StorageManager()
-    : Bindings::Wrappable()
 {
 }
 

@@ -20,8 +20,7 @@ GC::Ref<BarProp> BarProp::create(Window& window)
 }
 
 BarProp::BarProp(Window& window)
-    : Bindings::Wrappable()
-    , m_window(window)
+    : m_window(window)
 {
 }
 

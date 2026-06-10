@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/NodeList.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 
@@ -22,8 +21,6 @@ public:
 
     virtual u32 length() const = 0;
     virtual Node const* item(u32 index) const = 0;
-
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
 protected:
     explicit NodeList();

@@ -5,12 +5,9 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/Bindings/Response.h>
 #include <LibWeb/DOMURL/DOMURL.h>
-#include <LibWeb/Fetch/Enums.h>
+#include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -22,6 +19,11 @@
 namespace Web::Fetch {
 
 GC_DEFINE_ALLOCATOR(Response);
+
+static Bindings::ResponseType response_type_to_bindings(Infrastructure::Response::Type type)
+{
+    return static_cast<Bindings::ResponseType>(type);
+}
 
 Response::Response(GC::Ref<Infrastructure::Response> response)
     : m_response(response)
@@ -97,7 +99,7 @@ static bool is_valid_status_text(String const& status_text)
 }
 
 // https://fetch.spec.whatwg.org/#initialize-a-response
-WebIDL::ExceptionOr<void> Response::initialize_response(Bindings::ResponseInit const& init, Optional<Infrastructure::BodyWithType> const& body)
+WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init, Optional<Infrastructure::BodyWithType> const& body)
 {
     // 1. If init["status"] is not in the range 200 to 599, inclusive, then throw a RangeError.
     if (init.status < 200 || init.status > 599)
@@ -134,40 +136,8 @@ WebIDL::ExceptionOr<void> Response::initialize_response(Bindings::ResponseInit c
     return {};
 }
 
-// https://fetch.spec.whatwg.org/#dom-response
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, NullableBodyInit const& body, Bindings::ResponseInit const& init)
-{
-    return construct_impl_for_realm(HTML::relevant_realm(global_scope), body, init);
-}
-
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl_for_realm(JS::Realm& realm, NullableBodyInit const& body, Bindings::ResponseInit const& init)
-{
-    // Referred to as 'this' in the spec.
-    auto response_object = create(Infrastructure::Response::create());
-
-    // 1. Set this’s response to a new response.
-    // NOTE: This is done at the beginning as the 'this' value Response object
-    //       cannot exist with a null Infrastructure::Response.
-
-    // 2. Set this’s headers to a new Headers object with this’s relevant Realm, whose header list is this’s response’s header list and guard is "response".
-    response_object->m_headers = Headers::create(response_object->response()->header_list());
-    response_object->m_headers->set_guard(Headers::Guard::Response);
-
-    // 3. Let bodyWithType be null.
-    Optional<Infrastructure::BodyWithType> body_with_type;
-
-    // 4. If body is non-null, then set bodyWithType to the result of extracting body.
-    if (!body.has<Empty>())
-        body_with_type = TRY(extract_body(realm, body.downcast<BodyInit>()));
-
-    // 5. Perform initialize a response given this, init, and bodyWithType.
-    TRY(response_object->initialize_response(init, body_with_type));
-
-    return response_object;
-}
-
 // https://fetch.spec.whatwg.org/#dom-response-error
-GC::Ref<Response> Response::error(JS::VM&)
+GC::Ref<Response> Response::error()
 {
     // The static error() method steps are to return the result of creating a Response object, given a new network error, "immutable", and this’s relevant Realm.
     // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
@@ -175,7 +145,7 @@ GC::Ref<Response> Response::error(JS::VM&)
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-redirect
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM&, String const& url, u16 status)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(String const& url, u16 status)
 {
     // 1. Let parsedURL be the result of parsing url with current settings object’s API base URL.
     auto api_base_url = HTML::current_settings_object().api_base_url();
@@ -207,8 +177,24 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM&, String const&
     return response_object;
 }
 
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::create_with_body(ResponseInit const& init, Optional<Infrastructure::BodyWithType> const& body_with_type)
+{
+    auto response_object = Response::create(Infrastructure::Response::create(), Headers::Guard::Response);
+    TRY(response_object->initialize_response(init, body_with_type));
+    return response_object;
+}
+
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm, NullableBodyInit const& body, ResponseInit const& init)
+{
+    Optional<Infrastructure::BodyWithType> body_with_type;
+    if (!body.has<Empty>())
+        body_with_type = TRY(extract_body(realm, body.downcast<BodyInit>()));
+
+    return create_with_body(init, body_with_type);
+}
+
 // https://fetch.spec.whatwg.org/#dom-response-json
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::Realm& realm, JS::Value data, Bindings::ResponseInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::Realm& realm, JS::Value data, ResponseInit const& init)
 {
     // 1. Let bytes the result of running serialize a JavaScript value to JSON bytes on data.
     auto bytes = TRY(Infra::serialize_javascript_value_to_json_bytes(realm, data));
@@ -218,24 +204,9 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::Realm& realm, JS::Valu
 
     // 3. Let responseObject be the result of creating a Response object, given a new response, "response", and this’s relevant Realm.
     // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
-    auto response_object = Response::create(Infrastructure::Response::create(), Headers::Guard::Response);
-
     // 4. Perform initialize a response given responseObject, init, and (body, "application/json").
-    auto body_with_type = Infrastructure::BodyWithType {
-        .body = body,
-        .type = "application/json"sv,
-    };
-    TRY(response_object->initialize_response(init, move(body_with_type)));
-
     // 5. Return responseObject.
-    return response_object;
-}
-
-// https://fetch.spec.whatwg.org/#dom-response-type
-Bindings::ResponseType Response::type() const
-{
-    // The type getter steps are to return this’s response’s type.
-    return to_bindings_enum(m_response->type());
+    return create_with_body(init, Infrastructure::BodyWithType { body, "application/json"sv });
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-url
@@ -245,6 +216,12 @@ String Response::url() const
     return !m_response->url().has_value()
         ? String {}
         : m_response->url()->serialize(URL::ExcludeFragment::Yes);
+}
+
+Bindings::ResponseType Response::type() const
+{
+    // The type getter steps are to return this’s response’s type.
+    return response_type_to_bindings(m_response->type());
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-redirected

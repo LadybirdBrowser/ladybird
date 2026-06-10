@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SVGTransform.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::SVG {

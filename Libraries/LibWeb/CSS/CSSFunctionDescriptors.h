@@ -21,7 +21,7 @@ public:
     virtual ~CSSFunctionDescriptors() override = default;
 
     String result() const;
-    WebIDL::ExceptionOr<void> set_result(JS::Realm&, StringView value);
+    WebIDL::ExceptionOr<void> set_result(StringView value);
 
 private:
     explicit CSSFunctionDescriptors(Vector<Descriptor> descriptors)

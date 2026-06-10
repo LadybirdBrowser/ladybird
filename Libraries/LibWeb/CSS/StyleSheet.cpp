@@ -6,7 +6,6 @@
  */
 
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/StyleSheet.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/DOM/Element.h>

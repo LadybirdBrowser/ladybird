@@ -6,8 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
+
+namespace Web::Bindings {
+
+struct DOMRectInit;
+
+}
 
 namespace Web::Geometry {
 
@@ -17,12 +22,10 @@ class DOMRect final : public DOMRectReadOnly {
     GC_DECLARE_ALLOCATOR(DOMRect);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DOMRect>> construct_impl(double x = 0, double y = 0, double width = 0, double height = 0);
     [[nodiscard]] static GC::Ref<DOMRect> create(double x, double y, double width, double height);
     [[nodiscard]] static GC::Ref<DOMRect> create(Gfx::FloatRect const&);
     [[nodiscard]] static GC::Ref<DOMRect> create();
-    [[nodiscard]] static GC::Ref<DOMRect> from_rect(JS::VM&, Bindings::DOMRectInit const&);
-    [[nodiscard]] static GC::Ref<DOMRect> from_rect(Bindings::DOMRectInit const&);
+    [[nodiscard]] static GC::Ref<DOMRect> dom_rect_from_rect(Bindings::DOMRectInit const&);
 
     virtual ~DOMRect() override;
 

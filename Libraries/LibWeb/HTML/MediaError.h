@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibWeb/Bindings/MediaError.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {

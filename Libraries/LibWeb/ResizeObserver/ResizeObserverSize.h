@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/Bindings/ResizeObserver.h>
-#include <LibWeb/Bindings/ResizeObserverSize.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::ResizeObserver {
@@ -23,8 +22,8 @@ public:
         double block_size { 0 };
     };
 
-    static RawSize compute_box_size(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
-    static GC::Ref<ResizeObserverSize> calculate_box_size(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
+    static RawSize compute_box_size(DOM::Element& target, ObservedBox);
+    static GC::Ref<ResizeObserverSize> calculate_box_size(DOM::Element& target, ObservedBox);
 
     double inline_size() const { return m_inline_size; }
     void set_inline_size(double inline_size) { m_inline_size = inline_size; }

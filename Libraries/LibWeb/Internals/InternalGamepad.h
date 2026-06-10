@@ -6,9 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/InternalGamepad.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
+
+namespace JS {
+
+class Object;
+class Realm;
+
+}
 
 namespace Web::Internals {
 
@@ -30,6 +38,18 @@ public:
     void set_button(int button, bool down);
     void set_axis(int axis, short value);
 
+    struct ReceivedRumbleEffect {
+        u16 low_frequency_rumble { 0 };
+        u16 high_frequency_rumble { 0 };
+    };
+
+    struct ReceivedRumbleTriggerEffect {
+        u16 left_rumble { 0 };
+        u16 right_rumble { 0 };
+    };
+
+    Vector<ReceivedRumbleEffect> const& received_rumble_effects() const { return m_received_rumble_effects; }
+    Vector<ReceivedRumbleTriggerEffect> const& received_rumble_trigger_effects() const { return m_received_rumble_trigger_effects; }
     GC::RootVector<JS::Object*> get_received_rumble_effects(JS::Realm&) const;
     GC::RootVector<JS::Object*> get_received_rumble_trigger_effects(JS::Realm&) const;
 
@@ -42,16 +62,6 @@ private:
     InternalGamepad(GC::Ref<Internals>);
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
-
-    struct ReceivedRumbleEffect {
-        u16 low_frequency_rumble { 0 };
-        u16 high_frequency_rumble { 0 };
-    };
-
-    struct ReceivedRumbleTriggerEffect {
-        u16 left_rumble { 0 };
-        u16 right_rumble { 0 };
-    };
 
     SDL_JoystickID m_sdl_joystick_id;
     SDL_Joystick* m_sdl_joystick;

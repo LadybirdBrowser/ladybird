@@ -8,9 +8,10 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/Value.h>
+#include <LibJS/SyntheticModule.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/CSSStyleSheet.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
@@ -38,12 +39,38 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleSheet);
 
+CSSStyleSheet* css_style_sheet_from_value(JS::Value value)
+{
+    return value.is_object() ? Bindings::impl_from<CSSStyleSheet>(&value.as_object()) : nullptr;
+}
+
+JS::Value css_style_sheet(JS::Realm& realm, CSSStyleSheet& style_sheet)
+{
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { style_sheet });
+}
+
+void resolve_css_style_sheet_promise(JS::Realm& realm, WebIDL::Promise const& promise, CSSStyleSheet& style_sheet)
+{
+    WebIDL::resolve_promise(realm, promise, css_style_sheet(realm, style_sheet));
+}
+
+GC::Ref<JS::SyntheticModule> create_css_style_sheet_default_export_module(JS::Realm& realm, CSSStyleSheet& style_sheet, StringView filename)
+{
+    return JS::SyntheticModule::create_default_export_synthetic_module(realm, css_style_sheet(realm, style_sheet), filename);
+}
+
+WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Realm& realm, CSSStyleSheetOptions const& options)
+{
+    auto associated_document = HTML::relevant_window(realm.global_object()).document();
+    return create_constructed(*associated_document, options);
+}
+
 GC::Ref<CSSStyleSheet> CSSStyleSheet::create(CSSRuleList& rules, MediaList& media, Optional<::URL::URL> location)
 {
     return GC::Heap::the().allocate<CSSStyleSheet>(rules, media, move(location));
 }
 
-WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::create_constructed(DOM::Document const& associated_document, Optional<Bindings::CSSStyleSheetInit> const& options)
+WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::create_constructed(DOM::Document const& associated_document, CSSStyleSheetOptions const& options)
 {
     // 1. Construct a new CSSStyleSheet object sheet.
     auto sheet = create(CSSRuleList::create(), CSS::MediaList::create({}), {});
@@ -52,13 +79,13 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::create_constructed(DO
     sheet->set_location(associated_document.base_url());
 
     // 3. Set sheet’s stylesheet base URL to the baseURL attribute value from options.
-    if (options.has_value() && options->base_url.has_value()) {
+    if (options.base_url.has_value()) {
         Optional<::URL::URL> sheet_location_url;
         if (sheet->location().has_value())
             sheet_location_url = sheet->location().release_value();
 
         // AD-HOC: This isn't explicitly mentioned in the specification, but multiple modern browsers do this.
-        Optional<::URL::URL> url = sheet->location().has_value() ? sheet_location_url->complete_url(options->base_url.value()) : ::URL::Parser::basic_parse(options->base_url.value());
+        Optional<::URL::URL> url = sheet->location().has_value() ? sheet_location_url->complete_url(options.base_url.value()) : ::URL::Parser::basic_parse(options.base_url.value());
         if (!url.has_value())
             return WebIDL::NotAllowedError::create("Constructed style sheets must have a valid base URL"_utf16);
 
@@ -91,27 +118,18 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::create_constructed(DO
 
     // 12. If the media attribute of options is a string, create a MediaList object from the string and assign it as sheet’s media.
     //     Otherwise, serialize a media query list from the attribute and then create a MediaList object from the resulting string and set it as sheet’s media.
-    if (options.has_value()) {
-        if (options->media.has<String>()) {
-            sheet->set_media(options->media.get<String>());
-        } else {
-            sheet->m_media = *options->media.get<GC::Ref<MediaList>>();
-        }
+    if (options.media.has<String>()) {
+        sheet->set_media(options.media.get<String>());
+    } else {
+        sheet->m_media = *options.media.get<GC::Ref<MediaList>>();
     }
 
     // 13. If the disabled attribute of options is true, set sheet’s disabled flag.
-    if (options.has_value() && options->disabled)
+    if (options.disabled)
         sheet->set_disabled(true);
 
     // 14. Return sheet
     return sheet;
-}
-
-// https://drafts.csswg.org/cssom/#dom-cssstylesheet-cssstylesheet
-WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(HTML::Window& window, Optional<Bindings::CSSStyleSheetInit> const& options)
-{
-    auto associated_document = window.document();
-    return create_constructed(*associated_document, options);
 }
 
 CSSStyleSheet::CSSStyleSheet(CSSRuleList& rules, MediaList& media, Optional<::URL::URL> location)
@@ -163,27 +181,27 @@ size_t CSSStyleSheet::external_memory_size() const
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-insertrule
-WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(JS::Realm& realm, StringView rule, unsigned index)
+WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsigned index)
 {
     // FIXME: 1. If the origin-clean flag is unset, throw a SecurityError exception.
 
     // If the disallow modification flag is set, throw a NotAllowedError DOMException.
     if (disallow_modification())
-        return WebIDL::NotAllowedError::create(realm, "Can't call insert_rule() on non-modifiable stylesheets."_utf16);
+        return WebIDL::NotAllowedError::create("Can't call insert_rule() on non-modifiable stylesheets."_utf16);
 
     // 3. Let parsed rule be the return value of invoking parse a rule with rule.
     auto parsed_rule = parse_css_rule(make_parsing_params(), rule);
 
     // 4. If parsed rule is a syntax error, return parsed rule.
     if (!parsed_rule)
-        return WebIDL::SyntaxError::create(realm, "Unable to parse CSS rule."_utf16);
+        return WebIDL::SyntaxError::create("Unable to parse CSS rule."_utf16);
 
     // 5. If parsed rule is an @import rule, and the constructed flag is set, throw a SyntaxError DOMException.
     if (constructed() && parsed_rule->type() == CSSRule::Type::Import)
-        return WebIDL::SyntaxError::create(realm, "Can't insert @import rules into a constructed stylesheet."_utf16);
+        return WebIDL::SyntaxError::create("Can't insert @import rules into a constructed stylesheet."_utf16);
 
     // 6. Return the result of invoking insert a CSS rule rule in the CSS rules at index.
-    auto result = m_rules->insert_a_css_rule(realm, parsed_rule, index, CSSRuleList::Nested::No, declared_namespaces());
+    auto result = m_rules->insert_a_css_rule(parsed_rule, index, CSSRuleList::Nested::No, declared_namespaces());
 
     if (!result.is_exception()) {
         // NOTE: The spec doesn't say where to set the parent style sheet, so we'll do it here.
@@ -201,17 +219,17 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(JS::Realm& realm, Strin
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-deleterule
-WebIDL::ExceptionOr<void> CSSStyleSheet::delete_rule(JS::Realm& realm, unsigned index)
+WebIDL::ExceptionOr<void> CSSStyleSheet::delete_rule(unsigned index)
 {
     // FIXME: 1. If the origin-clean flag is unset, throw a SecurityError exception.
 
     // 2. If the disallow modification flag is set, throw a NotAllowedError DOMException.
     if (disallow_modification())
-        return WebIDL::NotAllowedError::create(realm, "Can't call delete_rule() on non-modifiable stylesheets."_utf16);
+        return WebIDL::NotAllowedError::create("Can't call delete_rule() on non-modifiable stylesheets."_utf16);
 
     // 3. Remove a CSS rule in the CSS rules at index.
     auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
-    auto result = m_rules->remove_a_css_rule(realm, index);
+    auto result = m_rules->remove_a_css_rule(index);
     if (!result.is_exception()) {
         invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDeleteRule, &previous_sheet_effects);
     }
@@ -226,28 +244,34 @@ void CSSStyleSheet::delete_rule_without_validation(Badge<::Web::ViewTransition::
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-replace
-GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(JS::Realm& realm, String text)
+WebIDL::ExceptionOr<void> CSSStyleSheet::replace(JS::Realm& realm, String text, GC::Ref<WebIDL::Promise> promise)
 {
-    // 1. Let promise be a promise
-    auto promise = WebIDL::create_promise(realm);
+    auto result = replace_a_stylesheet(move(text), [&realm, promise = GC::Root(promise), this] {
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        resolve_css_style_sheet_promise(realm, *promise, *this);
+    });
+    if (result.is_exception())
+        WebIDL::reject_promise_with_exception(realm, promise, result.release_error());
 
-    // 2. If the constructed flag is not set, or the disallow modification flag is set, reject promise with a NotAllowedError DOMException and return promise.
+    return {};
+}
+
+WebIDL::ExceptionOr<void> CSSStyleSheet::replace_a_stylesheet(String text, Function<void()> did_replace)
+{
+    // 1. If the constructed flag is not set, or the disallow modification flag is set, return a NotAllowedError DOMException.
     if (!constructed()) {
-        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Can't call replace() on non-constructed stylesheets"_utf16));
-        return promise;
+        return WebIDL::NotAllowedError::create("Can't call replace() on non-constructed stylesheets"_utf16);
     }
 
     if (disallow_modification()) {
-        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Can't call replace() on non-modifiable stylesheets"_utf16));
-        return promise;
+        return WebIDL::NotAllowedError::create("Can't call replace() on non-modifiable stylesheets"_utf16);
     }
 
-    // 3. Set the disallow modification flag.
+    // 2. Set the disallow modification flag.
     set_disallow_modification(true);
 
-    // 4. In parallel, do these steps:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, this, text = move(text), promise = GC::Root(promise)] {
-        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    // 3. In parallel, do these steps:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, text = move(text), did_replace = move(did_replace)] {
         auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
@@ -271,21 +295,21 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(JS::Realm& realm, String text)
         // 4. Unset sheet’s disallow modification flag.
         set_disallow_modification(false);
 
-        // 5. Resolve promise with sheet.
-        WebIDL::resolve_promise(realm, *promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this }));
+        // 5. Run the replacement completion steps.
+        did_replace();
     }));
 
-    return promise;
+    return {};
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-replacesync
-WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(JS::Realm& realm, StringView text)
+WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
 {
     // 1. If the constructed flag is not set, or the disallow modification flag is set, throw a NotAllowedError DOMException.
     if (!constructed())
-        return WebIDL::NotAllowedError::create(realm, "Can't call replaceSync() on non-constructed stylesheets"_utf16);
+        return WebIDL::NotAllowedError::create("Can't call replaceSync() on non-constructed stylesheets"_utf16);
     if (disallow_modification())
-        return WebIDL::NotAllowedError::create(realm, "Can't call replaceSync() on non-modifiable stylesheets"_utf16);
+        return WebIDL::NotAllowedError::create("Can't call replaceSync() on non-modifiable stylesheets"_utf16);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
     auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
@@ -311,7 +335,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(JS::Realm& realm, StringVi
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-addrule
-WebIDL::ExceptionOr<WebIDL::Long> CSSStyleSheet::add_rule(JS::Realm& realm, Optional<String> selector, Optional<String> style, Optional<WebIDL::UnsignedLong> index)
+WebIDL::ExceptionOr<WebIDL::Long> CSSStyleSheet::add_rule(Optional<String> selector, Optional<String> style, Optional<WebIDL::UnsignedLong> index)
 {
     // 1. Let rule be an empty string.
     StringBuilder rule;
@@ -332,17 +356,17 @@ WebIDL::ExceptionOr<WebIDL::Long> CSSStyleSheet::add_rule(JS::Realm& realm, Opti
 
     // 6. Let index be optionalIndex if provided, or the number of CSS rules in the stylesheet otherwise.
     // 7. Call insertRule(), with rule and index as arguments.
-    TRY(insert_rule(realm, rule.string_view(), index.value_or(rules().length())));
+    TRY(insert_rule(rule.string_view(), index.value_or(rules().length())));
 
     // 8. Return -1.
     return -1;
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-removerule
-WebIDL::ExceptionOr<void> CSSStyleSheet::remove_rule(JS::Realm& realm, Optional<WebIDL::UnsignedLong> index)
+WebIDL::ExceptionOr<void> CSSStyleSheet::remove_rule(Optional<WebIDL::UnsignedLong> index)
 {
     // The removeRule(index) method must run the same steps as deleteRule().
-    return delete_rule(realm, index.value_or(0));
+    return delete_rule(index.value_or(0));
 }
 
 void CSSStyleSheet::for_each_effective_rule(TraversalOrder order, Function<void(Web::CSS::CSSRule const&)> const& callback) const

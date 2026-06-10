@@ -6,10 +6,12 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/GamepadButton.h>
+#include <AK/Badge.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::Gamepad {
+
+class Gamepad;
 
 class GamepadButton final : public Bindings::Wrappable {
     WEB_WRAPPABLE(GamepadButton, Bindings::Wrappable);

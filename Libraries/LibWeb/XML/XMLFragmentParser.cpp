@@ -8,7 +8,6 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
 #include <LibXML/Parser/Parser.h>
@@ -78,14 +77,14 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fr
 
     // 5. If there is an XML well-formedness or XML namespace well-formedness error, then throw a "SyntaxError" DOMException.
     if (result.is_error()) {
-        return WebIDL::SyntaxError::create(HTML::relevant_realm(context), Utf16String::formatted("{}", result.error()));
+        return WebIDL::SyntaxError::create(Utf16String::formatted("{}", result.error()));
     }
 
     auto* doc_element = document->document_element();
 
     // 6. If the document element of the resulting Document has any sibling nodes, then throw a "SyntaxError" DOMException.
     if (doc_element->previous_sibling() || doc_element->next_sibling()) {
-        return WebIDL::SyntaxError::create(HTML::relevant_realm(context), "Document element has sibling nodes"_utf16);
+        return WebIDL::SyntaxError::create("Document element has sibling nodes"_utf16);
     }
 
     // 7. Return the resulting Document node's document element's children, in tree order.

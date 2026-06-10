@@ -1,7 +1,7 @@
 // https://w3c.github.io/performance-timeline/#performanceobserverentrylist-interface
 [Exposed=(Window,Worker)]
 interface PerformanceObserverEntryList {
-    [NeedsCallerRealm] PerformanceEntryList getEntries();
-    [NeedsCallerRealm] PerformanceEntryList getEntriesByType(DOMString type);
-    [NeedsCallerRealm] PerformanceEntryList getEntriesByName(DOMString name, optional DOMString type);
+    PerformanceEntryList getEntries();
+    PerformanceEntryList getEntriesByType(DOMString type);
+    PerformanceEntryList getEntriesByName(DOMString name, optional DOMString type);
 };

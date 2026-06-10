@@ -22,16 +22,16 @@ interface MediaSource : EventTarget {
     readonly  attribute SourceBufferList activeSourceBuffers;
     readonly  attribute ReadyState readyState;
 
-    [NeedsThisObjectRealmForSetter] attribute unrestricted double duration;
+    attribute unrestricted double duration;
     attribute EventHandler onsourceopen;
     attribute EventHandler onsourceended;
     attribute EventHandler onsourceclose;
 
     static readonly attribute boolean canConstructInDedicatedWorker;
 
-    [NeedsThisObjectRealm] SourceBuffer addSourceBuffer(DOMString type);
+    SourceBuffer addSourceBuffer(DOMString type);
     [FIXME] undefined removeSourceBuffer(SourceBuffer sourceBuffer);
-    [NeedsThisObjectRealm] undefined endOfStream(optional EndOfStreamError error);
+    [ImplementedAs=end_of_stream] undefined endOfStream(optional EndOfStreamError error);
     [FIXME] undefined setLiveSeekableRange(double start, double end);
     [FIXME] undefined clearLiveSeekableRange();
     static boolean isTypeSupported(DOMString type);

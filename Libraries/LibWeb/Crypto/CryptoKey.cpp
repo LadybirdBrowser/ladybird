@@ -6,16 +6,16 @@
  */
 
 #include <AK/Memory.h>
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
-#include <LibGC/Root.h>
+#include <LibGC/WeakInlines.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/CryptoKey.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Crypto/CryptoKey.h>
-#include <LibWeb/Crypto/KeyAlgorithms.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::Crypto {
@@ -35,6 +35,95 @@ enum class HandleTag : u8 {
     MLKEMPrivateKey = 9,
 };
 
+struct CryptoKeyCacheEntry {
+    GC::Weak<CryptoKey> key;
+    Bindings::WrapperWorldWeakValueCache<JS::Object> algorithm_objects;
+    Bindings::WrapperWorldWeakValueCache<JS::Object> usages_objects;
+};
+
+static Vector<CryptoKeyCacheEntry>& crypto_key_caches()
+{
+    static NeverDestroyed<Vector<CryptoKeyCacheEntry>> caches;
+    return *caches;
+}
+
+static void prune_crypto_key_caches()
+{
+    crypto_key_caches().remove_all_matching([](auto const& entry) {
+        return !entry.key;
+    });
+}
+
+static CryptoKeyCacheEntry& cache_for(CryptoKey& key)
+{
+    auto& caches = crypto_key_caches();
+    prune_crypto_key_caches();
+
+    for (auto& entry : caches) {
+        if (entry.key.ptr() == &key)
+            return entry;
+    }
+
+    caches.append(CryptoKeyCacheEntry { key, {}, {} });
+    return caches.last();
+}
+
+static JS::ThrowCompletionOr<GC::Ref<JS::Uint8Array>> create_uint8_array_from_bytes(JS::Realm& realm, ReadonlyBytes bytes)
+{
+    auto array = TRY(JS::Uint8Array::create(realm, bytes.size()));
+    array->viewed_array_buffer()->overwrite(0, bytes.data(), bytes.size());
+    return array;
+}
+
+static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create_key_algorithm_object(JS::Realm& realm, String const& name)
+{
+    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+    TRY(object->create_data_property_or_throw("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), name)));
+    return object;
+}
+
+static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create_algorithm_object(JS::Realm& realm, CryptoKey::InternalAlgorithmData const& algorithm)
+{
+    return TRY(algorithm.visit(
+        [&](CryptoKey::KeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
+            return create_key_algorithm_object(realm, algorithm.name());
+        },
+        [&](CryptoKey::RsaKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
+            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
+            TRY(object->create_data_property_or_throw("modulusLength"_utf16_fly_string, JS::Value(algorithm.modulus_length())));
+            TRY(object->create_data_property_or_throw("publicExponent"_utf16_fly_string, TRY(create_uint8_array_from_bytes(realm, algorithm.public_exponent().bytes()))));
+            return object;
+        },
+        [&](CryptoKey::RsaHashedKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
+            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
+            TRY(object->create_data_property_or_throw("modulusLength"_utf16_fly_string, JS::Value(algorithm.modulus_length())));
+            TRY(object->create_data_property_or_throw("publicExponent"_utf16_fly_string, TRY(create_uint8_array_from_bytes(realm, algorithm.public_exponent().bytes()))));
+            TRY(object->create_data_property_or_throw("hash"_utf16_fly_string, TRY(create_key_algorithm_object(realm, algorithm.hash()))));
+            return object;
+        },
+        [&](CryptoKey::EcKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
+            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
+            TRY(object->create_data_property_or_throw("namedCurve"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), algorithm.named_curve())));
+            return object;
+        },
+        [&](CryptoKey::AesKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
+            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
+            TRY(object->create_data_property_or_throw("length"_utf16_fly_string, JS::Value(algorithm.length())));
+            return object;
+        },
+        [&](CryptoKey::HmacKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
+            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
+            TRY(object->create_data_property_or_throw("hash"_utf16_fly_string, TRY(create_key_algorithm_object(realm, algorithm.hash()))));
+            TRY(object->create_data_property_or_throw("length"_utf16_fly_string, JS::Value(algorithm.length())));
+            return object;
+        },
+        [&](CryptoKey::KmacKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
+            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
+            TRY(object->create_data_property_or_throw("length"_utf16_fly_string, JS::Value(algorithm.length())));
+            return object;
+        }));
+}
+
 void serialize_handle(HTML::TransferDataEncoder& encoder, ByteBuffer const& buffer)
 {
     encoder.encode(HandleTag::ByteBuffer);
@@ -50,11 +139,11 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, RsaOtherPrimesInfo con
 
 RsaOtherPrimesInfo deserialize_rsa_other_primes_info(HTML::TransferDataDecoder& decoder)
 {
-    return RsaOtherPrimesInfo {
-        .r = decoder.decode<Optional<String>>(),
-        .d = decoder.decode<Optional<String>>(),
-        .t = decoder.decode<Optional<String>>(),
-    };
+    RsaOtherPrimesInfo info;
+    info.r = decoder.decode<Optional<String>>();
+    info.d = decoder.decode<Optional<String>>();
+    info.t = decoder.decode<Optional<String>>();
+    return info;
 }
 
 void serialize_handle(HTML::TransferDataEncoder& encoder, JsonWebKey const& jwk)
@@ -127,10 +216,10 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::RSAPubli
     encoder.encode_unsigned_big_integer(key.public_exponent());
 }
 
-WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> deserialize_rsa_public_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> deserialize_rsa_public_key(HTML::TransferDataDecoder& decoder)
 {
-    auto modulus = TRY(decoder.decode_unsigned_big_integer(realm));
-    auto public_exponent = TRY(decoder.decode_unsigned_big_integer(realm));
+    auto modulus = TRY(decoder.decode_unsigned_big_integer());
+    auto public_exponent = TRY(decoder.decode_unsigned_big_integer());
     return ::Crypto::PK::RSAPublicKey { move(modulus), move(public_exponent) };
 }
 
@@ -147,16 +236,16 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::RSAPriva
     encoder.encode_unsigned_big_integer(key.coefficient());
 }
 
-WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey> deserialize_rsa_private_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey> deserialize_rsa_private_key(HTML::TransferDataDecoder& decoder)
 {
-    auto modulus = TRY(decoder.decode_unsigned_big_integer(realm));
-    auto private_exponent = TRY(decoder.decode_unsigned_big_integer(realm));
-    auto public_exponent = TRY(decoder.decode_unsigned_big_integer(realm));
-    auto prime1 = TRY(decoder.decode_unsigned_big_integer(realm));
-    auto prime2 = TRY(decoder.decode_unsigned_big_integer(realm));
-    auto exponent1 = TRY(decoder.decode_unsigned_big_integer(realm));
-    auto exponent2 = TRY(decoder.decode_unsigned_big_integer(realm));
-    auto coefficient = TRY(decoder.decode_unsigned_big_integer(realm));
+    auto modulus = TRY(decoder.decode_unsigned_big_integer());
+    auto private_exponent = TRY(decoder.decode_unsigned_big_integer());
+    auto public_exponent = TRY(decoder.decode_unsigned_big_integer());
+    auto prime1 = TRY(decoder.decode_unsigned_big_integer());
+    auto prime2 = TRY(decoder.decode_unsigned_big_integer());
+    auto exponent1 = TRY(decoder.decode_unsigned_big_integer());
+    auto exponent2 = TRY(decoder.decode_unsigned_big_integer());
+    auto coefficient = TRY(decoder.decode_unsigned_big_integer());
     return ::Crypto::PK::RSAPrivateKey { move(modulus), move(private_exponent), move(public_exponent), move(prime1), move(prime2), move(exponent1), move(exponent2), move(coefficient) };
 }
 
@@ -172,10 +261,10 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::ECPublic
     serialize_ec_public_key(encoder, key);
 }
 
-WebIDL::ExceptionOr<::Crypto::PK::ECPublicKey> deserialize_ec_public_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+WebIDL::ExceptionOr<::Crypto::PK::ECPublicKey> deserialize_ec_public_key(HTML::TransferDataDecoder& decoder)
 {
-    auto x_bytes = TRY(decoder.decode_buffer(realm));
-    auto y_bytes = TRY(decoder.decode_buffer(realm));
+    auto x_bytes = TRY(decoder.decode_buffer());
+    auto y_bytes = TRY(decoder.decode_buffer());
     auto scalar_size = x_bytes.size();
     return ::Crypto::PK::ECPublicKey { ::Crypto::UnsignedBigInteger::import_data(x_bytes), ::Crypto::UnsignedBigInteger::import_data(y_bytes), scalar_size };
 }
@@ -190,16 +279,16 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::ECPrivat
         serialize_ec_public_key(encoder, *key.public_key());
 }
 
-WebIDL::ExceptionOr<::Crypto::PK::ECPrivateKey> deserialize_ec_private_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+WebIDL::ExceptionOr<::Crypto::PK::ECPrivateKey> deserialize_ec_private_key(HTML::TransferDataDecoder& decoder)
 {
-    auto d_bytes = TRY(decoder.decode_buffer(realm));
+    auto d_bytes = TRY(decoder.decode_buffer());
     auto scalar_size = d_bytes.size();
     auto d = ::Crypto::UnsignedBigInteger::import_data(d_bytes);
     auto parameters = decoder.decode<Optional<Vector<int>>>();
 
     Optional<::Crypto::PK::ECPublicKey> public_key;
     if (decoder.decode<bool>())
-        public_key = TRY(deserialize_ec_public_key(decoder, realm));
+        public_key = TRY(deserialize_ec_public_key(decoder));
 
     return ::Crypto::PK::ECPrivateKey { move(d), scalar_size, move(parameters), move(public_key) };
 }
@@ -210,9 +299,9 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::MLDSAPub
     encoder.encode(key.public_key());
 }
 
-WebIDL::ExceptionOr<::Crypto::PK::MLDSAPublicKey> deserialize_mldsa_public_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+WebIDL::ExceptionOr<::Crypto::PK::MLDSAPublicKey> deserialize_mldsa_public_key(HTML::TransferDataDecoder& decoder)
 {
-    return ::Crypto::PK::MLDSAPublicKey { TRY(decoder.decode_buffer(realm)) };
+    return ::Crypto::PK::MLDSAPublicKey { TRY(decoder.decode_buffer()) };
 }
 
 void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::MLDSAPrivateKey const& key)
@@ -223,11 +312,11 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::MLDSAPri
     encoder.encode(key.private_key());
 }
 
-WebIDL::ExceptionOr<::Crypto::PK::MLDSAPrivateKey> deserialize_mldsa_private_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+WebIDL::ExceptionOr<::Crypto::PK::MLDSAPrivateKey> deserialize_mldsa_private_key(HTML::TransferDataDecoder& decoder)
 {
-    auto seed = TRY(decoder.decode_buffer(realm));
-    auto public_key = TRY(decoder.decode_buffer(realm));
-    auto private_key = TRY(decoder.decode_buffer(realm));
+    auto seed = TRY(decoder.decode_buffer());
+    auto public_key = TRY(decoder.decode_buffer());
+    auto private_key = TRY(decoder.decode_buffer());
     return ::Crypto::PK::MLDSAPrivateKey { move(seed), move(public_key), move(private_key) };
 }
 
@@ -237,9 +326,9 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::MLKEMPub
     encoder.encode(key.public_key());
 }
 
-WebIDL::ExceptionOr<::Crypto::PK::MLKEMPublicKey> deserialize_mlkem_public_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+WebIDL::ExceptionOr<::Crypto::PK::MLKEMPublicKey> deserialize_mlkem_public_key(HTML::TransferDataDecoder& decoder)
 {
-    return ::Crypto::PK::MLKEMPublicKey { TRY(decoder.decode_buffer(realm)) };
+    return ::Crypto::PK::MLKEMPublicKey { TRY(decoder.decode_buffer()) };
 }
 
 void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::MLKEMPrivateKey const& key)
@@ -250,19 +339,17 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::MLKEMPri
     encoder.encode(key.private_key());
 }
 
-WebIDL::ExceptionOr<::Crypto::PK::MLKEMPrivateKey> deserialize_mlkem_private_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+WebIDL::ExceptionOr<::Crypto::PK::MLKEMPrivateKey> deserialize_mlkem_private_key(HTML::TransferDataDecoder& decoder)
 {
-    auto seed = TRY(decoder.decode_buffer(realm));
-    auto public_key = TRY(decoder.decode_buffer(realm));
-    auto private_key = TRY(decoder.decode_buffer(realm));
+    auto seed = TRY(decoder.decode_buffer());
+    auto public_key = TRY(decoder.decode_buffer());
+    auto private_key = TRY(decoder.decode_buffer());
     return ::Crypto::PK::MLKEMPrivateKey { move(seed), move(public_key), move(private_key) };
 }
 
 }
 
 GC_DEFINE_ALLOCATOR(CryptoKey);
-GC_DEFINE_ALLOCATOR(CryptoKeyPair);
-
 enum class SerializedKeyAlgorithmType : u8 {
     Key,
     Rsa,
@@ -272,20 +359,6 @@ enum class SerializedKeyAlgorithmType : u8 {
     Hmac,
     Kmac,
 };
-
-static JS::ThrowCompletionOr<GC::Ref<JS::Uint8Array>> create_uint8_array_from_bytes(JS::Realm& realm, ReadonlyBytes bytes)
-{
-    auto array = TRY(JS::Uint8Array::create(realm, bytes.size()));
-    array->viewed_array_buffer()->overwrite(0, bytes.data(), bytes.size());
-    return array;
-}
-
-static GC::Ref<KeyAlgorithm> create_hash_algorithm(JS::Realm& realm, String const& name)
-{
-    auto hash = KeyAlgorithm::create(realm);
-    hash->set_name(name);
-    return hash;
-}
 
 static void serialize_algorithm(HTML::TransferDataEncoder& serialized, CryptoKey::InternalAlgorithmData const& algorithm)
 {
@@ -330,7 +403,7 @@ static void serialize_algorithm(HTML::TransferDataEncoder& serialized, CryptoKey
         });
 }
 
-static WebIDL::ExceptionOr<CryptoKey::InternalAlgorithmData> deserialize_algorithm(HTML::TransferDataDecoder& serialized, JS::Realm& realm)
+static WebIDL::ExceptionOr<CryptoKey::InternalAlgorithmData> deserialize_algorithm(HTML::TransferDataDecoder& serialized)
 {
     auto type = serialized.decode<SerializedKeyAlgorithmType>();
     switch (type) {
@@ -340,13 +413,13 @@ static WebIDL::ExceptionOr<CryptoKey::InternalAlgorithmData> deserialize_algorit
         return CryptoKey::RsaKeyAlgorithmData {
             serialized.decode<String>(),
             serialized.decode<u32>(),
-            TRY(serialized.decode_buffer(realm)),
+            TRY(serialized.decode_buffer()),
         };
     case SerializedKeyAlgorithmType::RsaHashed:
         return CryptoKey::RsaHashedKeyAlgorithmData {
             serialized.decode<String>(),
             serialized.decode<u32>(),
-            TRY(serialized.decode_buffer(realm)),
+            TRY(serialized.decode_buffer()),
             serialized.decode<String>(),
         };
     case SerializedKeyAlgorithmType::Ec:
@@ -409,173 +482,62 @@ void CryptoKey::visit_edges(GC::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
 }
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> CryptoKey::algorithm_for_bindings(JS::Realm& realm, Bindings::WrapperWorld const& wrapper_world) const
-{
-    if (auto algorithm_object = m_algorithm_objects.get(wrapper_world))
-        return *algorithm_object;
-
-    auto object = TRY(m_algorithm.visit(
-        [&](KeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = GC::make_root(KeyAlgorithm::create(realm));
-            object->set_name(algorithm.name());
-            return GC::Ref<JS::Object> { *object };
-        },
-        [&](RsaKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = GC::make_root(RsaKeyAlgorithm::create(realm));
-            object->set_name(algorithm.name());
-            object->set_modulus_length(algorithm.modulus_length());
-            object->set_public_exponent(TRY(create_uint8_array_from_bytes(realm, algorithm.public_exponent().bytes())));
-            return GC::Ref<JS::Object> { *object };
-        },
-        [&](RsaHashedKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = GC::make_root(RsaHashedKeyAlgorithm::create(realm));
-            object->set_name(algorithm.name());
-            object->set_modulus_length(algorithm.modulus_length());
-            object->set_public_exponent(TRY(create_uint8_array_from_bytes(realm, algorithm.public_exponent().bytes())));
-            object->set_hash(HashAlgorithmIdentifier { algorithm.hash() });
-            return GC::Ref<JS::Object> { *object };
-        },
-        [&](EcKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = GC::make_root(EcKeyAlgorithm::create(realm));
-            object->set_name(algorithm.name());
-            object->set_named_curve(algorithm.named_curve());
-            return GC::Ref<JS::Object> { *object };
-        },
-        [&](AesKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = GC::make_root(AesKeyAlgorithm::create(realm));
-            object->set_name(algorithm.name());
-            object->set_length(algorithm.length());
-            return GC::Ref<JS::Object> { *object };
-        },
-        [&](HmacKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = GC::make_root(HmacKeyAlgorithm::create(realm));
-            object->set_name(algorithm.name());
-            auto hash = GC::make_root(create_hash_algorithm(realm, algorithm.hash()));
-            object->set_hash(hash.ptr());
-            object->set_length(algorithm.length());
-            return GC::Ref<JS::Object> { *object };
-        },
-        [&](KmacKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = GC::make_root(KmacKeyAlgorithm::create(realm));
-            object->set_name(algorithm.name());
-            object->set_length(algorithm.length());
-            return GC::Ref<JS::Object> { *object };
-        }));
-
-    m_algorithm_objects.set(wrapper_world, object);
-
-    return object;
-}
-
-JS::ThrowCompletionOr<JS::Object const*> CryptoKey::algorithm(JS::Realm& realm) const
-{
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-    auto object = TRY(algorithm_for_bindings(realm, wrapper_world));
-    return object.ptr();
-}
-
-GC::Ref<JS::Object> CryptoKey::create_usages_object(JS::Realm& realm) const
-{
-    auto usages = GC::make_root(JS::Array::create_from<Bindings::KeyUsage>(realm, m_key_usages.span(), [&](auto& key_usage) -> JS::Value {
-        return JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(key_usage));
-    }));
-    MUST(usages->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
-    return GC::Ref<JS::Object> { *usages };
-}
-
-JS::Object const* CryptoKey::usages(JS::Realm& realm) const
-{
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-    if (auto usages_object = m_usages_objects.get(wrapper_world))
-        return usages_object.ptr();
-
-    auto usages_object = create_usages_object(realm);
-    m_usages_objects.set(wrapper_world, usages_object);
-
-    return usages_object.ptr();
-}
-
-void CryptoKey::clear_cached_algorithm_objects() const
-{
-    m_algorithm_objects.clear();
-}
-
-void CryptoKey::clear_cached_usages_objects() const
-{
-    m_usages_objects.clear();
-}
-
 void CryptoKey::set_algorithm(InternalAlgorithmData algorithm)
 {
-    clear_cached_algorithm_objects();
     m_algorithm = move(algorithm);
 }
 
-void CryptoKey::set_usages(Vector<Bindings::KeyUsage> usages)
+void CryptoKey::set_usages(Vector<KeyUsage> usages)
 {
-    clear_cached_usages_objects();
     m_key_usages = move(usages);
+}
+
+Bindings::KeyType CryptoKey::bindings_type() const
+{
+    switch (m_type) {
+    case KeyType::Public:
+        return Bindings::KeyType::Public;
+    case KeyType::Private:
+        return Bindings::KeyType::Private;
+    case KeyType::Secret:
+        return Bindings::KeyType::Secret;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+JS::ThrowCompletionOr<JS::Value> CryptoKey::algorithm(JS::Realm& realm)
+{
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    auto& cache = cache_for(*this);
+
+    if (auto object = cache.algorithm_objects.get(wrapper_world))
+        return object;
+
+    auto object = TRY(create_algorithm_object(realm, m_algorithm));
+    cache.algorithm_objects.set(wrapper_world, object);
+    return object;
+}
+
+JS::ThrowCompletionOr<JS::Value> CryptoKey::usages(JS::Realm& realm)
+{
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    auto& cache = cache_for(*this);
+
+    if (auto object = cache.usages_objects.get(wrapper_world))
+        return object;
+
+    auto usages = GC::make_root(JS::Array::create_from<KeyUsage>(realm, m_key_usages.span(), [&](auto& key_usage) -> JS::Value {
+        return JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(key_usage));
+    }));
+    MUST(usages->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
+
+    cache.usages_objects.set(wrapper_world, *usages);
+    return GC::Ref<JS::Object> { *usages };
 }
 
 String CryptoKey::algorithm_name() const
 {
     return m_algorithm.visit([](auto const& algorithm) { return algorithm.name(); });
-}
-
-GC::Ref<CryptoKeyPair> CryptoKeyPair::create(JS::Realm& realm, GC::Ref<CryptoKey> public_key, GC::Ref<CryptoKey> private_key)
-{
-    return realm.create<CryptoKeyPair>(realm, public_key, private_key);
-}
-
-CryptoKeyPair::CryptoKeyPair(JS::Realm& realm, GC::Ref<CryptoKey> public_key, GC::Ref<CryptoKey> private_key)
-    : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())
-    , m_public_key(public_key)
-    , m_private_key(private_key)
-{
-}
-
-void CryptoKeyPair::initialize(JS::Realm& realm)
-{
-    define_native_accessor(realm, "publicKey"_utf16_fly_string, public_key_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
-    define_native_accessor(realm, "privateKey"_utf16_fly_string, private_key_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
-
-    Base::initialize(realm);
-}
-
-void CryptoKeyPair::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_public_key);
-    visitor.visit(m_private_key);
-}
-
-static JS::ThrowCompletionOr<CryptoKeyPair*> impl_from(JS::VM& vm, JS::Realm& realm)
-{
-    auto this_value = vm.this_value();
-    JS::Object* this_object = nullptr;
-    if (this_value.is_nullish())
-        this_object = &realm.global_object();
-    else
-        this_object = TRY(this_value.to_object(vm));
-
-    auto* crypto_key_pair = as_if<CryptoKeyPair>(this_object);
-    if (!crypto_key_pair)
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CryptoKeyPair");
-    return crypto_key_pair;
-}
-
-JS_DEFINE_NATIVE_FUNCTION(CryptoKeyPair::public_key_getter)
-{
-    auto& realm = *vm.current_realm();
-    auto* impl = TRY(impl_from(vm, realm));
-    return TRY(Bindings::throw_dom_exception_if_needed(vm, realm, [&] { return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, impl->public_key()); }));
-}
-
-JS_DEFINE_NATIVE_FUNCTION(CryptoKeyPair::private_key_getter)
-{
-    auto& realm = *vm.current_realm();
-    auto* impl = TRY(impl_from(vm, realm));
-    return TRY(Bindings::throw_dom_exception_if_needed(vm, realm, [&] { return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, impl->private_key()); }));
 }
 
 WebIDL::ExceptionOr<void> CryptoKey::serialization_steps(JS::Realm&, HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
@@ -598,54 +560,52 @@ WebIDL::ExceptionOr<void> CryptoKey::serialization_steps(JS::Realm&, HTML::Trans
     return {};
 }
 
-WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(JS::Realm& realm, HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(JS::Realm&, HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
 {
     // 1. Initialize the [[type]] internal slot of value to serialized.[[Type]].
-    m_type = serialized.decode<Bindings::KeyType>();
+    m_type = serialized.decode<KeyType>();
 
     // 2. Initialize the [[extractable]] internal slot of value to serialized.[[Extractable]].
     m_extractable = serialized.decode<bool>();
 
     // 3. Initialize the [[algorithm]] internal slot of value to the sub-deserialization of serialized.[[Algorithm]].
-    m_algorithm = TRY(deserialize_algorithm(serialized, realm));
-    clear_cached_algorithm_objects();
+    m_algorithm = TRY(deserialize_algorithm(serialized));
 
     // 4. Initialize the [[usages]] internal slot of value to the sub-deserialization of serialized.[[Usages]].
-    m_key_usages = serialized.decode<Vector<Bindings::KeyUsage>>();
-    clear_cached_usages_objects();
+    m_key_usages = serialized.decode<Vector<KeyUsage>>();
 
     // 5. Initialize the [[handle]] internal slot of value to serialized.[[Handle]].
     auto tag = serialized.decode<HandleTag>();
     switch (tag) {
     case HandleTag::ByteBuffer:
-        m_key_data = TRY(serialized.decode_buffer(realm));
+        m_key_data = TRY(serialized.decode_buffer());
         break;
     case HandleTag::JsonWebKey:
         m_key_data = deserialize_json_web_key(serialized);
         break;
     case HandleTag::RSAPublicKey:
-        m_key_data = TRY(deserialize_rsa_public_key(serialized, realm));
+        m_key_data = TRY(deserialize_rsa_public_key(serialized));
         break;
     case HandleTag::RSAPrivateKey:
-        m_key_data = TRY(deserialize_rsa_private_key(serialized, realm));
+        m_key_data = TRY(deserialize_rsa_private_key(serialized));
         break;
     case HandleTag::ECPublicKey:
-        m_key_data = TRY(deserialize_ec_public_key(serialized, realm));
+        m_key_data = TRY(deserialize_ec_public_key(serialized));
         break;
     case HandleTag::ECPrivateKey:
-        m_key_data = TRY(deserialize_ec_private_key(serialized, realm));
+        m_key_data = TRY(deserialize_ec_private_key(serialized));
         break;
     case HandleTag::MLDSAPublicKey:
-        m_key_data = TRY(deserialize_mldsa_public_key(serialized, realm));
+        m_key_data = TRY(deserialize_mldsa_public_key(serialized));
         break;
     case HandleTag::MLDSAPrivateKey:
-        m_key_data = TRY(deserialize_mldsa_private_key(serialized, realm));
+        m_key_data = TRY(deserialize_mldsa_private_key(serialized));
         break;
     case HandleTag::MLKEMPublicKey:
-        m_key_data = TRY(deserialize_mlkem_public_key(serialized, realm));
+        m_key_data = TRY(deserialize_mlkem_public_key(serialized));
         break;
     case HandleTag::MLKEMPrivateKey:
-        m_key_data = TRY(deserialize_mlkem_private_key(serialized, realm));
+        m_key_data = TRY(deserialize_mlkem_private_key(serialized));
         break;
     }
 

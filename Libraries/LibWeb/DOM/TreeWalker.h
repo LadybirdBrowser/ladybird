@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/NodeFilter.h>
 
@@ -25,13 +24,13 @@ public:
     GC::Ref<Node> current_node() const;
     void set_current_node(Node&);
 
-    JS::ThrowCompletionOr<GC::Ptr<Node>> parent_node(JS::Realm&);
-    JS::ThrowCompletionOr<GC::Ptr<Node>> first_child(JS::Realm&);
-    JS::ThrowCompletionOr<GC::Ptr<Node>> last_child(JS::Realm&);
-    JS::ThrowCompletionOr<GC::Ptr<Node>> previous_sibling(JS::Realm&);
-    JS::ThrowCompletionOr<GC::Ptr<Node>> next_sibling(JS::Realm&);
-    JS::ThrowCompletionOr<GC::Ptr<Node>> previous_node(JS::Realm&);
-    JS::ThrowCompletionOr<GC::Ptr<Node>> next_node(JS::Realm&);
+    TraversalResult parent_node(TraversalFilter const&);
+    TraversalResult first_child(TraversalFilter const&);
+    TraversalResult last_child(TraversalFilter const&);
+    TraversalResult previous_sibling(TraversalFilter const&);
+    TraversalResult next_sibling(TraversalFilter const&);
+    TraversalResult previous_node(TraversalFilter const&);
+    TraversalResult next_node(TraversalFilter const&);
 
     GC::Ref<Node> root() { return m_root; }
 
@@ -48,15 +47,15 @@ private:
         First,
         Last,
     };
-    JS::ThrowCompletionOr<GC::Ptr<Node>> traverse_children(JS::Realm&, ChildTraversalType);
+    TraversalResult traverse_children(TraversalFilter const&, ChildTraversalType);
 
     enum class SiblingTraversalType {
         Next,
         Previous,
     };
-    JS::ThrowCompletionOr<GC::Ptr<Node>> traverse_siblings(JS::Realm&, SiblingTraversalType);
+    TraversalResult traverse_siblings(TraversalFilter const&, SiblingTraversalType);
 
-    JS::ThrowCompletionOr<NodeFilter::Result> filter(JS::Realm&, Node&);
+    TraversalFilterResult filter(TraversalFilter const&, Node&);
 
     // https://dom.spec.whatwg.org/#concept-traversal-root
     GC::Ref<Node> m_root;

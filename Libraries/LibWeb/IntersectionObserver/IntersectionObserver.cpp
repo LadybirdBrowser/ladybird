@@ -6,31 +6,72 @@
 
 #include <AK/QuickSort.h>
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/ValueInlines.h>
+#include <LibWeb/Bindings/IntersectionObserverEntry.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::IntersectionObserver {
 
 GC_DEFINE_ALLOCATOR(IntersectionObserver);
 
-// https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-intersectionobserver
-WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::construct_impl(HTML::Window& window, GC::Ptr<WebIDL::CallbackType> callback, Bindings::IntersectionObserverInit const& options)
+GC::Ref<WebIDL::CallbackType> create_lazy_load_intersection_observer_callback(DOM::Document& document)
 {
-    auto implicit_root_document = window.page().top_level_browsing_context().active_document();
-    VERIFY(implicit_root_document);
-    return create_with_implicit_root_document(callback, options, *implicit_root_document);
+    auto& realm = document.relevant_settings_object().realm();
+    auto callback = JS::NativeFunction::create(realm, Utf16FlyString {}, [&document](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        auto& entries = as<JS::Array>(vm.argument(0).as_object());
+        auto entries_length = MUST(MUST(entries.get(vm.names.length)).to_length(vm));
+
+        Vector<GC::Ref<IntersectionObserverEntry>> intersection_observer_entries;
+        for (size_t i = 0; i < entries_length; ++i) {
+            auto property_key = JS::PropertyKey { i };
+            auto& entry_object = entries.get_without_side_effects(property_key).as_object();
+            auto* entry = Bindings::impl_from<IntersectionObserverEntry>(&entry_object);
+            VERIFY(entry);
+            intersection_observer_entries.append(*entry);
+        }
+
+        document.process_lazy_load_intersection_observer_entries(intersection_observer_entries);
+        return JS::js_undefined();
+    });
+
+    return GC::Heap::the().allocate<WebIDL::CallbackType>(callback, realm);
 }
 
-WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_with_implicit_root_document(GC::Ptr<WebIDL::CallbackType> callback, Bindings::IntersectionObserverInit const& options, DOM::Document& implicit_root_document)
+void invoke_intersection_observer_callback(IntersectionObserver& observer, Vector<GC::Root<IntersectionObserverEntry>>& queue)
+{
+    auto& callback = observer.callback();
+    auto& callback_realm = callback.callback_context->realm();
+
+    auto wrapped_queue = MUST(JS::Array::create(callback_realm, 0));
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(callback_realm);
+    for (size_t i = 0; i < queue.size(); ++i) {
+        auto& record = queue.at(i);
+        auto property_index = JS::PropertyKey { i };
+        MUST(wrapped_queue->create_data_property(property_index, Bindings::wrap(wrapper_world, callback_realm, GC::Ref { *record })));
+    }
+
+    // NOTE: This does not follow the spec as written precisely, but this is the
+    // same thing we do elsewhere and there is a WPT test that relies on this.
+    auto wrapped_observer = Bindings::wrap(wrapper_world, callback_realm, GC::Ref { observer });
+    (void)WebIDL::invoke_callback(callback, wrapped_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_queue, wrapped_observer } });
+}
+
+WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_with_implicit_root_document(GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverOptions options, DOM::Document& implicit_root_document)
 {
     // https://w3c.github.io/IntersectionObserver/#initialize-a-new-intersectionobserver
     // 1. Let this be a new IntersectionObserver object
@@ -38,13 +79,13 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_
     // NOTE: Steps 1 and 2 are handled by creating the IntersectionObserver at the very end of this function.
 
     // 3. Attempt to parse a margin from options.rootMargin. If a list is returned, set this’s internal [[rootMargin]] slot to that. Otherwise, throw a SyntaxError exception.
-    auto root_margin = parse_a_margin(options.root_margin);
+    auto root_margin = parse_a_margin(move(options.root_margin));
     if (!root_margin.has_value()) {
         return WebIDL::SyntaxError::create("IntersectionObserver: Cannot parse root margin as a margin."_utf16);
     }
 
     // 4. Attempt to parse a margin from options.scrollMargin. If a list is returned, set this’s internal [[scrollMargin]] slot to that. Otherwise, throw a SyntaxError exception.
-    auto scroll_margin = parse_a_margin(options.scroll_margin);
+    auto scroll_margin = parse_a_margin(move(options.scroll_margin));
     if (!scroll_margin.has_value()) {
         return WebIDL::SyntaxError::create("IntersectionObserver: Cannot parse scroll margin as a margin."_utf16);
     }
@@ -55,7 +96,7 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_
         thresholds.append(options.threshold.get<double>());
     } else {
         VERIFY(options.threshold.has<Vector<double>>());
-        thresholds = options.threshold.get<Vector<double>>();
+        thresholds = move(options.threshold.get<Vector<double>>());
     }
 
     // 6. If any value in thresholds is less than 0.0 or greater than 1.0, throw a RangeError exception.
@@ -88,12 +129,19 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_
     // 12. Set this’s internal [[delay]] slot to options.delay to delay.
     // 13. Set this’s internal [[trackVisibility]] slot to options.trackVisibility.
     // 14. Return this.
-    return GC::Heap::the().allocate<IntersectionObserver>(callback, options.root, implicit_root_document, move(root_margin.value()), move(scroll_margin.value()), move(thresholds), move(delay), move(options.track_visibility));
+    return GC::Heap::the().allocate<IntersectionObserver>(callback, options.root, implicit_root_document, move(root_margin.value()), move(scroll_margin.value()), move(thresholds), move(delay), options.track_visibility);
+}
+
+WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_for_constructor(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverOptions options)
+{
+    auto& window = HTML::relevant_window(realm.global_object());
+    auto implicit_root_document = window.page().top_level_browsing_context().active_document();
+    VERIFY(implicit_root_document);
+    return create_with_implicit_root_document(callback, options, *implicit_root_document);
 }
 
 IntersectionObserver::IntersectionObserver(GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, GC::Ref<DOM::Document> implicit_root_document, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
-    : Bindings::Wrappable()
-    , m_callback(callback)
+    : m_callback(callback)
     , m_root_margin(root_margin)
     , m_scroll_margin(scroll_margin)
     , m_thresholds(move(thresholds))

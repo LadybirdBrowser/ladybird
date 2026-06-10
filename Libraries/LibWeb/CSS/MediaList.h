@@ -9,11 +9,11 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibJS/Forward.h>
-#include <LibJS/Runtime/Object.h>
-#include <LibWeb/Bindings/MediaList.h>
+#include <AK/String.h>
+#include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/MediaQuery.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
@@ -31,9 +31,7 @@ public:
     size_t length() const { return m_media.size(); }
     Optional<String> item(u32 index) const;
     void append_medium(StringView);
-    WebIDL::ExceptionOr<void> delete_medium(JS::Realm&, StringView);
-
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
+    WebIDL::ExceptionOr<void> delete_medium(StringView);
 
     bool evaluate(DOM::Document const&);
     bool matches() const;

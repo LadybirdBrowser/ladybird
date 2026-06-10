@@ -10,7 +10,7 @@
 namespace Web::CredentialManagement {
 
 // https://www.w3.org/TR/credential-management-1/#abstract-opdef-create-a-federatedcredential-from-federatedcredentialinit
-GC::Ref<FederatedCredential> create_federated_credential(Bindings::FederatedCredentialInit const& init, URL::Origin origin)
+GC::Ref<FederatedCredential> create_federated_credential(FederatedCredentialInit init, URL::Origin origin)
 {
     // 1. Let c be a new FederatedCredential object.
     // 3. Set c’s properties as follows:
@@ -26,7 +26,7 @@ GC::Ref<FederatedCredential> create_federated_credential(Bindings::FederatedCred
     //      - init.origin's value.
     //      NOTE: origin is retrieved by parsing the URL from init.provider.
     // 4. Return c.
-    return GC::Heap::the().allocate<FederatedCredential>(init, move(origin));
+    return GC::Heap::the().allocate<FederatedCredential>(move(init), move(origin));
 }
 
 }

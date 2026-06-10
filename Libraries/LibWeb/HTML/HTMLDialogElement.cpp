@@ -7,11 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/NativeFunction.h>
-#include <LibWeb/Bindings/Event.h>
-#include <LibWeb/Bindings/HTMLDialogElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -85,7 +81,7 @@ void HTMLDialogElement::queue_a_dialog_toggle_event_task(AK::String old_state, A
     auto task_id = queue_an_element_task(Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state), source]() {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
         //    oldState, the newState attribute initialized to newState, and the source attribute initialized to source.
-        Bindings::ToggleEventInit event_init {};
+        ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
         event_init.source = source;
@@ -112,12 +108,12 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
 
     // 2. If this has an open attribute, then throw an "InvalidStateError" DOMException.
     if (has_attribute(AttributeNames::open))
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "Dialog already open"_utf16);
+        return WebIDL::InvalidStateError::create("Dialog already open"_utf16);
 
     // 3. If the result of firing an event named beforetoggle, using ToggleEvent,
     //    with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
     //    and the newState attribute initialized to "open" at this is false, then return.
-    Bindings::ToggleEventInit event_init {};
+    ToggleEventInit event_init {};
     event_init.cancelable = true;
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
@@ -174,33 +170,31 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#show-a-modal-dialog
 WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogElement& subject, GC::Ptr<DOM::Element> source)
 {
-    auto& realm = HTML::relevant_realm(subject);
-
     // 1. If subject has an open attribute and is modal of subject is true, then return.
     if (subject.has_attribute(AttributeNames::open) && subject.m_is_modal)
         return {};
 
     // 2. If subject has an open attribute, then throw an "InvalidStateError" DOMException.
     if (subject.has_attribute(AttributeNames::open))
-        return WebIDL::InvalidStateError::create(realm, "Dialog already open"_utf16);
+        return WebIDL::InvalidStateError::create("Dialog already open"_utf16);
 
     // 3. If subject's node document is not fully active, then throw an "InvalidStateError" DOMException.
     if (!subject.document().is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_utf16);
+        return WebIDL::InvalidStateError::create("Document is not fully active"_utf16);
 
     // 4. If subject is not connected, then throw an "InvalidStateError" DOMException.
     if (!subject.is_connected())
-        return WebIDL::InvalidStateError::create(realm, "Dialog not connected"_utf16);
+        return WebIDL::InvalidStateError::create("Dialog not connected"_utf16);
 
     // 5. If subject is in the popover showing state, then throw an "InvalidStateError" DOMException.
     if (subject.popover_visibility_state() == PopoverVisibilityState::Showing)
-        return WebIDL::InvalidStateError::create(realm, "Dialog already open as popover"_utf16);
+        return WebIDL::InvalidStateError::create("Dialog already open as popover"_utf16);
 
     // 6. If the result of firing an event named beforetoggle, using ToggleEvent,
     //    with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
     //    the newState attribute initialized to "open", and the source attribute initialized to source at subject is
     //    false, then return.
-    Bindings::ToggleEventInit event_init {};
+    ToggleEventInit event_init {};
     event_init.cancelable = true;
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
@@ -335,7 +329,7 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result, GC::Ptr<DOM::E
 
     // 2. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open", the
     //    newState attribute initialized to "closed", and the source attribute initialized to source at subject.
-    Bindings::ToggleEventInit event_init {};
+    ToggleEventInit event_init {};
     event_init.old_state = "open"_string;
     event_init.new_state = "closed"_string;
     event_init.source = source;
@@ -412,7 +406,7 @@ void HTMLDialogElement::set_close_watcher()
     //      with the cancelable attribute initialized to canPreventClose.
     auto cancel_callback_function = JS::NativeFunction::create(
         HTML::relevant_realm(*this), [this](JS::VM& vm) {
-            auto* event = Bindings::impl_from<DOM::Event>(&vm.argument(0).as_object());
+            auto* event = Bindings::event_from_callback_argument(vm);
             VERIFY(event);
             bool can_prevent_close = event->cancelable();
             auto should_continue = dispatch_event(DOM::Event::create(HTML::EventNames::cancel, { .cancelable = can_prevent_close }, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));

@@ -7,10 +7,8 @@
 #include <LibGC/Heap.h>
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibWeb/Bindings/Request.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOMURL/DOMURL.h>
-#include <LibWeb/Fetch/Enums.h>
 #include <LibWeb/Fetch/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
@@ -20,6 +18,136 @@
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::Fetch {
+
+static Bindings::ReferrerPolicy referrer_policy_to_bindings(ReferrerPolicy::ReferrerPolicy referrer_policy)
+{
+    return static_cast<Bindings::ReferrerPolicy>(referrer_policy);
+}
+
+static Bindings::RequestDestination request_destination_to_bindings(Optional<Infrastructure::Request::Destination> const& destination)
+{
+    if (!destination.has_value())
+        return Bindings::RequestDestination::Empty;
+
+    switch (*destination) {
+    case Infrastructure::Request::Destination::Audio:
+        return Bindings::RequestDestination::Audio;
+    case Infrastructure::Request::Destination::AudioWorklet:
+        return Bindings::RequestDestination::Audioworklet;
+    case Infrastructure::Request::Destination::Document:
+        return Bindings::RequestDestination::Document;
+    case Infrastructure::Request::Destination::Embed:
+        return Bindings::RequestDestination::Embed;
+    case Infrastructure::Request::Destination::Font:
+        return Bindings::RequestDestination::Font;
+    case Infrastructure::Request::Destination::Frame:
+        return Bindings::RequestDestination::Frame;
+    case Infrastructure::Request::Destination::IFrame:
+        return Bindings::RequestDestination::Iframe;
+    case Infrastructure::Request::Destination::Image:
+        return Bindings::RequestDestination::Image;
+    case Infrastructure::Request::Destination::JSON:
+        return Bindings::RequestDestination::Json;
+    case Infrastructure::Request::Destination::Manifest:
+        return Bindings::RequestDestination::Manifest;
+    case Infrastructure::Request::Destination::Object:
+        return Bindings::RequestDestination::Object;
+    case Infrastructure::Request::Destination::PaintWorklet:
+        return Bindings::RequestDestination::Paintworklet;
+    case Infrastructure::Request::Destination::Report:
+        return Bindings::RequestDestination::Report;
+    case Infrastructure::Request::Destination::Script:
+        return Bindings::RequestDestination::Script;
+    case Infrastructure::Request::Destination::SharedWorker:
+        return Bindings::RequestDestination::Sharedworker;
+    case Infrastructure::Request::Destination::Style:
+        return Bindings::RequestDestination::Style;
+    case Infrastructure::Request::Destination::Track:
+        return Bindings::RequestDestination::Track;
+    case Infrastructure::Request::Destination::Video:
+        return Bindings::RequestDestination::Video;
+    case Infrastructure::Request::Destination::Worker:
+        return Bindings::RequestDestination::Worker;
+    case Infrastructure::Request::Destination::XSLT:
+        return Bindings::RequestDestination::Xslt;
+    case Infrastructure::Request::Destination::ServiceWorker:
+    case Infrastructure::Request::Destination::WebIdentity:
+        VERIFY_NOT_REACHED();
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static Bindings::RequestMode request_mode_to_bindings(Infrastructure::Request::Mode mode)
+{
+    switch (mode) {
+    case Infrastructure::Request::Mode::SameOrigin:
+        return Bindings::RequestMode::SameOrigin;
+    case Infrastructure::Request::Mode::CORS:
+        return Bindings::RequestMode::Cors;
+    case Infrastructure::Request::Mode::NoCORS:
+        return Bindings::RequestMode::NoCors;
+    case Infrastructure::Request::Mode::Navigate:
+        return Bindings::RequestMode::Navigate;
+    case Infrastructure::Request::Mode::WebSocket:
+        VERIFY_NOT_REACHED();
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static Bindings::RequestCredentials request_credentials_to_bindings(Infrastructure::Request::CredentialsMode credentials_mode)
+{
+    return static_cast<Bindings::RequestCredentials>(credentials_mode);
+}
+
+static Bindings::RequestCache request_cache_to_bindings(HTTP::CacheMode cache_mode)
+{
+    return static_cast<Bindings::RequestCache>(cache_mode);
+}
+
+static Bindings::RequestRedirect request_redirect_to_bindings(Infrastructure::Request::RedirectMode redirect_mode)
+{
+    return static_cast<Bindings::RequestRedirect>(redirect_mode);
+}
+
+static ReferrerPolicy::ReferrerPolicy referrer_policy_from_bindings(Bindings::ReferrerPolicy referrer_policy)
+{
+    return static_cast<ReferrerPolicy::ReferrerPolicy>(referrer_policy);
+}
+
+static Infrastructure::Request::Mode request_mode_from_bindings(Bindings::RequestMode mode)
+{
+    switch (mode) {
+    case Bindings::RequestMode::SameOrigin:
+        return Infrastructure::Request::Mode::SameOrigin;
+    case Bindings::RequestMode::Cors:
+        return Infrastructure::Request::Mode::CORS;
+    case Bindings::RequestMode::NoCors:
+        return Infrastructure::Request::Mode::NoCORS;
+    case Bindings::RequestMode::Navigate:
+        return Infrastructure::Request::Mode::Navigate;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static Infrastructure::Request::CredentialsMode request_credentials_from_bindings(Bindings::RequestCredentials request_credentials)
+{
+    return static_cast<Infrastructure::Request::CredentialsMode>(request_credentials);
+}
+
+static HTTP::CacheMode request_cache_from_bindings(Bindings::RequestCache request_cache)
+{
+    return static_cast<HTTP::CacheMode>(request_cache);
+}
+
+static Infrastructure::Request::RedirectMode request_redirect_from_bindings(Bindings::RequestRedirect request_redirect)
+{
+    return static_cast<Infrastructure::Request::RedirectMode>(request_redirect);
+}
+
+static Infrastructure::Request::Priority request_priority_from_bindings(Bindings::RequestPriority request_priority)
+{
+    return static_cast<Infrastructure::Request::Priority>(request_priority);
+}
 
 static bool is_empty(Bindings::RequestInit const& request_init)
 {
@@ -115,18 +243,12 @@ GC::Ref<Request> Request::create(GC::Ref<Infrastructure::Request> request, Heade
     return request_object;
 }
 
-// https://fetch.spec.whatwg.org/#dom-request
-WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, RequestInfo const& input, Bindings::RequestInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, RequestInfo const& input, Bindings::RequestInit const& init)
 {
-    return construct_impl_with_settings(HTML::relevant_settings_object(global_scope), HTML::relevant_realm(global_scope), input, init);
+    return create_with_settings(HTML::principal_realm_settings_object(realm), realm, input, init);
 }
 
-WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl_for_realm(JS::Realm& realm, RequestInfo const& input, Bindings::RequestInit const& init)
-{
-    return construct_impl_with_settings(HTML::principal_realm_settings_object(realm), realm, input, init);
-}
-
-WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl_with_settings(HTML::EnvironmentSettingsObject& relevant_settings_object, JS::Realm& realm, RequestInfo const& input, Bindings::RequestInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Request>> Request::create_with_settings(HTML::EnvironmentSettingsObject& relevant_settings_object, JS::Realm& realm, RequestInfo const& input, Bindings::RequestInit const& init)
 {
     // Referred to as 'this' in the spec.
     auto request_object = create(Infrastructure::Request::create());
@@ -189,13 +311,14 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl_with_settings(HTML
             traversable_for_user_prompts = input_request->traversable_for_user_prompts();
     }
 
-    // 10. If init["window"] exists and is non-null, then throw a TypeError.
-    if (init.window.has_value() && !init.window->is_null())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'window' property must be omitted or null"sv };
-
     // 11. If init["window"] exists, then set traversableForUserPrompts to "no-traversable".
-    if (init.window.has_value())
+    if (init.window.has_value()) {
+        // https://fetch.spec.whatwg.org/#dom-request
+        // If init["window"] exists and is non-null, then throw a TypeError.
+        if (!init.window->is_null())
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The 'window' property must be omitted or null"sv };
         traversable_for_user_prompts = Infrastructure::Request::TraversableForUserPrompts::NoTraversable;
+    }
 
     // 12. Set request to a new request with the following properties:
     // NOTE: This is done at the beginning as the 'this' value Request object
@@ -349,11 +472,11 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl_with_settings(HTML
 
     // 15. If init["referrerPolicy"] exists, then set request’s referrer policy to it.
     if (init.referrer_policy.has_value())
-        request->set_referrer_policy(from_bindings_enum(*init.referrer_policy));
+        request->set_referrer_policy(referrer_policy_from_bindings(*init.referrer_policy));
 
     // 16. Let mode be init["mode"] if it exists, and fallbackMode otherwise.
     auto mode = init.mode.has_value()
-        ? from_bindings_enum(*init.mode)
+        ? Optional<Infrastructure::Request::Mode> { request_mode_from_bindings(*init.mode) }
         : fallback_mode;
 
     // 17. If mode is "navigate", then throw a TypeError.
@@ -366,11 +489,11 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl_with_settings(HTML
 
     // 19. If init["credentials"] exists, then set request’s credentials mode to it.
     if (init.credentials.has_value())
-        request->set_credentials_mode(from_bindings_enum(*init.credentials));
+        request->set_credentials_mode(request_credentials_from_bindings(*init.credentials));
 
     // 20. If init["cache"] exists, then set request’s cache mode to it.
     if (init.cache.has_value())
-        request->set_cache_mode(from_bindings_enum(*init.cache));
+        request->set_cache_mode(request_cache_from_bindings(*init.cache));
 
     // 21. If request’s cache mode is "only-if-cached" and request’s mode is not "same-origin", then throw a TypeError.
     if (request->cache_mode() == HTTP::CacheMode::OnlyIfCached && request->mode() != Infrastructure::Request::Mode::SameOrigin)
@@ -378,7 +501,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl_with_settings(HTML
 
     // 22. If init["redirect"] exists, then set request’s redirect mode to it.
     if (init.redirect.has_value())
-        request->set_redirect_mode(from_bindings_enum(*init.redirect));
+        request->set_redirect_mode(request_redirect_from_bindings(*init.redirect));
 
     // 23. If init["integrity"] exists, then set request’s integrity metadata to it.
     if (init.integrity.has_value())
@@ -412,7 +535,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl_with_settings(HTML
 
     // 27. If init["priority"] exists, then:
     if (init.priority.has_value())
-        request->set_priority(from_bindings_enum(*init.priority));
+        request->set_priority(request_priority_from_bindings(*init.priority));
 
     // 28. Set this’s request to request.
     // NOTE: This is done at the beginning as the 'this' value Request object
@@ -556,8 +679,8 @@ GC::Ref<Headers> Request::headers() const
 // https://fetch.spec.whatwg.org/#dom-request-destination
 Bindings::RequestDestination Request::destination() const
 {
-    // The destination getter are to return this’s request’s destination.
-    return to_bindings_enum(m_request->destination());
+    // The destination getter steps are to return this’s request’s destination.
+    return request_destination_to_bindings(m_request->destination());
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-referrer
@@ -586,35 +709,35 @@ String Request::referrer() const
 Bindings::ReferrerPolicy Request::referrer_policy() const
 {
     // The referrerPolicy getter steps are to return this’s request’s referrer policy.
-    return to_bindings_enum(m_request->referrer_policy());
+    return referrer_policy_to_bindings(m_request->referrer_policy());
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-mode
 Bindings::RequestMode Request::mode() const
 {
     // The mode getter steps are to return this’s request’s mode.
-    return to_bindings_enum(m_request->mode());
+    return request_mode_to_bindings(m_request->mode());
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-credentials
 Bindings::RequestCredentials Request::credentials() const
 {
     // The credentials getter steps are to return this’s request’s credentials mode.
-    return to_bindings_enum(m_request->credentials_mode());
+    return request_credentials_to_bindings(m_request->credentials_mode());
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-cache
 Bindings::RequestCache Request::cache() const
 {
     // The cache getter steps are to return this’s request’s cache mode.
-    return to_bindings_enum(m_request->cache_mode());
+    return request_cache_to_bindings(m_request->cache_mode());
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-redirect
 Bindings::RequestRedirect Request::redirect() const
 {
     // The redirect getter steps are to return this’s request’s redirect mode.
-    return to_bindings_enum(m_request->redirect_mode());
+    return request_redirect_to_bindings(m_request->redirect_mode());
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-integrity

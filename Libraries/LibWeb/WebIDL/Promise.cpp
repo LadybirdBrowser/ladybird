@@ -12,10 +12,10 @@
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebIDL {
@@ -123,7 +123,7 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
 
         // 2. If there is a set of steps to be run if the promise was fulfilled, then let result be the result of performing them, given value if T is not undefined. Otherwise, let result be value.
         auto result = on_fulfilled_callback
-            ? TRY(Bindings::throw_dom_exception_if_needed(vm, realm, [&] { return on_fulfilled_callback->function()(value); }))
+            ? TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return on_fulfilled_callback->function()(value); }))
             : value;
 
         // 3. Return result, converted to an ECMAScript value.
@@ -140,7 +140,7 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
 
         // 2. If there is a set of steps to be run if the promise was rejected, then let result be the result of performing them, given reason. Otherwise, let result be a promise rejected with reason.
         auto result = on_rejected_callback
-            ? TRY(Bindings::throw_dom_exception_if_needed(vm, realm, [&] { return on_rejected_callback->function()(reason); }))
+            ? TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return on_rejected_callback->function()(reason); }))
             : WebIDL::create_rejected_promise(realm, reason)->promise();
 
         // 3. Return result, converted to an ECMAScript value.
@@ -346,13 +346,13 @@ GC::Ref<Promise> get_promise_for_wait_for_all(JS::Realm& realm, ReadonlySpan<GC:
 
 GC::Ref<Promise> create_rejected_promise_from_exception(JS::Realm& realm, Exception exception)
 {
-    auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), realm, move(exception));
+    auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, move(exception));
     return WebIDL::create_rejected_promise(realm, throw_completion.value());
 }
 
 void reject_promise_with_exception(JS::Realm& realm, Promise const& promise, Exception exception)
 {
-    auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), realm, move(exception));
+    auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, move(exception));
     WebIDL::reject_promise(realm, promise, throw_completion.value());
 }
 

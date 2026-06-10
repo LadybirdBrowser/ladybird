@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/GeolocationCoordinates.h>
+#include <AK/Optional.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::Geolocation {

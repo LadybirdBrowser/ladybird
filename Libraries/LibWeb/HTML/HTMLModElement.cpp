@@ -5,8 +5,6 @@
  */
 
 #include <AK/Assertions.h>
-#include <LibWeb/Bindings/HTMLModElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLModElement.h>
 
 namespace Web::HTML {

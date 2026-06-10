@@ -5,15 +5,15 @@
  */
 
 #include <LibWeb/Bindings/AudioConstructor.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLAudioElement.h>
+#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/HTMLAudioElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Bindings {
 
@@ -51,12 +51,12 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionO
     auto& document = window.associated_document();
 
     // 2. Let audio be the result of creating an element given document, "audio", and the HTML namespace.
-    auto audio = TRY(Bindings::throw_dom_exception_if_needed(vm, realm, [&]() { return DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML); }));
+    auto audio = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&]() { return DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML); }));
     auto& audio_element = as<HTML::HTMLAudioElement>(*audio);
     auto wrapped_audio = Bindings::wrap(host_defined_wrapper_world(realm), realm, GC::Ref { audio_element });
 
     // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
-    TRY(WebIDL::set_prototype_from_new_target<HTMLAudioElementPrototype>(vm, new_target, "HTMLAudioElement"_fly_string, *wrapped_audio));
+    TRY(set_prototype_from_new_target<HTMLAudioElementPrototype>(vm, new_target, "HTMLAudioElement"_fly_string, *wrapped_audio));
 
     // 3. Set an attribute value for audio using "preload" and "auto".
     audio->set_attribute_value(HTML::AttributeNames::preload, "auto"_string);

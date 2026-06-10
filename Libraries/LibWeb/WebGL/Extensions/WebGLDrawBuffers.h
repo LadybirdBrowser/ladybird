@@ -6,19 +6,18 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/WebGLDrawBuffers.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 #include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
 
-class WebGLDrawBuffers : public Bindings::Wrappable {
-    WEB_WRAPPABLE(WebGLDrawBuffers, Bindings::Wrappable);
+class WebGLDrawBuffers : public WebGLExtension {
+    WEB_WRAPPABLE(WebGLDrawBuffers, WebGLExtension);
     GC_DECLARE_ALLOCATOR(WebGLDrawBuffers);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
     void draw_buffers_webgl(Vector<GLenum> buffers);
 

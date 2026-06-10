@@ -9,7 +9,6 @@
 #include <AK/String.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -74,7 +73,7 @@ Optional<String> Storage::get_item(String const& key) const
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-setitem
-WebIDL::ExceptionOr<void> Storage::set_item(JS::Realm& realm, String const& key, String const& value)
+WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& value)
 {
     // 1. Let oldValue be null.
     // 2. Let reorder be true.
@@ -90,7 +89,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(JS::Realm& realm, String const& key,
     auto result = m_storage_bottle->set(key, value);
 
     if (result.has<WebView::StorageOperationError>())
-        return WebIDL::QuotaExceededError::create(realm, Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
+        return WebIDL::QuotaExceededError::create(Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
 
     auto old_value = result.get<Optional<String>>();
 
@@ -227,7 +226,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
     for (auto remote_storage : remote_storages) {
         auto& remote_window = remote_storage->m_window;
         queue_global_task(Task::Source::DOMManipulation, relevant_global_object(*remote_window), GC::create_function(GC::Heap::the(), [key, old_value, new_value, url, remote_storage, remote_window] {
-            Bindings::StorageEventInit init;
+            StorageEventInit init;
             init.key = move(key);
             init.old_value = move(old_value);
             init.new_value = move(new_value);
@@ -247,30 +246,6 @@ Vector<FlyString> Storage::supported_property_names() const
     for (auto const& key : keys)
         names.unchecked_append(key);
     return names;
-}
-
-JS::Value Storage::named_item_value(Bindings::WrapperWorld&, JS::Realm& realm, FlyString const& name) const
-{
-    auto value = get_item(String(name));
-    if (!value.has_value())
-        // AD-HOC: Spec leaves open to a description at: https://html.spec.whatwg.org/multipage/webstorage.html#the-storage-interface
-        // However correct behavior expected here: https://github.com/whatwg/html/issues/8684
-        return JS::js_undefined();
-    return JS::PrimitiveString::create(realm.vm(), value.release_value());
-}
-
-WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> Storage::delete_value(JS::Realm&, String const& name)
-{
-    remove_item(name);
-    return Bindings::NamedPropertyDeletionResult::NotRelevant;
-}
-
-WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(JS::Realm& realm, String const& key, JS::Value unconverted_value)
-{
-    // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
-    //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_string(realm.vm()));
-    return set_item(realm, key, value);
 }
 
 void Storage::dump() const

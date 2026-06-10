@@ -25,6 +25,7 @@ public:
 
     size_t length() const;
 
+    GC::Ptr<TextTrack> item(size_t index) const;
     GC::Ptr<TextTrack> get_track_by_id(StringView id) const;
 
     void set_onchange(WebIDL::CallbackType*);
@@ -40,8 +41,6 @@ private:
     TextTrackList();
 
     virtual void visit_edges(Visitor&) override;
-
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     Vector<GC::Ref<TextTrack>> m_text_tracks;
 };

@@ -9,21 +9,22 @@
 #include <AK/String.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/AgentType.h>
-#include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WorkerAgentForward.h>
+#include <LibWeb/HTML/WorkerTypes.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::HTML {
 
+using WorkerOptions = Bindings::WorkerOptions;
+
 struct WEB_API WorkerAgentStartRequest {
     URL::URL url;
-    Bindings::AgentType agent_type { Bindings::AgentType::DedicatedWorker };
-    Bindings::WorkerType type { Bindings::WorkerType::Classic };
-    Bindings::RequestCredentials credentials { Bindings::RequestCredentials::SameOrigin };
+    AgentType agent_type { AgentType::DedicatedWorker };
+    WorkerType type { WorkerType::Classic };
+    RequestCredentials credentials { RequestCredentials::SameOrigin };
     String name;
     // FIXME: We don't implement SharedWorkerOptions/extendedLifetime yet.
     bool extended_lifetime { false };

@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/History.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -26,25 +25,26 @@ public:
 
     WebIDL::ExceptionOr<void> push_state(JS::Realm&, JS::Value data, String const& unused, Optional<String> const& url = {});
     WebIDL::ExceptionOr<void> replace_state(JS::Realm&, JS::Value data, String const& unused, Optional<String> const& url = {});
-    WebIDL::ExceptionOr<void> go(JS::Realm&, WebIDL::Long delta);
-    WebIDL::ExceptionOr<void> back(JS::Realm&);
-    WebIDL::ExceptionOr<void> forward(JS::Realm&);
-    WebIDL::ExceptionOr<u64> length(JS::Realm&) const;
-    WebIDL::ExceptionOr<Bindings::ScrollRestoration> scroll_restoration(JS::Realm&) const;
-    WebIDL::ExceptionOr<void> set_scroll_restoration(JS::Realm&, Bindings::ScrollRestoration);
-    WebIDL::ExceptionOr<JS::Value> state(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> go(WebIDL::Long delta);
+    WebIDL::ExceptionOr<void> back();
+    WebIDL::ExceptionOr<void> forward();
+    WebIDL::ExceptionOr<u64> length() const;
+    WebIDL::ExceptionOr<ScrollRestorationMode> scroll_restoration() const;
+    WebIDL::ExceptionOr<void> set_scroll_restoration(ScrollRestorationMode);
+    WebIDL::ExceptionOr<JS::Value> state() const;
+    JS::Value const& state_value() const { return m_state; }
+    bool associated_document_is_fully_active() const;
 
     u64 m_index { 0 };
     u64 m_length { 0 };
 
-    JS::Value unsafe_state() const;
     void set_state(JS::Value s) { m_state = s; }
 
 private:
     explicit History(DOM::Document&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    WebIDL::ExceptionOr<void> delta_traverse(JS::Realm&, WebIDL::Long delta);
+    WebIDL::ExceptionOr<void> delta_traverse(WebIDL::Long delta);
 
     WebIDL::ExceptionOr<void> shared_history_push_replace_state(JS::Realm&, JS::Value data, Optional<String> const& url, HistoryHandlingBehavior);
 

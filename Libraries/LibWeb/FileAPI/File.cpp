@@ -8,7 +8,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Infra/Strings.h>
@@ -38,10 +37,17 @@ GC::Ref<File> File::create()
 }
 
 // https://w3c.github.io/FileAPI/#ref-for-dom-file-file
-ErrorOr<GC::Ref<File>> File::create(BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options)
+ErrorOr<GC::Ref<File>> File::create(BlobParts const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options)
 {
     // 1. Let bytes be the result of processing blob parts given fileBits and options.
-    auto bytes = TRY(process_blob_parts(file_bits, options.has_value() ? static_cast<Bindings::BlobPropertyBag const&>(*options) : Optional<Bindings::BlobPropertyBag> {}));
+    Optional<BlobPropertyBag> blob_options;
+    if (options.has_value()) {
+        blob_options = BlobPropertyBag {
+            .endings = options->endings,
+            .type = options->type,
+        };
+    }
+    auto bytes = TRY(process_blob_parts(file_bits, blob_options));
 
     // 2. Let n be the fileName argument to the constructor.
     //    NOTE: Underlying OS filesystems use differing conventions for file name; with constructed files, mandating UTF-16 lessens ambiquity when file names are converted to byte sequences.
@@ -76,9 +82,9 @@ ErrorOr<GC::Ref<File>> File::create(BlobParts const& file_bits, String const& fi
     return GC::Heap::the().allocate<File>(move(bytes), move(name), move(type), last_modified);
 }
 
-WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(BlobParts const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options)
 {
-    return TRY_OR_THROW_OOM(Bindings::main_thread_vm(), create(file_bits, file_name, options));
+    return TRY_OR_THROW_OOM(JS::VM::the(), create(file_bits, file_name, options));
 }
 
 WebIDL::ExceptionOr<void> File::serialization_steps(JS::Realm&, HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
@@ -101,7 +107,7 @@ WebIDL::ExceptionOr<void> File::serialization_steps(JS::Realm&, HTML::TransferDa
     return {};
 }
 
-WebIDL::ExceptionOr<void> File::deserialization_steps(JS::Realm& realm, HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> File::deserialization_steps(JS::Realm&, HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
 {
     // FIXME: 1. Set value’s snapshot state to serialized.[[SnapshotState]].
 
@@ -110,7 +116,7 @@ WebIDL::ExceptionOr<void> File::deserialization_steps(JS::Realm& realm, HTML::Tr
     m_type = serialized.decode<String>();
 
     // 2. Set value’s underlying byte sequence to serialized.[[ByteSequence]].
-    m_byte_buffer = TRY(serialized.decode_buffer(realm));
+    m_byte_buffer = TRY(serialized.decode_buffer());
 
     // 3. Initialize the value of value’s name attribute to serialized.[[Name]].
     m_name = serialized.decode<String>();

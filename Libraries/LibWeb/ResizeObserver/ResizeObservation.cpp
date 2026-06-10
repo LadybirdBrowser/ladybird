@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/ResizeObserver/ResizeObservation.h>
@@ -14,12 +13,12 @@ namespace Web::ResizeObserver {
 
 GC_DEFINE_ALLOCATOR(ResizeObservation);
 
-WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> ResizeObservation::create(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
+WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> ResizeObservation::create(DOM::Element& target, ObservedBox observed_box)
 {
     return GC::Heap::the().allocate<ResizeObservation>(target, observed_box);
 }
 
-ResizeObservation::ResizeObservation(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
+ResizeObservation::ResizeObservation(DOM::Element& target, ObservedBox observed_box)
     : m_target(target)
     , m_observed_box(observed_box)
 {

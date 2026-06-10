@@ -6,11 +6,12 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::WebAudio {
+
+using AutomationRate = Bindings::AutomationRate;
 
 // https://webaudio.github.io/web-audio-api/#AudioParam
 class AudioParam final : public Bindings::Wrappable {
@@ -22,7 +23,7 @@ public:
         No,
         Yes,
     };
-    static GC::Ref<AudioParam> create(GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
+    static GC::Ref<AudioParam> create(GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
 
     virtual ~AudioParam() override;
 
@@ -31,8 +32,8 @@ public:
     float value() const;
     void set_value(float);
 
-    Bindings::AutomationRate automation_rate() const;
-    WebIDL::ExceptionOr<void> set_automation_rate(JS::Realm&, Bindings::AutomationRate);
+    AutomationRate automation_rate() const;
+    WebIDL::ExceptionOr<void> set_automation_rate(AutomationRate);
 
     float default_value() const;
     float min_value() const;
@@ -47,7 +48,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> cancel_and_hold_at_time(double cancel_time);
 
 private:
-    AudioParam(GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
+    AudioParam(GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
 
     GC::Ref<BaseAudioContext> m_context;
 
@@ -59,7 +60,7 @@ private:
     float m_min_value {};
     float m_max_value {};
 
-    Bindings::AutomationRate m_automation_rate {};
+    AutomationRate m_automation_rate {};
 
     FixedAutomationRate m_fixed_automation_rate { FixedAutomationRate::No };
 

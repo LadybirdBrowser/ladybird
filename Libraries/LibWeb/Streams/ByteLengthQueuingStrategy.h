@@ -8,7 +8,6 @@
 
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/ByteLengthQueuingStrategy.h>
 #include <LibWeb/Bindings/QueuingStrategyInit.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
@@ -21,7 +20,8 @@ class ByteLengthQueuingStrategy final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(ByteLengthQueuingStrategy);
 
 public:
-    static GC::Ref<ByteLengthQueuingStrategy> construct_impl(Bindings::QueuingStrategyInit const&);
+    static GC::Ref<ByteLengthQueuingStrategy> create(double high_water_mark);
+    static GC::Ref<ByteLengthQueuingStrategy> create_for_constructor(Bindings::QueuingStrategyInit const&);
 
     virtual ~ByteLengthQueuingStrategy() override;
 

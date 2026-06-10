@@ -18,23 +18,22 @@
 
 namespace Web::HTML {
 
-class Window;
-
 using NullableTrackType = Variant<GC::Ref<VideoTrack>, GC::Ref<AudioTrack>, GC::Ref<TextTrack>, Empty>;
+
+using TrackEventInit = Bindings::TrackEventInit;
 
 class TrackEvent : public DOM::Event {
     WEB_WRAPPABLE(TrackEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(TrackEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<TrackEvent> create(FlyString const& event_name, Bindings::TrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static WebIDL::ExceptionOr<GC::Ref<TrackEvent>> construct_impl(Window&, FlyString const& event_name, Bindings::TrackEventInit const&);
+    [[nodiscard]] static GC::Ref<TrackEvent> create(FlyString const& event_name, TrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-trackevent-track
     NullableTrackType track() const;
 
 private:
-    TrackEvent(FlyString const& event_name, Bindings::TrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    TrackEvent(FlyString const& event_name, TrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(Visitor&) override;
 

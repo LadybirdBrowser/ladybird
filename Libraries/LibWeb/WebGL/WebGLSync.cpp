@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WebGLSync.h>
 #include <LibWeb/WebGL/WebGLSync.h>
 
 #include <GLES2/gl2.h>

@@ -14,27 +14,41 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PromiseRejectionEvent);
 
-GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
+static PromiseRejectionEventInit promise_rejection_event_init_from_bindings(Bindings::PromiseRejectionEventInit const& event_init)
+{
+    return {
+        {
+            .bubbles = event_init.bubbles,
+            .cancelable = event_init.cancelable,
+            .composed = event_init.composed,
+        },
+        event_init.promise,
+        event_init.reason.value_or(JS::js_undefined()),
+    };
+}
+
+GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Object const& relevant_global_object, FlyString const& event_name, PromiseRejectionEventInit const& event_init)
 {
     return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
 }
 
-GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(FlyString const& event_name, PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     auto event = GC::Heap::the().allocate<PromiseRejectionEvent>(event_name, event_init, time_stamp);
     event->set_is_trusted(true);
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> PromiseRejectionEvent::construct_impl(WindowOrWorkerGlobalScopeMixin& global_scope, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> PromiseRejectionEvent::create_for_constructor(JS::Realm& realm, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
 {
-    return GC::Heap::the().allocate<PromiseRejectionEvent>(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(global_scope)));
+    auto& global_scope = HTML::relevant_window_or_worker_global_scope(realm.global_object());
+    return create(event_name, promise_rejection_event_init_from_bindings(event_init), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(global_scope)));
 }
 
-PromiseRejectionEvent::PromiseRejectionEvent(FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+PromiseRejectionEvent::PromiseRejectionEvent(FlyString const& event_name, PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : DOM::Event(event_name, event_init, time_stamp)
-    , m_promise(*event_init.promise)
-    , m_reason(event_init.reason.value_or(JS::js_undefined()))
+    , m_promise(event_init.promise)
+    , m_reason(event_init.reason)
 {
 }
 

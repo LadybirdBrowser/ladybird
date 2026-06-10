@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/MimeType.h>
+#include <AK/String.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 
 namespace Web::SVG {

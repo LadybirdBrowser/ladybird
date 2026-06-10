@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/MessageChannel.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -18,7 +18,8 @@ class MessageChannel final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(MessageChannel);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<MessageChannel>> construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object);
+    static GC::Ref<MessageChannel> create(GC::Ref<DOM::EventTarget> relevant_global_object);
+    static GC::Ref<MessageChannel> create_for_constructor(JS::Realm&);
     virtual ~MessageChannel() override;
 
     MessagePort* port1();

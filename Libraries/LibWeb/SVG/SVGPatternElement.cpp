@@ -5,8 +5,6 @@
  */
 
 #include <LibGfx/Matrix4x4.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGPatternElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>

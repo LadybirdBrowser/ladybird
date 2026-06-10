@@ -20,7 +20,6 @@ GC::Ref<XPathResult> XPathResult::create()
 }
 
 XPathResult::XPathResult()
-    : Bindings::Wrappable()
 {
     m_node_set_iter = m_node_set.end();
 }

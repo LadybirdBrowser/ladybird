@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PerformanceTiming.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>

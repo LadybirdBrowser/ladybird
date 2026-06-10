@@ -16,6 +16,7 @@
 #include <LibWeb/Fetch/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::Fetch {
 
@@ -32,9 +33,8 @@ class Request final
 public:
     [[nodiscard]] static GC::Ref<Request> create(GC::Ref<Infrastructure::Request>);
     [[nodiscard]] static GC::Ref<Request> create(GC::Ref<Infrastructure::Request>, Headers::Guard, GC::Ref<DOM::AbortSignal>);
-    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, RequestInfo const& input, Bindings::RequestInit const& init = {});
-    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl_for_realm(JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
-    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl_with_settings(HTML::EnvironmentSettingsObject&, JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl(JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Request>> create_with_settings(HTML::EnvironmentSettingsObject&, JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
 
     virtual ~Request() override;
 
@@ -42,6 +42,12 @@ public:
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const override;
     virtual GC::Ptr<Infrastructure::Body> body_impl() override;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const override;
+    using BodyMixin::array_buffer;
+    using BodyMixin::blob;
+    using BodyMixin::bytes;
+    using BodyMixin::form_data;
+    using BodyMixin::json;
+    using BodyMixin::text;
 
     [[nodiscard]] GC::Ref<Infrastructure::Request> request() const { return m_request; }
 

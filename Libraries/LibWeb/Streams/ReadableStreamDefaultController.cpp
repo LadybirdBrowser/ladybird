@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ReadableStreamDefaultController.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultController.h>
@@ -18,7 +17,6 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(ReadableStreamDefaultController);
 
 ReadableStreamDefaultController::ReadableStreamDefaultController()
-    : Bindings::Wrappable()
 {
 }
 

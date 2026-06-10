@@ -6,18 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/EXTBlendMinMax.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 
 namespace Web::WebGL {
 
-class EXTBlendMinMax : public Bindings::Wrappable {
-    WEB_WRAPPABLE(EXTBlendMinMax, Bindings::Wrappable);
+class EXTBlendMinMax : public WebGLExtension {
+    WEB_WRAPPABLE(EXTBlendMinMax, WebGLExtension);
     GC_DECLARE_ALLOCATOR(EXTBlendMinMax);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;

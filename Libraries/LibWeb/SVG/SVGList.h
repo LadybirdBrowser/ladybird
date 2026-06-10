@@ -8,7 +8,6 @@
 
 #include <AK/Vector.h>
 #include <LibGC/Cell.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -30,13 +29,13 @@ public:
     WebIDL::UnsignedLong length() const;
     WebIDL::UnsignedLong number_of_items() const { return length(); }
 
-    WebIDL::ExceptionOr<void> clear(JS::Realm&);
-    WebIDL::ExceptionOr<T> initialize_(JS::Realm&, T);
-    WebIDL::ExceptionOr<T> get_item(JS::Realm&, WebIDL::UnsignedLong);
-    WebIDL::ExceptionOr<T> insert_item_before(JS::Realm&, T, WebIDL::UnsignedLong);
-    WebIDL::ExceptionOr<T> replace_item(JS::Realm&, T, WebIDL::UnsignedLong);
-    WebIDL::ExceptionOr<T> remove_item(JS::Realm&, WebIDL::UnsignedLong);
-    WebIDL::ExceptionOr<T> append_item(JS::Realm&, T);
+    WebIDL::ExceptionOr<void> clear();
+    WebIDL::ExceptionOr<T> initialize_(T);
+    WebIDL::ExceptionOr<T> get_item(WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<T> insert_item_before(T, WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<T> replace_item(T, WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<T> remove_item(WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<T> append_item(T);
 
     ReadonlySpan<T> items() { return m_items; }
     ReadonlySpan<T> items() const { return m_items; }

@@ -20,14 +20,14 @@ class CSSUnparsedValue final : public CSSStyleValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSUnparsedValue> create(ReadonlySpan<CSSUnparsedSegment>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> construct_impl(ReadonlySpan<CSSUnparsedSegment>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> create_for_constructor(ReadonlySpan<CSSUnparsedSegment>);
 
     virtual ~CSSUnparsedValue() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value) override;
+    Optional<CSSUnparsedSegment> token_at(size_t index) const;
+    WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, CSSUnparsedSegment);
+    WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, CSSUnparsedSegment);
 
     virtual WebIDL::ExceptionOr<String> to_string() const override;
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;

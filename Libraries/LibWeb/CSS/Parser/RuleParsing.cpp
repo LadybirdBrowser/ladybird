@@ -342,7 +342,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 
         if (tokens.next_token().is_ident("layer"sv)) {
             tokens.discard_a_token(); // layer
-            layer = Utf16FlyString {};
+            layer = FlyString {};
             return true;
         }
 
@@ -527,7 +527,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         // }
 
         // First, the name
-        Utf16FlyString layer_name = {};
+        FlyString layer_name = {};
         auto prelude_tokens = TokenStream { rule.prelude };
         if (auto maybe_name = parse_layer_name(prelude_tokens, AllowBlankLayerName::Yes); maybe_name.has_value()) {
             layer_name = maybe_name.release_value();
@@ -793,12 +793,12 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
         tokens.discard_whitespace();
     }
 
-    Utf16FlyString namespace_uri;
+    FlyString namespace_uri;
     if (auto url = parse_url_function(tokens); url.has_value()) {
         // "A URI string parsed from the URI syntax must be treated as a literal string: as with the STRING syntax, no
         // URI-specific normalization is applied."
         // https://drafts.csswg.org/css-namespaces/#syntax
-        namespace_uri = url->url();
+        namespace_uri = MUST(FlyString::from_utf8(url->url().bytes_as_string_view()));
     } else if (auto& url_token = tokens.consume_a_token(); url_token.is(Token::Type::String)) {
         namespace_uri = url_token.token().string();
     } else {
@@ -1016,7 +1016,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         }
     }
 
-    return CSSPropertyRule::create(name, syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
+    return CSSPropertyRule::create(Utf16FlyString::from_utf8(name), Utf16FlyString::from_utf8(syntax_maybe.value()), inherits_maybe.value(), move(initial_value_maybe));
 }
 
 // https://drafts.csswg.org/css-cascade-6/#scope-atrule

@@ -7,11 +7,17 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/NumericType.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace Web::Bindings {
+
+struct CSSNumericType;
+
+}
 
 namespace Web::CSS {
 
@@ -36,31 +42,31 @@ public:
     };
     virtual ~CSSNumericValue() override = default;
 
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> add(JS::Realm&, ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> sub(JS::Realm&, ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> add(ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> sub(ReadonlySpan<CSSNumberish>);
     WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> mul(ReadonlySpan<CSSNumberish>);
     WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> div(ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> min(JS::Realm&, ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> max(JS::Realm&, ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> min(ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> max(ReadonlySpan<CSSNumberish>);
 
     bool equals_for_bindings(ReadonlySpan<CSSNumberish>) const;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
 
-    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(JS::Realm&, FlyString const& unit) const;
+    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(FlyString const& unit) const;
+    Bindings::CSSNumericType type_for_bindings() const;
 
     CSSNumberish negate();
     WebIDL::ExceptionOr<CSSNumberish> invert();
 
     virtual Optional<SumValue> create_a_sum_value() const = 0;
 
-    Bindings::CSSNumericType type_for_bindings() const;
     NumericType const& type() const { return m_type; }
 
     virtual WebIDL::ExceptionOr<String> to_string() const final override { return to_string({}); }
     void serialize(StringBuilder&, SerializationParams const&) const;
     String to_string(SerializationParams const&) const;
 
-    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::Realm&, String const& css_text);
+    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(String const& css_text);
 
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const = 0;
 

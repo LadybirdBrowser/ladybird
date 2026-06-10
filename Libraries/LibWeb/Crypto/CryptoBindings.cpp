@@ -8,10 +8,16 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/ValueInlines.h>
+#include <LibWeb/Bindings/CryptoKey.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/Crypto/CryptoAlgorithms.h>
 #include <LibWeb/Crypto/CryptoBindings.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Crypto {
 
@@ -20,7 +26,7 @@ namespace Web::Crypto {
         key.name = value.release_value();                                    \
     }
 
-JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBytes data)
+JS::ThrowCompletionOr<JsonWebKey> parse_json_web_key(JS::Realm& realm, ReadonlyBytes data)
 {
     // 1. Let data be the sequence of bytes to be parsed.
 
@@ -32,11 +38,11 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
     //    in the context of a new global object, with text argument set to a JavaScript String containing json.
     auto maybe_json_value = JsonValue::from_string(json);
     if (maybe_json_value.is_error())
-        return throw_completion(realm, WebIDL::SyntaxError::create(realm, JS::ErrorType::JsonMalformed.message()));
+        return throw_completion(realm, WebIDL::SyntaxError::create(JS::ErrorType::JsonMalformed.message()));
 
     auto json_value = maybe_json_value.release_value();
     if (!json_value.is_object()) {
-        return throw_completion(realm, WebIDL::SyntaxError::create(realm, "JSON value is not an object"_utf16));
+        return throw_completion(realm, WebIDL::SyntaxError::create("JSON value is not an object"_utf16));
     }
 
     auto const& json_object = json_value.as_object();
@@ -77,7 +83,7 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
 
     // 6. If the kty field of key is not defined, then throw a DataError.
     if (!key.kty.has_value())
-        return throw_completion(realm, WebIDL::DataError::create(realm, "kty field is not defined"_utf16));
+        return throw_completion(realm, WebIDL::DataError::create("kty field is not defined"_utf16));
 
     // 7. Return key.
     return key;
@@ -85,77 +91,59 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
 
 #undef JWK_PARSE_STRING_PROPERTY
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> JsonWebKey::to_object(JS::Realm& realm)
+void resolve_crypto_key_promise(JS::Realm& realm, WebIDL::Promise& promise, GC::Ref<CryptoKey> key)
 {
-    auto& vm = realm.vm();
+    WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, key));
+}
+
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> encapsulated_bits(JS::Realm& realm, EncapsulatedBits const& encapsulated_bits)
+{
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
-    if (kty.has_value())
-        TRY(object->create_data_property("kty"_utf16_fly_string, JS::PrimitiveString::create(vm, kty.value())));
+    if (encapsulated_bits.shared_key.has_value())
+        TRY(object->create_data_property("sharedKey"_utf16_fly_string, JS::ArrayBuffer::create(realm, encapsulated_bits.shared_key.value())));
 
-    if (use.has_value())
-        TRY(object->create_data_property("use"_utf16_fly_string, JS::PrimitiveString::create(vm, use.value())));
-
-    if (key_ops.has_value()) {
-        auto key_ops_array = JS::Array::create_from<String>(realm, key_ops.value().span(), [&](auto& key_usage) -> JS::Value {
-            return JS::PrimitiveString::create(realm.vm(), key_usage);
-        });
-        TRY(object->create_data_property("key_ops"_utf16_fly_string, move(key_ops_array)));
-    }
-
-    if (alg.has_value())
-        TRY(object->create_data_property("alg"_utf16_fly_string, JS::PrimitiveString::create(vm, alg.value())));
-
-    if (ext.has_value())
-        TRY(object->create_data_property("ext"_utf16_fly_string, JS::Value(ext.value())));
-
-    if (crv.has_value())
-        TRY(object->create_data_property("crv"_utf16_fly_string, JS::PrimitiveString::create(vm, crv.value())));
-
-    if (x.has_value())
-        TRY(object->create_data_property("x"_utf16_fly_string, JS::PrimitiveString::create(vm, x.value())));
-
-    if (y.has_value())
-        TRY(object->create_data_property("y"_utf16_fly_string, JS::PrimitiveString::create(vm, y.value())));
-
-    if (d.has_value())
-        TRY(object->create_data_property("d"_utf16_fly_string, JS::PrimitiveString::create(vm, d.value())));
-
-    if (n.has_value())
-        TRY(object->create_data_property("n"_utf16_fly_string, JS::PrimitiveString::create(vm, n.value())));
-
-    if (e.has_value())
-        TRY(object->create_data_property("e"_utf16_fly_string, JS::PrimitiveString::create(vm, e.value())));
-
-    if (p.has_value())
-        TRY(object->create_data_property("p"_utf16_fly_string, JS::PrimitiveString::create(vm, p.value())));
-
-    if (q.has_value())
-        TRY(object->create_data_property("q"_utf16_fly_string, JS::PrimitiveString::create(vm, q.value())));
-
-    if (dp.has_value())
-        TRY(object->create_data_property("dp"_utf16_fly_string, JS::PrimitiveString::create(vm, dp.value())));
-
-    if (dq.has_value())
-        TRY(object->create_data_property("dq"_utf16_fly_string, JS::PrimitiveString::create(vm, dq.value())));
-
-    if (qi.has_value())
-        TRY(object->create_data_property("qi"_utf16_fly_string, JS::PrimitiveString::create(vm, qi.value())));
-
-    if (oth.has_value()) {
-        TODO();
-    }
-
-    if (k.has_value())
-        TRY(object->create_data_property("k"_utf16_fly_string, JS::PrimitiveString::create(vm, k.value())));
-
-    if (pub.has_value())
-        TRY(object->create_data_property("pub"_utf16_fly_string, JS::PrimitiveString::create(vm, pub.value())));
-
-    if (priv.has_value())
-        TRY(object->create_data_property("priv"_utf16_fly_string, JS::PrimitiveString::create(vm, priv.value())));
+    if (encapsulated_bits.ciphertext.has_value())
+        TRY(object->create_data_property("ciphertext"_utf16_fly_string, JS::ArrayBuffer::create(realm, encapsulated_bits.ciphertext.value())));
 
     return object;
+}
+
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> encapsulated_key(JS::Realm& realm, EncapsulatedKey const& encapsulated_key)
+{
+    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+
+    if (encapsulated_key.shared_key.has_value())
+        TRY(object->create_data_property("sharedKey"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *encapsulated_key.shared_key.value() })));
+
+    if (encapsulated_key.ciphertext.has_value())
+        TRY(object->create_data_property("ciphertext"_utf16_fly_string, JS::ArrayBuffer::create(realm, encapsulated_key.ciphertext.value())));
+
+    return object;
+}
+
+JS::Value crypto_key(JS::Realm& realm, GC::Ref<CryptoKey> key)
+{
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, key);
+}
+
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> crypto_key_pair(JS::Realm& realm, CryptoKeyPair const& key_pair)
+{
+    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+    TRY(object->create_data_property_or_throw("publicKey"_utf16_fly_string, crypto_key(realm, key_pair.public_key)));
+    TRY(object->create_data_property_or_throw("privateKey"_utf16_fly_string, crypto_key(realm, key_pair.private_key)));
+    return object;
+}
+
+JS::ThrowCompletionOr<GC::Ref<CryptoKey>> crypto_key_from_value(JS::VM& vm, JS::Value value)
+{
+    auto key_object = TRY(value.to_object(vm));
+
+    auto* key = Bindings::impl_from<CryptoKey>(&*key_object);
+    if (!key)
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CryptoKey");
+
+    return GC::Ref { *key };
 }
 
 }

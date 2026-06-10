@@ -6,14 +6,14 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaQueryList.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::CSS {
 
@@ -124,6 +124,18 @@ void MediaQueryList::set_onchange(WebIDL::CallbackType* event_handler)
 WebIDL::CallbackType* MediaQueryList::onchange()
 {
     return event_handler_attribute(HTML::EventNames::change);
+}
+
+}
+
+namespace Web::Bindings {
+
+JS::Realm& wrapper_realm_for_media_query_list(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, CSS::MediaQueryList& media_query_list)
+{
+    if (!wrapper_world.is_main_world())
+        return preferred_realm;
+
+    return HTML::relevant_realm(*media_query_list.m_document);
 }
 
 }

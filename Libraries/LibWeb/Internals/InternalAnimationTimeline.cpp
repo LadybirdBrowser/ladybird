@@ -6,7 +6,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Animations/Animation.h>
-#include <LibWeb/Bindings/InternalAnimationTimeline.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>

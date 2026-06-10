@@ -6,7 +6,6 @@
 
 #include "CSSFunctionDeclarations.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSFunctionDeclarations.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Dump.h>
 

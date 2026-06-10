@@ -6,11 +6,13 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
+#include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CookieChangeEvent.h>
+#include <LibWeb/Bindings/CookieStore.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
-#include <LibWeb/WebIDL/CachedAttribute.h>
 
 namespace Web::HTML {
 
@@ -20,30 +22,29 @@ class Window;
 
 namespace Web::CookieStore {
 
+using CookieListItem = Bindings::CookieListItem;
+using CookieChangeEventInit = Bindings::CookieChangeEventInit;
+
 // https://cookiestore.spec.whatwg.org/#cookiechangeevent
 class CookieChangeEvent final : public DOM::Event {
     WEB_WRAPPABLE(CookieChangeEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(CookieChangeEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CookieChangeEvent> create(FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<CookieChangeEvent> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CookieChangeEvent> create(FlyString const& event_name, CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~CookieChangeEvent() override;
 
-    Vector<Bindings::CookieListItem> changed() const { return m_changed; }
-    Vector<Bindings::CookieListItem> deleted() const { return m_deleted; }
-
-    DEFINE_CACHED_ATTRIBUTE(changed);
-    DEFINE_CACHED_ATTRIBUTE(deleted);
+    Vector<CookieListItem> changed() const { return m_changed; }
+    Vector<CookieListItem> deleted() const { return m_deleted; }
 
 private:
-    CookieChangeEvent(FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    CookieChangeEvent(FlyString const& event_name, CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    Vector<Bindings::CookieListItem> m_changed;
-    Vector<Bindings::CookieListItem> m_deleted;
+    Vector<CookieListItem> m_changed;
+    Vector<CookieListItem> m_deleted;
 };
 
 }

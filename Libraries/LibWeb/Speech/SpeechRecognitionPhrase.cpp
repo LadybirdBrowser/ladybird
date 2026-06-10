@@ -11,14 +11,13 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechRecognitionPhrase);
 
-WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> SpeechRecognitionPhrase::construct_impl(String const& phrase, float boost)
+GC::Ref<SpeechRecognitionPhrase> SpeechRecognitionPhrase::create(String const& phrase, float boost)
 {
     return GC::Heap::the().allocate<SpeechRecognitionPhrase>(phrase, boost);
 }
 
 SpeechRecognitionPhrase::SpeechRecognitionPhrase(String const& phrase, float boost)
-    : Bindings::Wrappable()
-    , m_phrase(phrase)
+    : m_phrase(phrase)
     , m_boost(boost)
 {
 }

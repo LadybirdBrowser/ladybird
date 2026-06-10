@@ -5,32 +5,18 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CompositionEvent.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/CompositionEvent.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(CompositionEvent);
 
-static HighResolutionTime::DOMHighResTimeStamp event_time_stamp(HTML::Window& window)
-{
-    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window));
-}
-
-GC::Ref<CompositionEvent> CompositionEvent::create(FlyString const& event_name, Bindings::CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<CompositionEvent> CompositionEvent::create(FlyString const& event_name, CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     return GC::Heap::the().allocate<CompositionEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> CompositionEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
-{
-    return GC::Heap::the().allocate<CompositionEvent>(event_name, event_init, event_time_stamp(window));
-}
-
-CompositionEvent::CompositionEvent(FlyString const& event_name, Bindings::CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+CompositionEvent::CompositionEvent(FlyString const& event_name, CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : UIEvent(event_name, event_init, time_stamp)
     , m_data(event_init.data)
 {

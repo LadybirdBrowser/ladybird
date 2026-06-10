@@ -7,7 +7,6 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <LibGC/WeakInlines.h>
-#include <LibJS/Runtime/Array.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/Document.h>
@@ -263,18 +262,6 @@ ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
             return;                                                                  \
         }                                                                            \
         m_##attribute = make<Vector<GC::Weak<DOM::Element>>>(value.release_value()); \
-    }                                                                                \
-                                                                                     \
-    GC::Ptr<JS::Array> ARIAMixin::cached_##attribute(                                \
-        Bindings::WrapperWorld const& wrapper_world) const                           \
-    {                                                                                \
-        return m_cached_##attribute.get(wrapper_world);                              \
-    }                                                                                \
-                                                                                     \
-    void ARIAMixin::set_cached_##attribute(                                          \
-        Bindings::WrapperWorld const& wrapper_world, GC::Ptr<JS::Array> value)       \
-    {                                                                                \
-        m_cached_##attribute.set(wrapper_world, value);                              \
     }
 ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE

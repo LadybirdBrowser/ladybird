@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSRule.h>
@@ -16,8 +15,7 @@
 namespace Web::CSS {
 
 CSSRule::CSSRule(Type type)
-    : Bindings::Wrappable()
-    , m_type(type)
+    : m_type(type)
 {
 }
 

@@ -7,7 +7,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibURL/Origin.h>
-#include <LibWeb/Bindings/Document.h>
 #include <LibWeb/DOM/DOMImplementation.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -26,8 +25,7 @@ GC::Ref<DOMImplementation> DOMImplementation::create(Document& document)
 }
 
 DOMImplementation::DOMImplementation(Document& document)
-    : Bindings::Wrappable()
-    , m_document(document)
+    : m_document(document)
 {
 }
 
@@ -54,7 +52,7 @@ WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Opt
 
     // 3. If qualifiedName is not the empty string, then set element to the result of running the internal createElementNS steps, given document, namespace, qualifiedName, and an empty dictionary.
     if (!qualified_name.is_empty())
-        element = TRY(xml_document->create_element_ns(namespace_, qualified_name, Bindings::ElementCreationOptions {}));
+        element = TRY(xml_document->create_element_ns(namespace_, qualified_name, Document::ElementCreationOptions {}));
 
     // 4. If doctype is non-null, append doctype to document.
     if (doctype)
@@ -135,11 +133,9 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createdocumenttype
 WebIDL::ExceptionOr<GC::Ref<DocumentType>> DOMImplementation::create_document_type(String const& name, String const& public_id, String const& system_id)
 {
-    auto& realm = document().relevant_settings_object().realm();
-
     // 1. If name is not a valid doctype name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_doctype_name(name))
-        return WebIDL::InvalidCharacterError::create(realm, "Invalid doctype name"_utf16);
+        return WebIDL::InvalidCharacterError::create("Invalid doctype name"_utf16);
 
     // 2. Return a new doctype, with name as its name, publicId as its public ID, and systemId as its system ID, and with its node document set to the associated document of this.
     auto document_type = DocumentType::create(document());

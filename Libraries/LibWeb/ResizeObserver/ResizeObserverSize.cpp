@@ -15,7 +15,7 @@ namespace Web::ResizeObserver {
 GC_DEFINE_ALLOCATOR(ResizeObserverSize);
 
 // https://drafts.csswg.org/resize-observer-1/#calculate-box-size
-ResizeObserverSize::RawSize ResizeObserverSize::compute_box_size(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
+ResizeObserverSize::RawSize ResizeObserverSize::compute_box_size(DOM::Element& target, ObservedBox observed_box)
 {
     RawSize size;
 
@@ -27,29 +27,27 @@ ResizeObserverSize::RawSize ResizeObserverSize::compute_box_size(DOM::Element& t
     if (target.unsafe_paintable_box()) {
         auto const& paintable_box = *target.unsafe_paintable_box();
         switch (observed_box) {
-        case Bindings::ResizeObserverBoxOptions::BorderBox:
+        case ObservedBox::BorderBox:
             size.inline_size = paintable_box.border_box_width().to_double();
             size.block_size = paintable_box.border_box_height().to_double();
             break;
-        case Bindings::ResizeObserverBoxOptions::ContentBox:
+        case ObservedBox::ContentBox:
             size.inline_size = paintable_box.content_width().to_double();
             size.block_size = paintable_box.content_height().to_double();
             break;
-        case Bindings::ResizeObserverBoxOptions::DevicePixelContentBox: {
+        case ObservedBox::DevicePixelContentBox: {
             auto device_pixel_ratio = target.document().window()->device_pixel_ratio();
             size.inline_size = paintable_box.border_box_width().to_double() * device_pixel_ratio;
             size.block_size = paintable_box.border_box_height().to_double() * device_pixel_ratio;
             break;
         }
-        default:
-            VERIFY_NOT_REACHED();
         }
     }
 
     return size;
 }
 
-GC::Ref<ResizeObserverSize> ResizeObserverSize::calculate_box_size(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
+GC::Ref<ResizeObserverSize> ResizeObserverSize::calculate_box_size(DOM::Element& target, ObservedBox observed_box)
 {
     auto raw = compute_box_size(target, observed_box);
     auto computed_size = GC::Heap::the().allocate<ResizeObserverSize>();

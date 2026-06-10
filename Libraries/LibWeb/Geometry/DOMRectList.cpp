@@ -24,8 +24,7 @@ GC::Ref<DOMRectList> DOMRectList::create(Vector<GC::Root<DOMRect>> rect_handles)
 }
 
 DOMRectList::DOMRectList(Vector<GC::Ref<DOMRect>> rects)
-    : Bindings::Wrappable()
-    , m_rects(move(rects))
+    : m_rects(move(rects))
 {
 }
 
@@ -52,14 +51,6 @@ DOMRect const* DOMRectList::item(u32 index) const
     if (index >= m_rects.size())
         return nullptr;
     return m_rects[index];
-}
-
-Optional<JS::Value> DOMRectList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
-{
-    if (index >= m_rects.size())
-        return {};
-
-    return Bindings::wrap(wrapper_world, realm, m_rects[index]);
 }
 
 }

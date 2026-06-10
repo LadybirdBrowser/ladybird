@@ -165,13 +165,13 @@ WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(String const& ex
     return XPathExpression::create(expression, resolver);
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> /*resolver*/, unsigned short type, GC::Ptr<XPathResult> result)
+EvaluateResult evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> /*resolver*/, unsigned short type, GC::Ptr<XPathResult> result)
 {
     // Parse the expression as xpath
     ByteString bytes = expression.bytes_as_string_view();
     auto* xpath_compiled = xmlXPathCompile(bit_cast<xmlChar const*>(bytes.characters()));
     if (!xpath_compiled)
-        return WebIDL::SyntaxError::create(realm, "Invalid XPath expression"_utf16);
+        return EvaluationError::InvalidExpression;
     ScopeGuard xpath_compiled_cleanup = [&] { xmlXPathFreeCompExpr(xpath_compiled); };
 
     auto* xml_document = xmlNewDoc(nullptr);
@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, String cons
 
     auto* xml_node = mirror_node(xml_document, context_node);
     if (!xml_node) {
-        return WebIDL::OperationError::create(realm, "XPath evaluation failed"_utf16);
+        return EvaluationError::EvaluationFailed;
     }
 
     xmlDocSetRootElement(xml_document, xml_node);
@@ -206,7 +206,24 @@ WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, String cons
 
     convert_xpath_result(xpath_result, result, type);
 
-    return GC::Ref<XPathResult>(*result);
+    return GC::Ref<XPathResult> { *result };
+}
+
+WebIDL::ExceptionOr<GC::Ref<XPathResult>> throw_evaluation_error_if_needed(EvaluateResult result)
+{
+    return result.visit(
+        [](GC::Ref<XPathResult> result) -> WebIDL::ExceptionOr<GC::Ref<XPathResult>> {
+            return result;
+        },
+        [&](EvaluationError error) -> WebIDL::ExceptionOr<GC::Ref<XPathResult>> {
+            switch (error) {
+            case EvaluationError::InvalidExpression:
+                return WebIDL::SyntaxError::create("Invalid XPath expression"_utf16);
+            case EvaluationError::EvaluationFailed:
+                return WebIDL::OperationError::create("XPath evaluation failed"_utf16);
+            }
+            VERIFY_NOT_REACHED();
+        });
 }
 
 }

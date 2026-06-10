@@ -4,28 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CookieChangeEvent.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CookieStore/CookieChangeEvent.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::CookieStore {
 
 GC_DEFINE_ALLOCATOR(CookieChangeEvent);
 
-GC::Ref<CookieChangeEvent> CookieChangeEvent::create(FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+GC::Ref<CookieChangeEvent> CookieChangeEvent::create(FlyString const& event_name, CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     return GC::Heap::the().allocate<CookieChangeEvent>(event_name, event_init, time_stamp);
 }
 
-GC::Ref<CookieChangeEvent> CookieChangeEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init)
-{
-    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window)));
-}
-
-CookieChangeEvent::CookieChangeEvent(FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+CookieChangeEvent::CookieChangeEvent(FlyString const& event_name, CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : DOM::Event(event_name, event_init, time_stamp)
     , m_changed(event_init.changed.value_or({}))
     , m_deleted(event_init.deleted.value_or({}))
@@ -37,9 +31,63 @@ CookieChangeEvent::~CookieChangeEvent() = default;
 void CookieChangeEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+}
 
-    VISIT_CACHED_ATTRIBUTE(changed);
-    VISIT_CACHED_ATTRIBUTE(deleted);
+}
+
+namespace Web::Bindings {
+
+struct CookieChangeEventCacheEntry {
+    GC::Weak<CookieStore::CookieChangeEvent const> event;
+    WrapperWorldWeakValueCache<JS::Object> changed_arrays;
+    WrapperWorldWeakValueCache<JS::Object> deleted_arrays;
+};
+
+static Vector<CookieChangeEventCacheEntry>& cookie_change_event_caches()
+{
+    static NeverDestroyed<Vector<CookieChangeEventCacheEntry>> caches;
+    return *caches;
+}
+
+static void prune_cookie_change_event_caches()
+{
+    cookie_change_event_caches().remove_all_matching([](auto const& entry) {
+        return !entry.event;
+    });
+}
+
+static CookieChangeEventCacheEntry& cookie_change_event_cache_for(CookieStore::CookieChangeEvent const& event)
+{
+    auto& caches = cookie_change_event_caches();
+    prune_cookie_change_event_caches();
+
+    for (auto& entry : caches) {
+        if (entry.event.ptr() == &event)
+            return entry;
+    }
+
+    caches.append(CookieChangeEventCacheEntry { event, {}, {} });
+    return caches.last();
+}
+
+GC::Ptr<JS::Object> cached_changed(CookieStore::CookieChangeEvent const& event, WrapperWorld const& wrapper_world)
+{
+    return cookie_change_event_cache_for(event).changed_arrays.get(wrapper_world);
+}
+
+void set_cached_changed(CookieStore::CookieChangeEvent const& event, WrapperWorld const& wrapper_world, GC::Ptr<JS::Object> array)
+{
+    cookie_change_event_cache_for(event).changed_arrays.set(wrapper_world, array);
+}
+
+GC::Ptr<JS::Object> cached_deleted(CookieStore::CookieChangeEvent const& event, WrapperWorld const& wrapper_world)
+{
+    return cookie_change_event_cache_for(event).deleted_arrays.get(wrapper_world);
+}
+
+void set_cached_deleted(CookieStore::CookieChangeEvent const& event, WrapperWorld const& wrapper_world, GC::Ptr<JS::Object> array)
+{
+    cookie_change_event_cache_for(event).deleted_arrays.set(wrapper_world, array);
 }
 
 }

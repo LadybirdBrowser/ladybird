@@ -9,7 +9,6 @@
 
 #include <GLES2/gl2.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WebGLBuffer.h>
 #include <LibWeb/WebGL/WebGLBuffer.h>
 
 namespace Web::WebGL {

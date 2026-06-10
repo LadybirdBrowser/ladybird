@@ -24,6 +24,6 @@ dictionary GamepadEffectParameters {
 [Exposed=Window]
 interface GamepadHapticActuator {
     [SameObject] readonly attribute FrozenArray<GamepadHapticEffectType> effects;
-    [NeedsCallerRealm] Promise<GamepadHapticsResult> playEffect(GamepadHapticEffectType type, optional GamepadEffectParameters params = {});
-    [NeedsCallerRealm] Promise<GamepadHapticsResult> reset();
+    [CreatesPromise, NeedsCallerRealm] Promise<GamepadHapticsResult> playEffect(GamepadHapticEffectType type, optional GamepadEffectParameters params = {});
+    [CreatesPromise, NeedsCallerRealm] Promise<GamepadHapticsResult> reset();
 };

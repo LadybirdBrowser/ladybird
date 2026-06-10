@@ -5,15 +5,11 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/NavigationHistoryEntry.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
@@ -127,19 +123,20 @@ bool NavigationHistoryEntry::same_document() const
     return m_session_history_entry->document_state()->document_id() == document.unique_id();
 }
 
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationhistoryentry-getstate
-WebIDL::ExceptionOr<JS::Value> NavigationHistoryEntry::get_state()
+bool NavigationHistoryEntry::associated_document_is_fully_active() const
 {
-    // The getState() method steps are:
+    return window().associated_document().is_fully_active();
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationhistoryentry-getstate
+WebIDL::ExceptionOr<JS::Value> NavigationHistoryEntry::get_state(JS::Realm& realm)
+{
     // 1. If this's relevant global object's associated Document is not fully active, then return undefined.
-    auto& associated_document = window().associated_document();
-    if (!associated_document.is_fully_active())
+    if (!associated_document_is_fully_active())
         return JS::js_undefined();
 
     // 2. Return StructuredDeserialize(this's session history entry's navigation API state). Rethrow any exceptions.
-    //    NOTE: This can in theory throw an exception, if attempting to deserialize a large ArrayBuffer
-    //          when not enough memory is available.
-    return structured_deserialize(vm(), m_session_history_entry->navigation_api_state(), HTML::relevant_realm(window()));
+    return HTML::structured_deserialize(realm.vm(), m_session_history_entry->navigation_api_state(), realm);
 }
 
 void NavigationHistoryEntry::set_ondispose(WebIDL::CallbackType* event_handler)

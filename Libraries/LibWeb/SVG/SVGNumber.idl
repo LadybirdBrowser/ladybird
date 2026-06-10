@@ -1,5 +1,5 @@
 // https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGNumber
 [Exposed=Window]
 interface SVGNumber {
-    [NeedsThisObjectRealmForSetter] attribute float value;
+    attribute float value;
 };

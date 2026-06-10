@@ -10,7 +10,7 @@ dictionary MemoryDescriptor {
 interface Memory {
     constructor(MemoryDescriptor descriptor);
 
-    [NeedsCallerRealm] unsigned long grow([EnforceRange] unsigned long delta);
+    unsigned long grow([EnforceRange] unsigned long delta);
 
     [NeedsCallerRealm] ArrayBuffer toFixedLengthBuffer();
     [NeedsCallerRealm] ArrayBuffer toResizableBuffer();

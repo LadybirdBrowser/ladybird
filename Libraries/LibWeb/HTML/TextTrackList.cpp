@@ -5,8 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/TextTrackList.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/TextTrackList.h>
 
@@ -32,14 +30,14 @@ void TextTrackList::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_text_tracks);
 }
 
-Optional<JS::Value> TextTrackList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
+GC::Ptr<TextTrack> TextTrackList::item(size_t index) const
 {
     // To determine the value of an indexed property of a TextTrackList object for a given index index, the user
     // agent must return the indexth text track in the list represented by the TextTrackList object.
     if (index >= m_text_tracks.size())
-        return {};
+        return nullptr;
 
-    return Bindings::wrap(wrapper_world, realm, m_text_tracks.at(index));
+    return m_text_tracks.at(index);
 }
 
 void TextTrackList::add_track(GC::Ref<TextTrack> text_track)

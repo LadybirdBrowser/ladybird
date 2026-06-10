@@ -6,32 +6,31 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Global.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
-
-namespace Web::HTML {
-
-class WindowOrWorkerGlobalScopeMixin;
-
-}
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::WebAssembly {
+
+struct GlobalDescriptor {
+    Wasm::ValueType value;
+    bool mutable_ { false };
+};
 
 class Global : public Bindings::Wrappable {
     WEB_WRAPPABLE(Global, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Global);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Global>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, Bindings::GlobalDescriptor const&, Optional<JS::Value>);
+    static WebIDL::ExceptionOr<GC::Ref<Global>> create(NonnullRefPtr<Detail::WebAssemblyCache>, GlobalDescriptor const&, Wasm::Value);
     static GC::Ref<Global> create(NonnullRefPtr<Detail::WebAssemblyCache>, Wasm::GlobalAddress);
 
-    WebIDL::ExceptionOr<JS::Value> value_of(JS::Realm&) const;
-
-    WebIDL::ExceptionOr<void> set_value(JS::Realm&, JS::Value);
-    WebIDL::ExceptionOr<JS::Value> value(JS::Realm&) const;
+    WebIDL::ExceptionOr<Wasm::GlobalType> type() const;
+    WebIDL::ExceptionOr<Wasm::Value> value() const;
+    WebIDL::ExceptionOr<Wasm::ValueType> value_type() const;
+    WebIDL::ExceptionOr<void> set_value(Wasm::Value);
 
     Wasm::GlobalAddress address() const { return m_address; }
     Detail::WebAssemblyCache& cache() { return *m_cache; }

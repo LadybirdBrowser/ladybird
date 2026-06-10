@@ -26,7 +26,6 @@ public:
         WebIDL::UnsignedLong number_of_input_channels,
         WebIDL::UnsignedLong number_of_output_channel);
     static WebIDL::ExceptionOr<void> validate_options(
-        JS::Realm&,
         WebIDL::Long buffer_size,
         WebIDL::UnsignedLong number_of_input_channels,
         WebIDL::UnsignedLong number_of_output_channel);
@@ -34,7 +33,7 @@ public:
     // ^AudioNode
     virtual WebIDL::UnsignedLong channel_count() const override;
     virtual WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
-    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
+    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(ChannelCountMode) override;
     virtual WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     virtual WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 

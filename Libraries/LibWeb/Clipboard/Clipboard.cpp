@@ -6,9 +6,9 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/Clipboard.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -39,6 +39,21 @@ Clipboard::Clipboard()
 }
 
 Clipboard::~Clipboard() = default;
+
+static GC::Ptr<FileAPI::Blob> clipboard_item_data_blob(JS::Value value)
+{
+    if (!value.is_object())
+        return nullptr;
+    return Bindings::impl_from<FileAPI::Blob>(&value.as_object());
+}
+
+static void resolve_clipboard_items_promise(JS::Realm& realm, WebIDL::Promise& promise, GC::RootVector<GC::Ref<ClipboardItem>> const& items)
+{
+    auto clipboard_items = MUST(JS::Array::create(realm, 0));
+    for (size_t i = 0; i < items.size(); ++i)
+        MUST(clipboard_items->create_data_property(JS::PropertyKey { i }, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, items.at(i))));
+    WebIDL::resolve_promise(realm, promise, clipboard_items);
+}
 
 // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
 static String os_specific_well_known_format(StringView mime_type_string)
@@ -165,11 +180,8 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-readtext
-GC::Ref<WebIDL::Promise> Clipboard::read(JS::Realm& realm, Bindings::ClipboardUnsanitizedFormats formats)
+void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<WebIDL::Promise> promise)
 {
-    // 2. Let p be a new promise in realm.
-    auto promise = WebIDL::create_promise(realm);
-
     // 3. If formats is not empty, then:
     if (formats.unsanitized.has_value()) {
         // 1. For each format in formats["unsanitized"]:
@@ -191,7 +203,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read(JS::Realm& realm, Bindings::ClipboardUn
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_utf16));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create("Clipboard reading is only allowed through user activation"_utf16));
             }));
 
             // 2. Abort these steps.
@@ -290,28 +302,16 @@ GC::Ref<WebIDL::Promise> Clipboard::read(JS::Realm& realm, Bindings::ClipboardUn
                 //        underlyingItem and realm.
                 //     2. Append clipboardItem to clipboardItems.
 
-                // NOTE: We do not perform this song-and-dance of having ClipboardItem and "clipboard item" being
-                //       separate concepts. But we do still need to convert the RootVector to a JS array.
-                auto clipboard_items = MUST(JS::Array::create(realm, 0));
-                for (size_t i = 0; i < items.size(); ++i)
-                    MUST(clipboard_items->create_data_property(JS::PropertyKey { i }, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, items.at(i))));
-
                 // 2. Resolve p with clipboardItems.
-                WebIDL::resolve_promise(realm, promise, clipboard_items);
+                resolve_clipboard_items_promise(realm, promise, items);
             }));
         }));
     }));
-
-    // 5. Return p.
-    return promise;
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-readtext
-GC::Ref<WebIDL::Promise> Clipboard::read_text(JS::Realm& realm)
+void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
 {
-    // 2. Let p be a new promise in realm.
-    auto promise = WebIDL::create_promise(realm);
-
     // 3. Run the following steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, promise]() mutable {
         // 1. Let r be the result of running check clipboard read permission.
@@ -323,7 +323,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text(JS::Realm& realm)
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard reading is only allowed through user activation"_utf16));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create("Clipboard reading is only allowed through user activation"_utf16));
             }));
 
             // 2. Abort these steps.
@@ -382,21 +382,15 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text(JS::Realm& realm)
                 }
 
                 // 2. Reject p with "NotFoundError" DOMException in realm.
-                WebIDL::reject_promise(realm, promise, WebIDL::NotFoundError::create(realm, "Did not find a text item in the system clipboard"_utf16));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotFoundError::create("Did not find a text item in the system clipboard"_utf16));
             }));
         }));
     }));
-
-    // 5. Return p.
-    return promise;
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-write
-GC::Ref<WebIDL::Promise> Clipboard::write(JS::Realm& realm, GC::RootVector<GC::Ref<ClipboardItem>> const& data)
+void Clipboard::write(JS::Realm& realm, GC::RootVector<GC::Ref<ClipboardItem>> const& data, GC::Ref<WebIDL::Promise> promise)
 {
-    // 2. Let p be a new promise in realm.
-    auto promise = WebIDL::create_promise(realm);
-
     // 3. Run the following steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, promise, data = move(data)]() mutable {
         // 1. Let r be the result of running check clipboard write permission.
@@ -408,7 +402,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(JS::Realm& realm, GC::RootVector<GC::R
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_utf16));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create("Clipboard writing is only allowed through user activation"_utf16));
             }));
 
             // 2. Abort these steps.
@@ -457,7 +451,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(JS::Realm& realm, GC::RootVector<GC::R
                             }
                             // 2. If v is a Blob, then add v to itemList.
                             else if (value.is_object()) {
-                                if (auto* blob = Bindings::impl_from<FileAPI::Blob>(&value.as_object()))
+                                if (auto blob = clipboard_item_data_blob(value))
                                     item_list.append(*blob);
                             }
 
@@ -469,7 +463,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(JS::Realm& realm, GC::RootVector<GC::R
                             HTML::TemporaryExecutionContext execution_context { realm };
 
                             // 1. Reject p with "NotAllowedError" DOMException in realm.
-                            WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, Utf16String::formatted("Writing to the clipboard failed: {}", reason)));
+                            WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(Utf16String::formatted("Writing to the clipboard failed: {}", reason)));
 
                             // 2. Abort these steps.
                             // NOTE: This is handled below.
@@ -497,8 +491,8 @@ GC::Ref<WebIDL::Promise> Clipboard::write(JS::Realm& realm, GC::RootVector<GC::R
 
                     // 2. If type is not in the mandatory data types or optional data types list, then reject p with
                     //    "NotAllowedError" DOMException in realm and abort these steps.
-                    if (!ClipboardItem::supports(realm.vm(), type)) {
-                        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, Utf16String::formatted("Clipboard item type {} is not allowed", type)));
+                    if (!ClipboardItem::supports(type)) {
+                        WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(Utf16String::formatted("Clipboard item type {} is not allowed", type)));
                         return;
                     }
 
@@ -514,7 +508,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(JS::Realm& realm, GC::RootVector<GC::R
                 }
 
                 // 3. Let option be clipboardItem’s clipboard item's presentation style.
-                auto option = Bindings::idl_enum_to_string(clipboard_item->presentation_style());
+                auto option = presentation_style_to_string(clipboard_item->presentation_style());
 
                 // 4. Write blobs and option to the clipboard with cleanItemList and option.
                 write_blobs_and_option_to_clipboard(realm, clean_item_list, option);
@@ -524,17 +518,11 @@ GC::Ref<WebIDL::Promise> Clipboard::write(JS::Realm& realm, GC::RootVector<GC::R
             WebIDL::resolve_promise(realm, promise);
         }));
     }));
-
-    // 4. Return p.
-    return promise;
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-writetext
-GC::Ref<WebIDL::Promise> Clipboard::write_text(JS::Realm& realm, String data)
+void Clipboard::write_text(JS::Realm& realm, String data, GC::Ref<WebIDL::Promise> promise)
 {
-    // 2. Let p be a new promise in realm.
-    auto promise = WebIDL::create_promise(realm);
-
     // 3. Run the following steps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, promise, data = move(data)]() mutable {
         // 1. Let r be the result of running check clipboard write permission.
@@ -546,7 +534,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(JS::Realm& realm, String data)
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_utf16));
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create("Clipboard writing is only allowed through user activation"_utf16));
             }));
 
             // 2. Abort these steps.
@@ -577,9 +565,6 @@ GC::Ref<WebIDL::Promise> Clipboard::write_text(JS::Realm& realm, String data)
             WebIDL::resolve_promise(realm, promise, JS::js_undefined());
         }));
     }));
-
-    // 4. Return p.
-    return promise;
 }
 
 }

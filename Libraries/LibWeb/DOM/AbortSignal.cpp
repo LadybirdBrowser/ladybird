@@ -8,8 +8,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/AbortSignal.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -149,7 +147,7 @@ WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::abort(JS::Realm& realm, O
     // 2. Set signal’s abort reason to reason if it is given; otherwise to a new "AbortError" DOMException.
     auto reason = maybe_reason.value_or(JS::js_undefined());
     if (reason.is_undefined())
-        reason = throw_completion(realm, WebIDL::AbortError::create(realm, "Aborted without reason"_utf16)).value();
+        reason = throw_completion(realm, WebIDL::AbortError::create("Aborted without reason"_utf16)).value();
 
     signal->set_reason(reason);
 
@@ -172,7 +170,7 @@ WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::timeout(JS::Realm& realm,
     window_or_worker->run_steps_after_a_timeout(milliseconds, [&realm, &global, signal]() {
         // 1. Queue a global task on the timer task source given global to signal abort given signal and a new "TimeoutError" DOMException.
         HTML::queue_global_task(HTML::Task::Source::TimerTask, global, GC::create_function(GC::Heap::the(), [&realm, &global, signal]() mutable {
-            auto reason = throw_completion(realm, WebIDL::TimeoutError::create(realm, "Signal timed out"_utf16)).value();
+            auto reason = throw_completion(realm, WebIDL::TimeoutError::create("Signal timed out"_utf16)).value();
             signal->signal_abort(reason, global);
         }));
     });
@@ -182,7 +180,7 @@ WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::timeout(JS::Realm& realm,
 }
 
 // https://dom.spec.whatwg.org/#dom-abortsignal-any
-WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::any(JS::Realm&, ReadonlySpan<GC::Ref<AbortSignal>> signals)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::any(ReadonlySpan<GC::Ref<AbortSignal>> signals)
 {
     // The static any(signals) method steps are to return the result of creating a dependent abort signal from signals using AbortSignal and the current realm.
     return create_dependent_abort_signal(signals);

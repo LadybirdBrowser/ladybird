@@ -6,14 +6,21 @@
 
 #pragma once
 
+#include <AK/Span.h>
+#include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <LibGfx/Path.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
+
+struct CanvasRoundRectRadius {
+    double x { 0 };
+    double y { 0 };
+};
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvaspath
 class CanvasPath {
@@ -26,11 +33,12 @@ public:
     void line_to(float x, float y);
     void quadratic_curve_to(float cx, float cy, float x, float y);
     void bezier_curve_to(double cp1x, double cp1y, double cp2x, double cp2y, double x, double y);
-    WebIDL::ExceptionOr<void> arc_to(JS::Realm&, double x1, double y1, double x2, double y2, double radius);
+    WebIDL::ExceptionOr<void> arc_to(double x1, double y1, double x2, double y2, double radius);
     void rect(double x, double y, double w, double h);
-    WebIDL::ExceptionOr<void> round_rect(double x, double y, double w, double h, Variant<double, Bindings::DOMPointInit, Vector<Variant<double, Bindings::DOMPointInit>>> radii = { 0 });
-    WebIDL::ExceptionOr<void> arc(JS::Realm&, float x, float y, float radius, float start_angle, float end_angle, bool counter_clockwise);
-    WebIDL::ExceptionOr<void> ellipse(JS::Realm&, float x, float y, float radius_x, float radius_y, float rotation, float start_angle, float end_angle, bool counter_clockwise);
+    WebIDL::ExceptionOr<void> round_rect(double x, double y, double w, double h, Variant<double, Bindings::DOMPointInit, Vector<Variant<double, Bindings::DOMPointInit>>> const& radii);
+    WebIDL::ExceptionOr<void> round_rect(double x, double y, double w, double h, ReadonlySpan<CanvasRoundRectRadius> radii);
+    WebIDL::ExceptionOr<void> arc(float x, float y, float radius, float start_angle, float end_angle, bool counter_clockwise);
+    WebIDL::ExceptionOr<void> ellipse(float x, float y, float radius_x, float radius_y, float rotation, float start_angle, float end_angle, bool counter_clockwise);
 
     Gfx::Path& path() { return m_path; }
     Gfx::Path const& path() const { return m_path; }

@@ -7,7 +7,9 @@
 #include "ScrollTimeline.h"
 #include <LibGC/Heap.h>
 #include <LibWeb/Animations/Animation.h>
+#include <LibWeb/Bindings/ScrollTimeline.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -16,7 +18,7 @@ namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(ScrollTimeline);
 
-GC::Ref<ScrollTimeline> ScrollTimeline::create(DOM::Document& document, Source source, Bindings::ScrollAxis axis)
+GC::Ref<ScrollTimeline> ScrollTimeline::create(DOM::Document& document, Source source, ScrollAxis axis)
 {
     auto timeline = GC::Heap::the().allocate<ScrollTimeline>(document, source, axis);
 
@@ -26,28 +28,14 @@ GC::Ref<ScrollTimeline> ScrollTimeline::create(DOM::Document& document, Source s
     return timeline;
 }
 
-// https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-scrolltimeline
-GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(HTML::Window& window, Bindings::ScrollTimelineOptions options)
+GC::Ref<ScrollTimeline> ScrollTimeline::create_for_constructor(JS::Realm& realm, Bindings::ScrollTimelineOptions const& options)
 {
-    auto& document = window.associated_document();
-
-    // 1. Let timeline be the new ScrollTimeline object.
-    // 2. Set the source of timeline to:
+    auto& document = HTML::relevant_window(realm.global_object()).associated_document();
     auto source = [&]() -> GC::Ptr<DOM::Element const> {
-        // If the source member of options is present,
-        // The source member of options.
         if (options.source.has_value())
             return options.source.value();
-
-        // Otherwise,
-        // The scrollingElement of the Document associated with the Window that is the current global object.
-        if (document.scrolling_element())
-            return document.scrolling_element();
-
-        return nullptr;
+        return document.scrolling_element();
     }();
-
-    // 3. Set the axis property of timeline to the corresponding value from options.
     return create(document, source, options.axis);
 }
 
@@ -80,7 +68,7 @@ struct ComputedScrollAxis {
     bool is_vertical;
     bool is_reversed;
 };
-static ComputedScrollAxis computed_scroll_axis(Bindings::ScrollAxis axis, CSS::WritingMode writing_mode, CSS::Direction direction)
+static ComputedScrollAxis computed_scroll_axis(ScrollAxis axis, CSS::WritingMode writing_mode, CSS::Direction direction)
 {
     // NB: This is based on the table specified here: https://drafts.csswg.org/css-writing-modes-4/#logical-to-physical
 
@@ -89,7 +77,7 @@ static ComputedScrollAxis computed_scroll_axis(Bindings::ScrollAxis axis, CSS::W
     auto used_direction = direction;
 
     switch (axis) {
-    case Bindings::ScrollAxis::Block:
+    case ScrollAxis::Block:
         switch (writing_mode) {
         case CSS::WritingMode::HorizontalTb:
             return { true, false };
@@ -101,7 +89,7 @@ static ComputedScrollAxis computed_scroll_axis(Bindings::ScrollAxis axis, CSS::W
             return { false, false };
         }
         VERIFY_NOT_REACHED();
-    case Bindings::ScrollAxis::Inline:
+    case ScrollAxis::Inline:
         switch (writing_mode) {
         case CSS::WritingMode::HorizontalTb:
             return { false, used_direction == CSS::Direction::Rtl };
@@ -113,9 +101,9 @@ static ComputedScrollAxis computed_scroll_axis(Bindings::ScrollAxis axis, CSS::W
             return { true, used_direction == CSS::Direction::Ltr };
         }
         VERIFY_NOT_REACHED();
-    case Bindings::ScrollAxis::X:
+    case ScrollAxis::X:
         return { false, false };
-    case Bindings::ScrollAxis::Y:
+    case ScrollAxis::Y:
         return { true, false };
     }
 
@@ -126,7 +114,7 @@ struct ScrollOffsetData {
     double scroll_offset;
     double max_scroll_offset;
 };
-static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> propagated_source, Bindings::ScrollAxis axis)
+static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> propagated_source, ScrollAxis axis)
 {
     if (propagated_source.visit([](auto const& source) { return source == nullptr; }))
         return {};
@@ -214,7 +202,7 @@ void ScrollTimeline::update_current_time(double)
     set_current_time(TimeValue { TimeValue::Type::Percentage, progress * 100 });
 }
 
-ScrollTimeline::ScrollTimeline(DOM::Document& document, Source source, Bindings::ScrollAxis axis)
+ScrollTimeline::ScrollTimeline(DOM::Document& document, Source source, ScrollAxis axis)
     : AnimationTimeline(document)
     , m_source(source)
     , m_axis(axis)
@@ -241,17 +229,17 @@ Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> ScrollTimeline::get
     return source;
 }
 
-Bindings::ScrollAxis css_axis_to_bindings_scroll_axis(CSS::Axis axis)
+ScrollAxis scroll_axis_from_css_axis(CSS::Axis axis)
 {
     switch (axis) {
     case CSS::Axis::Block:
-        return Bindings::ScrollAxis::Block;
+        return ScrollAxis::Block;
     case CSS::Axis::Inline:
-        return Bindings::ScrollAxis::Inline;
+        return ScrollAxis::Inline;
     case CSS::Axis::X:
-        return Bindings::ScrollAxis::X;
+        return ScrollAxis::X;
     case CSS::Axis::Y:
-        return Bindings::ScrollAxis::Y;
+        return ScrollAxis::Y;
     }
 
     VERIFY_NOT_REACHED();

@@ -6,7 +6,6 @@
 
 #include "StylePropertyMapReadOnly.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/StylePropertyMapReadOnly.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -25,8 +24,7 @@ GC::Ref<StylePropertyMapReadOnly> StylePropertyMapReadOnly::create_computed_styl
 }
 
 StylePropertyMapReadOnly::StylePropertyMapReadOnly(Source source)
-    : Bindings::Wrappable()
-    , m_declarations(move(source))
+    : m_declarations(move(source))
 {
 }
 
@@ -42,13 +40,14 @@ void StylePropertyMapReadOnly::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-get
-WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapReadOnly::get(JS::Realm& realm, String property_name)
+WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapReadOnly::get(String property_name)
 {
     // The get(property) method, when called on a StylePropertyMapReadOnly this, must perform the following steps:
 
     // 1. If property is not a custom property name string, set property to property ASCII lowercased.
     // 2. If property is not a valid CSS property, throw a TypeError.
-    auto property = PropertyNameAndID::from_name(property_name);
+    auto property_name_utf16 = Utf16FlyString::from_utf8(property_name);
+    auto property = PropertyNameAndID::from_name(property_name_utf16);
     if (!property.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property_name)) };
 
@@ -58,7 +57,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
     // 4. If props[property] exists, subdivide into iterations props[property], then reify the first item of the result and return it.
     if (auto property_value = get_style_value(props, property.value())) {
         auto iterations = property_value->subdivide_into_iterations(property.value());
-        return iterations.first()->reify(realm, property->name());
+        return iterations.first()->reify(property->name());
     }
 
     // 5. Otherwise, return undefined.
@@ -66,13 +65,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-getall
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::get_all(JS::Realm& realm, String property_name)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::get_all(String property_name)
 {
     // The getAll(property) method, when called on a StylePropertyMap this, must perform the following steps:
 
     // 1. If property is not a custom property name string, set property to property ASCII lowercased.
     // 2. If property is not a valid CSS property, throw a TypeError.
-    auto property = PropertyNameAndID::from_name(property_name);
+    auto property_name_utf16 = Utf16FlyString::from_utf8(property_name);
+    auto property = PropertyNameAndID::from_name(property_name_utf16);
     if (!property.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property_name)) };
 
@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapRead
     if (auto property_value = get_style_value(props, property.value())) {
         auto iterations = property_value->subdivide_into_iterations(property.value());
         for (auto const& style_value : iterations)
-            results.append(style_value->reify(realm, property->name()));
+            results.append(style_value->reify(property->name()));
         return results;
     }
 
@@ -100,7 +100,8 @@ WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(String property_name)
 
     // 1. If property is not a custom property name string, set property to property ASCII lowercased.
     // 2. If property is not a valid CSS property, throw a TypeError.
-    auto property = PropertyNameAndID::from_name(property_name);
+    auto property_name_utf16 = Utf16FlyString::from_utf8(property_name);
+    auto property = PropertyNameAndID::from_name(property_name_utf16);
     if (!property.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("'{}' is not a valid CSS property", property_name)) };
 
@@ -145,7 +146,7 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
 
             // Some custom properties set on the element might also be in the registered custom properties set, so we
             // want the size of the union of the two sets.
-            HashTable<FlyString> custom_properties;
+            HashTable<Utf16FlyString> custom_properties;
             if (auto data = element.custom_property_data()) {
                 data->for_each_property([&](Utf16FlyString const& name, CSS::StyleProperty const&) {
                     custom_properties.set(name);

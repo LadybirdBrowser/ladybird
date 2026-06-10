@@ -10,6 +10,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/ServiceWorkerRegistration.h>
 #include <LibWeb/Bindings/Worker.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::ServiceWorker {
@@ -39,9 +40,9 @@ public:
     StorageAPI::StorageKey storage_key; // https://w3c.github.io/ServiceWorker/#job-storage-key
     URL::URL scope_url;
     URL::URL script_url;
-    Bindings::WorkerType worker_type = Bindings::WorkerType::Classic;
+    WorkerType worker_type = WorkerType::Classic;
     // FIXME: The spec sometimes omits setting update_via_cache after CreateJob. Default to the default value for ServiceWorkerRegistrations
-    Bindings::ServiceWorkerUpdateViaCache update_via_cache = Bindings::ServiceWorkerUpdateViaCache::Imports;
+    ServiceWorkerUpdateViaCache update_via_cache = ServiceWorkerUpdateViaCache::Imports;
     GC::Ptr<HTML::EnvironmentSettingsObject> client = nullptr;
     Optional<URL::URL> referrer;
     // FIXME: Spec just references this as an ECMAScript promise https://github.com/w3c/ServiceWorker/issues/1731

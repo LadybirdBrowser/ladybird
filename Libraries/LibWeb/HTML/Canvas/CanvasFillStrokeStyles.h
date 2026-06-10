@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
 
@@ -27,10 +26,10 @@ public:
     void set_stroke_style(FillOrStrokeStyleVariant style);
     FillOrStrokeStyleVariant stroke_style() const;
 
-    WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_radial_gradient(JS::Realm&, double x0, double y0, double r0, double x1, double y1, double r1);
-    WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_linear_gradient(JS::Realm&, double x0, double y0, double x1, double y1);
-    WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_conic_gradient(JS::Realm&, double start_angle, double x, double y);
-    WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> create_pattern(JS::Realm&, CanvasImageSource const& image, StringView repetition);
+    WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1);
+    WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_linear_gradient(double x0, double y0, double x1, double y1);
+    WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_conic_gradient(double start_angle, double x, double y);
+    WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> create_pattern(CanvasImageSource const& image, StringView repetition);
 
 protected:
     CanvasFillStrokeStyles() = default;

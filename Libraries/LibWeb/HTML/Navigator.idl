@@ -31,10 +31,10 @@ interface Navigator {
     [SecureContext, SameObject] readonly attribute CredentialsContainer credentials;
 
     // https://w3c.github.io/battery/
-    [SecureContext, Experimental] Promise<BatteryManager> getBattery();
+    [SecureContext, Experimental, NeedsCallerRealm] Promise<BatteryManager> getBattery();
 
     // https://immersive-web.github.io/webxr/#navigator-xr-attribute
-    [SecureContext, SameObject] readonly attribute XRSystem xr;
+    [SecureContext, SameObject, NeedsCallerRealmForGetter] readonly attribute XRSystem xr;
 
     // https://w3c.github.io/permissions/#navigator-and-workernavigator-extension
     [SameObject, Experimental] readonly attribute Permissions permissions;

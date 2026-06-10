@@ -9,17 +9,20 @@
 #include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordTrustedTypes.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
+#include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TagNames.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
+#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
@@ -123,49 +126,60 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16String co
     return expected_type;
 }
 
-TrustedTypePolicyFactory::TrustedTypePolicyFactory()
-    : Bindings::Wrappable()
+TrustedTypePolicyFactory::TrustedTypePolicyFactory(DOM::EventTarget& owner)
+    : m_owner(owner)
 {
 }
 
 void TrustedTypePolicyFactory::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_owner);
     visitor.visit(m_default_policy);
     visitor.visit(m_empty_html);
     visitor.visit(m_empty_script);
 }
 
+JS::Realm& TrustedTypePolicyFactory::relevant_realm() const
+{
+    if (auto const* window = as_if<HTML::Window>(m_owner.ptr()))
+        return HTML::relevant_realm(*window);
+
+    auto const* worker_global_scope = as_if<HTML::WorkerGlobalScope>(m_owner.ptr());
+    VERIFY(worker_global_scope);
+    return HTML::relevant_realm(*worker_global_scope);
+}
+
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(JS::Realm& realm, Utf16String const& policy_name, Bindings::TrustedTypePolicyOptions const& policy_options)
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(JS::Realm& realm, Utf16String const& policy_name, TrustedTypePolicyOptions const& policy_options)
 {
     // 1. Returns the result of executing a Create a Trusted Type Policy algorithm, with the following arguments:
     //      factory: this value
     //      policyName: policyName
     //      options: policyOptions
     //      global: this value’s relevant global object
-    return create_a_trusted_type_policy(realm, policy_name, policy_options, realm.global_object());
+    return create_a_trusted_type_policy(realm, policy_name, policy_options, relevant_realm().global_object());
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-ishtml
-bool TrustedTypePolicyFactory::is_html(JS::Value value)
+bool TrustedTypePolicyFactory::is_html(JS::Value value) const
 {
     // 1. Returns true if value is an instance of TrustedHTML and has an associated data value set, false otherwise.
-    return value.is_object() && Bindings::impl_from<TrustedHTML>(&value.as_object());
+    return is_trusted_html_value(value);
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-isscript
-bool TrustedTypePolicyFactory::is_script(JS::Value value)
+bool TrustedTypePolicyFactory::is_script(JS::Value value) const
 {
     // 1. Returns true if value is an instance of TrustedScript and has an associated data value set, false otherwise.
-    return value.is_object() && Bindings::impl_from<TrustedScript>(&value.as_object());
+    return is_trusted_script_value(value);
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-isscripturl
-bool TrustedTypePolicyFactory::is_script_url(JS::Value value)
+bool TrustedTypePolicyFactory::is_script_url(JS::Value value) const
 {
     // 1. Returns true if value is an instance of TrustedScriptURL and has an associated data value set, false otherwise.
-    return value.is_object() && Bindings::impl_from<TrustedScriptURL>(&value.as_object());
+    return is_trusted_script_url_value(value);
 }
 
 GC::Ref<TrustedHTML const> TrustedTypePolicyFactory::empty_html()
@@ -185,7 +199,7 @@ GC::Ref<TrustedScript const> TrustedTypePolicyFactory::empty_script()
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(JS::Realm& realm, Utf16String const& policy_name, Bindings::TrustedTypePolicyOptions const& options, JS::Object& global)
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(JS::Realm& realm, Utf16String const& policy_name, TrustedTypePolicyOptions const& options, JS::Object& global)
 {
     // 1. Let allowedByCSP be the result of executing Should Trusted Type policy creation be blocked by Content Security Policy? algorithm with global, policyName and factory’s created policy names value.
     auto const allowed_by_csp = should_trusted_type_policy_be_blocked_by_content_security_policy(realm, global, policy_name, m_created_policy_names);
@@ -221,7 +235,8 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
     auto result = ContentSecurityPolicy::Directives::Directive::Result::Allowed;
 
     // 2. For each policy in global’s CSP list:
-    for (auto const policy : ContentSecurityPolicy::PolicyList::from_object(global)->policies()) {
+    auto csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
+    for (auto const policy : csp_list->policies()) {
         // 1. Let createViolation be false.
         bool create_violation = false;
 

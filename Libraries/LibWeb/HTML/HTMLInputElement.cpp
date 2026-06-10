@@ -20,9 +20,7 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/HTMLInputElement.h>
-#include <LibWeb/Bindings/InputEvent.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -94,7 +92,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLInputElement);
 
-static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, FlyString const& event_name, Bindings::EventInit const& event_init = {})
+static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, FlyString const& event_name, DOM::EventInit const& event_init = {})
 {
     return DOM::Event::create(
         event_name,
@@ -458,7 +456,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::show_picker()
 
     // 1. If this is not mutable, then throw an "InvalidStateError" DOMException.
     if (!is_mutable())
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "Element is not mutable"_utf16);
+        return WebIDL::InvalidStateError::create("Element is not mutable"_utf16);
 
     // 2. If this's relevant settings object's origin is not same origin with this's relevant settings object's top-level origin,
     // and this's type attribute is not in the File Upload state or Color state, then throw a "SecurityError" DOMException.
@@ -466,13 +464,13 @@ WebIDL::ExceptionOr<void> HTMLInputElement::show_picker()
     //       and has never been guarded by an origin check.
     if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*this).top_level_origin.value())
         && m_type != TypeAttributeState::FileUpload && m_type != TypeAttributeState::Color) {
-        return WebIDL::SecurityError::create(HTML::relevant_realm(*this), "Cross origin pickers are not allowed"_utf16);
+        return WebIDL::SecurityError::create("Cross origin pickers are not allowed"_utf16);
     }
 
     // 3. If this's relevant global object does not have transient activation, then throw a "NotAllowedError" DOMException.
     auto* relevant_window = window_from_global_object(relevant_global_object(*this));
     if (!relevant_window || !relevant_window->has_transient_activation()) {
-        return WebIDL::NotAllowedError::create(HTML::relevant_realm(*this), "Too long since user activation to show picker"_utf16);
+        return WebIDL::NotAllowedError::create("Too long since user activation to show picker"_utf16);
     }
 
     // 4. Show the picker, if applicable, for this.
@@ -636,7 +634,7 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files, Multi
         auto file_name = MUST(String::from_byte_string(selected_file.name()));
 
         // FIXME: Fill in other fields (e.g. last_modified).
-        Bindings::FilePropertyBag options {};
+        FileAPI::FilePropertyBag options {};
         options.type = mime_type.essence();
 
         auto file = MUST(FileAPI::File::create({ { blob } }, file_name, move(options)));
@@ -744,8 +742,6 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_relevant_value(Utf16String const
 
 WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16String const& value)
 {
-    auto& realm = HTML::relevant_realm(*this);
-
     switch (value_attribute_mode()) {
     // https://html.spec.whatwg.org/multipage/input.html#dom-input-value-value
     case ValueAttributeMode::Value: {
@@ -795,7 +791,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16String const& value)
     case ValueAttributeMode::Filename:
         // On setting, if the new value is the empty string, empty the list of selected files; otherwise, throw an "InvalidStateError" DOMException.
         if (!value.is_empty())
-            return WebIDL::InvalidStateError::create(realm, "Setting value of input type file to non-empty string"_utf16);
+            return WebIDL::InvalidStateError::create("Setting value of input type file to non-empty string"_utf16);
 
         m_selected_files = nullptr;
         break;
@@ -1135,7 +1131,7 @@ void HTMLInputElement::update_shadow_tree()
 
 void HTMLInputElement::create_button_input_shadow_tree()
 {
-    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
     auto text_container = MUST(DOM::create_element(document(), HTML::TagNames::span, Namespace::HTML));
@@ -1148,7 +1144,7 @@ void HTMLInputElement::create_button_input_shadow_tree()
 
 void HTMLInputElement::create_text_input_shadow_tree()
 {
-    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
@@ -1227,7 +1223,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
             },
             0, Utf16FlyString {}, &HTML::relevant_realm(*this));
         auto mouseup_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*mouseup_callback_function, HTML::relevant_realm(*this));
-        Bindings::AddEventListenerOptions mouseup_listener_options;
+        DOM::EventTarget::AddEventListenerOptions mouseup_listener_options;
         mouseup_listener_options.once = true;
 
         auto up_callback_function = JS::NativeFunction::create(
@@ -1278,7 +1274,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
 void HTMLInputElement::create_color_input_shadow_tree()
 {
-    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
@@ -1300,7 +1296,7 @@ void HTMLInputElement::create_color_input_shadow_tree()
         border: 1px solid ButtonBorder;
         box-sizing: border-box;
 )~~~"_string);
-    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, color.to_utf8_but_should_be_ported_to_utf16()));
+    MUST(m_color_well_element->style()->set_property(CSS::PropertyID::BackgroundColor, color.to_utf8_but_should_be_ported_to_utf16()));
 
     MUST(border->append_child(*m_color_well_element));
     MUST(shadow_root->append_child(border));
@@ -1311,14 +1307,14 @@ void HTMLInputElement::update_color_well_element()
     if (!m_color_well_element)
         return;
 
-    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, m_value.to_utf8_but_should_be_ported_to_utf16()));
+    MUST(m_color_well_element->style()->set_property(CSS::PropertyID::BackgroundColor, m_value.to_utf8_but_should_be_ported_to_utf16()));
 }
 
 void HTMLInputElement::create_file_input_shadow_tree()
 {
     auto& realm = HTML::relevant_realm(*this);
 
-    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
@@ -1363,7 +1359,7 @@ void HTMLInputElement::update_file_input_shadow_tree()
 
 void HTMLInputElement::create_range_input_shadow_tree()
 {
-    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
@@ -1433,7 +1429,9 @@ void HTMLInputElement::create_range_input_shadow_tree()
     auto update_slider_by_mouse = [this](JS::VM& vm) {
         if (type_state() != TypeAttributeState::Range)
             return;
-        auto event = vm.argument(0).as_if<UIEvents::MouseEvent>();
+        auto event = vm.argument(0).is_object()
+            ? Bindings::impl_from<UIEvents::MouseEvent>(&vm.argument(0).as_object())
+            : nullptr;
         if (!event)
             return;
         auto client_x = event->client_x();
@@ -1474,7 +1472,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
                 },
                 0, Utf16FlyString {}, &HTML::relevant_realm(*this));
             auto mouseup_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*mouseup_callback_function, HTML::relevant_realm(*this));
-            Bindings::AddEventListenerOptions mouseup_listener_options;
+            DOM::EventTarget::AddEventListenerOptions mouseup_listener_options;
             mouseup_listener_options.once = true;
             window.add_event_listener(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(mouseup_callback), mouseup_listener_options);
 
@@ -1494,7 +1492,7 @@ void HTMLInputElement::user_interaction_did_change_input_value(FlyString const& 
     // given the input element to fire an event named input at the input element, with the bubbles and composed attributes initialized to true
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this, input_type, data] {
         // https://w3c.github.io/uievents/#event-type-input
-        Bindings::InputEventInit input_event_init;
+        UIEvents::InputEventInit input_event_init;
         input_event_init.bubbles = true;
         input_event_init.composed = true;
         input_event_init.input_type = input_type.to_string();
@@ -1515,10 +1513,10 @@ void HTMLInputElement::update_slider_shadow_tree_elements()
     double position = (value - minimum) / (maximum - minimum) * 100;
 
     if (m_slider_progress_element)
-        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
+        MUST(m_slider_progress_element->style()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
 
     if (m_slider_thumb)
-        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
+        MUST(m_slider_thumb->style()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
 }
 
 void HTMLInputElement::did_receive_focus()
@@ -2368,7 +2366,7 @@ WebIDL::Long HTMLInputElement::max_length() const
 WebIDL::ExceptionOr<void> HTMLInputElement::set_max_length(WebIDL::Long value)
 {
     // The maxLength IDL attribute must reflect the maxlength content attribute, limited to only non-negative numbers.
-    set_attribute_value(HTML::AttributeNames::maxlength, TRY(convert_non_negative_integer_to_string(HTML::relevant_realm(*this), value)));
+    set_attribute_value(HTML::AttributeNames::maxlength, TRY(convert_non_negative_integer_to_string(value)));
     return {};
 }
 
@@ -2386,7 +2384,7 @@ WebIDL::Long HTMLInputElement::min_length() const
 WebIDL::ExceptionOr<void> HTMLInputElement::set_min_length(WebIDL::Long value)
 {
     // The minLength IDL attribute must reflect the minlength content attribute, limited to only non-negative numbers.
-    set_attribute_value(HTML::AttributeNames::minlength, TRY(convert_non_negative_integer_to_string(HTML::relevant_realm(*this), value)));
+    set_attribute_value(HTML::AttributeNames::minlength, TRY(convert_non_negative_integer_to_string(value)));
     return {};
 }
 
@@ -2405,7 +2403,7 @@ WebIDL::UnsignedLong HTMLInputElement::size() const
 WebIDL::ExceptionOr<void> HTMLInputElement::set_size(WebIDL::UnsignedLong value)
 {
     if (value == 0)
-        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*this), "Size must be greater than zero"_utf16);
+        return WebIDL::IndexSizeError::create("Size must be greater than zero"_utf16);
     if (value > 2147483647)
         value = 20;
     set_attribute_value(HTML::AttributeNames::size, String::number(value));
@@ -2548,10 +2546,10 @@ Optional<double> HTMLInputElement::convert_time_string_to_number(StringView inpu
     // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a time from input
     // results in an error, then return an error; otherwise, return the number of milliseconds elapsed from midnight to
     // the parsed time on a day with no time changes.
-    auto maybe_time = parse_time_string(HTML::relevant_realm(*this), input);
+    auto maybe_time = parse_time_string_value(input);
     if (maybe_time.is_exception())
         return {};
-    return maybe_time.value()->date_value();
+    return maybe_time.value();
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
@@ -2731,7 +2729,7 @@ Utf16String HTMLInputElement::convert_number_to_string(double input) const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-date
-WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(StringView input) const
+WebIDL::ExceptionOr<Optional<double>> HTMLInputElement::convert_string_to_date(StringView input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-string-date
     if (type_state() == TypeAttributeState::Date) {
@@ -2742,7 +2740,7 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
         auto date = maybe_date.value();
 
         // otherwise, return a new Date object representing midnight UTC on the morning of the parsed date.
-        return JS::Date::create(HTML::relevant_realm(*this), JS::make_date(JS::make_day(date.year, date.month - 1, date.day), 0));
+        return JS::make_date(JS::make_day(date.year, date.month - 1, date.day), 0);
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-string-date
@@ -2754,7 +2752,7 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
         auto year_and_month = maybe_year_and_month.value();
 
         // otherwise, return a new Date object representing midnight UTC on the morning of the first day of the parsed month.
-        return JS::Date::create(HTML::relevant_realm(*this), JS::make_date(JS::make_day(year_and_month.year, year_and_month.month - 1, 1), 0));
+        return JS::make_date(JS::make_day(year_and_month.year, year_and_month.month - 1, 1), 0);
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-value-string-date
@@ -2767,62 +2765,58 @@ WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(
 
         // otherwise, return a new Date object representing midnight UTC on the morning of the Monday of the parsed week.
         auto datetime = UnixDateTime::from_iso8601_week(week.week_year, week.week);
-        return JS::Date::create(HTML::relevant_realm(*this), datetime.milliseconds_since_epoch());
+        return static_cast<double>(datetime.milliseconds_since_epoch());
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-date
     if (type_state() == TypeAttributeState::Time) {
         // If parsing a time from input results in an error, then return an error;
-        auto maybe_time = parse_time_string(HTML::relevant_realm(*this), input);
-        if (maybe_time.is_exception())
-            return maybe_time.exception();
-
         // otherwise, return a new Date object representing the parsed time in UTC on 1970-01-01.
-        return maybe_time.value();
+        return TRY(parse_time_string_value(input));
     }
 
     dbgln("HTMLInputElement::convert_string_to_date() not implemented for input type {}", type());
-    return nullptr;
+    return Optional<double> {};
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-date
-WebIDL::ExceptionOr<GC::Ptr<JS::Date>> HTMLInputElement::convert_string_to_date(Utf16String const& input) const
+WebIDL::ExceptionOr<Optional<double>> HTMLInputElement::convert_string_to_date(Utf16String const& input) const
 {
     // FIXME: Implement a UTF-16 GenericLexer.
     if (!input.has_ascii_storage())
-        return nullptr;
+        return Optional<double> {};
     return convert_string_to_date(input.ascii_view());
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-date-string
-Utf16String HTMLInputElement::convert_date_to_string(GC::Ref<JS::Date> input) const
+Utf16String HTMLInputElement::convert_date_to_string(double input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#date-state-(type=date):concept-input-value-date-string
     if (type_state() == TypeAttributeState::Date) {
         // Return a valid date string that represents the date current at the time represented by input in the UTC time zone.
         // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-date-string
-        return convert_number_to_date_string(input->date_value());
+        return convert_number_to_date_string(input);
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-date-string
     if (type_state() == TypeAttributeState::Month) {
         // Return a valid month string that represents the month current at the time represented by input in the UTC time zone.
         // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-month-string
-        return convert_date_to_month_string(input->date_value());
+        return convert_date_to_month_string(input);
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-value-date-string
     if (type_state() == TypeAttributeState::Week) {
         // Return a valid week string that represents the week current at the time represented by input in the UTC time zone.
         // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-week-string
-        return convert_number_to_week_string(input->date_value());
+        return convert_number_to_week_string(input);
     }
 
     // https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-date
     if (type_state() == TypeAttributeState::Time) {
         // Return a valid time string that represents the UTC time component that is represented by input.
         // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-time-string
-        return convert_number_to_time_string(input->date_value());
+        return convert_number_to_time_string(input);
     }
 
     dbgln("HTMLInputElement::convert_date_to_string() not implemented for input type {}", type());
@@ -2987,45 +2981,73 @@ double HTMLInputElement::step_base() const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-valueasdate
-JS::Object* HTMLInputElement::value_as_date() const
+Optional<double> HTMLInputElement::value_as_date() const
 {
     // On getting, if the valueAsDate attribute does not apply, as defined for the input element's type attribute's current state, then return null.
     if (!value_as_date_applies())
-        return nullptr;
+        return {};
 
     // Otherwise, run the algorithm to convert a string to a Date object defined for that state to the element's value;
     // if the algorithm returned a Date object, then return it, otherwise, return null.
     auto maybe_date = convert_string_to_date(value());
     if (!maybe_date.is_exception())
-        return maybe_date.value().ptr();
-    return nullptr;
+        return maybe_date.value();
+    return {};
+}
+
+GC::Ptr<JS::Object> HTMLInputElement::value_as_date_object(JS::Realm& realm) const
+{
+    auto value = value_as_date();
+    if (!value.has_value())
+        return nullptr;
+    return JS::Date::create(realm, *value);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-valueasdate
-WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(GC::Ptr<JS::Object> value)
+WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(Optional<double> value)
 {
     // On setting, if the valueAsDate attribute does not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException;
     if (!value_as_date_applies())
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "valueAsDate: Invalid input type used"_utf16);
-
-    // otherwise, if the new value is not null and not a Date object throw a TypeError exception;
-    if (value && !is<JS::Date>(*value))
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsDate: input is not a Date"sv };
+        return WebIDL::InvalidStateError::create("valueAsDate: Invalid input type used"_utf16);
 
     // otherwise if the new value is null or a Date object representing the NaN time value, then set the value of the element to the empty string;
-    if (!value) {
+    if (!value.has_value()) {
         TRY(set_value({}));
         return {};
     }
-    auto& date = static_cast<JS::Date&>(*value);
-    if (!isfinite(date.date_value())) {
+    if (!isfinite(*value)) {
         TRY(set_value({}));
         return {};
     }
 
     // otherwise, run the algorithm to convert a Date object to a string, as defined for that state, on the new value, and set the value of the element to the resulting string.
-    TRY(set_value(convert_date_to_string(date)));
+    TRY(set_value(convert_date_to_string(*value)));
     return {};
+}
+
+WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date_object(GC::Ptr<JS::Object> value)
+{
+    if (!value)
+        return set_value_as_date({});
+
+    if (!is<JS::Date>(*value))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsDate: input is not a Date"sv };
+
+    return set_value_as_date(static_cast<JS::Date&>(*value).date_value());
+}
+
+WebIDL::ExceptionOr<void> HTMLInputElement::set_range_text(Utf16String const& replacement)
+{
+    if (!selection_or_range_applies())
+        return WebIDL::InvalidStateError::create("setRangeText does not apply to this input type"_utf16);
+    return FormAssociatedTextControlElement::set_range_text(replacement);
+}
+
+WebIDL::ExceptionOr<void> HTMLInputElement::set_range_text(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, SelectionMode selection_mode)
+{
+    if (!selection_or_range_applies())
+        return WebIDL::InvalidStateError::create("setRangeText does not apply to this input type"_utf16);
+    return FormAssociatedTextControlElement::set_range_text(replacement, start, end, selection_mode);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-valueasnumber
@@ -3049,7 +3071,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_number(double value)
 
     // Otherwise, if the valueAsNumber attribute does not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException.
     if (!value_as_number_applies())
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "valueAsNumber: Invalid input type used"_utf16);
+        return WebIDL::InvalidStateError::create("valueAsNumber: Invalid input type used"_utf16);
 
     // Otherwise, if the new value is a Not-a-Number (NaN) value, then set the value of the element to the empty string.
     if (value == NAN) {
@@ -3079,12 +3101,12 @@ WebIDL::ExceptionOr<void> HTMLInputElement::step_up_or_down(bool is_down, WebIDL
 {
     // 1. If the stepDown() and stepUp() methods do not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException.
     if (!step_up_or_down_applies())
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), Utf16String::formatted("{}: Invalid input type used", is_down ? "stepDown()" : "stepUp()"));
+        return WebIDL::InvalidStateError::create(Utf16String::formatted("{}: Invalid input type used", is_down ? "stepDown()" : "stepUp()"));
 
     // 2. If the element has no allowed value step, then throw an "InvalidStateError" DOMException.
     auto maybe_allowed_value_step = allowed_value_step();
     if (!maybe_allowed_value_step.has_value())
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "element has no allowed value step"_utf16);
+        return WebIDL::InvalidStateError::create("element has no allowed value step"_utf16);
     double allowed_value_step = *maybe_allowed_value_step;
 
     // 3. If the element has a minimum and a maximum and the minimum is greater than the maximum, then return.

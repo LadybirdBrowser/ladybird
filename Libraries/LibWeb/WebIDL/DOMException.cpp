@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/DOMException.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -21,21 +22,6 @@ GC::Ref<DOMException> DOMException::create(FlyString name, Utf16String const& me
 GC::Ref<DOMException> DOMException::create()
 {
     return GC::Heap::the().allocate<DOMException>();
-}
-
-GC::Ref<DOMException> DOMException::create(JS::Realm&, FlyString name, Utf16String const& message)
-{
-    return create(move(name), message);
-}
-
-GC::Ref<DOMException> DOMException::create(JS::Realm&)
-{
-    return create();
-}
-
-GC::Ref<DOMException> DOMException::construct_impl(JS::Realm&, Utf16String const& message, FlyString name)
-{
-    return create(move(name), message);
 }
 
 DOMException::DOMException(FlyString name, Utf16String const& message)
@@ -82,6 +68,26 @@ WebIDL::ExceptionOr<void> DOMException::deserialization_steps(JS::Realm&, HTML::
     // FIXME: 3. If any other data is attached to serialized, then deserialize and attach it to value.
 
     return {};
+}
+
+}
+
+namespace Web::Bindings {
+
+WebIDL::DOMException* dom_exception_from_object(JS::Object& object)
+{
+    return Bindings::impl_from<WebIDL::DOMException>(&object);
+}
+
+Optional<DOMExceptionReportDetails> dom_exception_report_details(JS::Object& object)
+{
+    auto const* exception = dom_exception_from_object(object);
+    if (!exception)
+        return {};
+    return DOMExceptionReportDetails {
+        .name = exception->name().to_string(),
+        .message = MUST(exception->message().view().to_utf8()),
+    };
 }
 
 }

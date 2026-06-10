@@ -321,14 +321,18 @@ Fetch::Infrastructure::Status PerformanceResourceTiming::response_status() const
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-renderblockingstatus
-Bindings::RenderBlockingStatusType PerformanceResourceTiming::render_blocking_status() const
+bool PerformanceResourceTiming::is_render_blocking() const
 {
     // The renderBlockingStatus getter steps are to return blocking if this's timing info's render-blocking is true;
     // otherwise non-blocking.
-    if (m_timing_info->render_blocking())
-        return Bindings::RenderBlockingStatusType::Blocking;
+    return m_timing_info->render_blocking();
+}
 
-    return Bindings::RenderBlockingStatusType::NonBlocking;
+RenderBlockingStatusType PerformanceResourceTiming::render_blocking_status() const
+{
+    if (is_render_blocking())
+        return RenderBlockingStatusType::Blocking;
+    return RenderBlockingStatusType::NonBlocking;
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-contenttype

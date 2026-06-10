@@ -7,16 +7,16 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Variant.h>
+#include <LibGC/Ptr.h>
 #include <LibURL/RustIntegration.h>
 #include <LibWeb/Bindings/URLPattern.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::URLPattern {
 
-using URLPatternInit = Bindings::URLPatternInit;
 using URLPatternInput = Variant<String, Bindings::URLPatternInit>;
-using URLPatternResult = Bindings::URLPatternResult;
-using URLPatternOptions = Bindings::URLPatternOptions;
 
 // https://urlpattern.spec.whatwg.org/#urlpattern
 class URLPattern : public Bindings::Wrappable {
@@ -24,12 +24,11 @@ class URLPattern : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(URLPattern);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> create(URLPatternInput const&, Optional<String> const& base_url, URLPatternOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(URLPatternInput const&, String const& base_url, URLPatternOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(URLPatternInput const&, URLPatternOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> create(URLPatternInput const&, String const& base_url, Bindings::URLPatternOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> create(URLPatternInput const&, Bindings::URLPatternOptions const&);
 
     WebIDL::ExceptionOr<bool> test(URLPatternInput const&, Optional<String> const& base_url) const;
-    WebIDL::ExceptionOr<Optional<URLPatternResult>> exec(URLPatternInput const&, Optional<String> const& base_url) const;
+    WebIDL::ExceptionOr<Optional<Bindings::URLPatternResult>> exec(URLPatternInput const&, Optional<String> const& base_url) const;
 
     String const& protocol() const;
     String const& username() const;

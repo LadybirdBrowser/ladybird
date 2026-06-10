@@ -7,8 +7,6 @@
 
 #include <AK/Vector.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WorkerGlobalScope.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
@@ -26,6 +24,7 @@
 #include <LibWeb/HTML/WorkerLocation.h>
 #include <LibWeb/HTML/WorkerNavigator.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 
 namespace Web::HTML {
 
@@ -41,9 +40,7 @@ WorkerGlobalScope::~WorkerGlobalScope() = default;
 
 JS::Realm& WorkerGlobalScope::realm() const
 {
-    auto wrapper = cached_main_world_wrapper();
-    VERIFY(wrapper);
-    return wrapper->realm();
+    return Bindings::main_world_realm(*this);
 }
 
 void WorkerGlobalScope::initialize_web_interfaces_impl()
@@ -119,7 +116,7 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
 
         // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
         if (!url_record.has_value())
-            return WebIDL::SyntaxError::create(realm(), "Invalid URL"_utf16);
+            return WebIDL::SyntaxError::create("Invalid URL"_utf16);
 
         // 3. Append urlRecord to urlRecords.
         url_records.unchecked_append(url_record.release_value());
@@ -222,6 +219,37 @@ ContentSecurityPolicy::Directives::Directive::Result WorkerGlobalScope::run_csp_
 
     // 3. Return result.
     return result;
+}
+
+}
+
+namespace Web::Bindings {
+
+HTML::WorkerGlobalScope* worker_global_scope_from_global_object(JS::Object& object)
+{
+    return Bindings::impl_from<HTML::WorkerGlobalScope>(&object);
+}
+
+HTML::WorkerGlobalScope const* worker_global_scope_from_global_object(JS::Object const& object)
+{
+    return Bindings::impl_from<HTML::WorkerGlobalScope>(&object);
+}
+
+ServiceWorker::ServiceWorkerGlobalScope* service_worker_global_scope_from_global_object(JS::Object& object)
+{
+    return Bindings::impl_from<ServiceWorker::ServiceWorkerGlobalScope>(&object);
+}
+
+JS::Realm& main_world_realm(HTML::WorkerGlobalScope const& worker_global_scope)
+{
+    auto wrapper = worker_global_scope.cached_main_world_wrapper();
+    VERIFY(wrapper);
+    return wrapper->realm();
+}
+
+void initialize_worker_web_interfaces(HTML::WorkerGlobalScope& worker_global_scope)
+{
+    worker_global_scope.initialize_web_interfaces_impl();
 }
 
 }

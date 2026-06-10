@@ -11,6 +11,6 @@
 
 namespace Web::CredentialManagement {
 
-GC::Ref<FederatedCredential> create_federated_credential(Bindings::FederatedCredentialInit const&, URL::Origin);
+GC::Ref<FederatedCredential> create_federated_credential(FederatedCredentialInit, URL::Origin);
 
 }

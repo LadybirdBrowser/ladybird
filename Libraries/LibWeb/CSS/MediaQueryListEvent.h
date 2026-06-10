@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/String.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/MediaQueryListEvent.h>
 #include <LibWeb/DOM/Event.h>
@@ -20,15 +21,32 @@ class Window;
 
 namespace Web::CSS {
 
+class MediaQueryListEvent;
+
+}
+
+namespace Web::Bindings {
+
+class WrapperWorld;
+WEB_API JS::Realm& wrapper_realm_for_media_query_list_event(WrapperWorld const&, JS::Realm&, CSS::MediaQueryListEvent&);
+
+}
+
+namespace Web::CSS {
+
+using MediaQueryListEventInit = Bindings::MediaQueryListEventInit;
+
 class MediaQueryListEvent final : public DOM::Event {
     WEB_WRAPPABLE(MediaQueryListEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(MediaQueryListEvent);
 
 public:
     [[nodiscard]] static GC::Ref<MediaQueryListEvent> create(
-        FlyString const& event_name, Bindings::MediaQueryListEventInit const&,
+        FlyString const& event_name, MediaQueryListEventInit const&,
         HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<MediaQueryListEvent> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::MediaQueryListEventInit const& = {});
+    [[nodiscard]] static GC::Ref<MediaQueryListEvent> create(
+        FlyString const& event_name, String media, bool matches,
+        HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~MediaQueryListEvent() override;
 
@@ -36,7 +54,8 @@ public:
     bool matches() const { return m_matches; }
 
 private:
-    MediaQueryListEvent(FlyString const& event_name, Bindings::MediaQueryListEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    MediaQueryListEvent(FlyString const& event_name, MediaQueryListEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    MediaQueryListEvent(FlyString const& event_name, String media, bool matches, HighResolutionTime::DOMHighResTimeStamp);
 
     String m_media;
     bool m_matches;

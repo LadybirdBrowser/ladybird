@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -14,9 +13,8 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioParam);
 
-AudioParam::AudioParam(GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
-    : Bindings::Wrappable()
-    , m_context(context)
+AudioParam::AudioParam(GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
+    : m_context(context)
     , m_current_value(default_value)
     , m_default_value(default_value)
     , m_min_value(min_value)
@@ -26,7 +24,7 @@ AudioParam::AudioParam(GC::Ref<BaseAudioContext> context, float default_value, f
 {
 }
 
-GC::Ref<AudioParam> AudioParam::create(GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
+GC::Ref<AudioParam> AudioParam::create(GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
 {
     return GC::Heap::the().allocate<AudioParam>(context, default_value, min_value, max_value, automation_rate, fixed_automation_rate);
 }
@@ -49,16 +47,16 @@ void AudioParam::set_value(float value)
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-automationrate
-Bindings::AutomationRate AudioParam::automation_rate() const
+AutomationRate AudioParam::automation_rate() const
 {
     return m_automation_rate;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-automationrate
-WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(JS::Realm& realm, Bindings::AutomationRate automation_rate)
+WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(AutomationRate automation_rate)
 {
     if (automation_rate != m_automation_rate && m_fixed_automation_rate == FixedAutomationRate::Yes)
-        return WebIDL::InvalidStateError::create(realm, "Automation rate cannot be changed"_utf16);
+        return WebIDL::InvalidStateError::create("Automation rate cannot be changed"_utf16);
 
     m_automation_rate = automation_rate;
     return {};

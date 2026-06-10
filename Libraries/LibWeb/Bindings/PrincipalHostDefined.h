@@ -14,6 +14,8 @@
 
 namespace Web::Bindings {
 
+[[nodiscard]] OwnPtr<JS::Realm::HostDefined> create_principal_host_defined(GC::Ref<HTML::EnvironmentSettingsObject>, GC::Ref<Intrinsics>, GC::Ref<Page>);
+
 struct PrincipalHostDefined final : public HostDefined {
     PrincipalHostDefined(GC::Ref<HTML::EnvironmentSettingsObject> eso, GC::Ref<Intrinsics> intrinsics, GC::Ref<WrapperWorld> wrapper_world, GC::Ref<Page> page)
         : HostDefined(intrinsics, wrapper_world)

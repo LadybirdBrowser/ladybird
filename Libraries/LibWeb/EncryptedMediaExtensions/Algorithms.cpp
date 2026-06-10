@@ -16,13 +16,13 @@ bool supports_container([[maybe_unused]] Utf16String const& container)
 }
 
 // https://w3c.github.io/encrypted-media/#get-supported-capabilities-for-audio-video-type
-Optional<Vector<Bindings::MediaKeySystemMediaCapability>> get_supported_capabilities_for_audio_video_type(KeySystem const& implementation, CapabilitiesType type, Vector<Bindings::MediaKeySystemMediaCapability> requested_capabilities, Bindings::MediaKeySystemConfiguration config, MediaKeyRestrictions restrictions)
+Optional<Vector<MediaKeySystemMediaCapability>> get_supported_capabilities_for_audio_video_type(KeySystem const& implementation, CapabilitiesType type, Vector<MediaKeySystemMediaCapability> requested_capabilities, MediaKeySystemConfiguration config, MediaKeyRestrictions restrictions)
 {
     // 1. Let local accumulated configuration be a local copy of accumulated configuration.
-    Bindings::MediaKeySystemConfiguration accumulated_configuration = config;
+    MediaKeySystemConfiguration accumulated_configuration = config;
 
     // 2. Let supported media capabilities be an empty sequence of MediaKeySystemMediaCapability dictionaries.
-    Vector<Bindings::MediaKeySystemMediaCapability> supported_media_capabilities;
+    Vector<MediaKeySystemMediaCapability> supported_media_capabilities;
 
     // 3. For each requested media capability in requested media capabilities:
     for (auto& capability : requested_capabilities) {
@@ -143,7 +143,7 @@ bool is_persistent_session_type(Utf16String const& session_type)
 }
 
 // https://w3c.github.io/encrypted-media/#get-consent-status
-ConsentStatus get_consent_status(Bindings::MediaKeySystemConfiguration const& accumulated_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
+ConsentStatus get_consent_status(MediaKeySystemConfiguration const& accumulated_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
 {
     // FIXME: Implement this
     (void)accumulated_configuration;
@@ -156,10 +156,10 @@ ConsentStatus get_consent_status(Bindings::MediaKeySystemConfiguration const& ac
 }
 
 // https://w3c.github.io/encrypted-media/#get-supported-configuration-and-consent
-Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem const& implementation, Bindings::MediaKeySystemConfiguration const& candidate_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
+Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem const& implementation, MediaKeySystemConfiguration const& candidate_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
 {
     // 1. Let accumulated configuration be a new MediaKeySystemConfiguration dictionary.
-    Bindings::MediaKeySystemConfiguration accumulated_configuration;
+    MediaKeySystemConfiguration accumulated_configuration;
 
     // 2. Set the label member of accumulated configuration to equal the label member of candidate configuration.
     accumulated_configuration.label = candidate_configuration.label;
@@ -192,19 +192,19 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
 
     // 5. If distinctive identifier requirement is "optional" and Distinctive Identifiers are not allowed according to restrictions,
     //    set distinctive identifier requirement to "not-allowed".
-    if (distinctive_identifier_requirement == Bindings::MediaKeysRequirement::Optional && !restrictions.distinctive_identifiers)
-        distinctive_identifier_requirement = Bindings::MediaKeysRequirement::NotAllowed;
+    if (distinctive_identifier_requirement == MediaKeysRequirement::Optional && !restrictions.distinctive_identifiers)
+        distinctive_identifier_requirement = MediaKeysRequirement::NotAllowed;
 
     // 6. Follow the steps for distinctive identifier requirement from the following list:
     switch (distinctive_identifier_requirement) {
-    case Bindings::MediaKeysRequirement::Required:
+    case MediaKeysRequirement::Required:
         // FIXME: If the implementation does not support use of Distinctive Identifier(s) in combination
         //        with accumulated configuration and restrictions, return NotSupported.
         break;
-    case Bindings::MediaKeysRequirement::Optional:
+    case MediaKeysRequirement::Optional:
         // Continue with the following steps.
         break;
-    case Bindings::MediaKeysRequirement::NotAllowed:
+    case MediaKeysRequirement::NotAllowed:
         // FIXME: If the implementation requires use of Distinctive Identifier(s) or Distinctive Permanent Identifier(s)
         //        in combination with accumulated configuration and restrictions, return NotSupported.
         break;
@@ -218,19 +218,19 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
 
     // 9. If persistent state requirement is "optional" and persisting state is not allowed according to restrictions,
     //    set persistent state requirement to "not-allowed".
-    if (persistent_state_requirement == Bindings::MediaKeysRequirement::Optional && !restrictions.persist_state)
-        persistent_state_requirement = Bindings::MediaKeysRequirement::NotAllowed;
+    if (persistent_state_requirement == MediaKeysRequirement::Optional && !restrictions.persist_state)
+        persistent_state_requirement = MediaKeysRequirement::NotAllowed;
 
     // 10. Follow the steps for persistent state requirement from the following list:
     switch (persistent_state_requirement) {
-    case Bindings::MediaKeysRequirement::Required:
+    case MediaKeysRequirement::Required:
         // FIXME: If the implementation does not support persisting state in combination with accumulated configuration
         //        and restrictions, return NotSupported.
         break;
-    case Bindings::MediaKeysRequirement::Optional:
+    case MediaKeysRequirement::Optional:
         // Continue with the following steps.
         break;
-    case Bindings::MediaKeysRequirement::NotAllowed:
+    case MediaKeysRequirement::NotAllowed:
         // FIXME: If the implementation requires persisting state in combination with accumulated configuration
         //        and restrictions, return NotSupported.
         break;
@@ -259,15 +259,15 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
 
         // 2. If accumulated configuration's persistentState value is "not-allowed" and the Is persistent session type? algorithm
         //    returns true for session type return NotSupported.
-        if (accumulated_configuration.persistent_state == Bindings::MediaKeysRequirement::NotAllowed && is_persistent_session_type(session_type))
+        if (accumulated_configuration.persistent_state == MediaKeysRequirement::NotAllowed && is_persistent_session_type(session_type))
             return {};
 
         // 3. FIXME: If the implementation does not support session type in combination with accumulated configuration and restrictions for other reasons, return NotSupported.
 
         // 4. If accumulated configuration's persistentState value is "optional" and the result of running the Is persistent session type? algorithm
         //    on session type is true, change accumulated configuration's persistentState value to "required".
-        if (accumulated_configuration.persistent_state == Bindings::MediaKeysRequirement::Optional && is_persistent_session_type(session_type))
-            accumulated_configuration.persistent_state = Bindings::MediaKeysRequirement::Required;
+        if (accumulated_configuration.persistent_state == MediaKeysRequirement::Optional && is_persistent_session_type(session_type))
+            accumulated_configuration.persistent_state = MediaKeysRequirement::Required;
     }
 
     // 14. Set the sessionTypes member of accumulated configuration to session types.
@@ -293,7 +293,7 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
     // Otherwise:
     else {
         // 1. Set the videoCapabilities member of accumulated configuration to an empty sequence.
-        accumulated_configuration.video_capabilities = Vector<Bindings::MediaKeySystemMediaCapability> {};
+        accumulated_configuration.video_capabilities = Vector<MediaKeySystemMediaCapability> {};
     }
 
     // 1. If the audioCapabilities member in candidate configuration is non-empty:
@@ -312,34 +312,34 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
     // Otherwise:
     else {
         // 1. Set the audioCapabilities member of accumulated configuration to an empty sequence.
-        accumulated_configuration.audio_capabilities = Vector<Bindings::MediaKeySystemMediaCapability> {};
+        accumulated_configuration.audio_capabilities = Vector<MediaKeySystemMediaCapability> {};
     }
 
     // 18. If accumulated configuration's distinctiveIdentifier value is "optional", follow the steps for the first matching condition from the following list:
-    if (accumulated_configuration.distinctive_identifier == Bindings::MediaKeysRequirement::Optional) {
+    if (accumulated_configuration.distinctive_identifier == MediaKeysRequirement::Optional) {
         // FIXME: 1. If the implementation requires use of Distinctive Identifier(s) or Distinctive Permanent Identifier(s) for any of the combinations in accumulated configuration:
         if (false) {
             // 1. Change accumulated configuration's distinctiveIdentifier value to "required".
-            accumulated_configuration.distinctive_identifier = Bindings::MediaKeysRequirement::Required;
+            accumulated_configuration.distinctive_identifier = MediaKeysRequirement::Required;
         }
         // Otherwise
         else {
             // 1. Change accumulated configuration's distinctiveIdentifier value to "not-allowed".
-            accumulated_configuration.distinctive_identifier = Bindings::MediaKeysRequirement::NotAllowed;
+            accumulated_configuration.distinctive_identifier = MediaKeysRequirement::NotAllowed;
         }
     }
 
     // 19. If accumulated configuration's persistentState value is "optional", follow the steps for the first matching condition from the following list:
-    if (accumulated_configuration.persistent_state == Bindings::MediaKeysRequirement::Optional) {
+    if (accumulated_configuration.persistent_state == MediaKeysRequirement::Optional) {
         // FIXME: 1. If the implementation requires persisting state for any of the combinations in accumulated configuration
         if (false) {
             // 1. Change accumulated configuration's persistentState value to "required".
-            accumulated_configuration.persistent_state = Bindings::MediaKeysRequirement::Required;
+            accumulated_configuration.persistent_state = MediaKeysRequirement::Required;
         }
         // Otherwise
         else {
             // 1. Change accumulated configuration's persistentState value to "not-allowed".
-            accumulated_configuration.persistent_state = Bindings::MediaKeysRequirement::NotAllowed;
+            accumulated_configuration.persistent_state = MediaKeysRequirement::NotAllowed;
         }
     }
 
@@ -373,7 +373,7 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
 }
 
 // https://w3c.github.io/encrypted-media/#get-supported-configuration
-Optional<ConsentConfiguration> get_supported_configuration(KeySystem const& implementation, Bindings::MediaKeySystemConfiguration const& candidate_configuration, URL::Origin const& origin)
+Optional<ConsentConfiguration> get_supported_configuration(KeySystem const& implementation, MediaKeySystemConfiguration const& candidate_configuration, URL::Origin const& origin)
 {
     // 1. Let supported configuration be ConsentDenied.
     Optional<ConsentConfiguration> supported_configuration = ConsentConfiguration { ConsentStatus::ConsentDenied, {} };

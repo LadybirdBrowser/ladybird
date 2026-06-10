@@ -8,7 +8,6 @@
 #include <AK/TypeCasts.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CloseWatcher.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -52,7 +51,7 @@ GC::Ref<CloseWatcher> CloseWatcher::establish(HTML::Window& window, GetEnabledSt
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-closewatcher
-WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(Window& window, Bindings::CloseWatcherOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::create(Window& window, Bindings::CloseWatcherOptions const& options)
 {
     // NOTE: Not in spec explicitly, but this should account for detached iframes too. See /close-watcher/frame-removal.html WPT.
     auto navigable = window.navigable();
@@ -84,6 +83,11 @@ WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(Window& 
     }
 
     return close_watcher;
+}
+
+WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::create_for_constructor(JS::Realm& realm, Bindings::CloseWatcherOptions const& options)
+{
+    return create(relevant_window(realm.global_object()), options);
 }
 
 CloseWatcher::CloseWatcher(Window& window, GetEnabledState get_enabled_state)

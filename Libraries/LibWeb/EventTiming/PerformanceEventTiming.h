@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PerformanceEventTiming.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::EventTiming {
 
@@ -23,7 +23,7 @@ public:
     HighResolutionTime::DOMHighResTimeStamp processing_start() const;
     HighResolutionTime::DOMHighResTimeStamp processing_end() const;
     bool cancelable() const;
-    JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> target();
+    GC::Ptr<DOM::Node> target();
     unsigned long long interaction_id();
 
     // from the registry:
@@ -32,7 +32,7 @@ public:
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-maxbuffersize
     static Optional<u64> max_buffer_size();
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<Bindings::PerformanceObserverInit const&> = {}) const override;
+    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&> = {}) const override;
 
     virtual FlyString const& entry_type() const override;
 
@@ -54,8 +54,6 @@ private:
     HighResolutionTime::DOMHighResTimeStamp m_processing_start;
     bool m_cancelable;
     unsigned long long m_interaction_id;
-
-    static WebIDL::ExceptionOr<GC::Ref<PerformanceEventTiming>> construct_impl(DOM::Event const&, HighResolutionTime::DOMHighResTimeStamp, unsigned long long);
 
     PerformanceTimeline::ShouldAddEntry should_add_performance_event_timing() const;
 

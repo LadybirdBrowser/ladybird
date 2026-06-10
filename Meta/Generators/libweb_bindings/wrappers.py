@@ -15,7 +15,6 @@ def interface_can_have_instances(interface: Interface) -> bool:
         or bool(interface.static_attributes)
         or bool(interface.regular_operations)
         or bool(interface.static_operations)
-        or bool(interface.constants)
         or interface.stringifier is not None
         or interface.iterable is not None
         or interface.async_iterable is not None
@@ -26,15 +25,15 @@ def interface_can_have_instances(interface: Interface) -> bool:
         or interface.named_property_setter is not None
         or interface.named_property_deleter is not None
         or interface.indexed_property_setter is not None
+        or not bool(interface.constants)
     )
 
 
 def interface_needs_wrapper(interface: Interface) -> bool:
     return (
-        not interface.is_namespace
-        and not interface.is_callback_interface
-        and interface_can_have_instances(interface)
+        not interface.is_namespace and not interface.is_callback_interface and interface_can_have_instances(interface)
     )
+
 
 def wrapper_needs_wrappable_impl(context: GenerationContext, interface: Interface) -> bool:
     if not interface_needs_wrapper(interface):

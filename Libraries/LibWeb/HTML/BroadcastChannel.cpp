@@ -10,9 +10,6 @@
 #include <LibCore/System.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/BroadcastChannel.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
@@ -81,16 +78,18 @@ static BroadcastChannelRepository& broadcast_channel_repository()
 
 GC_DEFINE_ALLOCATOR(BroadcastChannel);
 
-GC::Ref<BroadcastChannel> BroadcastChannel::construct_impl(WindowOrWorkerGlobalScopeMixin& global_scope, FlyString const& name)
+GC::Ref<BroadcastChannel> BroadcastChannel::create(GC::Ref<DOM::EventTarget> relevant_global_object, FlyString const& name, URL::Origin origin, StorageAPI::StorageKey storage_key)
 {
-    auto& settings = HTML::relevant_settings_object(global_scope);
-    auto channel = GC::Heap::the().allocate<BroadcastChannel>(
-        global_scope.this_impl(),
-        name,
-        settings.origin(),
-        StorageAPI::obtain_a_storage_key_for_non_storage_purposes(settings));
+    auto channel = GC::Heap::the().allocate<BroadcastChannel>(relevant_global_object, name, move(origin), move(storage_key));
     broadcast_channel_repository().register_channel(channel);
     return channel;
+}
+
+GC::Ref<BroadcastChannel> BroadcastChannel::create_for_constructor(JS::Realm& realm, FlyString const& name)
+{
+    auto& global_scope = relevant_window_or_worker_global_scope(realm.global_object());
+    auto& settings = relevant_settings_object(global_scope);
+    return create(global_scope.this_impl(), name, settings.origin(), StorageAPI::obtain_a_storage_key_for_non_storage_purposes(settings));
 }
 
 BroadcastChannel::BroadcastChannel(GC::Ref<DOM::EventTarget> relevant_global_object, FlyString const& name,
@@ -132,7 +131,7 @@ bool BroadcastChannel::is_eligible_for_messaging() const
 
     // * a WorkerGlobalScope object whose closing flag is false and is not suspendable.
     // FIXME: Suspendable worker
-    if (auto* worker_global_scope = Bindings::impl_from<WorkerGlobalScope>(&global)) {
+    if (auto* worker_global_scope = Bindings::worker_global_scope_from_global_object(global)) {
         return !worker_global_scope->is_closing();
     }
 
@@ -148,7 +147,7 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Realm& realm, JS::V
 
     // 2. If this's closed flag is true, then throw an "InvalidStateError" DOMException.
     if (m_closed_flag)
-        return WebIDL::InvalidStateError::create(realm, "BroadcastChannel.postMessage() on a closed channel"_utf16);
+        return WebIDL::InvalidStateError::create("BroadcastChannel.postMessage() on a closed channel"_utf16);
 
     // 3. Let serialized be StructuredSerialize(message). Rethrow any exceptions.
     auto serialized = TRY(structured_serialize(realm, message));
@@ -223,7 +222,7 @@ void BroadcastChannel::deliver_message_locally(BroadcastChannelMessage const& me
             //    origin initialized to sourceOrigin, and then abort these steps.
             auto data_or_error = structured_deserialize(vm, message.serialized_message, target_realm);
             if (data_or_error.is_exception()) {
-                Bindings::MessageEventInit event_init;
+                MessageEventInit event_init;
                 auto event = MessageEvent::create(target_realm.global_object(), HTML::EventNames::messageerror, event_init, message.source_origin);
                 event->set_is_trusted(true);
                 destination->dispatch_event(event);
@@ -232,7 +231,7 @@ void BroadcastChannel::deliver_message_locally(BroadcastChannelMessage const& me
 
             // 4. Fire an event named message at destination, using MessageEvent, with the data attribute initialized to data and
             //    its origin initialized to sourceOrigin.
-            Bindings::MessageEventInit event_init;
+            MessageEventInit event_init;
             event_init.data = data_or_error.release_value();
             auto event = MessageEvent::create(target_realm.global_object(), HTML::EventNames::message, event_init, message.source_origin);
             event->set_is_trusted(true);

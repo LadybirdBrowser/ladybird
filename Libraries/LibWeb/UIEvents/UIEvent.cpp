@@ -5,9 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/UIEvent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/UIEvent.h>
@@ -16,19 +14,19 @@ namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(UIEvent);
 
-static HighResolutionTime::DOMHighResTimeStamp event_time_stamp(HTML::Window& window)
-{
-    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window));
-}
-
 GC::Ref<UIEvent> UIEvent::create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     return GC::Heap::the().allocate<UIEvent>(event_name, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<UIEvent>> UIEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::UIEventInit const& event_init)
+GC::Ref<UIEvent> UIEvent::create(FlyString const& event_name, UIEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return GC::Heap::the().allocate<UIEvent>(event_name, event_init, event_time_stamp(window));
+    return GC::Heap::the().allocate<UIEvent>(event_name, event_init, time_stamp);
+}
+
+HighResolutionTime::DOMHighResTimeStamp UIEvent::time_stamp_for_current_realm(JS::Realm& realm)
+{
+    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(realm.global_object()));
 }
 
 UIEvent::UIEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
@@ -36,7 +34,7 @@ UIEvent::UIEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTime
 {
 }
 
-UIEvent::UIEvent(FlyString const& event_name, Bindings::UIEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+UIEvent::UIEvent(FlyString const& event_name, UIEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : Event(event_name, event_init, time_stamp)
     , m_view(event_init.view)
     , m_detail(event_init.detail)

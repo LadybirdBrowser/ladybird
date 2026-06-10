@@ -10,8 +10,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -20,7 +18,7 @@ namespace Web::Geometry {
 GC_DEFINE_ALLOCATOR(DOMMatrix);
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-dommatrix
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, Optional<Variant<String, Vector<double>>> const& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_constructor(Optional<Variant<String, Vector<double>>> const& init, DOMMatrixStringContext string_context)
 {
     // -> If init is omitted
     if (!init.has_value()) {
@@ -33,7 +31,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::construct_impl(HTML::WindowOr
     // -> If init is a DOMString
     if (init_value.has<String>()) {
         // 1. If current global object is not a Window object, then throw a TypeError exception.
-        if (!is<HTML::Window>(global_scope.this_impl()))
+        if (string_context != DOMMatrixStringContext::Window)
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "This can only be used in a Window context"_string };
 
         // 2. Parse init into an abstract matrix, and let matrix and 2dTransform be the result. If the result is failure, then throw a "SyntaxError" DOMException.
@@ -76,42 +74,38 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::construct_impl(HTML::WindowOr
     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, TRY_OR_THROW_OOM(JS::VM::the(), String::formatted("Sequence must contain exactly 6 or 16 elements, got {} element(s)", double_sequence.size())) };
 }
 
-// https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-2d-dictionary
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_2d_init(Bindings::DOMMatrix2DInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::construct_impl(JS::Realm& realm, Optional<Variant<String, Vector<double>>> const& init)
 {
-    // 1. Validate and fixup (2D) other.
-    TRY(validate_and_fixup_dom_matrix_2d_init(init));
+    return create_from_constructor(init, dom_matrix_string_context(realm));
+}
 
-    // These should all have values after calling `validate_and_fixup_dom_matrix_2d_init`
-    VERIFY(init.m11.has_value());
-    VERIFY(init.m12.has_value());
-    VERIFY(init.m21.has_value());
-    VERIFY(init.m22.has_value());
-    VERIFY(init.m41.has_value());
-    VERIFY(init.m42.has_value());
-
+// https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-2d-dictionary
+GC::Ref<DOMMatrix> DOMMatrix::create_from_dom_matrix_2d_init(DOMMatrix2DInit const& init)
+{
     // 2. Return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers,
     //    the values being the 6 elements m11, m12, m21, m22, m41 and m42 of other in the given order.
-    return GC::Heap::the().allocate<DOMMatrix>(init.m11.value(), init.m12.value(), init.m21.value(), init.m22.value(), init.m41.value(), init.m42.value());
+    return GC::Heap::the().allocate<DOMMatrix>(init.m11, init.m12, init.m21, init.m22, init.m41, init.m42);
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-dictionary
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_init(Bindings::DOMMatrixInit& init)
+GC::Ref<DOMMatrix> DOMMatrix::create_from_dom_matrix_init(DOMMatrixInit const& init)
 {
-    // 1. Validate and fixup other.
-    TRY(validate_and_fixup_dom_matrix_init(init));
-
     // 2. If the is2D dictionary member of other is true.
-    if (init.is2d.has_value() && init.is2d.value()) {
+    if (init.is_2d) {
         // Return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the 6 elements m11, m12, m21, m22, m41 and m42 of other in the given order.
-        return GC::Heap::the().allocate<DOMMatrix>(init.m11.value(), init.m12.value(), init.m21.value(), init.m22.value(), init.m41.value(), init.m42.value());
+        return GC::Heap::the().allocate<DOMMatrix>(init.m11, init.m12, init.m21, init.m22, init.m41, init.m42);
     }
 
     // Otherwise, Return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the 16 elements m11, m12, m13, ..., m44 of other in the given order.
-    return GC::Heap::the().allocate<DOMMatrix>(init.m11.value(), init.m12.value(), init.m13, init.m14,
-        init.m21.value(), init.m22.value(), init.m23, init.m24,
+    return GC::Heap::the().allocate<DOMMatrix>(init.m11, init.m12, init.m13, init.m14,
+        init.m21, init.m22, init.m23, init.m24,
         init.m31, init.m32, init.m33, init.m34,
-        init.m41.value(), init.m42.value(), init.m43, init.m44);
+        init.m41, init.m42, init.m43, init.m44);
+}
+
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_matrix(Bindings::DOMMatrixInit& other)
+{
+    return create_from_dom_matrix_init(TRY(validate_and_fixup_dom_matrix_init(other)));
 }
 
 GC::Ref<DOMMatrix> DOMMatrix::create_from_dom_matrix_read_only(DOMMatrixReadOnly const& read_only_matrix)
@@ -146,14 +140,8 @@ DOMMatrix::DOMMatrix()
 
 DOMMatrix::~DOMMatrix() = default;
 
-// https://drafts.fxtf.org/geometry/#dom-dommatrix-frommatrix
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_matrix(JS::VM&, Bindings::DOMMatrixInit other)
-{
-    return create_from_dom_matrix_init(other);
-}
-
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-fromfloat32array
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float32_array(JS::VM&, GC::Root<JS::Float32Array> const& array)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float32_array(GC::Root<JS::Float32Array> const& array)
 {
     ReadonlySpan<float> elements = array->data();
 
@@ -173,7 +161,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float32_array(JS::VM&, G
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-fromfloat64array
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float64_array(JS::VM&, GC::Root<JS::Float64Array> const& array)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float64_array(GC::Root<JS::Float64Array> const& array)
 {
     ReadonlySpan<double> elements = array->data();
 
@@ -366,24 +354,7 @@ void DOMMatrix::set_f(double value)
     set_m42(value);
 }
 
-// https://drafts.fxtf.org/geometry/#dom-dommatrix-multiplyself
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(Bindings::DOMMatrixInit other)
-{
-    // 1. Let otherObject be the result of invoking create a DOMMatrix from the dictionary other.
-    auto other_object = TRY(DOMMatrix::create_from_dom_matrix_init(other));
-
-    // 2. The otherObject matrix gets post-multiplied to the current matrix.
-    m_matrix = m_matrix * other_object->m_matrix;
-
-    // 3. If is 2D of otherObject is false, set is 2D of the current matrix to false.
-    if (!other_object->m_is_2d)
-        m_is_2d = false;
-
-    // 4. Return the current matrix.
-    return GC::Ref<DOMMatrix>(*this);
-}
-
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(GC::Ref<DOMMatrix> other)
+GC::Ref<DOMMatrix> DOMMatrix::multiply_self(GC::Ref<DOMMatrix> other)
 {
     m_matrix = m_matrix * other->m_matrix;
     if (!other->m_is_2d)
@@ -391,21 +362,24 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(GC::Ref<DOMMatr
     return GC::Ref<DOMMatrix>(*this);
 }
 
-// https://drafts.fxtf.org/geometry/#dom-dommatrix-premultiplyself
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::pre_multiply_self(Bindings::DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(Bindings::DOMMatrixInit& other)
 {
-    // 1. Let otherObject be the result of invoking create a DOMMatrix from the dictionary other.
-    auto other_object = TRY(DOMMatrix::create_from_dom_matrix_init(other));
+    auto other_object = DOMMatrix::create_from_dom_matrix_init(TRY(validate_and_fixup_dom_matrix_init(other)));
+    return multiply_self(other_object);
+}
 
-    // 2. The otherObject matrix gets pre-multiplied to the current matrix.
-    m_matrix = other_object->m_matrix * m_matrix;
-
-    // 3. If is 2D of otherObject is false, set is 2D of the current matrix to false.
-    if (!other_object->m_is_2d)
+GC::Ref<DOMMatrix> DOMMatrix::pre_multiply_self(GC::Ref<DOMMatrix> other)
+{
+    m_matrix = other->m_matrix * m_matrix;
+    if (!other->m_is_2d)
         m_is_2d = false;
-
-    // 4. Return the current matrix.
     return GC::Ref<DOMMatrix>(*this);
+}
+
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::pre_multiply_self(Bindings::DOMMatrixInit& other)
+{
+    auto other_object = DOMMatrix::create_from_dom_matrix_init(TRY(validate_and_fixup_dom_matrix_init(other)));
+    return pre_multiply_self(other_object);
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-translateself

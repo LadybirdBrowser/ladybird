@@ -17,14 +17,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLDrawBuffers);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> WebGLDrawBuffers::create(GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> WebGLDrawBuffers::create(GC::Ref<WebGLRenderingContextBase> context)
 {
     auto extension = GC::Heap::the().allocate<WebGLDrawBuffers>(context);
-    return GC::Ref<Bindings::Wrappable> { extension };
+    return GC::Ref<WebGLExtension> { extension };
 }
 
 WebGLDrawBuffers::WebGLDrawBuffers(GC::Ref<WebGLRenderingContextBase> context)
-    : Bindings::Wrappable()
+    : WebGLExtension()
     , m_context(context)
 {
 }

@@ -6,7 +6,6 @@
 
 #include "CSSSkewX.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSSkewX.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -24,7 +23,7 @@ GC::Ref<CSSSkewX> CSSSkewX::create(GC::Ref<CSSNumericValue> ax)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssskewx-cssskewx
-WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> CSSSkewX::construct_impl(GC::Ref<CSSNumericValue> ax)
+WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> CSSSkewX::create_for_constructor(GC::Ref<CSSNumericValue> ax)
 {
     // The CSSSkewX(ax) constructor must, when invoked, perform the following steps:
 
@@ -66,7 +65,7 @@ WebIDL::ExceptionOr<Utf16String> CSSSkewX::to_string() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix
-WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSSkewX::to_matrix(JS::Realm& realm) const
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSSkewX::to_matrix() const
 {
     // 1. Let matrix be a new DOMMatrix object, initialized to this’s equivalent 4x4 transform matrix, as defined in
     //    CSS Transforms 1 § 12. Mathematical Description of Transform Functions, and with its is2D internal slot set
@@ -79,7 +78,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSSkewX::to_matrix(JS::Realm&
     auto matrix = Geometry::DOMMatrix::create();
 
     // NB: to() throws a TypeError if the conversion can't be done.
-    auto ax_rad = TRY(m_ax->to(realm, "rad"_fly_string))->value();
+    auto ax_rad = TRY(m_ax->to("rad"_fly_string))->value();
     matrix->set_m21(tanf(ax_rad));
 
     // 2. Return matrix.

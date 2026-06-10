@@ -7,9 +7,8 @@
 #include <LibGC/Heap.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/Promise.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/ReadableStream.h>
-#include <LibWeb/Bindings/TransformStream.h>
-#include <LibWeb/Bindings/TransformStreamDefaultController.h>
 #include <LibWeb/Bindings/Transformer.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -31,28 +30,27 @@ namespace Web::Streams {
 
 GC_DEFINE_ALLOCATOR(TransformStream);
 
-// https://streams.spec.whatwg.org/#ts-constructor
-WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, GC::Ptr<JS::Object> transformer_object, Bindings::QueuingStrategy const& writable_strategy, Bindings::QueuingStrategy const& readable_strategy)
+WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::create_for_constructor(JS::Realm& realm, GC::Ptr<JS::Object> transformer_object, QueuingStrategy const& writable_strategy, QueuingStrategy const& readable_strategy)
 {
-    auto& realm = HTML::relevant_realm(global_scope);
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    auto transformer = transformer_object ? JS::Value { transformer_object } : JS::js_null();
+    auto transformer_dict = TRY(Bindings::convert_to_idl_value_for_transformer(realm.vm(), transformer));
+    if (transformer_dict.readable_type.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'readableType'"sv };
+    if (transformer_dict.writable_type.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'writableType'"sv };
+
+    return create(realm, transformer_object, transformer_dict, writable_strategy, readable_strategy);
+}
+
+// https://streams.spec.whatwg.org/#ts-constructor
+WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::create(JS::Realm& realm, GC::Ptr<JS::Object> transformer_object, Transformer const& transformer_dict, QueuingStrategy const& writable_strategy, QueuingStrategy const& readable_strategy)
+{
     auto& vm = realm.vm();
 
     auto stream = GC::Heap::the().allocate<TransformStream>();
 
     // 1. If transformer is missing, set it to null.
     auto transformer = transformer_object ? JS::Value { transformer_object } : JS::js_null();
-
-    // 2. Let transformerDict be transformer, converted to an IDL value of type Transformer.
-    auto transformer_dict = TRY(Bindings::convert_to_idl_value_for_transformer(vm, transformer));
-
-    // 3. If transformerDict["readableType"] exists, throw a RangeError exception.
-    if (transformer_dict.readable_type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'readableType'"sv };
-
-    // 4. If transformerDict["writableType"] exists, throw a RangeError exception.
-    if (transformer_dict.writable_type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'writableType'"sv };
 
     // 5. Let readableHighWaterMark be ? ExtractHighWaterMark(readableStrategy, 0).
     auto readable_high_water_mark = TRY(extract_high_water_mark(readable_strategy, 0));
@@ -71,8 +69,7 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(HT
 
     // 10. Perform ! InitializeTransformStream(this, startPromise, writableHighWaterMark, writableSizeAlgorithm, readableHighWaterMark, readableSizeAlgorithm).
     initialize_transform_stream(realm, *stream, start_promise, writable_high_water_mark, writable_size_algorithm, readable_high_water_mark, readable_size_algorithm);
-    (void)Bindings::wrap(wrapper_world, realm, stream->readable());
-    (void)Bindings::wrap(wrapper_world, realm, stream->writable());
+    Bindings::prepare_transform_stream_readable_writable_wrappers(realm, *stream);
 
     // 11. Perform ? SetUpTransformStreamDefaultControllerFromTransformer(this, transformer, transformerDict).
     set_up_transform_stream_default_controller_from_transformer(realm, *stream, transformer, transformer_dict);
@@ -80,8 +77,7 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(HT
     // 12. If transformerDict["start"] exists, then resolve startPromise with the result of invoking
     //     transformerDict["start"] with argument list « this.[[controller]] » and callback this value transformer.
     if (transformer_dict.start) {
-        auto wrapped_controller = Bindings::wrap(wrapper_world, realm, stream->controller());
-        auto result = TRY(WebIDL::invoke_callback(*transformer_dict.start, transformer, { { wrapped_controller } }));
+        auto result = TRY(Bindings::invoke_transform_stream_start_algorithm_callback(realm, *transformer_dict.start, transformer, *stream->controller()));
         WebIDL::resolve_promise(realm, start_promise, result);
     }
     // 13. Otherwise, resolve startPromise with undefined.
@@ -98,16 +94,6 @@ TransformStream::TransformStream()
 
 TransformStream::~TransformStream() = default;
 
-static ReadableStream* readable_stream_from_object(JS::Object& object)
-{
-    return Bindings::impl_from<ReadableStream>(&object);
-}
-
-static WritableStream* writable_stream_from_object(JS::Object& object)
-{
-    return Bindings::impl_from<WritableStream>(&object);
-}
-
 void TransformStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -116,6 +102,20 @@ void TransformStream::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_readable);
     visitor.visit(m_writable);
 }
+
+}
+
+namespace Web::Bindings {
+
+void prepare_transform_stream_readable_writable_wrappers(JS::Realm& realm, Streams::TransformStream& stream)
+{
+    (void)Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, stream.readable());
+    (void)Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, stream.writable());
+}
+
+}
+
+namespace Web::Streams {
 
 JS::Realm& TransformStream::backpressure_change_promise_realm() const
 {
@@ -133,8 +133,6 @@ void TransformStream::enqueue(JS::Value chunk)
 // https://streams.spec.whatwg.org/#transformstream-set-up
 void TransformStream::set_up(JS::Realm& realm, GC::Ref<TransformAlgorithm> transform_algorithm, GC::Ptr<FlushAlgorithm> flush_algorithm, GC::Ptr<CancelAlgorithm> cancel_algorithm)
 {
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-
     // 1. Let writableHighWaterMark be 1.
     auto writable_high_water_mark = 1.0;
 
@@ -200,8 +198,7 @@ void TransformStream::set_up(JS::Realm& realm, GC::Ref<TransformAlgorithm> trans
 
     // 9. Perform ! InitializeTransformStream(stream, startPromise, writableHighWaterMark, writableSizeAlgorithm, readableHighWaterMark, readableSizeAlgorithm).
     initialize_transform_stream(realm, *this, start_promise, writable_high_water_mark, writable_size_algorithm, readable_high_water_mark, readable_size_algorithm);
-    (void)Bindings::wrap(wrapper_world, realm, readable());
-    (void)Bindings::wrap(wrapper_world, realm, writable());
+    Bindings::prepare_transform_stream_readable_writable_wrappers(realm, *this);
 
     // 10. Let controller be a new TransformStreamDefaultController.
     auto controller = GC::Heap::the().allocate<TransformStreamDefaultController>();
@@ -213,8 +210,6 @@ void TransformStream::set_up(JS::Realm& realm, GC::Ref<TransformAlgorithm> trans
 // https://streams.spec.whatwg.org/#ref-for-transfer-steps②
 WebIDL::ExceptionOr<void> TransformStream::transfer_steps(JS::Realm& realm, HTML::TransferDataEncoder& data_holder)
 {
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-
     // 1. Let readable be value.[[readable]].
     auto readable = this->readable();
 
@@ -223,21 +218,17 @@ WebIDL::ExceptionOr<void> TransformStream::transfer_steps(JS::Realm& realm, HTML
 
     // 3. If ! IsReadableStreamLocked(readable) is true, throw a "DataCloneError" DOMException.
     if (is_readable_stream_locked(readable))
-        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked ReadableStream"_utf16);
+        return WebIDL::DataCloneError::create("Cannot transfer locked ReadableStream"_utf16);
 
     // 4. If ! IsWritableStreamLocked(writable) is true, throw a "DataCloneError" DOMException.
     if (is_writable_stream_locked(writable))
-        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_utf16);
+        return WebIDL::DataCloneError::create("Cannot transfer locked WritableStream"_utf16);
 
     // 5. Set dataHolder.[[readable]] to ! StructuredSerializeWithTransfer(readable, « readable »).
-    auto wrapped_readable = Bindings::wrap(wrapper_world, realm, readable);
-    auto readable_result = MUST(HTML::structured_serialize_with_transfer(realm, wrapped_readable, { { wrapped_readable } }));
-    data_holder.extend(move(readable_result.transfer_data_holders));
+    Bindings::serialize_readable_stream_with_transfer(realm, data_holder, readable);
 
     // 6. Set dataHolder.[[writable]] to ! StructuredSerializeWithTransfer(writable, « writable »).
-    auto wrapped_writable = Bindings::wrap(wrapper_world, realm, writable);
-    auto writable_result = MUST(HTML::structured_serialize_with_transfer(realm, wrapped_writable, { { wrapped_writable } }));
-    data_holder.extend(move(writable_result.transfer_data_holders));
+    Bindings::serialize_writable_stream_with_transfer(realm, data_holder, writable);
 
     return {};
 }
@@ -252,12 +243,12 @@ WebIDL::ExceptionOr<void> TransformStream::transfer_receiving_steps(JS::Realm& r
     auto writeable_record = MUST(HTML::structured_deserialize_with_transfer_internal(data_holder, realm));
 
     // 3. Set value.[[readable]] to readableRecord.[[Deserialized]].
-    auto* readable = readable_stream_from_object(readable_record.as_object());
+    auto* readable = Bindings::readable_stream_from_object(readable_record.as_object());
     VERIFY(readable);
     set_readable(*readable);
 
     // 4. Set value.[[writable]] to writableRecord.[[Deserialized]].
-    auto* writable = writable_stream_from_object(writeable_record.as_object());
+    auto* writable = Bindings::writable_stream_from_object(writeable_record.as_object());
     VERIFY(writable);
     set_writable(*writable);
 

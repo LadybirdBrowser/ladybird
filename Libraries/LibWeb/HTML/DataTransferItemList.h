@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/DataTransferItemList.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -24,18 +23,17 @@ public:
     virtual ~DataTransferItemList() override;
 
     WebIDL::UnsignedLong length() const;
+    GC::Ptr<DataTransferItem> item(size_t index) const;
 
-    WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(JS::Realm&, String const& data, String const& type);
+    WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(String const& data, String const& type);
     GC::Ptr<DataTransferItem> add(GC::Ref<FileAPI::File>);
-    WebIDL::ExceptionOr<void> remove(JS::Realm&, WebIDL::UnsignedLong index);
+    WebIDL::ExceptionOr<void> remove(WebIDL::UnsignedLong index);
     void clear();
 
 private:
     explicit DataTransferItemList(GC::Ref<DataTransfer>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     GC::Ref<DataTransfer> m_data_transfer;
 };

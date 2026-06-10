@@ -6,11 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/NavigationTransition.h>
+#include <AK/String.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
+
+class NavigationDestination;
+class NavigationHistoryEntry;
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationtransition
 class NavigationTransition : public Bindings::Wrappable {
@@ -18,10 +21,10 @@ class NavigationTransition : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(NavigationTransition);
 
 public:
-    [[nodiscard]] static GC::Ref<NavigationTransition> create(Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
+    [[nodiscard]] static GC::Ref<NavigationTransition> create(NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationtransition-navigationtype
-    Bindings::NavigationType navigation_type() const
+    NavigationType navigation_type() const
     {
         // The navigationType getter steps are to return this's navigation type.
         return m_navigation_type;
@@ -58,13 +61,13 @@ public:
     virtual ~NavigationTransition() override;
 
 private:
-    NavigationTransition(Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
+    NavigationTransition(NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationtransition-navigationtype
     // Each NavigationTransition has an associated navigation type, which is a NavigationType.
-    Bindings::NavigationType m_navigation_type;
+    NavigationType m_navigation_type;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationtransition-from
     // Each NavigationTransition has an associated from entry, which is a NavigationHistoryEntry.

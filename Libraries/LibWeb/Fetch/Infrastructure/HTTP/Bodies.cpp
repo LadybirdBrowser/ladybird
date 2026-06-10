@@ -7,14 +7,13 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/PromiseCapability.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/IncrementalReadLoopReadRequest.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Streams/ReadableStream.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -169,7 +168,7 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
     auto reader = m_stream->get_a_reader(realm);
 
     if (reader.is_exception()) {
-        auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), realm, reader.release_error());
+        auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, reader.release_error());
         error_steps(throw_completion.release_value());
         return;
     }

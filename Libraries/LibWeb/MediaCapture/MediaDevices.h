@@ -17,11 +17,16 @@
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/MediaCapture/MediaStreamTrack.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::MediaCapture {
 
 class MediaDeviceInfo;
+class MediaStream;
+
+using MediaStreamConstraints = Bindings::MediaStreamConstraints;
+using MediaTrackSupportedConstraints = Bindings::MediaTrackSupportedConstraints;
 
 // https://w3c.github.io/mediacapture-main/#mediadevices
 class MediaDevices final : public DOM::EventTarget {
@@ -33,9 +38,9 @@ public:
 
     [[nodiscard]] static GC::Ref<MediaDevices> create(HTML::Window&);
 
-    GC::Ref<WebIDL::Promise> enumerate_devices(JS::Realm&);
-    Bindings::MediaTrackSupportedConstraints get_supported_constraints();
-    GC::Ref<WebIDL::Promise> get_user_media(JS::Realm&, Optional<Bindings::MediaStreamConstraints> const& constraints = {});
+    MediaTrackSupportedConstraints get_supported_constraints();
+    void enumerate_devices(GC::Ref<WebIDL::Promise>);
+    void get_user_media(JS::Realm&, Optional<MediaStreamConstraints> const& constraints, GC::Ref<WebIDL::Promise>);
 
     void set_ondevicechange(WebIDL::CallbackType* event_handler);
     WebIDL::CallbackType* ondevicechange();
@@ -52,6 +57,10 @@ private:
     struct PendingGetUserMediaRequest final {
         GC::Ref<WebIDL::Promise> promise;
         Optional<Vector<String>> requested_device_ids;
+    };
+
+    struct PendingEnumerateDevicesRequest final {
+        GC::Ref<WebIDL::Promise> promise;
     };
 
     explicit MediaDevices(HTML::Window&);
@@ -71,7 +80,7 @@ private:
     void queue_get_user_media_task(GC::Ref<WebIDL::Promise>, Optional<Vector<String>> requested_device_ids);
     void process_pending_enumerate_devices_requests();
     void process_pending_get_user_media_requests();
-    GC::RootVector<GC::Ref<MediaDeviceInfo>> create_list_of_device_info_objects(JS::Realm&, Vector<StoredDevice> const& device_list);
+    GC::RootVector<GC::Ref<MediaDeviceInfo>> create_list_of_device_info_objects(Vector<StoredDevice> const& device_list);
     void run_device_change_notification_steps(Vector<StoredDevice> const& device_list);
     static Vector<StoredDevice> current_audio_device_snapshot();
     void did_observe_audio_device_cache_update();
@@ -94,7 +103,7 @@ private:
     // [[mediaStreamTrackSources]]
     // FIXME: Replace provider IDs with concrete source objects when MediaCapture source modeling lands.
     HashTable<u64> m_media_stream_track_sources;
-    Vector<GC::Ref<WebIDL::Promise>> m_pending_enumerate_devices_promises;
+    Vector<PendingEnumerateDevicesRequest> m_pending_enumerate_devices_requests;
     Vector<PendingGetUserMediaRequest> m_pending_get_user_media_requests;
     GC::Ptr<DOM::IDLEventListener> m_pending_request_state_change_listener;
     Optional<u64> m_audio_device_cache_listener_id;

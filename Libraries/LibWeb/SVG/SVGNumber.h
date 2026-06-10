@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/SVGNumber.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -28,7 +26,7 @@ public:
     virtual ~SVGNumber() override = default;
 
     float value() const { return m_value; }
-    WebIDL::ExceptionOr<void> set_value(JS::Realm&, float value);
+    WebIDL::ExceptionOr<void> set_value(float value);
 
     ReadOnly read_only() const { return m_read_only; }
 

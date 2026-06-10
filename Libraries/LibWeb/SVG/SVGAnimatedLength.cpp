@@ -17,8 +17,7 @@ GC::Ref<SVGAnimatedLength> SVGAnimatedLength::create(GC::Ref<SVGLength> base_val
 }
 
 SVGAnimatedLength::SVGAnimatedLength(GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val)
-    : Bindings::Wrappable()
-    , m_base_val(base_val)
+    : m_base_val(base_val)
     , m_anim_val(anim_val)
 {
     // The object referenced by animVal will always be distinct from the one referenced by baseVal, even when the

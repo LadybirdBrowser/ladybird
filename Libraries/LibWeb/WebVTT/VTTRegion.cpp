@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebVTT/VTTRegion.h>
 
@@ -14,7 +13,7 @@ namespace Web::WebVTT {
 GC_DEFINE_ALLOCATOR(VTTRegion);
 
 // https://w3c.github.io/webvtt/#dom-vttregion-vttregion
-WebIDL::ExceptionOr<GC::Ref<VTTRegion>> VTTRegion::construct_impl()
+GC::Ref<VTTRegion> VTTRegion::create()
 {
     // 1. Create a new WebVTT region. Let region be that WebVTT region.
     auto region = GC::Heap::the().allocate<VTTRegion>();
@@ -41,7 +40,7 @@ WebIDL::ExceptionOr<GC::Ref<VTTRegion>> VTTRegion::construct_impl()
     region->m_viewport_anchor_y = 100;
 
     // 9. Let region’s WebVTT region scroll be the empty string.
-    region->m_scroll_setting = Bindings::ScrollSetting::Empty;
+    region->m_scroll_setting = ScrollSetting::Empty;
 
     // 10. Return the VTTRegion object representing region.
     return region;
@@ -51,17 +50,27 @@ VTTRegion::VTTRegion()
 {
 }
 
-static GC::Ref<WebIDL::DOMException> create_region_range_error(JS::Realm& realm)
+ScrollSetting VTTRegion::scroll() const
 {
-    return WebIDL::IndexSizeError::create(realm, "Value is negative or greater than 100"_utf16);
+    return m_scroll_setting;
+}
+
+void VTTRegion::set_scroll(ScrollSetting scroll)
+{
+    m_scroll_setting = scroll;
+}
+
+static GC::Ref<WebIDL::DOMException> create_region_range_error()
+{
+    return WebIDL::IndexSizeError::create("Value is negative or greater than 100"_utf16);
 }
 
 // https://w3c.github.io/webvtt/#dom-vttregion-width
-WebIDL::ExceptionOr<void> VTTRegion::set_width(JS::Realm& realm, double width)
+WebIDL::ExceptionOr<void> VTTRegion::set_width(double width)
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (width < 0 || width > 100)
-        return create_region_range_error(realm);
+        return create_region_range_error();
 
     // Otherwise, the WebVTT region width must be set to the new value.
     m_width = width;
@@ -69,11 +78,11 @@ WebIDL::ExceptionOr<void> VTTRegion::set_width(JS::Realm& realm, double width)
 }
 
 // https://w3c.github.io/webvtt/#dom-vttregion-regionanchorx
-WebIDL::ExceptionOr<void> VTTRegion::set_region_anchor_x(JS::Realm& realm, double region_anchor_x)
+WebIDL::ExceptionOr<void> VTTRegion::set_region_anchor_x(double region_anchor_x)
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (region_anchor_x < 0 || region_anchor_x > 100)
-        return create_region_range_error(realm);
+        return create_region_range_error();
 
     // Otherwise, the WebVTT region anchor X distance must be set to the new value.
     m_anchor_x = region_anchor_x;
@@ -81,11 +90,11 @@ WebIDL::ExceptionOr<void> VTTRegion::set_region_anchor_x(JS::Realm& realm, doubl
 }
 
 // https://w3c.github.io/webvtt/#dom-vttregion-regionanchory
-WebIDL::ExceptionOr<void> VTTRegion::set_region_anchor_y(JS::Realm& realm, double region_anchor_y)
+WebIDL::ExceptionOr<void> VTTRegion::set_region_anchor_y(double region_anchor_y)
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (region_anchor_y < 0 || region_anchor_y > 100)
-        return create_region_range_error(realm);
+        return create_region_range_error();
 
     // Otherwise, the WebVTT region anchor Y distance must be set to the new value.
     m_anchor_y = region_anchor_y;
@@ -93,11 +102,11 @@ WebIDL::ExceptionOr<void> VTTRegion::set_region_anchor_y(JS::Realm& realm, doubl
 }
 
 // https://w3c.github.io/webvtt/#dom-vttregion-viewportanchorx
-WebIDL::ExceptionOr<void> VTTRegion::set_viewport_anchor_x(JS::Realm& realm, double viewport_anchor_x)
+WebIDL::ExceptionOr<void> VTTRegion::set_viewport_anchor_x(double viewport_anchor_x)
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (viewport_anchor_x < 0 || viewport_anchor_x > 100)
-        return create_region_range_error(realm);
+        return create_region_range_error();
 
     // Otherwise, the WebVTT region viewport anchor X distance must be set to the new value.
     m_viewport_anchor_x = viewport_anchor_x;
@@ -105,11 +114,11 @@ WebIDL::ExceptionOr<void> VTTRegion::set_viewport_anchor_x(JS::Realm& realm, dou
 }
 
 // https://w3c.github.io/webvtt/#dom-vttregion-viewportanchory
-WebIDL::ExceptionOr<void> VTTRegion::set_viewport_anchor_y(JS::Realm& realm, double viewport_anchor_y)
+WebIDL::ExceptionOr<void> VTTRegion::set_viewport_anchor_y(double viewport_anchor_y)
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (viewport_anchor_y < 0 || viewport_anchor_y > 100)
-        return create_region_range_error(realm);
+        return create_region_range_error();
 
     // Otherwise, the WebVTT region viewport anchor Y distance must be set to the new value.
     m_viewport_anchor_y = viewport_anchor_y;

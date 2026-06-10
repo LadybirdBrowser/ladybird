@@ -38,7 +38,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions] attribute DOMString type;
     [CEReactions, Reflect=value] attribute DOMString defaultValue;
     [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString value;
-    attribute object? valueAsDate;
+    [ImplementedAs=value_as_date_object, NeedsCallerRealmForGetter] attribute object? valueAsDate;
     attribute unrestricted double valueAsNumber;
     [CEReactions] attribute unsigned long width;
 
@@ -58,8 +58,8 @@ interface HTMLInputElement : HTMLElement {
     [ImplementedAs=selection_start_binding] attribute unsigned long? selectionStart;
     [ImplementedAs=selection_end_binding] attribute unsigned long? selectionEnd;
     [ImplementedAs=selection_direction_binding] attribute DOMString? selectionDirection;
-    [ImplementedAs=set_range_text_binding] undefined setRangeText(Utf16DOMString replacement);
-    [ImplementedAs=set_range_text_binding] undefined setRangeText(Utf16DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
+    [ImplementedAs=set_range_text] undefined setRangeText(Utf16DOMString replacement);
+    [ImplementedAs=set_range_text] undefined setRangeText(Utf16DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
     undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
 
     undefined showPicker();

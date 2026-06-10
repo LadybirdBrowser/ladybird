@@ -14,14 +14,27 @@
 
 namespace Web::HTML {
 
+class NavigationActivation;
 class Window;
+
+}
+
+namespace Web::ViewTransition {
+
+class ViewTransition;
+
+}
+
+namespace Web::HTML {
+
+using PageSwapEventInit = Bindings::PageSwapEventInit;
 
 class PageSwapEvent final : public DOM::Event {
     WEB_WRAPPABLE(PageSwapEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(PageSwapEvent);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<PageSwapEvent>> construct_impl(Window&, FlyString const& event_name, Bindings::PageSwapEventInit const&);
+    [[nodiscard]] static GC::Ref<PageSwapEvent> create(FlyString const& event_name, PageSwapEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~PageSwapEvent() override;
 
@@ -29,7 +42,7 @@ public:
     GC::Ptr<ViewTransition::ViewTransition> view_transition() const { return m_view_transition; }
 
 private:
-    PageSwapEvent(FlyString const& event_name, Bindings::PageSwapEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    PageSwapEvent(FlyString const& event_name, PageSwapEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

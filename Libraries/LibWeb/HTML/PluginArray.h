@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PluginArray.h>
+#include <AK/FlyString.h>
+#include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
@@ -36,8 +37,6 @@ private:
 
     // ^Bindings::Wrappable
     virtual Vector<FlyString> supported_property_names() const override;
-    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
-    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override;
 };
 
 }

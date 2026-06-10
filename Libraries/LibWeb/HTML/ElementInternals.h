@@ -8,10 +8,10 @@
 
 #include <AK/WeakPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/ElementInternals.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/ValidityState.h>
@@ -29,18 +29,18 @@ public:
     GC::Ptr<DOM::ShadowRoot> shadow_root() const;
 
     using ElementInternalsFormValue = Variant<GC::Ref<FileAPI::File>, String, GC::Ref<XHR::FormData>, Empty>;
-    WebIDL::ExceptionOr<void> set_form_value(JS::Realm&, ElementInternalsFormValue value, Optional<ElementInternalsFormValue> state);
+    WebIDL::ExceptionOr<void> set_form_value(ElementInternalsFormValue value, Optional<ElementInternalsFormValue> state);
 
-    WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> form(JS::Realm&) const;
+    WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> form() const;
 
-    WebIDL::ExceptionOr<void> set_validity(JS::Realm&, Bindings::ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor);
-    WebIDL::ExceptionOr<bool> will_validate(JS::Realm&) const;
-    WebIDL::ExceptionOr<GC::Ref<ValidityState const>> validity(JS::Realm&) const;
-    WebIDL::ExceptionOr<String> validation_message(JS::Realm&) const;
-    WebIDL::ExceptionOr<bool> check_validity(JS::Realm&) const;
-    WebIDL::ExceptionOr<bool> report_validity(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_validity(ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor);
+    WebIDL::ExceptionOr<bool> will_validate() const;
+    WebIDL::ExceptionOr<GC::Ref<ValidityState const>> validity() const;
+    WebIDL::ExceptionOr<String> validation_message() const;
+    WebIDL::ExceptionOr<bool> check_validity() const;
+    WebIDL::ExceptionOr<bool> report_validity() const;
 
-    WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> labels(JS::Realm&);
+    WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> labels();
     GC::Ptr<CustomStateSet> states();
 
 private:

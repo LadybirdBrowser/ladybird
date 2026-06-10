@@ -9,7 +9,6 @@
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/SpeechRecognitionPhrase.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -21,7 +20,7 @@ class SpeechRecognitionPhrase final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SpeechRecognitionPhrase);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> construct_impl(String const& phrase, float boost = 1.f);
+    static GC::Ref<SpeechRecognitionPhrase> create(String const& phrase, float boost = 1.f);
     virtual ~SpeechRecognitionPhrase() override;
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionphrase-phrase

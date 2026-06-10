@@ -24,7 +24,8 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> open(String const& name, Optional<u64> version);
     WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> delete_database(String const& name);
-    GC::Ref<WebIDL::Promise> databases();
+    GC::Ref<WebIDL::Promise> databases(JS::Realm&);
+    void databases(GC::Ref<WebIDL::Promise>);
 
     WebIDL::ExceptionOr<i8> cmp(JS::Value first, JS::Value second);
 

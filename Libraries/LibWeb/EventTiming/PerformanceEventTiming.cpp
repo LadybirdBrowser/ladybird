@@ -54,7 +54,7 @@ bool PerformanceEventTiming::cancelable() const
     return m_cancelable;
 }
 
-JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> PerformanceEventTiming::target()
+GC::Ptr<DOM::Node> PerformanceEventTiming::target()
 {
     dbgln("FIXME: Implement PerformanceEventTiming::PerformanceEventTiming target()");
     return nullptr;
@@ -108,7 +108,7 @@ Optional<u64> PerformanceEventTiming::max_buffer_size()
 }
 
 // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_entry(Optional<Bindings::PerformanceObserverInit const&>) const
+PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&>) const
 {
     return should_add_performance_event_timing();
 }

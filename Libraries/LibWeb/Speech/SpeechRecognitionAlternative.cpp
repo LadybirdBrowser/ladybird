@@ -18,7 +18,6 @@ GC::Ref<SpeechRecognitionAlternative> SpeechRecognitionAlternative::create()
 }
 
 SpeechRecognitionAlternative::SpeechRecognitionAlternative()
-    : Bindings::Wrappable()
 {
 }
 

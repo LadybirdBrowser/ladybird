@@ -116,7 +116,7 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
 
     auto namespace_ = namespace_for_name(name);
 
-    auto qualified_name_or_error = DOM::validate_and_extract(m_document->relevant_settings_object().realm(), namespace_, FlyString(MUST(String::from_byte_string(name))), DOM::ValidationContext::Element);
+    auto qualified_name_or_error = DOM::validate_and_extract(namespace_, FlyString(MUST(String::from_byte_string(name))), DOM::ValidationContext::Element);
 
     if (qualified_name_or_error.is_error()) {
         m_has_error = true;
@@ -154,7 +154,7 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
         if (attribute.key == "xmlns" || attribute.key.starts_with("xmlns:"sv)) {
             // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
             if (!attribute.key.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
-                auto maybe_extracted_qualified_name = validate_and_extract(HTML::relevant_realm(*node), Namespace::XMLNS, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+                auto maybe_extracted_qualified_name = DOM::validate_and_extract(Namespace::XMLNS, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
                 if (!maybe_extracted_qualified_name.is_error()) {
                     auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
                     node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
@@ -165,7 +165,7 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
             m_has_error = true;
         } else if (attribute.key.contains(':')) {
             if (auto namespace_for_key = namespace_for_name(attribute.key); namespace_for_key.has_value()) {
-                auto maybe_extracted_qualified_name = validate_and_extract(HTML::relevant_realm(*node), namespace_for_key, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+                auto maybe_extracted_qualified_name = DOM::validate_and_extract(namespace_for_key, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
                 if (!maybe_extracted_qualified_name.is_error()) {
                     auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
                     node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
@@ -174,7 +174,7 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
             }
 
             if (attribute.key.starts_with("xml:"sv)) {
-                auto maybe_extracted_qualified_name = validate_and_extract(HTML::relevant_realm(*node), Namespace::XML, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+                auto maybe_extracted_qualified_name = DOM::validate_and_extract(Namespace::XML, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
                 if (!maybe_extracted_qualified_name.is_error()) {
                     auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
                     node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());

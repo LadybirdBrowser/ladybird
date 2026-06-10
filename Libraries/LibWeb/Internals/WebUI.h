@@ -17,7 +17,7 @@ class WEB_API WebUI final : public InternalsBase {
     GC_DECLARE_ALLOCATOR(WebUI);
 
 public:
-    static GC::Ref<Bindings::PlatformObject> create(JS::Realm&);
+    static GC::Ref<WebUI> create(HTML::Window&);
 
     virtual ~WebUI() override;
 

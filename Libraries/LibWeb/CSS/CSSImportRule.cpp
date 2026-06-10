@@ -11,7 +11,6 @@
 #include <AK/ScopeGuard.h>
 #include <LibGC/Heap.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/CSSImportRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSScopeRule.h>

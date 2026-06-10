@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/NodeFilter.h>
 
@@ -31,8 +30,8 @@ public:
 
     GC::Ptr<NodeFilter> filter() const;
 
-    JS::ThrowCompletionOr<GC::Ptr<Node>> next_node(JS::Realm&);
-    JS::ThrowCompletionOr<GC::Ptr<Node>> previous_node(JS::Realm&);
+    TraversalResult next_node(TraversalFilter const&);
+    TraversalResult previous_node(TraversalFilter const&);
 
     void detach();
 
@@ -49,9 +48,9 @@ private:
         Previous,
     };
 
-    JS::ThrowCompletionOr<GC::Ptr<Node>> traverse(JS::Realm&, Direction);
+    TraversalResult traverse(TraversalFilter const&, Direction);
 
-    JS::ThrowCompletionOr<NodeFilter::Result> filter(JS::Realm&, Node&);
+    TraversalFilterResult filter(TraversalFilter const&, Node&);
 
     // https://dom.spec.whatwg.org/#concept-traversal-root
     GC::Ref<Node> m_root;

@@ -7,7 +7,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/WebGLShader.h>
 #include <LibWeb/WebGL/WebGLShader.h>
 
 namespace Web::WebGL {

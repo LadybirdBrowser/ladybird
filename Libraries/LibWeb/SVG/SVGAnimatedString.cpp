@@ -18,8 +18,7 @@ GC::Ref<SVGAnimatedString> SVGAnimatedString::create(GC::Ref<SVGElement> element
 }
 
 SVGAnimatedString::SVGAnimatedString(GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
-    : Bindings::Wrappable()
-    , m_element(element)
+    : m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
     , m_deprecated_reflected_attribute(move(deprecated_reflected_attribute))
     , m_initial_value(move(initial_value))

@@ -39,60 +39,45 @@ def write_header_file(out: TextIO, properties: dict) -> None:
 #pragma once
 
 #include <AK/String.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
-namespace Web::Bindings {
-
-class GeneratedCSSStyleProperties {
-public:
+#define ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES \\
 """)
 
     for name in properties:
         name_acceptable_cpp = make_name_acceptable_cpp(snake_casify(name, trim_leading_underscores=True))
-        out.write(f"""
-    WebIDL::ExceptionOr<void> set_{name_acceptable_cpp}(JS::Realm&, StringView value);
-    String {name_acceptable_cpp}() const;
+        out.write(f"""    WebIDL::ExceptionOr<void> set_{name_acceptable_cpp}(StringView value); \\
+    String {name_acceptable_cpp}() const; \\
 """)
 
     out.write("""
-protected:
-    GeneratedCSSStyleProperties() = default;
-    virtual ~GeneratedCSSStyleProperties() = default;
-
-    virtual CSS::CSSStyleProperties& generated_style_properties_to_css_style_properties() = 0;
-    CSS::CSSStyleProperties const& generated_style_properties_to_css_style_properties() const { return const_cast<GeneratedCSSStyleProperties&>(*this).generated_style_properties_to_css_style_properties(); }
-}; // class GeneratedCSSStyleProperties
-
-} // namespace Web::Bindings
 """)
 
 
 def write_implementation_file(out: TextIO, properties: dict) -> None:
     out.write("""
 #include <LibWeb/CSS/CSSStyleProperties.h>
-#include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
-namespace Web::Bindings {
+namespace Web::CSS {
 """)
 
     for name in properties:
         name_acceptable_cpp = make_name_acceptable_cpp(snake_casify(name, trim_leading_underscores=True))
         out.write(f"""
-WebIDL::ExceptionOr<void> GeneratedCSSStyleProperties::set_{name_acceptable_cpp}(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_{name_acceptable_cpp}(StringView value)
 {{
-    return generated_style_properties_to_css_style_properties().set_property(realm, "{name}"_utf16_fly_string, value, ""sv);
+    return set_property("{name}"_utf16_fly_string, value, ""sv);
 }}
 
-String GeneratedCSSStyleProperties::{name_acceptable_cpp}() const
+String CSSStyleProperties::{name_acceptable_cpp}() const
 {{
-    return generated_style_properties_to_css_style_properties().get_property_value("{name}"_utf16_fly_string);
+    return get_property_value("{name}"_utf16_fly_string);
 }}
 """)
 
     out.write("""
-} // namespace Web::Bindings
+} // namespace Web::CSS
 """)
 
 
@@ -108,7 +93,7 @@ interface mixin GeneratedCSSStyleProperties {
         # https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-camel-cased-attribute
         name_camelcase = css_property_to_idl_attribute(name)
         out.write(f"""
-    [CEReactions, LegacyNullToEmptyString, NeedsCallerRealmForSetter, AttributeCallbackName={snake_case_name}_regular, ImplementedAs={name_acceptable_cpp}] attribute CSSOMString {name_camelcase};
+    [CEReactions, LegacyNullToEmptyString, AttributeCallbackName={snake_case_name}_regular, ImplementedAs={name_acceptable_cpp}] attribute CSSOMString {name_camelcase};
 """)
 
         # For each CSS property property that is a supported CSS property and that begins with the string -webkit-,
@@ -117,7 +102,7 @@ interface mixin GeneratedCSSStyleProperties {
         if name.startswith("-webkit-"):
             name_webkit = css_property_to_idl_attribute(name, lowercase_first=True)
             out.write(f"""
-    [CEReactions, LegacyNullToEmptyString, NeedsCallerRealmForSetter, AttributeCallbackName={snake_case_name}_webkit, ImplementedAs={name_acceptable_cpp}] attribute CSSOMString {name_webkit};
+    [CEReactions, LegacyNullToEmptyString, AttributeCallbackName={snake_case_name}_webkit, ImplementedAs={name_acceptable_cpp}] attribute CSSOMString {name_webkit};
 """)
 
         # For each CSS property property that is a supported CSS property, except for properties that have no
@@ -125,7 +110,7 @@ interface mixin GeneratedCSSStyleProperties {
         # property.
         if "-" in name:
             out.write(f"""
-    [CEReactions, LegacyNullToEmptyString, NeedsCallerRealmForSetter, AttributeCallbackName={snake_case_name}_dashed, ImplementedAs={name_acceptable_cpp}] attribute CSSOMString {name};
+    [CEReactions, LegacyNullToEmptyString, AttributeCallbackName={snake_case_name}_dashed, ImplementedAs={name_acceptable_cpp}] attribute CSSOMString {name};
 """)
 
     out.write("""

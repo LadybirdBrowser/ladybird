@@ -6,20 +6,24 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/IDBVersionChangeEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
-namespace Web::HTML {
+namespace Web::Bindings {
 
-class WindowOrWorkerGlobalScopeMixin;
+struct IDBVersionChangeEventInit;
 
 }
 
 namespace Web::IndexedDB {
+
+struct IDBVersionChangeEventInit : public DOM::EventInit {
+    u64 old_version { 0 };
+    Optional<u64> new_version;
+};
 
 // https://w3c.github.io/IndexedDB/#events
 class IDBVersionChangeEvent : public DOM::Event {
@@ -29,14 +33,14 @@ class IDBVersionChangeEvent : public DOM::Event {
 public:
     virtual ~IDBVersionChangeEvent() override;
 
+    static GC::Ref<IDBVersionChangeEvent> create(FlyString const&, IDBVersionChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     static GC::Ref<IDBVersionChangeEvent> create(FlyString const&, Bindings::IDBVersionChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static GC::Ref<IDBVersionChangeEvent> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString const&, Bindings::IDBVersionChangeEventInit const&);
 
     u64 old_version() const { return m_old_version; }
     Optional<u64> new_version() const { return m_new_version; }
 
 protected:
-    explicit IDBVersionChangeEvent(FlyString const& event_name, Bindings::IDBVersionChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    explicit IDBVersionChangeEvent(FlyString const& event_name, IDBVersionChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
 private:
     u64 m_old_version { 0 };

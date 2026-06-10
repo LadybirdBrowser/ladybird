@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#location
-[Exposed=Window, LocationObject]
+[Exposed=Window]
 interface Location { // but see also additional creation steps and overridden internal methods
-    [LegacyUnforgeable, NeedsCallerRealmForGetter, NeedsCallerRealmForSetter] stringifier attribute USVString href;
+    [LegacyUnforgeable, NeedsCallerRealmForGetter] stringifier attribute USVString href;
     [LegacyUnforgeable, NeedsCallerRealmForGetter] readonly attribute USVString origin;
     [LegacyUnforgeable, NeedsCallerRealmForGetter, NeedsCallerRealmForSetter] attribute USVString protocol;
     [LegacyUnforgeable, NeedsCallerRealmForGetter, NeedsCallerRealmForSetter] attribute USVString host;
@@ -12,7 +12,7 @@ interface Location { // but see also additional creation steps and overridden in
     [LegacyUnforgeable, NeedsCallerRealmForGetter, NeedsCallerRealmForSetter] attribute USVString hash;
 
     [LegacyUnforgeable, NeedsCallerRealm] undefined assign(USVString url);
-    [LegacyUnforgeable, NeedsCallerRealm] undefined replace(USVString url);
+    [LegacyUnforgeable] undefined replace(USVString url);
     [LegacyUnforgeable] undefined reload();
 
     // Intentionally not implemented at this stage due to https://github.com/whatwg/html/issues/1918

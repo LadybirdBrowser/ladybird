@@ -8,12 +8,13 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/MessageChannel.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(MessageChannel);
 
-WebIDL::ExceptionOr<GC::Ref<MessageChannel>> MessageChannel::construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object)
+GC::Ref<MessageChannel> MessageChannel::create(GC::Ref<DOM::EventTarget> relevant_global_object)
 {
     auto port1 = MessagePort::create(relevant_global_object);
     auto port2 = MessagePort::create(relevant_global_object);
@@ -25,9 +26,15 @@ WebIDL::ExceptionOr<GC::Ref<MessageChannel>> MessageChannel::construct_impl(GC::
     return channel;
 }
 
+GC::Ref<MessageChannel> MessageChannel::create_for_constructor(JS::Realm& realm)
+{
+    auto* global_scope = window_or_worker_global_scope_from_global_object(realm.global_object());
+    VERIFY(global_scope);
+    return create(global_scope->this_impl());
+}
+
 MessageChannel::MessageChannel(GC::Ref<MessagePort> port1, GC::Ref<MessagePort> port2)
-    : Bindings::Wrappable()
-    , m_port1(port1)
+    : m_port1(port1)
     , m_port2(port2)
 {
 }

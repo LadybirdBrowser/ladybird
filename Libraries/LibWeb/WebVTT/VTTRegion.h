@@ -13,38 +13,40 @@
 
 namespace Web::WebVTT {
 
+using ScrollSetting = Bindings::ScrollSetting;
+
 // https://w3c.github.io/webvtt/#vttregion
 class VTTRegion final : public Bindings::Wrappable {
     WEB_WRAPPABLE(VTTRegion, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(VTTRegion);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<VTTRegion>> construct_impl();
+    static GC::Ref<VTTRegion> create();
     virtual ~VTTRegion() override = default;
 
     String const& id() const { return m_identifier; }
     void set_id(String const& id) { m_identifier = id; }
 
     double width() const { return m_width; }
-    WebIDL::ExceptionOr<void> set_width(JS::Realm&, double width);
+    WebIDL::ExceptionOr<void> set_width(double width);
 
     WebIDL::UnsignedLong lines() const { return m_lines; }
     void set_lines(WebIDL::UnsignedLong lines) { m_lines = lines; }
 
     double region_anchor_x() const { return m_anchor_x; }
-    WebIDL::ExceptionOr<void> set_region_anchor_x(JS::Realm&, double region_anchor_x);
+    WebIDL::ExceptionOr<void> set_region_anchor_x(double region_anchor_x);
 
     double region_anchor_y() const { return m_anchor_y; }
-    WebIDL::ExceptionOr<void> set_region_anchor_y(JS::Realm&, double region_anchor_y);
+    WebIDL::ExceptionOr<void> set_region_anchor_y(double region_anchor_y);
 
     double viewport_anchor_x() const { return m_viewport_anchor_x; }
-    WebIDL::ExceptionOr<void> set_viewport_anchor_x(JS::Realm&, double viewport_anchor_x);
+    WebIDL::ExceptionOr<void> set_viewport_anchor_x(double viewport_anchor_x);
 
     double viewport_anchor_y() const { return m_viewport_anchor_y; }
-    WebIDL::ExceptionOr<void> set_viewport_anchor_y(JS::Realm&, double viewport_anchor_y);
+    WebIDL::ExceptionOr<void> set_viewport_anchor_y(double viewport_anchor_y);
 
-    Bindings::ScrollSetting scroll() const { return m_scroll_setting; }
-    void set_scroll(Bindings::ScrollSetting scroll) { m_scroll_setting = scroll; }
+    ScrollSetting scroll() const;
+    void set_scroll(ScrollSetting);
 
 private:
     VTTRegion();
@@ -67,7 +69,7 @@ private:
     double m_viewport_anchor_y { 100 };
 
     // https://w3c.github.io/webvtt/#webvtt-region-scroll
-    Bindings::ScrollSetting m_scroll_setting { Bindings::ScrollSetting::Empty };
+    ScrollSetting m_scroll_setting { ScrollSetting::Empty };
 };
 
 }

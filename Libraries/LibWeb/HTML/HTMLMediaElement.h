@@ -15,6 +15,7 @@
 #include <AK/Variant.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
+#include <LibJS/Forward.h>
 #include <LibMedia/Forward.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
@@ -23,9 +24,16 @@
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/MediaControls.h>
+#include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/DOMException.h>
+
+namespace Web::Bindings {
+
+enum class CanPlayTypeResult : u8;
+
+}
 
 namespace Web::HTML {
 
@@ -119,12 +127,13 @@ public:
     void set_current_playback_position(double);
 
     double duration() const;
-    JS::Object* get_start_date();
+    JS::Object* get_start_date(JS::Realm&) const;
     bool show_poster() const { return m_show_poster; }
     bool paused() const { return m_paused; }
     bool ended() const;
     bool potentially_playing() const;
-    GC::Ref<WebIDL::Promise> play();
+    void play(GC::Ref<WebIDL::Promise>);
+    void play_from_user_interaction();
     void pause();
 
     double volume() const { return m_volume; }
@@ -155,7 +164,7 @@ public:
 
     void update_video_frame_and_timeline();
 
-    GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
+    GC::Ref<TextTrack> add_text_track(TextTrackKind kind, String const& label, String const& language);
 
     void update_ready_state();
 

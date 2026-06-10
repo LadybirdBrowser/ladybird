@@ -9,8 +9,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Notification.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/NotificationsAPI/Notification.h>
@@ -25,11 +23,53 @@ Notification::Notification()
 {
 }
 
+WebIDL::ExceptionOr<NotificationOptions> Notification::options_from_bindings(JS::Realm& realm, Bindings::NotificationOptions const& options)
+{
+    Vector<NotificationAction> actions;
+    actions.ensure_capacity(options.actions.size());
+    for (auto const& entry : options.actions) {
+        actions.append(NotificationAction {
+            .action = entry.action,
+            .title = entry.title,
+            .navigate = entry.navigate,
+            .icon = entry.icon,
+        });
+    }
+
+    return NotificationOptions {
+        .direction = options.dir,
+        .language = options.lang,
+        .body = options.body,
+        .navigate = options.navigate,
+        .tag = options.tag,
+        .image = options.image,
+        .icon = options.icon,
+        .badge = options.badge,
+        .timestamp = options.timestamp,
+        .renotify = options.renotify,
+        .silent = options.silent,
+        .require_interaction = options.require_interaction,
+        .data = TRY(HTML::structured_serialize_for_storage(realm, options.data)),
+        .actions = move(actions),
+    };
+}
+
+WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::create_for_constructor(JS::Realm& realm, String const& title, Bindings::NotificationOptions const& options)
+{
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(realm.global_object());
+    VERIFY(global_scope);
+
+    // The constructor rejects actions before attempting to serialize data.
+    if (!options.actions.is_empty())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Options `action` is not empty"sv };
+
+    return create_with_global_scope(*global_scope, title, TRY(options_from_bindings(realm, options)));
+}
+
 // https://notifications.spec.whatwg.org/#create-a-notification
 WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
-    JS::Realm& realm,
     String const& title,
-    Bindings::NotificationOptions const& options,
+    NotificationOptions options,
     URL::Origin origin,
     URL::URL base_url,
     HighResolutionTime::EpochTimeStamp fallback_timestamp)
@@ -44,22 +84,22 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "options[\"tag\"] cannot be the empty string when options[\"renotify\"] is set to true."sv };
 
     // 4. Set notification’s data to StructuredSerializeForStorage(options["data"]).
-    notification.data = TRY(HTML::structured_serialize_for_storage(realm, options.data));
+    notification.data = move(options.data);
 
     // 5. Set notification’s title to title.
     notification.title = title;
 
     // 6. Set notification’s direction to options["dir"].
-    notification.direction = options.dir;
+    notification.direction = options.direction;
 
     // 7. Set notification’s language to options["lang"].
-    notification.language = options.lang;
+    notification.language = move(options.language);
 
     // 8. Set notification’s origin to origin.
     notification.origin = move(origin);
 
     // 9. Set notification’s body to options["body"].
-    notification.body = options.body;
+    notification.body = move(options.body);
 
     // 10. If options["navigate"] exists, then parse it using baseURL, and if that does not return failure,
     // set notification’s navigation URL to the return value. (Otherwise notification’s navigation URL remains null.)
@@ -68,7 +108,7 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
     }
 
     // 11. Set notification’s tag to options["tag"].
-    notification.tag = options.tag;
+    notification.tag = move(options.tag);
 
     // 12. If options["image"] exists, then parse it using baseURL, and if that does not return failure,
     // set notification’s image URL to the return value. (Otherwise notification’s image URL is not set.)
@@ -143,9 +183,8 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
 
 // https://notifications.spec.whatwg.org/#create-a-notification-with-a-settings-object
 WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification_with_a_settings_object(
-    JS::Realm& realm,
     String const& title,
-    Bindings::NotificationOptions const& options,
+    NotificationOptions options,
     GC::Ref<HTML::EnvironmentSettingsObject> settings)
 {
     // 1. Let origin be settings’s origin.
@@ -159,16 +198,15 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification_wit
     auto fallback_timestamp = round_to<HighResolutionTime::EpochTimeStamp>(settings->current_wall_time());
 
     // 4. Return the result of creating a notification given title, options, origin, baseURL, and fallbackTimestamp.
-    return create_a_notification(realm, title, options, origin, base_url, fallback_timestamp);
+    return create_a_notification(title, move(options), origin, base_url, fallback_timestamp);
 }
 
 // https://notifications.spec.whatwg.org/#constructors
-WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
+WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::create_with_global_scope(
     HTML::WindowOrWorkerGlobalScopeMixin& global_scope,
     String const& title,
-    Bindings::NotificationOptions const& options)
+    NotificationOptions options)
 {
-    auto& realm = HTML::relevant_realm(global_scope);
     auto& relevant_settings_object = HTML::relevant_settings_object(global_scope);
 
     // 1. If this’s relevant global object is a ServiceWorkerGlobalScope object, then throw a TypeError.
@@ -180,7 +218,7 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Options `action` is not empty"sv };
 
     // 3. Let notification be the result of creating a notification with a settings object given title, options, and this’s relevant settings object.
-    ConceptNotification notification = TRY(create_a_notification_with_a_settings_object(realm, title, options, relevant_settings_object));
+    ConceptNotification notification = TRY(create_a_notification_with_a_settings_object(title, move(options), relevant_settings_object));
 
     // 4. Associate this with notification.
     auto this_notification = GC::Heap::the().allocate<Notification>();
@@ -235,7 +273,7 @@ Vector<NotificationAction> Notification::actions() const
 // https://notifications.spec.whatwg.org/#dom-notification-data
 JS::Value Notification::data(JS::Realm& realm) const
 {
-    // The data getter steps are to return StructuredDeserialize(this’s notification’s data, this’s relevant Realm).
+    // The data getter steps are to return StructuredDeserialize(this's notification's data, this's relevant Realm).
     // If this throws an exception, then return null.
     auto deserialized_data = HTML::structured_deserialize(realm.vm(), m_notification.data, realm);
     if (!deserialized_data.is_exception())

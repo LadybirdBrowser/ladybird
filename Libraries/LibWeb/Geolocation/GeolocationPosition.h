@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/GeolocationPosition.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/HighResolutionTime/EpochTimeStamp.h>

@@ -16,7 +16,9 @@
 
 namespace Web::HTML {
 
-class Window;
+class Storage;
+
+using StorageEventInit = Bindings::StorageEventInit;
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storageevent
 class StorageEvent : public DOM::Event {
@@ -24,8 +26,7 @@ class StorageEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(StorageEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<StorageEvent> create(FlyString const& event_name, Bindings::StorageEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    static GC::Ref<StorageEvent> construct_impl(Window&, FlyString const& event_name, Bindings::StorageEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<StorageEvent> create(FlyString const& event_name, StorageEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~StorageEvent() override;
 
@@ -48,7 +49,7 @@ protected:
     virtual void visit_edges(Visitor& visitor) override;
 
 private:
-    StorageEvent(FlyString const& event_name, Bindings::StorageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    StorageEvent(FlyString const& event_name, StorageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     Optional<String> m_key;
     Optional<String> m_old_value;

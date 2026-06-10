@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/NavigationDestination.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -26,6 +28,7 @@ public:
     String id() const;
     i64 index() const;
     bool same_document() const;
+    SerializationRecord const& state() const { return m_state; }
     WebIDL::ExceptionOr<JS::Value> get_state(JS::Realm&);
 
     // Non-spec'd getter, not exposed to JS

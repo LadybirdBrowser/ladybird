@@ -17,6 +17,16 @@ from Utils.webidl_parser import Constructor
 from Utils.webidl_parser import Interface
 
 
+def bindings_wrapper_header_for_constructor(interface: Interface) -> str:
+    return "LibWeb/Bindings/ImplementedInBindings.h"
+
+
+def bindings_constructor_call(interface: Interface, arguments: str, needs_argument_count: bool) -> str:
+    arguments_with_leading_comma = f", {arguments}" if arguments else ""
+    argument_count = ", vm.argument_count()" if needs_argument_count else ""
+    return f"Web::Bindings::construct_{idl_identifier_cpp_name(interface)}(realm{arguments_with_leading_comma}{argument_count})"
+
+
 def write_constructor_function(
     out: TextIO,
     context: GenerationContext,
@@ -44,6 +54,7 @@ def write_constructor_overload_arbiter(
 ) -> None:
     includes.add("AK/Optional.h")
     includes.add("AK/Vector.h")
+    includes.add("LibWeb/WebIDL/Types.h")
     includes.add("LibWeb/WebIDL/OverloadResolution.h")
 
     out.write(
@@ -79,7 +90,11 @@ def write_constructor_steps(
     interface: Interface,
     constructor: Constructor,
 ) -> None:
+    includes.add("AK/Concepts.h")
+    includes.add("LibWeb/Bindings/Wrappable.h")
+    includes.add("LibWeb/Bindings/WrapperWorld.h")
     if "HTMLConstructor" in constructor.extended_attributes:
+        includes.add("LibWeb/HTML/CustomElements/CustomElementAlgorithms.h")
         write_html_constructor_steps(out, interface, constructor, includes)
         return
 
@@ -107,11 +122,78 @@ def write_constructor_steps(
     write_argument_count_check(out, interface.name, parameter_list_length(constructor.parameters))
     write_operation_parameter_conversions(out, constructor.parameters, includes, context)
     arguments = ", ".join(idl_identifier_cpp_name(parameter) for parameter in constructor.parameters)
-    if arguments:
-        arguments = f", {arguments}"
+    arguments_with_leading_comma = f", {arguments}" if arguments else ""
+    arguments_with_vm = f"vm{arguments_with_leading_comma}"
+    event_constructor_timestamp_argument = ""
+    if any(parent.name == "Event" for parent in context.inheritance_stack(interface)):
+        includes.add("LibWeb/UIEvents/UIEvent.h")
+        event_constructor_timestamp_argument = (
+            f"{arguments}, UIEvents::UIEvent::time_stamp_for_current_realm(realm)"
+            if arguments
+            else "UIEvents::UIEvent::time_stamp_for_current_realm(realm)"
+        )
+    event_create_for_constructor_overload = ""
+    event_create_overload = ""
+    if event_constructor_timestamp_argument:
+        event_create_for_constructor_overload = f"""        else if constexpr (requires {{ {{ Implementation::create_for_constructor({event_constructor_timestamp_argument}) }} -> SameAs<GC::Ref<Implementation>>; }} || requires {{ {{ Implementation::create_for_constructor({event_constructor_timestamp_argument}) }} -> SameAs<WebIDL::ExceptionOr<GC::Ref<Implementation>>>; }})
+            return Implementation::create_for_constructor({event_constructor_timestamp_argument});
+"""
+        event_create_overload = f"""        else if constexpr (requires {{ {{ Implementation::create({event_constructor_timestamp_argument}) }} -> SameAs<GC::Ref<Implementation>>; }} || requires {{ {{ Implementation::create({event_constructor_timestamp_argument}) }} -> SameAs<WebIDL::ExceptionOr<GC::Ref<Implementation>>>; }})
+            return Implementation::create({event_constructor_timestamp_argument});
+"""
+    implemented_as_overload = ""
+    if "ImplementedAs" in constructor.extended_attributes:
+        constructor_method_name = constructor.extended_attributes["ImplementedAs"]
+        implemented_as_overload = f"""        if constexpr (requires {{ Implementation::{constructor_method_name}(realm{arguments_with_leading_comma}); }})
+            return Implementation::{constructor_method_name}(realm{arguments_with_leading_comma});
+        else if constexpr (requires {{ Implementation::{constructor_method_name}({arguments_with_vm}); }})
+            return Implementation::{constructor_method_name}({arguments_with_vm});
+        else if constexpr (requires {{ Implementation::{constructor_method_name}({arguments}); }})
+            return Implementation::{constructor_method_name}({arguments});
+        else
+"""
+    implementation_type = fully_qualified_name_for_interface(interface)
+    if "ImplementedInBindings" in constructor.extended_attributes:
+        includes.add(bindings_wrapper_header_for_constructor(interface))
+        construct_impl_call = bindings_constructor_call(
+            interface, arguments, "NeedsArgumentCount" in constructor.extended_attributes
+        )
+        out.write(
+            f"""    auto impl = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {construct_impl_call}; }}));
+"""
+        )
+    else:
+        out.write(
+            f"""    auto construct_impl = [&]<typename Implementation = {implementation_type}>() {{
+{implemented_as_overload}        if constexpr (requires {{ Implementation::construct_impl(realm{arguments_with_leading_comma}); }})
+            return Implementation::construct_impl(realm{arguments_with_leading_comma});
+        else if constexpr (requires {{ Implementation::construct_impl({arguments_with_vm}); }})
+            return Implementation::construct_impl({arguments_with_vm});
+        else if constexpr (requires {{ Implementation::construct_impl({arguments}); }})
+            return Implementation::construct_impl({arguments});
+        else if constexpr (requires {{ Implementation::create_for_constructor(realm{arguments_with_leading_comma}); }})
+            return Implementation::create_for_constructor(realm{arguments_with_leading_comma});
+        else if constexpr (requires {{ Implementation::create_for_constructor({arguments_with_vm}); }})
+            return Implementation::create_for_constructor({arguments_with_vm});
+        else if constexpr (requires {{ Implementation::create_for_constructor({arguments}); }})
+            return Implementation::create_for_constructor({arguments});
+{event_create_for_constructor_overload}
+        else if constexpr (requires {{ Implementation::create_from_numberish({arguments}); }})
+            return Implementation::create_from_numberish({arguments});
+        else if constexpr (requires {{ Implementation::create(realm{arguments_with_leading_comma}); }})
+            return Implementation::create(realm{arguments_with_leading_comma});
+        else if constexpr (requires {{ Implementation::create({arguments_with_vm}); }})
+            return Implementation::create({arguments_with_vm});
+{event_create_overload}
+        else
+            return Implementation::create({arguments});
+    }};
+
+    auto impl = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return construct_impl(); }}));
+"""
+        )
     out.write(
-        f"""    auto impl = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {fully_qualified_name_for_interface(interface)}::construct_impl(realm{arguments}); }}));
-    auto wrapper = wrap(realm, impl);
+        f"""    auto wrapper = wrap(host_defined_wrapper_world(realm), realm, impl);
 
     // 7. Set instance.[[Prototype]] to prototype.
     VERIFY(prototype.is_object());
@@ -134,7 +216,6 @@ def write_html_constructor_steps(
 
     includes.add("AK/Optional.h")
     includes.add("AK/String.h")
-    includes.add("AK/TypeCasts.h")
     includes.add("LibGC/Ptr.h")
     includes.add("LibJS/Runtime/Error.h")
     includes.add("LibWeb/Bindings/MainThreadVM.h")
@@ -143,6 +224,7 @@ def write_html_constructor_steps(
     includes.add("LibWeb/DOM/ElementFactory.h")
     includes.add("LibWeb/HTML/CustomElements/CustomElementDefinition.h")
     includes.add("LibWeb/HTML/CustomElements/CustomElementRegistry.h")
+    includes.add("LibWeb/HTML/Scripting/Environments.h")
     includes.add("LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h")
     includes.add("LibWeb/HTML/Window.h")
     includes.add("LibWeb/WebIDL/AbstractOperations.h")
@@ -150,7 +232,7 @@ def write_html_constructor_steps(
     out.write(
         f"""    auto& vm = constructor.vm();
     auto& realm = *vm.current_realm();
-    auto& window = as<HTML::Window>(HTML::current_global_object());
+    auto& window = HTML::relevant_window(realm.global_object());
 
     // 1. If NewTarget is equal to the active function object, then throw a TypeError.
     if (&new_target == vm.active_function_object())
@@ -209,8 +291,10 @@ def write_html_constructor_steps(
         // 5. Set element's local name to definition's local name.
         auto element = realm.create<{fully_qualified_name_for_interface(interface)}>(window.associated_document(), DOM::QualifiedName {{ definition->local_name(), {{}}, Namespace::HTML }});
 
+        auto wrapper = wrap(host_defined_wrapper_world(realm), realm, element);
+
         // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
-        TRY(WebIDL::set_prototype_from_new_target<{interface.prototype_class}>(vm, new_target, "{interface.namespaced_name}"_fly_string, *element));
+        TRY(set_prototype_from_new_target<{interface.prototype_class}>(vm, new_target, "{interface.namespaced_name}"_fly_string, *wrapper));
 
         // 6. Set element's custom element registry to registry.
         element->set_custom_element_registry(registry);
@@ -221,7 +305,7 @@ def write_html_constructor_steps(
         element->setup_custom_element_from_constructor(*definition, is_value);
 
         // 10. Return element.
-        return *element;
+        return *wrapper;
     }}
 
     // 10. Let prototype be ? Get(NewTarget, "prototype").
@@ -248,12 +332,15 @@ def write_html_constructor_steps(
 
     // 14. Perform ? element.[[SetPrototypeOf]](prototype).
     auto actual_element = element.get<GC::Ref<DOM::Element>>();
-    TRY(actual_element->internal_set_prototype_of(&prototype.as_object()));
+    auto wrapper = wrap(host_defined_wrapper_world(realm), realm, actual_element);
+    remember_custom_element_definition_prototype(*definition, prototype.as_object());
+    TRY(wrapper->internal_set_prototype_of(&prototype.as_object()));
+    TRY(set_prototype_of_cached_main_world_wrapper(actual_element, prototype.as_object()));
 
     // 15. Replace the last entry in definition's construction stack with an already constructed marker.
     definition->construction_stack().last() = HTML::AlreadyConstructedCustomElementMarker {{}};
 
     // 16. Return element.
-    return *actual_element;
+    return *wrapper;
 """
     )

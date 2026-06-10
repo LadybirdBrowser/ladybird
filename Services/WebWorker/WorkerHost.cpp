@@ -12,9 +12,9 @@
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/SharedWorkerGlobalScope.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Fetch/Enums.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
@@ -34,7 +34,7 @@
 
 namespace WebWorker {
 
-WorkerHost::WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name)
+WorkerHost::WorkerHost(URL::URL url, Web::HTML::WorkerType type, String name)
     : m_url(move(url))
     , m_type(type)
     , m_name(move(name))
@@ -55,7 +55,7 @@ static Web::HTML::WorkerGlobalScope::Owner relevant_owner_to_add(Web::HTML::Seri
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::Bindings::RequestCredentials credentials, bool is_shared)
+void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::HTML::RequestCredentials credentials, bool is_shared)
 {
     m_is_shared = is_shared;
 
@@ -139,7 +139,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         shared_global_scope.set_type(m_type);
 
         // 4. Set worker global scope's credentials to options["credentials"].
-        shared_global_scope.set_credentials(Web::Fetch::from_bindings_enum(credentials));
+        shared_global_scope.set_credentials(static_cast<Web::Fetch::Infrastructure::Request::CredentialsMode>(credentials));
     }
 
     // 11. Let destination be "sharedworker" if is shared is true, and "worker" otherwise.
@@ -307,7 +307,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     auto on_complete = Web::HTML::create_on_fetch_script_complete(GC::Heap::the(), move(on_complete_function));
 
     // 12. Obtain script by switching on the value of options's type member:
-    if (m_type == Web::Bindings::WorkerType::Classic) {
+    if (m_type == Web::HTML::WorkerType::Classic) {
         // -> "classic":
         //    Fetch a classic worker script given url, outside settings, destination, inside settings, and with
         //    onComplete and performFetch as defined below.
@@ -320,7 +320,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         // -> "module":
         //    Fetch a module worker script graph given url, outside settings, destination, the value of the credentials
         //    member of options, inside settings, and with onComplete and performFetch as defined below.
-        VERIFY(m_type == Web::Bindings::WorkerType::Module);
+        VERIFY(m_type == Web::HTML::WorkerType::Module);
         // FIXME: Pass credentials
         if (auto err = Web::HTML::fetch_module_worker_script_graph(m_url, outside_settings, destination, inside_settings, perform_fetch, on_complete); err.is_error()) {
             dbgln("Failed to run worker script");
@@ -367,7 +367,7 @@ void WorkerHost::connect_shared_worker_impl(Web::HTML::TransferDataEncoder messa
         auto& vm = realm.vm();
         Web::HTML::TemporaryExecutionContext const context(realm);
 
-        Web::Bindings::MessageEventInit event_init {};
+        Web::HTML::MessageEventInit event_init {};
         event_init.data = GC::Ref { vm.empty_string() };
         event_init.ports.append(inside_port);
         event_init.source = Web::HTML::NullableMessageEventSource { inside_port };

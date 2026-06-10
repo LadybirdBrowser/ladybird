@@ -8,8 +8,6 @@
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Response.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Fetch/FetchMethod.h>
@@ -21,12 +19,37 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/Fetch/Response.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
+#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Fetch {
+
+// https://fetch.spec.whatwg.org/#deserialize-a-serialized-abort-reason
+static JS::Value deserialize_serialized_abort_reason(JS::Realm& realm, Infrastructure::FetchController const& controller)
+{
+    // 1. Let fallbackError be an "AbortError" DOMException.
+    auto fallback_error = WebIDL::AbortError::create(realm, "Fetch was aborted"_utf16);
+    auto fallback_error_value = throw_completion(realm, fallback_error).value();
+
+    // 2. Let deserializedError be fallbackError.
+    JS::Value deserialized_error = fallback_error_value;
+
+    // 3. If abortReason is non-null, then set deserializedError to StructuredDeserialize(abortReason, realm).
+    //    If that threw an exception or returned undefined, then set deserializedError to fallbackError.
+    if (controller.serialized_abort_reason().has_value()) {
+        auto deserialized_error_or_exception = HTML::structured_deserialize(realm.vm(), controller.serialized_abort_reason().value(), realm, {});
+        if (!deserialized_error_or_exception.is_exception() && !deserialized_error_or_exception.value().is_undefined())
+            deserialized_error = deserialized_error_or_exception.value();
+    }
+
+    // 4. Return deserializedError.
+    return deserialized_error;
+}
 
 // https://fetch.spec.whatwg.org/#dom-global-fetch
 GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindings::RequestInit const& init)
@@ -38,10 +61,9 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
 
     // 2. Let requestObject be the result of invoking the initial value of Request as constructor with input and init
     //    as arguments. If this throws an exception, reject p with it and return p.
-    auto exception_or_request_object = Request::construct_impl_for_realm(realm, input, init);
+    auto exception_or_request_object = Request::create_with_settings(HTML::principal_realm_settings_object(realm), realm, input, init);
     if (exception_or_request_object.is_exception()) {
-        auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, exception_or_request_object.exception());
-        WebIDL::reject_promise(realm, promise_capability, throw_completion.value());
+        WebIDL::reject_promise_with_exception(realm, promise_capability, exception_or_request_object.release_error());
         return promise_capability;
     }
     auto request_object = exception_or_request_object.release_value();
@@ -96,7 +118,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
         if (response->aborted()) {
             // 1. Let deserializedError be the result of deserialize a serialized abort reason given controller’s
             //    serialized abort reason and relevantRealm.
-            auto deserialized_error = controller_holder->controller()->deserialize_a_serialized_abort_reason(relevant_realm);
+            auto deserialized_error = deserialize_serialized_abort_reason(relevant_realm, *controller_holder->controller());
 
             // 2. Abort the fetch() call with p, request, responseObject, and deserializedError.
             abort_fetch(relevant_realm, promise_capability, request, response_object, deserialized_error);
@@ -117,7 +139,11 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
         response_object = Response::create(response, Headers::Guard::Immutable);
 
         // 5. Resolve p with responseObject.
-        WebIDL::resolve_promise(relevant_realm, promise_capability, Bindings::wrap(Bindings::host_defined_wrapper_world(relevant_realm), relevant_realm, GC::Ref { *response_object }));
+        auto response_value = Bindings::wrap(
+            Bindings::host_defined_wrapper_world(relevant_realm),
+            relevant_realm,
+            GC::Ref { *response_object });
+        WebIDL::resolve_promise(relevant_realm, promise_capability, response_value);
     };
     controller_holder->set_controller(Fetching::fetch(
         realm,

@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/AudioDestinationNode.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -27,7 +27,7 @@ public:
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
     WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
 
-    static WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> construct_impl(GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count = 2);
+    static WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> create(GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count = 2);
 
 protected:
     AudioDestinationNode(GC::Ref<BaseAudioContext>, WebIDL::UnsignedLong channel_count);

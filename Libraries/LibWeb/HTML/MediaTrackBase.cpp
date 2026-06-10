@@ -11,8 +11,7 @@
 namespace Web::HTML {
 
 MediaTrackBase::MediaTrackBase(GC::Ref<HTMLMediaElement> media_element, Media::Track const& track)
-    : Bindings::Wrappable()
-    , m_media_element(media_element)
+    : m_media_element(media_element)
     , m_track_in_playback_manager(track)
     , m_id(Utf16String::number(track.identifier()))
     , m_kind(track.kind())

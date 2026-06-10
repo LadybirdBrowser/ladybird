@@ -16,9 +16,15 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibWeb/Bindings/DOMTokenList.h>
 #include <LibWeb/Bindings/Element.h>
+#include <LibWeb/Bindings/FileList.h>
+#include <LibWeb/Bindings/HTMLAllCollection.h>
+#include <LibWeb/Bindings/HTMLCollection.h>
+#include <LibWeb/Bindings/HTMLFormControlsCollection.h>
+#include <LibWeb/Bindings/HTMLOptionsCollection.h>
+#include <LibWeb/Bindings/NodeList.h>
 #include <LibWeb/Bindings/ShadowRoot.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
@@ -50,6 +56,37 @@ namespace Web::WebDriver {
 
 using SeenMap = HashTable<GC::RawPtr<JS::Object const>>;
 
+static DOM::Element const* web_driver_element_from_object(JS::Object const& object)
+{
+    return Bindings::impl_from<DOM::Element>(&object);
+}
+
+static DOM::ShadowRoot const* web_driver_shadow_root_from_object(JS::Object const& object)
+{
+    return Bindings::impl_from<DOM::ShadowRoot>(&object);
+}
+
+static bool web_driver_value_is_collection(JS::Object const& value)
+{
+    return Bindings::impl_from<DOM::DOMTokenList>(&value)
+        || Bindings::impl_from<FileAPI::FileList>(&value)
+        || Bindings::impl_from<HTML::HTMLAllCollection>(&value)
+        || Bindings::impl_from<DOM::HTMLCollection>(&value)
+        || Bindings::impl_from<HTML::HTMLFormControlsCollection>(&value)
+        || Bindings::impl_from<HTML::HTMLOptionsCollection>(&value)
+        || Bindings::impl_from<DOM::NodeList>(&value);
+}
+
+static JS::Value web_driver_element(JS::Realm& realm, GC::Ref<DOM::Element> element)
+{
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, element);
+}
+
+static JS::Value web_driver_shadow_root(JS::Realm& realm, GC::Ref<DOM::ShadowRoot> shadow_root)
+{
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, shadow_root);
+}
+
 // https://w3c.github.io/webdriver/#dfn-collection
 static bool is_collection(JS::Object const& value)
 {
@@ -59,20 +96,8 @@ static bool is_collection(JS::Object const& value)
         value.has_parameter_map()
         // - instance of Array
         || is<JS::Array>(value)
-        // - instance of DOMTokenList
-        || Bindings::impl_from<DOM::DOMTokenList>(&value)
-        // - instance of FileList
-        || Bindings::impl_from<FileAPI::FileList>(&value)
-        // - instance of HTMLAllCollection
-        || Bindings::impl_from<HTML::HTMLAllCollection>(&value)
-        // - instance of HTMLCollection
-        || Bindings::impl_from<DOM::HTMLCollection>(&value)
-        // - instance of HTMLFormControlsCollection
-        || Bindings::impl_from<HTML::HTMLFormControlsCollection>(&value)
-        // - instance of HTMLOptionsCollection
-        || Bindings::impl_from<HTML::HTMLOptionsCollection>(&value)
-        // - instance of NodeList
-        || Bindings::impl_from<DOM::NodeList>(&value));
+        // - instance of a supported platform collection
+        || web_driver_value_is_collection(value));
 }
 
 // Helper to convert AK::JsonValue to JS::Value (for WebDriver protocol)
@@ -245,7 +270,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     auto const& object = static_cast<JS::Object const&>(value.as_object());
 
     // -> instance of Element
-    if (auto const* element = Bindings::impl_from<DOM::Element>(&object)) {
+    if (auto const* element = web_driver_element_from_object(object)) {
         // If the element is stale, return error with error code stale element reference.
         if (is_element_stale(*element)) {
             return WebDriver::Error::from_code(ErrorCode::StaleElementReference, "Referenced element has become stale"sv);
@@ -261,7 +286,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     }
 
     // -> instance of ShadowRoot
-    if (auto const* shadow_root = Bindings::impl_from<DOM::ShadowRoot>(&object)) {
+    if (auto const* shadow_root = web_driver_shadow_root_from_object(object)) {
         // If the shadow root is detached, return error with error code detached shadow root.
         if (is_shadow_root_detached(*shadow_root)) {
             return WebDriver::Error::from_code(ErrorCode::DetachedShadowRoot, "Referenced shadow root has become detached"sv);
@@ -343,7 +368,7 @@ static ErrorOr<JS::Value, WebDriver::Error> internal_json_deserialize(HTML::Brow
         // Return the deserialized web element of value.
         auto element = TRY(deserialize_web_element(browsing_context, value.as_object()));
         auto& realm = HTML::relevant_realm(*browsing_context.active_document());
-        return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, element);
+        return web_driver_element(realm, element);
     }
 
     // -> Object that represents a shadow root
@@ -351,7 +376,7 @@ static ErrorOr<JS::Value, WebDriver::Error> internal_json_deserialize(HTML::Brow
         // Return the deserialized shadow root of value.
         auto shadow_root = TRY(deserialize_shadow_root(browsing_context, value.as_object()));
         auto& realm = HTML::relevant_realm(*browsing_context.active_document());
-        return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, shadow_root);
+        return web_driver_shadow_root(realm, shadow_root);
     }
 
     // -> Object that represents a web frame

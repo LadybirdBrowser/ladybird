@@ -7,7 +7,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/IDBOpenDBRequest.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>

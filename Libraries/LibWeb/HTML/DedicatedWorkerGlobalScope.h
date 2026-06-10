@@ -6,16 +6,21 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/DedicatedWorkerGlobalScope.h>
-#include <LibWeb/Bindings/WorkerGlobalScope.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 
+namespace Web::Bindings {
+
+struct StructuredSerializeOptions;
+
+}
+
 namespace Web::HTML {
 
+struct StructuredSerializeOptions;
+
 class WEB_API DedicatedWorkerGlobalScope
-    : public WorkerGlobalScope
-    , public Bindings::DedicatedWorkerGlobalScopeGlobalMixin {
+    : public WorkerGlobalScope {
     WEB_WRAPPABLE(DedicatedWorkerGlobalScope, WorkerGlobalScope);
     GC_DECLARE_ALLOCATOR(DedicatedWorkerGlobalScope);
 
@@ -24,6 +29,7 @@ public:
 
     virtual ~DedicatedWorkerGlobalScope() override;
 
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, StructuredSerializeOptions const&);
     WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, Bindings::StructuredSerializeOptions const&);
     WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
 

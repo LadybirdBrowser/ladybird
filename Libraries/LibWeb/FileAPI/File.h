@@ -11,14 +11,16 @@
 
 namespace Web::FileAPI {
 
+using FilePropertyBag = Bindings::FilePropertyBag;
+
 class File : public Blob {
     WEB_WRAPPABLE(File, Blob);
     GC_DECLARE_ALLOCATOR(File);
 
 public:
     static GC::Ref<File> create();
-    static ErrorOr<GC::Ref<File>> create(BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options = {});
-    static WebIDL::ExceptionOr<GC::Ref<File>> construct_impl(BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options = {});
+    static ErrorOr<GC::Ref<File>> create(BlobParts const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<File>> construct_impl(BlobParts const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options);
 
     virtual ~File() override;
 

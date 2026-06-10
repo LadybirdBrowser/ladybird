@@ -5,26 +5,51 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/Gamepad/Gamepad.h>
 #include <LibWeb/Gamepad/GamepadHapticActuator.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
+#include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <SDL3/SDL_gamepad.h>
 
 namespace Web::Gamepad {
 
 GC_DEFINE_ALLOCATOR(GamepadHapticActuator);
 
-// FIXME: What is a valid duration and startDelay? The spec doesn't define that.
-//        Safari: clamps any duration above 5000ms to 5000ms and doesn't seem to clamp or reject any startDelay.
-//        Chrome: rejects if duration + startDelay > 5000ms.
-//        Firefox doesn't support vibration at the time of writing.
-static constexpr u64 MAX_VIBRATION_DURATION = 5000;
+static void resolve_haptics_promise(WebIDL::Promise const& promise, GamepadHapticsResult result)
+{
+    auto& realm = WebIDL::promise_realm(promise);
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    auto result_string = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(result));
+    WebIDL::resolve_promise(realm, promise, result_string);
+}
+
+static GC::Ref<GamepadHapticsCompletionSteps> create_queued_haptics_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise)
+{
+    return GC::Function<void(GamepadHapticsResult)>::create(GC::Heap::the(), [global = GC::Ref { global }, promise](GamepadHapticsResult result) {
+        HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [promise, result] {
+            resolve_haptics_promise(promise, result);
+        }));
+    });
+}
+
+static GC::Ref<GamepadHapticsCompletionSteps> create_haptics_completion_steps(GC::Ref<WebIDL::Promise> promise)
+{
+    return GC::Function<void(GamepadHapticsResult)>::create(GC::Heap::the(), [promise](GamepadHapticsResult result) {
+        resolve_haptics_promise(promise, result);
+    });
+}
 
 // https://w3c.github.io/gamepad/#dfn-constructing-a-gamepadhapticactuator
 GC::Ref<GamepadHapticActuator> GamepadHapticActuator::create(HTML::Window& window, GC::Ref<Gamepad> gamepad)
@@ -35,17 +60,17 @@ GC::Ref<GamepadHapticActuator> GamepadHapticActuator::create(HTML::Window& windo
     auto gamepad_haptic_actuator = GC::Heap::the().allocate<GamepadHapticActuator>(window, gamepad, document_became_hidden_observer);
 
     // 2. Let supportedEffectsList be an empty list.
-    Vector<Bindings::GamepadHapticEffectType> supported_effects_list;
+    Vector<GamepadHapticEffectType> supported_effects_list;
 
     // 3. For each enum value type of GamepadHapticEffectType, if the user agent can send a command to initiate effects
     //    of that type on that actuator, append type to supportedEffectsList.
     SDL_PropertiesID sdl_gamepad_properties = SDL_GetGamepadProperties(gamepad->sdl_gamepad());
 
     if (SDL_GetBooleanProperty(sdl_gamepad_properties, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, /* default_value= */ false))
-        supported_effects_list.append(Bindings::GamepadHapticEffectType::DualRumble);
+        supported_effects_list.append(GamepadHapticEffectType::DualRumble);
 
     if (SDL_GetBooleanProperty(sdl_gamepad_properties, SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN, /* default_value= */ false))
-        supported_effects_list.append(Bindings::GamepadHapticEffectType::TriggerRumble);
+        supported_effects_list.append(GamepadHapticEffectType::TriggerRumble);
 
     // 4. Set gamepadHapticActuator.[[effects]] to supportedEffectsList.
     gamepad_haptic_actuator->m_effects = move(supported_effects_list);
@@ -54,8 +79,7 @@ GC::Ref<GamepadHapticActuator> GamepadHapticActuator::create(HTML::Window& windo
 }
 
 GamepadHapticActuator::GamepadHapticActuator(HTML::Window& window, GC::Ref<Gamepad> gamepad, GC::Ref<DOM::DocumentObserver> document_became_hidden_observer)
-    : Bindings::Wrappable()
-    , m_gamepad(gamepad)
+    : m_gamepad(gamepad)
     , m_window(window)
     , m_document_became_hidden_observer(document_became_hidden_observer)
 {
@@ -73,12 +97,23 @@ void GamepadHapticActuator::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_gamepad);
     visitor.visit(m_window);
     visitor.visit(m_document_became_hidden_observer);
-    visitor.visit(m_playing_effect_promise);
+    visitor.visit(m_playing_effect_completion_steps);
     visitor.visit(m_playing_effect_timer);
 }
 
+Vector<GamepadHapticEffectType> GamepadHapticActuator::effects() const
+{
+    return m_effects;
+}
+
+// FIXME: What is a valid duration and startDelay? The spec doesn't define that.
+//        Safari: clamps any duration above 5000ms to 5000ms and doesn't seem to clamp or reject any startDelay.
+//        Chrome: rejects if duration + startDelay > 5000ms.
+//        Firefox doesn't support vibration at the time of writing.
+static constexpr u64 MAX_VIBRATION_DURATION = 5000;
+
 // https://w3c.github.io/gamepad/#dfn-valid-effect
-static bool is_valid_effect(Bindings::GamepadHapticEffectType type, Bindings::GamepadEffectParameters const& params)
+bool GamepadHapticActuator::is_valid_effect(GamepadHapticEffectType type, GamepadEffectParameters const& params) const
 {
     // 1. Given the value of GamepadHapticEffectType type, switch on:
     //    "dual-rumble"
@@ -87,7 +122,7 @@ static bool is_valid_effect(Bindings::GamepadHapticEffectType type, Bindings::Ga
     //          If params does not describe a valid trigger-rumble effect, return false.
     // 2. Return true
     switch (type) {
-    case Bindings::GamepadHapticEffectType::DualRumble:
+    case GamepadHapticEffectType::DualRumble:
         // https://w3c.github.io/gamepad/#dfn-valid-dual-rumble-effect
         // Given GamepadEffectParameters params, a valid dual-rumble effect must have a valid duration, a valid
         // startDelay, and both the strongMagnitude and the weakMagnitude must be in the range [0 .. 1].
@@ -104,7 +139,7 @@ static bool is_valid_effect(Bindings::GamepadHapticEffectType type, Bindings::Ga
             return false;
 
         return true;
-    case Bindings::GamepadHapticEffectType::TriggerRumble:
+    case GamepadHapticEffectType::TriggerRumble:
         // https://w3c.github.io/gamepad/#dfn-valid-trigger-rumble-effect
         // Given GamepadEffectParameters params, a valid trigger-rumble effect must have a valid duration, a valid
         // startDelay, and the strongMagnitude, weakMagnitude, leftTrigger, and rightTrigger must be in the range
@@ -133,24 +168,21 @@ static bool is_valid_effect(Bindings::GamepadHapticEffectType type, Bindings::Ga
     VERIFY_NOT_REACHED();
 }
 
-static JS::Realm& promise_realm(WebIDL::Promise const& promise)
+bool GamepadHapticActuator::can_play_effect_with_type(GamepadHapticEffectType type) const
 {
-    return WebIDL::promise_realm(promise);
-}
-
-static void resolve_haptics_promise(WebIDL::Promise const& promise, Bindings::GamepadHapticsResult result)
-{
-    auto& realm = promise_realm(promise);
-    auto result_string = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(result));
-    WebIDL::resolve_promise(realm, promise, result_string);
+    // https://w3c.github.io/gamepad/#ref-for-dfn-play-effects-with-type-1
+    // A GamepadHapticActuator can play effects with type type if type can be found in the [[effects]] list.
+    return m_effects.contains_slow(type);
 }
 
 // https://w3c.github.io/gamepad/#dom-gamepadhapticactuator-playeffect
-GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(JS::Realm& realm, Bindings::GamepadHapticEffectType type, Bindings::GamepadEffectParameters const& params)
+void GamepadHapticActuator::play_effect(JS::Realm& realm, GamepadHapticEffectType type, GamepadEffectParameters const& params, GC::Ref<WebIDL::Promise> promise)
 {
     // 1. If params does not describe a valid effect of type type, return a promise rejected with a TypeError.
-    if (!is_valid_effect(type, params))
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid effect"_string });
+    if (!is_valid_effect(type, params)) {
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Invalid effect"sv));
+        return;
+    }
 
     // 2. Let document be the current settings object's relevant global object's associated Document.
     auto& window = HTML::relevant_window(HTML::current_settings_object().global_object());
@@ -158,37 +190,57 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(JS::Realm& realm, Bi
 
     // 3. If document is null or document is not fully active or document's visibility state is "hidden", return a
     //    promise rejected with an "InvalidStateError" DOMException.
-    if (!document.is_fully_active() || document.visibility_state_value() == HTML::VisibilityState::Hidden)
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::InvalidStateError::create(realm, "Haptics are not allowed in a hidden document"_utf16));
-
-    // 4. If this.[[playingEffectPromise]] is not null:
-    if (m_playing_effect_promise) {
-        // 1. Let effectPromise be this.[[playingEffectPromise]].
-        auto effect_promise = GC::Ref { *m_playing_effect_promise };
-
-        // 2. Set this.[[playingEffectPromise]] to null.
-        m_playing_effect_promise = nullptr;
-        clear_playing_effect_timers();
-
-        // 3. Queue a global task on the gamepad task source with the relevant global object of this to resolve
-        //    effectPromise with "preempted".
-        auto& global = m_window->realm().global_object();
-        HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [effect_promise] {
-            auto& realm = promise_realm(effect_promise);
-            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-            resolve_haptics_promise(effect_promise, Bindings::GamepadHapticsResult::Preempted);
-        }));
+    if (!document.is_fully_active() || document.visibility_state_value() == HTML::VisibilityState::Hidden) {
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Haptics are not allowed in a hidden document"_utf16));
+        return;
     }
 
     // 5. If this GamepadHapticActuator cannot play effects with type type, return a promise rejected with reason
     //    NotSupportedError.
-    // https://w3c.github.io/gamepad/#ref-for-dfn-play-effects-with-type-1
-    // A GamepadHapticActuator can play effects with type type if type can be found in the [[effects]] list.
-    if (!m_effects.contains_slow(type))
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::NotSupportedError::create(realm, "Gamepad does not support this effect"_utf16));
+    if (!can_play_effect_with_type(type)) {
+        WebIDL::reject_promise(realm, promise, WebIDL::NotSupportedError::create(realm, "Gamepad does not support this effect"_utf16));
+        return;
+    }
+
+    play_effect(type, params, create_queued_haptics_completion_steps(realm.global_object(), promise));
+}
+
+// https://w3c.github.io/gamepad/#dom-gamepadhapticactuator-reset
+void GamepadHapticActuator::reset(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
+{
+    // 1. Let document be the current settings object's relevant global object's associated Document.
+    auto& window = HTML::relevant_window(HTML::current_settings_object().global_object());
+    auto& document = window.associated_document();
+
+    // 2. If document is null or document is not fully active or document's visibility state is "hidden", return a
+    //    promise rejected with an "InvalidStateError" DOMException.
+    if (!document.is_fully_active() || document.visibility_state_value() == HTML::VisibilityState::Hidden) {
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Haptics are not allowed in a hidden document"_utf16));
+        return;
+    }
+
+    reset(create_haptics_completion_steps(promise));
+}
+
+// https://w3c.github.io/gamepad/#dom-gamepadhapticactuator-playeffect
+void GamepadHapticActuator::play_effect(GamepadHapticEffectType type, GamepadEffectParameters const& params, GC::Ref<GamepadHapticsCompletionSteps> completion_steps)
+{
+    // 4. If this.[[playingEffectPromise]] is not null:
+    if (m_playing_effect_completion_steps) {
+        // 1. Let effectPromise be this.[[playingEffectPromise]].
+        auto effect_completion_steps = GC::Ref { *m_playing_effect_completion_steps };
+
+        // 2. Set this.[[playingEffectPromise]] to null.
+        m_playing_effect_completion_steps = nullptr;
+        clear_playing_effect_timers();
+
+        // 3. Queue a global task on the gamepad task source with the relevant global object of this to resolve
+        //    effectPromise with "preempted".
+        effect_completion_steps->function()(GamepadHapticsResult::Preempted);
+    }
 
     // 6. Let [[playingEffectPromise]] be a new promise.
-    m_playing_effect_promise = WebIDL::create_promise(realm);
+    m_playing_effect_completion_steps = completion_steps;
 
     // 7. Let playEffectTimestamp be the current high resolution time given the document's relevant global object.
     // NOTE: Unused.
@@ -199,52 +251,29 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(JS::Realm& realm, Bi
         issue_haptic_effect(type, params, GC::create_function(GC::Heap::the(), [this] {
             // 2. When the effect completes, if this.[[playingEffectPromise]] is not null, queue a global task on the
             //    gamepad task source with the relevant global object of this to run the following steps:
-            if (m_playing_effect_promise) {
-                auto& global = m_window->realm().global_object();
-                HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [this] {
-                    // 1. If this.[[playingEffectPromise]] is null, abort these steps.
-                    if (!m_playing_effect_promise)
-                        return;
+            if (m_playing_effect_completion_steps) {
+                auto completion_steps = GC::Ref { *m_playing_effect_completion_steps };
 
-                    auto& realm = promise_realm(*m_playing_effect_promise);
-                    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                // 2. Resolve this.[[playingEffectPromise]] with "complete".
+                completion_steps->function()(GamepadHapticsResult::Complete);
 
-                    // 2. Resolve this.[[playingEffectPromise]] with "complete".
-                    resolve_haptics_promise(*m_playing_effect_promise, Bindings::GamepadHapticsResult::Complete);
-
-                    // 3. Set this.[[playingEffectPromise]] to null.
-                    m_playing_effect_promise = nullptr;
-                    clear_playing_effect_timers();
-                }));
+                // 3. Set this.[[playingEffectPromise]] to null.
+                m_playing_effect_completion_steps = nullptr;
+                clear_playing_effect_timers();
             }
         }));
     }));
 
     // 9. Return [[playingEffectPromise]].
-    VERIFY(m_playing_effect_promise);
-    return *m_playing_effect_promise;
 }
 
-// https://w3c.github.io/gamepad/#dom-gamepadhapticactuator-reset
-GC::Ref<WebIDL::Promise> GamepadHapticActuator::reset(JS::Realm& realm)
+void GamepadHapticActuator::reset(GC::Ref<GamepadHapticsCompletionSteps> reset_completion_steps)
 {
-    // 1. Let document be the current settings object's relevant global object's associated Document.
-    auto& window = HTML::relevant_window(HTML::current_settings_object().global_object());
-    auto& document = window.associated_document();
-
-    // 2. If document is null or document is not fully active or document's visibility state is "hidden", return a
-    //    promise rejected with an "InvalidStateError" DOMException.
-    if (!document.is_fully_active() || document.visibility_state_value() == HTML::VisibilityState::Hidden)
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::InvalidStateError::create(realm, "Haptics are not allowed in a hidden document"_utf16));
-
-    // 3. Let resetResultPromise be a new promise.
-    auto reset_result_promise = WebIDL::create_promise(realm);
-
     // 4. If this.[[playingEffectPromise]] is not null, do the following steps in parallel:
-    if (m_playing_effect_promise) {
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, reset_result_promise] {
+    if (m_playing_effect_completion_steps) {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, reset_completion_steps] {
             // 1. Let effectPromise be this.[[playingEffectPromise]].
-            auto effect_promise = m_playing_effect_promise;
+            auto effect_completion_steps = m_playing_effect_completion_steps;
 
             // 2. Stop haptic effects on this's gamepad's actuator.
             bool stopped_all = stop_haptic_effects();
@@ -253,30 +282,19 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::reset(JS::Realm& realm)
             if (stopped_all) {
                 // 1. If effectPromise and this.[[playingEffectPromise]] are still the same,
                 //    set this.[[playingEffectPromise]] to null.
-                if (effect_promise == m_playing_effect_promise)
-                    m_playing_effect_promise = nullptr;
+                if (effect_completion_steps == m_playing_effect_completion_steps)
+                    m_playing_effect_completion_steps = nullptr;
 
                 // 2. Queue a global task on the gamepad task source with the relevant global object of this to resolve
                 //    effectPromise with "preempted".
-                // AD-HOC: With doing this in parallel, there is a chance effect_promise is null. Don't try to resolve it
-                //         if so.
-                if (effect_promise) {
-                    auto& global = m_window->realm().global_object();
-                    HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [effect_promise = GC::Ref { *effect_promise }] {
-                        auto& realm = promise_realm(effect_promise);
-                        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-                        resolve_haptics_promise(effect_promise, Bindings::GamepadHapticsResult::Preempted);
-                    }));
-                }
+                if (effect_completion_steps)
+                    effect_completion_steps->function()(GamepadHapticsResult::Preempted);
             }
 
             // 4. Resolve resetResultPromise with "complete"
-            resolve_haptics_promise(reset_result_promise, Bindings::GamepadHapticsResult::Complete);
+            reset_completion_steps->function()(GamepadHapticsResult::Complete);
         }));
     }
-
-    // 5. Return resetResultPromise.
-    return reset_result_promise;
 }
 
 // https://w3c.github.io/gamepad/#handling-visibility-change
@@ -284,34 +302,26 @@ void GamepadHapticActuator::document_became_hidden()
 {
     // When the document's visibility state becomes "hidden", run these steps for each GamepadHapticActuator actuator:
     // 1. If actuator.[[playingEffectPromise]] is null, abort these steps.
-    if (!m_playing_effect_promise)
+    if (!m_playing_effect_completion_steps)
         return;
 
     // 2. Queue a global task on the gamepad task source with the relevant global object of actuator to run the
     //    following steps:
-    auto& global = m_window->realm().global_object();
-    HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [this] {
-        // 1. If actuator.[[playingEffectPromise]] is null, abort these steps.
-        if (!m_playing_effect_promise)
-            return;
+    auto completion_steps = GC::Ref { *m_playing_effect_completion_steps };
 
-        auto& realm = promise_realm(*m_playing_effect_promise);
-        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    // 2. Resolve actuator.[[playingEffectPromise]] with "preempted".
+    completion_steps->function()(GamepadHapticsResult::Preempted);
 
-        // 2. Resolve actuator.[[playingEffectPromise]] with "preempted".
-        resolve_haptics_promise(*m_playing_effect_promise, Bindings::GamepadHapticsResult::Preempted);
-
-        // 3. Set actuator.[[playingEffectPromise]] to null.
-        m_playing_effect_promise = nullptr;
-        clear_playing_effect_timers();
-    }));
+    // 3. Set actuator.[[playingEffectPromise]] to null.
+    m_playing_effect_completion_steps = nullptr;
+    clear_playing_effect_timers();
 
     // 3. Stop haptic effects on actuator.
     stop_haptic_effects();
 }
 
 // https://w3c.github.io/gamepad/#dfn-issue-a-haptic-effect
-void GamepadHapticActuator::issue_haptic_effect(Bindings::GamepadHapticEffectType type, Bindings::GamepadEffectParameters const& params, GC::Ref<GC::Function<void()>> on_complete)
+void GamepadHapticActuator::issue_haptic_effect(GamepadHapticEffectType type, GamepadEffectParameters const& params, GC::Ref<GC::Function<void()>> on_complete)
 {
     auto& heap = GC::Heap::the();
 
@@ -325,10 +335,10 @@ void GamepadHapticActuator::issue_haptic_effect(Bindings::GamepadHapticEffectTyp
         //       where SDL's expiration check (in SDL_UpdateJoysticks) and our Platform::Timer resolve at slightly
         //       different times, potentially causing the stop signal to be missed before the promise resolves.
         switch (type) {
-        case Bindings::GamepadHapticEffectType::DualRumble:
+        case GamepadHapticEffectType::DualRumble:
             SDL_RumbleGamepad(m_gamepad->sdl_gamepad(), params.strong_magnitude * NumericLimits<u16>::max(), params.weak_magnitude * NumericLimits<u16>::max(), 0);
             break;
-        case Bindings::GamepadHapticEffectType::TriggerRumble:
+        case GamepadHapticEffectType::TriggerRumble:
             SDL_RumbleGamepadTriggers(m_gamepad->sdl_gamepad(), params.left_trigger * NumericLimits<u16>::max(), params.right_trigger * NumericLimits<u16>::max(), 0);
             break;
         }
@@ -336,10 +346,10 @@ void GamepadHapticActuator::issue_haptic_effect(Bindings::GamepadHapticEffectTyp
         m_playing_effect_timer = Platform::Timer::create_single_shot(heap, params.duration, GC::create_function(heap, [this, type, on_complete] {
             // Explicitly stop the rumble before completing, ensuring the stop signal is sent synchronously.
             switch (type) {
-            case Bindings::GamepadHapticEffectType::DualRumble:
+            case GamepadHapticEffectType::DualRumble:
                 SDL_RumbleGamepad(m_gamepad->sdl_gamepad(), 0, 0, 0);
                 break;
-            case Bindings::GamepadHapticEffectType::TriggerRumble:
+            case GamepadHapticEffectType::TriggerRumble:
                 SDL_RumbleGamepadTriggers(m_gamepad->sdl_gamepad(), 0, 0, 0);
                 break;
             }
@@ -363,7 +373,7 @@ bool GamepadHapticActuator::stop_haptic_effects()
     // https://wiki.libsdl.org/SDL3/SDL_RumbleGamepad
     // "Each call to this function cancels any previous rumble effect, and calling it with 0 intensity stops any
     // rumbling."
-    if (m_effects.contains_slow(Bindings::GamepadHapticEffectType::DualRumble)) {
+    if (m_effects.contains_slow(GamepadHapticEffectType::DualRumble)) {
         bool success = SDL_RumbleGamepad(m_gamepad->sdl_gamepad(), 0, 0, 0);
         if (!success)
             stopped_all = false;
@@ -372,7 +382,7 @@ bool GamepadHapticActuator::stop_haptic_effects()
     // https://wiki.libsdl.org/SDL3/SDL_RumbleGamepadTriggers
     // "Each call to this function cancels any previous trigger rumble effect, and calling it with 0 intensity stops
     // any rumbling."
-    if (m_effects.contains_slow(Bindings::GamepadHapticEffectType::TriggerRumble)) {
+    if (m_effects.contains_slow(GamepadHapticEffectType::TriggerRumble)) {
         bool success = SDL_RumbleGamepadTriggers(m_gamepad->sdl_gamepad(), 0, 0, 0);
         if (!success)
             stopped_all = false;

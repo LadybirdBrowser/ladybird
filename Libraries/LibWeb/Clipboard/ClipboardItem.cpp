@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Clipboard/ClipboardItem.h>
@@ -17,13 +16,31 @@ namespace Web::Clipboard {
 
 GC_DEFINE_ALLOCATOR(ClipboardItem);
 
+static void resolve_clipboard_item_blob_promise(JS::Realm& realm, WebIDL::Promise const& promise, GC::Ref<FileAPI::Blob> blob)
+{
+    WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, blob));
+}
+
+StringView presentation_style_to_string(PresentationStyle presentation_style)
+{
+    switch (presentation_style) {
+    case PresentationStyle::Unspecified:
+        return "unspecified"sv;
+    case PresentationStyle::Inline:
+        return "inline"sv;
+    case PresentationStyle::Attachment:
+        return "attachment"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 GC::Ref<ClipboardItem> ClipboardItem::create()
 {
     return GC::Heap::the().allocate<ClipboardItem>();
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboarditem-clipboarditem
-WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::construct_impl(GC::OrderedRootHashMap<String, GC::Ref<WebIDL::Promise>> const& items, Bindings::ClipboardItemOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::create(GC::OrderedRootHashMap<String, GC::Ref<WebIDL::Promise>> const& items, PresentationStyle presentation_style)
 {
     // 1. If items is empty, then throw a TypeError.
     if (items.is_empty())
@@ -36,7 +53,7 @@ WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::construct_impl(GC::Or
     auto clipboard_item = create();
 
     // 4. Set this's clipboard item's presentation style to options["presentationStyle"].
-    clipboard_item->m_presentation_style = options.presentation_style;
+    clipboard_item->m_presentation_style = presentation_style;
 
     // 5. Let types be a list of DOMString.
     Vector<String> types;
@@ -96,6 +113,16 @@ WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::construct_impl(GC::Or
     return clipboard_item;
 }
 
+WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> ClipboardItem::create(GC::OrderedRootHashMap<String, GC::Ref<WebIDL::Promise>> const& items, Bindings::ClipboardItemOptions const& options)
+{
+    return create(items, options.presentation_style);
+}
+
+PresentationStyle ClipboardItem::presentation_style() const
+{
+    return m_presentation_style;
+}
+
 void ClipboardItem::append_representation(Representation representation)
 {
     m_types.append(representation.mime_type);
@@ -103,7 +130,7 @@ void ClipboardItem::append_representation(Representation representation)
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboarditem-gettype
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm& realm, String const& type)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm& realm, String const& type) const
 {
     // 2. Let isCustom be false.
     bool is_custom = false;
@@ -122,14 +149,13 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
     auto mime_type = MimeSniff::MimeType::parse(type_without_prefix);
 
     // 5. If mimeType is failure, then throw a TypeError.
-    if (!mime_type.has_value()) {
+    if (!mime_type.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid MIME type: {}", type)) };
-    }
 
     auto mime_type_serialized = mime_type->serialized();
 
     // 6. Let itemTypeList be this's clipboard item's list of representations.
-    auto const& item_type_list = m_representations;
+    auto const& item_type_list = representations();
 
     // 7.  Let p be a new promise in realm.
     auto promise = WebIDL::create_promise(realm);
@@ -155,7 +181,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
                         auto blob_data = FileAPI::Blob::create(data_as_bytes, mime_type_serialized);
 
                         // 3. Resolve p with blobData.
-                        WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, blob_data));
+                        resolve_clipboard_item_blob_promise(realm, promise, blob_data);
                     }
                     // 2. If v is a Blob, then follow the below steps:
                     if (value.is_object() && Bindings::impl_from<FileAPI::Blob>(&value.as_object())) {
@@ -186,7 +212,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(JS::Realm&
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboarditem-supports
-bool ClipboardItem::supports(JS::VM&, String const& type)
+bool ClipboardItem::supports(String const& type)
 {
     // 1. If type is in mandatory data types or optional data types, then return true.
     // 2. If not, then return false.
@@ -195,7 +221,7 @@ bool ClipboardItem::supports(JS::VM&, String const& type)
 }
 
 ClipboardItem::ClipboardItem()
-    : Bindings::Wrappable()
+    : m_presentation_style(PresentationStyle::Unspecified)
 {
 }
 

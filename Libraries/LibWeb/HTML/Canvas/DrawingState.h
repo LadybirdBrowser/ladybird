@@ -71,20 +71,20 @@ struct DrawingState {
     Optional<Gfx::Filter> filter;
     Optional<String> filter_string;
     float line_width { 1 };
-    Bindings::CanvasLineCap line_cap { Bindings::CanvasLineCap::Butt };
-    Bindings::CanvasLineJoin line_join { Bindings::CanvasLineJoin::Miter };
+    CanvasLineCap line_cap { CanvasLineCap::Butt };
+    CanvasLineJoin line_join { CanvasLineJoin::Miter };
     float miter_limit { 10 };
     Vector<double> dash_list;
     float line_dash_offset { 0 };
     bool image_smoothing_enabled { true };
-    Bindings::ImageSmoothingQuality image_smoothing_quality { Bindings::ImageSmoothingQuality::Low };
+    ImageSmoothingQuality image_smoothing_quality { ImageSmoothingQuality::Low };
     float global_alpha = { 1 };
     Gfx::CompositingAndBlendingOperator current_compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::SourceOver;
     RefPtr<CSS::StyleValue const> font_style_value { nullptr };
     RefPtr<Gfx::FontCascadeList const> current_font_cascade_list { nullptr };
-    Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };
-    Bindings::CanvasTextBaseline text_baseline { Bindings::CanvasTextBaseline::Alphabetic };
-    Bindings::CanvasDirection direction { Bindings::CanvasDirection::Inherit };
+    CanvasTextAlign text_align { CanvasTextAlign::Start };
+    CanvasTextBaseline text_baseline { CanvasTextBaseline::Alphabetic };
+    CanvasDirection direction { CanvasDirection::Inherit };
     NonnullRefPtr<CSS::StyleValue const> letter_spacing { CSS::LengthStyleValue::create(CSS::Length::make_px(0)) };
 
     void visit_edges(GC::Cell::Visitor& visitor)

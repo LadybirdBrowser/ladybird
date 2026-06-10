@@ -7,15 +7,20 @@
 
 #pragma once
 
-#include <LibJS/Runtime/Set.h>
-#include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/FontFaceSet.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
+#include <AK/Types.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 
+namespace Web::Bindings {
+
+enum class FontFaceSetLoadStatus : u8;
+
+}
+
 namespace Web::CSS {
+
+using FontFaceSetLoadStatus = Bindings::FontFaceSetLoadStatus;
 
 class FontFaceSet final : public DOM::EventTarget {
     WEB_WRAPPABLE(FontFaceSet, DOM::EventTarget);
@@ -26,8 +31,6 @@ public:
     virtual ~FontFaceSet() override = default;
 
     size_t set_size() const { return m_font_faces.size(); }
-    GC::Ref<JS::Set> set_entries(JS::Realm&, Bindings::WrapperWorld const&) const;
-    bool set_has(JS::Value) const;
     Vector<GC::Ref<FontFace>> const& font_faces() const { return m_font_faces; }
 
     WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> add(GC::Ref<FontFace>);
@@ -43,7 +46,7 @@ public:
     void set_onloadingerror(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloadingerror();
 
-    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> load(String const& font, String const& text);
+    GC::Ref<WebIDL::Promise> load(String const& font, String const& text);
     WebIDL::ExceptionOr<bool> check(String const& font, String const& text);
 
     Vector<GC::Ref<FontFace>>& loading_fonts() { return m_loading_fonts; }
@@ -52,9 +55,7 @@ public:
 
     GC::Ref<WebIDL::Promise> ready() const;
     HTML::EnvironmentSettingsObject& relevant_settings_object() const { return *m_environment; }
-    Bindings::FontFaceSetLoadStatus status() const { return m_status; }
-
-    void on_set_modified_from_js(Badge<Bindings::FontFaceSetPrototype>) { }
+    FontFaceSetLoadStatus status() const { return m_status; }
 
     void fire_a_font_load_event(FlyString name, Vector<GC::Ref<FontFace>> = {});
     void set_is_pending_on_the_environment(bool);
@@ -67,7 +68,6 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     Vector<GC::Ref<FontFace>> m_font_faces;
-    mutable Bindings::WrapperWorldWeakValueCache<JS::Set> m_set_entries;
     GC::Ref<HTML::EnvironmentSettingsObject> m_environment;
     GC::Ref<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
 
@@ -75,7 +75,7 @@ private:
     Vector<GC::Ref<FontFace>> m_loaded_fonts {};  // [[LoadedFonts]]
     Vector<GC::Ref<FontFace>> m_failed_fonts {};  // [[FailedFonts]]
 
-    Bindings::FontFaceSetLoadStatus m_status { Bindings::FontFaceSetLoadStatus::Loaded };
+    FontFaceSetLoadStatus m_status;
 
     bool m_is_pending_on_the_environment { true };
 

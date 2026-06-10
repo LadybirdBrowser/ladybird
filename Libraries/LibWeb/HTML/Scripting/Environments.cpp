@@ -10,8 +10,6 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/Window.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
@@ -56,7 +54,7 @@ EnvironmentSettingsObject::EnvironmentSettingsObject(NonnullOwnPtr<JS::Execution
     if (auto* window = window_from_global_object(global_object()))
         m_universal_global_scope = window;
     else
-        m_universal_global_scope = Bindings::impl_from<WorkerGlobalScope>(&global_object());
+        m_universal_global_scope = Bindings::worker_global_scope_from_global_object(global_object());
     VERIFY(m_universal_global_scope);
 
     // Register with the responsible event loop so we can perform step 4 of "perform a microtask checkpoint".
@@ -526,26 +524,26 @@ JS::Object& relevant_global_object(WindowOrWorkerGlobalScopeMixin const& global_
 
 Window* window_from_global_object(JS::Object& object)
 {
-    return Bindings::impl_from<Window>(&object);
+    return Bindings::window_from_global_object(object);
 }
 
 Window const* window_from_global_object(JS::Object const& object)
 {
-    return Bindings::impl_from<Window>(&object);
+    return Bindings::window_from_global_object(object);
 }
 
 WindowOrWorkerGlobalScopeMixin* window_or_worker_global_scope_from_global_object(JS::Object& object)
 {
     if (auto* window = window_from_global_object(object))
         return window;
-    return Bindings::impl_from<WorkerGlobalScope>(&object);
+    return Bindings::worker_global_scope_from_global_object(object);
 }
 
 WindowOrWorkerGlobalScopeMixin const* window_or_worker_global_scope_from_global_object(JS::Object const& object)
 {
     if (auto const* window = window_from_global_object(object))
         return window;
-    return Bindings::impl_from<WorkerGlobalScope>(&object);
+    return Bindings::worker_global_scope_from_global_object(object);
 }
 
 Window& relevant_window(JS::Object const& object)
@@ -637,7 +635,7 @@ bool is_secure_context(Environment const& environment)
         auto const& global = environment_settings_object->global_object();
 
         // 2. If global is a WorkerGlobalScope, then:
-        if (auto const* worker = Bindings::impl_from<WorkerGlobalScope>(&global)) {
+        if (auto const* worker = Bindings::worker_global_scope_from_global_object(global)) {
             // 1. If global's owner set[0]'s relevant settings object is a secure context, then return true.
             // NOTE: We only need to check the 0th item since they will necessarily all be consistent.
             if (worker->owner_set().at(0).visit([](auto const& owner) { return owner.relevant_settings_object_is_secure_context; }))
@@ -679,7 +677,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
                 }
             };
         }
-        VERIFY(Bindings::impl_from<WorkerGlobalScope>(&global));
+        VERIFY(Bindings::worker_global_scope_from_global_object(global));
         return SerializedWorkerGlobalScope {
             .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
         };

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/MediaSourceHandle.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

@@ -7,8 +7,9 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/CSSVariableReferenceValue.h>
+#include <AK/String.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
@@ -18,7 +19,7 @@ class CSSVariableReferenceValue : public Bindings::Wrappable {
 
 public:
     [[nodiscard]] static GC::Ref<CSSVariableReferenceValue> create(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback = nullptr);
-    static WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> construct_impl(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
+    static WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> create_for_constructor(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
 
     virtual ~CSSVariableReferenceValue() override;
 

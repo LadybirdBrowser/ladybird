@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
@@ -411,9 +410,9 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
     auto result = Directives::Directive::Result::Allowed;
 
     // 3. For each policy of element’s Document's global object’s CSP list:
-    auto& global_object = element->document().relevant_settings_object().global_object();
-    auto csp_list = PolicyList::from_object(global_object);
-    VERIFY(csp_list);
+    auto& settings = element->document().relevant_settings_object();
+    auto& global_object = settings.global_object();
+    auto csp_list = settings.policy_container()->csp_list;
 
     for (auto const policy : csp_list->policies()) {
         // 1. For each directive of policy’s directive set:
@@ -482,40 +481,19 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
         auto const compilation_sink = compilation_type == JS::CompilationType::Function ? TrustedTypes::InjectionSink::Function : TrustedTypes::InjectionSink::Eval;
 
         // 2. Let isTrusted be true if bodyArg implements TrustedScript, and false otherwise.
-        auto* trusted_script_body = body_arg.is_object() ? Bindings::impl_from<TrustedTypes::TrustedScript>(&body_arg.as_object()) : nullptr;
-        auto is_trusted = !!trusted_script_body;
+        auto is_trusted = TrustedTypes::trusted_script_value_matches(body_arg, body_string);
 
         // 3. If isTrusted is true then:
-        if (is_trusted) {
-            // 1. If bodyString is not equal to bodyArg’s data, set isTrusted to false.
-            if (body_string != trusted_script_body->to_string())
-                is_trusted = false;
-        }
+        // NOTE: trusted_script_value_matches() also performs the data equality check from this step.
 
         // 4. If isTrusted is true, then:
         if (is_trusted) {
             // 1. Assert: parameterArgs’ [list/size=] is equal to [parameterStrings]' size.
             VERIFY(parameter_args.size() == parameter_strings.size());
 
-            // 2. For each index of the range 0 to |parameterArgs]' [list/size=]:
-            for (size_t i = 0; i < parameter_args.size(); i++) {
-                // 1. Let arg be parameterArgs[index].
-                auto const& arg = parameter_args[i];
-
-                // 2. If arg implements TrustedScript, then:
-                if (auto* trusted_script = arg.is_object() ? Bindings::impl_from<TrustedTypes::TrustedScript>(&arg.as_object()) : nullptr) {
-                    // 1. if parameterStrings[index] is not equal to arg’s data, set isTrusted to false.
-                    if (parameter_strings[i] != trusted_script->to_string()) {
-                        is_trusted = false;
-                        break;
-                    }
-                }
-                // 3. Otherwise, set isTrusted to false.
-                else {
-                    is_trusted = false;
-                    break;
-                }
-            }
+            // 2. For each index of the range 0 to |parameterArgs]' [list/size=], verify that the argument implements
+            //    TrustedScript and parameterStrings[index] is equal to arg's data.
+            is_trusted = TrustedTypes::trusted_script_values_match(parameter_args, parameter_strings);
         }
 
         // 5. Let sourceToValidate be a new TrustedScript object created in realm whose data is set to codeString
@@ -551,8 +529,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
     auto& global = realm.global_object();
 
     // 5. For each policy of global’s CSP list:
-    auto csp_list = PolicyList::from_object(global);
-    VERIFY(csp_list);
+    auto csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
     for (auto const policy : csp_list->policies()) {
         // 1. Let source-list be null.
         Optional<Vector<String>> maybe_source_list;
@@ -633,8 +610,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
     auto result = Directives::Directive::Result::Allowed;
 
     // 3. For each policy of global’s CSP list:
-    auto csp_list = PolicyList::from_object(global);
-    VERIFY(csp_list);
+    auto csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
     for (auto const policy : csp_list->policies()) {
         // 1. Let source-list be null.
         Optional<Vector<String>> maybe_source_list;
@@ -699,8 +675,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
 Directives::Directive::Result is_base_allowed_for_document(JS::Realm& realm, URL::URL const& base, GC::Ref<DOM::Document const> document)
 {
     // 1. For each policy of document’s global object’s csp list:
-    auto csp_list = PolicyList::from_object(document->relevant_settings_object().global_object());
-    VERIFY(csp_list);
+    auto csp_list = document->relevant_settings_object().policy_container()->csp_list;
     for (auto const policy : csp_list->policies()) {
         // 1. Let source list be null.
         // NOTE: Not necessary.

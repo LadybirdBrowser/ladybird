@@ -25,19 +25,30 @@ class WEB_API EventTarget : public Bindings::Wrappable {
 public:
     virtual ~EventTarget() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<EventTarget>> construct_impl();
+    static GC::Ref<EventTarget> create();
 
     virtual bool is_focusable() const { return false; }
 
-    void add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::AddEventListenerOptions, bool> const& options);
-    void remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::EventListenerOptions, bool> const& options);
+    struct EventListenerOptions {
+        bool capture { false };
+    };
+
+    struct AddEventListenerOptions {
+        bool capture { false };
+        Optional<bool> passive;
+        bool once { false };
+        GC::Ptr<AbortSignal> signal;
+    };
+
+    void add_event_listener(FlyString const& type, IDLEventListener* callback, AddEventListenerOptions const& options);
+    void remove_event_listener(FlyString const& type, IDLEventListener* callback, EventListenerOptions const& options);
 
     // NOTE: These are for internal use only. They operate as though addEventListener(type, callback) was called instead of addEventListener(type, callback, options).
     void add_event_listener_without_options(FlyString const& type, IDLEventListener& callback);
     void remove_event_listener_without_options(FlyString const& type, IDLEventListener& callback);
 
     virtual bool dispatch_event(Event&);
-    WebIDL::ExceptionOr<bool> dispatch_event_binding(JS::Realm&, Event&);
+    WebIDL::ExceptionOr<bool> dispatch_event_for_bindings(Event&);
 
     virtual EventTarget* get_parent(Event const&) { return nullptr; }
 

@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/Validator.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAssembly/Global.h>
 #include <LibWeb/WebAssembly/Instance.h>
@@ -379,7 +380,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
 
                 // 2. If v implements Global,
                 Optional<Wasm::GlobalAddress> globaladdr;
-                auto* global = v.is_object() ? Bindings::impl_from<Global>(&v.as_object()) : nullptr;
+                auto* global = Bindings::global_from_value(v);
                 if (global) {
                     // 1. Let globaladdr be v.[[Global]].
                     globaladdr = global->address();
@@ -433,7 +434,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
             // 5. If importtype is of the form mem memtype,
             if (entry.description().has<Wasm::MemoryType>()) {
                 // 1. If v does not implement Memory, throw a LinkError exception.
-                auto* memory = v.is_object() ? Bindings::impl_from<Memory>(&v.as_object()) : nullptr;
+                auto* memory = Bindings::memory_from_value(v);
                 if (!memory) {
                     return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"sv);
                 }
@@ -448,7 +449,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
             // 6. If importtype is of the form table tabletype,
             if (entry.description().has<Wasm::TableType>()) {
                 // 1. If v does not implement Table, throw a LinkError exception.
-                auto* table = v.is_object() ? Bindings::impl_from<Table>(&v.as_object()) : nullptr;
+                auto* table = Bindings::table_from_value(v);
                 if (!table) {
                     return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"sv);
                 }
@@ -514,9 +515,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
         else {
             // 1. Perform !record.[[Environment]].InitializeBinding(name, !Get(instance.[[Exports]], name)).
             auto name = Utf16FlyString::from_utf8(entry.name());
-            auto* exports = record->m_instance->exports(realm);
-            VERIFY(exports);
-            MUST(record->environment()->initialize_binding(vm, name, MUST(exports->get(JS::PropertyKey { name })), JS::Environment::InitializeBindingHint::Normal));
+            MUST(Bindings::initialize_webassembly_export_binding(realm, *record->environment(), name, GC::Ref { *record->m_instance }));
         }
     }
 

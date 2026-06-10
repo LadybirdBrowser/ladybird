@@ -6,7 +6,6 @@
 
 #include "CSSFunctionRule.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/CSSFunctionRule.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {

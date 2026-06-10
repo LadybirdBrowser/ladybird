@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/IDBDatabase.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -21,7 +20,7 @@ GC_DEFINE_ALLOCATOR(IDBTransaction);
 
 IDBTransaction::~IDBTransaction() = default;
 
-IDBTransaction::IDBTransaction(GC::Ref<IDBDatabase> connection, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionDurability durability, Vector<GC::Ref<ObjectStore>> scopes)
+IDBTransaction::IDBTransaction(GC::Ref<IDBDatabase> connection, TransactionMode mode, TransactionDurability durability, Vector<GC::Ref<ObjectStore>> scopes)
     : EventTarget()
     , m_connection(connection)
     , m_mode(mode)
@@ -32,7 +31,7 @@ IDBTransaction::IDBTransaction(GC::Ref<IDBDatabase> connection, Bindings::IDBTra
     connection->add_transaction(*this);
 }
 
-GC::Ref<IDBTransaction> IDBTransaction::create(GC::Ref<IDBDatabase> connection, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionDurability durability, Vector<GC::Ref<ObjectStore>> scopes)
+GC::Ref<IDBTransaction> IDBTransaction::create(GC::Ref<IDBDatabase> connection, TransactionMode mode, TransactionDurability durability, Vector<GC::Ref<ObjectStore>> scopes)
 {
     return GC::Heap::the().allocate<IDBTransaction>(connection, mode, durability, move(scopes));
 }
@@ -108,7 +107,7 @@ WebIDL::ExceptionOr<void> IDBTransaction::abort()
 {
     // 1. If this's state is committing or finished, then throw an "InvalidStateError" DOMException.
     if (m_state == TransactionState::Committing || m_state == TransactionState::Finished)
-        return WebIDL::InvalidStateError::create(HTML::relevant_realm(relevant_global_object()), "Transaction is ending"_utf16);
+        return WebIDL::InvalidStateError::create("Transaction is ending"_utf16);
 
     // 2. Run abort a transaction with this and null.
     abort_a_transaction(*this, nullptr);
@@ -134,7 +133,7 @@ WebIDL::ExceptionOr<void> IDBTransaction::commit()
 
     // 1. If this's state is not active, then throw an "InvalidStateError" DOMException.
     if (m_state != TransactionState::Active)
-        return WebIDL::InvalidStateError::create(realm, "Transaction is not active while committing"_utf16);
+        return WebIDL::InvalidStateError::create("Transaction is not active while committing"_utf16);
 
     // 2. Run commit a transaction with this.
     commit_a_transaction(realm, *this);
@@ -155,16 +154,14 @@ GC::Ptr<ObjectStore> IDBTransaction::object_store_named(String const& name) cons
 // https://w3c.github.io/IndexedDB/#dom-idbtransaction-objectstore
 WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBTransaction::object_store(String const& name)
 {
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-
     // 1. If this's state is finished, then throw an "InvalidStateError" DOMException.
     if (m_state == TransactionState::Finished)
-        return WebIDL::InvalidStateError::create(realm, "Transaction is finished"_utf16);
+        return WebIDL::InvalidStateError::create("Transaction is finished"_utf16);
 
     // 2. Let store be the object store named name in this's scope, or throw a "NotFoundError" DOMException if none.
     auto store = object_store_named(name);
     if (!store)
-        return WebIDL::NotFoundError::create(realm, "Object store not found in transactions scope"_utf16);
+        return WebIDL::NotFoundError::create("Object store not found in transactions scope"_utf16);
 
     // 3. Return an object store handle associated with store and this.
 
