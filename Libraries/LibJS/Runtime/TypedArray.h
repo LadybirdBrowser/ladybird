@@ -45,7 +45,7 @@ public:
     ContentType content_type() const { return m_content_type; }
     ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer; }
 
-    // Cached raw pointer: viewed_array_buffer->buffer().data() + byte_offset.
+    // Cached raw pointer: viewed_array_buffer->data() + byte_offset.
     // nullptr means "not cached, use slow path". This is only safe for
     // fixed-length ArrayBuffers that own stable backing storage.
     u8* cached_data_ptr() const { return m_data; }

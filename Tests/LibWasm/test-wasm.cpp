@@ -214,7 +214,11 @@ TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
     if (!is<JS::TypedArrayBase>(*rhs))
         return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
     auto& rhs_array = static_cast<JS::TypedArrayBase&>(*rhs);
-    return JS::Value(lhs_array.viewed_array_buffer()->buffer() == rhs_array.viewed_array_buffer()->buffer());
+    auto lhs_record = JS::make_typed_array_with_buffer_witness_record(lhs_array, JS::ArrayBuffer::Order::SeqCst);
+    auto rhs_record = JS::make_typed_array_with_buffer_witness_record(rhs_array, JS::ArrayBuffer::Order::SeqCst);
+    auto lhs_bytes = lhs_array.viewed_array_buffer()->bytes().slice(lhs_array.byte_offset(), JS::typed_array_byte_length(lhs_record));
+    auto rhs_bytes = rhs_array.viewed_array_buffer()->bytes().slice(rhs_array.byte_offset(), JS::typed_array_byte_length(rhs_record));
+    return JS::Value(lhs_bytes == rhs_bytes);
 }
 
 static bool _is_canonical_nan32(u32 value)
@@ -413,7 +417,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             auto& array = static_cast<JS::TypedArrayBase&>(*object);
             u128 bits = 0;
             auto* ptr = bit_cast<u8*>(&bits);
-            memcpy(ptr, array.viewed_array_buffer()->buffer().data(), 16);
+            memcpy(ptr, array.viewed_array_buffer()->data(), 16);
             arguments.append(Wasm::Value(bits));
             break;
         }
@@ -475,7 +479,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             u128 val = value.to<u128>();
             // FIXME: remove the MUST here
             auto buf = MUST(JS::ArrayBuffer::create(*vm.current_realm(), 16));
-            memcpy(buf->buffer().data(), val.bytes().data(), 16);
+            memcpy(buf->data(), val.bytes().data(), 16);
             return JS::Value(buf);
         }
         case Wasm::ValueType::FunctionReference:

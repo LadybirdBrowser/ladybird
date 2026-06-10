@@ -320,7 +320,7 @@ static ThrowCompletionOr<Value> atomic_compare_exchange_impl(VM& vm, TypedArrayB
     auto* buffer = typed_array.viewed_array_buffer();
 
     // 3. Let block be buffer.[[ArrayBufferData]].
-    auto& block = buffer->buffer();
+    auto block = buffer->bytes();
 
     // 7. Let elementType be TypedArrayElementType(typedArray).
     // 8. Let elementSize be TypedArrayElementSize(typedArray).
@@ -342,8 +342,7 @@ static ThrowCompletionOr<Value> atomic_compare_exchange_impl(VM& vm, TypedArrayB
     // 13. Else,
 
     // a. Let rawBytesRead be a List of length elementSize whose elements are the sequence of elementSize bytes starting with block[byteIndexInBuffer].
-    // FIXME: Propagate errors.
-    auto raw_bytes_read = MUST(block.slice(byte_index_in_buffer, sizeof(T)));
+    auto raw_bytes_read = MUST(ByteBuffer::copy(block.slice(byte_index_in_buffer, sizeof(T))));
 
     // b. If ByteListEqual(rawBytesRead, expectedBytes) is true, then
     //    i. Store the individual bytes of replacementBytes into block, starting at block[byteIndexInBuffer].
@@ -352,7 +351,7 @@ static ThrowCompletionOr<Value> atomic_compare_exchange_impl(VM& vm, TypedArrayB
     } else {
         using U = Conditional<IsSame<ClampedU8, T>, u8, T>;
 
-        auto* v = reinterpret_cast<U*>(block.span().slice(byte_index_in_buffer).data());
+        auto* v = reinterpret_cast<U*>(block.slice(byte_index_in_buffer).data());
         auto* e = reinterpret_cast<U*>(expected_bytes.data());
         auto* r = reinterpret_cast<U*>(replacement_bytes.data());
         (void)AK::atomic_compare_exchange_strong(v, *e, *r);
@@ -576,7 +575,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::notify)
     auto* buffer = typed_array->viewed_array_buffer();
 
     // 5. Let block be buffer.[[ArrayBufferData]].
-    auto& block = buffer->buffer();
+    auto block = buffer->bytes();
 
     // 6. If IsSharedArrayBuffer(buffer) is false, return +0𝔽.
     if (!buffer->is_shared_array_buffer())

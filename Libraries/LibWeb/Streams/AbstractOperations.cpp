@@ -465,11 +465,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& r
     // 2. Let arrayBufferData be O.[[ArrayBufferData]].
     // 3. Let arrayBufferByteLength be O.[[ArrayBufferByteLength]].
     // 4. Perform ? DetachArrayBuffer(O).
-    // NB: We steal the underlying bytes and detach atomically so the transfer is zero-copy.
-    auto array_buffer = TRY(buffer.detach_and_take_bytes(vm));
+    // NB: We steal the underlying data block and detach atomically so the transfer is zero-copy.
+    auto block = TRY(buffer.detach_and_take_data_block(vm));
 
     // 5. Return a new ArrayBuffer object, created in the current Realm, whose [[ArrayBufferData]] internal slot value is arrayBufferData and whose [[ArrayBufferByteLength]] internal slot value is arrayBufferByteLength.
-    return JS::ArrayBuffer::create(realm, move(array_buffer));
+    return JS::ArrayBuffer::create(realm, move(block));
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-cloneasuint8array

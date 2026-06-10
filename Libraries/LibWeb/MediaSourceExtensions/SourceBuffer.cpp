@@ -334,7 +334,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSource data)
 
     // 2. Add data to the end of the [[input buffer]].
     if (auto array_buffer = data.viewed_array_buffer(); array_buffer && !array_buffer->is_detached()) {
-        auto bytes = array_buffer->buffer().bytes().slice(data.byte_offset(), data.byte_length());
+        auto bytes = array_buffer->bytes().slice(data.byte_offset(), data.byte_length());
         m_processor->append_to_input_buffer(bytes);
     }
 
