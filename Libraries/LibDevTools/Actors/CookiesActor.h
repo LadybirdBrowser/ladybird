@@ -34,6 +34,7 @@ private:
 
     void get_fields(Message const&);
     void get_store_objects(Message const&);
+    void edit_item(Message const&);
     HashTable<String> visible_cookie_unique_keys(String const& host) const;
     void send_cookie_store_update(String const& host, JsonArray added, JsonArray changed, JsonArray deleted);
 
