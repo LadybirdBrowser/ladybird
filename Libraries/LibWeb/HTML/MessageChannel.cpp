@@ -4,47 +4,48 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessageChannel.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/MessageChannel.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(MessageChannel);
 
-WebIDL::ExceptionOr<GC::Ref<MessageChannel>> MessageChannel::construct_impl(JS::Realm& realm)
+GC::Ref<MessageChannel> MessageChannel::create(GC::Ref<DOM::EventTarget> relevant_global_object)
 {
-    return realm.create<MessageChannel>(realm);
-}
-
-MessageChannel::MessageChannel(JS::Realm& realm)
-    : PlatformObject(realm)
-{
-    // 1. Set this's port 1 to a new MessagePort in this's relevant Realm.
-    m_port1 = MessagePort::create(realm);
-
-    // 2. Set this's port 2 to a new MessagePort in this's relevant Realm.
-    m_port2 = MessagePort::create(realm);
+    auto port1 = MessagePort::create(relevant_global_object);
+    auto port2 = MessagePort::create(relevant_global_object);
+    auto channel = GC::Heap::the().allocate<MessageChannel>(port1, port2);
 
     // 3. Entangle this's port 1 and this's port 2.
-    m_port1->entangle_with(*m_port2);
+    channel->m_port1->entangle_with(*channel->m_port2);
+
+    return channel;
+}
+
+GC::Ref<MessageChannel> MessageChannel::create_for_constructor(JS::Realm& realm)
+{
+    auto* global_scope = window_or_worker_global_scope_from_global_object(realm.global_object());
+    VERIFY(global_scope);
+    return create(global_scope->this_impl());
+}
+
+MessageChannel::MessageChannel(GC::Ref<MessagePort> port1, GC::Ref<MessagePort> port2)
+    : m_port1(port1)
+    , m_port2(port2)
+{
 }
 
 MessageChannel::~MessageChannel() = default;
 
-void MessageChannel::visit_edges(Cell::Visitor& visitor)
+void MessageChannel::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_port1);
     visitor.visit(m_port2);
-}
-
-void MessageChannel::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MessageChannel);
-    Base::initialize(realm);
 }
 
 MessagePort* MessageChannel::port1()

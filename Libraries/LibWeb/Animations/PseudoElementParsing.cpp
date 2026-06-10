@@ -10,18 +10,18 @@
 namespace Web::Animations {
 
 // https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-pseudo-element-parsing
-WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseudo_element_parsing(JS::Realm& realm, Optional<String> const& value)
+WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseudo_element_parsing(Optional<String> const& value)
 {
     // 1. Given the value value, perform the following steps:
 
     // 2. If value is not null and is an invalid <pseudo-element-selector>,
     Optional<CSS::Selector::PseudoElementSelector> pseudo_element;
     if (value.has_value()) {
-        pseudo_element = parse_pseudo_element_selector(CSS::Parser::ParsingParams { realm }, *value);
+        pseudo_element = parse_pseudo_element_selector(CSS::Parser::ParsingParams {}, *value);
         if (!pseudo_element.has_value()) {
             // 1. Throw a DOMException with error name "SyntaxError".
             // 2. Abort.
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid pseudo-element selector: \"{}\"", value.value()));
+            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid pseudo-element selector: \"{}\"", value.value()));
         }
     }
 

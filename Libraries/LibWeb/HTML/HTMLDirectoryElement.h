@@ -12,7 +12,7 @@ namespace Web::HTML {
 
 // NOTE: This element is marked as obsolete, but is still listed as required by the specification.
 class HTMLDirectoryElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLDirectoryElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLDirectoryElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLDirectoryElement);
 
 public:
@@ -20,8 +20,6 @@ public:
 
 private:
     HTMLDirectoryElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

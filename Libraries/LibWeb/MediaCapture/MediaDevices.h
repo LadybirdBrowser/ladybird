@@ -17,25 +17,30 @@
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/MediaCapture/MediaStreamTrack.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::MediaCapture {
 
 class MediaDeviceInfo;
+class MediaStream;
+
+using MediaStreamConstraints = Bindings::MediaStreamConstraints;
+using MediaTrackSupportedConstraints = Bindings::MediaTrackSupportedConstraints;
 
 // https://w3c.github.io/mediacapture-main/#mediadevices
 class MediaDevices final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(MediaDevices, DOM::EventTarget);
+    WEB_WRAPPABLE(MediaDevices, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaDevices);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<MediaDevices> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<MediaDevices> create(HTML::Window&);
 
-    GC::Ref<WebIDL::Promise> enumerate_devices();
-    Bindings::MediaTrackSupportedConstraints get_supported_constraints();
-    GC::Ref<WebIDL::Promise> get_user_media(Optional<Bindings::MediaStreamConstraints> const& constraints = {});
+    MediaTrackSupportedConstraints get_supported_constraints();
+    void enumerate_devices(GC::Ref<WebIDL::Promise>);
+    void get_user_media(JS::Realm&, Optional<MediaStreamConstraints> const& constraints, GC::Ref<WebIDL::Promise>);
 
     void set_ondevicechange(WebIDL::CallbackType* event_handler);
     WebIDL::CallbackType* ondevicechange();
@@ -54,10 +59,13 @@ private:
         Optional<Vector<String>> requested_device_ids;
     };
 
-    explicit MediaDevices(JS::Realm&);
+    struct PendingEnumerateDevicesRequest final {
+        GC::Ref<WebIDL::Promise> promise;
+    };
 
-    virtual void initialize(JS::Realm&) override;
+    explicit MediaDevices(HTML::Window&);
     virtual void finalize() override;
+    void initialize_pending_request_state_change_listener();
 
     bool microphone_information_can_be_exposed();
     bool can_use_microphone_feature() const;
@@ -78,6 +86,8 @@ private:
     void did_observe_audio_device_cache_update();
     virtual void visit_edges(Cell::Visitor&) override;
 
+    GC::Ref<HTML::Window> m_window;
+
     // https://w3c.github.io/mediacapture-main/#mediadevices
     // [[devicesLiveMap]]
     HashMap<String, bool> m_devices_live_map;
@@ -93,7 +103,7 @@ private:
     // [[mediaStreamTrackSources]]
     // FIXME: Replace provider IDs with concrete source objects when MediaCapture source modeling lands.
     HashTable<u64> m_media_stream_track_sources;
-    Vector<GC::Ref<WebIDL::Promise>> m_pending_enumerate_devices_promises;
+    Vector<PendingEnumerateDevicesRequest> m_pending_enumerate_devices_requests;
     Vector<PendingGetUserMediaRequest> m_pending_get_user_media_requests;
     GC::Ptr<DOM::IDLEventListener> m_pending_request_state_change_listener;
     Optional<u64> m_audio_device_cache_listener_id;

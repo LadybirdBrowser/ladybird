@@ -12,7 +12,7 @@
 namespace Web::SVG {
 
 class SVGPathElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGPathElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGPathElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGPathElement);
 
 public:
@@ -24,8 +24,6 @@ public:
 
 private:
     SVGPathElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     Path m_path {};
 };

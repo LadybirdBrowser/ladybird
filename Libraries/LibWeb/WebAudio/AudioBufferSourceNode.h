@@ -13,9 +13,11 @@
 
 namespace Web::WebAudio {
 
+using AudioBufferSourceOptions = Bindings::AudioBufferSourceOptions;
+
 // https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioScheduledSourceNode {
-    WEB_PLATFORM_OBJECT(AudioBufferSourceNode, AudioScheduledSourceNode);
+    WEB_WRAPPABLE(AudioBufferSourceNode, AudioScheduledSourceNode);
     GC_DECLARE_ALLOCATOR(AudioBufferSourceNode);
 
 public:
@@ -36,13 +38,11 @@ public:
 
     WebIDL::ExceptionOr<void> start(Optional<double>, Optional<double>, Optional<double>);
 
-    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create_for_constructor(GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
 
 protected:
-    AudioBufferSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    AudioBufferSourceNode(GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

@@ -11,15 +11,10 @@
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
-#include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch {
-
-// convertBytesToJSValue is an algorithm that takes a byte sequence and returns a JavaScript value or throws an exception
-using ConvertBytesToJSValueCallback = GC::Ref<GC::Function<WebIDL::ExceptionOr<JS::Value>(ByteBuffer bytes)>>;
 
 struct MultiPartFormDataHeader {
     Optional<String> name;
@@ -47,23 +42,19 @@ public:
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const = 0;
     virtual GC::Ptr<Infrastructure::Body> body_impl() = 0;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const = 0;
-    virtual Bindings::PlatformObject& as_platform_object() = 0;
-    virtual Bindings::PlatformObject const& as_platform_object() const = 0;
 
     [[nodiscard]] bool is_unusable() const;
     [[nodiscard]] GC::Ptr<Streams::ReadableStream> body() const;
     [[nodiscard]] bool body_used() const;
 
-    // JS API functions
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> array_buffer() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> blob() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> bytes() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> form_data() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> json() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> text() const;
+    void array_buffer(JS::Realm&, GC::Ref<WebIDL::Promise>) const;
+    void blob(JS::Realm&, GC::Ref<WebIDL::Promise>) const;
+    void bytes(JS::Realm&, GC::Ref<WebIDL::Promise>) const;
+    void form_data(JS::Realm&, GC::Ref<WebIDL::Promise>) const;
+    void json(JS::Realm&, GC::Ref<WebIDL::Promise>) const;
+    void text(JS::Realm&, GC::Ref<WebIDL::Promise>) const;
 };
 
-[[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm&, BodyMixin const&, ConvertBytesToJSValueCallback);
-[[nodiscard]] MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multipart_form_data(JS::Realm&, StringView input, MimeSniff::MimeType const& mime_type);
+[[nodiscard]] MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multipart_form_data(StringView input, MimeSniff::MimeType const& mime_type);
 
 }

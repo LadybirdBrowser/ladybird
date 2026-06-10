@@ -688,7 +688,7 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
 
     auto media_query_tokens = TokenStream { rule.prelude };
     auto media_query_list = parse_a_media_query_list(media_query_tokens);
-    auto media_list = MediaList::create(realm(), move(media_query_list));
+    auto media_list = MediaList::create(move(media_query_list));
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
@@ -698,11 +698,11 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
                     child_rules.append(*child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(NestedDeclarationsRule::create(realm(), *this, declarations));
+                child_rules.append(NestedDeclarationsRule::create(*this, declarations));
             });
     }
-    auto rule_list = CSSRuleList::create(realm(), child_rules);
-    return CSSMediaRule::create(realm(), media_list, rule_list);
+    auto rule_list = CSSRuleList::create(child_rules);
+    return CSSMediaRule::create(media_list, rule_list);
 }
 
 template GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule<CSSNestedDeclarations>(AtRule const&, Parser::Nested);

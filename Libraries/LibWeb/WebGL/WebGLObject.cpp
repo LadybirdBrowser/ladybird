@@ -6,30 +6,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLObject.h>
 #include <LibWeb/WebGL/WebGLObject.h>
 
 #include <GLES2/gl2.h>
 
 namespace Web::WebGL {
 
-WebGLObject::WebGLObject(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : Bindings::PlatformObject(realm)
-    , m_context(context)
+WebGLObject::WebGLObject(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+    : m_context(context)
     , m_handle(handle)
 {
 }
 
 WebGLObject::~WebGLObject() = default;
 
-void WebGLObject::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLObject);
-    Base::initialize(realm);
-}
-
-void WebGLObject::visit_edges(Visitor& visitor)
+void WebGLObject::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

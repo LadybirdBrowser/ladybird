@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
 
 // https://www.w3.org/TR/SVG11/types.html#InterfaceSVGLength
-class SVGLength : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGLength, Bindings::PlatformObject);
+class SVGLength : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGLength, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGLength);
 
 public:
@@ -35,21 +36,20 @@ public:
         No,
     };
 
-    [[nodiscard]] static GC::Ref<SVGLength> create(JS::Realm&, u8 unit_type, float value, ReadOnly);
+    [[nodiscard]] static GC::Ref<SVGLength> create(u8 unit_type, float value, ReadOnly);
     virtual ~SVGLength() override;
 
     float value() const { return m_value; }
     WebIDL::ExceptionOr<void> set_value(float value);
+    void set_value_without_readonly_check(float value);
 
     u8 unit_type() const { return m_unit_type; }
     ReadOnly read_only() const { return m_read_only; }
 
-    [[nodiscard]] static GC::Ref<SVGLength> from_length_percentage(JS::Realm&, CSS::LengthPercentage const&, ReadOnly);
+    [[nodiscard]] static GC::Ref<SVGLength> from_length_percentage(CSS::LengthPercentage const&, ReadOnly);
 
 private:
-    SVGLength(JS::Realm&, u8 unit_type, float value, ReadOnly);
-
-    virtual void initialize(JS::Realm&) override;
+    SVGLength(u8 unit_type, float value, ReadOnly);
 
     float m_value { 0 };
     u8 m_unit_type { 0 };

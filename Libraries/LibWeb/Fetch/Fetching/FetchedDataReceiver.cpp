@@ -6,8 +6,8 @@
  */
 
 #include <LibGC/Function.h>
+#include <LibGC/Heap.h>
 #include <LibHTTP/Cache/MemoryCache.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
@@ -17,6 +17,7 @@
 #include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Fetch::Fetching {
 
@@ -56,7 +57,7 @@ void FetchedDataReceiver::visit_edges(Visitor& visitor)
 
 // This implements the parallel steps of the pullAlgorithm in HTTP-network-fetch.
 // https://fetch.spec.whatwg.org/#ref-for-in-parallel⑤
-void FetchedDataReceiver::handle_network_data(Requests::ResponseData data, NetworkState state)
+void FetchedDataReceiver::handle_network_data(JS::Realm& realm, Requests::ResponseData data, NetworkState state)
 {
     if (state == NetworkState::Complete) {
         VERIFY(data.bytes().is_empty());
@@ -67,8 +68,8 @@ void FetchedDataReceiver::handle_network_data(Requests::ResponseData data, Netwo
 
         // 2. Otherwise, if the bytes transmission for response’s message body is done normally and stream is readable,
         //    then close stream, and abort these in-parallel steps.
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this]() {
-            close_stream();
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm]() {
+            close_stream(realm);
         }));
         return;
     }
@@ -112,7 +113,7 @@ void FetchedDataReceiver::handle_network_data(Requests::ResponseData data, Netwo
     }
 
     // 7. Append bytes to buffer.
-    enqueue_into_stream(bytes);
+    enqueue_into_stream(realm, bytes);
 
     // FIXME: 8. If the size of buffer is larger than an upper limit chosen by the user agent, ask the user agent
     //           to suspend the ongoing fetch.
@@ -130,7 +131,7 @@ void FetchedDataReceiver::set_cached_response_body(Core::ImmutableBytes body)
 
 // This implements the parallel steps of the pullAlgorithm in HTTP-network-fetch.
 // https://fetch.spec.whatwg.org/#ref-for-in-parallel④
-void FetchedDataReceiver::enqueue_into_stream(ReadonlyBytes bytes)
+void FetchedDataReceiver::enqueue_into_stream(JS::Realm& realm, ReadonlyBytes bytes)
 {
     // FIXME: 1. If the size of buffer is smaller than a lower limit chosen by the user agent and the ongoing fetch
     //           is suspended, resume the fetch.
@@ -138,23 +139,21 @@ void FetchedDataReceiver::enqueue_into_stream(ReadonlyBytes bytes)
     if (!m_stream->is_readable())
         return;
 
-    auto& realm = m_stream->realm();
+    auto& controller = m_stream->controller()->get<GC::Ref<Streams::ReadableByteStreamController>>();
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 1. Pull from bytes buffer into stream.
     auto byte_buffer = MUST(ByteBuffer::copy(bytes));
 
-    auto& controller = m_stream->controller()->get<GC::Ref<Streams::ReadableByteStreamController>>();
-
-    if (auto result = Streams::readable_byte_stream_controller_enqueue_native_bytes(*controller, move(byte_buffer)); result.is_error()) {
-        auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), result.release_error());
+    if (auto result = Streams::readable_byte_stream_controller_enqueue_native_bytes(realm, *controller, move(byte_buffer)); result.is_error()) {
+        auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, result.release_error());
         // 2. If stream is errored, then terminate fetchParams’s controller.
         Streams::readable_byte_stream_controller_error(*controller, throw_completion.value());
         m_fetch_params->controller()->terminate();
     }
 }
 
-void FetchedDataReceiver::close_stream()
+void FetchedDataReceiver::close_stream(JS::Realm& realm)
 {
     if (m_http_cache) {
         auto request = m_fetch_params->request();
@@ -173,9 +172,9 @@ void FetchedDataReceiver::close_stream()
     if (!m_stream->is_readable())
         return;
 
-    HTML::TemporaryExecutionContext execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-    m_stream->close();
+    m_stream->close(realm);
 }
 
 }

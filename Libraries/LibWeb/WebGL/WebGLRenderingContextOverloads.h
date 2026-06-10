@@ -20,10 +20,10 @@ namespace Web::WebGL {
 using namespace Web::HTML;
 
 class WebGLRenderingContextOverloads : public WebGLRenderingContextImpl {
-    WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextOverloads, WebGLRenderingContextImpl);
+    WEB_NON_IDL_WRAPPABLE(WebGLRenderingContextOverloads, WebGLRenderingContextImpl);
 
 public:
-    WebGLRenderingContextOverloads(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
+    WebGLRenderingContextOverloads(NonnullOwnPtr<OpenGLContext>);
 
     void buffer_data(WebIDL::UnsignedLong target, WebIDL::LongLong size, WebIDL::UnsignedLong usage);
     void buffer_data(WebIDL::UnsignedLong target, WebIDL::NullableBufferSourceVariant data, WebIDL::UnsignedLong usage);

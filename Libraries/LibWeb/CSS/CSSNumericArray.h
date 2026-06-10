@@ -6,31 +6,31 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/Vector.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericarray
-class CSSNumericArray : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSNumericArray, Bindings::PlatformObject);
+class CSSNumericArray : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CSSNumericArray, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CSSNumericArray);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSNumericArray> create(JS::Realm&, Vector<GC::Ref<CSSNumericValue>>);
+    [[nodiscard]] static GC::Ref<CSSNumericArray> create(Vector<GC::Ref<CSSNumericValue>>);
 
     virtual ~CSSNumericArray() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    GC::Ptr<CSSNumericValue> value_at(size_t index) const;
     Vector<GC::Ref<CSSNumericValue>> values() { return m_values; }
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     bool is_equal_numeric_values(GC::Ref<CSSNumericArray> other) const;
 
 private:
-    CSSNumericArray(JS::Realm&, Vector<GC::Ref<CSSNumericValue>>);
+    CSSNumericArray(Vector<GC::Ref<CSSNumericValue>>);
 
     Vector<GC::Ref<CSSNumericValue>> m_values;
 };

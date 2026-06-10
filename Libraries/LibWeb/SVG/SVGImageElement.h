@@ -18,7 +18,7 @@ class SVGImageElement final
     : public SVGGraphicsElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
     , public Layout::ImageProvider {
-    WEB_PLATFORM_OBJECT(SVGImageElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGImageElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGImageElement);
 
 public:
@@ -48,8 +48,6 @@ public:
 
 protected:
     SVGImageElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     void process_the_url(Optional<String> const& href);

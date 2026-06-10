@@ -8,10 +8,8 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Math.h>
 #include <AK/Vector.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/AnalyserNode.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -20,8 +18,8 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AnalyserNode);
 
-AnalyserNode::AnalyserNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AnalyserOptions const& options)
-    : AudioNode(realm, context)
+AnalyserNode::AnalyserNode(GC::Ref<BaseAudioContext> context, AnalyserOptions const& options)
+    : AudioNode(context)
     , m_fft_size(options.fft_size)
     , m_max_decibels(options.max_decibels)
     , m_min_decibels(options.min_decibels)
@@ -31,9 +29,25 @@ AnalyserNode::AnalyserNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, 
 
 AnalyserNode::~AnalyserNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AnalyserOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::create(GC::Ref<BaseAudioContext> context, AnalyserOptions const& options)
 {
-    return construct_impl(realm, context, options);
+    // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
+    // MUST initialize the AudioNode this, with context and options as arguments.
+
+    auto node = GC::Heap::the().allocate<AnalyserNode>(context, options);
+    node->set_fft_size_without_validation(options.fft_size);
+
+    // Default options for channel count and interpretation
+    // https://webaudio.github.io/web-audio-api/#AnalyserNode
+    AudioNodeDefaultOptions default_options;
+    default_options.channel_count_mode = ChannelCountMode::Max;
+    default_options.channel_interpretation = ChannelInterpretation::Speakers;
+    default_options.channel_count = 2;
+    // FIXME: Set tail-time to no
+
+    TRY(node->initialize_audio_node_options(options, default_options));
+
+    return node;
 }
 
 // https://webaudio.github.io/web-audio-api/#current-time-domain-data
@@ -246,16 +260,21 @@ WebIDL::ExceptionOr<void> AnalyserNode::get_byte_time_domain_data(GC::Ref<JS::Ui
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-analysernode-fftsize
-WebIDL::ExceptionOr<void> AnalyserNode::set_fft_size(unsigned long fft_size)
+void AnalyserNode::set_fft_size_without_validation(unsigned long fft_size)
 {
-    if (fft_size < 32 || fft_size > 32768 || !is_power_of_two(fft_size))
-        return WebIDL::IndexSizeError::create(realm(), "Analyser node fftSize not a power of 2 between 32 and 32768"_utf16);
-
     // reset previous block to 0s
     m_previous_block = Vector<f32>();
     m_previous_block.resize(fft_size);
 
     m_fft_size = fft_size;
+}
+
+WebIDL::ExceptionOr<void> AnalyserNode::set_fft_size(unsigned long fft_size)
+{
+    if (fft_size < 32 || fft_size > 32768 || !is_power_of_two(fft_size))
+        return WebIDL::IndexSizeError::create("Analyser node fftSize not a power of 2 between 32 and 32768"_utf16);
+
+    set_fft_size_without_validation(fft_size);
 
     // FIXME: Check this:
     // Note that increasing fftSize does mean that the current time-domain data must be expanded
@@ -268,7 +287,7 @@ WebIDL::ExceptionOr<void> AnalyserNode::set_fft_size(unsigned long fft_size)
 WebIDL::ExceptionOr<void> AnalyserNode::set_max_decibels(double max_decibels)
 {
     if (m_min_decibels >= max_decibels)
-        return WebIDL::IndexSizeError::create(realm(), "Analyser node minDecibels greater than maxDecibels"_utf16);
+        return WebIDL::IndexSizeError::create("Analyser node minDecibels greater than maxDecibels"_utf16);
     m_max_decibels = max_decibels;
     return {};
 }
@@ -276,7 +295,7 @@ WebIDL::ExceptionOr<void> AnalyserNode::set_max_decibels(double max_decibels)
 WebIDL::ExceptionOr<void> AnalyserNode::set_min_decibels(double min_decibels)
 {
     if (min_decibels >= m_max_decibels)
-        return WebIDL::IndexSizeError::create(realm(), "Analyser node minDecibels greater than maxDecibels"_utf16);
+        return WebIDL::IndexSizeError::create("Analyser node minDecibels greater than maxDecibels"_utf16);
 
     m_min_decibels = min_decibels;
     return {};
@@ -285,43 +304,30 @@ WebIDL::ExceptionOr<void> AnalyserNode::set_min_decibels(double min_decibels)
 WebIDL::ExceptionOr<void> AnalyserNode::set_smoothing_time_constant(double smoothing_time_constant)
 {
     if (smoothing_time_constant > 1.0 || smoothing_time_constant < 0.0)
-        return WebIDL::IndexSizeError::create(realm(), "Analyser node smoothingTimeConstant not between 0.0 and 1.0"_utf16);
+        return WebIDL::IndexSizeError::create("Analyser node smoothingTimeConstant not between 0.0 and 1.0"_utf16);
 
     m_smoothing_time_constant = smoothing_time_constant;
     return {};
 }
 
-WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AnalyserOptions const& options)
+WebIDL::ExceptionOr<void> AnalyserNode::validate_options(AnalyserOptions const& options)
 {
     if (options.min_decibels >= options.max_decibels)
-        return WebIDL::IndexSizeError::create(realm, "Analyser node minDecibels greater than maxDecibels"_utf16);
+        return WebIDL::IndexSizeError::create("Analyser node minDecibels greater than maxDecibels"_utf16);
 
     if (options.smoothing_time_constant > 1.0 || options.smoothing_time_constant < 0.0)
-        return WebIDL::IndexSizeError::create(realm, "Analyser node smoothingTimeConstant not between 0.0 and 1.0"_utf16);
+        return WebIDL::IndexSizeError::create("Analyser node smoothingTimeConstant not between 0.0 and 1.0"_utf16);
 
-    // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
-    // MUST initialize the AudioNode this, with context and options as arguments.
+    if (options.fft_size < 32 || options.fft_size > 32768 || !is_power_of_two(options.fft_size))
+        return WebIDL::IndexSizeError::create("Analyser node fftSize not a power of 2 between 32 and 32768"_utf16);
 
-    auto node = realm.create<AnalyserNode>(realm, context, options);
-    TRY(node->set_fft_size(options.fft_size));
-
-    // Default options for channel count and interpretation
-    // https://webaudio.github.io/web-audio-api/#AnalyserNode
-    AudioNodeDefaultOptions default_options;
-    default_options.channel_count_mode = Bindings::ChannelCountMode::Max;
-    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
-    default_options.channel_count = 2;
-    // FIXME: Set tail-time to no
-
-    TRY(node->initialize_audio_node_options(options, default_options));
-
-    return node;
+    return {};
 }
 
-void AnalyserNode::initialize(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::create_for_constructor(GC::Ref<BaseAudioContext> context, AnalyserOptions const& options)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnalyserNode);
-    Base::initialize(realm);
+    TRY(validate_options(options));
+    return create(context, options);
 }
 
 }

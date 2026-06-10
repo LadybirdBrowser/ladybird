@@ -6,16 +6,21 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/FlyString.h>
+#include <AK/Vector.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/system-state.html#mimetypearray
-class MimeTypeArray : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MimeTypeArray, Bindings::PlatformObject);
+class MimeTypeArray : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MimeTypeArray, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MimeTypeArray);
 
 public:
+    [[nodiscard]] static GC::Ref<MimeTypeArray> create(Window&);
+
     virtual ~MimeTypeArray() override;
 
     size_t length() const;
@@ -23,14 +28,14 @@ public:
     GC::Ptr<MimeType> named_item(FlyString const& name) const;
 
 private:
-    MimeTypeArray(JS::Realm&);
+    MimeTypeArray(Window&);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    // ^Bindings::PlatformObject
+    GC::Ref<Window> m_window;
+
+    // ^Bindings::Wrappable
     virtual Vector<FlyString> supported_property_names() const override;
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual JS::Value named_item_value(FlyString const& name) const override;
 };
 
 }

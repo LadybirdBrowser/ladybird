@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLUnknownElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLUnknownElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLUnknownElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLUnknownElement);
 
 public:
@@ -19,8 +19,6 @@ public:
 
 private:
     HTMLUnknownElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

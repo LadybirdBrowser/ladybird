@@ -9,7 +9,6 @@
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigateEvent.h>
 #include <LibWeb/DOM/AbortController.h>
 #include <LibWeb/DOM/AbortSignal.h>
@@ -18,27 +17,67 @@
 #include <LibWeb/HTML/NavigateEvent.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationDestination.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/XHR/FormData.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigateEvent);
 
-GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
+static StringView navigation_focus_reset_to_string(NavigationFocusReset focus_reset)
 {
-    auto event = realm.create<NavigateEvent>(realm, event_name, event_init);
+    switch (focus_reset) {
+    case NavigationFocusReset::AfterTransition:
+        return "after-transition"sv;
+    case NavigationFocusReset::Manual:
+        return "manual"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static StringView navigation_scroll_behavior_to_string(NavigationScrollBehavior scroll)
+{
+    switch (scroll) {
+    case NavigationScrollBehavior::AfterTransition:
+        return "after-transition"sv;
+    case NavigationScrollBehavior::Manual:
+        return "manual"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+GC::Ref<NavigateEvent> NavigateEvent::create(Window& relevant_window, FlyString const& event_name, NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    auto event = GC::Heap::the().allocate<NavigateEvent>(relevant_window, event_name, event_init, time_stamp);
     event->set_is_trusted(true);
     return event;
 }
 
-GC::Ref<NavigateEvent> NavigateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
+GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
 {
-    return realm.create<NavigateEvent>(realm, event_name, event_init);
+    auto& window = HTML::relevant_window(realm.global_object());
+    return create(window, event_name, {
+                                          { .bubbles = event_init.bubbles, .cancelable = event_init.cancelable, .composed = event_init.composed },
+                                          event_init.navigation_type,
+                                          event_init.destination,
+                                          event_init.can_intercept,
+                                          event_init.user_initiated,
+                                          event_init.hash_change,
+                                          event_init.signal,
+                                          event_init.form_data,
+                                          event_init.download_request,
+                                          event_init.info,
+                                          event_init.has_ua_visual_transition,
+                                          event_init.source_element,
+                                      },
+        HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window)));
 }
 
-NavigateEvent::NavigateEvent(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+NavigateEvent::NavigateEvent(Window& relevant_window, FlyString const& event_name, NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
+    , m_relevant_window(relevant_window)
     , m_navigation_type(event_init.navigation_type)
     , m_destination(*event_init.destination)
     , m_can_intercept(event_init.can_intercept)
@@ -55,13 +94,7 @@ NavigateEvent::NavigateEvent(JS::Realm& realm, FlyString const& event_name, Bind
 
 NavigateEvent::~NavigateEvent() = default;
 
-void NavigateEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigateEvent);
-    Base::initialize(realm);
-}
-
-void NavigateEvent::visit_edges(JS::Cell::Visitor& visitor)
+void NavigateEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_navigation_handler_list);
@@ -71,13 +104,13 @@ void NavigateEvent::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_form_data);
     visitor.visit(m_info);
     visitor.visit(m_source_element);
+    visitor.visit(m_relevant_window);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-intercept
-WebIDL::ExceptionOr<void> NavigateEvent::intercept(Bindings::NavigationInterceptOptions const& options)
+WebIDL::ExceptionOr<void> NavigateEvent::intercept(JS::Realm& realm, NavigationInterceptOptions const& options)
 {
-    auto& realm = this->realm();
-    auto& vm = this->vm();
+    auto& vm = realm.vm();
     // The intercept(options) method steps are:
 
     // 1. Perform shared checks given this.
@@ -85,11 +118,11 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(Bindings::NavigationIntercept
 
     // 2. If this's canIntercept attribute was initialized to false, then throw a "SecurityError" DOMException.
     if (!m_can_intercept)
-        return WebIDL::SecurityError::create(realm, "NavigateEvent cannot be intercepted"_utf16);
+        return WebIDL::SecurityError::create("NavigateEvent cannot be intercepted"_utf16);
 
     // 3. If this's dispatch flag is unset, then throw an "InvalidStateError" DOMException.
     if (!this->dispatched())
-        return WebIDL::InvalidStateError::create(realm, "NavigationEvent is not dispatched yet"_utf16);
+        return WebIDL::InvalidStateError::create("NavigationEvent is not dispatched yet"_utf16);
 
     // 4. Assert: this's interception state is either "none" or "intercepted".
     VERIFY(m_interception_state == InterceptionState::None || m_interception_state == InterceptionState::Intercepted);
@@ -103,33 +136,37 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(Bindings::NavigationIntercept
 
     // 7. If options["focusReset"] exists, then:
     if (options.focus_reset.has_value()) {
+        auto focus_reset = *options.focus_reset;
+
         // 1.  If this's focus reset behavior is not null, and it is not equal to options["focusReset"],
         //     then the user agent may report a warning to the console indicating that the focusReset option
         //     for a previous call to intercept() was overridden by this new value, and the previous value
         //     will be ignored.
-        if (m_focus_reset_behavior.has_value() && *m_focus_reset_behavior != *options.focus_reset) {
+        if (m_focus_reset_behavior.has_value() && *m_focus_reset_behavior != focus_reset) {
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                TRY_OR_THROW_OOM(vm, String::formatted("focusReset behavior on NavigationEvent overridden (was: {}, now: {})", *m_focus_reset_behavior, *options.focus_reset)));
+                TRY_OR_THROW_OOM(vm, String::formatted("focusReset behavior on NavigationEvent overridden (was: {}, now: {})", navigation_focus_reset_to_string(*m_focus_reset_behavior), navigation_focus_reset_to_string(focus_reset))));
         }
 
         // 2. Set this's focus reset behavior to options["focusReset"].
-        m_focus_reset_behavior = options.focus_reset;
+        m_focus_reset_behavior = focus_reset;
     }
 
     // 8. If options["scroll"] exists, then:
     if (options.scroll.has_value()) {
+        auto scroll = *options.scroll;
+
         // 1. If this's scroll behavior is not null, and it is not equal to options["scroll"], then the user
         //    agent may report a warning to the console indicating that the scroll option for a previous call
         //    to intercept() was overridden by this new value, and the previous value will be ignored.
-        if (m_scroll_behavior.has_value() && *m_scroll_behavior != *options.scroll) {
+        if (m_scroll_behavior.has_value() && *m_scroll_behavior != scroll) {
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                TRY_OR_THROW_OOM(vm, String::formatted("scroll option on NavigationEvent overridden (was: {}, now: {})", *m_scroll_behavior, *options.scroll)));
+                TRY_OR_THROW_OOM(vm, String::formatted("scroll option on NavigationEvent overridden (was: {}, now: {})", navigation_scroll_behavior_to_string(*m_scroll_behavior), navigation_scroll_behavior_to_string(scroll))));
         }
 
         // 2. Set this's scroll behavior to options["scroll"].
-        m_scroll_behavior = options.scroll;
+        m_scroll_behavior = scroll;
     }
     return {};
 }
@@ -143,7 +180,7 @@ WebIDL::ExceptionOr<void> NavigateEvent::scroll()
 
     // 2. If this's interception state is not "committed", then throw an "InvalidStateError" DOMException.
     if (m_interception_state != InterceptionState::Committed)
-        return WebIDL::InvalidStateError::create(realm(), "Cannot scroll NavigationEvent that is not committed"_utf16);
+        return WebIDL::InvalidStateError::create("Cannot scroll NavigationEvent that is not committed"_utf16);
 
     // 3. Process scroll behavior given this.
     process_scroll_behavior();
@@ -158,17 +195,17 @@ WebIDL::ExceptionOr<void> NavigateEvent::perform_shared_checks()
 
     // 1. If event's relevant global object's associated Document is not fully active,
     //    then throw an "InvalidStateError" DOMException.
-    auto& associated_document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& associated_document = m_relevant_window->associated_document();
     if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create(realm(), "Document is not fully active"_utf16);
+        return WebIDL::InvalidStateError::create("Document is not fully active"_utf16);
 
     // 2. If event's isTrusted attribute was initialized to false, then throw a "SecurityError" DOMException.
     if (!this->is_trusted())
-        return WebIDL::SecurityError::create(realm(), "NavigateEvent is not trusted"_utf16);
+        return WebIDL::SecurityError::create("NavigateEvent is not trusted"_utf16);
 
     // 3. If event's canceled flag is set, then throw an "InvalidStateError" DOMException.
     if (this->cancelled())
-        return WebIDL::InvalidStateError::create(realm(), "NavigateEvent already cancelled"_utf16);
+        return WebIDL::InvalidStateError::create("NavigateEvent already cancelled"_utf16);
 
     return {};
 }
@@ -186,14 +223,14 @@ void NavigateEvent::process_scroll_behavior()
 
     // FIXME: 3. If event's navigationType was initialized to "traverse" or "reload", then restore scroll position data
     //           given event's relevant global object's navigable's active session history entry.
-    if (m_navigation_type == Bindings::NavigationType::Traverse || m_navigation_type == Bindings::NavigationType::Reload) {
+    if (m_navigation_type == NavigationType::Traverse || m_navigation_type == NavigationType::Reload) {
         dbgln("FIXME: restore scroll position data after traversal or reload navigation");
     }
 
     // 4. Otherwise:
     else {
         // 1. Let document be event's relevant global object's associated Document.
-        auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+        auto& document = m_relevant_window->associated_document();
 
         // 2. If document's indicated part is null, then scroll to the beginning of the document given document. [CSSOMVIEW]
         auto indicated_part = document.determine_the_indicated_part();
@@ -221,7 +258,7 @@ void NavigateEvent::potentially_process_scroll_behavior()
 
     // 3. If event's scroll behavior is "manual", then return.
     // NOTE: If it was left as null, then we treat that as "after-transition", and continue onward.
-    if (m_scroll_behavior == Bindings::NavigationScrollBehavior::Manual)
+    if (m_scroll_behavior == NavigationScrollBehavior::Manual)
         return;
 
     // 4. Process scroll behavior given event.
@@ -235,8 +272,8 @@ void NavigateEvent::potentially_reset_the_focus()
     VERIFY(m_interception_state == InterceptionState::Committed || m_interception_state == InterceptionState::Scrolled);
 
     // 2. Let navigation be event's relevant global object's navigation API.
-    auto& relevant_global_object = as<Window>(HTML::relevant_global_object(*this));
-    auto navigation = relevant_global_object.navigation();
+    auto& window = *m_relevant_window;
+    auto navigation = window.navigation();
 
     // 3. Let focusChanged be navigation's focus changed during ongoing navigation.
     auto focus_changed = navigation->focus_changed_during_ongoing_navigation();
@@ -250,11 +287,11 @@ void NavigateEvent::potentially_reset_the_focus()
 
     // 6. If event's focus reset behavior is "manual", then return.
     // NOTE: If it was left as null, then we treat that as "after-transition", and continue onward.
-    if (m_focus_reset_behavior == Bindings::NavigationFocusReset::Manual)
+    if (m_focus_reset_behavior == NavigationFocusReset::Manual)
         return;
 
     // 7. Let document be event's relevant global object's associated Document.
-    auto& document = relevant_global_object.associated_document();
+    auto& document = window.associated_document();
 
     // 8. FIXME: Let focusTarget be the autofocus delegate for document.
     GC::Ptr<DOM::Node> focus_target = nullptr;

@@ -15,6 +15,22 @@
 
 namespace Web::WebIDL {
 
+static bool is_platform_object(JS::Value value)
+{
+    if (!value.is_object())
+        return false;
+    return is<Bindings::PlatformObject>(value.as_object());
+}
+
+static bool platform_object_implements_interface(JS::Value value, StringView interface_name)
+{
+    auto const* platform_object = as_if<Bindings::PlatformObject>(&value.as_object());
+    if (!platform_object)
+        return false;
+
+    return platform_object->implements_interface(MUST(String::from_utf8(interface_name)));
+}
+
 // https://webidl.spec.whatwg.org/#dfn-convert-ecmascript-to-idl-value
 static JS::Value convert_ecmascript_type_to_idl_value(JS::Value value, Type const&)
 {
@@ -168,10 +184,10 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, EffectiveOv
         //    - an annotated type whose inner type is one of the above types
         //    - a union type, nullable union type, or annotated union type that has one of the above types in its flattened member types
         //    then remove from S all other entries.
-        else if (value.is_object() && is<Bindings::PlatformObject>(value.as_object())
+        else if (is_platform_object(value)
             && has_overload_with_argument_type_or_subtype_matching(overloads, i, [value](Type const& type) {
                    // - an interface type that V implements
-                   if (static_cast<Bindings::PlatformObject const&>(value.as_object()).implements_interface(MUST(String::from_byte_string(type.name()))))
+                   if (platform_object_implements_interface(value, type.name()))
                        return true;
 
                    // - object

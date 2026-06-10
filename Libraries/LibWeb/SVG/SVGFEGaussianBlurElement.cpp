@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFEGaussianBlurElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
@@ -19,12 +18,6 @@ SVGFEGaussianBlurElement::SVGFEGaussianBlurElement(DOM::Document& document, DOM:
 {
 }
 
-void SVGFEGaussianBlurElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEGaussianBlurElement);
-    Base::initialize(realm);
-}
-
 void SVGFEGaussianBlurElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -37,7 +30,7 @@ void SVGFEGaussianBlurElement::visit_edges(Cell::Visitor& visitor)
 GC::Ref<SVGAnimatedString> SVGFEGaussianBlurElement::in1()
 {
     if (!m_in1)
-        m_in1 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in, OptionalNone {}, OptionalNone {} });
+        m_in1 = SVGAnimatedString::create(*this, DOM::QualifiedName { AttributeNames::in, OptionalNone {}, OptionalNone {} });
 
     return *m_in1;
 }
@@ -46,7 +39,7 @@ GC::Ref<SVGAnimatedString> SVGFEGaussianBlurElement::in1()
 GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_x()
 {
     if (!m_std_deviation_x) {
-        m_std_deviation_x = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::stdDeviation, OptionalNone {}, OptionalNone {} }, 0.f,
+        m_std_deviation_x = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::stdDeviation, OptionalNone {}, OptionalNone {} }, 0.f,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::First);
     }
     return *m_std_deviation_x;
@@ -56,7 +49,7 @@ GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_x()
 GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_y()
 {
     if (!m_std_deviation_y) {
-        m_std_deviation_y = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::stdDeviation, OptionalNone {}, OptionalNone {} }, 0.f,
+        m_std_deviation_y = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::stdDeviation, OptionalNone {}, OptionalNone {} }, 0.f,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::Second);
     }
     return *m_std_deviation_y;
@@ -65,7 +58,7 @@ GC::Ref<SVGAnimatedNumber> SVGFEGaussianBlurElement::std_deviation_y()
 GC::Ref<SVGAnimatedEnumeration> SVGFEGaussianBlurElement::edge_mode() const
 {
     // FIXME: Resolve the actual value from AttributeNames::edgeMode.
-    return SVGAnimatedEnumeration::create(realm(), 0);
+    return SVGAnimatedEnumeration::create(0);
 }
 
 }

@@ -7,14 +7,13 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/SVGAnimationElement.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::SVG {
 
 class SVGAnimationElement final : public SVGElement {
-    WEB_PLATFORM_OBJECT(SVGAnimationElement, SVGElement);
+    WEB_WRAPPABLE(SVGAnimationElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGAnimationElement);
 
     void set_onbegin(GC::Ptr<WebIDL::CallbackType>);
@@ -28,8 +27,6 @@ class SVGAnimationElement final : public SVGElement {
 
 private:
     SVGAnimationElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

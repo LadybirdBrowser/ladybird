@@ -7,29 +7,30 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/QualifiedName.h>
 #include <LibWeb/Export.h>
 
 namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedString
-class WEB_API SVGAnimatedString final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGAnimatedString, Bindings::PlatformObject);
+class WEB_API SVGAnimatedString final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGAnimatedString, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGAnimatedString);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGAnimatedString> create(JS::Realm&, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute = {}, Optional<FlyString> initial_value = {});
+    [[nodiscard]] static GC::Ref<SVGAnimatedString> create(GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute = {}, Optional<FlyString> initial_value = {});
     virtual ~SVGAnimatedString() override;
 
     String base_val() const;
     void set_base_val(String const& base_val);
 
 private:
-    SVGAnimatedString(JS::Realm&, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value);
+    SVGAnimatedString(GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<SVGElement> m_element;
     DOM::QualifiedName m_reflected_attribute;

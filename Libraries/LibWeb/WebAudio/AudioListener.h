@@ -7,20 +7,20 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/AudioListener.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AudioListener
-class AudioListener final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AudioListener, Bindings::PlatformObject);
+class AudioListener final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(AudioListener, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(AudioListener);
 
 public:
-    static GC::Ref<AudioListener> create(JS::Realm&, GC::Ref<BaseAudioContext>);
+    static GC::Ref<AudioListener> create(GC::Ref<BaseAudioContext>);
     virtual ~AudioListener() override;
 
     GC::Ref<AudioParam> forward_x() const { return m_forward_x; }
@@ -37,10 +37,9 @@ public:
     WebIDL::ExceptionOr<void> set_orientation(float x, float y, float z, float x_up, float y_up, float z_up);
 
 private:
-    explicit AudioListener(JS::Realm&, GC::Ref<BaseAudioContext>);
+    explicit AudioListener(GC::Ref<BaseAudioContext>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<AudioParam> m_forward_x;
     GC::Ref<AudioParam> m_forward_y;

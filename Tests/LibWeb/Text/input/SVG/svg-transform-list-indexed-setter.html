@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" id="svg">
+    <g id="group"></g>
+</svg>
+<script>
+test(() => {
+    const animatedTransformList = document.getElementById("group").transform;
+    const list = animatedTransformList.baseVal;
+    const transform = document.getElementById("svg").createSVGTransform();
+
+    println(`baseVal === animVal: ${animatedTransformList.baseVal === animatedTransformList.animVal}`);
+    println(`initial length: ${list.length}`);
+    println(`transform type: ${transform.type}`);
+
+    try {
+        list[0] = transform;
+    } catch (e) {
+        println(`new index: ${e.name}: ${e.message}`);
+    }
+
+    try {
+        list[0] = {};
+    } catch (e) {
+        println(`wrong type: ${e.name}: ${e.message}`);
+    }
+});
+</script>

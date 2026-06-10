@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLUnknownElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLUnknownElement.h>
 
 namespace Web::HTML {
@@ -18,11 +16,5 @@ HTMLUnknownElement::HTMLUnknownElement(DOM::Document& document, DOM::QualifiedNa
 }
 
 HTMLUnknownElement::~HTMLUnknownElement() = default;
-
-void HTMLUnknownElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLUnknownElement);
-    Base::initialize(realm);
-}
 
 }

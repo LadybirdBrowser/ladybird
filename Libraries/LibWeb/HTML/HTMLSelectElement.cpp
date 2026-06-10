@@ -7,8 +7,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLSelectElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -29,7 +27,9 @@
 #include <LibWeb/HTML/HTMLSelectedContentElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
@@ -43,20 +43,9 @@ GC_DEFINE_ALLOCATOR(HTMLSelectElement);
 HTMLSelectElement::HTMLSelectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .has_indexed_property_setter = true,
-        .indexed_property_setter_has_identifier = true,
-    };
 }
 
 HTMLSelectElement::~HTMLSelectElement() = default;
-
-void HTMLSelectElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSelectElement);
-    Base::initialize(realm);
-}
 
 void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -165,14 +154,6 @@ HTMLOptionElement* HTMLSelectElement::item(WebIDL::UnsignedLong index)
     return as<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).item(index));
 }
 
-// https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:htmlselectelement
-Optional<JS::Value> HTMLSelectElement::item_value(size_t index) const
-{
-    // The options collection is also mirrored on the HTMLSelectElement object. The supported property indices at any
-    // instant are the indices supported by the object returned by the options attribute at that instant.
-    return (const_cast<HTMLOptionsCollection&>(*options()).item_value(index));
-}
-
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-nameditem
 HTMLOptionElement* HTMLSelectElement::named_item(FlyString const& name)
 {
@@ -192,11 +173,11 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::add(HTMLOptionOrOptGroupElement ele
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:set-the-value-of-a-new-indexed-property
-WebIDL::ExceptionOr<void> HTMLSelectElement::set_value_of_indexed_property(u32 n, JS::Value new_value)
+WebIDL::ExceptionOr<void> HTMLSelectElement::set_value_of_indexed_property(u32 n, Optional<GC::Ref<DOM::Element>> new_value)
 {
     // When the user agent is to set the value of a new indexed property or set the value of an existing indexed property
     // for a select element, it must instead run the corresponding algorithm on the select element's options collection.
-    TRY(const_cast<HTMLOptionsCollection&>(*options()).set_value_of_indexed_property(n, new_value));
+    TRY(const_cast<HTMLOptionsCollection&>(*options()).set_value_of_indexed_property(n, move(new_value)));
 
     return {};
 }
@@ -206,7 +187,7 @@ void HTMLSelectElement::remove()
 {
     // The remove() method must act like its namesake method on that same options collection when it has arguments,
     // and like its namesake method on the ChildNode interface implemented by the HTMLSelectElement ancestor interface Element when it has no arguments.
-    ChildNode::remove_binding();
+    ChildNode::remove_from_parent();
 }
 
 void HTMLSelectElement::remove(WebIDL::Long index)
@@ -516,13 +497,17 @@ void HTMLSelectElement::send_select_update_notifications()
         clone_selected_option_into_select_button();
 
         // 4. Fire an event named input at element, with the bubbles and composed attributes initialized to true.
-        auto input_event = DOM::Event::create(realm(), HTML::EventNames::input);
+        auto input_event = DOM::Event::create(
+            HTML::EventNames::input,
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         input_event->set_bubbles(true);
         input_event->set_composed(true);
         dispatch_event(input_event);
 
         // 5. Fire an event named change at element, with the bubbles attribute initialized to true.
-        auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
+        auto change_event = DOM::Event::create(
+            HTML::EventNames::change,
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         change_event->set_bubbles(true);
         dispatch_event(*change_event);
     });
@@ -549,7 +534,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     // To show the picker, if applicable for a select element element:
 
     // 1. If element's relevant global object does not have transient activation, then return.
-    auto& relevant_global = as<HTML::Window>(relevant_global_object(*this));
+    auto& relevant_global = relevant_window(*this);
     if (!relevant_global.has_transient_activation())
         return;
 
@@ -620,18 +605,18 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
 
     // 1. If this is not mutable, then throw an "InvalidStateError" DOMException.
     if (!is_mutable())
-        return WebIDL::InvalidStateError::create(realm(), "Element is not mutable"_utf16);
+        return WebIDL::InvalidStateError::create("Element is not mutable"_utf16);
 
     // 2. If this's relevant settings object's origin is not same origin with this's relevant settings object's top-level origin,
     //    and this is a select element, then throw a "SecurityError" DOMException.
     if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*this).top_level_origin.value())) {
-        return WebIDL::SecurityError::create(realm(), "Cross origin pickers are not allowed"_utf16);
+        return WebIDL::SecurityError::create("Cross origin pickers are not allowed"_utf16);
     }
 
     // 3. If this's relevant global object does not have transient activation, then throw a "NotAllowedError" DOMException.
-    auto& global_object = relevant_global_object(*this);
-    if (!as<HTML::Window>(global_object).has_transient_activation()) {
-        return WebIDL::NotAllowedError::create(realm(), "Too long since user activation to show picker"_utf16);
+    auto* relevant_window = window_from_global_object(relevant_global_object(*this));
+    if (!relevant_window || !relevant_window->has_transient_activation()) {
+        return WebIDL::NotAllowedError::create("Too long since user activation to show picker"_utf16);
     }
 
     // FIXME: 4. If this is a select element, and this is not being rendered, then throw a "NotSupportedError" DOMException.
@@ -702,9 +687,9 @@ void HTMLSelectElement::computed_properties_changed()
     if (m_chevron_icon_element) {
         auto appearance = computed_properties()->appearance();
         if (appearance == CSS::Appearance::None) {
-            MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"_string));
+            MUST(m_chevron_icon_element->style()->set_property(CSS::PropertyID::Display, "none"_string));
         } else {
-            MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"_string));
+            MUST(m_chevron_icon_element->style()->set_property(CSS::PropertyID::Display, "block"_string));
         }
     }
 }
@@ -714,7 +699,7 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return;
 
-    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 

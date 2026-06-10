@@ -11,7 +11,7 @@
 namespace Web::SVG {
 
 class SVGPolygonElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGPolygonElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGPolygonElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGPolygonElement);
 
 public:
@@ -23,8 +23,6 @@ public:
 
 private:
     SVGPolygonElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     Vector<Gfx::FloatPoint> m_points;
 };

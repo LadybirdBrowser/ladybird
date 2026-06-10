@@ -4,11 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ProcessingInstruction.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
-#include <LibWeb/Layout/TextNode.h>
 
 namespace Web::DOM {
 
@@ -20,10 +18,9 @@ ProcessingInstruction::ProcessingInstruction(Document& document, Utf16String dat
 {
 }
 
-void ProcessingInstruction::initialize(JS::Realm& realm)
+GC::Ref<ProcessingInstruction> ProcessingInstruction::create(Document& document, Utf16String data, String const& target)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ProcessingInstruction);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<ProcessingInstruction>(document, move(data), target);
 }
 
 }

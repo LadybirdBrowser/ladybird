@@ -9,17 +9,17 @@
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Speech {
 
-class SpeechSynthesisVoice final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SpeechSynthesisVoice, Bindings::PlatformObject);
+class SpeechSynthesisVoice final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SpeechSynthesisVoice, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SpeechSynthesisVoice);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechSynthesisVoice> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<SpeechSynthesisVoice> create();
     virtual ~SpeechSynthesisVoice() override;
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesisvoice-voiceuri
@@ -38,9 +38,7 @@ public:
     bool is_default() const { return m_default; }
 
 private:
-    explicit SpeechSynthesisVoice(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit SpeechSynthesisVoice();
 
     String m_voice_uri;
     String m_name;

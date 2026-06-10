@@ -10,7 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -18,18 +18,18 @@
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller
-class ReadableStreamDefaultController : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ReadableStreamDefaultController, Bindings::PlatformObject);
+class ReadableStreamDefaultController : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ReadableStreamDefaultController, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ReadableStreamDefaultController);
 
 public:
-    explicit ReadableStreamDefaultController(JS::Realm&);
+    ReadableStreamDefaultController();
     virtual ~ReadableStreamDefaultController() override = default;
 
     Optional<double> desired_size();
 
     WebIDL::ExceptionOr<void> close();
-    WebIDL::ExceptionOr<void> enqueue(Optional<JS::Value> chunk);
+    WebIDL::ExceptionOr<void> enqueue(JS::Realm&, Optional<JS::Value> chunk);
     void error(Optional<JS::Value> error);
 
     GC::Ptr<CancelAlgorithm> cancel_algorithm() { return m_cancel_algorithm; }
@@ -69,9 +69,7 @@ public:
     void release_steps();
 
 private:
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-cancelalgorithm
     // A promise-returning algorithm, taking one argument (the cancel reason), which communicates a requested cancelation to the underlying source

@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SourceBufferList.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 #include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
 
@@ -15,22 +15,18 @@ namespace Web::MediaSourceExtensions {
 
 GC_DEFINE_ALLOCATOR(SourceBufferList);
 
-SourceBufferList::SourceBufferList(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+SourceBufferList::SourceBufferList(MediaSource& media_source)
+    : DOM::EventTarget()
+    , m_media_source(media_source)
 {
 }
 
 SourceBufferList::~SourceBufferList() = default;
 
-void SourceBufferList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SourceBufferList);
-    Base::initialize(realm);
-}
-
 void SourceBufferList::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_media_source);
     visitor.visit(m_buffers);
 }
 
@@ -42,10 +38,10 @@ void SourceBufferList::append(GC::Ref<SourceBuffer> buffer)
 
     // 9. Queue a task to fire an event named addsourcebuffer at this's sourceBuffers.
     // FIXME: Should this have a task source? An event loop? A document?
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(heap(), [weak_self = GC::Weak(*this)] {
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [weak_self = GC::Weak(*this)] {
         if (!weak_self)
             return;
-        weak_self->dispatch_event(DOM::Event::create(weak_self->realm(), EventNames::addsourcebuffer));
+        weak_self->dispatch_event(weak_self->m_media_source->create_associated_event(EventNames::addsourcebuffer));
     }));
 }
 

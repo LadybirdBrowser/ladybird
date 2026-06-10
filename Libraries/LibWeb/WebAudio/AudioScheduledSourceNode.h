@@ -12,7 +12,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AudioScheduledSourceNode
 class AudioScheduledSourceNode : public AudioNode {
-    WEB_PLATFORM_OBJECT(AudioScheduledSourceNode, AudioNode);
+    WEB_WRAPPABLE(AudioScheduledSourceNode, AudioNode);
     GC_DECLARE_ALLOCATOR(AudioScheduledSourceNode);
 
 public:
@@ -25,13 +25,10 @@ public:
     WebIDL::ExceptionOr<void> stop(double when = 0);
 
 protected:
-    AudioScheduledSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>);
+    explicit AudioScheduledSourceNode(GC::Ref<BaseAudioContext>);
 
     bool source_started() const { return m_source_started; }
     void set_source_started(bool started) { m_source_started = started; }
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-source-started-slot

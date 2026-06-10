@@ -19,7 +19,7 @@ class AccessibilityTreeNode final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(AccessibilityTreeNode);
 
 public:
-    static GC::Ref<AccessibilityTreeNode> create(Document*, DOM::Node const*);
+    static GC::Ref<AccessibilityTreeNode> create(DOM::Node const*);
     virtual ~AccessibilityTreeNode() override = default;
 
     GC::Ptr<DOM::Node const> value() const { return m_value; }

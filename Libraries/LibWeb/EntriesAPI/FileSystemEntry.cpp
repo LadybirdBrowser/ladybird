@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/FileSystemEntry.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/EntriesAPI/FileSystemEntry.h>
 #include <LibWeb/HTML/Window.h>
 
@@ -13,22 +12,15 @@ namespace Web::EntriesAPI {
 
 GC_DEFINE_ALLOCATOR(FileSystemEntry);
 
-GC::Ref<FileSystemEntry> FileSystemEntry::create(JS::Realm& realm, EntryType entry_type, ByteString name)
+GC::Ref<FileSystemEntry> FileSystemEntry::create(EntryType entry_type, ByteString name)
 {
-    return realm.create<FileSystemEntry>(realm, entry_type, name);
+    return GC::Heap::the().allocate<FileSystemEntry>(entry_type, move(name));
 }
 
-FileSystemEntry::FileSystemEntry(JS::Realm& realm, EntryType entry_type, ByteString name)
-    : PlatformObject(realm)
-    , m_entry_type(entry_type)
-    , m_name(name)
+FileSystemEntry::FileSystemEntry(EntryType entry_type, ByteString name)
+    : m_entry_type(entry_type)
+    , m_name(move(name))
 {
-}
-
-void FileSystemEntry::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FileSystemEntry);
-    Base::initialize(realm);
 }
 
 // https://wicg.github.io/entries-api/#dom-filesystementry-isfile

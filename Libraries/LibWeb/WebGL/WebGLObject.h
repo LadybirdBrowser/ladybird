@@ -8,15 +8,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::WebGL {
 
-class WEB_API WebGLObject : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLObject, Bindings::PlatformObject);
+class WEB_API WebGLObject : public Bindings::Wrappable {
+    WEB_WRAPPABLE(WebGLObject, Bindings::Wrappable);
 
 public:
     virtual ~WebGLObject();
@@ -27,10 +27,8 @@ public:
     ErrorOr<GLuint> handle(WebGLRenderingContextBase const* context) const;
 
 protected:
-    explicit WebGLObject(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
-
-    void initialize(JS::Realm&) override;
-    void visit_edges(Visitor&) override;
+    explicit WebGLObject(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
+    void visit_edges(GC::Cell::Visitor&) override;
 
     bool invalidated() const { return m_invalidated; }
 

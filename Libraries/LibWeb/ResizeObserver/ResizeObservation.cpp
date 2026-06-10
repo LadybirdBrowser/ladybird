@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/ResizeObserver/ResizeObservation.h>
@@ -14,25 +13,16 @@ namespace Web::ResizeObserver {
 
 GC_DEFINE_ALLOCATOR(ResizeObservation);
 
-WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> ResizeObservation::create(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
+WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> ResizeObservation::create(DOM::Element& target, ObservedBox observed_box)
 {
-    return realm.create<ResizeObservation>(realm, target, observed_box);
+    return GC::Heap::the().allocate<ResizeObservation>(target, observed_box);
 }
 
-ResizeObservation::ResizeObservation(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
-    : m_realm(realm)
-    , m_target(target)
+ResizeObservation::ResizeObservation(DOM::Element& target, ObservedBox observed_box)
+    : m_target(target)
     , m_observed_box(observed_box)
 {
-    auto computed_size = realm.create<ResizeObserverSize>(realm);
-    m_last_reported_sizes.append(computed_size);
-}
-
-void ResizeObservation::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_realm);
-    visitor.visit(m_last_reported_sizes);
+    m_last_reported_sizes.append({});
 }
 
 // https://drafts.csswg.org/resize-observer-1/#dom-resizeobservation-isactive
@@ -46,11 +36,24 @@ bool ResizeObservation::is_active()
 
     // 2. Return true if currentSize is not equal to the first entry in this.lastReportedSizes.
     VERIFY(!m_last_reported_sizes.is_empty());
-    if (!m_last_reported_sizes.first()->equals(current_size))
+    auto const& last_reported_size = m_last_reported_sizes.first();
+    if (last_reported_size.inline_size != current_size.inline_size || last_reported_size.block_size != current_size.block_size)
         return true;
 
     // 3. Return false.
     return false;
+}
+
+void ResizeObservation::set_last_reported_sizes(ReadonlySpan<GC::Ref<ResizeObserverSize>> sizes)
+{
+    m_last_reported_sizes.clear();
+    m_last_reported_sizes.ensure_capacity(sizes.size());
+    for (auto const& size : sizes) {
+        m_last_reported_sizes.unchecked_append({
+            .inline_size = size->inline_size(),
+            .block_size = size->block_size(),
+        });
+    }
 }
 
 }

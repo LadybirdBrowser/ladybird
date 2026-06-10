@@ -7,13 +7,15 @@
 #include <AK/Function.h>
 #include <AK/TypeCasts.h>
 #include <LibGC/Function.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebIDL {
@@ -71,6 +73,16 @@ GC::Ref<Promise> create_rejected_promise(JS::Realm& realm, JS::Value reason)
     return promise_capability;
 }
 
+GC::Ref<Promise> create_rejected_promise(JS::Realm& realm, GC::Ref<DOMException> exception)
+{
+    return create_rejected_promise(realm, Web::throw_completion(realm, exception).value());
+}
+
+JS::Realm& promise_realm(Promise const& promise)
+{
+    return HTML::relevant_realm(*promise.promise());
+}
+
 // https://webidl.spec.whatwg.org/#resolve
 void resolve_promise(JS::Realm& realm, Promise const& promise, JS::Value value)
 {
@@ -93,20 +105,25 @@ void reject_promise(JS::Realm& realm, Promise const& promise, JS::Value reason)
     MUST(JS::call(vm, *promise.reject(), JS::js_undefined(), reason));
 }
 
+void reject_promise(JS::Realm& realm, Promise const& promise, GC::Ref<DOMException> exception)
+{
+    reject_promise(realm, promise, Web::throw_completion(realm, exception).value());
+}
+
 // https://webidl.spec.whatwg.org/#dfn-perform-steps-once-promise-is-settled
 GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps> on_fulfilled_callback, GC::Ptr<ReactionSteps> on_rejected_callback)
 {
-    auto& realm = promise.promise()->shape().realm();
+    auto& realm = promise_realm(promise);
     auto& vm = realm.vm();
 
     // 1. Let onFulfilledSteps be the following steps given argument V:
-    auto on_fulfilled_steps = [on_fulfilled_callback = move(on_fulfilled_callback)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+    auto on_fulfilled_steps = [&realm, on_fulfilled_callback = move(on_fulfilled_callback)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
         // 1. Let value be the result of converting V to an IDL value of type T.
         auto value = vm.argument(0);
 
         // 2. If there is a set of steps to be run if the promise was fulfilled, then let result be the result of performing them, given value if T is not undefined. Otherwise, let result be value.
         auto result = on_fulfilled_callback
-            ? TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return on_fulfilled_callback->function()(value); }))
+            ? TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return on_fulfilled_callback->function()(value); }))
             : value;
 
         // 3. Return result, converted to an ECMAScript value.
@@ -123,7 +140,7 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
 
         // 2. If there is a set of steps to be run if the promise was rejected, then let result be the result of performing them, given reason. Otherwise, let result be a promise rejected with reason.
         auto result = on_rejected_callback
-            ? TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return on_rejected_callback->function()(reason); }))
+            ? TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return on_rejected_callback->function()(reason); }))
             : WebIDL::create_rejected_promise(realm, reason)->promise();
 
         // 3. Return result, converted to an ECMAScript value.
@@ -224,7 +241,7 @@ void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Fun
     auto rejected = false;
 
     // 3. Let rejectionHandlerSteps be the following steps given arg:
-    auto rejection_handler_steps = [rejected, failure_steps = GC::create_function(realm.heap(), move(failure_steps))](JS::VM& vm) mutable -> JS::ThrowCompletionOr<JS::Value> {
+    auto rejection_handler_steps = [rejected, failure_steps = GC::create_function(GC::Heap::the(), move(failure_steps))](JS::VM& vm) mutable -> JS::ThrowCompletionOr<JS::Value> {
         // 1. If rejected is true, abort these steps.
         if (rejected)
             return JS::js_undefined();
@@ -247,7 +264,7 @@ void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Fun
     // 6. If total is 0, then:
     if (total == 0) {
         // 1. Queue a microtask to perform successSteps given « ».
-        HTML::queue_a_microtask(nullptr, GC::create_function(realm.heap(), [success_steps = GC::create_function(realm.heap(), move(success_steps))] {
+        HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [success_steps = GC::create_function(GC::Heap::the(), move(success_steps))] {
             success_steps->function()({});
         }));
 
@@ -261,7 +278,7 @@ void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Fun
     // 8. Let result be a list containing total null values.
     // Handled in WaitForAllResults
 
-    auto results = realm.create<WaitForAllResults>(GC::create_function(realm.heap(), move(success_steps)), total);
+    auto results = GC::Heap::the().allocate<WaitForAllResults>(GC::create_function(GC::Heap::the(), move(success_steps)), total);
 
     // 9. For each promise of promises:
     for (auto promise : promises) {
@@ -329,13 +346,13 @@ GC::Ref<Promise> get_promise_for_wait_for_all(JS::Realm& realm, ReadonlySpan<GC:
 
 GC::Ref<Promise> create_rejected_promise_from_exception(JS::Realm& realm, Exception exception)
 {
-    auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), move(exception));
+    auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, move(exception));
     return WebIDL::create_rejected_promise(realm, throw_completion.value());
 }
 
 void reject_promise_with_exception(JS::Realm& realm, Promise const& promise, Exception exception)
 {
-    auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), move(exception));
+    auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, move(exception));
     WebIDL::reject_promise(realm, promise, throw_completion.value());
 }
 

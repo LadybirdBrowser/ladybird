@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLMarqueeElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/HTML/HTMLMarqueeElement.h>
@@ -23,12 +21,6 @@ HTMLMarqueeElement::HTMLMarqueeElement(DOM::Document& document, DOM::QualifiedNa
 }
 
 HTMLMarqueeElement::~HTMLMarqueeElement() = default;
-
-void HTMLMarqueeElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMarqueeElement);
-    Base::initialize(realm);
-}
 
 bool HTMLMarqueeElement::is_presentational_hint(FlyString const& name) const
 {

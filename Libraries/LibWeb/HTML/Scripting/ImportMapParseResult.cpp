@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ModuleRequest.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::HTML {
 
@@ -20,10 +21,10 @@ ImportMapParseResult::ImportMapParseResult() = default;
 ImportMapParseResult::~ImportMapParseResult() = default;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#create-an-import-map-parse-result
-GC::Ref<ImportMapParseResult> ImportMapParseResult::create(JS::Realm& realm, ByteString const& input, URL::URL base_url)
+GC::Ref<ImportMapParseResult> ImportMapParseResult::parse(JS::Realm& realm, ByteString const& input, URL::URL base_url)
 {
     // 1. Let result be an import map parse result whose import map is null and whose error to rethrow is null.
-    auto result = realm.create<ImportMapParseResult>();
+    auto result = GC::Heap::the().allocate<ImportMapParseResult>();
 
     // 2. Parse an import map string given input and baseURL, catching any exceptions.
     auto import_map = parse_import_map_string(realm, input, base_url);
@@ -62,7 +63,7 @@ void ImportMapParseResult::register_import_map(Window& global)
 {
     // 1. If result's error to rethrow is not null, then report the exception given by result's error to rethrow and return.
     if (m_error_to_rethrow.has_value()) {
-        auto completion = Web::Bindings::exception_to_throw_completion(global.vm(), m_error_to_rethrow.value());
+        auto completion = WebIDL::exception_to_throw_completion(global.vm(), global.realm(), m_error_to_rethrow.value());
         HTML::report_exception(completion, global.realm());
         return;
     }

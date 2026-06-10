@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGStopElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -64,14 +62,8 @@ float SVGStopElement::stop_opacity() const
 GC::Ref<SVGAnimatedNumber> SVGStopElement::offset()
 {
     if (!m_stop_offset)
-        m_stop_offset = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::offset, OptionalNone {}, OptionalNone {} }, 0.f);
+        m_stop_offset = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::offset, OptionalNone {}, OptionalNone {} }, 0.f);
     return *m_stop_offset;
-}
-
-void SVGStopElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGStopElement);
-    Base::initialize(realm);
 }
 
 void SVGStopElement::visit_edges(Visitor& visitor)

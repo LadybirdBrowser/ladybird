@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Animations/Animation.h>
-#include <LibWeb/Bindings/InternalAnimationTimeline.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
@@ -14,6 +13,11 @@
 namespace Web::Internals {
 
 GC_DEFINE_ALLOCATOR(InternalAnimationTimeline);
+
+GC::Ref<InternalAnimationTimeline> InternalAnimationTimeline::create(GC::Ref<DOM::Document> document)
+{
+    return GC::Heap::the().allocate<InternalAnimationTimeline>(document);
+}
 
 void InternalAnimationTimeline::update_current_time(double)
 {
@@ -25,17 +29,11 @@ void InternalAnimationTimeline::set_time(Optional<double> time)
     set_current_time(time.map([](double value) -> Animations::TimeValue { return { Animations::TimeValue::Type::Milliseconds, value }; }));
 }
 
-InternalAnimationTimeline::InternalAnimationTimeline(JS::Realm& realm, GC::Ref<DOM::Document> document)
-    : AnimationTimeline(realm, document)
+InternalAnimationTimeline::InternalAnimationTimeline(GC::Ref<DOM::Document> document)
+    : AnimationTimeline(document)
 {
     m_current_time = { Animations::TimeValue::Type::Milliseconds, 0.0 };
     m_is_monotonically_increasing = true;
-}
-
-void InternalAnimationTimeline::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(InternalAnimationTimeline);
-    Base::initialize(realm);
 }
 
 }

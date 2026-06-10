@@ -19,7 +19,7 @@ class SVGFEImageElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEImageElement>
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGFEImageElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEImageElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEImageElement);
 
 public:
@@ -31,8 +31,6 @@ public:
 
 private:
     SVGFEImageElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;

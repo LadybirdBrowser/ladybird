@@ -6,40 +6,40 @@
 
 #pragma once
 
-#include <AK/Variant.h>
 #include <LibWeb/Bindings/AudioContext.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/MediaElementAudioSourceNode.h>
 
 namespace Web::WebAudio {
 
+using AudioContextOptions = Bindings::AudioContextOptions;
+using AudioTimestamp = Bindings::AudioTimestamp;
+
 // https://webaudio.github.io/web-audio-api/#AudioContext
 class AudioContext final : public BaseAudioContext {
-    WEB_PLATFORM_OBJECT(AudioContext, BaseAudioContext);
+    WEB_WRAPPABLE(AudioContext, BaseAudioContext);
     GC_DECLARE_ALLOCATOR(AudioContext);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<AudioContext>> construct_impl(JS::Realm&, Optional<Bindings::AudioContextOptions> const& context_options = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioContext>> construct_impl(JS::Realm&, AudioContextOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<AudioContext>> create_for_constructor(GC::Ref<DOM::EventTarget> relevant_global_object, HTML::EnvironmentSettingsObject&, Optional<AudioContextOptions> const& context_options = {});
 
     virtual ~AudioContext() override;
 
     double base_latency() const { return m_base_latency; }
     double output_latency() const { return m_output_latency; }
-    Bindings::AudioTimestamp get_output_timestamp();
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> resume();
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> suspend();
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> close();
+    AudioTimestamp get_output_timestamp();
+    WebIDL::ExceptionOr<void> resume(JS::Realm&, GC::Ref<WebIDL::Promise>);
+    WebIDL::ExceptionOr<void> suspend(JS::Realm&, GC::Ref<WebIDL::Promise>);
+    WebIDL::ExceptionOr<void> close(JS::Realm&, GC::Ref<WebIDL::Promise>);
 
     WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create_media_element_source(GC::Ptr<HTML::HTMLMediaElement>);
 
 private:
-    explicit AudioContext(JS::Realm& realm)
-        : BaseAudioContext(realm)
+    explicit AudioContext(GC::Ref<DOM::EventTarget> relevant_global_object)
+        : BaseAudioContext(relevant_global_object)
     {
     }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     double m_base_latency { 0 };

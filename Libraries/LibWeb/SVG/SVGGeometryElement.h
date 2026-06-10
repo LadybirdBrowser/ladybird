@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGGeometryElement
 class SVGGeometryElement : public SVGGraphicsElement {
-    WEB_PLATFORM_OBJECT(SVGGeometryElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGGeometryElement, SVGGraphicsElement);
 
 public:
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
@@ -27,8 +27,6 @@ public:
 
 protected:
     SVGGeometryElement(DOM::Document& document, DOM::QualifiedName qualified_name);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

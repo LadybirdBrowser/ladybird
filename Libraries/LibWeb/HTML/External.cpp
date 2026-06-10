@@ -4,28 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/External.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/External.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(External);
 
-void External::initialize(JS::Realm& realm)
+GC::Ref<External> External::create()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(External);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<External>();
 }
 
-GC::Ref<External> External::create(JS::Realm& realm)
-{
-    return realm.create<External>(realm);
-}
-
-External::External(JS::Realm& realm)
-    : PlatformObject(realm)
+External::External()
 {
 }
 

@@ -7,8 +7,11 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Event.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -21,48 +24,67 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(Event);
 
 // https://dom.spec.whatwg.org/#concept-event-create
-GC::Ref<Event> Event::create(JS::Realm& realm, FlyString const& event_name, Bindings::EventInit const& event_init)
+GC::Ref<Event> Event::create(JS::Object const& relevant_global_object, FlyString const& event_name, EventInit const& event_init)
 {
-    auto event = realm.create<Event>(realm, event_name, event_init);
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+}
+
+// https://dom.spec.whatwg.org/#concept-event-create
+GC::Ref<Event> Event::create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    auto event = GC::Heap::the().allocate<Event>(event_name, time_stamp);
     // 4. Initialize event’s isTrusted attribute to true.
     event->m_is_trusted = true;
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<Event>> Event::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::EventInit const& event_init)
+GC::Ref<Event> Event::create_bubbling_composed(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<Event>(realm, event_name, event_init);
+    auto event = create(event_name, time_stamp);
+    event->set_bubbles(true);
+    event->set_composed(true);
+    return event;
+}
+
+// https://dom.spec.whatwg.org/#concept-event-create
+GC::Ref<Event> Event::create(FlyString const& event_name, EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    auto event = GC::Heap::the().allocate<Event>(event_name, event_init, time_stamp);
+    // 4. Initialize event’s isTrusted attribute to true.
+    event->m_is_trusted = true;
+    return event;
+}
+
+GC::Ref<Event> Event::create_for_constructor(FlyString const& event_name, EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<Event>(event_name, event_init, time_stamp);
+}
+
+GC::Ref<Event> Event::create_for_constructor(FlyString const& event_name, Bindings::EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<Event>(event_name, event_init, time_stamp);
 }
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
-Event::Event(JS::Realm& realm, FlyString const& type)
-    : PlatformObject(realm)
-    , m_type(type)
+Event::Event(FlyString const& type, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : m_type(type)
     , m_initialized(true)
-    , m_time_stamp(HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)))
+    , m_time_stamp(time_stamp)
 {
 }
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
-Event::Event(JS::Realm& realm, FlyString const& type, Bindings::EventInit const& event_init)
-    : PlatformObject(realm)
-    , m_type(type)
+Event::Event(FlyString const& type, EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : m_type(type)
     , m_bubbles(event_init.bubbles)
     , m_cancelable(event_init.cancelable)
     , m_composed(event_init.composed)
     , m_initialized(true)
-    , m_time_stamp(HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)))
+    , m_time_stamp(time_stamp)
 {
 }
 
-void Event::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Event);
-    Base::initialize(realm);
-    Bindings::EventPrototype::define_unforgeable_attributes(realm, *this);
-}
-
-void Event::visit_edges(Visitor& visitor)
+void Event::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_target);
@@ -94,7 +116,7 @@ void Event::append_to_path(EventTarget& invocation_target, GC::Ptr<EventTarget> 
         if (is<ShadowRoot>(invocation_target_node)) {
             auto& invocation_target_shadow_root = as<ShadowRoot>(invocation_target_node);
             // 4. If invocationTarget is a shadow root whose mode is "closed", then set root-of-closed-tree to true.
-            root_of_closed_tree = invocation_target_shadow_root.mode() == Bindings::ShadowRootMode::Closed;
+            root_of_closed_tree = invocation_target_shadow_root.mode() == Web::DOM::ShadowRootMode::Closed;
         }
     }
 
@@ -265,13 +287,40 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
     return composed_path;
 }
 
-// AD-HOC: Needed to return a WindowProxy when the current target is a Window,
-// ensuring that JavaScript sees the correct global object instead of the internal Window.
-GC::Ptr<EventTarget> Event::current_target_for_bindings() const
+}
+
+namespace Web::Bindings {
+
+DOM::Event* event_from_value(JS::Value value)
 {
-    if (auto* window = as_if<HTML::Window>(m_current_target.ptr()))
+    if (!value.is_object())
+        return nullptr;
+    return Bindings::impl_from<DOM::Event>(&value.as_object());
+}
+
+DOM::Event* event_from_callback_argument(JS::VM& vm)
+{
+    return event_from_value(vm.argument(0));
+}
+
+JS::Value event(JS::Realm& realm, GC::Ref<DOM::Event> event)
+{
+    return wrap(host_defined_wrapper_world(realm), realm, event);
+}
+
+GC::Ptr<PlatformObject> current_target_wrapper(JS::Realm& realm, DOM::Event const& event)
+{
+    auto current_target = event.current_target();
+    if (auto* window = as_if<HTML::Window>(current_target.ptr()))
         return window->window();
-    return m_current_target;
+    return wrap(host_defined_wrapper_world(realm), realm, current_target);
+}
+
+JS::Value current_target_value(JS::Realm& realm, DOM::Event const& event)
+{
+    if (auto current_target = current_target_wrapper(realm, event))
+        return current_target;
+    return JS::js_null();
 }
 
 }

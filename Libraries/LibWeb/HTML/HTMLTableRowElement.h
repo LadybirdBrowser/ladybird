@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLTableRowElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLTableRowElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTableRowElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTableRowElement);
 
 public:
@@ -32,8 +32,6 @@ private:
     HTMLTableRowElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_table_row_element() const override { return true; }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

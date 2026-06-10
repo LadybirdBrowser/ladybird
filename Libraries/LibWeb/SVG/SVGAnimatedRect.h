@@ -6,16 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRect.h>
 
 namespace Web::SVG {
 
-class SVGAnimatedRect final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGAnimatedRect, Bindings::PlatformObject);
+class SVGAnimatedRect final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGAnimatedRect, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGAnimatedRect);
 
 public:
+    [[nodiscard]] static GC::Ref<SVGAnimatedRect> create();
     virtual ~SVGAnimatedRect();
 
     GC::Ptr<Geometry::DOMRect> base_val() const;
@@ -27,10 +28,9 @@ public:
     void set_nulled(bool);
 
 private:
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    explicit SVGAnimatedRect(JS::Realm&);
+    SVGAnimatedRect();
 
     GC::Ptr<Geometry::DOMRect> m_base_val;
     GC::Ptr<Geometry::DOMRect> m_anim_val;

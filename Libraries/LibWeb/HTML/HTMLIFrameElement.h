@@ -9,6 +9,8 @@
 
 #include <LibWeb/HTML/LazyLoadingElement.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/TrustedTypes/TrustedHTML.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -16,7 +18,7 @@ class HTMLIFrameElement final
     : public NavigableContainer
     , public LazyLoadingElement<HTMLIFrameElement> {
 
-    WEB_PLATFORM_OBJECT(HTMLIFrameElement, NavigableContainer);
+    WEB_WRAPPABLE(HTMLIFrameElement, NavigableContainer);
     LAZY_LOADING_ELEMENT(HTMLIFrameElement);
     GC_DECLARE_ALLOCATOR(HTMLIFrameElement);
 
@@ -51,8 +53,6 @@ public:
 
 private:
     HTMLIFrameElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     // ^DOM::Node
     virtual bool is_html_iframe_element() const override { return true; }

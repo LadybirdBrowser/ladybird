@@ -41,8 +41,8 @@ public:
     // processEndOfBody must be an algorithm accepting no arguments
     using ProcessEndOfBodyCallback = GC::Ref<GC::Function<void()>>;
 
-    [[nodiscard]] static GC::Ref<Body> create(JS::VM&, GC::Ref<Streams::ReadableStream>);
-    [[nodiscard]] static GC::Ref<Body> create(JS::VM&, GC::Ref<Streams::ReadableStream>, SourceType, Optional<u64>);
+    [[nodiscard]] static GC::Ref<Body> create(GC::Ref<Streams::ReadableStream>);
+    [[nodiscard]] static GC::Ref<Body> create(GC::Ref<Streams::ReadableStream>, SourceType, Optional<u64>);
 
     [[nodiscard]] GC::Ref<Streams::ReadableStream> stream() const { return *m_stream; }
     void set_stream(GC::Ref<Streams::ReadableStream> value) { m_stream = value; }
@@ -67,7 +67,7 @@ public:
     [[nodiscard]] GC::Ref<Body> clone(JS::Realm&);
 
     void fully_read(JS::Realm&, ProcessBodyCallback process_body, ProcessBodyErrorCallback process_body_error, TaskDestination) const;
-    void incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination);
+    void incrementally_read(JS::Realm&, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination);
     void incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader, TaskDestination, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;

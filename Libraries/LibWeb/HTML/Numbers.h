@@ -26,6 +26,6 @@ Optional<double> parse_floating_point_number(Utf16String const& string);
 WEB_API bool is_valid_floating_point_number(StringView string);
 bool is_valid_floating_point_number(Utf16String const& string);
 
-WEB_API WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm&, WebIDL::Long);
+WEB_API WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(WebIDL::Long);
 
 }

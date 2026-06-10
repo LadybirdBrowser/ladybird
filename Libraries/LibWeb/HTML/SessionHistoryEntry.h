@@ -10,20 +10,10 @@
 #include <AK/RefPtr.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 
 namespace Web::HTML {
-
-// https://html.spec.whatwg.org/multipage/history.html#scroll-restoration-mode
-enum class ScrollRestorationMode {
-    // https://html.spec.whatwg.org/multipage/history.html#dom-scrollrestoration-auto
-    // The user agent is responsible for restoring the scroll position upon navigation.
-    Auto,
-
-    // https://html.spec.whatwg.org/multipage/history.html#dom-scrollrestoration-manual
-    // The page is responsible for restoring the scroll position and the user agent does not attempt to do so automatically.
-    Manual,
-};
 
 // https://html.spec.whatwg.org/multipage/history.html#session-history-entry
 class SessionHistoryEntry final : public RefCounted<SessionHistoryEntry> {

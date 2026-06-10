@@ -31,7 +31,7 @@ interface MediaSource : EventTarget {
 
     SourceBuffer addSourceBuffer(DOMString type);
     [FIXME] undefined removeSourceBuffer(SourceBuffer sourceBuffer);
-    undefined endOfStream(optional EndOfStreamError error);
+    [ImplementedAs=end_of_stream] undefined endOfStream(optional EndOfStreamError error);
     [FIXME] undefined setLiveSeekableRange(double start, double end);
     [FIXME] undefined clearLiveSeekableRange();
     static boolean isTypeSupported(DOMString type);

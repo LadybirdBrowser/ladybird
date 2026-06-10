@@ -6,24 +6,23 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/CSS/CSSMathValue.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathmax
 class CSSMathMax final : public CSSMathValue {
-    WEB_PLATFORM_OBJECT(CSSMathMax, CSSMathValue);
+    WEB_WRAPPABLE(CSSMathMax, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathMax);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathMax> create(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> construct_impl(JS::Realm&, Vector<CSSNumberish>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> add_all_types_into_math_max(JS::Realm&, GC::RootVector<GC::Ref<CSSNumericValue>> const&);
+    [[nodiscard]] static GC::Ref<CSSMathMax> create(NumericType, GC::Ref<CSSNumericArray>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> create_for_constructor(ReadonlySpan<CSSNumberish>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> add_all_types_into_math_max(GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathMax() override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericArray> values() const;
 
@@ -34,7 +33,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathMax(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
+    CSSMathMax(NumericType, GC::Ref<CSSNumericArray>);
     GC::Ref<CSSNumericArray> m_values;
 };
 

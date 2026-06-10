@@ -8,16 +8,26 @@
 #pragma once
 
 #include <LibCore/ElapsedTimer.h>
+#include <LibJS/Forward.h>
+#include <LibWeb/Bindings/PerformanceMark.h>
 #include <LibWeb/Bindings/PerformanceMeasure.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/UserTiming/PerformanceMark.h>
 #include <LibWeb/UserTiming/PerformanceMeasure.h>
 
 namespace Web::HighResolutionTime {
 
+struct PerformanceMeasureOptions {
+    Optional<HTML::SerializationRecord> detail {};
+    Optional<HighResolutionTime::DOMHighResTimeStamp> duration {};
+    Optional<Variant<String, HighResolutionTime::DOMHighResTimeStamp>> end {};
+    Optional<Variant<String, HighResolutionTime::DOMHighResTimeStamp>> start {};
+};
+
 class Performance final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Performance, DOM::EventTarget);
+    WEB_WRAPPABLE(Performance, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Performance);
 
 public:
@@ -26,9 +36,11 @@ public:
     double now() const;
     double time_origin() const;
 
-    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> mark(String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options = {});
+    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> mark(String const& mark_name, UserTiming::PerformanceMarkOptions const& mark_options = {});
+    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> mark(JS::Realm&, String const& mark_name, Bindings::PerformanceMarkOptions const&);
     void clear_marks(Optional<String> mark_name);
-    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> measure(String const& measure_name, Variant<String, Bindings::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark);
+    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> measure(String const& measure_name, Variant<String, PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark);
+    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> measure(JS::Realm&, String const& measure_name, Variant<String, Bindings::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark);
     void clear_measures(Optional<String> measure_name);
 
     void clear_resource_timings();
@@ -44,19 +56,19 @@ public:
     GC::Ptr<NavigationTiming::PerformanceNavigation> navigation();
 
 private:
-    explicit Performance(JS::Realm&);
+    explicit Performance(GC::Ref<DOM::EventTarget> relevant_global_object);
 
     HTML::WindowOrWorkerGlobalScopeMixin& window_or_worker();
     HTML::WindowOrWorkerGlobalScopeMixin const& window_or_worker() const;
-
-    virtual void initialize(JS::Realm&) override;
+    JS::Object& relevant_global_object() const;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_name_to_timestamp(JS::Realm& realm, String const& name);
-    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_mark_to_timestamp(JS::Realm& realm, Variant<String, HighResolutionTime::DOMHighResTimeStamp> mark);
+    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_name_to_timestamp(String const& name);
+    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_mark_to_timestamp(Variant<String, HighResolutionTime::DOMHighResTimeStamp> mark);
 
     GC::Ptr<NavigationTiming::PerformanceNavigation> m_navigation;
     GC::Ptr<NavigationTiming::PerformanceTiming> m_timing;
+    GC::Ref<DOM::EventTarget> m_global_object;
 };
 
 }

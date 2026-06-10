@@ -5,12 +5,12 @@
  */
 
 #include <AK/ScopeGuard.h>
-#include <LibWeb/Bindings/HTMLLabelElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
@@ -25,12 +25,6 @@ HTMLLabelElement::HTMLLabelElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLLabelElement::~HTMLLabelElement() = default;
-
-void HTMLLabelElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLabelElement);
-    Base::initialize(realm);
-}
 
 void HTMLLabelElement::set_being_activated(bool activated)
 {
@@ -80,7 +74,7 @@ void HTMLLabelElement::activation_behavior(DOM::Event const& event)
         ScopeGuard guard { [this] { m_click_in_progress = false; } };
 
         auto const& mouse_event = as<UIEvents::MouseEvent>(event);
-        auto click_event = mouse_event.clone();
+        auto click_event = UIEvents::MouseEvent::create_from_mouse_event(mouse_event, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
 
         // NB: Ensure layout is up to date before accessing the control's paintable.
         document().update_layout(DOM::UpdateLayoutReason::HTMLLabelElementActivationBehavior);

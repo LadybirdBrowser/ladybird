@@ -12,18 +12,16 @@
 namespace Web::WebGL {
 
 class WebGLSampler : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLSampler, WebGLObject);
+    WEB_WRAPPABLE(WebGLSampler, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLSampler);
 
 public:
-    static GC::Ref<WebGLSampler> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle);
+    static GC::Ref<WebGLSampler> create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle);
 
     virtual ~WebGLSampler() override;
 
 protected:
-    explicit WebGLSampler(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit WebGLSampler(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 };
 
 }

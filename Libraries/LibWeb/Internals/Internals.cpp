@@ -8,19 +8,21 @@
 #include <AK/JsonObject.h>
 #include <AK/NumericLimits.h>
 #include <LibCore/TimeZone.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Cursor.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
-#include <LibWeb/Bindings/Internals.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/Node.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -40,6 +42,7 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -52,6 +55,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
+#include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -62,20 +66,14 @@ static u16 s_echo_server_port { 0 };
 
 GC_DEFINE_ALLOCATOR(Internals);
 
-Internals::Internals(JS::Realm& realm)
-    : InternalsBase(realm)
+Internals::Internals(HTML::Window& window)
+    : InternalsBase(window)
 {
 }
 
 Internals::~Internals() = default;
 
-void Internals::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Internals);
-    Base::initialize(realm);
-}
-
-void Internals::visit_edges(Visitor& visitor)
+void Internals::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_gamepads);
@@ -95,7 +93,7 @@ void Internals::set_test_timeout(double milliseconds)
 // https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest
 WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
 {
-    auto& vm = this->vm();
+    auto& vm = window().realm().vm();
     auto& page = this->page();
 
     auto* document = page.top_level_browsing_context().active_document();
@@ -147,27 +145,24 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
 
 void Internals::gc()
 {
-    vm().heap().collect_garbage();
+    window().realm().vm().heap().collect_garbage();
 }
 
-GC::Ref<WebIDL::Promise> Internals::gc_async()
+void Internals::gc_async(GC::Ref<WebIDL::Promise> promise)
 {
-    auto& realm = this->realm();
-    auto promise = WebIDL::create_promise(realm);
+    auto& realm = window().realm();
 
     // Queue a task so that the collection runs outside the JS execution context.
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise] {
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise] {
         HTML::TemporaryExecutionContext execution_context { realm };
         realm.vm().heap().collect_garbage();
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
     }));
-
-    return promise;
 }
 
 WebIDL::ExceptionOr<void> Internals::mark_as_garbage(StringView variable_name)
 {
-    auto& vm = this->vm();
+    auto& vm = window().realm().vm();
 
     // This helper is intentionally limited to real environment bindings. It cannot
     // find values that the bytecode generator stored only in optimized locals.
@@ -195,27 +190,20 @@ WebIDL::ExceptionOr<String> Internals::set_time_zone(StringView time_zone)
     auto current_time_zone = Core::TimeZone::current_time_zone();
 
     if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
-        return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
+        return window().realm().vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
 
     JS::clear_system_time_zone_cache();
     return current_time_zone;
 }
 
-JS::Object* Internals::hit_test(double x, double y)
+Optional<Painting::HitTestResult> Internals::hit_test(double x, double y)
 {
     auto& active_document = window().associated_document();
     // NOTE: Force a layout update just before hit testing. This is because the current layout tree, which is required
     //       for stacking context traversal, might not exist if this call occurs between the tear_down_layout_tree()
     //       and update_layout() calls
     active_document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
-    auto result = active_document.hit_test({ x, y }, Painting::HitTestType::Exact);
-    if (result.has_value()) {
-        auto hit_testing_result = JS::Object::create(realm(), nullptr);
-        hit_testing_result->define_direct_property("node"_utf16_fly_string, result->dom_node(), JS::default_attributes);
-        hit_testing_result->define_direct_property("indexInNode"_utf16_fly_string, JS::Value(result->index_in_node), JS::default_attributes);
-        return hit_testing_result;
-    }
-    return nullptr;
+    return active_document.hit_test({ x, y }, Painting::HitTestType::Exact);
 }
 
 struct WebDriverKeyData {
@@ -351,10 +339,9 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
     page.handle_mousedown(position, position, mouse_button, 0, modifiers, click_count);
 }
 
-GC::Ref<WebIDL::Promise> Internals::wheel(double x, double y, double delta_x, double delta_y)
+void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, double delta_x, double delta_y)
 {
-    auto& realm = this->realm();
-    auto promise = WebIDL::create_promise(realm);
+    auto& realm = window().realm();
     auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
@@ -363,11 +350,15 @@ GC::Ref<WebIDL::Promise> Internals::wheel(double x, double y, double delta_x, do
 
     if (async_scroll_operation.has_value() && async_scroll_operation->navigable) {
         async_scroll_operation->navigable->wait_for_async_scroll_operation(async_scroll_operation->operation_id, promise);
-        return promise;
+        return;
     }
 
     WebIDL::resolve_promise(realm, promise);
-    return promise;
+}
+
+void Internals::wheel(double x, double y, double delta_x, double delta_y, GC::Ref<WebIDL::Promise> promise)
+{
+    wheel(promise, x, y, delta_x, delta_y);
 }
 
 void Internals::pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers)
@@ -417,7 +408,7 @@ GC::Ptr<Geometry::DOMRect> Internals::current_caret_rect()
     auto rect = active_document.current_caret_rect();
     if (!rect.has_value())
         return nullptr;
-    return MUST(Geometry::DOMRect::construct_impl(realm(), static_cast<double>(rect->x()), static_cast<double>(rect->y()), static_cast<double>(rect->width()), static_cast<double>(rect->height())));
+    return Geometry::DOMRect::create(static_cast<double>(rect->x()), static_cast<double>(rect->y()), static_cast<double>(rect->width()), static_cast<double>(rect->height()));
 }
 
 WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTarget& target, DOM::Event& event)
@@ -442,8 +433,7 @@ void Internals::spoof_current_url(String const& url_string)
 
 GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
 {
-    auto& realm = this->realm();
-    return realm.create<InternalAnimationTimeline>(realm, as<HTML::Window>(realm.global_object()).associated_document());
+    return InternalAnimationTimeline::create(window().associated_document());
 }
 
 void Internals::simulate_drag_start(double x, double y, String const& name, String const& contents)
@@ -497,7 +487,7 @@ WebIDL::ExceptionOr<void> Internals::set_content_blockers(String const& patterns
 
         auto pattern = String::from_utf8(line);
         if (pattern.is_error())
-            return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", pattern.error())));
+            return window().realm().vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", pattern.error())));
 
         patterns.append(pattern.release_value());
     }
@@ -506,7 +496,7 @@ WebIDL::ExceptionOr<void> Internals::set_content_blockers(String const& patterns
     auto had_cosmetic_rules = blocker.has_cosmetic_rules();
     auto result = blocker.set_patterns(patterns);
     if (result.is_error())
-        return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", result.error())));
+        return window().realm().vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", result.error())));
 
     if (had_cosmetic_rules || blocker.has_cosmetic_rules())
         page().invalidate_user_style();
@@ -631,7 +621,7 @@ String Internals::dump_stacking_context_tree()
 
 String Internals::dump_gc_graph()
 {
-    return Bindings::main_thread_vm().heap().dump_graph().serialized();
+    return GC::Heap::the().dump_graph().serialized();
 }
 
 String Internals::dump_session_history()
@@ -681,8 +671,7 @@ void Internals::handle_sdl_input_events()
 
 GC::Ref<InternalGamepad> Internals::connect_virtual_gamepad()
 {
-    auto& realm = this->realm();
-    auto gamepad = realm.create<InternalGamepad>(realm, *this);
+    auto gamepad = InternalGamepad::create(*this);
     m_gamepads.append(gamepad);
     return gamepad;
 }
@@ -715,33 +704,14 @@ void Internals::clear_element(HTML::HTMLElement& element)
     form_associated_element.clear_algorithm();
 }
 
-void Internals::set_environments_top_level_url(StringView url)
+void Internals::set_environments_top_level_url(JS::Realm& realm, StringView url)
 {
-    auto& realm = *vm().current_realm();
     HTML::principal_realm_settings_object(realm).top_level_creation_url = URL::Parser::basic_parse(url);
 }
 
-JS::Object* Internals::get_style_invalidation_counters()
+DOM::Document::StyleInvalidationCounters const& Internals::style_invalidation_counters() const
 {
-    auto const& counters = window().associated_document().style_invalidation_counters();
-    auto object = JS::Object::create(realm(), nullptr);
-    object->define_direct_property("hasAncestorWalkInvocations"_utf16_fly_string, JS::Value(counters.has_ancestor_walk_invocations), JS::default_attributes);
-    object->define_direct_property("hasAncestorWalkVisits"_utf16_fly_string, JS::Value(counters.has_ancestor_walk_visits), JS::default_attributes);
-    object->define_direct_property("hasAncestorSiblingElementChecks"_utf16_fly_string, JS::Value(counters.has_ancestor_sibling_element_checks), JS::default_attributes);
-    object->define_direct_property("hasInvalidationMetadataCandidates"_utf16_fly_string, JS::Value(counters.has_invalidation_metadata_candidates), JS::default_attributes);
-    object->define_direct_property("hasInvalidationRuleCacheBuilds"_utf16_fly_string, JS::Value(counters.has_invalidation_rule_cache_builds), JS::default_attributes);
-    object->define_direct_property("hasMatchInvocations"_utf16_fly_string, JS::Value(counters.has_match_invocations), JS::default_attributes);
-    object->define_direct_property("hasResultCacheHits"_utf16_fly_string, JS::Value(counters.has_result_cache_hits), JS::default_attributes);
-    object->define_direct_property("hasResultCacheMisses"_utf16_fly_string, JS::Value(counters.has_result_cache_misses), JS::default_attributes);
-    object->define_direct_property("fullStyleInvalidations"_utf16_fly_string, JS::Value(counters.full_style_invalidations), JS::default_attributes);
-    object->define_direct_property("styleInvalidations"_utf16_fly_string, JS::Value(counters.style_invalidations), JS::default_attributes);
-    object->define_direct_property("elementStyleRecomputations"_utf16_fly_string, JS::Value(counters.element_style_recomputations), JS::default_attributes);
-    object->define_direct_property("elementStyleNoopRecomputations"_utf16_fly_string, JS::Value(counters.element_style_noop_recomputations), JS::default_attributes);
-    object->define_direct_property("elementInheritedStyleRecomputations"_utf16_fly_string, JS::Value(counters.element_inherited_style_recomputations), JS::default_attributes);
-    object->define_direct_property("elementInheritedStyleNoopRecomputations"_utf16_fly_string, JS::Value(counters.element_inherited_style_noop_recomputations), JS::default_attributes);
-    object->define_direct_property("previousSiblingInvalidationWalkVisits"_utf16_fly_string, JS::Value(counters.previous_sibling_invalidation_walk_visits), JS::default_attributes);
-    object->define_direct_property("descendantSlotInvalidationSubtreeScans"_utf16_fly_string, JS::Value(counters.descendant_slot_invalidation_subtree_scans), JS::default_attributes);
-    return object;
+    return window().associated_document().style_invalidation_counters();
 }
 
 void Internals::reset_style_invalidation_counters()
@@ -810,51 +780,12 @@ static Optional<AsyncScrollingStateSnapshot> capture_async_scrolling_state(DOM::
     };
 }
 
-JS::Object* Internals::async_scrolling_state()
+Compositor::AsyncScrollingState Internals::async_scrolling_state()
 {
-    auto object = JS::Object::create(realm(), nullptr);
     auto snapshot = capture_async_scrolling_state(window().associated_document());
-    Compositor::AsyncScrollingState empty_state;
-    auto const& state = snapshot.has_value() ? snapshot->state : empty_state;
-
-    auto scroll_nodes = MUST(JS::Array::create(realm(), state.scroll_nodes.size()));
-    for (size_t i = 0; i < state.scroll_nodes.size(); ++i) {
-        auto const& scroll_node = state.scroll_nodes[i];
-        auto node = JS::Object::create(realm(), nullptr);
-        node->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(scroll_node.node_id.document_id.value())), JS::default_attributes);
-        node->define_direct_property("scrollFrameIndex"_utf16_fly_string, JS::Value(scroll_node.node_id.scroll_frame_index.value()), JS::default_attributes);
-        node->define_direct_property("parentDocumentID"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? static_cast<double>(scroll_node.parent_node_id->document_id.value()) : 0), JS::default_attributes);
-        node->define_direct_property("parentScrollFrameIndex"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? scroll_node.parent_node_id->scroll_frame_index.value() : 0), JS::default_attributes);
-        node->define_direct_property("isViewport"_utf16_fly_string, JS::Value(scroll_node.is_viewport), JS::default_attributes);
-        MUST(scroll_nodes->create_data_property_or_throw(i, node));
-    }
-
-    auto sticky_areas = MUST(JS::Array::create(realm(), state.sticky_areas.size()));
-    for (size_t i = 0; i < state.sticky_areas.size(); ++i) {
-        auto const& sticky_area = state.sticky_areas[i];
-        auto area = JS::Object::create(realm(), nullptr);
-        area->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(sticky_area.document_id.value())), JS::default_attributes);
-        area->define_direct_property("scrollFrameIndex"_utf16_fly_string, JS::Value(sticky_area.scroll_frame_index.value()), JS::default_attributes);
-        area->define_direct_property("parentScrollFrameIndex"_utf16_fly_string, JS::Value(sticky_area.parent_scroll_frame_index.value()), JS::default_attributes);
-        area->define_direct_property("nearestScrollingAncestorIndex"_utf16_fly_string, JS::Value(sticky_area.nearest_scrolling_ancestor_index.value()), JS::default_attributes);
-        area->define_direct_property("hasTopInset"_utf16_fly_string, JS::Value(sticky_area.inset_top.has_value()), JS::default_attributes);
-        area->define_direct_property("hasRightInset"_utf16_fly_string, JS::Value(sticky_area.inset_right.has_value()), JS::default_attributes);
-        area->define_direct_property("hasBottomInset"_utf16_fly_string, JS::Value(sticky_area.inset_bottom.has_value()), JS::default_attributes);
-        area->define_direct_property("hasLeftInset"_utf16_fly_string, JS::Value(sticky_area.inset_left.has_value()), JS::default_attributes);
-        MUST(sticky_areas->create_data_property_or_throw(i, area));
-    }
-
-    object->define_direct_property("scrollNodeCount"_utf16_fly_string, JS::Value(state.scroll_nodes.size()), JS::default_attributes);
-    object->define_direct_property("scrollNodes"_utf16_fly_string, scroll_nodes, JS::default_attributes);
-    object->define_direct_property("stickyAreaCount"_utf16_fly_string, JS::Value(state.sticky_areas.size()), JS::default_attributes);
-    object->define_direct_property("stickyAreas"_utf16_fly_string, sticky_areas, JS::default_attributes);
-    object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
-    object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions.size()), JS::default_attributes);
-    object->define_direct_property("mainThreadWheelEventRegionCount"_utf16_fly_string, JS::Value(state.main_thread_wheel_event_regions.size()), JS::default_attributes);
-    object->define_direct_property("wheelEventListenerStateGeneration"_utf16_fly_string, JS::Value(state.wheel_event_listener_state_generation), JS::default_attributes);
-    object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
-    object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_region_covering_viewport), JS::default_attributes);
-    return object;
+    if (!snapshot.has_value())
+        return {};
+    return move(snapshot->state);
 }
 
 bool Internals::async_scrolling_state_blocks_wheel_event_at(double x, double y)
@@ -928,6 +859,90 @@ String Internals::async_scrolling_state_wheel_target_at(double x, double y, doub
     if (scroll_tree.scroll_node_is_viewport(*target.node_id))
         return "viewport"_string;
     return "non-viewport"_string;
+}
+
+static JS::Object* create_hit_testing_result(JS::Realm& realm, Painting::HitTestResult& result)
+{
+    auto hit_testing_result = JS::Object::create(realm, nullptr);
+    hit_testing_result->define_direct_property("node"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *result.dom_node() }), JS::default_attributes);
+    hit_testing_result->define_direct_property("indexInNode"_utf16_fly_string, JS::Value(result.index_in_node), JS::default_attributes);
+    return hit_testing_result;
+}
+
+JS::Object* Internals::hit_test_result(JS::Realm& realm, double x, double y)
+{
+    auto result = hit_test(x, y);
+    if (result.has_value())
+        return create_hit_testing_result(realm, *result);
+    return nullptr;
+}
+
+JS::Object* Internals::style_invalidation_counters_object(JS::Realm& realm) const
+{
+    auto const& counters = style_invalidation_counters();
+    auto object = JS::Object::create(realm, nullptr);
+    object->define_direct_property("hasAncestorWalkInvocations"_utf16_fly_string, JS::Value(counters.has_ancestor_walk_invocations), JS::default_attributes);
+    object->define_direct_property("hasAncestorWalkVisits"_utf16_fly_string, JS::Value(counters.has_ancestor_walk_visits), JS::default_attributes);
+    object->define_direct_property("hasAncestorSiblingElementChecks"_utf16_fly_string, JS::Value(counters.has_ancestor_sibling_element_checks), JS::default_attributes);
+    object->define_direct_property("hasInvalidationMetadataCandidates"_utf16_fly_string, JS::Value(counters.has_invalidation_metadata_candidates), JS::default_attributes);
+    object->define_direct_property("hasInvalidationRuleCacheBuilds"_utf16_fly_string, JS::Value(counters.has_invalidation_rule_cache_builds), JS::default_attributes);
+    object->define_direct_property("hasMatchInvocations"_utf16_fly_string, JS::Value(counters.has_match_invocations), JS::default_attributes);
+    object->define_direct_property("hasResultCacheHits"_utf16_fly_string, JS::Value(counters.has_result_cache_hits), JS::default_attributes);
+    object->define_direct_property("hasResultCacheMisses"_utf16_fly_string, JS::Value(counters.has_result_cache_misses), JS::default_attributes);
+    object->define_direct_property("fullStyleInvalidations"_utf16_fly_string, JS::Value(counters.full_style_invalidations), JS::default_attributes);
+    object->define_direct_property("styleInvalidations"_utf16_fly_string, JS::Value(counters.style_invalidations), JS::default_attributes);
+    object->define_direct_property("elementStyleRecomputations"_utf16_fly_string, JS::Value(counters.element_style_recomputations), JS::default_attributes);
+    object->define_direct_property("elementStyleNoopRecomputations"_utf16_fly_string, JS::Value(counters.element_style_noop_recomputations), JS::default_attributes);
+    object->define_direct_property("elementInheritedStyleRecomputations"_utf16_fly_string, JS::Value(counters.element_inherited_style_recomputations), JS::default_attributes);
+    object->define_direct_property("elementInheritedStyleNoopRecomputations"_utf16_fly_string, JS::Value(counters.element_inherited_style_noop_recomputations), JS::default_attributes);
+    object->define_direct_property("previousSiblingInvalidationWalkVisits"_utf16_fly_string, JS::Value(counters.previous_sibling_invalidation_walk_visits), JS::default_attributes);
+    object->define_direct_property("descendantSlotInvalidationSubtreeScans"_utf16_fly_string, JS::Value(counters.descendant_slot_invalidation_subtree_scans), JS::default_attributes);
+    return object;
+}
+
+JS::Object* Internals::async_scrolling_state_object(JS::Realm& realm)
+{
+    auto state = async_scrolling_state();
+    auto object = JS::Object::create(realm, nullptr);
+
+    auto scroll_nodes = MUST(JS::Array::create(realm, state.scroll_nodes.size()));
+    for (size_t i = 0; i < state.scroll_nodes.size(); ++i) {
+        auto const& scroll_node = state.scroll_nodes[i];
+        auto node = JS::Object::create(realm, nullptr);
+        node->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(scroll_node.node_id.document_id.value())), JS::default_attributes);
+        node->define_direct_property("scrollFrameIndex"_utf16_fly_string, JS::Value(scroll_node.node_id.scroll_frame_index.value()), JS::default_attributes);
+        node->define_direct_property("parentDocumentID"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? static_cast<double>(scroll_node.parent_node_id->document_id.value()) : 0), JS::default_attributes);
+        node->define_direct_property("parentScrollFrameIndex"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? scroll_node.parent_node_id->scroll_frame_index.value() : 0), JS::default_attributes);
+        node->define_direct_property("isViewport"_utf16_fly_string, JS::Value(scroll_node.is_viewport), JS::default_attributes);
+        MUST(scroll_nodes->create_data_property_or_throw(i, node));
+    }
+
+    auto sticky_areas = MUST(JS::Array::create(realm, state.sticky_areas.size()));
+    for (size_t i = 0; i < state.sticky_areas.size(); ++i) {
+        auto const& sticky_area = state.sticky_areas[i];
+        auto area = JS::Object::create(realm, nullptr);
+        area->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(sticky_area.document_id.value())), JS::default_attributes);
+        area->define_direct_property("scrollFrameIndex"_utf16_fly_string, JS::Value(sticky_area.scroll_frame_index.value()), JS::default_attributes);
+        area->define_direct_property("parentScrollFrameIndex"_utf16_fly_string, JS::Value(sticky_area.parent_scroll_frame_index.value()), JS::default_attributes);
+        area->define_direct_property("nearestScrollingAncestorIndex"_utf16_fly_string, JS::Value(sticky_area.nearest_scrolling_ancestor_index.value()), JS::default_attributes);
+        area->define_direct_property("hasTopInset"_utf16_fly_string, JS::Value(sticky_area.inset_top.has_value()), JS::default_attributes);
+        area->define_direct_property("hasRightInset"_utf16_fly_string, JS::Value(sticky_area.inset_right.has_value()), JS::default_attributes);
+        area->define_direct_property("hasBottomInset"_utf16_fly_string, JS::Value(sticky_area.inset_bottom.has_value()), JS::default_attributes);
+        area->define_direct_property("hasLeftInset"_utf16_fly_string, JS::Value(sticky_area.inset_left.has_value()), JS::default_attributes);
+        MUST(sticky_areas->create_data_property_or_throw(i, area));
+    }
+
+    object->define_direct_property("scrollNodeCount"_utf16_fly_string, JS::Value(state.scroll_nodes.size()), JS::default_attributes);
+    object->define_direct_property("scrollNodes"_utf16_fly_string, scroll_nodes, JS::default_attributes);
+    object->define_direct_property("stickyAreaCount"_utf16_fly_string, JS::Value(state.sticky_areas.size()), JS::default_attributes);
+    object->define_direct_property("stickyAreas"_utf16_fly_string, sticky_areas, JS::default_attributes);
+    object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
+    object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions.size()), JS::default_attributes);
+    object->define_direct_property("mainThreadWheelEventRegionCount"_utf16_fly_string, JS::Value(state.main_thread_wheel_event_regions.size()), JS::default_attributes);
+    object->define_direct_property("wheelEventListenerStateGeneration"_utf16_fly_string, JS::Value(state.wheel_event_listener_state_generation), JS::default_attributes);
+    object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
+    object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_region_covering_viewport), JS::default_attributes);
+    return object;
 }
 
 }

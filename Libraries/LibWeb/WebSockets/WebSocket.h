@@ -9,10 +9,10 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibCore/EventReceiver.h>
+#include <LibJS/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/WebSocket.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -29,14 +29,15 @@ namespace Web::WebSockets {
 using WebSocketSendData = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<FileAPI::Blob>, String>>;
 
 class WebSocket final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(WebSocket, DOM::EventTarget);
+    WEB_WRAPPABLE(WebSocket, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(WebSocket);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
     static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = true;
 
-    static WebIDL::ExceptionOr<GC::Ref<WebSocket>> construct_impl(JS::Realm&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);
+    static WebIDL::ExceptionOr<GC::Ref<WebSocket>> create(Web::HTML::WindowOrWorkerGlobalScopeMixin&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);
+    static WebIDL::ExceptionOr<GC::Ref<WebSocket>> create_for_constructor(JS::Realm&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);
 
     virtual ~WebSocket() override;
 
@@ -58,7 +59,8 @@ public:
     void set_binary_type(String const& type) { m_binary_type = type; }
 
     WebIDL::ExceptionOr<void> close(Optional<u16> code, Optional<String> reason);
-    WebIDL::ExceptionOr<void> send(WebSocketSendData const& data);
+    using SendData = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<FileAPI::Blob>, String>>;
+    WebIDL::ExceptionOr<void> send(SendData const& data);
 
     void make_disappear();
 
@@ -68,17 +70,21 @@ private:
     void on_error();
     void on_close(u16 code, String reason, bool was_clean);
 
-    WebSocket(JS::Realm&);
+    JS::Object& relevant_global_object() const;
 
-    virtual void initialize(JS::Realm&) override;
+    WebSocket(GC::Ref<DOM::EventTarget> relevant_global_object);
+
+    virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
     virtual bool must_survive_garbage_collection() const override;
 
+    HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
     ErrorOr<void> establish_web_socket_connection(URL::URL const& url_record, Vector<String> const& protocols, HTML::EnvironmentSettingsObject& client);
 
     URL::URL m_url;
     String m_binary_type { "blob"_string };
     RefPtr<Requests::WebSocket> m_websocket;
+    GC::Ref<DOM::EventTarget> m_global_object;
 
     IntrusiveListNode<WebSocket> m_list_node;
 

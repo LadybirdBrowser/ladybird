@@ -503,15 +503,15 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-function
-GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_function(JS::Realm& realm) const
+GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_function() const
 {
     auto reify_numeric_argument = [&](size_t index) {
-        return GC::Ref { as<CSSNumericValue>(*m_properties.values[index]->reify(realm, {})) };
+        return GC::Ref { as<CSSNumericValue>(*m_properties.values[index]->reify({})) };
     };
-    auto reify_0 = [&] { return CSSUnitValue::create(realm, 0, "number"_fly_string); };
-    auto reify_1 = [&] { return CSSUnitValue::create(realm, 1, "number"_fly_string); };
-    auto reify_0px = [&] { return CSSUnitValue::create(realm, 0, "px"_fly_string); };
-    auto reify_0deg = [&] { return CSSUnitValue::create(realm, 0, "deg"_fly_string); };
+    auto reify_0 = [&] { return CSSUnitValue::create(0, "number"_fly_string); };
+    auto reify_1 = [&] { return CSSUnitValue::create(1, "number"_fly_string); };
+    auto reify_0px = [&] { return CSSUnitValue::create(0, "px"_fly_string); };
+    auto reify_0deg = [&] { return CSSUnitValue::create(0, "deg"_fly_string); };
 
     // To reify a <transform-function> func, perform the appropriate set of steps below, based on func:
     switch (m_properties.transform_function) {
@@ -525,7 +525,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
             return nullptr;
 
         auto transform_as_matrix = to_matrix({});
-        auto matrix = Geometry::DOMMatrix::create(realm);
+        auto matrix = Geometry::DOMMatrix::create();
         matrix->set_m11(transform_as_matrix[0, 0]);
         matrix->set_m12(transform_as_matrix[1, 0]);
         matrix->set_m13(transform_as_matrix[2, 0]);
@@ -544,7 +544,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
         matrix->set_m44(transform_as_matrix[3, 3]);
 
         auto is_2d = m_properties.transform_function == TransformFunction::Matrix ? CSSTransformComponent::Is2D::Yes : CSSTransformComponent::Is2D::No;
-        return CSSMatrixComponent::create(realm, is_2d, matrix);
+        return CSSMatrixComponent::create(is_2d, matrix);
     }
 
     // -> translate()
@@ -558,16 +558,16 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     case TransformFunction::Translate: {
         // NB: Default y to 0px if it's not specified.
         auto y = m_properties.values.size() > 1 ? reify_numeric_argument(1) : reify_0px();
-        return CSSTranslate::create(realm, CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), y, reify_0px());
+        return CSSTranslate::create(CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), y, reify_0px());
     }
     case TransformFunction::TranslateX:
-        return CSSTranslate::create(realm, CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), reify_0px(), reify_0px());
+        return CSSTranslate::create(CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), reify_0px(), reify_0px());
     case TransformFunction::TranslateY:
-        return CSSTranslate::create(realm, CSSTransformComponent::Is2D::Yes, reify_0px(), reify_numeric_argument(0), reify_0px());
+        return CSSTranslate::create(CSSTransformComponent::Is2D::Yes, reify_0px(), reify_numeric_argument(0), reify_0px());
     case TransformFunction::Translate3d:
-        return CSSTranslate::create(realm, CSSTransformComponent::Is2D::No, reify_numeric_argument(0), reify_numeric_argument(1), reify_numeric_argument(2));
+        return CSSTranslate::create(CSSTransformComponent::Is2D::No, reify_numeric_argument(0), reify_numeric_argument(1), reify_numeric_argument(2));
     case TransformFunction::TranslateZ:
-        return CSSTranslate::create(realm, CSSTransformComponent::Is2D::No, reify_0px(), reify_0px(), reify_numeric_argument(0));
+        return CSSTranslate::create(CSSTransformComponent::Is2D::No, reify_0px(), reify_0px(), reify_numeric_argument(0));
 
     // -> scale()
     // -> scaleX()
@@ -580,16 +580,16 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     case TransformFunction::Scale: {
         // NB: Default y to a copy of x if it's not specified.
         auto y = m_properties.values.size() > 1 ? reify_numeric_argument(1) : reify_numeric_argument(0);
-        return CSSScale::create(realm, CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), y, reify_1());
+        return CSSScale::create(CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), y, reify_1());
     }
     case TransformFunction::ScaleX:
-        return CSSScale::create(realm, CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), reify_1(), reify_1());
+        return CSSScale::create(CSSTransformComponent::Is2D::Yes, reify_numeric_argument(0), reify_1(), reify_1());
     case TransformFunction::ScaleY:
-        return CSSScale::create(realm, CSSTransformComponent::Is2D::Yes, reify_1(), reify_numeric_argument(0), reify_1());
+        return CSSScale::create(CSSTransformComponent::Is2D::Yes, reify_1(), reify_numeric_argument(0), reify_1());
     case TransformFunction::Scale3d:
-        return CSSScale::create(realm, CSSTransformComponent::Is2D::No, reify_numeric_argument(0), reify_numeric_argument(1), reify_numeric_argument(2));
+        return CSSScale::create(CSSTransformComponent::Is2D::No, reify_numeric_argument(0), reify_numeric_argument(1), reify_numeric_argument(2));
     case TransformFunction::ScaleZ:
-        return CSSScale::create(realm, CSSTransformComponent::Is2D::No, reify_1(), reify_1(), reify_numeric_argument(0));
+        return CSSScale::create(CSSTransformComponent::Is2D::No, reify_1(), reify_1(), reify_numeric_argument(0));
 
     // -> rotate()
     // -> rotate3d()
@@ -601,15 +601,15 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     //       axis coordinates if not specified in func and whose is2D internal slot is true if func is rotate(), and
     //       false otherwise.
     case TransformFunction::Rotate:
-        return CSSRotate::create(realm, CSSTransformComponent::Is2D::Yes, reify_0(), reify_0(), reify_1(), reify_numeric_argument(0));
+        return CSSRotate::create(CSSTransformComponent::Is2D::Yes, reify_0(), reify_0(), reify_1(), reify_numeric_argument(0));
     case TransformFunction::Rotate3d:
-        return CSSRotate::create(realm, CSSTransformComponent::Is2D::No, reify_numeric_argument(0), reify_numeric_argument(1), reify_numeric_argument(2), reify_numeric_argument(3));
+        return CSSRotate::create(CSSTransformComponent::Is2D::No, reify_numeric_argument(0), reify_numeric_argument(1), reify_numeric_argument(2), reify_numeric_argument(3));
     case TransformFunction::RotateX:
-        return CSSRotate::create(realm, CSSTransformComponent::Is2D::No, reify_1(), reify_0(), reify_0(), reify_numeric_argument(0));
+        return CSSRotate::create(CSSTransformComponent::Is2D::No, reify_1(), reify_0(), reify_0(), reify_numeric_argument(0));
     case TransformFunction::RotateY:
-        return CSSRotate::create(realm, CSSTransformComponent::Is2D::No, reify_0(), reify_1(), reify_0(), reify_numeric_argument(0));
+        return CSSRotate::create(CSSTransformComponent::Is2D::No, reify_0(), reify_1(), reify_0(), reify_numeric_argument(0));
     case TransformFunction::RotateZ:
-        return CSSRotate::create(realm, CSSTransformComponent::Is2D::No, reify_0(), reify_0(), reify_1(), reify_numeric_argument(0));
+        return CSSRotate::create(CSSTransformComponent::Is2D::No, reify_0(), reify_0(), reify_1(), reify_numeric_argument(0));
 
     // -> skew()
     //    1. Return a new CSSSkew object, whose ax and ay internal slots are set to the reification of the specified x
@@ -617,20 +617,20 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     case TransformFunction::Skew: {
         // NB: Default y to 0deg if it's not specified.
         auto y = m_properties.values.size() > 1 ? reify_numeric_argument(1) : reify_0deg();
-        return CSSSkew::create(realm, reify_numeric_argument(0), y);
+        return CSSSkew::create(reify_numeric_argument(0), y);
     }
 
     // -> skewX()
     //    1. Return a new CSSSkewX object, whose ax internal slot is set to the reification of the specified x angle,
     //       or the reification of 0deg if not specified in func, and whose is2D internal slot is true.
     case TransformFunction::SkewX:
-        return CSSSkewX::create(realm, reify_numeric_argument(0));
+        return CSSSkewX::create(reify_numeric_argument(0));
 
     // -> skewY()
     //    1. Return a new CSSSkewY object, whose ay internal slot is set to the reification of the specified y angle,
     //       or the reification of 0deg if not specified in func, and whose is2D internal slot is true.
     case TransformFunction::SkewY:
-        return CSSSkewY::create(realm, reify_numeric_argument(0));
+        return CSSSkewY::create(reify_numeric_argument(0));
 
     // -> perspective()
     //    1. Return a new CSSPerspective object, whose length internal slot is set to the reification of the specified
@@ -638,14 +638,14 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     //       and whose is2D internal slot is false.
     case TransformFunction::Perspective: {
         CSSPerspectiveValueInternal length = [&]() -> CSSPerspectiveValueInternal {
-            auto reified = m_properties.values[0]->reify(realm, {});
+            auto reified = m_properties.values[0]->reify({});
             if (auto* keyword = as_if<CSSKeywordValue>(*reified))
                 return GC::Ref { *keyword };
             if (auto* numeric = as_if<CSSNumericValue>(*reified))
                 return GC::Ref { *numeric };
             VERIFY_NOT_REACHED();
         }();
-        return CSSPerspective::create(realm, length);
+        return CSSPerspective::create(length);
     }
     }
     VERIFY_NOT_REACHED();

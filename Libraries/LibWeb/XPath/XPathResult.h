@@ -8,17 +8,19 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::XPath {
 
-class XPathResult : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(XPathResult, Bindings::PlatformObject);
+class XPathResult : public Bindings::Wrappable {
+    WEB_WRAPPABLE(XPathResult, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(XPathResult);
 
 public:
+    [[nodiscard]] static GC::Ref<XPathResult> create();
+
     static WebIDL::UnsignedShort const ANY_TYPE = 0;
     static WebIDL::UnsignedShort const NUMBER_TYPE = 1;
     static WebIDL::UnsignedShort const STRING_TYPE = 2;
@@ -30,10 +32,9 @@ public:
     static WebIDL::UnsignedShort const ANY_UNORDERED_NODE_TYPE = 8;
     static WebIDL::UnsignedShort const FIRST_ORDERED_NODE_TYPE = 9;
 
-    XPathResult(JS::Realm&);
+    XPathResult();
     virtual ~XPathResult() override;
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::UnsignedShort result_type() const { return m_result_type; }
     WebIDL::Double number_value() const { return m_number_value; }

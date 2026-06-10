@@ -20,19 +20,20 @@ void Intrinsics::create_web_prototype_and_constructor<HeadersIteratorPrototype>(
     m_prototypes.set("HeadersIterator"_fly_string, prototype);
 }
 
+static void set_headers_iterator_prototype(JS::Realm& realm, Fetch::HeadersIterator& iterator)
+{
+    static auto const& name = *new FlyString("HeadersIterator"_fly_string);
+    Detail::set_prototype_for_interface_on<HeadersIteratorPrototype>(realm, iterator, name);
+}
+
 }
 
 namespace Web::Fetch {
 
 GC_DEFINE_ALLOCATOR(HeadersIterator);
 
-GC::Ref<HeadersIterator> HeadersIterator::create(Headers const& headers, JS::Object::PropertyKind iteration_kind)
-{
-    return headers.realm().create<HeadersIterator>(headers, iteration_kind);
-}
-
-HeadersIterator::HeadersIterator(Headers const& headers, JS::Object::PropertyKind iteration_kind)
-    : PlatformObject(headers.realm())
+HeadersIterator::HeadersIterator(JS::Realm& realm, Headers const& headers, JS::Object::PropertyKind iteration_kind)
+    : JS::Object(realm, nullptr)
     , m_headers(headers)
     , m_iteration_kind(iteration_kind)
 {
@@ -40,13 +41,14 @@ HeadersIterator::HeadersIterator(Headers const& headers, JS::Object::PropertyKin
 
 HeadersIterator::~HeadersIterator() = default;
 
-void HeadersIterator::initialize(JS::Realm& realm)
+GC::Ref<HeadersIterator> HeadersIterator::create(JS::Realm& realm, Headers const& headers, JS::Object::PropertyKind iteration_kind)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HeadersIterator);
-    Base::initialize(realm);
+    auto iterator = realm.create<HeadersIterator>(realm, headers, iteration_kind);
+    Bindings::set_headers_iterator_prototype(realm, iterator);
+    return iterator;
 }
 
-void HeadersIterator::visit_edges(JS::Cell::Visitor& visitor)
+void HeadersIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_headers);
@@ -75,7 +77,8 @@ GC::Ref<JS::Object> HeadersIterator::next()
     case JS::Object::PropertyKind::Value:
         return create_iterator_result_object(vm(), JS::PrimitiveString::create(vm(), pair_value), false);
     case JS::Object::PropertyKind::KeyAndValue: {
-        auto array = JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm(), pair_name), JS::PrimitiveString::create(vm(), pair_value) });
+        auto& realm = *vm().current_realm();
+        auto array = JS::Array::create_from(realm, { JS::PrimitiveString::create(vm(), pair_name), JS::PrimitiveString::create(vm(), pair_value) });
         return create_iterator_result_object(vm(), array, false);
     }
     default:

@@ -5,8 +5,6 @@
  */
 
 #include <LibGfx/Path.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGCircleElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/Layout/Node.h>
@@ -21,12 +19,6 @@ GC_DEFINE_ALLOCATOR(SVGCircleElement);
 SVGCircleElement::SVGCircleElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGeometryElement(document, qualified_name)
 {
-}
-
-void SVGCircleElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGCircleElement);
-    Base::initialize(realm);
 }
 
 bool SVGCircleElement::is_presentational_hint(FlyString const& name) const

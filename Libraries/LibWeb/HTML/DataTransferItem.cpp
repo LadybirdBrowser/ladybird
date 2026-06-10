@@ -5,13 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Function.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/DataTransferItem.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
@@ -19,27 +18,20 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DataTransferItem);
 
-GC::Ref<DataTransferItem> DataTransferItem::create(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer, size_t item_index)
+GC::Ref<DataTransferItem> DataTransferItem::create(GC::Ref<DataTransfer> data_transfer, size_t item_index)
 {
-    return realm.create<DataTransferItem>(realm, data_transfer, item_index);
+    return GC::Heap::the().allocate<DataTransferItem>(data_transfer, item_index);
 }
 
-DataTransferItem::DataTransferItem(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer, size_t item_index)
-    : PlatformObject(realm)
-    , m_data_transfer(data_transfer)
+DataTransferItem::DataTransferItem(GC::Ref<DataTransfer> data_transfer, size_t item_index)
+    : m_data_transfer(data_transfer)
     , m_item_index(item_index)
 {
 }
 
 DataTransferItem::~DataTransferItem() = default;
 
-void DataTransferItem::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DataTransferItem);
-    Base::initialize(realm);
-}
-
-void DataTransferItem::visit_edges(JS::Cell::Visitor& visitor)
+void DataTransferItem::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_data_transfer);
@@ -90,42 +82,46 @@ Optional<DragDataStore::Mode> DataTransferItem::mode() const
     return m_data_transfer->mode();
 }
 
+Optional<String> DataTransferItem::string_data() const
+{
+    if (mode() != DragDataStore::Mode::ReadWrite && mode() != DragDataStore::Mode::ReadOnly)
+        return {};
+
+    auto const& item = m_data_transfer->drag_data(*m_item_index);
+
+    if (item.kind != DragDataStoreItem::Kind::Text)
+        return {};
+
+    return MUST(String::from_utf8({ item.data }));
+}
+
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasstring
 void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) const
 {
-    auto& realm = this->realm();
-    auto& vm = realm.vm();
-
     // 1. If the callback is null, return.
     if (!callback)
         return;
 
     // 2. If the DataTransferItem object is not in the read/write mode or the read-only mode, return. The callback is
     //    never invoked.
-    if (mode() != DragDataStore::Mode::ReadWrite && mode() != DragDataStore::Mode::ReadOnly)
-        return;
-
-    auto const& item = m_data_transfer->drag_data(*m_item_index);
-
     // 3. If the drag data item kind is not text, then return. The callback is never invoked.
-    if (item.kind != DragDataStoreItem::Kind::Text)
+    auto data = string_data();
+    if (!data.has_value())
         return;
 
     // 4. Otherwise, queue a task to invoke callback, passing the actual data of the item represented by the
     //    DataTransferItem object as the argument.
-    auto data = JS::PrimitiveString::create(vm, MUST(String::from_utf8({ item.data })));
-
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
-        GC::Function<void()>::create(realm.heap(), [callback, data]() {
-            (void)WebIDL::invoke_callback(*callback, {}, { { data } });
+        GC::Function<void()>::create(GC::Heap::the(), [callback, data = data.release_value()]() mutable {
+            auto& vm = callback->callback->vm();
+            auto wrapped_data = JS::PrimitiveString::create(vm, move(data));
+            (void)WebIDL::invoke_callback(*callback, {}, { { wrapped_data } });
         }));
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasfile
 GC::Ptr<FileAPI::File> DataTransferItem::get_as_file() const
 {
-    auto& realm = this->realm();
-
     // 1. If the DataTransferItem object is not in the read/write mode or the read-only mode, then return null
     if (mode() != DragDataStore::Mode::ReadWrite && mode() != DragDataStore::Mode::ReadOnly)
         return nullptr;
@@ -137,25 +133,23 @@ GC::Ptr<FileAPI::File> DataTransferItem::get_as_file() const
         return nullptr;
 
     // 3. Return a new File object representing the actual data of the item represented by the DataTransferItem object.
-    auto blob = FileAPI::Blob::create(realm, item.data, item.type_string);
+    auto blob = FileAPI::Blob::create(item.data, item.type_string);
 
     // FIXME: The FileAPI should use ByteString for file names.
     auto file_name = MUST(String::from_byte_string(item.file_name));
 
     // FIXME: Fill in other fields (e.g. last_modified).
-    Bindings::FilePropertyBag options {};
+    FileAPI::FilePropertyBag options {};
     options.type = item.type_string;
 
     FileAPI::BlobParts file_bits {};
     file_bits.append(blob);
-    return MUST(FileAPI::File::create(realm, file_bits, file_name, move(options)));
+    return MUST(FileAPI::File::create(file_bits, file_name, move(options)));
 }
 
 // https://wicg.github.io/entries-api/#dom-datatransferitem-webkitgetasentry
 GC::Ptr<EntriesAPI::FileSystemEntry> DataTransferItem::webkit_get_as_entry() const
 {
-    auto& realm = this->realm();
-
     // 1. Let store be this's DataTransfer object’s drag data store.
 
     // 2. If store’s drag data store mode is not read/write mode or read-only mode, return null and abort these steps
@@ -170,7 +164,7 @@ GC::Ptr<EntriesAPI::FileSystemEntry> DataTransferItem::webkit_get_as_entry() con
         return nullptr;
 
     // 5. Return a new FileSystemEntry object representing the entry.
-    return EntriesAPI::FileSystemEntry::create(realm, EntriesAPI::EntryType::File, item.file_name);
+    return EntriesAPI::FileSystemEntry::create(EntriesAPI::EntryType::File, item.file_name);
 }
 
 }

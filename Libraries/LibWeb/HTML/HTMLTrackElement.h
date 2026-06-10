@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class HTMLTrackElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLTrackElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTrackElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTrackElement);
 
 public:
@@ -26,7 +26,7 @@ public:
 private:
     HTMLTrackElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     String track_url() const { return m_track_url; }

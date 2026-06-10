@@ -4,33 +4,37 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBVersionChangeEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
 
 namespace Web::IndexedDB {
 
 GC_DEFINE_ALLOCATOR(IDBVersionChangeEvent);
 
-GC::Ref<IDBVersionChangeEvent> IDBVersionChangeEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::IDBVersionChangeEventInit const& event_init)
+GC::Ref<IDBVersionChangeEvent> IDBVersionChangeEvent::create(FlyString const& event_name, IDBVersionChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<IDBVersionChangeEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<IDBVersionChangeEvent>(event_name, event_init, time_stamp);
 }
 
-IDBVersionChangeEvent::IDBVersionChangeEvent(JS::Realm& realm, FlyString const& event_name, Bindings::IDBVersionChangeEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+GC::Ref<IDBVersionChangeEvent> IDBVersionChangeEvent::create(FlyString const& event_name, Bindings::IDBVersionChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    IDBVersionChangeEventInit init;
+    init.bubbles = event_init.bubbles;
+    init.cancelable = event_init.cancelable;
+    init.composed = event_init.composed;
+    init.old_version = event_init.old_version;
+    init.new_version = event_init.new_version.value_or({});
+    return create(event_name, init, time_stamp);
+}
+
+IDBVersionChangeEvent::IDBVersionChangeEvent(FlyString const& event_name, IDBVersionChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_old_version(event_init.old_version)
-    , m_new_version(event_init.new_version.value_or({}))
+    , m_new_version(event_init.new_version)
 {
 }
 
 IDBVersionChangeEvent::~IDBVersionChangeEvent() = default;
-
-void IDBVersionChangeEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBVersionChangeEvent);
-    Base::initialize(realm);
-}
 
 }

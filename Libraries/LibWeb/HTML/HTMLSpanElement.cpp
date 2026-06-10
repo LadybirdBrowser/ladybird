@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLSpanElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLSpanElement.h>
 
 namespace Web::HTML {
@@ -18,11 +16,5 @@ HTMLSpanElement::HTMLSpanElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 HTMLSpanElement::~HTMLSpanElement() = default;
-
-void HTMLSpanElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSpanElement);
-    Base::initialize(realm);
-}
 
 }

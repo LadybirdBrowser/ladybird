@@ -51,8 +51,8 @@ interface DOMMatrixReadOnly {
     [NewObject] DOMMatrix inverse();
 
     [NewObject] DOMPoint transformPoint(optional DOMPointInit point = {});
-    [NewObject] Float32Array toFloat32Array();
-    [NewObject] Float64Array toFloat64Array();
+    [NewObject, NeedsCallerRealm] Float32Array toFloat32Array();
+    [NewObject, NeedsCallerRealm] Float64Array toFloat64Array();
 
     [Exposed=Window] stringifier;
     [Default] object toJSON();

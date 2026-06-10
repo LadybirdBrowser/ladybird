@@ -8,12 +8,13 @@
 #include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibWeb/Bindings/SVGImageElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -32,12 +33,6 @@ SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qua
 
 SVGImageElement::~SVGImageElement() = default;
 
-void SVGImageElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGImageElement);
-    Base::initialize(realm);
-}
-
 void SVGImageElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -55,16 +50,16 @@ void SVGImageElement::attribute_changed(FlyString const& name, Optional<String> 
 
     if (name == SVG::AttributeNames::x) {
         auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
-        MUST(x()->base_val()->set_value(parsed_value.value_or(0)));
+        x()->base_val()->set_value_without_readonly_check(parsed_value.value_or(0));
     } else if (name == SVG::AttributeNames::y) {
         auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
-        MUST(y()->base_val()->set_value(parsed_value.value_or(0)));
+        y()->base_val()->set_value_without_readonly_check(parsed_value.value_or(0));
     } else if (name == SVG::AttributeNames::width) {
         auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
-        MUST(width()->base_val()->set_value(parsed_value.value_or(0)));
+        width()->base_val()->set_value_without_readonly_check(parsed_value.value_or(0));
     } else if (name == SVG::AttributeNames::height) {
         auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
-        MUST(height()->base_val()->set_value(parsed_value.value_or(0)));
+        height()->base_val()->set_value_without_readonly_check(parsed_value.value_or(0));
     } else if (name == SVG::AttributeNames::href) {
         // https://svgwg.org/svg2-draft/linking.html#XLinkRefAttrs
         // For backwards compatibility, elements with an ‘href’ attribute also recognize an ‘href’ attribute in the
@@ -104,11 +99,8 @@ GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::y()
 GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::width()
 {
     if (!m_width) {
-        auto& realm = this->realm();
-        m_width = SVGAnimatedLength::create(
-            realm,
-            SVGLength::create(realm, 0, intrinsic_width().value_or(0).to_double(), SVGLength::ReadOnly::No),
-            SVGLength::create(realm, 0, 0, SVGLength::ReadOnly::Yes));
+        m_width = SVGAnimatedLength::create(SVGLength::create(0, intrinsic_width().value_or(0).to_double(), SVGLength::ReadOnly::No),
+            SVGLength::create(0, 0, SVGLength::ReadOnly::Yes));
     }
 
     return *m_width;
@@ -118,11 +110,8 @@ GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::width()
 GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::height()
 {
     if (!m_height) {
-        auto& realm = this->realm();
-        m_height = SVGAnimatedLength::create(
-            realm,
-            SVGLength::create(realm, 0, intrinsic_height().value_or(0).to_double(), SVGLength::ReadOnly::No),
-            SVGLength::create(realm, 0, 0, SVGLength::ReadOnly::Yes));
+        m_height = SVGAnimatedLength::create(SVGLength::create(0, intrinsic_height().value_or(0).to_double(), SVGLength::ReadOnly::No),
+            SVGLength::create(0, 0, SVGLength::ReadOnly::Yes));
     }
 
     return *m_height;
@@ -177,7 +166,7 @@ void SVGImageElement::process_the_url(Optional<String> const& href)
 void SVGImageElement::fetch_the_document(URL::URL const& url)
 {
     m_load_event_delayer.emplace(document());
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), url);
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), url);
     m_resource_request->add_callbacks(
         [this, resource_request = GC::Root { m_resource_request }] {
             m_load_event_delayer.clear();
@@ -190,18 +179,20 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
             set_needs_style_update(true);
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 
-            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
+            dispatch_event(DOM::Event::create(HTML::EventNames::load,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
         },
         [this] {
             m_load_event_delayer.clear();
 
-            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+            dispatch_event(DOM::Event::create(HTML::EventNames::error,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
         });
 
     if (m_resource_request->needs_fetching()) {
-        auto request = HTML::create_potential_CORS_request(vm(), url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
+        auto request = HTML::create_potential_CORS_request(url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(&document().relevant_settings_object());
-        m_resource_request->fetch_resource(realm(), request);
+        m_resource_request->fetch_resource(HTML::relevant_realm(*this), request);
     }
 }
 

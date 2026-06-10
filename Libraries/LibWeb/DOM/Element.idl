@@ -40,8 +40,8 @@ interface Element : Node {
     sequence<DOMString> getAttributeNames();
     DOMString? getAttribute(DOMString qualifiedName);
     DOMString? getAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions, ImplementedAs=set_attribute_for_bindings] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
-    [CEReactions, ImplementedAs=set_attribute_ns_for_bindings] undefined setAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
+    [CEReactions, ImplementedAs=set_attribute, ImplementedInBindings] undefined setAttribute(DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
+    [CEReactions, ImplementedAs=set_attribute_ns, ImplementedInBindings] undefined setAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString qualifiedName, (TrustedType or Utf16DOMString) value);
     [CEReactions] undefined removeAttribute([FlyString] DOMString qualifiedName);
     [CEReactions] undefined removeAttributeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
     [CEReactions] boolean toggleAttribute(DOMString qualifiedName, optional boolean force);
@@ -50,12 +50,12 @@ interface Element : Node {
 
     Attr? getAttributeNode([FlyString] DOMString qualifiedName);
     Attr? getAttributeNodeNS([FlyString] DOMString? namespace, [FlyString] DOMString localName);
-    [CEReactions, ImplementedAs=set_attribute_node_for_bindings] Attr? setAttributeNode(Attr attr);
-    [CEReactions, ImplementedAs=set_attribute_node_ns_for_bindings] Attr? setAttributeNodeNS(Attr attr);
+    [CEReactions, ImplementedAs=set_attribute_node] Attr? setAttributeNode(Attr attr);
+    [CEReactions, ImplementedAs=set_attribute_node_ns] Attr? setAttributeNodeNS(Attr attr);
     [CEReactions] Attr removeAttributeNode(Attr attr);
 
     ShadowRoot attachShadow(ShadowRootInit init);
-    [ImplementedAs=shadow_root_for_bindings] readonly attribute ShadowRoot? shadowRoot;
+    [ImplementedAs=open_shadow_root] readonly attribute ShadowRoot? shadowRoot;
 
     readonly attribute CustomElementRegistry? customElementRegistry;
 
@@ -75,18 +75,18 @@ interface Element : Node {
     readonly attribute Element? previousElementSibling;
 
     // https://drafts.csswg.org/cssom-view/#extension-to-the-element-interface
-    [ImplementedAs=get_client_rects_for_bindings] DOMRectList getClientRects();
-    [ImplementedAs=get_bounding_client_rect_for_bindings] DOMRect getBoundingClientRect();
+    [ImplementedAs=get_client_rects, ImplementedInBindings] DOMRectList getClientRects();
+    [ImplementedAs=get_bounding_client_rect, ImplementedInBindings] DOMRect getBoundingClientRect();
 
     boolean checkVisibility(optional CheckVisibilityOptions options = {});
 
-    Promise<undefined> scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
-    Promise<undefined> scroll(optional ScrollToOptions options = {});
-    Promise<undefined> scroll(unrestricted double x, unrestricted double y);
-    [ImplementedAs=scroll] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
-    [ImplementedAs=scroll] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
-    Promise<undefined> scrollBy(optional ScrollToOptions options = {});
-    Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
+    [CreatesPromise] Promise<undefined> scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
+    [CreatesPromise] Promise<undefined> scroll(optional ScrollToOptions options = {});
+    [CreatesPromise] Promise<undefined> scroll(unrestricted double x, unrestricted double y);
+    [ImplementedAs=scroll, CreatesPromise] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
+    [ImplementedAs=scroll, CreatesPromise] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
+    [CreatesPromise] Promise<undefined> scrollBy(optional ScrollToOptions options = {});
+    [CreatesPromise] Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
     attribute unrestricted double scrollTop;
     attribute unrestricted double scrollLeft;
     readonly attribute long scrollWidth;
@@ -98,14 +98,14 @@ interface Element : Node {
     readonly attribute double currentCSSZoom;
 
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
-    [CEReactions] undefined setHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
+    [CEReactions, ImplementedInBindings] undefined setHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
     DOMString getHTML(optional GetHTMLOptions options = {});
 
-    [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) innerHTML;
+    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) innerHTML;
 
-    [CEReactions, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) outerHTML;
+    [CEReactions, ImplementedInBindings, LegacyNullToEmptyString] attribute (TrustedHTML or Utf16DOMString) outerHTML;
 
-    [CEReactions] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or Utf16DOMString) text);
+    [CEReactions, ImplementedInBindings] undefined insertAdjacentHTML(DOMString position, (TrustedHTML or Utf16DOMString) text);
 
     // https://w3c.github.io/pointerevents/#extensions-to-the-element-interface
     undefined setPointerCapture(long pointerId);
@@ -116,7 +116,7 @@ interface Element : Node {
     [SameObject, PutForwards=value, ImplementedAs=part_list] readonly attribute DOMTokenList part;
     
     // https://w3c.github.io/pointerlock/#requestPointerLock
-    Promise<undefined> requestPointerLock(optional PointerLockOptions options = {});
+    [ImplementedInBindings] Promise<undefined> requestPointerLock(optional PointerLockOptions options = {});
 };
 
 dictionary GetHTMLOptions {

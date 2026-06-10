@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -15,8 +15,8 @@
 namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom-1/#the-stylesheet-interface
-class WEB_API StyleSheet : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(StyleSheet, Bindings::PlatformObject);
+class WEB_API StyleSheet : public Bindings::Wrappable {
+    WEB_WRAPPABLE(StyleSheet, Bindings::Wrappable);
 
 public:
     virtual ~StyleSheet() = default;
@@ -62,8 +62,8 @@ public:
     void set_parent_css_style_sheet(CSSStyleSheet*);
 
 protected:
-    explicit StyleSheet(JS::Realm&, MediaList& media);
-    virtual void visit_edges(Cell::Visitor&) override;
+    explicit StyleSheet(MediaList& media);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     GC::Ref<MediaList> m_media;

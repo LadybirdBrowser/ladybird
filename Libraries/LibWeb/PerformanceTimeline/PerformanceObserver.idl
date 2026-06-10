@@ -20,5 +20,5 @@ interface PerformanceObserver {
     undefined disconnect();
     PerformanceEntryList takeRecords();
     // FIXME: This should be FrozenArray<DOMString>, but must also always return the same object.
-    [SameObject] static readonly attribute any supportedEntryTypes;
+    [NeedsCallerRealmForGetter, SameObject] static readonly attribute any supportedEntryTypes;
 };

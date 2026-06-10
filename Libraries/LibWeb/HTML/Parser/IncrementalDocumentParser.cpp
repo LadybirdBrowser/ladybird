@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <LibGC/Function.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/DOM/Document.h>
@@ -20,7 +21,7 @@ GC_DEFINE_ALLOCATOR(IncrementalDocumentParser);
 
 GC::Ref<IncrementalDocumentParser> IncrementalDocumentParser::create(GC::Ref<DOM::Document> document, GC::Ref<Fetch::Infrastructure::Body> body, URL::URL url, Optional<MimeSniff::MimeType> mime_type)
 {
-    return document->realm().create<IncrementalDocumentParser>(document, body, move(url), move(mime_type));
+    return GC::Heap::the().allocate<IncrementalDocumentParser>(document, body, move(url), move(mime_type));
 }
 
 IncrementalDocumentParser::IncrementalDocumentParser(GC::Ref<DOM::Document> document, GC::Ref<Fetch::Infrastructure::Body> body, URL::URL url, Optional<MimeSniff::MimeType> mime_type)
@@ -49,7 +50,7 @@ void IncrementalDocumentParser::start()
     // FIXME: The spec allows starting the parse after 500 ms or 1024 bytes, whichever comes first.
     // We only honor the byte threshold.
     auto parser = GC::Ref { *this };
-    m_body->wait_for_sniff_bytes(GC::create_function(heap(), [parser](ReadonlyBytes sniff_bytes) {
+    m_body->wait_for_sniff_bytes(GC::create_function(GC::Heap::the(), [parser](ReadonlyBytes sniff_bytes) {
         parser->initialize_parser(sniff_bytes);
     }));
 }
@@ -90,16 +91,17 @@ void IncrementalDocumentParser::start_incremental_read()
 {
     auto parser = GC::Ref { *this };
     m_body->incrementally_read(
-        GC::create_function(heap(), [parser](ByteBuffer bytes) mutable {
+        m_document->relevant_settings_object().realm(),
+        GC::create_function(GC::Heap::the(), [parser](ByteBuffer bytes) mutable {
             parser->process_body_chunk(move(bytes));
         }),
-        GC::create_function(heap(), [parser] {
+        GC::create_function(GC::Heap::the(), [parser] {
             parser->process_end_of_body();
         }),
-        GC::create_function(heap(), [parser](JS::Value error) {
+        GC::create_function(GC::Heap::the(), [parser](JS::Value error) {
             parser->process_body_error(error);
         }),
-        GC::Ref { m_document->realm().global_object() });
+        GC::Ref { m_document->relevant_settings_object().realm().global_object() });
 }
 
 bool IncrementalDocumentParser::should_continue() const
@@ -156,7 +158,7 @@ void IncrementalDocumentParser::register_deferred_start()
         return;
 
     auto parser = GC::Ref { *this };
-    m_document->set_deferred_parser_start(GC::create_function(heap(), [parser] {
+    m_document->set_deferred_parser_start(GC::create_function(GC::Heap::the(), [parser] {
         parser->pump();
     }));
 }

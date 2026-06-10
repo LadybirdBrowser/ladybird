@@ -23,7 +23,7 @@ interface Request {
     readonly attribute AbortSignal signal;
     readonly attribute RequestDuplex duplex;
 
-    [NewObject] Request clone();
+    [NeedsCallerRealm, NewObject] Request clone();
 };
 Request includes Body;
 

@@ -38,7 +38,7 @@ static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_m
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
+        return WebIDL::SyntaxError::create("Failed to parse selector"_utf16);
 
     auto const& selectors = maybe_selectors.value();
 
@@ -64,7 +64,7 @@ static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_m
     if (return_matches == ReturnMatches::First)
         return { single_result };
 
-    return { StaticNodeList::create(node.realm(), move(results)) };
+    return { StaticNodeList::create(move(results)) };
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselector
@@ -215,7 +215,7 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(ReadonlySpan<Variant<GC::
     auto node = TRY(convert_nodes_to_single_node(nodes, document()));
 
     // 2. Ensure pre-insertion validity of node into this before null.
-    TRY(ensure_pre_insertion_validity(realm(), node, nullptr));
+    TRY(ensure_pre_insertion_validity(node, nullptr));
 
     // 3. Replace all with node within this.
     replace_all(*node);

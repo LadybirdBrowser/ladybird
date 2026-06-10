@@ -21,10 +21,10 @@
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf8View.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
@@ -996,15 +996,15 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     HashMap<PropertyID, RefPtr<StyleValue const>> computed_start_values = compute_keyframe_values(keyframe_values);
     HashMap<PropertyID, RefPtr<StyleValue const>> computed_end_values = compute_keyframe_values(keyframe_end_values);
     clear_computation_context_caches();
-    auto to_composite_operation = [&](Bindings::CompositeOperationOrAuto composite_operation_or_auto) {
+    auto to_composite_operation = [&](Animations::CompositeOperationOrAuto composite_operation_or_auto) {
         switch (composite_operation_or_auto) {
-        case Bindings::CompositeOperationOrAuto::Accumulate:
-            return Bindings::CompositeOperation::Accumulate;
-        case Bindings::CompositeOperationOrAuto::Add:
-            return Bindings::CompositeOperation::Add;
-        case Bindings::CompositeOperationOrAuto::Replace:
-            return Bindings::CompositeOperation::Replace;
-        case Bindings::CompositeOperationOrAuto::Auto:
+        case Animations::CompositeOperationOrAuto::Accumulate:
+            return Animations::CompositeOperation::Accumulate;
+        case Animations::CompositeOperationOrAuto::Add:
+            return Animations::CompositeOperation::Add;
+        case Animations::CompositeOperationOrAuto::Replace:
+            return Animations::CompositeOperation::Replace;
+        case Animations::CompositeOperationOrAuto::Auto:
             return effect->composite();
         }
         VERIFY_NOT_REACHED();
@@ -1112,11 +1112,11 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
 
         // An animation applies to an element if its name appears as one of the identifiers in the computed value of the
         // animation-name property and the animation uses a valid @keyframes rule
-        auto animation = CSSAnimation::create(document.realm());
+        auto animation = CSSAnimation::create(document.relevant_settings_object());
         animation->set_animation_name(animation_properties.name);
         animation->set_owning_element(abstract_element);
 
-        auto effect = Animations::KeyframeEffect::create(document.realm());
+        auto effect = Animations::KeyframeEffect::create();
         animation->set_effect(effect);
 
         animation->apply_css_properties(animation_properties);
@@ -2932,7 +2932,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
     auto animations = abstract_element.element().get_animations_internal(
         Animations::Animatable::GetAnimationsSorted::Yes,
-        Bindings::GetAnimationsOptions { .subtree = false });
+        Animations::Animatable::GetAnimationsOptions { .subtree = false, .pseudo_element = {} });
     if (animations.is_exception()) {
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
     } else {

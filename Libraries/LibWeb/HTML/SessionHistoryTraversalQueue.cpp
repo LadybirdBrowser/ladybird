@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 
@@ -12,9 +13,9 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueue);
 GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
-GC::Ref<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<HTML::Navigable> target_navigable)
+GC::Ref<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<HTML::Navigable> target_navigable)
 {
-    return vm.heap().allocate<SessionHistoryTraversalQueueEntry>(steps, target_navigable);
+    return GC::Heap::the().allocate<SessionHistoryTraversalQueueEntry>(steps, target_navigable);
 }
 
 void SessionHistoryTraversalQueueEntry::visit_edges(JS::Cell::Visitor& visitor)
@@ -50,13 +51,13 @@ void SessionHistoryTraversalQueue::visit_edges(JS::Cell::Visitor& visitor)
 
 void SessionHistoryTraversalQueue::append(GC::Ref<SessionHistoryTraversalSteps> steps)
 {
-    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, nullptr));
+    m_queue.append(SessionHistoryTraversalQueueEntry::create(steps, nullptr));
     schedule_processing();
 }
 
 void SessionHistoryTraversalQueue::append_sync(GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<Navigable> target_navigable)
 {
-    m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
+    m_queue.append(SessionHistoryTraversalQueueEntry::create(steps, target_navigable));
     schedule_processing();
 }
 

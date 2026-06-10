@@ -6,18 +6,18 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGNumberList.h>
 
 namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedNumber
-class SVGAnimatedNumberList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGAnimatedNumberList, Bindings::PlatformObject);
+class SVGAnimatedNumberList final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGAnimatedNumberList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGAnimatedNumberList);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGAnimatedNumberList> create(JS::Realm&, GC::Ref<SVGNumberList>);
+    [[nodiscard]] static GC::Ref<SVGAnimatedNumberList> create(GC::Ref<SVGNumberList>);
     virtual ~SVGAnimatedNumberList() override = default;
 
     // https://www.w3.org/TR/SVG2/types.html#__svg__SVGAnimatedLengthList__baseVal
@@ -27,9 +27,8 @@ public:
     GC::Ref<SVGNumberList> anim_val() const { return m_base_val; }
 
 private:
-    SVGAnimatedNumberList(JS::Realm&, GC::Ref<SVGNumberList>);
+    SVGAnimatedNumberList(GC::Ref<SVGNumberList>);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<SVGNumberList> m_base_val;

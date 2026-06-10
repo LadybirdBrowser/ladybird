@@ -9,6 +9,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
@@ -24,7 +25,7 @@ class StorageBottle : public GC::Cell {
     GC_CELL(StorageBottle, GC::Cell);
 
 public:
-    static GC::Ref<StorageBottle> create(GC::Heap& heap, GC::Ref<Page> page, StorageType type, StorageKey key, Optional<u64> quota);
+    static GC::Ref<StorageBottle> create(GC::Ref<Page> page, StorageType type, StorageKey key, Optional<u64> quota);
 
     virtual ~StorageBottle() = default;
 
@@ -54,9 +55,9 @@ class LocalStorageBottle final : public StorageBottle {
     GC_DECLARE_ALLOCATOR(LocalStorageBottle);
 
 public:
-    static GC::Ref<LocalStorageBottle> create(GC::Heap& heap, GC::Ref<Page> page, StorageKey key, Optional<u64> quota)
+    static GC::Ref<LocalStorageBottle> create(GC::Ref<Page> page, StorageKey key, Optional<u64> quota)
     {
-        return heap.allocate<LocalStorageBottle>(page, key, quota);
+        return GC::Heap::the().allocate<LocalStorageBottle>(page, key, quota);
     }
 
     virtual size_t size() const override;
@@ -85,9 +86,9 @@ class SessionStorageBottle final : public StorageBottle {
     GC_DECLARE_ALLOCATOR(SessionStorageBottle);
 
 public:
-    static GC::Ref<SessionStorageBottle> create(GC::Heap& heap, Optional<u64> quota)
+    static GC::Ref<SessionStorageBottle> create(Optional<u64> quota)
     {
-        return heap.allocate<SessionStorageBottle>(quota);
+        return GC::Heap::the().allocate<SessionStorageBottle>(quota);
     }
 
     virtual size_t size() const override;
@@ -118,7 +119,7 @@ class StorageBucket : public GC::Cell {
     GC_DECLARE_ALLOCATOR(StorageBucket);
 
 public:
-    static GC::Ref<StorageBucket> create(GC::Heap& heap, GC::Ref<Page> page, StorageKey key, StorageType type) { return heap.allocate<StorageBucket>(page, key, type); }
+    static GC::Ref<StorageBucket> create(GC::Ref<Page> page, StorageKey key, StorageType type) { return GC::Heap::the().allocate<StorageBucket>(page, key, type); }
 
     BottleMap& bottle_map() { return m_bottle_map; }
     BottleMap const& bottle_map() const { return m_bottle_map; }

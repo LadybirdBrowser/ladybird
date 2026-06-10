@@ -23,7 +23,7 @@
     [FIXME] unsigned long requestAnimationFrame(XRFrameRequestCallback callback);
     [FIXME] undefined cancelAnimationFrame(unsigned long handle);
 
-    Promise<undefined> end();
+    [NeedsThisObjectRealm] Promise<undefined> end();
 
     // Events
     attribute EventHandler onend;

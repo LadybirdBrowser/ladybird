@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/PropertyKey.h>
-#include <LibWeb/Bindings/HTMLAllCollection.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -34,31 +35,19 @@ GC_DEFINE_ALLOCATOR(HTMLAllCollection);
 
 GC::Ref<HTMLAllCollection> HTMLAllCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
 {
-    return root.realm().create<HTMLAllCollection>(root, scope, move(filter));
+    return GC::Heap::the().allocate<HTMLAllCollection>(root, scope, move(filter));
 }
 
 HTMLAllCollection::HTMLAllCollection(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
-    : PlatformObject(root.realm())
-    , m_root(root)
+    : m_root(root)
     , m_filter(move(filter))
     , m_scope(scope)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .supports_named_properties = true,
-        .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
-    };
 }
 
 HTMLAllCollection::~HTMLAllCollection() = default;
 
-void HTMLAllCollection::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLAllCollection);
-    Base::initialize(realm);
-}
-
-void HTMLAllCollection::visit_edges(Cell::Visitor& visitor)
+void HTMLAllCollection::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);
@@ -198,6 +187,13 @@ GC::Ptr<DOM::Element> HTMLAllCollection::get_the_all_indexed_element(u32 index) 
     return elements[index];
 }
 
+GC::Ptr<DOM::Element> HTMLAllCollection::item(size_t index) const
+{
+    if (index > NumericLimits<u32>::max())
+        return nullptr;
+    return get_the_all_indexed_element(static_cast<u32>(index));
+}
+
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#concept-get-all-indexed-or-named
 Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::get_the_all_indexed_or_named_elements(JS::PropertyKey const& name_or_index) const
 {
@@ -212,20 +208,6 @@ Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllColle
 
     // 2. Return the result of getting the "all"-named element(s) from collection given nameOrIndex.
     return get_the_all_named_elements(name_or_index.as_string().view().to_utf8_but_should_be_ported_to_utf16());
-}
-
-Optional<JS::Value> HTMLAllCollection::item_value(size_t index) const
-{
-    if (auto value = get_the_all_indexed_element(index))
-        return value;
-    return {};
-}
-
-JS::Value HTMLAllCollection::named_item_value(FlyString const& name) const
-{
-    return named_item(name).visit(
-        [](Empty) -> JS::Value { return JS::js_undefined(); },
-        [](auto const& value) -> JS::Value { return value; });
 }
 
 }

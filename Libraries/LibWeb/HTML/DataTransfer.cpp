@@ -6,9 +6,12 @@
 
 #include <AK/Enumerate.h>
 #include <AK/Find.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/DataTransfer.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <AK/NeverDestroyed.h>
+#include <LibGC/Heap.h>
+#include <LibGC/WeakInlines.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/PrimitiveString.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/FileAPI/FileList.h>
@@ -21,6 +24,50 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DataTransfer);
 
+struct DataTransferTypesCacheEntry {
+    GC::Weak<DataTransfer> data_transfer;
+    u64 types_revision { 0 };
+    Bindings::WrapperWorldWeakValueCache<JS::Array> types_arrays;
+};
+
+static Vector<DataTransferTypesCacheEntry>& data_transfer_types_caches()
+{
+    static NeverDestroyed<Vector<DataTransferTypesCacheEntry>> caches;
+    return *caches;
+}
+
+static void prune_data_transfer_types_caches()
+{
+    data_transfer_types_caches().remove_all_matching([](auto const& entry) {
+        return !entry.data_transfer;
+    });
+}
+
+static DataTransferTypesCacheEntry& types_cache_for(DataTransfer& data_transfer)
+{
+    auto& caches = data_transfer_types_caches();
+    prune_data_transfer_types_caches();
+
+    for (auto& entry : caches) {
+        if (entry.data_transfer.ptr() != &data_transfer)
+            continue;
+
+        if (entry.types_revision != data_transfer.types_revision()) {
+            entry.types_arrays.clear();
+            entry.types_revision = data_transfer.types_revision();
+        }
+
+        return entry;
+    }
+
+    caches.append(DataTransferTypesCacheEntry {
+        data_transfer,
+        data_transfer.types_revision(),
+        {},
+    });
+    return caches.last();
+}
+
 namespace DataTransferEffect {
 
 #define __ENUMERATE_DATA_TRANSFER_EFFECT(name) FlyString const& name = *new FlyString(#name##_fly_string);
@@ -29,13 +76,21 @@ ENUMERATE_DATA_TRANSFER_EFFECTS
 
 }
 
-GC::Ref<DataTransfer> DataTransfer::create(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
+GC::Ref<DataTransfer> DataTransfer::create(NonnullRefPtr<DragDataStore> drag_data_store)
 {
-    return realm.create<DataTransfer>(realm, move(drag_data_store));
+    auto data_transfer = GC::Heap::the().allocate<DataTransfer>(move(drag_data_store));
+
+    for (auto const& [i, item] : enumerate(data_transfer->m_associated_drag_data_store->item_list())) {
+        auto data_transfer_item = DataTransferItem::create(data_transfer, i);
+        data_transfer->m_item_list.append(data_transfer_item);
+    }
+
+    data_transfer->update_data_transfer_types_list();
+    return data_transfer;
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer
-GC::Ref<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
+GC::Ref<DataTransfer> DataTransfer::create_for_constructor()
 {
     // 1. Set the drag data store's item list to be an empty list.
     auto drag_data_store = DragDataStore::create();
@@ -46,36 +101,21 @@ GC::Ref<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
     // 3. Set the dropEffect and effectAllowed to "none".
     // NOTE: This is done by the default-initializers.
 
-    return realm.create<DataTransfer>(realm, move(drag_data_store));
+    return create(move(drag_data_store));
 }
 
-DataTransfer::DataTransfer(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
-    : PlatformObject(realm)
-    , m_associated_drag_data_store(move(drag_data_store))
+DataTransfer::DataTransfer(NonnullRefPtr<DragDataStore> drag_data_store)
+    : m_associated_drag_data_store(move(drag_data_store))
 {
-    for (auto const& [i, item] : enumerate(m_associated_drag_data_store->item_list())) {
-        auto data_transfer_item = DataTransferItem::create(realm, *this, i);
-        m_item_list.append(data_transfer_item);
-    }
-
-    update_data_transfer_types_list();
 }
 
 DataTransfer::~DataTransfer() = default;
 
-void DataTransfer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DataTransfer);
-    Base::initialize(realm);
-}
-
-void DataTransfer::visit_edges(JS::Cell::Visitor& visitor)
+void DataTransfer::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_items);
     visitor.visit(m_item_list);
-
-    VISIT_CACHED_ATTRIBUTE(types);
 }
 
 void DataTransfer::set_drop_effect(String const& drop_effect)
@@ -121,15 +161,36 @@ GC::Ref<DataTransferItemList> DataTransfer::items()
 {
     // The items attribute must return a DataTransferItemList object associated with the DataTransfer object.
     if (!m_items)
-        m_items = DataTransferItemList::create(realm(), *this);
+        m_items = DataTransferItemList::create(*this);
     return *m_items;
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-types
-ReadonlySpan<String> DataTransfer::types() const
+ReadonlySpan<String> DataTransfer::types_list() const
 {
     // The types attribute must return this DataTransfer object's types array.
     return m_types;
+}
+
+JS::ThrowCompletionOr<JS::Value> DataTransfer::types(JS::Realm& realm)
+{
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    auto& cache = types_cache_for(*this);
+
+    if (auto types_array = cache.types_arrays.get(wrapper_world))
+        return JS::Value { types_array };
+
+    auto& vm = realm.vm();
+    auto types = types_list();
+    auto types_array = MUST(JS::Array::create(realm, 0));
+    for (size_t i = 0; i < types.size(); ++i) {
+        auto wrapped_type = JS::PrimitiveString::create(vm, types[i]);
+        MUST(types_array->create_data_property(JS::PropertyKey { i }, wrapped_type));
+    }
+
+    TRY(types_array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
+    cache.types_arrays.set(wrapper_world, types_array);
+    return JS::Value { types_array };
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-getdata
@@ -226,10 +287,8 @@ void DataTransfer::set_data(String const& format_argument, String const& value)
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-files
 GC::Ref<FileAPI::FileList> DataTransfer::files() const
 {
-    auto& realm = this->realm();
-
     // 1. Start with an empty list L.
-    auto files = FileAPI::FileList::create(realm);
+    auto files = FileAPI::FileList::create();
 
     // 2. If the DataTransfer object is no longer associated with a drag data store, the FileList is empty. Return
     //    the empty list L.
@@ -246,16 +305,16 @@ GC::Ref<FileAPI::FileList> DataTransfer::files() const
         if (item.kind != DragDataStoreItem::Kind::File)
             continue;
 
-        auto blob = FileAPI::Blob::create(realm, item.data, item.type_string);
+        auto blob = FileAPI::Blob::create(item.data, item.type_string);
 
         // FIXME: The FileAPI should use ByteString for file names.
         auto file_name = MUST(String::from_byte_string(item.file_name));
 
         // FIXME: Fill in other fields (e.g. last_modified).
-        Bindings::FilePropertyBag options {};
+        FileAPI::FilePropertyBag options {};
         options.type = item.type_string;
 
-        auto file = MUST(FileAPI::File::create(realm, { { blob } }, file_name, move(options)));
+        auto file = MUST(FileAPI::File::create({ { blob } }, file_name, move(options)));
         files->add_file(file);
     }
 
@@ -278,12 +337,10 @@ void DataTransfer::disassociate_with_drag_data_store()
 
 GC::Ref<DataTransferItem> DataTransfer::add_item(DragDataStoreItem item)
 {
-    auto& realm = this->realm();
-
     VERIFY(m_associated_drag_data_store);
     m_associated_drag_data_store->add_item(move(item));
 
-    auto data_transfer_item = DataTransferItem::create(realm, *this, m_associated_drag_data_store->size() - 1);
+    auto data_transfer_item = DataTransferItem::create(*this, m_associated_drag_data_store->size() - 1);
     m_item_list.append(data_transfer_item);
 
     update_data_transfer_types_list();
@@ -412,8 +469,8 @@ void DataTransfer::update_data_transfer_types_list()
     }
 
     // 3. Set the DataTransfer object's types array to the result of creating a frozen array from L.
-    set_cached_types(nullptr);
     m_types = move(types);
+    ++m_types_revision;
 }
 
 }

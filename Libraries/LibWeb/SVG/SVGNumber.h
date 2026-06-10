@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
 
 // https://www.w3.org/TR/SVG2/types.html#InterfaceSVGNumber
-class SVGNumber final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGNumber, Bindings::PlatformObject);
+class SVGNumber final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGNumber, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGNumber);
 
 public:
@@ -22,7 +22,7 @@ public:
         No,
     };
 
-    [[nodiscard]] static GC::Ref<SVGNumber> create(JS::Realm&, float value, ReadOnly);
+    [[nodiscard]] static GC::Ref<SVGNumber> create(float value, ReadOnly);
     virtual ~SVGNumber() override = default;
 
     float value() const { return m_value; }
@@ -31,9 +31,7 @@ public:
     ReadOnly read_only() const { return m_read_only; }
 
 private:
-    SVGNumber(JS::Realm&, float value, ReadOnly);
-
-    virtual void initialize(JS::Realm&) override;
+    SVGNumber(float value, ReadOnly);
 
     float m_value { 0 };
 

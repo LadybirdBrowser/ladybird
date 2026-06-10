@@ -5,8 +5,9 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -19,8 +20,15 @@ namespace Web::XHR {
 
 GC_DEFINE_ALLOCATOR(FormData);
 
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
+{
+    if (!form)
+        return create(GC::ConservativeVector<FormDataEntry> {});
+    return create_from_form(form, submitter);
+}
+
 // https://xhr.spec.whatwg.org/#dom-formdata
-WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create_from_form(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
 {
     GC::ConservativeVector<FormDataEntry> list;
     // 1. If form is given, then:
@@ -39,57 +47,45 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm
             // 2. If submitter’s form owner is not form, then throw a "NotFoundError" DOMException.
             auto* form_owner = form_associated_element->form();
             if (form_owner && form_owner != form) {
-                return WebIDL::NotFoundError::create(realm, "Submitter does not belong to the provided form."_utf16);
+                return WebIDL::NotFoundError::create("Submitter does not belong to the provided form."_utf16);
             }
         }
 
         // 2. Let list be the result of constructing the entry list for form and submitter.
-        auto entry_list = TRY(construct_entry_list(realm, *form, submitter));
+        auto entry_list = TRY(construct_entry_list(*form, submitter));
         // 3. If list is null, then throw an "InvalidStateError" DOMException.
         if (!entry_list.has_value())
-            return WebIDL::InvalidStateError::create(realm, "Form element does not contain any entries."_utf16);
+            return WebIDL::InvalidStateError::create("Form element does not contain any entries."_utf16);
         // 4. Set this’s entry list to list.
         list = move(entry_list.release_value());
     }
 
-    return construct_impl(realm, move(list));
+    return create(move(list));
 }
 
-WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, GC::ConservativeVector<FormDataEntry> entry_list)
-{
-    return realm.create<FormData>(realm, move(entry_list));
-}
-
-WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector<DOMURL::QueryParam> entry_list)
+GC::Ref<FormData> FormData::create(Vector<DOMURL::QueryParam> entry_list)
 {
     GC::ConservativeVector<FormDataEntry> list;
     list.ensure_capacity(entry_list.size());
     for (auto& entry : entry_list)
         list.unchecked_append({ .name = move(entry.name), .value = move(entry.value) });
 
-    return construct_impl(realm, move(list));
+    return create(move(list));
 }
 
-WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, GC::ConservativeVector<FormDataEntry> entry_list)
+GC::Ref<FormData> FormData::create(GC::ConservativeVector<FormDataEntry> entry_list)
 {
-    return construct_impl(realm, move(entry_list));
+    return GC::Heap::the().allocate<FormData>(move(entry_list));
 }
 
-FormData::FormData(JS::Realm& realm, GC::ConservativeVector<FormDataEntry> entry_list)
-    : PlatformObject(realm)
-    , m_entry_list(entry_list)
+FormData::FormData(GC::ConservativeVector<FormDataEntry> entry_list)
+    : m_entry_list(entry_list)
 {
 }
 
 FormData::~FormData() = default;
 
-void FormData::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FormData);
-    Base::initialize(realm);
-}
-
-void FormData::visit_edges(Cell::Visitor& visitor)
+void FormData::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto const& entry : m_entry_list)
@@ -113,15 +109,12 @@ WebIDL::ExceptionOr<void> FormData::append(String const& name, GC::Ref<FileAPI::
 // https://xhr.spec.whatwg.org/#dom-formdata-append-blob
 WebIDL::ExceptionOr<void> FormData::append_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
 {
-    auto& realm = this->realm();
-    auto& vm = realm.vm();
-
     // 1. Let value be value if given; otherwise blobValue.
     // 2. Let entry be the result of creating an entry with name, value, and filename if given.
-    auto entry = TRY(HTML::create_entry(realm, name, value, filename));
+    auto entry = TRY(HTML::create_entry(name, value, filename));
 
     // 3. Append entry to this’s entry list.
-    TRY_OR_THROW_OOM(vm, m_entry_list.try_append(move(entry)));
+    TRY_OR_THROW_OOM(JS::VM::the(), m_entry_list.try_append(move(entry)));
     return {};
 }
 
@@ -155,7 +148,7 @@ WebIDL::ExceptionOr<Vector<FormDataEntryValue>> FormData::get_all(String const& 
     Vector<FormDataEntryValue> values;
     for (auto const& entry : m_entry_list) {
         if (entry.name == name)
-            TRY_OR_THROW_OOM(vm(), values.try_append(entry.value));
+            TRY_OR_THROW_OOM(JS::VM::the(), values.try_append(entry.value));
     }
     return values;
 }
@@ -192,12 +185,9 @@ GC::ConservativeVector<FormDataEntry> FormData::entry_list() const
 // https://xhr.spec.whatwg.org/#dom-formdata-set-blob
 WebIDL::ExceptionOr<void> FormData::set_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
 {
-    auto& realm = this->realm();
-    auto& vm = realm.vm();
-
     // 1. Let value be value if given; otherwise blobValue.
     // 2. Let entry be the result of creating an entry with name, value, and filename if given.
-    auto entry = TRY(HTML::create_entry(realm, name, value, filename));
+    auto entry = TRY(HTML::create_entry(name, value, filename));
 
     auto existing = m_entry_list.find_if([&name](auto& entry) {
         return entry.name == name;
@@ -212,20 +202,19 @@ WebIDL::ExceptionOr<void> FormData::set_impl(String const& name, Variant<GC::Ref
     }
     // 4. Otherwise, append entry to this’s entry list.
     else {
-        TRY_OR_THROW_OOM(vm, m_entry_list.try_append(move(entry)));
+        TRY_OR_THROW_OOM(JS::VM::the(), m_entry_list.try_append(move(entry)));
     }
 
     return {};
 }
 
-JS::ThrowCompletionOr<void> FormData::for_each(ForEachCallback callback)
+void FormData::for_each(ForEachCallback callback)
 {
     for (auto i = 0u; i < m_entry_list.size(); ++i) {
         auto& entry = m_entry_list[i];
-        TRY(callback(entry.name, entry.value));
+        if (callback(entry.name, entry.value) == IterationDecision::Break)
+            break;
     }
-
-    return {};
 }
 
 }

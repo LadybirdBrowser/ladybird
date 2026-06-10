@@ -6,9 +6,10 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/FormData.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/IterationDecision.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -17,18 +18,18 @@
 namespace Web::XHR {
 
 // https://xhr.spec.whatwg.org/#interface-formdata
-class FormData : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(FormData, Bindings::PlatformObject);
+class FormData : public Bindings::Wrappable {
+    WEB_WRAPPABLE(FormData, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(FormData);
 
 public:
     virtual ~FormData() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, GC::Ptr<HTML::HTMLFormElement> form = {}, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
+    static GC::Ref<FormData> create(GC::ConservativeVector<FormDataEntry> entry_list);
+    static GC::Ref<FormData> create(Vector<DOMURL::QueryParam> entry_list);
 
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, Vector<DOMURL::QueryParam> entry_list);
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> create_from_form(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
 
     WebIDL::ExceptionOr<void> append(String const& name, String const& value);
     WebIDL::ExceptionOr<void> append(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
@@ -41,16 +42,15 @@ public:
 
     GC::ConservativeVector<FormDataEntry> entry_list() const;
 
-    using ForEachCallback = Function<JS::ThrowCompletionOr<void>(String const&, FormDataEntryValue const&)>;
-    JS::ThrowCompletionOr<void> for_each(ForEachCallback);
+    using ForEachCallback = Function<IterationDecision(String const&, FormDataEntryValue const&)>;
+    void for_each(ForEachCallback);
 
 private:
     friend class FormDataIterator;
 
-    explicit FormData(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
+    explicit FormData(GC::ConservativeVector<FormDataEntry> entry_list);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<void> append_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename = {});
     WebIDL::ExceptionOr<void> set_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename = {});

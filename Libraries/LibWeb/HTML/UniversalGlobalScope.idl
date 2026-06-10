@@ -4,12 +4,12 @@ callback VoidFunction = undefined ();
 // https://whatpr.org/html/9893/webappapis.html#universalglobalscope-mixin
 interface mixin UniversalGlobalScope {
     // base64 utility methods
-    DOMString btoa(DOMString data);
-    ByteString atob(DOMString data);
+    [NeedsCallerRealm] DOMString btoa(DOMString data);
+    [NeedsCallerRealm] ByteString atob(DOMString data);
 
     // microtask queuing
     undefined queueMicrotask(VoidFunction callback);
 
     // structured cloning
-    any structuredClone(any value, optional StructuredSerializeOptions options = {});
+    [NeedsCallerRealm] any structuredClone(any value, optional StructuredSerializeOptions options = {});
 };

@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/XRSessionEvent.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebXR/XRSession.h>
 #include <LibWeb/WebXR/XRSessionEvent.h>
 
@@ -13,30 +12,18 @@ namespace Web::WebXR {
 
 GC_DEFINE_ALLOCATOR(XRSessionEvent);
 
-GC::Ref<XRSessionEvent> XRSessionEvent::create(JS::Realm& realm, FlyString const& type, Bindings::XRSessionEventInit const& event_init)
+GC::Ref<XRSessionEvent> XRSessionEvent::create(FlyString const& type, XRSessionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<XRSessionEvent>(realm, type, event_init);
+    return GC::Heap::the().allocate<XRSessionEvent>(type, event_init, time_stamp);
 }
 
-// https://immersive-web.github.io/webxr/#dom-xrsessionevent-xrsessionevent
-GC::Ref<XRSessionEvent> XRSessionEvent::construct_impl(JS::Realm& realm, FlyString const& type, Bindings::XRSessionEventInit const& event_init)
-{
-    return create(realm, type, event_init);
-}
-
-XRSessionEvent::XRSessionEvent(JS::Realm& realm, FlyString const& type, Bindings::XRSessionEventInit const& event_init)
-    : DOM::Event(realm, type, event_init)
+XRSessionEvent::XRSessionEvent(FlyString const& type, XRSessionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(type, event_init, time_stamp)
     , m_session(event_init.session)
 {
 }
 
-void XRSessionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XRSessionEvent);
-    Base::initialize(realm);
-}
-
-void XRSessionEvent::visit_edges(Cell::Visitor& visitor)
+void XRSessionEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 

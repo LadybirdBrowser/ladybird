@@ -5,8 +5,8 @@
  */
 
 #include <AK/QuickSort.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceObserverEntryList.h>
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserverEntryList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -15,21 +15,19 @@ namespace Web::PerformanceTimeline {
 
 GC_DEFINE_ALLOCATOR(PerformanceObserverEntryList);
 
-PerformanceObserverEntryList::PerformanceObserverEntryList(JS::Realm& realm, Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&& entry_list)
-    : Bindings::PlatformObject(realm)
-    , m_entry_list(move(entry_list))
+GC::Ref<PerformanceObserverEntryList> PerformanceObserverEntryList::create(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&& entry_list)
+{
+    return GC::Heap::the().allocate<PerformanceObserverEntryList>(move(entry_list));
+}
+
+PerformanceObserverEntryList::PerformanceObserverEntryList(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&& entry_list)
+    : m_entry_list(move(entry_list))
 {
 }
 
 PerformanceObserverEntryList::~PerformanceObserverEntryList() = default;
 
-void PerformanceObserverEntryList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceObserverEntryList);
-    Base::initialize(realm);
-}
-
-void PerformanceObserverEntryList::visit_edges(Cell::Visitor& visitor)
+void PerformanceObserverEntryList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_entry_list);
@@ -69,7 +67,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
 {
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name and type set to null.
-    return TRY_OR_THROW_OOM(vm(), filter_buffer_by_name_and_type(m_entry_list, /* name= */ Optional<String> {}, /* type= */ Optional<String> {}));
+    return TRY_OR_THROW_OOM(JS::VM::the(), filter_buffer_by_name_and_type(m_entry_list, /* name= */ Optional<String> {}, /* type= */ Optional<String> {}));
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserverentrylist-getentriesbytype
@@ -77,7 +75,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
 {
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name set to null, and type set to the method's input type parameter.
-    return TRY_OR_THROW_OOM(vm(), filter_buffer_by_name_and_type(m_entry_list, /* name= */ Optional<String> {}, type));
+    return TRY_OR_THROW_OOM(JS::VM::the(), filter_buffer_by_name_and_type(m_entry_list, /* name= */ Optional<String> {}, type));
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserverentrylist-getentriesbyname
@@ -86,7 +84,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name set to the method input name parameter, and type set to null if optional entryType is omitted, or set to the
     // method's input type parameter otherwise.
-    return TRY_OR_THROW_OOM(vm(), filter_buffer_by_name_and_type(m_entry_list, name, type));
+    return TRY_OR_THROW_OOM(JS::VM::the(), filter_buffer_by_name_and_type(m_entry_list, name, type));
 }
 
 }

@@ -11,13 +11,11 @@
 namespace Web::SVG {
 
 class SVGTitleElement final : public SVGElement {
-    WEB_PLATFORM_OBJECT(SVGTitleElement, SVGElement);
+    WEB_WRAPPABLE(SVGTitleElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGTitleElement);
 
 private:
     SVGTitleElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;

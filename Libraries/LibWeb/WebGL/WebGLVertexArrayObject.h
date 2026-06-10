@@ -12,18 +12,16 @@
 namespace Web::WebGL {
 
 class WebGLVertexArrayObject : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLVertexArrayObject, WebGLObject);
+    WEB_WRAPPABLE(WebGLVertexArrayObject, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLVertexArrayObject);
 
 public:
-    static GC::Ref<WebGLVertexArrayObject> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
+    static GC::Ref<WebGLVertexArrayObject> create(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
     virtual ~WebGLVertexArrayObject() override;
 
 protected:
-    explicit WebGLVertexArrayObject(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit WebGLVertexArrayObject(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 };
 
 }

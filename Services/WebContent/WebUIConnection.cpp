@@ -7,9 +7,14 @@
 #include <AK/FlyString.h>
 #include <AK/JsonObject.h>
 #include <AK/NeverDestroyed.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/WebUI.h>
@@ -46,11 +51,12 @@ WebUIConnection::WebUIConnection(NonnullOwnPtr<IPC::Transport> transport, Web::D
     : IPC::ConnectionFromClient<WebUIClientEndpoint, WebUIServerEndpoint>(*this, move(transport), 1)
     , m_document(document)
 {
-    auto& realm = m_document->realm();
-    m_document->window()->define_direct_property(ladybird_property(), realm.create<Web::Internals::WebUI>(realm), JS::default_attributes);
+    auto& realm = m_document->relevant_settings_object().realm();
+    auto& window = Web::HTML::relevant_window(realm.global_object());
+    realm.global_object().define_direct_property(ladybird_property(), Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, Web::Internals::WebUI::create(window)), JS::default_attributes);
 
-    Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, m_document, GC::create_function(realm.heap(), [&document = *m_document]() {
-        document.dispatch_event(Web::DOM::Event::create(document.realm(), web_ui_loaded_event()));
+    Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, m_document, GC::create_function(GC::Heap::the(), [&document = *m_document]() {
+        document.dispatch_event(Web::DOM::Event::create(Web::HTML::relevant_global_object(document), web_ui_loaded_event()));
     }));
 }
 
@@ -59,7 +65,7 @@ WebUIConnection::~WebUIConnection()
     if (!m_document->window())
         return;
 
-    (void)m_document->window()->internal_delete(ladybird_property());
+    (void)m_document->relevant_settings_object().realm().global_object().internal_delete(ladybird_property());
 }
 
 void WebUIConnection::visit_edges(JS::Cell::Visitor& visitor)
@@ -76,7 +82,7 @@ void WebUIConnection::send_message(String name, JsonValue data)
     detail.set("name"sv, move(name));
     detail.set("data"sv, move(data));
 
-    auto& realm = m_document->realm();
+    auto& realm = m_document->relevant_settings_object().realm();
     Web::HTML::TemporaryExecutionContext context { realm };
 
     auto serialized_detail = Web::WebDriver::json_deserialize(*m_document->browsing_context(), detail);
@@ -85,10 +91,10 @@ void WebUIConnection::send_message(String name, JsonValue data)
         return;
     }
 
-    Web::Bindings::CustomEventInit event_init {};
+    Web::DOM::CustomEventInit event_init {};
     event_init.detail = serialized_detail.value();
 
-    m_document->dispatch_event(Web::DOM::CustomEvent::create(realm, web_ui_message_event(), event_init));
+    m_document->dispatch_event(Web::DOM::CustomEvent::create(realm.global_object(), web_ui_message_event(), event_init));
 }
 
 void WebUIConnection::received_message_from_web_ui(String const& name, JS::Value data)

@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ServiceWorker/Cache.h>
 #include <LibWeb/ServiceWorker/NameToCacheMap.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -15,22 +15,25 @@
 namespace Web::ServiceWorker {
 
 // https://w3c.github.io/ServiceWorker/#cachestorage-interface
-class CacheStorage : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CacheStorage, Bindings::PlatformObject);
+class CacheStorage : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CacheStorage, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CacheStorage);
 
 public:
-    GC::Ref<WebIDL::Promise> match(Fetch::RequestInfo, Bindings::MultiCacheQueryOptions);
-    GC::Ref<WebIDL::Promise> has(String const& cache_name);
-    GC::Ref<WebIDL::Promise> open(String const& cache_name);
-    GC::Ref<WebIDL::Promise> delete_(String const& cache_name);
-    GC::Ref<WebIDL::Promise> keys();
+    void match(JS::Realm&, Fetch::RequestInfo, MultiCacheQueryOptions, GC::Ref<WebIDL::Promise>);
+    void has(JS::Realm&, String const& cache_name, GC::Ref<WebIDL::Promise>);
+    void open(JS::Realm&, String const& cache_name, GC::Ref<WebIDL::Promise>);
+    void delete_(JS::Realm&, String const& cache_name, GC::Ref<WebIDL::Promise>);
+    void keys(JS::Realm&, GC::Ref<WebIDL::Promise>);
+    bool contains_cache(String const& cache_name);
+    bool delete_cache(String const& cache_name);
+    Vector<String> cache_keys();
+    GC::Ref<RequestResponseList> get_or_create_cache(String const& cache_name);
 
 private:
-    explicit CacheStorage(JS::Realm&);
+    CacheStorage();
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     NameToCacheMap& relevant_name_to_cache_map();
 

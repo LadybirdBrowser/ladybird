@@ -17,6 +17,7 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
+#include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 
 namespace Web::MediaSourceExtensions {
 
@@ -25,19 +26,11 @@ struct DemuxedCodedFrame;
 class TrackBuffer;
 class TrackBufferDemuxer;
 
-// These enums are declared separately from the bindings to avoid including the entire prototype header here.
-
 // https://w3c.github.io/media-source/#dfn-append-state
 enum class AppendState : u8 {
     WaitingForSegment,
     ParsingInitSegment,
     ParsingMediaSegment,
-};
-
-// https://w3c.github.io/media-source/#dom-appendmode
-enum class AppendMode : u8 {
-    Segments,
-    Sequence,
 };
 
 struct InitializationSegmentTrack {

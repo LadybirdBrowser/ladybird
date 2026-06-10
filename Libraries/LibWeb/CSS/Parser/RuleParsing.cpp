@@ -230,11 +230,11 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                 }
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(CSSNestedDeclarations::create(realm(), *this, declarations));
+                child_rules.append(CSSNestedDeclarations::create(*this, declarations));
             });
     }
-    auto nested_rules = CSSRuleList::create(realm(), child_rules);
-    auto style_rule = CSSStyleRule::create(realm(), move(selectors), *declaration, *nested_rules);
+    auto nested_rules = CSSRuleList::create(child_rules);
+    auto style_rule = CSSStyleRule::create(move(selectors), *declaration, *nested_rules);
     style_rule->set_source_position(qualified_rule.source_position);
     return style_rule;
 }
@@ -467,7 +467,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         return {};
     }
 
-    return CSSImportRule::create(realm(), url.release_value(), const_cast<DOM::Document*>(m_document.ptr()), move(layer), move(scope), move(supports), MediaList::create(realm(), move(media_query_list)));
+    return CSSImportRule::create(url.release_value(), const_cast<DOM::Document*>(m_document.ptr()), move(layer), move(scope), move(supports), MediaList::create(move(media_query_list)));
 }
 
 Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
@@ -559,11 +559,11 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
                         child_rules.append(*child_rule);
                 },
                 [&](Vector<Declaration> const& declarations) {
-                    child_rules.append(NestedDeclarationsRule::create(realm(), *this, declarations));
+                    child_rules.append(NestedDeclarationsRule::create(*this, declarations));
                 });
         }
-        auto rule_list = CSSRuleList::create(realm(), child_rules);
-        return CSSLayerBlockRule::create(realm(), layer_name, rule_list);
+        auto rule_list = CSSRuleList::create(child_rules);
+        return CSSLayerBlockRule::create(layer_name, rule_list);
     }
 
     // CSSLayerStatementRule
@@ -607,7 +607,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         return {};
     }
 
-    return CSSLayerStatementRule::create(realm(), move(layer_names));
+    return CSSLayerStatementRule::create(move(layer_names));
 }
 
 GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
@@ -751,14 +751,14 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         qualified_rule.for_each_as_declaration_list("keyframe"_fly_string, [&](auto const& declaration) {
             extract_property(declaration, properties);
         });
-        auto style = CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
+        auto style = CSSStyleProperties::create(move(properties.properties), move(properties.custom_properties));
         for (auto& selector : selectors) {
-            auto keyframe_rule = CSSKeyframeRule::create(realm(), selector, *style);
+            auto keyframe_rule = CSSKeyframeRule::create(selector, *style);
             keyframes.append(keyframe_rule);
         }
     });
 
-    return CSSKeyframesRule::create(realm(), name, CSSRuleList::create(realm(), keyframes));
+    return CSSKeyframesRule::create(name, CSSRuleList::create(keyframes));
 }
 
 GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
@@ -798,7 +798,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
         // "A URI string parsed from the URI syntax must be treated as a literal string: as with the STRING syntax, no
         // URI-specific normalization is applied."
         // https://drafts.csswg.org/css-namespaces/#syntax
-        namespace_uri = url->url();
+        namespace_uri = MUST(FlyString::from_utf8(url->url().bytes_as_string_view()));
     } else if (auto& url_token = tokens.consume_a_token(); url_token.is(Token::Type::String)) {
         namespace_uri = url_token.token().string();
     } else {
@@ -820,7 +820,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
         return {};
     }
 
-    return CSSNamespaceRule::create(realm(), prefix, namespace_uri);
+    return CSSNamespaceRule::create(prefix, namespace_uri);
 }
 
 template<typename NestedDeclarationsRule>
@@ -873,12 +873,12 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
                     child_rules.append(*child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(NestedDeclarationsRule::create(realm(), *this, declarations));
+                child_rules.append(NestedDeclarationsRule::create(*this, declarations));
             });
     }
 
-    auto rule_list = CSSRuleList::create(realm(), child_rules);
-    return CSSSupportsRule::create(realm(), supports.release_nonnull(), rule_list);
+    auto rule_list = CSSRuleList::create(child_rules);
+    return CSSSupportsRule::create(supports.release_nonnull(), rule_list);
 }
 
 GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
@@ -944,7 +944,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         return {};
     }
 
-    auto name = Utf16FlyString::from_utf8(name_token.ident());
+    auto const& name = name_token.ident();
 
     Optional<FlyString> syntax_maybe;
     Optional<bool> inherits_maybe;
@@ -986,7 +986,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     if (document())
         parsing_params = CSS::Parser::ParsingParams { *document() };
     else
-        parsing_params = CSS::Parser::ParsingParams { realm() };
+        parsing_params = CSS::Parser::ParsingParams {};
 
     auto syntax_component_values = parse_component_values_list(parsing_params, syntax_maybe.value());
     auto maybe_syntax = parse_as_syntax(syntax_component_values, LimitSingleComponentIdentToCustomIdent::Yes);
@@ -1016,7 +1016,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         }
     }
 
-    return CSSPropertyRule::create(realm(), move(name), syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
+    return CSSPropertyRule::create(Utf16FlyString::from_utf8(name), Utf16FlyString::from_utf8(syntax_maybe.value()), inherits_maybe.value(), move(initial_value_maybe));
 }
 
 // https://drafts.csswg.org/css-cascade-6/#scope-atrule
@@ -1120,12 +1120,12 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
                     });
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(NestedDeclarationsRule::create(realm(), *this, declarations));
+                child_rules.append(NestedDeclarationsRule::create(*this, declarations));
             });
     }
 
-    auto rule_list = CSSRuleList::create(realm(), child_rules);
-    return CSSScopeRule::create(realm(), move(start_selectors), move(end_selectors), rule_list);
+    auto rule_list = CSSRuleList::create(child_rules);
+    return CSSScopeRule::create(move(start_selectors), move(end_selectors), rule_list);
 }
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
@@ -1205,12 +1205,12 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
                     child_rules.append(*converted_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
+                child_rules.append(CSSNestedDeclarations::create(*convert_to_style_declaration(declarations)));
             });
     }
 
-    auto rule_list = CSSRuleList::create(realm(), child_rules);
-    return CSSContainerRule::create(realm(), move(conditions), rule_list);
+    auto rule_list = CSSRuleList::create(child_rules);
+    return CSSContainerRule::create(move(conditions), rule_list);
 }
 
 GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const& rule)
@@ -1325,7 +1325,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
         }
     });
 
-    return CSSCounterStyleRule::create(realm(), name.release_value(), move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols), move(additive_symbols), move(speak_as));
+    return CSSCounterStyleRule::create(name.release_value(), move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols), move(additive_symbols), move(speak_as));
 }
 
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
@@ -1364,7 +1364,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
         }
     });
 
-    return CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), descriptors.release_descriptors()));
+    return CSSFontFaceRule::create(CSSFontFaceDescriptors::create(descriptors.release_descriptors()));
 }
 
 Optional<Vector<FlyString>> Parser::parse_comma_separated_family_name_list(TokenStream<ComponentValue>& tokens)
@@ -1419,7 +1419,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
     if (!family_names.has_value())
         return nullptr;
 
-    auto font_feature_values_rule = CSSFontFeatureValuesRule::create(realm(), family_names.release_value());
+    auto font_feature_values_rule = CSSFontFeatureValuesRule::create(family_names.release_value());
 
     rule.for_each_as_declaration_rule_list(
         [&](AtRule const& at_rule) {
@@ -1510,7 +1510,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
                     return;
                 }
 
-                MUST(feature_values_map->set(declaration.name.to_string(), move(values)));
+                feature_values_map->set_from_parser(declaration.name, move(values));
             });
         },
         [&](Declaration const&) {
@@ -1725,11 +1725,11 @@ GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function
                     child_rules.append(*child_rule);
             },
             [&](Vector<Declaration> const& declarations) {
-                child_rules.append(CSSFunctionDeclarations::create(realm(), *this, declarations));
+                child_rules.append(CSSFunctionDeclarations::create(*this, declarations));
             });
     }
 
-    return CSSFunctionRule::create(realm(), CSSRuleList::create(realm(), child_rules), move(prelude->name), move(prelude->parameters), move(prelude->return_type));
+    return CSSFunctionRule::create(CSSRuleList::create(child_rules), move(prelude->name), move(prelude->parameters), move(prelude->return_type));
 }
 
 GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
@@ -1777,8 +1777,8 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
             }
         });
 
-    auto rule_list = CSSRuleList::create(realm(), child_rules);
-    return CSSPageRule::create(realm(), page_selectors.release_value(), CSSPageDescriptors::create(realm(), descriptors.release_descriptors()), rule_list);
+    auto rule_list = CSSRuleList::create(child_rules);
+    return CSSPageRule::create(page_selectors.release_value(), CSSPageDescriptors::create(descriptors.release_descriptors()), rule_list);
 }
 
 GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
@@ -1820,8 +1820,8 @@ GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
     rule.for_each_as_declaration_list([&](auto const& declaration) {
         extract_property(declaration, properties);
     });
-    auto style = CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
-    return CSSMarginRule::create(realm(), rule.name, style);
+    auto style = CSSStyleProperties::create(move(properties.properties), move(properties.custom_properties));
+    return CSSMarginRule::create(rule.name, style);
 }
 
 template<typename Descriptors>
@@ -1834,7 +1834,7 @@ GC::Ref<Descriptors> Parser::convert_to_descriptors(AtRuleID at_rule_id, Vector<
             descriptor_list.append(descriptor.release_value());
     }
 
-    return Descriptors::create(realm(), descriptor_list.release_descriptors());
+    return Descriptors::create(descriptor_list.release_descriptors());
 }
 
 template GC::Ref<CSSFunctionDescriptors> Parser::convert_to_descriptors(AtRuleID at_rule_id, Vector<Declaration> const& declarations);

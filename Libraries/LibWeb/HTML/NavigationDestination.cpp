@@ -5,9 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/NavigationDestination.h>
 #include <LibWeb/HTML/NavigationDestination.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -16,25 +13,18 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationDestination);
 
-GC::Ref<NavigationDestination> NavigationDestination::create(JS::Realm& realm)
+GC::Ref<NavigationDestination> NavigationDestination::create()
 {
-    return realm.create<NavigationDestination>(realm);
+    return GC::Heap::the().allocate<NavigationDestination>();
 }
 
-NavigationDestination::NavigationDestination(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+NavigationDestination::NavigationDestination()
 {
 }
 
 NavigationDestination::~NavigationDestination() = default;
 
-void NavigationDestination::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigationDestination);
-    Base::initialize(realm);
-}
-
-void NavigationDestination::visit_edges(JS::Cell::Visitor& visitor)
+void NavigationDestination::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_entry);
@@ -85,10 +75,10 @@ bool NavigationDestination::same_document() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationdestination-getstate
-WebIDL::ExceptionOr<JS::Value> NavigationDestination::get_state()
+WebIDL::ExceptionOr<JS::Value> NavigationDestination::get_state(JS::Realm& realm)
 {
     // The getState() method steps are to return StructuredDeserialize(this's state).
-    return structured_deserialize(vm(), m_state, realm());
+    return HTML::structured_deserialize(realm.vm(), m_state, realm);
 }
 
 }

@@ -14,8 +14,6 @@
 #include <LibGC/HeapVector.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::IndexedDB {
 
@@ -43,7 +41,7 @@ public:
         Array,
     };
 
-    [[nodiscard]] static GC::Ref<Key> create(JS::Realm&, KeyType, KeyValue);
+    [[nodiscard]] static GC::Ref<Key> create(KeyType, KeyValue);
     virtual ~Key();
 
     [[nodiscard]] KeyType type() { return m_type; }
@@ -61,12 +59,12 @@ public:
         return value_as_vector();
     }
 
-    [[nodiscard]] static GC::Ref<Key> create_number(JS::Realm& realm, double value) { return create(realm, Number, value); }
-    [[nodiscard]] static GC::Ref<Key> create_date(JS::Realm& realm, double value) { return create(realm, Date, value); }
-    [[nodiscard]] static GC::Ref<Key> create_string(JS::Realm& realm, AK::String const& value) { return create(realm, String, value); }
-    [[nodiscard]] static GC::Ref<Key> create_binary(JS::Realm& realm, ByteBuffer const& value) { return create(realm, Binary, value); }
-    [[nodiscard]] static GC::Ref<Key> create_array(JS::Realm& realm, GC::Root<GC::HeapVector<GC::Ref<Key>>> const& value) { return create(realm, Array, value); }
-    [[nodiscard]] static GC::Ref<Key> create_invalid(JS::Realm& realm, AK::String const& value) { return create(realm, Invalid, value); }
+    [[nodiscard]] static GC::Ref<Key> create_number(double value) { return create(Number, value); }
+    [[nodiscard]] static GC::Ref<Key> create_date(double value) { return create(Date, value); }
+    [[nodiscard]] static GC::Ref<Key> create_string(AK::String const& value) { return create(String, value); }
+    [[nodiscard]] static GC::Ref<Key> create_binary(ByteBuffer const& value) { return create(Binary, value); }
+    [[nodiscard]] static GC::Ref<Key> create_array(GC::Root<GC::HeapVector<GC::Ref<Key>>> const& value) { return create(Array, value); }
+    [[nodiscard]] static GC::Ref<Key> create_invalid(AK::String const& value) { return create(Invalid, value); }
 
     [[nodiscard]] static i8 compare_two_keys(GC::Ref<Key> a, GC::Ref<Key> b);
     [[nodiscard]] static bool equals(GC::Ref<Key> a, GC::Ref<Key> b) { return compare_two_keys(a, b) == 0; }

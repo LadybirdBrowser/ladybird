@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
 
 namespace Web::HTML {
@@ -31,24 +32,24 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-linecap
-    void set_line_cap(Bindings::CanvasLineCap line_cap)
+    void set_line_cap(CanvasLineCap line_cap)
     {
         // On setting, the current value must be changed to the new value.
         drawing_state().line_cap = line_cap;
     }
-    Bindings::CanvasLineCap line_cap() const
+    CanvasLineCap line_cap() const
     {
         // On getting, it must return the current value.
         return drawing_state().line_cap;
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-linejoin
-    void set_line_join(Bindings::CanvasLineJoin line_join)
+    void set_line_join(CanvasLineJoin line_join)
     {
         // On setting, the current value must be changed to the new value.
         drawing_state().line_join = line_join;
     }
-    Bindings::CanvasLineJoin line_join() const
+    CanvasLineJoin line_join() const
     {
         // On getting, it must return the current value.
         return drawing_state().line_join;

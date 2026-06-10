@@ -6,6 +6,7 @@
 
 #include <AK/IDAllocator.h>
 #include <AK/NeverDestroyed.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 
@@ -25,9 +26,9 @@ static IDAllocator& unique_task_source_allocator()
     return next_task_id++;
 }
 
-GC::Ref<Task> Task::create(JS::VM& vm, Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
+GC::Ref<Task> Task::create(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
 {
-    return vm.heap().allocate<Task>(source, document, move(steps));
+    return GC::Heap::the().allocate<Task>(source, document, move(steps));
 }
 
 Task::Task(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
@@ -87,7 +88,7 @@ NonnullRefPtr<ParallelQueue> ParallelQueue::create()
 TaskID ParallelQueue::enqueue(GC::Ref<GC::Function<void()>> algorithm)
 {
     auto& event_loop = HTML::main_thread_event_loop();
-    auto task = HTML::Task::create(event_loop.vm(), m_task_source.source, nullptr, algorithm);
+    auto task = HTML::Task::create(m_task_source.source, nullptr, algorithm);
     event_loop.task_queue().add(task);
     return task->id();
 }

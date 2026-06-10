@@ -15,20 +15,18 @@
 namespace Web::WebGL {
 
 class WebGLBuffer final : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLBuffer, WebGLObject);
+    WEB_WRAPPABLE(WebGLBuffer, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLBuffer);
 
 public:
-    static GC::Ref<WebGLBuffer> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle);
+    static GC::Ref<WebGLBuffer> create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle);
 
     virtual ~WebGLBuffer();
 
     bool is_compatible_with(GLenum target);
 
 protected:
-    explicit WebGLBuffer(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit WebGLBuffer(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
 private:
     Optional<GLenum> m_target;

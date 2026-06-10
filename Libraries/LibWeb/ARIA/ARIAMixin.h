@@ -6,13 +6,16 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/Cell.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/AttributeNames.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::ARIA {
 
@@ -69,10 +72,7 @@ public:
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)   \
     Optional<Vector<GC::Weak<DOM::Element>> const&> attribute() const; \
-    void set_##attribute(Optional<Vector<GC::Weak<DOM::Element>>>);    \
-                                                                       \
-    GC::Ptr<JS::Array> cached_##attribute() const;                     \
-    void set_cached_##attribute(GC::Ptr<JS::Array>);
+    void set_##attribute(Optional<Vector<GC::Weak<DOM::Element>>>);
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
@@ -90,8 +90,7 @@ private:
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
-    OwnPtr<Vector<GC::Weak<DOM::Element>>> m_##attribute;            \
-    GC::Ptr<JS::Array> m_cached_##attribute;
+    OwnPtr<Vector<GC::Weak<DOM::Element>>> m_##attribute;
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 };

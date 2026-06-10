@@ -19,10 +19,16 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace Web::Bindings {
+
+struct SVGBoundingBoxOptions;
+
+}
+
 namespace Web::SVG {
 
 class WEB_API SVGGraphicsElement : public SVGElement {
-    WEB_PLATFORM_OBJECT(SVGGraphicsElement, SVGElement);
+    WEB_WRAPPABLE(SVGGraphicsElement, SVGElement);
 
 public:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
@@ -64,7 +70,7 @@ public:
     GC::Ptr<SVG::SVGPatternElement const> fill_pattern() const;
     GC::Ptr<SVG::SVGPatternElement const> stroke_pattern() const;
 
-    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Optional<Bindings::SVGBoundingBoxOptions> const&);
+    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Bindings::SVGBoundingBoxOptions const&);
     GC::Ref<SVGAnimatedTransformList> transform() const;
 
     GC::Ptr<Geometry::DOMMatrix> get_ctm();
@@ -77,8 +83,6 @@ public:
 
 protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     Optional<Painting::PaintStyle> svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, DisplayListRecordingContext* = nullptr) const;
 

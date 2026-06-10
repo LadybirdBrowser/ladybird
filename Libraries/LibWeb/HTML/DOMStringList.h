@@ -6,28 +6,26 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
-class DOMStringList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMStringList, Bindings::PlatformObject);
+class DOMStringList final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DOMStringList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMStringList);
 
 public:
-    static GC::Ref<DOMStringList> create(JS::Realm&, Vector<String>);
+    static GC::Ref<DOMStringList> create(Vector<String>);
 
     u32 length() const;
     Optional<String> item(u32 index) const;
     bool contains(StringView string);
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-
 private:
-    explicit DOMStringList(JS::Realm&, Vector<String>);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit DOMStringList(Vector<String>);
 
     Vector<String> m_list;
 };

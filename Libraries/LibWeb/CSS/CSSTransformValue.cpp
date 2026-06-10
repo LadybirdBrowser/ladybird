@@ -5,8 +5,7 @@
  */
 
 #include "CSSTransformValue.h"
-#include <LibWeb/Bindings/CSSTransformValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSTransformComponent.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -18,17 +17,17 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSTransformValue);
 
-GC::Ref<CSSTransformValue> CSSTransformValue::create(JS::Realm& realm, ReadonlySpan<GC::Ref<CSSTransformComponent>> transforms)
+GC::Ref<CSSTransformValue> CSSTransformValue::create(ReadonlySpan<GC::Ref<CSSTransformComponent>> transforms)
 {
     Vector<GC::Ref<CSSTransformComponent>> converted_transforms;
     converted_transforms.ensure_capacity(transforms.size());
     for (auto const& transform : transforms)
         converted_transforms.append(transform);
-    return realm.create<CSSTransformValue>(realm, move(converted_transforms));
+    return GC::Heap::the().allocate<CSSTransformValue>(move(converted_transforms));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformvalue-csstransformvalue
-WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::construct_impl(JS::Realm& realm, ReadonlySpan<GC::Ref<CSSTransformComponent>> const& transforms)
+WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::create_for_constructor(ReadonlySpan<GC::Ref<CSSTransformComponent>> transforms)
 {
     // The CSSTransformValue(transforms) constructor must, when called, perform the following steps:
 
@@ -37,28 +36,18 @@ WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::construct_imp
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTransformValue's transforms list cannot be empty."sv };
 
     // 2. Return a new CSSTransformValue whose values to iterate over is transforms.
-    return CSSTransformValue::create(realm, transforms);
+    return CSSTransformValue::create(transforms);
 }
 
-CSSTransformValue::CSSTransformValue(JS::Realm& realm, Vector<GC::Ref<CSSTransformComponent>> transforms)
-    : CSSStyleValue(realm)
+CSSTransformValue::CSSTransformValue(Vector<GC::Ref<CSSTransformComponent>> transforms)
+    : CSSStyleValue()
     , m_transforms(move(transforms))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .has_indexed_property_setter = true,
-    };
 }
 
 CSSTransformValue::~CSSTransformValue() = default;
 
-void CSSTransformValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSTransformValue);
-    Base::initialize(realm);
-}
-
-void CSSTransformValue::visit_edges(Visitor& visitor)
+void CSSTransformValue::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_transforms);
@@ -71,34 +60,24 @@ WebIDL::UnsignedLong CSSTransformValue::length() const
     return m_transforms.size();
 }
 
-// https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-determine-the-value-of-an-indexed-property%E2%91%A0
-Optional<JS::Value> CSSTransformValue::item_value(size_t index) const
+GC::Ptr<CSSTransformComponent> CSSTransformValue::component_at(size_t index) const
 {
-    // To determine the value of an indexed property of a CSSTransformValue this and an index n, let values be this’s
-    // [[values]] internal slot, and return values[n].
     if (index >= m_transforms.size())
-        return {};
-    return m_transforms[index];
-}
-
-static WebIDL::ExceptionOr<GC::Ref<CSSTransformComponent>> transform_component_from_js_value(JS::Value& value)
-{
-    if (auto transform_component = value.as_if<CSSTransformComponent>())
-        return GC::Ref { *transform_component };
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value must be a CSSTransformComponent"sv };
+        return nullptr;
+    return m_transforms[index].ptr();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-set-the-value-of-an-existing-indexed-property%E2%91%A0
-WebIDL::ExceptionOr<void> CSSTransformValue::set_value_of_existing_indexed_property(u32 n, JS::Value new_value)
+WebIDL::ExceptionOr<void> CSSTransformValue::set_value_of_existing_indexed_property(u32 n, GC::Ref<CSSTransformComponent> new_value)
 {
     // To set the value of an existing indexed property of a CSSTransformValue this, an index n, and a value new value,
     // let values be this’s [[values]] internal slot, and set values[n] to new value.
-    m_transforms[n] = TRY(transform_component_from_js_value(new_value));
+    m_transforms[n] = new_value;
     return {};
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-set-the-value-of-a-new-indexed-property①
-WebIDL::ExceptionOr<void> CSSTransformValue::set_value_of_new_indexed_property(u32 n, JS::Value new_value)
+WebIDL::ExceptionOr<void> CSSTransformValue::set_value_of_new_indexed_property(u32 n, GC::Ref<CSSTransformComponent> new_value)
 {
     // To set the value of a new indexed property of a CSSTransformValue this, an index n, and a value new value, let
     // values be this’s [[values]] internal slot. If n is not equal to the size of values, throw a RangeError.
@@ -106,7 +85,7 @@ WebIDL::ExceptionOr<void> CSSTransformValue::set_value_of_new_indexed_property(u
     if (n != m_transforms.size())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Index out of range"sv };
 
-    m_transforms.append(TRY(transform_component_from_js_value(new_value)));
+    m_transforms.append(new_value);
     return {};
 }
 
@@ -124,7 +103,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTransformValue::to_matrix()
     // The toMatrix() method of a CSSTransformValue this must, when called, perform the following steps:
 
     // 1. Let matrix be a new DOMMatrix, initialized to the identity matrix, with its is2D internal slot set to true.
-    auto matrix = Geometry::DOMMatrix::create(realm());
+    auto matrix = Geometry::DOMMatrix::create();
 
     // 2. For each func in this’s values to iterate over:
     for (auto const& function : m_transforms) {
@@ -133,7 +112,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTransformValue::to_matrix()
         auto function_matrix = TRY(function->to_matrix());
 
         // 2. Set matrix to the result of multiplying matrix and the matrix represented by funcMatrix.
-        TRY(matrix->multiply_self(*function_matrix));
+        matrix->multiply_self(*function_matrix);
     }
 
     // 3. Return matrix.

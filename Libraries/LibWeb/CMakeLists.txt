@@ -1,6 +1,9 @@
 include(libweb_generators)
 
+file(GLOB LIBWEB_BINDINGS_BRIDGE_SOURCES CONFIGURE_DEPENDS Bindings/*Bindings.cpp)
+
 set(SOURCES
+    ${LIBWEB_BINDINGS_BRIDGE_SOURCES}
     Animations/Animatable.cpp
     Animations/Animation.cpp
     Animations/AnimationEffect.cpp
@@ -26,6 +29,8 @@ set(SOURCES
     Bindings/OptionConstructor.cpp
     Bindings/PlatformObject.cpp
     Bindings/PrincipalHostDefined.cpp
+    Bindings/Wrappable.cpp
+    Bindings/WrapperWorld.cpp
     Clipboard/Clipboard.cpp
     Clipboard/ClipboardEvent.cpp
     Clipboard/ClipboardItem.cpp
@@ -85,7 +90,6 @@ set(SOURCES
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp
     Crypto/CryptoKey.cpp
-    Crypto/KeyAlgorithms.cpp
     Crypto/SubtleCrypto.cpp
     CSS/Angle.cpp
     CSS/AnimationEvent.cpp
@@ -401,12 +405,10 @@ set(SOURCES
     Encoding/TextEncoderStream.cpp
     EncryptedMediaExtensions/Algorithms.cpp
     EncryptedMediaExtensions/MediaKeySystemAccess.cpp
-    EncryptedMediaExtensions/NavigatorEncryptedMediaExtensionsPartial.cpp
     EntriesAPI/FileSystemEntry.cpp
     EventTiming/PerformanceEventTiming.cpp
     Fetch/Body.cpp
     Fetch/BodyInit.cpp
-    Fetch/Enums.cpp
     Fetch/Fetching/Checks.cpp
     Fetch/Fetching/FetchedDataReceiver.cpp
     Fetch/Fetching/Fetching.cpp
@@ -499,8 +501,10 @@ set(SOURCES
     HTML/CrossOrigin/AbstractOperations.cpp
     HTML/CrossOrigin/Reporting.cpp
     HTML/CustomElements/CustomElementDefinition.cpp
+    HTML/CustomElements/CustomElementAlgorithms.cpp
     HTML/CustomElements/CustomElementName.cpp
     HTML/CustomElements/CustomElementReactionNames.cpp
+    HTML/CustomElements/CustomElementReactions.cpp
     HTML/CustomElements/CustomElementRegistry.cpp
     HTML/CustomElements/CustomStateSet.cpp
     HTML/DataTransfer.cpp
@@ -630,6 +634,7 @@ set(SOURCES
     HTML/NavigableContainer.cpp
     HTML/NavigateEvent.cpp
     HTML/Navigation.cpp
+    HTML/NavigationActivation.cpp
     HTML/NavigationCurrentEntryChangeEvent.cpp
     HTML/NavigationDestination.cpp
     HTML/NavigationHistoryEntry.cpp
@@ -644,6 +649,7 @@ set(SOURCES
     HTML/Numbers.cpp
     HTML/OffscreenCanvas.cpp
     HTML/OffscreenCanvasRenderingContext2D.cpp
+    HTML/PageSwapEvent.cpp
     HTML/PageTransitionEvent.cpp
     HTML/Parser/Entities.cpp
     HTML/Parser/HTMLEncodingDetection.cpp
@@ -678,6 +684,7 @@ set(SOURCES
     HTML/Scripting/SimilarOriginWindowAgent.cpp
     HTML/Scripting/TemporaryExecutionContext.cpp
     HTML/Scripting/WindowEnvironmentSettingsObject.cpp
+    HTML/Scripting/WindowRealm.cpp
     HTML/Scripting/WorkerAgent.cpp
     HTML/Scripting/WorkerEnvironmentSettingsObject.cpp
     HTML/SelectedFile.cpp
@@ -1154,7 +1161,6 @@ set(SOURCES
     WebGL/WebGL2RenderingContextOverloads.cpp
     WebGL/WebGLActiveInfo.cpp
     WebGL/WebGLBuffer.cpp
-    WebGL/WebGLContextAttributes.cpp
     WebGL/WebGLContextEvent.cpp
     WebGL/WebGLFramebuffer.cpp
     WebGL/WebGLObject.cpp

@@ -6,27 +6,31 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <AK/Utf16String.h>
+#include <AK/Vector.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/TrustedTypePolicyFactory.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::TrustedTypes {
 
-class TrustedTypePolicyFactory final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(TrustedTypePolicyFactory, Bindings::PlatformObject);
+class TrustedTypePolicyFactory final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(TrustedTypePolicyFactory, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TrustedTypePolicyFactory);
 
 public:
     virtual ~TrustedTypePolicyFactory() override { }
 
-    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_policy(Utf16String const&, Bindings::TrustedTypePolicyOptions const&);
+    JS::Realm& relevant_realm() const;
 
-    bool is_html(JS::Value);
-    bool is_script(JS::Value);
-    bool is_script_url(JS::Value);
+    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_policy(JS::Realm&, Utf16String const&, TrustedTypePolicyOptions const&);
+
+    bool is_html(JS::Value) const;
+    bool is_script(JS::Value) const;
+    bool is_script_url(JS::Value) const;
 
     GC::Ref<TrustedHTML const> empty_html();
     GC::Ref<TrustedScript const> empty_script();
@@ -40,13 +44,14 @@ public:
     }
 
 private:
-    explicit TrustedTypePolicyFactory(JS::Realm&);
+    explicit TrustedTypePolicyFactory(DOM::EventTarget&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(Utf16String const&, Bindings::TrustedTypePolicyOptions const&, JS::Object&);
-    ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object&, Utf16String const&, Vector<Utf16String> const&);
+    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(JS::Realm&, Utf16String const&, TrustedTypePolicyOptions const&, JS::Object&);
+    ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Realm&, JS::Object&, Utf16String const&, Vector<Utf16String> const&);
+
+    GC::Ref<DOM::EventTarget> m_owner;
 
     // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory-created-policy-names
     Vector<Utf16String> m_created_policy_names;

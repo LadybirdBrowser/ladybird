@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
@@ -21,7 +22,7 @@ class SVGDecodedImageData final : public HTML::DecodedImageData {
 
 public:
     class SVGPageClient;
-    static ErrorOr<GC::Ref<SVGDecodedImageData>> create(JS::Realm&, GC::Ref<Page>, URL::URL const&, ReadonlyBytes encoded_svg);
+    static ErrorOr<GC::Ref<SVGDecodedImageData>> create(GC::Ref<Page>, URL::URL const&, ReadonlyBytes encoded_svg);
     virtual ~SVGDecodedImageData() override;
 
     virtual Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize) const override;
@@ -75,9 +76,9 @@ class SVGDecodedImageData::SVGPageClient final : public PageClient {
     GC_DECLARE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
 
 public:
-    static GC::Ref<SVGPageClient> create(JS::VM& vm, Page& page)
+    static GC::Ref<SVGPageClient> create(Page& page)
     {
-        return vm.heap().allocate<SVGPageClient>(page);
+        return GC::Heap::the().allocate<SVGPageClient>(page);
     }
 
     virtual ~SVGPageClient() override = default;

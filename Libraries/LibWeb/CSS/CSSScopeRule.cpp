@@ -5,9 +5,8 @@
  */
 
 #include "CSSScopeRule.h"
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CSSScopeRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -17,13 +16,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSScopeRule);
 
-GC::Ref<CSSScopeRule> CSSScopeRule::create(JS::Realm& realm, Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
+GC::Ref<CSSScopeRule> CSSScopeRule::create(Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
 {
-    return realm.create<CSSScopeRule>(realm, move(start_selectors), move(end_selectors), rules);
+    return GC::Heap::the().allocate<CSSScopeRule>(move(start_selectors), move(end_selectors), rules);
 }
 
-CSSScopeRule::CSSScopeRule(JS::Realm& realm, Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
-    : CSSGroupingRule(realm, rules, Type::Scope)
+CSSScopeRule::CSSScopeRule(Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
+    : CSSGroupingRule(rules, Type::Scope)
     , m_start_selectors(move(start_selectors))
     , m_end_selectors(move(end_selectors))
 {
@@ -31,13 +30,7 @@ CSSScopeRule::CSSScopeRule(JS::Realm& realm, Optional<SelectorList>&& start_sele
 
 CSSScopeRule::~CSSScopeRule() = default;
 
-void CSSScopeRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSScopeRule);
-    Base::initialize(realm);
-}
-
-void CSSScopeRule::visit_edges(Cell::Visitor& visitor)
+void CSSScopeRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_cached_nearest_ancestor_scope_rule);

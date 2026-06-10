@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGMaskElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -21,12 +20,6 @@ SVGMaskElement::SVGMaskElement(DOM::Document& document, DOM::QualifiedName tag_n
 }
 
 SVGMaskElement::~SVGMaskElement() = default;
-
-void SVGMaskElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGMaskElement);
-    Base::initialize(realm);
-}
 
 RefPtr<Layout::Node> SVGMaskElement::create_layout_node(CSS::ComputedProperties const&)
 {

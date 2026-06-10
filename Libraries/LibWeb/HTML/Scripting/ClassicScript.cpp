@@ -6,8 +6,7 @@
 
 #include <AK/Debug.h>
 #include <LibCore/ElapsedTimer.h>
-#include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -21,8 +20,6 @@ GC_DEFINE_ALLOCATOR(ClassicScript);
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-classic-script
 GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView source, EnvironmentSettingsObject& settings, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors)
 {
-    auto& vm = settings.vm();
-
     // 1. If muted errors is true, then set baseURL to about:blank.
     if (muted_errors == MutedErrors::Yes)
         base_url = URL::about_blank();
@@ -34,7 +31,7 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView sou
     // 3. Let script be a new classic script that this algorithm will subsequently initialize.
     // 4. Set script's settings object to settings.
     // 5. Set script's base URL to baseURL.
-    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), settings);
+    auto script = GC::Heap::the().allocate<ClassicScript>(move(base_url), move(filename), settings);
 
     // FIXME: 6. Set script's fetch options to options.
 
@@ -75,12 +72,11 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView sou
 GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::ParsedProgram* parsed, MutedErrors muted_errors)
 {
     auto& realm = settings.realm();
-    auto& vm = realm.vm();
 
     if (muted_errors == MutedErrors::Yes)
         base_url = URL::about_blank();
 
-    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), settings);
+    auto script = GC::Heap::the().allocate<ClassicScript>(move(base_url), move(filename), settings);
 
     script->m_muted_errors = muted_errors;
     script->set_parse_error(JS::js_null());
@@ -108,12 +104,11 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename
 GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::CompiledProgram* compiled, MutedErrors muted_errors)
 {
     auto& realm = settings.realm();
-    auto& vm = realm.vm();
 
     if (muted_errors == MutedErrors::Yes)
         base_url = URL::about_blank();
 
-    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), settings);
+    auto script = GC::Heap::the().allocate<ClassicScript>(move(base_url), move(filename), settings);
 
     script->m_muted_errors = muted_errors;
     script->set_parse_error(JS::js_null());
@@ -141,12 +136,11 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
 GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, NonnullRefPtr<JS::RustIntegration::DecodedBytecodeCache> bytecode_cache, MutedErrors muted_errors)
 {
     auto& realm = settings.realm();
-    auto& vm = realm.vm();
 
     if (muted_errors == MutedErrors::Yes)
         base_url = URL::about_blank();
 
-    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), settings);
+    auto script = GC::Heap::the().allocate<ClassicScript>(move(base_url), move(filename), settings);
 
     script->m_muted_errors = muted_errors;
     script->set_parse_error(JS::js_null());
@@ -222,15 +216,16 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
             clean_up_after_running_script(settings);
 
             // 2. Throw a "NetworkError" DOMException.
-            return throw_completion(WebIDL::NetworkError::create(realm, "Script error."_utf16));
+            return throw_completion(realm, WebIDL::NetworkError::create("Script error."_utf16));
         }
 
         // 3. Otherwise, rethrow errors is false. Perform the following steps:
         VERIFY(rethrow_errors == RethrowErrors::No);
 
         // 1. Report an exception given by evaluationStatus.[[Value]] for script's settings object's global object.
-        auto& window_or_worker = as<WindowOrWorkerGlobalScopeMixin>(settings.global_object());
-        window_or_worker.report_an_exception(evaluation_status.value());
+        auto* window_or_worker = window_or_worker_global_scope_from_global_object(settings.global_object());
+        VERIFY(window_or_worker);
+        window_or_worker->report_an_exception(evaluation_status.value());
 
         // 2. Clean up after running script with settings.
         clean_up_after_running_script(settings);

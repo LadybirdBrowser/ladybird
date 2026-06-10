@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Range.h>
@@ -17,9 +18,9 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(EditingHostManager);
 
-GC::Ref<EditingHostManager> EditingHostManager::create(JS::Realm& realm, GC::Ref<Document> document)
+GC::Ref<EditingHostManager> EditingHostManager::create(GC::Ref<Document> document)
 {
-    return realm.create<EditingHostManager>(document);
+    return GC::Heap::the().allocate<EditingHostManager>(document);
 }
 
 EditingHostManager::EditingHostManager(GC::Ref<Document> document)

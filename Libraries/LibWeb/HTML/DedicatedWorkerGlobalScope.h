@@ -6,17 +6,22 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/DedicatedWorkerGlobalScope.h>
-#include <LibWeb/Bindings/WorkerGlobalScope.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 
+namespace Web::Bindings {
+
+struct StructuredSerializeOptions;
+
+}
+
 namespace Web::HTML {
 
+struct StructuredSerializeOptions;
+
 class WEB_API DedicatedWorkerGlobalScope
-    : public WorkerGlobalScope
-    , public Bindings::DedicatedWorkerGlobalScopeGlobalMixin {
-    WEB_PLATFORM_OBJECT(DedicatedWorkerGlobalScope, WorkerGlobalScope);
+    : public WorkerGlobalScope {
+    WEB_WRAPPABLE(DedicatedWorkerGlobalScope, WorkerGlobalScope);
     GC_DECLARE_ALLOCATOR(DedicatedWorkerGlobalScope);
 
 public:
@@ -24,8 +29,9 @@ public:
 
     virtual ~DedicatedWorkerGlobalScope() override;
 
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::StructuredSerializeOptions const&);
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, StructuredSerializeOptions const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, Bindings::StructuredSerializeOptions const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
 
     void close();
 
@@ -38,7 +44,7 @@ public:
     virtual void finalize() override;
 
 private:
-    DedicatedWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
+    explicit DedicatedWorkerGlobalScope(GC::Ref<Web::Page>);
 
     virtual void initialize_web_interfaces_impl() override;
 };

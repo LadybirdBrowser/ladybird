@@ -9,7 +9,11 @@ from typing import Optional
 from typing import Set
 from typing import TextIO
 
+from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
+from Generators.libweb_bindings.cpp_types import implementation_header_for_interface
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
+from Generators.libweb_bindings.wrappers import interface_needs_wrapper as wrapper_interface_needs_wrapper
+from Generators.libweb_bindings.wrappers import wrapper_class_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
@@ -127,6 +131,25 @@ def should_have_interface_object(interface: Interface) -> bool:
     return True
 
 
+def interface_needs_wrapper(interface: Interface) -> bool:
+    if interface.is_namespace or interface.is_callback_interface:
+        return False
+
+    if interface.parent_name or interface.has_non_constant_member:
+        return True
+
+    if "LegacyNoInterfaceObject" in interface.extended_attributes:
+        return True
+
+    if interface.has_special_member:
+        return True
+
+    if interface.named_property_getter is not None or interface.indexed_property_getter is not None:
+        return True
+
+    return not interface.constants
+
+
 def can_use_shared_interface_constructor(interface: Interface) -> bool:
     return not interface.is_namespace and not interface.is_callback_interface
 
@@ -240,13 +263,13 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
     auto const& global_object = realm.global_object();
 
     // 1. If construct’s exposure set is not *, and realm.[[GlobalObject]] does not implement an interface that is in construct’s exposure set, then return false.
-    if (is<HTML::Window>(global_object)) {
+    if (HTML::window_from_global_object(global_object)) {
        if (!is_window_exposed(name))
            return false;
-    } else if (is<HTML::DedicatedWorkerGlobalScope>(global_object)) {
+    } else if (impl_from<HTML::DedicatedWorkerGlobalScope>(&global_object)) {
        if (!is_dedicated_worker_exposed(name))
            return false;
-    } else if (is<HTML::SharedWorkerGlobalScope>(global_object)) {
+    } else if (impl_from<HTML::SharedWorkerGlobalScope>(&global_object)) {
         if (!is_shared_worker_exposed(name))
             return false;
     } else {
@@ -658,5 +681,106 @@ def write_interface_global_accessor(out: TextIO, class_name: str, interface: Int
 def write_namespace_global_accessor(out: TextIO, interface: Interface) -> None:
     out.write(
         f"""    global.define_intrinsic_accessor("{interface.name}"_utf16_fly_string, attr, [](auto& realm) -> JS::Value {{ return &ensure_web_namespace<{interface.namespace_class}>(realm, "{interface.name}"_fly_string); }});
+"""
+    )
+
+
+def interface_inherits_from(
+    interface: Interface, inherited_interface_name: str, interfaces_by_name: dict[str, Interface]
+) -> bool:
+    parent_name = interface.parent_name
+    while parent_name:
+        if parent_name == inherited_interface_name:
+            return True
+        parent = interfaces_by_name.get(parent_name)
+        if parent is None:
+            return False
+        parent_name = parent.parent_name
+    return False
+
+
+def write_wrapper_factory_implementation(out: TextIO, interface_sets: InterfaceSets) -> None:
+    interfaces = [interface for interface in interface_sets.intrinsics if wrapper_interface_needs_wrapper(interface)]
+    interfaces_by_name = {interface.name: interface for interface in interface_sets.intrinsics}
+    node_interfaces = [
+        interface
+        for interface in interfaces
+        if interface.name == "Node" or interface_inherits_from(interface, "Node", interfaces_by_name)
+    ]
+
+    out.write(
+        """#include <AK/Assertions.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
+#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+"""
+    )
+
+    for interface in interfaces:
+        out.write(f"#include <LibWeb/Bindings/{interface.implemented_name}.h>\n")
+        out.write(f"#include <{implementation_header_for_interface(interface)}>\n")
+
+    out.write(
+        """
+namespace Web::Bindings {
+
+GC::Ref<PlatformObject> create_wrapper_for_wrappable(JS::Realm& realm, GC::Ref<Wrappable> wrappable)
+{
+    switch (wrappable->interface_name()) {
+"""
+    )
+
+    for interface in interfaces:
+        out.write(
+            f"""    case InterfaceName::{interface.name}:
+        return realm.create<{wrapper_class_name(interface)}>(realm, GC::Ref {{ static_cast<{fully_qualified_name_for_interface(interface)}&>(*wrappable) }});
+"""
+        )
+
+    out.write(
+        """    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+JS::Realm& wrapper_realm_for_wrappable(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable> wrappable)
+{
+    if (!wrapper_world.is_main_world())
+        return preferred_realm;
+
+    switch (wrappable->interface_name()) {
+"""
+    )
+
+    for interface in node_interfaces:
+        out.write(f"    case InterfaceName::{interface.name}:\n")
+
+    out.write(
+        """        return wrapper_realm_for_node(wrapper_world, preferred_realm, static_cast<DOM::Node&>(*wrappable));
+    case InterfaceName::BarProp:
+        return HTML::relevant_realm(static_cast<HTML::BarProp&>(*wrappable).window());
+    case InterfaceName::Location:
+        return HTML::relevant_realm(static_cast<HTML::Location&>(*wrappable).window());
+    case InterfaceName::Storage:
+        return HTML::relevant_realm(static_cast<HTML::Storage&>(*wrappable).window());
+    case InterfaceName::CustomElementRegistry:
+        return wrapper_realm_for_custom_element_registry(wrapper_world, preferred_realm, static_cast<HTML::CustomElementRegistry&>(*wrappable));
+    case InterfaceName::MediaQueryList:
+        return wrapper_realm_for_media_query_list(wrapper_world, preferred_realm, static_cast<CSS::MediaQueryList&>(*wrappable));
+    case InterfaceName::MediaQueryListEvent:
+        return wrapper_realm_for_media_query_list_event(wrapper_world, preferred_realm, static_cast<CSS::MediaQueryListEvent&>(*wrappable));
+    case InterfaceName::TrustedTypePolicyFactory:
+        return static_cast<TrustedTypes::TrustedTypePolicyFactory&>(*wrappable).relevant_realm();
+    case InterfaceName::VisualViewport:
+        return HTML::relevant_realm(static_cast<CSS::VisualViewport&>(*wrappable).document());
+    default:
+        return preferred_realm;
+    }
+}
+
+}
 """
     )

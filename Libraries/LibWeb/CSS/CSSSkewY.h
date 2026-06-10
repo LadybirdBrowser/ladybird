@@ -12,12 +12,12 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssskewy
 class CSSSkewY final : public CSSTransformComponent {
-    WEB_PLATFORM_OBJECT(CSSSkewY, CSSTransformComponent);
+    WEB_WRAPPABLE(CSSSkewY, CSSTransformComponent);
     GC_DECLARE_ALLOCATOR(CSSSkewY);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSSkewY> create(JS::Realm&, GC::Ref<CSSNumericValue> ay);
-    static WebIDL::ExceptionOr<GC::Ref<CSSSkewY>> construct_impl(JS::Realm&, GC::Ref<CSSNumericValue> ay);
+    [[nodiscard]] static GC::Ref<CSSSkewY> create(GC::Ref<CSSNumericValue> ay);
+    static WebIDL::ExceptionOr<GC::Ref<CSSSkewY>> create_for_constructor(GC::Ref<CSSNumericValue> ay);
 
     virtual ~CSSSkewY() override;
 
@@ -33,10 +33,8 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSSkewY(JS::Realm&, GC::Ref<CSSNumericValue> ay);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    explicit CSSSkewY(GC::Ref<CSSNumericValue> ay);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_ay;
 };

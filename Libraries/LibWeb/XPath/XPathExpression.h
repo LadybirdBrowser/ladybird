@@ -6,23 +6,25 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
+#include <LibWeb/XPath/EvaluateResult.h>
 #include <LibWeb/XPath/XPathNSResolver.h>
 #include <LibWeb/XPath/XPathResult.h>
 
 namespace Web::XPath {
 
-class XPathExpression final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(XPathExpression, Bindings::PlatformObject);
+class XPathExpression final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(XPathExpression, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(XPathExpression);
 
 public:
-    explicit XPathExpression(JS::Realm&, String const& expression, GC::Ptr<XPathNSResolver> resolver);
+    [[nodiscard]] static GC::Ref<XPathExpression> create(String const& expression, GC::Ptr<XPathNSResolver> resolver);
+
+    explicit XPathExpression(String const& expression, GC::Ptr<XPathNSResolver> resolver);
     virtual ~XPathExpression() override;
-    virtual void visit_edges(Cell::Visitor&) override;
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(DOM::Node const& context_node, WebIDL::UnsignedShort type = 0, GC::Ptr<XPathResult> result = nullptr);
 

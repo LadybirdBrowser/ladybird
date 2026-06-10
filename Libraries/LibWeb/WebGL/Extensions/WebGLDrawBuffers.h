@@ -6,27 +6,26 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 #include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
 
-class WebGLDrawBuffers : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLDrawBuffers, Bindings::PlatformObject);
+class WebGLDrawBuffers : public WebGLExtension {
+    WEB_WRAPPABLE(WebGLDrawBuffers, WebGLExtension);
     GC_DECLARE_ALLOCATOR(WebGLDrawBuffers);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
     void draw_buffers_webgl(Vector<GLenum> buffers);
 
 protected:
-    void initialize(JS::Realm&) override;
-    void visit_edges(Visitor&) override;
+    void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    WebGLDrawBuffers(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    WebGLDrawBuffers(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

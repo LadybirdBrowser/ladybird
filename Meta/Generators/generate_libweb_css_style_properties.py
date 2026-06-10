@@ -14,6 +14,9 @@ from typing import TextIO
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from Utils.utils import make_name_acceptable_cpp
+from Utils.utils import snake_casify
+
 
 def css_property_to_idl_attribute(property_name: str, lowercase_first: bool = False) -> str:
     # https://drafts.csswg.org/cssom/#css-property-to-idl-attribute
@@ -35,143 +38,79 @@ def write_header_file(out: TextIO, properties: dict) -> None:
     out.write("""
 #pragma once
 
-#include <LibWeb/Forward.h>
+#include <AK/String.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
-namespace Web::Bindings {
+#define ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES \\
+""")
 
-class GeneratedCSSStyleProperties {
-public:
-    static void initialize(JS::Realm&, JS::Object&);
-}; // class GeneratedCSSStyleProperties
+    for name in properties:
+        name_acceptable_cpp = make_name_acceptable_cpp(snake_casify(name, trim_leading_underscores=True))
+        out.write(f"""    WebIDL::ExceptionOr<void> set_{name_acceptable_cpp}(StringView value); \\
+    String {name_acceptable_cpp}() const; \\
+""")
 
-} // namespace Web::Bindings
+    out.write("""
 """)
 
 
 def write_implementation_file(out: TextIO, properties: dict) -> None:
     out.write("""
-#include <AK/Array.h>
-#include <LibJS/Runtime/NativeFunction.h>
-#include <LibJS/Runtime/Object.h>
-#include <LibJS/Runtime/PrimitiveString.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
-#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
-namespace Web::Bindings {
-
-namespace {
-
-JS::ThrowCompletionOr<CSS::CSSStyleProperties*> impl_from(JS::VM& vm, JS::Value value)
-{
-    if (auto impl = value.as_if<CSS::CSSStyleProperties>())
-        return impl.ptr();
-    return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CSSStyleProperties");
-}
-
-JS::ThrowCompletionOr<CSS::CSSStyleProperties*> impl_from(JS::VM& vm)
-{
-    auto this_value = vm.this_value();
-    if (this_value.is_nullish())
-        this_value = &vm.current_realm()->global_object();
-    return impl_from(vm, this_value);
-}
-
-GC::Ref<JS::NativeFunction> create_getter(JS::Realm& realm, Utf16FlyString const& attribute_name, Utf16FlyString property_name)
-{
-    auto getter = [property_name = move(property_name)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-        auto* idl_object = TRY(impl_from(vm));
-
-        auto result = TRY(throw_dom_exception_if_needed(vm, [&] {
-            return idl_object->get_property_value(property_name);
-        }));
-        return JS::PrimitiveString::create(vm, result);
-    };
-
-    return JS::NativeFunction::create(realm, move(getter), 0, JS::PropertyKey { attribute_name }, &realm, "get"sv);
-}
-
-GC::Ref<JS::NativeFunction> create_setter(JS::Realm& realm, Utf16FlyString const& attribute_name, Utf16FlyString property_name)
-{
-    auto setter = [property_name = move(property_name)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-        auto* idl_object = TRY(impl_from(vm));
-
-        auto value = vm.argument(0);
-        String idl_value;
-        if (!value.is_null())
-            idl_value = TRY(WebIDL::to_string(vm, value));
-
-        auto original_steps = [&]() -> JS::ThrowCompletionOr<JS::Value> {
-            TRY(throw_dom_exception_if_needed(vm, [&] {
-                return idl_object->set_property(property_name, idl_value, ""sv);
-            }));
-            return JS::js_undefined();
-        };
-
-        // For [CEReactions]: https://html.spec.whatwg.org/multipage/custom-elements.html#cereactions
-        auto& reactions_stack = HTML::relevant_similar_origin_window_agent(*idl_object).custom_element_reactions_stack;
-        reactions_stack.element_queue_stack.append({});
-
-        auto value_or_exception = original_steps();
-
-        auto queue = reactions_stack.element_queue_stack.take_last();
-        Bindings::invoke_custom_element_reactions(queue);
-
-        if (value_or_exception.is_error())
-            return value_or_exception.release_error();
-        return value_or_exception.release_value();
-    };
-
-    return JS::NativeFunction::create(realm, move(setter), 1, JS::PropertyKey { attribute_name }, &realm, "set"sv);
-}
-
-}
-
-void GeneratedCSSStyleProperties::initialize(JS::Realm& realm, JS::Object& object)
-{
-    [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable;
-
-    struct Property {
-        StringView attribute_name;
-        StringView property_name;
-    };
-
-    static constexpr auto properties = Array {
+namespace Web::CSS {
 """)
 
     for name in properties:
-        out.write(f'        Property {{ "{css_property_to_idl_attribute(name)}"sv, "{name}"sv }},\n')
-        if name.startswith("-webkit-"):
-            out.write(
-                f'        Property {{ "{css_property_to_idl_attribute(name, lowercase_first=True)}"sv, "{name}"sv }},\n'
-            )
-        if "-" in name:
-            out.write(f'        Property {{ "{name}"sv, "{name}"sv }},\n')
+        name_acceptable_cpp = make_name_acceptable_cpp(snake_casify(name, trim_leading_underscores=True))
+        out.write(f"""
+WebIDL::ExceptionOr<void> CSSStyleProperties::set_{name_acceptable_cpp}(StringView value)
+{{
+    return set_property("{name}"_utf16_fly_string, value, ""sv);
+}}
+
+String CSSStyleProperties::{name_acceptable_cpp}() const
+{{
+    return get_property_value("{name}"_utf16_fly_string);
+}}
+""")
 
     out.write("""
-    };
-
-    for (auto property : properties) {
-        auto attribute_name = Utf16FlyString::from_utf8(property.attribute_name);
-        auto property_name = Utf16FlyString::from_utf8(property.property_name);
-        auto native_getter = create_getter(realm, attribute_name, property_name);
-        auto native_setter = create_setter(realm, attribute_name, property_name);
-        object.define_direct_accessor(attribute_name, native_getter, native_setter, default_attributes);
-    }
-}
-
-} // namespace Web::Bindings
+} // namespace Web::CSS
 """)
 
 
 def write_idl_file(out: TextIO, properties: dict) -> None:
     out.write("""
 interface mixin GeneratedCSSStyleProperties {
+""")
+
+    for name in properties:
+        snake_case_name = snake_casify(name, trim_leading_underscores=True)
+        name_acceptable_cpp = make_name_acceptable_cpp(snake_case_name)
+
+        # https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-camel-cased-attribute
+        name_camelcase = css_property_to_idl_attribute(name)
+        out.write(f"""
+    [CEReactions, LegacyNullToEmptyString, AttributeCallbackName={snake_case_name}_regular, ImplementedAs={name_acceptable_cpp}] attribute CSSOMString {name_camelcase};
+""")
+
+        # For each CSS property property that is a supported CSS property and that begins with the string -webkit-,
+        # the following partial interface applies where webkit-cased attribute is obtained by running the CSS property
+        # to IDL attribute algorithm for property, with the lowercase first flag set.
+        if name.startswith("-webkit-"):
+            name_webkit = css_property_to_idl_attribute(name, lowercase_first=True)
+            out.write(f"""
+    [CEReactions, LegacyNullToEmptyString, AttributeCallbackName={snake_case_name}_webkit, ImplementedAs={name_acceptable_cpp}] attribute CSSOMString {name_webkit};
+""")
+
+        # For each CSS property property that is a supported CSS property, except for properties that have no
+        # "-" (U+002D) in the property name, the following partial interface applies where dashed attribute is
+        # property.
+        if "-" in name:
+            out.write(f"""
+    [CEReactions, LegacyNullToEmptyString, AttributeCallbackName={snake_case_name}_dashed, ImplementedAs={name_acceptable_cpp}] attribute CSSOMString {name};
 """)
 
     out.write("""

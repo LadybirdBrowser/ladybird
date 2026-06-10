@@ -44,7 +44,7 @@ def write_operation_parameter_conversions(
     includes: GeneratedIncludes,
     context: GenerationContext,
 ) -> None:
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
 
     for index, parameter in enumerate(parameters):
         if parameter.variadic:
@@ -60,7 +60,7 @@ def write_operation_parameter_conversions(
             out.write(
                 f"""    {operation_parameter_cpp_type(parameter, context)} {parameter_name} {{}};
     if (!{argument_value_name}.is_undefined())
-        {parameter_name} = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
+        {parameter_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
 
 """
             )
@@ -70,14 +70,14 @@ def write_operation_parameter_conversions(
             out.write(
                 f"""    {cpp_value_type(parameter, context)} {parameter_name} = {cpp_default_value_conversion(parameter, context)};
     if (!{argument_value_name}.is_undefined())
-        {parameter_name} = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
+        {parameter_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
 
 """
             )
             continue
 
         out.write(
-            f"""    auto {parameter_name} = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
+            f"""    auto {parameter_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
 
 """
         )
@@ -105,7 +105,7 @@ def write_variadic_operation_parameter_conversion(
     if (vm.argument_count() > {index}) {{
         {parameter_name}.ensure_capacity(vm.argument_count() - {index});
         for (size_t i = {index}; i < vm.argument_count(); ++i) {{
-            auto argument = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(parameter, "vm.argument(i)", includes, context)}; }}));
+            auto argument = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value(parameter, "vm.argument(i)", includes, context)}; }}));
             {parameter_name}.unchecked_append(move(argument));
         }}
     }}

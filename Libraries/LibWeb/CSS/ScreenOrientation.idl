@@ -21,7 +21,7 @@ enum OrientationLockType {
 // https://w3c.github.io/screen-orientation/#screenorientation-interface
 [Exposed=Window]
 interface ScreenOrientation : EventTarget {
-    Promise<undefined> lock(OrientationLockType orientation);
+    [NeedsThisObjectRealm] Promise<undefined> lock(OrientationLockType orientation);
     undefined unlock();
     readonly attribute OrientationType type;
     readonly attribute unsigned short angle;

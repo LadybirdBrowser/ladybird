@@ -6,9 +6,6 @@
 
 #pragma once
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Permissions.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
@@ -16,20 +13,20 @@
 namespace Web::PermissionsAPI {
 
 class WEB_API PermissionStatus : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(PermissionStatus, DOM::EventTarget);
+    WEB_WRAPPABLE(PermissionStatus, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(PermissionStatus);
 
 public:
-    static GC::Ref<PermissionStatus> create(JS::Realm&, Bindings::PermissionDescriptor);
+    static GC::Ref<PermissionStatus> create(GC::Ref<DOM::EventTarget> relevant_global_object, PermissionDescriptor);
 
     // https://w3c.github.io/permissions/#dom-permissionstatus-state
-    Bindings::PermissionState state() const { return m_state; }
-    void set_state(Bindings::PermissionState state) { m_state = state; }
+    PermissionState state() const;
+    void set_state(PermissionState state) { m_state = state; }
 
     // https://w3c.github.io/permissions/#dom-permissionstatus-name
     String const& name() const { return m_name; }
 
-    Bindings::PermissionDescriptor const& query() const { return m_query; }
+    PermissionDescriptor const& query() const { return m_query; }
 
     // https://w3c.github.io/permissions/#dfn-permissionstatus-update-steps
     void update_steps();
@@ -39,15 +36,18 @@ public:
     GC::Ptr<WebIDL::CallbackType> onchange();
 
 private:
-    PermissionStatus(JS::Realm&, String const&, Bindings::PermissionDescriptor const&);
-
-    virtual void initialize(JS::Realm&) override;
+    PermissionStatus(GC::Ref<DOM::EventTarget> relevant_global_object, String const&,
+        PermissionDescriptor);
+    JS::Object& relevant_global_object() const;
+    virtual void visit_edges(Cell::Visitor&) override;
 
     String m_name;
-    Bindings::PermissionState m_state { Bindings::PermissionState::Prompt };
+    PermissionState m_state { PermissionState::Prompt };
 
     // https://w3c.github.io/permissions/#dfn-query
-    Bindings::PermissionDescriptor m_query;
+    PermissionDescriptor m_query;
+
+    GC::Ref<DOM::EventTarget> m_global_object;
 };
 
 }

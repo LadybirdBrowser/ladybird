@@ -16,11 +16,11 @@ namespace Web::CSS {
 class FontFace;
 
 class CSSFontFaceRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSFontFaceRule, CSSRule);
+    WEB_WRAPPABLE(CSSFontFaceRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSFontFaceRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(JS::Realm&, GC::Ref<CSSFontFaceDescriptors>);
+    [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(GC::Ref<CSSFontFaceDescriptors>);
 
     virtual ~CSSFontFaceRule() override = default;
 
@@ -36,11 +36,9 @@ public:
     void disconnect_font_face();
 
 private:
-    CSSFontFaceRule(JS::Realm&, GC::Ref<CSSFontFaceDescriptors>);
-
-    virtual void initialize(JS::Realm&) override;
+    CSSFontFaceRule(GC::Ref<CSSFontFaceDescriptors>);
     virtual String serialized() const override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     void handle_src_descriptor_change();

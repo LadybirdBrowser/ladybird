@@ -8,24 +8,24 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/Bindings/FocusEvent.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 
 namespace Web::UIEvents {
 
+using FocusEventInit = Bindings::FocusEventInit;
+
 class FocusEvent final : public UIEvent {
-    WEB_PLATFORM_OBJECT(FocusEvent, UIEvent);
+    WEB_WRAPPABLE(FocusEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(FocusEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<FocusEvent> create(JS::Realm&, FlyString const& event_name, Bindings::FocusEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<FocusEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::FocusEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<FocusEvent> create(FlyString const& event_name, FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~FocusEvent() override;
 
 private:
-    FocusEvent(JS::Realm&, FlyString const& event_name, Bindings::FocusEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
+    FocusEvent(FlyString const& event_name, FocusEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 };
 
 }

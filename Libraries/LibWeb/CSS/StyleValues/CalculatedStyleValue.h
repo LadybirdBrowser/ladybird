@@ -115,7 +115,7 @@ public:
 
     String dump() const;
 
-    virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const override;
+    virtual GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const override;
 
 private:
     explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode const> calculation, NumericType resolved_type, CalculationContext context)
@@ -250,7 +250,7 @@ public:
     virtual void dump(StringBuilder&, int indent) const = 0;
     virtual bool equals(CalculationNode const&) const = 0;
     virtual bool is_computationally_independent() const = 0;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const { return nullptr; }
+    virtual GC::Ptr<CSSNumericValue> reify() const { return nullptr; }
 
 protected:
     CalculationNode(Type, Optional<NumericType>);
@@ -288,7 +288,7 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
     virtual bool is_computationally_independent() const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify() const override;
 
 private:
     NumericCalculationNode(NumericValue, NumericType);
@@ -308,7 +308,7 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
     virtual bool is_computationally_independent() const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify() const override;
 
 private:
     SumCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -328,7 +328,7 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
     virtual bool is_computationally_independent() const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify() const override;
 
 private:
     ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -349,7 +349,7 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
     virtual bool is_computationally_independent() const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify() const override;
 
 private:
     explicit NegateCalculationNode(NonnullRefPtr<CalculationNode const>);
@@ -370,7 +370,7 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
     virtual bool is_computationally_independent() const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify() const override;
 
 private:
     InvertCalculationNode(NonnullRefPtr<CalculationNode const>, Optional<NumericType>);
@@ -391,7 +391,7 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
     virtual bool is_computationally_independent() const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify() const override;
 
 private:
     MinCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -412,7 +412,7 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
     virtual bool is_computationally_independent() const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify() const override;
 
 private:
     MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
@@ -433,7 +433,7 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
     virtual bool is_computationally_independent() const override;
-    virtual GC::Ptr<CSSNumericValue> reify(JS::Realm&) const override;
+    virtual GC::Ptr<CSSNumericValue> reify() const override;
 
 private:
     ClampCalculationNode(NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, NonnullRefPtr<CalculationNode const>, Optional<NumericType>);

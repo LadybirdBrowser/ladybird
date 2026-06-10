@@ -13,16 +13,23 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/EventSource.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace Web::Bindings {
+
+struct EventSourceInit;
+
+}
+
 namespace Web::HTML {
 
+using EventSourceInit = Bindings::EventSourceInit;
+
 class EventSource : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(EventSource, DOM::EventTarget);
+    WEB_WRAPPABLE(EventSource, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(EventSource);
 
 public:
@@ -30,7 +37,8 @@ public:
 
     virtual ~EventSource() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<EventSource>> construct_impl(JS::Realm&, StringView url, Bindings::EventSourceInit const& event_source_init_dict = {});
+    static WebIDL::ExceptionOr<GC::Ref<EventSource>> create(WindowOrWorkerGlobalScopeMixin&, StringView url, EventSourceInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<EventSource>> create_for_constructor(JS::Realm&, StringView url, EventSourceInit const&);
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource-url
     String url() const { return m_url.serialize(); }
@@ -60,9 +68,8 @@ public:
     void forcibly_close();
 
 private:
-    explicit EventSource(JS::Realm&);
+    explicit EventSource(GC::Ref<DOM::EventTarget> relevant_global_object);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -73,6 +80,9 @@ private:
     void interpret_response(StringView);
     void process_field(StringView field, StringView value);
     void dispatch_the_event();
+    JS::Object& relevant_global_object() const;
+    GC::Ref<DOM::Event> create_associated_event(FlyString const&) const;
+    WindowOrWorkerGlobalScopeMixin& relevant_global() const;
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-eventsource-url
     URL::URL m_url;
@@ -95,6 +105,7 @@ private:
 
     GC::Ptr<Fetch::Infrastructure::FetchAlgorithms> m_fetch_algorithms;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Ref<DOM::EventTarget> m_global_object;
 };
 
 }

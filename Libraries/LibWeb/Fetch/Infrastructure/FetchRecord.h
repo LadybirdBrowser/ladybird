@@ -19,8 +19,8 @@ class WEB_API FetchRecord final : public JS::Cell {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<FetchRecord> create(JS::VM&, GC::Ref<Infrastructure::Request>);
-    [[nodiscard]] static GC::Ref<FetchRecord> create(JS::VM&, GC::Ref<Infrastructure::Request>, GC::Ptr<FetchController>);
+    [[nodiscard]] static GC::Ref<FetchRecord> create(GC::Ref<Infrastructure::Request>);
+    [[nodiscard]] static GC::Ref<FetchRecord> create(GC::Ref<Infrastructure::Request>, GC::Ptr<FetchController>);
 
     [[nodiscard]] GC::Ref<Infrastructure::Request> request() const { return m_request; }
     void set_request(GC::Ref<Infrastructure::Request> request) { m_request = request; }

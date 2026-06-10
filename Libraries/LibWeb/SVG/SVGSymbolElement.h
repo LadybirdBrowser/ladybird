@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 class SVGSymbolElement final : public SVGGraphicsElement
     , public SVGFitToViewBox {
-    WEB_PLATFORM_OBJECT(SVGSymbolElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGSymbolElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGSymbolElement);
 
 public:
@@ -26,7 +26,7 @@ private:
 
     SVGSymbolElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;

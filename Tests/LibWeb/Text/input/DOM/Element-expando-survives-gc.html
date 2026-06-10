@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        (() => {
+            let element = host.appendChild(document.createElement("span"));
+            element.id = "probe";
+            element.x = 42;
+        })();
+
+        internals.gc();
+        println(`x=${document.getElementById("probe").x}`);
+    });
+</script>

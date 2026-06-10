@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/StyleSheetList.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetList.h>
@@ -129,36 +128,19 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
 
 GC::Ref<StyleSheetList> StyleSheetList::create(GC::Ref<DOM::Node> document_or_shadow_root)
 {
-    auto& realm = document_or_shadow_root->realm();
-    return realm.create<StyleSheetList>(document_or_shadow_root);
+    return GC::Heap::the().allocate<StyleSheetList>(document_or_shadow_root);
 }
 
 StyleSheetList::StyleSheetList(GC::Ref<DOM::Node> document_or_shadow_root)
-    : Bindings::PlatformObject(document_or_shadow_root->realm())
-    , m_document_or_shadow_root(document_or_shadow_root)
+    : m_document_or_shadow_root(document_or_shadow_root)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
 }
 
-void StyleSheetList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StyleSheetList);
-    Base::initialize(realm);
-}
-
-void StyleSheetList::visit_edges(Cell::Visitor& visitor)
+void StyleSheetList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document_or_shadow_root);
     visitor.visit(m_sheets);
-}
-
-Optional<JS::Value> StyleSheetList::item_value(size_t index) const
-{
-    if (index >= m_sheets.size())
-        return {};
-
-    return m_sheets[index].ptr();
 }
 
 DOM::Document& StyleSheetList::document()

@@ -82,11 +82,26 @@ enum class StateAndProperties;
 namespace Web::Bindings {
 
 class Intrinsics;
+enum class NamedPropertyDeletionResult : u8;
+enum class NavigationType : u8;
 class OptionConstructor;
+class PlatformObject;
+class Wrappable;
+class WrapperWorld;
+
+enum class WrapperWorldType : u8 {
+    Main,
+    Extension,
+    Internal,
+};
 
 enum class AudioContextLatencyCategory : u8;
 enum class CanPlayTypeResult : u8;
+enum class CanvasColorType : u8;
 enum class CanvasFillRule : u8;
+enum class CanvasDirection : u8;
+enum class CanvasLineCap : u8;
+enum class CanvasLineJoin : u8;
 enum class CanvasTextAlign : u8;
 enum class CanvasTextBaseline : u8;
 enum class ColorGamut : u8;
@@ -94,10 +109,12 @@ enum class DOMParserSupportedType : u8;
 enum class EndingType : u8;
 enum class HdrMetadataType : u8;
 enum class ImageSmoothingQuality : u8;
+enum class IDBCursorDirection : u8;
 enum class MediaDecodingType : u8;
 enum class MediaEncodingType : u8;
 enum class MediaStreamTrackState : u8;
 enum class OffscreenRenderingContextId : u8;
+enum class PredefinedColorSpace : u8;
 enum class ReadableStreamReaderMode : u8;
 enum class ReferrerPolicy : u8;
 enum class RenderBlockingStatusType : u8;
@@ -110,8 +127,12 @@ enum class RequestPriority : u8;
 enum class RequestRedirect : u8;
 enum class ResizeObserverBoxOptions : u8;
 enum class ResponseType : u8;
-enum class TextTrackKind : u8;
+enum class ServiceWorkerState : u8;
+enum class ServiceWorkerUpdateViaCache : u8;
+enum class ShadowRootMode : u8;
+enum class SlotAssignmentMode : u8;
 enum class TransferFunction : u8;
+enum class WorkerType : u8;
 enum class XMLHttpRequestResponseType : u8;
 
 }
@@ -578,6 +599,10 @@ class XMLDocument;
 enum class QuirksMode;
 enum class SetNeedsLayoutReason;
 
+using HTMLSerializationOptions = Bindings::GetHTMLOptions;
+using ShadowRootMode = Bindings::ShadowRootMode;
+using SlotAssignmentMode = Bindings::SlotAssignmentMode;
+
 }
 
 namespace Web::Encoding {
@@ -866,6 +891,15 @@ class WorkerNavigator;
 class XMLSerializer;
 
 enum class AllowMultipleFiles;
+using CanvasColorType = Bindings::CanvasColorType;
+using CanvasDirection = Bindings::CanvasDirection;
+using CanvasLineCap = Bindings::CanvasLineCap;
+using CanvasLineJoin = Bindings::CanvasLineJoin;
+using CanvasTextAlign = Bindings::CanvasTextAlign;
+using CanvasTextBaseline = Bindings::CanvasTextBaseline;
+using ImageSmoothingQuality = Bindings::ImageSmoothingQuality;
+using NavigationType = Bindings::NavigationType;
+using PredefinedColorSpace = Bindings::PredefinedColorSpace;
 enum class RequireWellFormed;
 enum class SandboxingFlagSet;
 
@@ -913,6 +947,8 @@ class IDBVersionChangeEvent;
 class Index;
 class ObjectStore;
 class RequestList;
+
+using CursorDirection = Bindings::IDBCursorDirection;
 
 }
 
@@ -1082,6 +1118,8 @@ namespace Web::ResizeObserver {
 
 class ResizeObserver;
 
+using ObservedBox = Bindings::ResizeObserverBoxOptions;
+
 }
 
 namespace Web::ResourceTiming {
@@ -1110,6 +1148,10 @@ class CacheStorage;
 class ServiceWorker;
 class ServiceWorkerContainer;
 class ServiceWorkerRegistration;
+
+using ServiceWorkerState = Bindings::ServiceWorkerState;
+using ServiceWorkerUpdateViaCache = Bindings::ServiceWorkerUpdateViaCache;
+using WorkerType = Bindings::WorkerType;
 
 }
 
@@ -1295,8 +1337,6 @@ class OfflineAudioContext;
 class OscillatorNode;
 class PannerNode;
 class PeriodicWave;
-
-enum class AudioContextState;
 
 }
 

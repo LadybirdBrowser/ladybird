@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const stream = new MediaStream();
+        const clone = stream.clone();
+
+        println(clone instanceof MediaStream);
+        println(clone !== stream);
+        println(clone.id !== stream.id);
+        println(clone.getTracks().length);
+
+        const frame = document.body.appendChild(document.createElement("iframe"));
+        const framedStream = new frame.contentWindow.MediaStream();
+        const framedClone = MediaStream.prototype.clone.call(framedStream);
+
+        println(framedClone instanceof frame.contentWindow.MediaStream);
+        println(framedClone instanceof MediaStream);
+
+        frame.remove();
+    });
+</script>

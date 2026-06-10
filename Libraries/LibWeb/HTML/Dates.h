@@ -21,6 +21,7 @@ bool is_valid_date_string(Utf16View const& value);
 bool is_valid_local_date_and_time_string(Utf16View const& value);
 Utf16String normalize_local_date_and_time_string(Utf16String const& value);
 bool is_valid_time_string(Utf16View const& value);
+WebIDL::ExceptionOr<double> parse_time_string_value(StringView value);
 WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, StringView value);
 
 struct YearAndMonth {

@@ -4,34 +4,35 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLFormControlsCollection.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/HTML/HTMLFormControlsCollection.h>
+#include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/RadioNodeList.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLFormControlsCollection);
 
-GC::Ref<HTMLFormControlsCollection> HTMLFormControlsCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
+GC::Ref<HTMLFormControlsCollection> HTMLFormControlsCollection::create(DOM::ParentNode& root, Scope scope, HTMLFormElement& form, Function<bool(DOM::Element const&)> filter)
 {
-    return root.realm().create<HTMLFormControlsCollection>(root, scope, move(filter));
+    return GC::Heap::the().allocate<HTMLFormControlsCollection>(root, scope, form, move(filter));
 }
 
-HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
+HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Scope scope, HTMLFormElement& form, Function<bool(DOM::Element const&)> filter)
     : DOM::HTMLCollection(root, scope, move(filter))
+    , m_form(form)
 {
 }
 
 HTMLFormControlsCollection::~HTMLFormControlsCollection() = default;
 
-void HTMLFormControlsCollection::initialize(JS::Realm& realm)
+void HTMLFormControlsCollection::visit_edges(GC::Cell::Visitor& visitor)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFormControlsCollection);
-    Base::initialize(realm);
+    Base::visit_edges(visitor);
+    visitor.visit(m_form);
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlformcontrolscollection-nameditem
@@ -68,20 +69,13 @@ Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCo
     // 4. Otherwise, create a new RadioNodeList object representing a live view of the HTMLFormControlsCollection object, further filtered so that the only nodes in the
     //    RadioNodeList object are those that have either an id attribute or a name attribute equal to name. The nodes in the RadioNodeList object must be sorted in tree
     //    order. Return that RadioNodeList object.
-    return RadioNodeList::create(realm(), root(), DOM::LiveNodeList::Scope::Descendants, [name](auto const& node) {
+    return RadioNodeList::create(root(), DOM::LiveNodeList::Scope::Descendants, [name](auto const& node) {
         if (!is<DOM::Element>(node))
             return false;
 
         auto const& element = as<DOM::Element>(node);
         return element.id() == name || element.name() == name;
     });
-}
-
-JS::Value HTMLFormControlsCollection::named_item_value(FlyString const& name) const
-{
-    return named_item_or_radio_node_list(name).visit(
-        [](Empty) -> JS::Value { return JS::js_undefined(); },
-        [](auto const& value) -> JS::Value { return value; });
 }
 
 }

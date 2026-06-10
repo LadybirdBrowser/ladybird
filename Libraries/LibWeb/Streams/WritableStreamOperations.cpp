@@ -9,8 +9,10 @@
  */
 
 #include <AK/GenericShorthands.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/UnderlyingSink.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/Bindings/WritableStreamDefaultController.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/WritableStream.h>
@@ -18,6 +20,8 @@
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
@@ -36,16 +40,39 @@ static bool is_close_sentinel(JS::Value value)
     return value.is_special_empty_value();
 }
 
-// https://streams.spec.whatwg.org/#acquire-writable-stream-default-writer
-WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> acquire_writable_stream_default_writer(WritableStream& stream)
+static JS::Realm& promise_realm(WebIDL::Promise const& promise)
 {
-    auto& realm = stream.realm();
+    return WebIDL::promise_realm(promise);
+}
 
+}
+
+namespace Web::Bindings {
+
+WebIDL::ExceptionOr<JS::Value> invoke_writable_stream_start_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_sink, GC::Ref<Streams::WritableStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return TRY(WebIDL::invoke_callback(callback, underlying_sink, WebIDL::ExceptionBehavior::Rethrow, { { wrapped_controller } }));
+}
+
+GC::Ref<WebIDL::Promise> invoke_writable_stream_write_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_sink, JS::Value chunk, GC::Ref<Streams::WritableStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return WebIDL::invoke_promise_callback(callback, underlying_sink, { { chunk, wrapped_controller } });
+}
+
+}
+
+namespace Web::Streams {
+
+// https://streams.spec.whatwg.org/#acquire-writable-stream-default-writer
+WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> acquire_writable_stream_default_writer(JS::Realm& realm, WritableStream& stream)
+{
     // 1. Let writer be a new WritableStreamDefaultWriter.
-    auto writer = realm.create<WritableStreamDefaultWriter>(realm);
+    auto writer = GC::Heap::the().allocate<WritableStreamDefaultWriter>();
 
     // 2. Perform ? SetUpWritableStreamDefaultWriter(writer, stream).
-    TRY(set_up_writable_stream_default_writer(writer, stream));
+    TRY(set_up_writable_stream_default_writer(realm, writer, stream));
 
     // 3. Return writer.
     return writer;
@@ -58,16 +85,16 @@ WebIDL::ExceptionOr<GC::Ref<WritableStream>> create_writable_stream(JS::Realm& r
     VERIFY(is_non_negative_number(JS::Value { high_water_mark }));
 
     // 2. Let stream be a new WritableStream.
-    auto stream = realm.create<WritableStream>(realm);
+    auto stream = GC::Heap::the().allocate<WritableStream>();
 
     // 3. Perform ! InitializeWritableStream(stream).
     initialize_writable_stream(stream);
 
     // 4. Let controller be a new WritableStreamDefaultController.
-    auto controller = realm.create<WritableStreamDefaultController>(realm);
+    auto controller = GC::Heap::the().allocate<WritableStreamDefaultController>();
 
     // 5. Perform ? SetUpWritableStreamDefaultController(stream, controller, startAlgorithm, writeAlgorithm, closeAlgorithm, abortAlgorithm, highWaterMark, sizeAlgorithm).
-    TRY(set_up_writable_stream_default_controller(stream, controller, start_algorithm, write_algorithm, close_algorithm, abort_algorithm, high_water_mark, size_algorithm));
+    TRY(set_up_writable_stream_default_controller(realm, stream, controller, start_algorithm, write_algorithm, close_algorithm, abort_algorithm, high_water_mark, size_algorithm));
 
     // 6. Return stream.
     return stream;
@@ -108,12 +135,8 @@ bool is_writable_stream_locked(WritableStream const& stream)
 }
 
 // https://streams.spec.whatwg.org/#set-up-writable-stream-default-writer
-WebIDL::ExceptionOr<void> set_up_writable_stream_default_writer(WritableStreamDefaultWriter& writer, WritableStream& stream)
+WebIDL::ExceptionOr<void> set_up_writable_stream_default_writer(JS::Realm& realm, WritableStreamDefaultWriter& writer, WritableStream& stream)
 {
-    // FIXME: Exactly when we should effectively be using the relevant realm of `this` is to be clarified by the spec.
-    //        For now, we do so as needed by WPT tests. See: https://github.com/whatwg/streams/issues/1213
-    auto& realm = HTML::relevant_realm(writer);
-
     // 1. If ! IsWritableStreamLocked(stream) is true, throw a TypeError exception.
     if (is_writable_stream_locked(stream))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is locked"sv };
@@ -186,16 +209,17 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_writer(WritableStreamDe
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-abort
-GC::Ref<WebIDL::Promise> writable_stream_abort(WritableStream& stream, JS::Value reason)
+GC::Ref<WebIDL::Promise> writable_stream_abort(JS::Realm& realm, WritableStream& stream, JS::Value reason)
 {
-    auto& realm = stream.realm();
-
     // 1. If stream.[[state]] is "closed" or "errored", return a promise resolved with undefined.
     if (first_is_one_of(stream.state(), WritableStream::State::Closed, WritableStream::State::Errored))
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
 
     // 2. Signal abort on stream.[[controller]].[[signal]] with reason.
-    stream.controller()->signal()->signal_abort(reason);
+    auto signal_abort_reason = reason;
+    if (signal_abort_reason.is_undefined())
+        signal_abort_reason = throw_completion(realm, WebIDL::AbortError::create("Aborted without reason"_utf16)).value();
+    stream.controller()->signal()->signal_abort(signal_abort_reason, realm.global_object());
 
     // 3. Let state be stream.[[state]].
     auto state = stream.state();
@@ -239,10 +263,8 @@ GC::Ref<WebIDL::Promise> writable_stream_abort(WritableStream& stream, JS::Value
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-close
-GC::Ref<WebIDL::Promise> writable_stream_close(WritableStream& stream)
+GC::Ref<WebIDL::Promise> writable_stream_close(JS::Realm& realm, WritableStream& stream)
 {
-    auto& realm = stream.realm();
-
     // 1. Let state be stream.[[state]].
     auto state = stream.state();
 
@@ -272,7 +294,7 @@ GC::Ref<WebIDL::Promise> writable_stream_close(WritableStream& stream)
     // 8. If writer is not undefined, and stream.[[backpressure]] is true, and state is "writable", resolve
     //    writer.[[readyPromise]] with undefined.
     if (writer && stream.backpressure() && state == WritableStream::State::Writable)
-        WebIDL::resolve_promise(realm, *writer->ready_promise(), JS::js_undefined());
+        WebIDL::resolve_promise(writer->ready_promise_realm(), *writer->ready_promise(), JS::js_undefined());
 
     // 9. Perform ! WritableStreamDefaultControllerClose(stream.[[controller]]).
     writable_stream_default_controller_close(*stream.controller());
@@ -282,10 +304,8 @@ GC::Ref<WebIDL::Promise> writable_stream_close(WritableStream& stream)
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-add-write-request
-GC::Ref<WebIDL::Promise> writable_stream_add_write_request(WritableStream& stream)
+GC::Ref<WebIDL::Promise> writable_stream_add_write_request(JS::Realm& realm, WritableStream& stream)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: ! IsWritableStreamLocked(stream) is true.
     VERIFY(is_writable_stream_locked(stream));
 
@@ -338,8 +358,6 @@ void writable_stream_deal_with_rejection(WritableStream& stream, JS::Value error
 // https://streams.spec.whatwg.org/#writable-stream-finish-erroring
 void writable_stream_finish_erroring(WritableStream& stream)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[state]] is "erroring".
     VERIFY(stream.state() == WritableStream::State::Erroring);
 
@@ -358,7 +376,7 @@ void writable_stream_finish_erroring(WritableStream& stream)
     // 6. For each writeRequest of stream.[[writeRequests]]:
     for (auto write_request : stream.write_requests()) {
         // 1. Reject writeRequest with storedError.
-        WebIDL::reject_promise(realm, *write_request, stored_error);
+        WebIDL::reject_promise(promise_realm(*write_request), *write_request, stored_error);
     }
 
     // 7. Set stream.[[writeRequests]] to an empty list.
@@ -380,7 +398,7 @@ void writable_stream_finish_erroring(WritableStream& stream)
     // 11. If abortRequest’s was already erroring is true,
     if (abort_request.was_already_erroring) {
         // 1. Reject abortRequest’s promise with storedError.
-        WebIDL::reject_promise(realm, abort_request.promise, stored_error);
+        WebIDL::reject_promise(promise_realm(abort_request.promise), abort_request.promise, stored_error);
 
         // 2. Perform ! WritableStreamRejectCloseAndClosedPromiseIfNeeded(stream).
         writable_stream_reject_close_and_closed_promise_if_needed(stream);
@@ -394,9 +412,9 @@ void writable_stream_finish_erroring(WritableStream& stream)
 
     WebIDL::react_to_promise(promise,
         // 13. Upon fulfillment of promise,
-        GC::create_function(realm.heap(), [&realm, &stream, abort_promise = abort_request.promise](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&stream, abort_promise = abort_request.promise](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Resolve abortRequest’s promise with undefined.
-            WebIDL::resolve_promise(realm, abort_promise, JS::js_undefined());
+            WebIDL::resolve_promise(promise_realm(abort_promise), abort_promise, JS::js_undefined());
 
             // 2. Perform ! WritableStreamRejectCloseAndClosedPromiseIfNeeded(stream).
             writable_stream_reject_close_and_closed_promise_if_needed(stream);
@@ -405,9 +423,9 @@ void writable_stream_finish_erroring(WritableStream& stream)
         }),
 
         // 14. Upon rejection of promise with reason reason,
-        GC::create_function(realm.heap(), [&realm, &stream, abort_promise = abort_request.promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&stream, abort_promise = abort_request.promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Reject abortRequest’s promise with reason.
-            WebIDL::reject_promise(realm, abort_promise, reason);
+            WebIDL::reject_promise(promise_realm(abort_promise), abort_promise, reason);
 
             // 2. Perform ! WritableStreamRejectCloseAndClosedPromiseIfNeeded(stream).
             writable_stream_reject_close_and_closed_promise_if_needed(stream);
@@ -419,13 +437,11 @@ void writable_stream_finish_erroring(WritableStream& stream)
 // https://streams.spec.whatwg.org/#writable-stream-finish-in-flight-close
 void writable_stream_finish_in_flight_close(WritableStream& stream)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[inFlightCloseRequest]] is not undefined.
     VERIFY(stream.in_flight_close_request());
 
     // 2. Resolve stream.[[inFlightCloseRequest]] with undefined.
-    WebIDL::resolve_promise(realm, *stream.in_flight_close_request(), JS::js_undefined());
+    WebIDL::resolve_promise(promise_realm(*stream.in_flight_close_request()), *stream.in_flight_close_request(), JS::js_undefined());
 
     // 3. Set stream.[[inFlightCloseRequest]] to undefined.
     stream.set_in_flight_close_request({});
@@ -445,7 +461,8 @@ void writable_stream_finish_in_flight_close(WritableStream& stream)
         if (stream.pending_abort_request().has_value()) {
             // 1. Resolve stream.[[pendingAbortRequest]]'s promise with undefined.
             // 2. Set stream.[[pendingAbortRequest]] to undefined.
-            WebIDL::resolve_promise(realm, stream.pending_abort_request().release_value().promise, JS::js_undefined());
+            auto abort_promise = stream.pending_abort_request().release_value().promise;
+            WebIDL::resolve_promise(promise_realm(abort_promise), abort_promise, JS::js_undefined());
         }
     }
 
@@ -457,7 +474,7 @@ void writable_stream_finish_in_flight_close(WritableStream& stream)
 
     // 9. If writer is not undefined, resolve writer.[[closedPromise]] with undefined.
     if (writer)
-        WebIDL::resolve_promise(realm, *writer->closed_promise(), JS::js_undefined());
+        WebIDL::resolve_promise(writer->closed_promise_realm(), *writer->closed_promise(), JS::js_undefined());
 
     // 10. Assert: stream.[[pendingAbortRequest]] is undefined.
     VERIFY(!stream.pending_abort_request().has_value());
@@ -469,13 +486,11 @@ void writable_stream_finish_in_flight_close(WritableStream& stream)
 // https://streams.spec.whatwg.org/#writable-stream-finish-in-flight-close-with-error
 void writable_stream_finish_in_flight_close_with_error(WritableStream& stream, JS::Value error)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[inFlightCloseRequest]] is not undefined.
     VERIFY(stream.in_flight_close_request());
 
     // 2. Reject stream.[[inFlightCloseRequest]] with error.
-    WebIDL::reject_promise(realm, *stream.in_flight_close_request(), error);
+    WebIDL::reject_promise(promise_realm(*stream.in_flight_close_request()), *stream.in_flight_close_request(), error);
 
     // 3. Set stream.[[inFlightCloseRequest]] to undefined.
     stream.set_in_flight_close_request({});
@@ -487,7 +502,8 @@ void writable_stream_finish_in_flight_close_with_error(WritableStream& stream, J
     if (stream.pending_abort_request().has_value()) {
         // 1. Reject stream.[[pendingAbortRequest]]'s promise with error.
         // 2. Set stream.[[pendingAbortRequest]] to undefined.
-        WebIDL::reject_promise(realm, stream.pending_abort_request().release_value().promise, error);
+        auto abort_promise = stream.pending_abort_request().release_value().promise;
+        WebIDL::reject_promise(promise_realm(abort_promise), abort_promise, error);
     }
 
     // 6. Perform ! WritableStreamDealWithRejection(stream, error).
@@ -497,13 +513,11 @@ void writable_stream_finish_in_flight_close_with_error(WritableStream& stream, J
 // https://streams.spec.whatwg.org/#writable-stream-finish-in-flight-write
 void writable_stream_finish_in_flight_write(WritableStream& stream)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[inFlightWriteRequest]] is not undefined.
     VERIFY(stream.in_flight_write_request());
 
     // 2. Resolve stream.[[inFlightWriteRequest]] with undefined.
-    WebIDL::resolve_promise(realm, *stream.in_flight_write_request(), JS::js_undefined());
+    WebIDL::resolve_promise(promise_realm(*stream.in_flight_write_request()), *stream.in_flight_write_request(), JS::js_undefined());
 
     // 3. Set stream.[[inFlightWriteRequest]] to undefined.
     stream.set_in_flight_write_request({});
@@ -512,13 +526,11 @@ void writable_stream_finish_in_flight_write(WritableStream& stream)
 // https://streams.spec.whatwg.org/#writable-stream-finish-in-flight-write-with-error
 void writable_stream_finish_in_flight_write_with_error(WritableStream& stream, JS::Value error)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[inFlightWriteRequest]] is not undefined.
     VERIFY(stream.in_flight_write_request());
 
     // 2. Reject stream.[[inFlightWriteRequest]] with error.
-    WebIDL::reject_promise(realm, *stream.in_flight_write_request(), error);
+    WebIDL::reject_promise(promise_realm(*stream.in_flight_write_request()), *stream.in_flight_write_request(), error);
 
     // 3. Set stream.[[inFlightWriteRequest]] to undefined.
     stream.set_in_flight_write_request({});
@@ -577,8 +589,6 @@ void writable_stream_mark_first_write_request_in_flight(WritableStream& stream)
 // https://streams.spec.whatwg.org/#writable-stream-reject-close-and-closed-promise-if-needed
 void writable_stream_reject_close_and_closed_promise_if_needed(WritableStream& stream)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[state]] is "errored".
     VERIFY(stream.state() == WritableStream::State::Errored);
 
@@ -588,7 +598,7 @@ void writable_stream_reject_close_and_closed_promise_if_needed(WritableStream& s
         VERIFY(!stream.in_flight_close_request());
 
         // 2. Reject stream.[[closeRequest]] with stream.[[storedError]].
-        WebIDL::reject_promise(realm, *stream.close_request(), stream.stored_error());
+        WebIDL::reject_promise(promise_realm(*stream.close_request()), *stream.close_request(), stream.stored_error());
 
         // 3. Set stream.[[closeRequest]] to undefined.
         stream.set_close_request({});
@@ -600,7 +610,7 @@ void writable_stream_reject_close_and_closed_promise_if_needed(WritableStream& s
     // 4. If writer is not undefined,
     if (writer) {
         // 1. Reject writer.[[closedPromise]] with stream.[[storedError]].
-        WebIDL::reject_promise(realm, *writer->closed_promise(), stream.stored_error());
+        WebIDL::reject_promise(writer->closed_promise_realm(), *writer->closed_promise(), stream.stored_error());
 
         // 2. Set writer.[[closedPromise]].[[PromiseIsHandled]] to true.
         WebIDL::mark_promise_as_handled(*writer->closed_promise());
@@ -644,8 +654,6 @@ void writable_stream_start_erroring(WritableStream& stream, JS::Value reason)
 // https://streams.spec.whatwg.org/#writable-stream-update-backpressure
 void writable_stream_update_backpressure(WritableStream& stream, bool backpressure)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[state]] is "writable".
     VERIFY(stream.state() == WritableStream::State::Writable);
 
@@ -657,6 +665,8 @@ void writable_stream_update_backpressure(WritableStream& stream, bool backpressu
 
     // 4. If writer is not undefined and backpressure is not stream.[[backpressure]],
     if (writer && backpressure != stream.backpressure()) {
+        auto& realm = writer->ready_promise_realm();
+
         // 1. If backpressure is true, set writer.[[readyPromise]] to a new promise.
         if (backpressure) {
             writer->set_ready_promise(WebIDL::create_promise(realm));
@@ -684,7 +694,7 @@ GC::Ref<WebIDL::Promise> writable_stream_default_writer_abort(WritableStreamDefa
     VERIFY(stream);
 
     // 3. Return ! WritableStreamAbort(stream, reason).
-    return writable_stream_abort(*stream, reason);
+    return writable_stream_abort(writer.closed_promise_realm(), *stream, reason);
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-default-writer-close
@@ -697,13 +707,13 @@ GC::Ref<WebIDL::Promise> writable_stream_default_writer_close(WritableStreamDefa
     VERIFY(stream);
 
     // 3. Return ! WritableStreamClose(stream).
-    return writable_stream_close(*stream);
+    return writable_stream_close(writer.closed_promise_realm(), *stream);
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-default-writer-close-with-error-propagation
 GC::Ref<WebIDL::Promise> writable_stream_default_writer_close_with_error_propagation(WritableStreamDefaultWriter& writer)
 {
-    auto& realm = writer.realm();
+    auto& realm = writer.closed_promise_realm();
 
     // 1. Let stream be writer.[[stream]].
     auto stream = writer.stream();
@@ -732,7 +742,7 @@ GC::Ref<WebIDL::Promise> writable_stream_default_writer_close_with_error_propaga
 // https://streams.spec.whatwg.org/#writable-stream-default-writer-ensure-closed-promise-rejected
 void writable_stream_default_writer_ensure_closed_promise_rejected(WritableStreamDefaultWriter& writer, JS::Value error)
 {
-    auto& realm = writer.realm();
+    auto& realm = writer.closed_promise_realm();
 
     // 1. If writer.[[closedPromise]].[[PromiseState]] is "pending", reject writer.[[closedPromise]] with error.
     if (as<JS::Promise>(*writer.closed_promise()->promise()).state() == JS::Promise::State::Pending) {
@@ -750,7 +760,7 @@ void writable_stream_default_writer_ensure_closed_promise_rejected(WritableStrea
 // https://streams.spec.whatwg.org/#writable-stream-default-writer-ensure-ready-promise-rejected
 void writable_stream_default_writer_ensure_ready_promise_rejected(WritableStreamDefaultWriter& writer, JS::Value error)
 {
-    auto& realm = writer.realm();
+    auto& realm = writer.ready_promise_realm();
 
     // 1. If writer.[[readyPromise]].[[PromiseState]] is "pending", reject writer.[[readyPromise]] with error.
     if (as<JS::Promise>(*writer.ready_promise()->promise()).state() == JS::Promise::State::Pending) {
@@ -789,7 +799,7 @@ Optional<double> writable_stream_default_writer_get_desired_size(WritableStreamD
 // https://streams.spec.whatwg.org/#writable-stream-default-writer-release
 void writable_stream_default_writer_release(WritableStreamDefaultWriter& writer)
 {
-    auto& realm = writer.realm();
+    auto& realm = writer.closed_promise_realm();
 
     // 1. Let stream be writer.[[stream]].
     auto stream = writer.stream();
@@ -819,7 +829,7 @@ void writable_stream_default_writer_release(WritableStreamDefaultWriter& writer)
 // https://streams.spec.whatwg.org/#writable-stream-default-writer-write
 GC::Ref<WebIDL::Promise> writable_stream_default_writer_write(WritableStreamDefaultWriter& writer, JS::Value chunk)
 {
-    auto& realm = writer.realm();
+    auto& realm = writer.ready_promise_realm();
 
     // 1. Let stream be writer.[[stream]].
     auto stream = writer.stream();
@@ -860,20 +870,18 @@ GC::Ref<WebIDL::Promise> writable_stream_default_writer_write(WritableStreamDefa
     VERIFY(state == WritableStream::State::Writable);
 
     // 11. Let promise be ! WritableStreamAddWriteRequest(stream).
-    auto promise = writable_stream_add_write_request(*stream);
+    auto promise = writable_stream_add_write_request(realm, *stream);
 
     // 12. Perform ! WritableStreamDefaultControllerWrite(controller, chunk, chunkSize).
-    writable_stream_default_controller_write(*controller, chunk, chunk_size);
+    writable_stream_default_controller_write(realm, *controller, chunk, chunk_size);
 
     // 13. Return promise.
     return promise;
 }
 
 // https://streams.spec.whatwg.org/#set-up-writable-stream-default-controller
-WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(WritableStream& stream, WritableStreamDefaultController& controller, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<WriteAlgorithm> write_algorithm, GC::Ref<CloseAlgorithm> close_algorithm, GC::Ref<AbortAlgorithm> abort_algorithm, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
+WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(JS::Realm& realm, WritableStream& stream, WritableStreamDefaultController& controller, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<WriteAlgorithm> write_algorithm, GC::Ref<CloseAlgorithm> close_algorithm, GC::Ref<AbortAlgorithm> abort_algorithm, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream implements WritableStream.
 
     // 2. Assert: stream.[[controller]] is undefined.
@@ -889,7 +897,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(WritableStre
     reset_queue(controller);
 
     // 6. Set controller.[[signal]] to a new AbortSignal.
-    controller.set_signal(realm.create<DOM::AbortSignal>(realm));
+    controller.set_signal(DOM::AbortSignal::create());
 
     // 7. Set controller.[[started]] to false.
     controller.set_started(false);
@@ -923,7 +931,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(WritableStre
 
     WebIDL::react_to_promise(start_promise,
         // 17. Upon fulfillment of startPromise,
-        GC::create_function(realm.heap(), [&controller, &stream](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller, &stream](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Assert: stream.[[state]] is "writable" or "erroring".
             VERIFY(first_is_one_of(stream.state(), WritableStream::State::Writable, WritableStream::State::Erroring));
 
@@ -937,7 +945,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(WritableStre
         }),
 
         // 18. Upon rejection of startPromise with reason r,
-        GC::create_function(realm.heap(), [&stream, &controller](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&stream, &controller](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Assert: stream.[[state]] is "writable" or "erroring".
             VERIFY(first_is_one_of(stream.state(), WritableStream::State::Writable, WritableStream::State::Erroring));
 
@@ -954,28 +962,26 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(WritableStre
 }
 
 // https://streams.spec.whatwg.org/#set-up-writable-stream-default-controller-from-underlying-sink
-WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(WritableStream& stream, JS::Value underlying_sink_value, Bindings::UnderlyingSink& underlying_sink, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
+WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(JS::Realm& realm, WritableStream& stream, JS::Value underlying_sink_value, UnderlyingSink const& underlying_sink, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
 {
-    auto& realm = stream.realm();
-
     // 1. Let controller be a new WritableStreamDefaultController.
-    auto controller = realm.create<WritableStreamDefaultController>(realm);
+    auto controller = GC::Heap::the().allocate<WritableStreamDefaultController>();
 
     // 2. Let startAlgorithm be an algorithm that returns undefined.
-    auto start_algorithm = GC::create_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> { return JS::js_undefined(); });
+    auto start_algorithm = GC::create_function(GC::Heap::the(), []() -> WebIDL::ExceptionOr<JS::Value> { return JS::js_undefined(); });
 
     // 3. Let writeAlgorithm be an algorithm that returns a promise resolved with undefined.
-    auto write_algorithm = GC::create_function(realm.heap(), [&realm](JS::Value) {
+    auto write_algorithm = GC::create_function(GC::Heap::the(), [&realm](JS::Value) {
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 4. Let closeAlgorithm be an algorithm that returns a promise resolved with undefined.
-    auto close_algorithm = GC::create_function(realm.heap(), [&realm]() {
+    auto close_algorithm = GC::create_function(GC::Heap::the(), [&realm]() {
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 5. Let abortAlgorithm be an algorithm that returns a promise resolved with undefined.
-    auto abort_algorithm = GC::create_function(realm.heap(), [&realm](JS::Value) {
+    auto abort_algorithm = GC::create_function(GC::Heap::the(), [&realm](JS::Value) {
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
@@ -983,8 +989,8 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    invoking underlyingSinkDict["start"] with argument list « controller », exception behavior "rethrow", and
     //    callback this value underlyingSink.
     if (underlying_sink.start) {
-        start_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, WebIDL::ExceptionBehavior::Rethrow, { { controller } }));
+        start_algorithm = GC::create_function(GC::Heap::the(), [controller, underlying_sink_value, callback = underlying_sink.start, realm = GC::Ref(realm)]() -> WebIDL::ExceptionOr<JS::Value> {
+            return Bindings::invoke_writable_stream_start_algorithm_callback(realm, *callback, underlying_sink_value, controller);
         });
     }
 
@@ -992,15 +998,15 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    and returns the result of invoking underlyingSinkDict["write"] with argument list « chunk, controller » and
     //    callback this value underlyingSink.
     if (underlying_sink.write) {
-        write_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.write](JS::Value chunk) {
-            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, { { chunk, controller } });
+        write_algorithm = GC::create_function(GC::Heap::the(), [controller, underlying_sink_value, callback = underlying_sink.write, realm = GC::Ref(realm)](JS::Value chunk) {
+            return Bindings::invoke_writable_stream_write_algorithm_callback(realm, *callback, underlying_sink_value, chunk, controller);
         });
     }
 
     // 8. If underlyingSinkDict["close"] exists, then set closeAlgorithm to an algorithm which returns the result of
     //    invoking underlyingSinkDict["close"] with argument list «» and callback this value underlyingSink.
     if (underlying_sink.close) {
-        close_algorithm = GC::create_function(realm.heap(), [underlying_sink_value, callback = underlying_sink.close]() {
+        close_algorithm = GC::create_function(GC::Heap::the(), [underlying_sink_value, callback = underlying_sink.close]() {
             return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, {});
         });
     }
@@ -1009,13 +1015,13 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    and returns the result of invoking underlyingSinkDict["abort"] with argument list « reason » and callback this
     //    value underlyingSink.
     if (underlying_sink.abort) {
-        abort_algorithm = GC::create_function(realm.heap(), [underlying_sink_value, callback = underlying_sink.abort](JS::Value reason) {
+        abort_algorithm = GC::create_function(GC::Heap::the(), [underlying_sink_value, callback = underlying_sink.abort](JS::Value reason) {
             return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, { { reason } });
         });
     }
 
     // 10. Perform ? SetUpWritableStreamDefaultController(stream, controller, startAlgorithm, writeAlgorithm, closeAlgorithm, abortAlgorithm, highWaterMark, sizeAlgorithm).
-    TRY(set_up_writable_stream_default_controller(stream, controller, start_algorithm, write_algorithm, close_algorithm, abort_algorithm, high_water_mark, size_algorithm));
+    TRY(set_up_writable_stream_default_controller(realm, stream, controller, start_algorithm, write_algorithm, close_algorithm, abort_algorithm, high_water_mark, size_algorithm));
 
     return {};
 }
@@ -1184,7 +1190,7 @@ void writable_stream_default_controller_process_close(WritableStreamDefaultContr
 
     WebIDL::react_to_promise(sink_close_promise,
         // 7. Upon fulfillment of sinkClosePromise,
-        GC::create_function(controller.heap(), [stream](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [stream](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform ! WritableStreamFinishInFlightClose(stream).
             writable_stream_finish_in_flight_close(stream);
 
@@ -1192,7 +1198,7 @@ void writable_stream_default_controller_process_close(WritableStreamDefaultContr
         }),
 
         // 8. Upon rejection of sinkClosePromise with reason reason,
-        GC::create_function(controller.heap(), [stream](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [stream](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform ! WritableStreamFinishInFlightCloseWithError(stream, reason).
             writable_stream_finish_in_flight_close_with_error(stream, reason);
 
@@ -1214,7 +1220,7 @@ void writable_stream_default_controller_process_write(WritableStreamDefaultContr
 
     WebIDL::react_to_promise(sink_write_promise,
         // 4. Upon fulfillment of sinkWritePromise,
-        GC::create_function(controller.heap(), [&controller, stream](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller, stream](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform ! WritableStreamFinishInFlightWrite(stream).
             writable_stream_finish_in_flight_write(stream);
 
@@ -1243,7 +1249,7 @@ void writable_stream_default_controller_process_write(WritableStreamDefaultContr
         }),
 
         // 5. Upon rejection of sinkWritePromise with reason,
-        GC::create_function(controller.heap(), [&controller, stream](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller, stream](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. If stream.[[state]] is "writable", perform ! WritableStreamDefaultControllerClearAlgorithms(controller).
             if (stream->state() == WritableStream::State::Writable)
                 writable_stream_default_controller_clear_algorithms(controller);
@@ -1256,16 +1262,16 @@ void writable_stream_default_controller_process_write(WritableStreamDefaultContr
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-default-controller-write
-void writable_stream_default_controller_write(WritableStreamDefaultController& controller, JS::Value chunk, JS::Value chunk_size)
+void writable_stream_default_controller_write(JS::Realm& realm, WritableStreamDefaultController& controller, JS::Value chunk, JS::Value chunk_size)
 {
-    auto& vm = controller.vm();
+    auto& vm = realm.vm();
 
     // 1. Let enqueueResult be EnqueueValueWithSize(controller, chunk, chunkSize).
     auto enqueue_result = enqueue_value_with_size(controller, chunk, chunk_size);
 
     // 2. If enqueueResult is an abrupt completion,
     if (enqueue_result.is_exception()) {
-        auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, [&] { return enqueue_result; }).throw_completion();
+        auto throw_completion = WebIDL::exception_to_throw_completion(vm, realm, enqueue_result.exception());
 
         // 1. Perform ! WritableStreamDefaultControllerErrorIfNeeded(controller, enqueueResult.[[Value]]).
         writable_stream_default_controller_error_if_needed(controller, throw_completion.release_value());

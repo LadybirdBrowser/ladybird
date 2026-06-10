@@ -8,7 +8,6 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/AnimatedDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
@@ -53,7 +52,6 @@ void AnimatedDecodedImageData::deliver_frames_for_session(i64 session_id, Vector
 }
 
 GC::Ref<AnimatedDecodedImageData> AnimatedDecodedImageData::create(
-    JS::Realm& realm,
     i64 session_id,
     u32 frame_count,
     u32 loop_count,
@@ -62,7 +60,7 @@ GC::Ref<AnimatedDecodedImageData> AnimatedDecodedImageData::create(
     Vector<u32> durations,
     Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps)
 {
-    auto data = realm.create<AnimatedDecodedImageData>(
+    auto data = GC::Heap::the().allocate<AnimatedDecodedImageData>(
         session_id, frame_count, loop_count, size, move(color_space), move(durations));
 
     // Place initial bitmaps into the buffer pool.

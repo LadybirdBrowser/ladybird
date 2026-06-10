@@ -15,10 +15,12 @@
 namespace Web::HTML {
 
 class VideoTrackList final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(VideoTrackList, DOM::EventTarget);
+    WEB_WRAPPABLE(VideoTrackList, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(VideoTrackList);
 
 public:
+    static GC::Ref<VideoTrackList> create(GC::Ptr<HTMLMediaElement> = nullptr);
+
     void add_track(GC::Ref<VideoTrack>);
     void remove_all_tracks();
 
@@ -27,6 +29,7 @@ public:
     // https://html.spec.whatwg.org/multipage/media.html#dom-videotracklist-length
     size_t length() const { return m_video_tracks.size(); }
 
+    GC::Ptr<VideoTrack> item(size_t index) const;
     GC::Ptr<VideoTrack> get_track_by_id(StringView id) const;
     i32 selected_index() const;
 
@@ -50,12 +53,9 @@ public:
     WebIDL::CallbackType* onremovetrack();
 
 private:
-    explicit VideoTrackList(JS::Realm&, GC::Ptr<HTMLMediaElement> = nullptr);
+    explicit VideoTrackList(GC::Ptr<HTMLMediaElement> = nullptr);
 
     virtual void visit_edges(Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const& property_name) const override;
 
     GC::Ptr<HTMLMediaElement> m_media_element;
 

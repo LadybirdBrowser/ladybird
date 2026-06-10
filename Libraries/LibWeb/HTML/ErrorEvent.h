@@ -7,19 +7,24 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/String.h>
+#include <LibJS/Forward.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/ErrorEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 
+using ErrorEventInit = Bindings::ErrorEventInit;
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
 class ErrorEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(ErrorEvent, DOM::Event);
+    WEB_WRAPPABLE(ErrorEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(ErrorEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ErrorEvent> create(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<ErrorEvent> create(FlyString const& event_name, ErrorEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
 
     virtual ~ErrorEvent() override;
 
@@ -36,16 +41,15 @@ public:
     u32 colno() const { return m_colno; }
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#dom-errorevent-error
-    JS::Value error() const { return m_error; }
+    JS::Value const& error() const { return m_error; }
 
 private:
-    ErrorEvent(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
+    ErrorEvent(FlyString const& event_name, ErrorEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     String m_message;
-    String m_filename; // FIXME: This should be a USVString.
+    String m_filename;
     u32 m_lineno { 0 };
     u32 m_colno { 0 };
     JS::Value m_error;

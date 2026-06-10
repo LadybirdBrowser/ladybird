@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechGrammarList.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Speech/SpeechGrammarList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -14,25 +12,18 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechGrammarList);
 
-WebIDL::ExceptionOr<GC::Ref<SpeechGrammarList>> SpeechGrammarList::construct_impl(JS::Realm& realm)
+GC::Ref<SpeechGrammarList> SpeechGrammarList::create()
 {
-    return realm.create<SpeechGrammarList>(realm);
+    return GC::Heap::the().allocate<SpeechGrammarList>();
 }
 
-SpeechGrammarList::SpeechGrammarList(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+SpeechGrammarList::SpeechGrammarList()
 {
 }
 
 SpeechGrammarList::~SpeechGrammarList() = default;
 
-void SpeechGrammarList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechGrammarList);
-    Base::initialize(realm);
-}
-
-void SpeechGrammarList::visit_edges(Cell::Visitor& visitor)
+void SpeechGrammarList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_grammars);

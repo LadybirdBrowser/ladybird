@@ -6,20 +6,19 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Credential.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/WebIDL/Promise.h>
+#include <AK/String.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::CredentialManagement {
 
 // https://www.w3.org/TR/credential-management-1/#credential
-class Credential : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Credential, Bindings::PlatformObject);
+class Credential : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Credential, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Credential);
 
 public:
-    static GC::Ref<WebIDL::Promise> is_conditional_mediation_available(JS::VM&);
+    static bool is_conditional_mediation_available();
+    static GC::Ref<WebIDL::Promise> is_conditional_mediation_available(JS::Realm&);
 
     virtual ~Credential() override;
 
@@ -28,9 +27,8 @@ public:
     virtual String type() const = 0;
 
 protected:
-    explicit Credential(JS::Realm&);
-    Credential(JS::Realm&, String id);
-    virtual void initialize(JS::Realm&) override;
+    explicit Credential();
+    Credential(String id);
 
     String m_id;
 };

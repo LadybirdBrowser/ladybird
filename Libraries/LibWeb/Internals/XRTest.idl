@@ -8,7 +8,7 @@ partial interface XRSystem {
 interface XRTest {
     // Simulates connecting a device to the system.
     // Used to instantiate a fake device for use in tests.
-    Promise<FakeXRDevice> simulateDeviceConnection(FakeXRDeviceInit init);
+    [CreatesPromise, NeedsCallerRealm] Promise<FakeXRDevice> simulateDeviceConnection(FakeXRDeviceInit init);
 
     // Simulates a user activation (aka user gesture) for the current scope.
     // The activation is only guaranteed to be valid in the provided function and only applies to WebXR
@@ -16,5 +16,5 @@ interface XRTest {
     undefined simulateUserActivation(Function f);
 
     // Disconnect all fake devices
-    Promise<undefined> disconnectAllDevices();
+    [CreatesPromise, NeedsThisObjectRealm] Promise<undefined> disconnectAllDevices();
 };

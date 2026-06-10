@@ -7,16 +7,28 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/Event.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Forward.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
+namespace Web::Bindings {
+
+struct EventInit;
+
+}
+
 namespace Web::DOM {
 
-class WEB_API Event : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Event, Bindings::PlatformObject);
+struct EventInit {
+    bool bubbles { false };
+    bool cancelable { false };
+    bool composed { false };
+};
+
+class WEB_API Event : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Event, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Event);
 
 public:
@@ -43,11 +55,26 @@ public:
 
     using Path = Vector<PathEntry>;
 
-    [[nodiscard]] static GC::Ref<Event> create(JS::Realm&, FlyString const& event_name, Bindings::EventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<Event>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::EventInit const& event_init);
+    [[nodiscard]] static GC::Ref<Event> create(JS::Object const& relevant_global_object, FlyString const& event_name, EventInit const& event_init = {});
+    [[nodiscard]] static GC::Ref<Event> create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<Event> create_bubbling_composed(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<Event> create(FlyString const& event_name, EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<Event> create_for_constructor(FlyString const& event_name, EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<Event> create_for_constructor(FlyString const& event_name, Bindings::EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
-    Event(JS::Realm&, FlyString const& type);
-    Event(JS::Realm&, FlyString const& type, Bindings::EventInit const& event_init);
+    Event(FlyString const& type, HighResolutionTime::DOMHighResTimeStamp);
+    Event(FlyString const& type, EventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    template<typename EventInitLike>
+    Event(FlyString const& type, EventInitLike const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+        : Bindings::Wrappable()
+        , m_type(type)
+        , m_bubbles(event_init.bubbles)
+        , m_cancelable(event_init.cancelable)
+        , m_composed(event_init.composed)
+        , m_initialized(true)
+        , m_time_stamp(time_stamp)
+    {
+    }
 
     virtual ~Event() = default;
 
@@ -95,8 +122,6 @@ public:
 
     GC::Ptr<EventTarget> current_target() const { return m_current_target; }
     void set_current_target(EventTarget* current_target) { m_current_target = current_target; }
-
-    GC::Ptr<EventTarget> current_target_for_bindings() const;
 
     bool return_value() const { return !m_cancelled; }
     void set_return_value(bool return_value)
@@ -153,12 +178,9 @@ public:
 protected:
     void initialize_event(String const&, bool, bool);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    virtual bool is_dom_event() const final { return true; }
-
     FlyString m_type;
     GC::Ptr<EventTarget> m_target;
     GC::Ptr<EventTarget> m_related_target;
@@ -188,6 +210,3 @@ private:
 };
 
 }
-
-template<>
-inline bool JS::Object::fast_is<Web::DOM::Event>() const { return is_dom_event(); }

@@ -7,19 +7,24 @@
 #pragma once
 
 #include <AK/RefPtr.h>
+#include <LibJS/Forward.h>
+#include <LibWeb/Bindings/UIEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::UIEvents {
 
+using UIEventInit = Bindings::UIEventInit;
+
 class WEB_API UIEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(UIEvent, DOM::Event);
+    WEB_WRAPPABLE(UIEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(UIEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<UIEvent> create(JS::Realm&, FlyString const& type);
-    static WebIDL::ExceptionOr<GC::Ref<UIEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::UIEventInit const&);
+    [[nodiscard]] static GC::Ref<UIEvent> create(FlyString const& type, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<UIEvent> create(FlyString const& type, UIEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static HighResolutionTime::DOMHighResTimeStamp time_stamp_for_current_realm(JS::Realm&);
 
     virtual ~UIEvent() override;
 
@@ -44,11 +49,10 @@ public:
     }
 
 protected:
-    UIEvent(JS::Realm&, FlyString const& event_name);
-    UIEvent(JS::Realm&, FlyString const& event_name, Bindings::UIEventInit const& event_init);
+    UIEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
+    UIEvent(FlyString const& event_name, UIEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<HTML::WindowProxy> m_view;
     int m_detail { 0 };

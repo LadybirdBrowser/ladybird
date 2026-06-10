@@ -7,30 +7,33 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/ResizeObserver.h>
+#include <LibJS/Forward.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ResizeObserver/ResizeObservation.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
 
 namespace Web::ResizeObserver {
 
+using ResizeObserverOptions = Bindings::ResizeObserverOptions;
+
 // https://drafts.csswg.org/resize-observer-1/#resize-observer-interface
-class ResizeObserver : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ResizeObserver, Bindings::PlatformObject);
+class ResizeObserver : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ResizeObserver, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ResizeObserver);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static WebIDL::ExceptionOr<GC::Ref<ResizeObserver>> construct_impl(JS::Realm&, WebIDL::CallbackType* callback);
+    static GC::Ref<ResizeObserver> create(WebIDL::CallbackType* callback, DOM::Document&);
+    static GC::Ref<ResizeObserver> create_for_constructor(JS::Realm&, WebIDL::CallbackType*);
 
     virtual ~ResizeObserver() override;
 
-    void observe(DOM::Element& target, Bindings::ResizeObserverOptions);
+    void observe(DOM::Element& target, ResizeObserverOptions);
     void unobserve(DOM::Element& target);
     void disconnect();
 
-    void invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries) const;
+    WebIDL::CallbackType& callback() { return *m_callback; }
 
     Vector<GC::Ref<ResizeObservation>>& observation_targets() { return m_observation_targets; }
     Vector<GC::Ref<ResizeObservation>>& active_targets() { return m_active_targets; }
@@ -38,10 +41,9 @@ public:
     void remove_dead_observations();
 
 private:
-    explicit ResizeObserver(JS::Realm&, WebIDL::CallbackType* callback);
+    explicit ResizeObserver(WebIDL::CallbackType* callback, DOM::Document&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     void unregister_observer_if_needed();
@@ -59,5 +61,7 @@ private:
 public:
     using ResizeObserversList = IntrusiveList<&ResizeObserver::m_list_node>;
 };
+
+void invoke_resize_observer_callback(ResizeObserver&, ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries);
 
 }

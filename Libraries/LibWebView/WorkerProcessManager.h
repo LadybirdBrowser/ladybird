@@ -80,9 +80,9 @@ private:
     struct WorkerAgent {
         Web::HTML::WorkerAgentId id { 0 };
         NonnullRefPtr<WebWorkerClient> client;
-        Web::Bindings::AgentType agent_type { Web::Bindings::AgentType::DedicatedWorker };
-        Web::Bindings::WorkerType worker_type { Web::Bindings::WorkerType::Classic };
-        Web::Bindings::RequestCredentials credentials { Web::Bindings::RequestCredentials::SameOrigin };
+        Web::HTML::AgentType agent_type { Web::HTML::AgentType::DedicatedWorker };
+        Web::HTML::WorkerType worker_type { Web::HTML::WorkerType::Classic };
+        Web::HTML::RequestCredentials credentials { Web::HTML::RequestCredentials::SameOrigin };
         bool extended_lifetime { false };
         Optional<bool> worker_is_secure_context;
         bool closing { false };

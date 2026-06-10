@@ -8,28 +8,28 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/Error.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
 
 namespace Web::WebGL {
 
-class WebGLUniformLocation final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLUniformLocation, Bindings::PlatformObject);
+class WebGLUniformLocation final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(WebGLUniformLocation, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(WebGLUniformLocation);
 
 public:
-    static GC::Ref<WebGLUniformLocation> create(JS::Realm& realm, GLuint handle, GC::Ptr<WebGLProgram> parent_shader);
+    static GC::Ref<WebGLUniformLocation> create(GLuint handle, GC::Ptr<WebGLProgram> parent_shader);
 
     virtual ~WebGLUniformLocation();
 
     ErrorOr<GLuint> handle(GC::Ptr<WebGLProgram> current_shader) const;
 
 protected:
-    explicit WebGLUniformLocation(JS::Realm&, GLuint handle, GC::Ptr<WebGLProgram> parent_shader);
+    explicit WebGLUniformLocation(GLuint handle, GC::Ptr<WebGLProgram> parent_shader);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GLuint m_handle { 0 };
     GC::Ptr<WebGLProgram> m_parent_shader;

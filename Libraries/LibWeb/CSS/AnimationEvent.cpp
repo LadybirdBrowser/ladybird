@@ -4,36 +4,39 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/AnimationEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(AnimationEvent);
 
-GC::Ref<AnimationEvent> AnimationEvent::create(JS::Realm& realm, FlyString const& type, Bindings::AnimationEventInit const& event_init)
+GC::Ref<AnimationEvent> AnimationEvent::create(FlyString const& type, AnimationEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<AnimationEvent>(realm, type, event_init);
+    return GC::Heap::the().allocate<AnimationEvent>(type, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<AnimationEvent>> AnimationEvent::construct_impl(JS::Realm& realm, FlyString const& type, Bindings::AnimationEventInit const& event_init)
+GC::Ref<AnimationEvent> AnimationEvent::create(FlyString const& type, FlyString animation_name, double elapsed_time, FlyString pseudo_element, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return create(realm, type, event_init);
+    auto event = GC::Heap::the().allocate<AnimationEvent>(type, move(animation_name), elapsed_time, move(pseudo_element), time_stamp);
+    event->set_bubbles(true);
+    return event;
 }
 
-AnimationEvent::AnimationEvent(JS::Realm& realm, FlyString const& type, Bindings::AnimationEventInit const& event_init)
-    : DOM::Event(realm, type, event_init)
+AnimationEvent::AnimationEvent(FlyString const& type, AnimationEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(type, event_init, time_stamp)
     , m_animation_name(event_init.animation_name)
     , m_elapsed_time(event_init.elapsed_time)
     , m_pseudo_element(event_init.pseudo_element)
 {
 }
 
-void AnimationEvent::initialize(JS::Realm& realm)
+AnimationEvent::AnimationEvent(FlyString const& type, FlyString animation_name, double elapsed_time, FlyString pseudo_element, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(type, time_stamp)
+    , m_animation_name(move(animation_name))
+    , m_elapsed_time(elapsed_time)
+    , m_pseudo_element(move(pseudo_element))
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationEvent);
-    Base::initialize(realm);
 }
 
 }

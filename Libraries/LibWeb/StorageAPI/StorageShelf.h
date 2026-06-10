@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/StorageAPI/StorageType.h>
@@ -23,7 +24,7 @@ class StorageShelf : public GC::Cell {
     GC_DECLARE_ALLOCATOR(StorageShelf);
 
 public:
-    static GC::Ref<StorageShelf> create(GC::Heap& heap, GC::Ref<Page> page, StorageKey key, StorageType type) { return heap.allocate<StorageShelf>(page, key, type); }
+    static GC::Ref<StorageShelf> create(GC::Ref<Page> page, StorageKey key, StorageType type) { return GC::Heap::the().allocate<StorageShelf>(page, key, type); }
 
     BucketMap& bucket_map() { return m_bucket_map; }
     BucketMap const& bucket_map() const { return m_bucket_map; }

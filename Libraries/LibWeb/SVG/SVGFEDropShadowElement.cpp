@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFEDropShadowElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/SVG/SVGFEDropShadowElement.h>
 
@@ -15,12 +14,6 @@ GC_DEFINE_ALLOCATOR(SVGFEDropShadowElement);
 SVGFEDropShadowElement::SVGFEDropShadowElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, move(qualified_name))
 {
-}
-
-void SVGFEDropShadowElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEDropShadowElement);
-    Base::initialize(realm);
 }
 
 void SVGFEDropShadowElement::visit_edges(Cell::Visitor& visitor)
@@ -53,7 +46,7 @@ GC::Ref<SVGAnimatedString> SVGFEDropShadowElement::in1()
 {
     // Corresponds to attribute in on the given feDropShadow element.
     if (!m_in1)
-        m_in1 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in, {}, {} });
+        m_in1 = SVGAnimatedString::create(*this, DOM::QualifiedName { AttributeNames::in, {}, {} });
     return *m_in1;
 }
 
@@ -64,7 +57,7 @@ GC::Ref<SVGAnimatedNumber> SVGFEDropShadowElement::dx()
     // Corresponds to attribute dx on the given feDropShadow element.
     // The initial value for dx is 2.
     if (!m_dx)
-        m_dx = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::dx, {}, {} }, 2);
+        m_dx = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::dx, {}, {} }, 2);
     return *m_dx;
 }
 
@@ -75,7 +68,7 @@ GC::Ref<SVGAnimatedNumber> SVGFEDropShadowElement::dy()
     // Corresponds to attribute dy on the given feDropShadow element.
     // The initial value for dy is 2.
     if (!m_dy)
-        m_dy = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::dy, {}, {} }, 2);
+        m_dy = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::dy, {}, {} }, 2);
     return *m_dy;
 }
 
@@ -86,7 +79,7 @@ GC::Ref<SVGAnimatedNumber> SVGFEDropShadowElement::std_deviation_x()
     // Corresponds to attribute stdDeviation on the given feDropShadow element. Contains the X component of attribute stdDeviation.
     // The initial value for stdDeviation is 2.
     if (!m_std_deviation_x)
-        m_std_deviation_x = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::stdDeviation, {}, {} }, 2,
+        m_std_deviation_x = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::stdDeviation, {}, {} }, 2,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::First);
 
     return *m_std_deviation_x;
@@ -99,7 +92,7 @@ GC::Ref<SVGAnimatedNumber> SVGFEDropShadowElement::std_deviation_y()
     // Corresponds to attribute stdDeviation on the given feDropShadow element. Contains the Y component of attribute stdDeviation.
     // The initial value for stdDeviation is 2.
     if (!m_std_deviation_y)
-        m_std_deviation_y = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::stdDeviation, {}, {} }, 2,
+        m_std_deviation_y = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::stdDeviation, {}, {} }, 2,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::Second);
     return *m_std_deviation_y;
 }

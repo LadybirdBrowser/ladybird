@@ -16,6 +16,16 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibWeb/Bindings/DOMTokenList.h>
+#include <LibWeb/Bindings/Element.h>
+#include <LibWeb/Bindings/FileList.h>
+#include <LibWeb/Bindings/HTMLAllCollection.h>
+#include <LibWeb/Bindings/HTMLCollection.h>
+#include <LibWeb/Bindings/HTMLFormControlsCollection.h>
+#include <LibWeb/Bindings/HTMLOptionsCollection.h>
+#include <LibWeb/Bindings/NodeList.h>
+#include <LibWeb/Bindings/ShadowRoot.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -26,6 +36,7 @@
 #include <LibWeb/HTML/HTMLAllCollection.h>
 #include <LibWeb/HTML/HTMLFormControlsCollection.h>
 #include <LibWeb/HTML/HTMLOptionsCollection.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/WebDriver/Contexts.h>
 #include <LibWeb/WebDriver/ElementReference.h>
@@ -45,6 +56,37 @@ namespace Web::WebDriver {
 
 using SeenMap = HashTable<GC::RawPtr<JS::Object const>>;
 
+static DOM::Element const* web_driver_element_from_object(JS::Object const& object)
+{
+    return Bindings::impl_from<DOM::Element>(&object);
+}
+
+static DOM::ShadowRoot const* web_driver_shadow_root_from_object(JS::Object const& object)
+{
+    return Bindings::impl_from<DOM::ShadowRoot>(&object);
+}
+
+static bool web_driver_value_is_collection(JS::Object const& value)
+{
+    return Bindings::impl_from<DOM::DOMTokenList>(&value)
+        || Bindings::impl_from<FileAPI::FileList>(&value)
+        || Bindings::impl_from<HTML::HTMLAllCollection>(&value)
+        || Bindings::impl_from<DOM::HTMLCollection>(&value)
+        || Bindings::impl_from<HTML::HTMLFormControlsCollection>(&value)
+        || Bindings::impl_from<HTML::HTMLOptionsCollection>(&value)
+        || Bindings::impl_from<DOM::NodeList>(&value);
+}
+
+static JS::Value web_driver_element(JS::Realm& realm, GC::Ref<DOM::Element> element)
+{
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, element);
+}
+
+static JS::Value web_driver_shadow_root(JS::Realm& realm, GC::Ref<DOM::ShadowRoot> shadow_root)
+{
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, shadow_root);
+}
+
 // https://w3c.github.io/webdriver/#dfn-collection
 static bool is_collection(JS::Object const& value)
 {
@@ -54,52 +96,40 @@ static bool is_collection(JS::Object const& value)
         value.has_parameter_map()
         // - instance of Array
         || is<JS::Array>(value)
-        // - instance of DOMTokenList
-        || is<DOM::DOMTokenList>(value)
-        // - instance of FileList
-        || is<FileAPI::FileList>(value)
-        // - instance of HTMLAllCollection
-        || is<HTML::HTMLAllCollection>(value)
-        // - instance of HTMLCollection
-        || is<DOM::HTMLCollection>(value)
-        // - instance of HTMLFormControlsCollection
-        || is<HTML::HTMLFormControlsCollection>(value)
-        // - instance of HTMLOptionsCollection
-        || is<HTML::HTMLOptionsCollection>(value)
-        // - instance of NodeList
-        || is<DOM::NodeList>(value));
+        // - instance of a supported platform collection
+        || web_driver_value_is_collection(value));
 }
 
 // Helper to convert AK::JsonValue to JS::Value (for WebDriver protocol)
-static JS::Value json_value_to_js_value(JS::VM& vm, JsonValue const& value);
+static JS::Value json_value_to_js_value(JS::Realm& realm, JsonValue const& value);
 
-static JS::Object* json_object_to_js_object(JS::VM& vm, JsonObject const& json_object)
+static JS::Object* json_object_to_js_object(JS::Realm& realm, JsonObject const& json_object)
 {
-    auto& realm = *vm.current_realm();
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
     json_object.for_each_member([&](auto& key, auto& value) {
-        object->define_direct_property(Utf16String::from_utf8(key), json_value_to_js_value(vm, value), JS::default_attributes);
+        object->define_direct_property(Utf16String::from_utf8(key), json_value_to_js_value(realm, value), JS::default_attributes);
     });
     return object;
 }
 
-static JS::Array* json_array_to_js_array(JS::VM& vm, JsonArray const& json_array)
+static JS::Array* json_array_to_js_array(JS::Realm& realm, JsonArray const& json_array)
 {
-    auto& realm = *vm.current_realm();
     auto array = MUST(JS::Array::create(realm, 0));
     size_t index = 0;
     json_array.for_each([&](auto& value) {
-        array->define_direct_property(index++, json_value_to_js_value(vm, value), JS::default_attributes);
+        array->define_direct_property(index++, json_value_to_js_value(realm, value), JS::default_attributes);
     });
     return array;
 }
 
-static JS::Value json_value_to_js_value(JS::VM& vm, JsonValue const& value)
+static JS::Value json_value_to_js_value(JS::Realm& realm, JsonValue const& value)
 {
+    auto& vm = realm.vm();
+
     if (value.is_object())
-        return JS::Value(json_object_to_js_object(vm, value.as_object()));
+        return JS::Value(json_object_to_js_object(realm, value.as_object()));
     if (value.is_array())
-        return JS::Value(json_array_to_js_array(vm, value.as_array()));
+        return JS::Value(json_array_to_js_array(realm, value.as_array()));
     if (value.is_null())
         return JS::js_null();
     if (auto double_value = value.get_double_with_precision_loss(); double_value.has_value())
@@ -117,7 +147,7 @@ static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingConte
 {
     static constexpr bool is_json_value = IsSame<ResultType, JsonValue>;
 
-    auto& realm = browsing_context.active_document()->realm();
+    auto& realm = HTML::relevant_realm(*browsing_context.active_document());
     auto& vm = realm.vm();
 
     // 1. If value is in seen, return error with error code javascript error.
@@ -240,17 +270,15 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     auto const& object = static_cast<JS::Object const&>(value.as_object());
 
     // -> instance of Element
-    if (is<DOM::Element>(object)) {
-        auto const& element = static_cast<DOM::Element const&>(object);
-
+    if (auto const* element = web_driver_element_from_object(object)) {
         // If the element is stale, return error with error code stale element reference.
-        if (is_element_stale(element)) {
+        if (is_element_stale(*element)) {
             return WebDriver::Error::from_code(ErrorCode::StaleElementReference, "Referenced element has become stale"sv);
         }
         // Otherwise:
         else {
             // 1. Let reference be the web element reference object for session and value.
-            auto reference = web_element_reference_object(browsing_context, element);
+            auto reference = web_element_reference_object(browsing_context, *element);
 
             // 2. Return success with data reference.
             return JsonValue { move(reference) };
@@ -258,17 +286,15 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     }
 
     // -> instance of ShadowRoot
-    if (is<DOM::ShadowRoot>(object)) {
-        auto const& shadow_root = static_cast<DOM::ShadowRoot const&>(object);
-
+    if (auto const* shadow_root = web_driver_shadow_root_from_object(object)) {
         // If the shadow root is detached, return error with error code detached shadow root.
-        if (is_shadow_root_detached(shadow_root)) {
+        if (is_shadow_root_detached(*shadow_root)) {
             return WebDriver::Error::from_code(ErrorCode::DetachedShadowRoot, "Referenced shadow root has become detached"sv);
         }
         // Otherwise:
         else {
             // 1. Let reference be the shadow root reference object for session and value.
-            auto reference = shadow_root_reference_object(browsing_context, shadow_root);
+            auto reference = shadow_root_reference_object(browsing_context, *shadow_root);
 
             // 2. Return success with data reference.
             return JsonValue { move(reference) };
@@ -340,13 +366,17 @@ static ErrorOr<JS::Value, WebDriver::Error> internal_json_deserialize(HTML::Brow
     // -> Object that represents a web element
     if (represents_a_web_element(value)) {
         // Return the deserialized web element of value.
-        return deserialize_web_element(browsing_context, value.as_object());
+        auto element = TRY(deserialize_web_element(browsing_context, value.as_object()));
+        auto& realm = HTML::relevant_realm(*browsing_context.active_document());
+        return web_driver_element(realm, element);
     }
 
     // -> Object that represents a shadow root
     if (represents_a_shadow_root(value)) {
         // Return the deserialized shadow root of value.
-        return deserialize_shadow_root(browsing_context, value.as_object());
+        auto shadow_root = TRY(deserialize_shadow_root(browsing_context, value.as_object()));
+        auto& realm = HTML::relevant_realm(*browsing_context.active_document());
+        return web_driver_shadow_root(realm, shadow_root);
     }
 
     // -> Object that represents a web frame
@@ -375,10 +405,10 @@ static ErrorOr<JS::Value, WebDriver::Error> internal_json_deserialize(HTML::Brow
 // https://w3c.github.io/webdriver/#dfn-json-deserialize
 ErrorOr<JS::Value, WebDriver::Error> json_deserialize(HTML::BrowsingContext const& browsing_context, JsonValue const& value)
 {
-    auto& vm = browsing_context.vm();
+    auto& realm = HTML::relevant_realm(*browsing_context.active_document());
 
     SeenMap seen;
-    return internal_json_deserialize(browsing_context, json_value_to_js_value(vm, value), seen);
+    return internal_json_deserialize(browsing_context, json_value_to_js_value(realm, value), seen);
 }
 
 }

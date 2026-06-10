@@ -7,24 +7,67 @@
 
 #pragma once
 
+#include <AK/Array.h>
+#include <AK/ByteString.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebGL {
 
 using namespace Web::HTML;
 
+using WebGLParameterValue = Variant<WebIDL::Long, WebIDL::UnsignedLong, double, bool>;
+
+struct WebGLFloat32ArrayParameter {
+    Vector<float> values;
+};
+
+struct WebGLInt32ArrayParameter {
+    Vector<WebIDL::Long> values;
+};
+
+struct WebGLUnsignedIntArrayParameter {
+    Vector<WebIDL::UnsignedLong> values;
+};
+
+struct WebGLBooleanArrayParameter {
+    Array<bool, 4> values;
+};
+
+struct WebGLStringParameter {
+    ByteString value;
+};
+
+struct WebGLSamplerBindingParameter {
+    u32 handle { 0 };
+};
+
+struct WebGLInfinityParameter {
+};
+
+using WebGLParameterResult = Variant<WebGLParameterValue, WebGLFloat32ArrayParameter, WebGLInt32ArrayParameter, WebGLUnsignedIntArrayParameter, WebGLBooleanArrayParameter, WebGLStringParameter, GC::Ptr<WebGLBuffer>, GC::Ptr<WebGLFramebuffer>, GC::Ptr<WebGLProgram>, GC::Ptr<WebGLRenderbuffer>, GC::Ptr<WebGLTexture>, GC::Ptr<WebGLTransformFeedback>, GC::Ptr<WebGLVertexArrayObject>, WebGLSamplerBindingParameter, WebGLInfinityParameter>;
+
+struct WebGLCurrentVertexAttrib {
+    Array<float, 4> values;
+};
+
+struct WebGLVertexAttribBufferBinding {
+    u32 handle { 0 };
+};
+
+using WebGLVertexAttribValue = Variant<WebGLCurrentVertexAttrib, WebGLVertexAttribBufferBinding, WebGLParameterValue>;
+
 class WebGLRenderingContextImpl : public WebGLRenderingContextBase {
-    WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextImpl, WebGLRenderingContextBase);
+    WEB_NON_IDL_WRAPPABLE(WebGLRenderingContextImpl, WebGLRenderingContextBase);
 
 public:
-    WebGLRenderingContextImpl(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
+    WebGLRenderingContextImpl(NonnullOwnPtr<OpenGLContext>);
 
     virtual OpenGLContext& context() override { return *m_context; }
 
@@ -85,20 +128,20 @@ public:
     GC::Ptr<WebGLActiveInfo> get_active_uniform(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong index);
     Optional<Vector<GC::Root<WebGLShader>>> get_attached_shaders(GC::Ref<WebGLProgram> program);
     WebIDL::Long get_attrib_location(GC::Ref<WebGLProgram> program, String name);
-    JS::Value get_buffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
-    WebIDL::ExceptionOr<JS::Value> get_parameter(WebIDL::UnsignedLong pname);
+    Optional<WebIDL::Long> get_buffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
+    Optional<WebGLParameterResult> get_parameter(WebIDL::UnsignedLong pname);
     WebIDL::UnsignedLong get_error();
-    JS::Value get_program_parameter(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong pname);
+    Optional<WebGLParameterValue> get_program_parameter(GC::Ref<WebGLProgram> program, WebIDL::UnsignedLong pname);
     Optional<String> get_program_info_log(GC::Ref<WebGLProgram> program);
-    JS::Value get_renderbuffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
-    JS::Value get_shader_parameter(GC::Ref<WebGLShader> shader, WebIDL::UnsignedLong pname);
+    Optional<WebIDL::Long> get_renderbuffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
+    Optional<WebGLParameterValue> get_shader_parameter(GC::Ref<WebGLShader> shader, WebIDL::UnsignedLong pname);
     GC::Ptr<WebGLShaderPrecisionFormat> get_shader_precision_format(WebIDL::UnsignedLong shadertype, WebIDL::UnsignedLong precisiontype);
     Optional<String> get_shader_info_log(GC::Ref<WebGLShader> shader);
     Optional<String> get_shader_source(GC::Ref<WebGLShader> shader);
-    JS::Value get_tex_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
-    JS::Value get_uniform(GC::Ref<WebGLProgram> program, GC::Ref<WebGLUniformLocation> location);
+    Optional<WebGLParameterValue> get_tex_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
+    WebIDL::Long get_uniform(GC::Ref<WebGLProgram> program, GC::Ref<WebGLUniformLocation> location);
     GC::Ptr<WebGLUniformLocation> get_uniform_location(GC::Ref<WebGLProgram> program, String name);
-    JS::Value get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
+    Optional<WebGLVertexAttribValue> get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
     WebIDL::LongLong get_vertex_attrib_offset(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
     void hint(WebIDL::UnsignedLong target, WebIDL::UnsignedLong mode);
     bool is_buffer(GC::Ptr<WebGLBuffer> buffer);
@@ -146,7 +189,7 @@ public:
     void viewport(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
 
 protected:
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<WebGLBuffer> m_array_buffer_binding;
     GC::Ptr<WebGLBuffer> m_element_array_buffer_binding;

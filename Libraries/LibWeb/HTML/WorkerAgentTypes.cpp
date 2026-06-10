@@ -32,9 +32,9 @@ ErrorOr<Web::HTML::WorkerAgentStartRequest> decode(Decoder& decoder)
 {
     return Web::HTML::WorkerAgentStartRequest {
         .url = TRY(decoder.decode<URL::URL>()),
-        .agent_type = TRY(decoder.decode<Web::Bindings::AgentType>()),
-        .type = TRY(decoder.decode<Web::Bindings::WorkerType>()),
-        .credentials = TRY(decoder.decode<Web::Bindings::RequestCredentials>()),
+        .agent_type = TRY(decoder.decode<Web::HTML::AgentType>()),
+        .type = TRY(decoder.decode<Web::HTML::WorkerType>()),
+        .credentials = TRY(decoder.decode<Web::HTML::RequestCredentials>()),
         .name = TRY(decoder.decode<String>()),
         .extended_lifetime = TRY(decoder.decode<bool>()),
         .outside_port = TRY(decoder.decode<Web::HTML::TransferDataEncoder>()),

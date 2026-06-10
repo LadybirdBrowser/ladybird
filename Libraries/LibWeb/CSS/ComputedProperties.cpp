@@ -2137,15 +2137,15 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations(D
                     : Scroller::Nearest;
 
                 auto const& axis = arguments[TupleStyleValue::Indices::ScrollFunction::Axis]
-                    ? Animations::css_axis_to_bindings_scroll_axis(keyword_to_axis(arguments[TupleStyleValue::Indices::ScrollFunction::Axis]->to_keyword()).value())
-                    : Bindings::ScrollAxis::Block;
+                    ? Animations::scroll_axis_from_css_axis(keyword_to_axis(arguments[TupleStyleValue::Indices::ScrollFunction::Axis]->to_keyword()).value())
+                    : Animations::ScrollAxis::Block;
 
                 Animations::ScrollTimeline::AnonymousSource source {
                     .scroller = scroller,
                     .target = abstract_element,
                 };
 
-                return Animations::ScrollTimeline::create(abstract_element.element().realm(), abstract_element.document(), source, axis);
+                return Animations::ScrollTimeline::create(abstract_element.document(), source, axis);
             }
 
             //<view()>

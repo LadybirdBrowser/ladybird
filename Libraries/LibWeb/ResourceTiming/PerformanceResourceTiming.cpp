@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 
@@ -15,13 +15,19 @@ namespace Web::ResourceTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceResourceTiming);
 
-PerformanceResourceTiming::PerformanceResourceTiming(JS::Realm& realm, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info)
-    : PerformanceTimeline::PerformanceEntry(realm, name, start_time, duration)
+PerformanceResourceTiming::PerformanceResourceTiming(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
+    : PerformanceTimeline::PerformanceEntry(name, start_time, duration)
     , m_timing_info(timing_info)
+    , m_time_origin(time_origin)
 {
 }
 
 PerformanceResourceTiming::~PerformanceResourceTiming() = default;
+
+GC::Ref<PerformanceResourceTiming> PerformanceResourceTiming::create(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
+{
+    return GC::Heap::the().allocate<PerformanceResourceTiming>(name, start_time, duration, timing_info, time_origin);
+}
 
 // https://w3c.github.io/resource-timing/#dfn-entrytype
 FlyString const& PerformanceResourceTiming::entry_type() const
@@ -31,35 +37,29 @@ FlyString const& PerformanceResourceTiming::entry_type() const
     return PerformanceTimeline::EntryTypes::resource;
 }
 
-void PerformanceResourceTiming::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceResourceTiming);
-    Base::initialize(realm);
-}
-
-void PerformanceResourceTiming::visit_edges(JS::Cell::Visitor& visitor)
+void PerformanceResourceTiming::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_timing_info);
 }
 
 // https://w3c.github.io/resource-timing/#dfn-convert-fetch-timestamp
-HighResolutionTime::DOMHighResTimeStamp convert_fetch_timestamp(HighResolutionTime::DOMHighResTimeStamp time_stamp, JS::Object const& global)
+HighResolutionTime::DOMHighResTimeStamp convert_fetch_timestamp(HighResolutionTime::DOMHighResTimeStamp time_stamp, HighResolutionTime::DOMHighResTimeStamp time_origin)
 {
     // 1. If ts is zero, return zero.
     if (time_stamp == 0.0)
         return 0.0;
 
     // 2. Otherwise, return the relative high resolution coarse time given ts and global.
-    return HighResolutionTime::relative_high_resolution_coarsen_time(time_stamp, global);
+    return time_stamp - time_origin;
 }
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
 void PerformanceResourceTiming::mark_resource_timing(GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, String const& requested_url, FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, FlyString delivery_type)
 {
-    // 1. Create a PerformanceResourceTiming object entry in global's realm.
-    auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(global);
-    auto& realm = window_or_worker.this_impl().realm();
+    // 1. Create a PerformanceResourceTiming object entry.
+    auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(global);
+    VERIFY(window_or_worker);
 
     // https://w3c.github.io/resource-timing/#dfn-name
     // name
@@ -72,18 +72,19 @@ void PerformanceResourceTiming::mark_resource_timing(GC::Ref<Fetch::Infrastructu
     // https://w3c.github.io/resource-timing/#dfn-duration
     // duration
     //  The duration getter steps are to return this's timing info's end time minus this's timing info's start time.
-    auto converted_start_time = convert_fetch_timestamp(timing_info->start_time(), global);
-    auto converted_end_time = convert_fetch_timestamp(timing_info->end_time(), global);
-    auto entry = realm.create<PerformanceResourceTiming>(realm, requested_url, converted_start_time, converted_end_time - converted_start_time, timing_info);
+    auto time_origin = HTML::relevant_settings_object(global).time_origin();
+    auto converted_start_time = convert_fetch_timestamp(timing_info->start_time(), time_origin);
+    auto converted_end_time = convert_fetch_timestamp(timing_info->end_time(), time_origin);
+    auto entry = PerformanceResourceTiming::create(requested_url, converted_start_time, converted_end_time - converted_start_time, timing_info, time_origin);
 
     // Setup the resource timing entry for entry, given initiatorType, requestedURL, timingInfo, cacheMode, bodyInfo, responseStatus, and deliveryType.
     entry->setup_the_resource_timing_entry(initiator_type, requested_url, timing_info, cache_mode, move(body_info), response_status, delivery_type);
 
     // 3. Queue entry.
-    window_or_worker.queue_performance_entry(entry);
+    window_or_worker->queue_performance_entry(entry);
 
     // 4. Add entry to global's performance entry buffer.
-    window_or_worker.add_resource_timing_entry({}, entry);
+    window_or_worker->add_resource_timing_entry({}, entry);
 }
 
 // https://www.w3.org/TR/resource-timing/#dfn-setup-the-resource-timing-entry
@@ -138,7 +139,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::worker_start(
 {
     // The workerStart getter steps are to convert fetch timestamp for this's timing info's final service worker start
     // time and the relevant global object for this. See HTTP fetch for more info.
-    return convert_fetch_timestamp(m_timing_info->final_service_worker_start_time(), HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->final_service_worker_start_time(), m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-redirectstart
@@ -146,7 +147,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::redirect_star
 {
     // The redirectStart getter steps are to convert fetch timestamp for this's timing info's redirect start time and
     // the relevant global object for this. See HTTP-redirect fetch for more info.
-    return convert_fetch_timestamp(m_timing_info->redirect_start_time(), HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->redirect_start_time(), m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-redirectend
@@ -154,7 +155,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::redirect_end(
 {
     // The redirectEnd getter steps are to convert fetch timestamp for this's timing info's redirect end time and the
     // relevant global object for this. See HTTP-redirect fetch for more info.
-    return convert_fetch_timestamp(m_timing_info->redirect_end_time(), HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->redirect_end_time(), m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-fetchstart
@@ -162,7 +163,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::fetch_start()
 {
     // The fetchStart getter steps are to convert fetch timestamp for this's timing info's post-redirect start time and
     // the relevant global object for this. See HTTP fetch for more info.
-    return convert_fetch_timestamp(m_timing_info->post_redirect_start_time(), HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->post_redirect_start_time(), m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-domainlookupstart
@@ -176,7 +177,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup
     if (!m_timing_info->final_connection_timing_info().has_value())
         return 0.0;
 
-    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->domain_lookup_start_time, HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->domain_lookup_start_time, m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-domainlookupend
@@ -190,7 +191,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup
     if (!m_timing_info->final_connection_timing_info().has_value())
         return 0.0;
 
-    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->domain_lookup_end_time, HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->domain_lookup_end_time, m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-connectstart
@@ -204,7 +205,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::connect_start
     if (!m_timing_info->final_connection_timing_info().has_value())
         return 0.0;
 
-    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->connection_start_time, HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->connection_start_time, m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-connectend
@@ -218,7 +219,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::connect_end()
     if (!m_timing_info->final_connection_timing_info().has_value())
         return 0.0;
 
-    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->connection_end_time, HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->connection_end_time, m_time_origin);
 }
 
 HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::secure_connection_start() const
@@ -231,7 +232,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::secure_connec
     if (!m_timing_info->final_connection_timing_info().has_value())
         return 0.0;
 
-    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->secure_connection_start_time, HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->final_connection_timing_info()->secure_connection_start_time, m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-requeststart
@@ -239,7 +240,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::request_start
 {
     // The requestStart getter steps are to convert fetch timestamp for this's timing info's final network-request
     // start time and the relevant global object for this. See HTTP fetch for more info.
-    return convert_fetch_timestamp(m_timing_info->final_network_request_start_time(), HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->final_network_request_start_time(), m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-finalresponseheadersstart
@@ -247,14 +248,14 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::final_respons
 {
     // The finalResponseHeadersStart getter steps are to convert fetch timestamp for this's timing info's final
     // network-response start time and the relevant global object for this. See HTTP fetch for more info.
-    return convert_fetch_timestamp(m_timing_info->final_network_response_start_time(), HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->final_network_response_start_time(), m_time_origin);
 }
 
 HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::first_interim_response_start() const
 {
     // The firstInterimResponseStart getter steps are to convert fetch timestamp for this's timing info's first interim
     // network-response start time and the relevant global object for this. See HTTP fetch for more info.
-    return convert_fetch_timestamp(m_timing_info->first_interim_network_response_start_time(), HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->first_interim_network_response_start_time(), m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-responsestart
@@ -274,7 +275,7 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceResourceTiming::response_end(
 {
     // The responseEnd getter steps are to convert fetch timestamp for this's timing info's end time and the relevant
     // global object for this. See fetch for more info.
-    return convert_fetch_timestamp(m_timing_info->end_time(), HTML::relevant_global_object(*this));
+    return convert_fetch_timestamp(m_timing_info->end_time(), m_time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-encodedbodysize
@@ -320,14 +321,18 @@ Fetch::Infrastructure::Status PerformanceResourceTiming::response_status() const
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-renderblockingstatus
-Bindings::RenderBlockingStatusType PerformanceResourceTiming::render_blocking_status() const
+bool PerformanceResourceTiming::is_render_blocking() const
 {
     // The renderBlockingStatus getter steps are to return blocking if this's timing info's render-blocking is true;
     // otherwise non-blocking.
-    if (m_timing_info->render_blocking())
-        return Bindings::RenderBlockingStatusType::Blocking;
+    return m_timing_info->render_blocking();
+}
 
-    return Bindings::RenderBlockingStatusType::NonBlocking;
+RenderBlockingStatusType PerformanceResourceTiming::render_blocking_status() const
+{
+    if (is_render_blocking())
+        return RenderBlockingStatusType::Blocking;
+    return RenderBlockingStatusType::NonBlocking;
 }
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-contenttype

@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSPageDescriptors.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSPageDescriptors.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -13,23 +12,17 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPageDescriptors);
 
-GC::Ref<CSSPageDescriptors> CSSPageDescriptors::create(JS::Realm& realm, Vector<Descriptor> descriptors)
+GC::Ref<CSSPageDescriptors> CSSPageDescriptors::create(Vector<Descriptor> descriptors)
 {
-    return realm.create<CSSPageDescriptors>(realm, move(descriptors));
+    return GC::Heap::the().allocate<CSSPageDescriptors>(move(descriptors));
 }
 
-CSSPageDescriptors::CSSPageDescriptors(JS::Realm& realm, Vector<Descriptor> descriptors)
-    : CSSDescriptors(realm, AtRuleID::Page, move(descriptors))
+CSSPageDescriptors::CSSPageDescriptors(Vector<Descriptor> descriptors)
+    : CSSDescriptors(AtRuleID::Page, move(descriptors))
 {
 }
 
 CSSPageDescriptors::~CSSPageDescriptors() = default;
-
-void CSSPageDescriptors::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSPageDescriptors);
-    Base::initialize(realm);
-}
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin(StringView value)
 {

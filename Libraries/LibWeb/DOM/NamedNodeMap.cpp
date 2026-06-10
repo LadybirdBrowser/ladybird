@@ -6,7 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/NamedNodeMap.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
@@ -20,28 +21,15 @@ GC_DEFINE_ALLOCATOR(NamedNodeMap);
 
 GC::Ref<NamedNodeMap> NamedNodeMap::create(Element& element)
 {
-    auto& realm = element.realm();
-    return realm.create<NamedNodeMap>(element);
+    return GC::Heap::the().allocate<NamedNodeMap>(element);
 }
 
 NamedNodeMap::NamedNodeMap(Element& element)
-    : Bindings::PlatformObject(element.realm())
-    , m_element(element)
+    : m_element(element)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .supports_named_properties = true,
-        .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
-    };
 }
 
-void NamedNodeMap::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NamedNodeMap);
-    Base::initialize(realm);
-}
-
-void NamedNodeMap::visit_edges(Cell::Visitor& visitor)
+void NamedNodeMap::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);
@@ -120,7 +108,7 @@ WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item(FlyString const
 
     // 2. If attr is null, then throw a "NotFoundError" DOMException.
     if (!attribute)
-        return WebIDL::NotFoundError::create(realm(), Utf16String::formatted("Attribute with name '{}' not found", qualified_name));
+        return WebIDL::NotFoundError::create(Utf16String::formatted("Attribute with name '{}' not found", qualified_name));
 
     // 3. Return attr.
     return attribute;
@@ -134,7 +122,7 @@ WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item_ns(Optional<Fly
 
     // 2. If attr is null, then throw a "NotFoundError" DOMException.
     if (!attribute)
-        return WebIDL::NotFoundError::create(realm(), Utf16String::formatted("Attribute with namespace '{}' and local name '{}' not found", namespace_, local_name));
+        return WebIDL::NotFoundError::create(Utf16String::formatted("Attribute with namespace '{}' and local name '{}' not found", namespace_, local_name));
 
     // 3. Return attr.
     return attribute;
@@ -213,7 +201,7 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
 
     // 2. If attr’s element is neither null nor element, throw an "InUseAttributeError" DOMException.
     if ((attribute.owner_element() != nullptr) && (attribute.owner_element() != &associated_element()))
-        return WebIDL::InUseAttributeError::create(realm(), "Attribute must not already be in use"_utf16);
+        return WebIDL::InUseAttributeError::create("Attribute must not already be in use"_utf16);
 
     // 3. Let oldAttr be the result of getting an attribute given attr’s namespace, attr’s local name, and element.
     size_t old_attribute_index = 0;
@@ -331,29 +319,13 @@ Attr const* NamedNodeMap::remove_attribute_ns(Optional<FlyString> const& namespa
     return attribute;
 }
 
-Optional<JS::Value> NamedNodeMap::item_value(size_t index) const
-{
-    auto const* node = item(index);
-    if (!node)
-        return {};
-    return node;
-}
-
-JS::Value NamedNodeMap::named_item_value(FlyString const& name) const
-{
-    auto const* node = get_named_item(name);
-    if (!node)
-        return JS::js_undefined();
-    return node;
-}
-
 // https://dom.spec.whatwg.org/#dom-element-removeattributenode
 WebIDL::ExceptionOr<GC::Ref<Attr>> NamedNodeMap::remove_attribute_node(GC::Ref<Attr> attr)
 {
     // 1. If this’s attribute list does not contain attr, then throw a "NotFoundError" DOMException.
     auto index = m_attributes.find_first_index(attr);
     if (!index.has_value())
-        return WebIDL::NotFoundError::create(realm(), "Attribute not found"_utf16);
+        return WebIDL::NotFoundError::create("Attribute not found"_utf16);
 
     // 2. Remove attr.
     remove_attribute_at_index(index.value());

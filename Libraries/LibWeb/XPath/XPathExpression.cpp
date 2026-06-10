@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/XPathExpression.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
 
@@ -20,20 +17,18 @@ namespace Web::XPath {
 
 GC_DEFINE_ALLOCATOR(XPathExpression);
 
-XPathExpression::XPathExpression(JS::Realm& realm, String const& expression, GC::Ptr<XPathNSResolver> resolver)
-    : Web::Bindings::PlatformObject(realm)
-    , m_expression(expression)
+GC::Ref<XPathExpression> XPathExpression::create(String const& expression, GC::Ptr<XPathNSResolver> resolver)
+{
+    return GC::Heap::the().allocate<XPathExpression>(expression, resolver);
+}
+
+XPathExpression::XPathExpression(String const& expression, GC::Ptr<XPathNSResolver> resolver)
+    : m_expression(expression)
     , m_resolver(resolver)
 {
 }
 
-void XPathExpression::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XPathExpression);
-    Base::initialize(realm);
-}
-
-void XPathExpression::visit_edges(Cell::Visitor& visitor)
+void XPathExpression::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_resolver);
@@ -43,8 +38,7 @@ XPathExpression::~XPathExpression() = default;
 
 WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathExpression::evaluate(DOM::Node const& context_node, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
 {
-    auto& realm = this->realm();
-    return XPath::evaluate(realm, m_expression, context_node, m_resolver, type, result);
+    return XPath::throw_evaluation_error_if_needed(XPath::evaluate(m_expression, context_node, m_resolver, type, result));
 }
 
 }

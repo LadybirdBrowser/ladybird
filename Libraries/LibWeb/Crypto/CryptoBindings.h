@@ -10,47 +10,24 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibCrypto/BigInt/UnsignedBigInteger.h>
+#include <LibWeb/Bindings/SubtleCrypto.h>
 
-// FIXME: Generate these from IDL
 namespace Web::Crypto {
 
-// https://w3c.github.io/webcrypto/#JsonWebKey-dictionary
-struct RsaOtherPrimesInfo {
-    Optional<String> r;
-    Optional<String> d;
-    Optional<String> t;
-};
+struct CryptoKeyPair;
+struct EncapsulatedBits;
+struct EncapsulatedKey;
 
-// https://w3c.github.io/webcrypto/#JsonWebKey-dictionary
-struct JsonWebKey {
-    Optional<String> kty;
-    Optional<String> use;
-    Optional<Vector<String>> key_ops;
-    Optional<String> alg;
-    Optional<bool> ext;
-    Optional<String> crv;
-    Optional<String> x;
-    Optional<String> y;
-    Optional<String> d;
-    Optional<String> n;
-    Optional<String> e;
-    Optional<String> p;
-    Optional<String> q;
-    Optional<String> dp;
-    Optional<String> dq;
-    Optional<String> qi;
-    Optional<Vector<RsaOtherPrimesInfo>> oth;
-    Optional<String> k;
+using KeyFormat = Bindings::KeyFormat;
+using RsaOtherPrimesInfo = Bindings::RsaOtherPrimesInfo;
+using JsonWebKey = Bindings::JsonWebKey;
 
-    // https://wicg.github.io/webcrypto-modern-algos/#partial-JsonWebKey-dictionary
-    // The following fields are defined in draft-ietf-cose-dilithium-07
-    Optional<String> pub;
-    Optional<String> priv;
-
-    JS::ThrowCompletionOr<GC::Ref<JS::Object>> to_object(JS::Realm&);
-
-    static JS::ThrowCompletionOr<JsonWebKey> parse(JS::Realm& realm, ReadonlyBytes data);
-};
+JS::ThrowCompletionOr<JsonWebKey> parse_json_web_key(JS::Realm& realm, ReadonlyBytes data);
+void resolve_crypto_key_promise(JS::Realm&, WebIDL::Promise&, GC::Ref<CryptoKey>);
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> encapsulated_bits(JS::Realm&, EncapsulatedBits const&);
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> encapsulated_key(JS::Realm&, EncapsulatedKey const&);
+JS::Value crypto_key(JS::Realm&, GC::Ref<CryptoKey>);
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> crypto_key_pair(JS::Realm&, CryptoKeyPair const&);
+JS::ThrowCompletionOr<GC::Ref<CryptoKey>> crypto_key_from_value(JS::VM&, JS::Value);
 
 }

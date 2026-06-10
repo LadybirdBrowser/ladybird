@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLHRElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLHRElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLHRElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLHRElement);
 
 public:
@@ -23,8 +23,6 @@ public:
 
 private:
     HTMLHRElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

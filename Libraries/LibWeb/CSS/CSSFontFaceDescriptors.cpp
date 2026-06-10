@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSFontFaceDescriptors.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -14,30 +13,21 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFontFaceDescriptors);
 
-GC::Ref<CSSFontFaceDescriptors> CSSFontFaceDescriptors::create(JS::Realm& realm, Vector<Descriptor> descriptors)
+GC::Ref<CSSFontFaceDescriptors> CSSFontFaceDescriptors::create(Vector<Descriptor> descriptors)
 {
-    return realm.create<CSSFontFaceDescriptors>(realm, move(descriptors));
+    return GC::Heap::the().allocate<CSSFontFaceDescriptors>(move(descriptors));
 }
 
-CSSFontFaceDescriptors::CSSFontFaceDescriptors(JS::Realm& realm, Vector<Descriptor> descriptors)
-    : CSSDescriptors(realm, AtRuleID::FontFace, move(descriptors))
+CSSFontFaceDescriptors::CSSFontFaceDescriptors(Vector<Descriptor> descriptors)
+    : CSSDescriptors(AtRuleID::FontFace, move(descriptors))
 {
 }
 
 CSSFontFaceDescriptors::~CSSFontFaceDescriptors() = default;
 
-void CSSFontFaceDescriptors::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFaceDescriptors);
-    Base::initialize(realm);
-}
-
 WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_property(Utf16FlyString const& property, StringView value, StringView priority)
 {
     TRY(Base::set_property(property, value, priority));
-
-    if (!property.is_ascii())
-        return {};
 
     if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
         font_face_rule->handle_descriptor_change(property);

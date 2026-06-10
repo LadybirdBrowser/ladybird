@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body></body>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const otherGlobal = iframe.contentWindow;
+        const stream = new WritableStream();
+        const writer = otherGlobal.WritableStream.prototype.getWriter.call(stream);
+
+        println(writer instanceof WritableStreamDefaultWriter);
+        println(writer instanceof otherGlobal.WritableStreamDefaultWriter);
+        println(writer.ready instanceof Promise);
+        println(writer.ready instanceof otherGlobal.Promise);
+
+        const writePromise = writer.write("hello");
+        println(writePromise instanceof Promise);
+        println(writePromise instanceof otherGlobal.Promise);
+
+        writePromise.then(() => {
+            const closePromise = writer.close();
+            println(closePromise instanceof Promise);
+            println(closePromise instanceof otherGlobal.Promise);
+
+            closePromise.then(() => {
+                const directClosePromise = otherGlobal.WritableStream.prototype.close.call(new WritableStream());
+                println(directClosePromise instanceof Promise);
+                println(directClosePromise instanceof otherGlobal.Promise);
+
+                return directClosePromise;
+            }).then(() => {
+                const directAbortPromise = otherGlobal.WritableStream.prototype.abort.call(new WritableStream(), "abort");
+                println(directAbortPromise instanceof Promise);
+                println(directAbortPromise instanceof otherGlobal.Promise);
+
+                return directAbortPromise;
+            }).then(done);
+        });
+    });
+</script>

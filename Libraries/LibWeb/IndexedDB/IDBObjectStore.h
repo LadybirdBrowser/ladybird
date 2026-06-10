@@ -9,26 +9,31 @@
 #include <AK/HashMap.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBCursor.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/IDBObjectStore.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 
 namespace Web::IndexedDB {
 
+using IndexParameters = Bindings::IDBIndexParameters;
+
 // https://w3c.github.io/IndexedDB/#object-store-interface
 // https://w3c.github.io/IndexedDB/#object-store-handle-construct
-class IDBObjectStore : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IDBObjectStore, Bindings::PlatformObject);
+class IDBObjectStore : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IDBObjectStore, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IDBObjectStore);
 
 public:
     virtual ~IDBObjectStore() override;
-    [[nodiscard]] static GC::Ref<IDBObjectStore> create(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
+    [[nodiscard]] static GC::Ref<IDBObjectStore> create(GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
 
     String name() const;
     WebIDL::ExceptionOr<void> set_name(String const& value);
-    JS::Value key_path() const;
+    Optional<KeyPath> const& key_path() const;
+    JS::ThrowCompletionOr<JS::Value> key_path_value(JS::Realm&) const;
     [[nodiscard]] GC::Ref<HTML::DOMStringList> index_names();
     GC::Ref<IDBTransaction> transaction() const;
     bool auto_increment() const;
@@ -41,16 +46,17 @@ public:
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_key(JS::Value);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_keys(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_records(Bindings::IDBGetAllOptions const&);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_records(RetrieveMultipleItemsOptions const&);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> count(Optional<JS::Value>);
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(Optional<JS::Value>, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_key_cursor(Optional<JS::Value>, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(Optional<JS::Value>, CursorDirection);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_key_cursor(Optional<JS::Value>, CursorDirection);
 
     WebIDL::ExceptionOr<GC::Ref<IDBIndex>> index(String const&);
 
-    WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(String const&, KeyPath, Bindings::IDBIndexParameters const&);
+    WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(String const&, KeyPath, IndexParameters const&);
     WebIDL::ExceptionOr<void> delete_index(String const&);
 
+    JS::Object& relevant_global_object() const;
     AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
     WebIDL::ExceptionOr<GC::Ref<IDBRequest>> add_or_put(GC::Ref<IDBObjectStore>, JS::Value, Optional<JS::Value> const&, bool);
     GC::Ref<ObjectStore> store() const { return m_store; }
@@ -59,9 +65,8 @@ public:
     void update_index_set() { m_indexes = m_store->index_set(); }
 
 protected:
-    explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor& visitor) override;
+    explicit IDBObjectStore(GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
     // An object store handle has an associated object store and an associated transaction.

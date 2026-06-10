@@ -5,8 +5,7 @@
  */
 
 #include "CSSSkew.h"
-#include <LibWeb/Bindings/CSSSkew.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -18,13 +17,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSSkew);
 
-GC::Ref<CSSSkew> CSSSkew::create(JS::Realm& realm, GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay)
+GC::Ref<CSSSkew> CSSSkew::create(GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay)
 {
-    return realm.create<CSSSkew>(realm, ax, ay);
+    return GC::Heap::the().allocate<CSSSkew>(ax, ay);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssskew-cssskew
-WebIDL::ExceptionOr<GC::Ref<CSSSkew>> CSSSkew::construct_impl(JS::Realm& realm, GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay)
+WebIDL::ExceptionOr<GC::Ref<CSSSkew>> CSSSkew::create_for_constructor(GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay)
 {
     // The CSSSkew(ax, ay) constructor must, when invoked, perform the following steps:
 
@@ -36,11 +35,11 @@ WebIDL::ExceptionOr<GC::Ref<CSSSkew>> CSSSkew::construct_impl(JS::Realm& realm, 
 
     // 2. Return a new CSSSkew object with its ax and ay internal slots set to ax and ay, and its is2D internal slot
     //    set to true.
-    return CSSSkew::create(realm, ax, ay);
+    return CSSSkew::create(ax, ay);
 }
 
-CSSSkew::CSSSkew(JS::Realm& realm, GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay)
-    : CSSTransformComponent(realm, Is2D::Yes)
+CSSSkew::CSSSkew(GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay)
+    : CSSTransformComponent(Is2D::Yes)
     , m_ax(ax)
     , m_ay(ay)
 {
@@ -48,13 +47,7 @@ CSSSkew::CSSSkew(JS::Realm& realm, GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumer
 
 CSSSkew::~CSSSkew() = default;
 
-void CSSSkew::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSSkew);
-    Base::initialize(realm);
-}
-
-void CSSSkew::visit_edges(Visitor& visitor)
+void CSSSkew::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_ax);
@@ -99,7 +92,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSSkew::to_matrix() const
     //    As the entries of such a matrix are defined relative to the px unit, if any <length>s in this involved in
     //    generating the matrix are not compatible units with px (such as relative lengths or percentages), throw a
     //    TypeError.
-    auto matrix = Geometry::DOMMatrix::create(realm());
+    auto matrix = Geometry::DOMMatrix::create();
 
     // NB: to() throws a TypeError if the conversion can't be done.
     auto ax_rad = TRY(m_ax->to("rad"_fly_string))->value();

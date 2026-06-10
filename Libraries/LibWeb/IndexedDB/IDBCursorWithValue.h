@@ -12,19 +12,17 @@ namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#idbcursorwithvalue
 class IDBCursorWithValue : public IDBCursor {
-    WEB_PLATFORM_OBJECT(IDBCursorWithValue, IDBCursor);
+    WEB_WRAPPABLE(IDBCursorWithValue, IDBCursor);
     GC_DECLARE_ALLOCATOR(IDBCursorWithValue);
 
 public:
     virtual ~IDBCursorWithValue() override;
 
-    // https://w3c.github.io/IndexedDB/#dom-idbcursorwithvalue-value
-    [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
+    [[nodiscard]] Optional<JS::Value> const& current_value() const { return m_value; }
+    [[nodiscard]] JS::Value value() const { return m_value.value_or(JS::js_undefined()); }
 
 private:
-    explicit IDBCursorWithValue(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor& visitor) override;
+    explicit IDBCursorWithValue(CursorSourceHandle, GC::Ptr<Key>, CursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
 };
 
 }

@@ -12,12 +12,12 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csstranslate
 class CSSTranslate final : public CSSTransformComponent {
-    WEB_PLATFORM_OBJECT(CSSTranslate, CSSTransformComponent);
+    WEB_WRAPPABLE(CSSTranslate, CSSTransformComponent);
     GC_DECLARE_ALLOCATOR(CSSTranslate);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSTranslate> create(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
-    static WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> construct_impl(JS::Realm&, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z = {});
+    [[nodiscard]] static GC::Ref<CSSTranslate> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
+    static WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> create_for_constructor(GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z = {});
 
     virtual ~CSSTranslate() override;
 
@@ -35,10 +35,8 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSTranslate(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    explicit CSSTranslate(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_x;
     GC::Ref<CSSNumericValue> m_y;

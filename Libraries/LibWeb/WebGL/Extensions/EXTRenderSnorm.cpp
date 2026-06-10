@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/EXTRenderSnorm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/EXTRenderSnorm.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -15,24 +13,19 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTRenderSnorm);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTRenderSnorm::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> EXTRenderSnorm::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    return realm.create<EXTRenderSnorm>(realm, context);
+    auto extension = GC::Heap::the().allocate<EXTRenderSnorm>(context);
+    return GC::Ref<WebGLExtension> { extension };
 }
 
-EXTRenderSnorm::EXTRenderSnorm(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
+EXTRenderSnorm::EXTRenderSnorm(GC::Ref<WebGLRenderingContextBase> context)
+    : WebGLExtension()
     , m_context(context)
 {
 }
 
-void EXTRenderSnorm::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(EXTRenderSnorm);
-    Base::initialize(realm);
-}
-
-void EXTRenderSnorm::visit_edges(Visitor& visitor)
+void EXTRenderSnorm::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

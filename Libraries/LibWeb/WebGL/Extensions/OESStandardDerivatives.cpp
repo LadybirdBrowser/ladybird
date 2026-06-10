@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/OESStandardDerivatives.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/OESStandardDerivatives.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -15,24 +13,19 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESStandardDerivatives);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> OESStandardDerivatives::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> OESStandardDerivatives::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    return realm.create<OESStandardDerivatives>(realm, context);
+    auto extension = GC::Heap::the().allocate<OESStandardDerivatives>(context);
+    return GC::Ref<WebGLExtension> { extension };
 }
 
-OESStandardDerivatives::OESStandardDerivatives(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
+OESStandardDerivatives::OESStandardDerivatives(GC::Ref<WebGLRenderingContextBase> context)
+    : WebGLExtension()
     , m_context(context)
 {
 }
 
-void OESStandardDerivatives::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(OESStandardDerivatives);
-    Base::initialize(realm);
-}
-
-void OESStandardDerivatives::visit_edges(Visitor& visitor)
+void OESStandardDerivatives::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

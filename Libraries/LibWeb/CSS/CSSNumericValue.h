@@ -7,11 +7,17 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/NumericType.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace Web::Bindings {
+
+struct CSSNumericType;
+
+}
 
 namespace Web::CSS {
 
@@ -24,7 +30,7 @@ using SumValue = Vector<SumValueItem>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
 class CSSNumericValue : public CSSStyleValue {
-    WEB_PLATFORM_OBJECT(CSSNumericValue, CSSStyleValue);
+    WEB_WRAPPABLE(CSSNumericValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSNumericValue);
 
 public:
@@ -47,31 +53,29 @@ public:
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
 
     WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(FlyString const& unit) const;
+    Bindings::CSSNumericType type_for_bindings() const;
 
     CSSNumberish negate();
     WebIDL::ExceptionOr<CSSNumberish> invert();
 
     virtual Optional<SumValue> create_a_sum_value() const = 0;
 
-    Bindings::CSSNumericType type_for_bindings() const;
     NumericType const& type() const { return m_type; }
 
     virtual WebIDL::ExceptionOr<String> to_string() const final override { return to_string({}); }
     void serialize(StringBuilder&, SerializationParams const&) const;
     String to_string(SerializationParams const&) const;
 
-    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, String const& css_text);
+    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(String const& css_text);
 
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const = 0;
 
 protected:
-    explicit CSSNumericValue(JS::Realm&, NumericType);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit CSSNumericValue(NumericType);
 
     NumericType m_type;
 };
 
-GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm&, CSSNumberish const&, Optional<FlyString> unit = {});
+GC::Ref<CSSNumericValue> rectify_a_numberish_value(CSSNumberish const&, Optional<FlyString> unit = {});
 
 }

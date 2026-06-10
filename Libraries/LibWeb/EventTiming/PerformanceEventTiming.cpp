@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceEventTiming.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/EventTiming/PerformanceEventTiming.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
@@ -16,14 +14,13 @@ GC_DEFINE_ALLOCATOR(PerformanceEventTiming);
 
 // https://www.w3.org/TR/event-timing/#sec-init-event-timing
 PerformanceEventTiming::PerformanceEventTiming(
-    JS::Realm& realm,
     String const& name,
     HighResolutionTime::DOMHighResTimeStamp start_time,
     HighResolutionTime::DOMHighResTimeStamp duration,
     DOM::Event const& event,
     HighResolutionTime::DOMHighResTimeStamp processing_start,
     unsigned long long interaction_id)
-    : PerformanceTimeline::PerformanceEntry(realm, name, start_time, duration)
+    : PerformanceTimeline::PerformanceEntry(name, start_time, duration)
     , m_entry_type(PerformanceTimeline::EntryTypes::event)
     , m_start_time(event.time_stamp())
     , m_processing_start(processing_start)
@@ -57,7 +54,7 @@ bool PerformanceEventTiming::cancelable() const
     return m_cancelable;
 }
 
-JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> PerformanceEventTiming::target()
+GC::Ptr<DOM::Node> PerformanceEventTiming::target()
 {
     dbgln("FIXME: Implement PerformanceEventTiming::PerformanceEventTiming target()");
     return nullptr;
@@ -111,18 +108,12 @@ Optional<u64> PerformanceEventTiming::max_buffer_size()
 }
 
 // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_entry(Optional<Bindings::PerformanceObserverInit const&>) const
+PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&>) const
 {
     return should_add_performance_event_timing();
 }
 
-void PerformanceEventTiming::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceEventTiming);
-    Base::initialize(realm);
-}
-
-void PerformanceEventTiming::visit_edges(JS::Cell::Visitor& visitor)
+void PerformanceEventTiming::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_event_target);

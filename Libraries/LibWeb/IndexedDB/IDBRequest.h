@@ -10,6 +10,13 @@
 
 #include <LibWeb/Bindings/IDBRequest.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
+
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
 
 namespace Web::IndexedDB {
 
@@ -17,13 +24,13 @@ using IDBRequestSource = Variant<Empty, GC::Ref<IDBObjectStore>, GC::Ref<IDBInde
 
 // https://w3c.github.io/IndexedDB/#request-api
 class IDBRequest : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(IDBRequest, DOM::EventTarget);
+    WEB_WRAPPABLE(IDBRequest, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(IDBRequest);
 
 public:
     virtual ~IDBRequest() override;
 
-    [[nodiscard]] static GC::Ref<IDBRequest> create(JS::Realm&, IDBRequestSource);
+    [[nodiscard]] static GC::Ref<IDBRequest> create(GC::Ref<DOM::EventTarget> relevant_global_object, IDBRequestSource);
 
     [[nodiscard]] bool done() const { return m_done; }
     [[nodiscard]] bool processed() const { return m_processed; }
@@ -31,9 +38,11 @@ public:
     [[nodiscard]] GC::Ptr<IDBTransaction> transaction() const { return m_transaction; }
     [[nodiscard]] String uuid() const { return m_uuid; }
 
-    [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
+    [[nodiscard]] HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
+    [[nodiscard]] JS::Object& relevant_global_object() const;
     [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const;
     [[nodiscard]] WebIDL::ExceptionOr<JS::Value> result() const;
+    [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
 
     void set_done(bool done) { m_done = done; }
     void set_result(JS::Value result) { m_result = result; }
@@ -53,9 +62,8 @@ public:
     void set_aborted(bool aborted) { m_aborted = aborted; }
 
 protected:
-    explicit IDBRequest(JS::Realm&, IDBRequestSource);
+    IDBRequest(GC::Ref<DOM::EventTarget> relevant_global_object, IDBRequestSource);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
     virtual EventTarget* get_parent(DOM::Event const&) override;
 
@@ -72,6 +80,7 @@ private:
 
     // A request has a source object.
     IDBRequestSource m_source;
+    GC::Ref<DOM::EventTarget> m_global_object;
 
     // A request has a transaction which is initially null.
     GC::Ptr<IDBTransaction> m_transaction;

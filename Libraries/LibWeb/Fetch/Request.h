@@ -9,13 +9,14 @@
 #include <AK/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Request.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Fetch/Body.h>
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::Fetch {
 
@@ -24,14 +25,16 @@ using RequestInfo = Variant<GC::Ref<Request>, String>;
 
 // https://fetch.spec.whatwg.org/#request
 class Request final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public BodyMixin {
-    WEB_PLATFORM_OBJECT(Request, Bindings::PlatformObject);
+    WEB_WRAPPABLE(Request, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Request);
 
 public:
-    [[nodiscard]] static GC::Ref<Request> create(JS::Realm&, GC::Ref<Infrastructure::Request>, Headers::Guard, GC::Ref<DOM::AbortSignal>);
+    [[nodiscard]] static GC::Ref<Request> create(GC::Ref<Infrastructure::Request>);
+    [[nodiscard]] static GC::Ref<Request> create(GC::Ref<Infrastructure::Request>, Headers::Guard, GC::Ref<DOM::AbortSignal>);
     static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl(JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Request>> create_with_settings(HTML::EnvironmentSettingsObject&, JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
 
     virtual ~Request() override;
 
@@ -39,8 +42,12 @@ public:
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const override;
     virtual GC::Ptr<Infrastructure::Body> body_impl() override;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const override;
-    virtual Bindings::PlatformObject& as_platform_object() override { return *this; }
-    virtual Bindings::PlatformObject const& as_platform_object() const override { return *this; }
+    using BodyMixin::array_buffer;
+    using BodyMixin::blob;
+    using BodyMixin::bytes;
+    using BodyMixin::form_data;
+    using BodyMixin::json;
+    using BodyMixin::text;
 
     [[nodiscard]] GC::Ref<Infrastructure::Request> request() const { return m_request; }
 
@@ -61,13 +68,12 @@ public:
     [[nodiscard]] bool is_history_navigation() const;
     [[nodiscard]] GC::Ref<DOM::AbortSignal> signal() const;
     [[nodiscard]] Bindings::RequestDuplex duplex() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<Request>> clone() const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<Request>> clone(JS::Realm&) const;
 
 private:
-    Request(JS::Realm&, GC::Ref<Infrastructure::Request>);
+    explicit Request(GC::Ref<Infrastructure::Request>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://fetch.spec.whatwg.org/#concept-request-request
     // A Request object has an associated request (a request).

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibWeb/Bindings/HTMLElement.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -18,6 +17,8 @@
 #include <LibWeb/HTML/TokenizedFeatures.h>
 
 namespace Web::HTML {
+
+class HTMLElement;
 
 // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
 #define ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTES   \
@@ -33,7 +34,10 @@ enum class ContentEditableState : u8 {
     Inherit,
 };
 
-using TogglePopoverOptionsOrForceBoolean = Variant<Bindings::TogglePopoverOptions, bool>;
+using ShowPopoverOptions = Bindings::ShowPopoverOptions;
+using TogglePopoverOptions = Bindings::TogglePopoverOptions;
+
+using TogglePopoverOptionsOrForceBoolean = Variant<TogglePopoverOptions, bool>;
 
 enum class ThrowExceptions {
     Yes,
@@ -70,7 +74,7 @@ class WEB_API HTMLElement
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGOrMathMLElement<HTMLElement>
     , public FormAssociatedElement {
-    WEB_PLATFORM_OBJECT(HTMLElement, DOM::Element);
+    WEB_WRAPPABLE(HTMLElement, DOM::Element);
     GC_DECLARE_ALLOCATOR(HTMLElement);
 
 public:
@@ -161,7 +165,7 @@ public:
     };
     PopoverVisibilityState popover_visibility_state() const { return m_popover_visibility_state; }
 
-    WebIDL::ExceptionOr<void> show_popover_for_bindings(Bindings::ShowPopoverOptions const& = {});
+    WebIDL::ExceptionOr<void> show_popover(ShowPopoverOptions const& = {});
     WebIDL::ExceptionOr<void> hide_popover_for_bindings();
     WebIDL::ExceptionOr<bool> toggle_popover(TogglePopoverOptionsOrForceBoolean const&);
 
@@ -192,8 +196,6 @@ public:
 
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const override;
@@ -270,15 +272,5 @@ namespace Web::DOM {
 
 template<>
 inline bool Node::fast_is<HTML::HTMLElement>() const { return is_html_element(); }
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::HTML::HTMLElement>() const
-{
-    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_html_element();
-}
 
 }

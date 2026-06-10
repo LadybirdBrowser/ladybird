@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceMeasure.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -18,17 +17,17 @@ namespace Web::UserTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceMeasure);
 
-PerformanceMeasure::PerformanceMeasure(JS::Realm& realm, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
-    : PerformanceTimeline::PerformanceEntry(realm, name, start_time, duration)
-    , m_detail(detail)
+PerformanceMeasure::PerformanceMeasure(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, Optional<HTML::SerializationRecord> detail)
+    : PerformanceTimeline::PerformanceEntry(name, start_time, duration)
+    , m_detail(move(detail))
 {
 }
 
 PerformanceMeasure::~PerformanceMeasure() = default;
 
-GC::Ref<PerformanceMeasure> PerformanceMeasure::create(JS::Realm& realm, String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
+GC::Ref<PerformanceMeasure> PerformanceMeasure::create(String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, Optional<HTML::SerializationRecord> detail)
 {
-    return realm.create<PerformanceMeasure>(realm, measure_name, start_time, duration, detail);
+    return GC::Heap::the().allocate<PerformanceMeasure>(measure_name, start_time, duration, move(detail));
 }
 
 FlyString const& PerformanceMeasure::entry_type() const
@@ -36,16 +35,12 @@ FlyString const& PerformanceMeasure::entry_type() const
     return PerformanceTimeline::EntryTypes::measure;
 }
 
-void PerformanceMeasure::initialize(JS::Realm& realm)
+WebIDL::ExceptionOr<JS::Value> PerformanceMeasure::detail(JS::Realm& realm) const
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceMeasure);
-    Base::initialize(realm);
-}
+    if (!m_detail.has_value())
+        return JS::js_null();
 
-void PerformanceMeasure::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_detail);
+    return HTML::structured_deserialize(realm.vm(), m_detail.value(), realm);
 }
 
 }

@@ -98,7 +98,6 @@ private:
     HTMLParser(DOM::Document&, ParserScriptingMode, ScriptCreatedParser);
 
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual void initialize(JS::Realm&) override;
     virtual void finalize() override;
 
     void stop_parsing() { m_stop_parsing = true; }
@@ -131,8 +130,6 @@ private:
     size_t m_script_nesting_level { 0 };
 
     Function<void()> m_post_parse_action;
-
-    JS::Realm& realm();
 
     GC::Ptr<DOM::Document> m_document;
     GC::Ptr<HTMLFormElement> m_form_element;

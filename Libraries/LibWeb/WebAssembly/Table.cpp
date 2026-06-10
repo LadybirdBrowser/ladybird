@@ -7,13 +7,13 @@
 
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/BigInt.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibJS/Runtime/Value.h>
 #include <LibWasm/Types.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/Table.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/WebAssembly/Table.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -23,13 +23,172 @@ namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Table);
 
-static Wasm::ValueType table_kind_to_value_type(Bindings::TableKind kind)
+WebIDL::ExceptionOr<GC::Ref<Table>> Table::create(NonnullRefPtr<Detail::WebAssemblyCache> cache, Wasm::ValueType element_type, Wasm::AddressType address_type, u64 initial, Optional<u64> maximum, Wasm::Reference reference)
+{
+    Wasm::Limits limits { address_type, initial, maximum };
+    Wasm::TableType table_type { element_type, move(limits) };
+
+    if (maximum.has_value() && maximum.value() < initial)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Maximum should not be less than initial in table type"sv };
+
+    // 11. Let (store, tableaddr) be table_alloc(store, type, ref). If allocation fails, throw a RangeError exception.
+    auto address = cache->abstract_machine().store().allocate(table_type);
+    if (!address.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Wasm Table allocation failed"sv };
+
+    auto& table = *cache->abstract_machine().store().get(*address);
+    for (auto& element : table.elements())
+        element = reference;
+
+    // 12. Set the surrounding agent's associated store to store.
+    // NOTE: The store is updated in-place.
+
+    // 13. Initialize this from tableaddr.
+    return GC::Heap::the().allocate<Table>(cache, *address);
+}
+
+Table::Table(NonnullRefPtr<Detail::WebAssemblyCache> cache, Wasm::TableAddress address)
+    : m_cache(move(cache))
+    , m_address(address)
+{
+    // https://webassembly.github.io/spec/js-api/#initialize-a-table-object
+    // 1. Let map be the surrounding agent's associated Table object cache.
+
+    // 2. Assert: map[tableaddr] doesn't exist.
+    auto exists = m_cache->table_instances().contains(m_address);
+    VERIFY(!exists);
+
+    // 3. Set table.[[Table]] to tableaddr.
+    // NOTE: This is already set by the Table constructor.
+
+    // 4. Set map[tableaddr] to table.
+    m_cache->add_table_instance(m_address, *this);
+}
+
+void Table::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    m_cache->visit_edges(visitor);
+}
+
+// https://webassembly.github.io/spec/js-api/#dom-table-grow
+WebIDL::ExceptionOr<u64> Table::grow(u64 delta, Wasm::Reference reference)
+{
+    auto* table = cache().abstract_machine().store().get(address());
+    if (!table)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Could not find the memory table to grow"sv };
+
+    // 3. Let initialSize be table_size(store, tableaddr).
+    auto initial_size = table->elements().size();
+
+    if (!table->grow(delta, reference))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Failed to grow table"sv };
+
+    // 10. Set the surrounding agent's associated store to result.
+    // NOTE: The store is updated in-place.
+
+    return initial_size;
+}
+
+// https://webassembly.github.io/spec/js-api/#dom-table-get
+WebIDL::ExceptionOr<Wasm::Reference> Table::get(u64 index) const
+{
+    auto* table = cache().abstract_machine().store().get(address());
+    if (!table)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Could not find the memory table"sv };
+
+    // 3. Let (addrtype, limits, elementtype) be table_type(store, tableaddr).
+    auto element_type = table->type().element_type();
+
+    // 4. If elementtype matches exnref, throw a TypeError exception.
+    if (element_type.kind() == Wasm::ValueType::ExceptionReference)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot get an exnref table element"sv };
+
+    // 6. Let result be table_read(store, tableaddr, index64).
+    // 7. If result is error, throw a RangeError exception.
+    if (table->elements().size() <= index)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Table element index out of range"sv };
+
+    return table->elements()[index];
+}
+
+// https://webassembly.github.io/spec/js-api/#dom-table-set
+WebIDL::ExceptionOr<void> Table::set(u64 index, Wasm::Reference reference)
+{
+    auto* table = cache().abstract_machine().store().get(address());
+    if (!table)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Could not find the memory table"sv };
+
+    // 3. Let (addrtype, limits, elementtype) be table_type(store, tableaddr).
+    auto element_type = table->type().element_type();
+
+    // 4. If elementtype matches exnref, throw a TypeError exception.
+    if (element_type.kind() == Wasm::ValueType::ExceptionReference)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set an exnref table element"sv };
+
+    if (table->elements().size() <= index)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Table element index out of range"sv };
+
+    // 8. Let store be table_write(store, tableaddr, index64, ref).
+    // 9. If store is error, throw a RangeError exception.
+    table->elements()[index] = reference;
+
+    // 10. Set the surrounding agent's associated store to store.
+    // NOTE: The store is updated in-place.
+    return {};
+}
+
+// https://webassembly.github.io/spec/js-api/#dom-table-length
+WebIDL::ExceptionOr<u64> Table::length() const
+{
+    auto* table = cache().abstract_machine().store().get(address());
+    if (!table)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Could not find the memory table"sv };
+
+    return table->elements().size();
+}
+
+WebIDL::ExceptionOr<Wasm::AddressType> Table::address_type() const
+{
+    auto* table = cache().abstract_machine().store().get(address());
+    if (!table)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Could not find the memory table"sv };
+
+    return table->type().limits().address_type();
+}
+
+WebIDL::ExceptionOr<Wasm::ValueType> Table::element_type() const
+{
+    auto* table = cache().abstract_machine().store().get(address());
+    if (!table)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Could not find the memory table"sv };
+
+    return table->type().element_type();
+}
+
+}
+
+namespace Web::Bindings {
+
+static Wasm::ValueType table_kind_to_value_type(TableKind kind)
 {
     switch (kind) {
-    case Bindings::TableKind::Externref:
+    case TableKind::Externref:
         return Wasm::ValueType { Wasm::ValueType::ExternReference };
-    case Bindings::TableKind::Anyfunc:
+    case TableKind::Anyfunc:
         return Wasm::ValueType { Wasm::ValueType::FunctionReference };
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+static Wasm::AddressType address_type_from_bindings(AddressType address_type)
+{
+    switch (address_type) {
+    case AddressType::I32:
+        return Wasm::AddressType::I32;
+    case AddressType::I64:
+        return Wasm::AddressType::I64;
     }
 
     VERIFY_NOT_REACHED();
@@ -72,18 +231,18 @@ static JS::Value table_limit_to_js_value(JS::VM& vm, u64 value, Wasm::AddressTyp
     return JS::Value { static_cast<u32>(value) };
 }
 
-WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bindings::TableDescriptor& descriptor, Optional<JS::Value> value)
+WebIDL::ExceptionOr<GC::Ref<WebAssembly::Table>> construct_table(JS::Realm& realm, TableDescriptor const& descriptor, Optional<JS::Value> value)
 {
     auto& vm = realm.vm();
 
     // 1. Let elementtype be ToValueType(descriptor["element"]).
-    auto reference_type = table_kind_to_value_type(descriptor.element);
+    auto element_type = table_kind_to_value_type(descriptor.element);
 
     // 2. If elementtype is not a reftype, throw a TypeError exception.
     // NOTE: The TableKind IDL enum only accepts reference types.
 
     // 3. If descriptor["address"] exists, let addrtype be descriptor["address"]; otherwise, let addrtype be "i32".
-    auto address_type = descriptor.address == Bindings::AddressType::I64 ? Wasm::AddressType::I64 : Wasm::AddressType::I32;
+    auto address_type = address_type_from_bindings(descriptor.address.value_or(AddressType::I32));
 
     // 4. Let initial be ? AddressValueToU64(descriptor["initial"], addrtype).
     auto initial = TRY(address_value_to_u64(vm, descriptor.initial, address_type));
@@ -93,204 +252,64 @@ WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bind
         ? Optional<u64> { TRY(address_value_to_u64(vm, descriptor.maximum.value(), address_type)) }
         : Optional<u64> {};
 
-    // 6. Let type be the table type addrtype { min initial, max maximum } elementtype.
-    Wasm::Limits limits { address_type, initial, maximum };
-    Wasm::TableType table_type { reference_type, move(limits) };
-
-    // 7. If type is not valid, throw a RangeError exception.
-    if (maximum.has_value() && maximum.value() < initial)
-        return vm.throw_completion<JS::RangeError>("Maximum should not be less than initial in table type"sv);
-
-    // 8. If value is missing, let ref be DefaultValue(elementtype).
-    // 9. Otherwise, let ref be ? ToWebAssemblyValue(value, elementtype).
     auto reference_value = !value.has_value()
-        ? Detail::default_webassembly_value(vm, reference_type)
-        : TRY(Detail::to_webassembly_value(vm, *value, reference_type));
+        ? WebAssembly::Detail::default_webassembly_value(realm, element_type)
+        : TRY(WebAssembly::Detail::to_webassembly_value(realm, *value, element_type));
 
-    // 10. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm);
-
-    // 11. Let (store, tableaddr) be table_alloc(store, type, ref). If allocation fails, throw a RangeError exception.
-    auto address = cache.abstract_machine().store().allocate(table_type);
-    if (!address.has_value())
-        return vm.throw_completion<JS::RangeError>("Wasm Table allocation failed"sv);
-
-    auto const& reference = reference_value.to<Wasm::Reference>();
-    auto& table = *cache.abstract_machine().store().get(*address);
-    for (auto& element : table.elements())
-        element = reference;
-
-    // 12. Set the surrounding agent's associated store to store.
-    // NOTE: The store is updated in-place.
-
-    // 13. Initialize this from tableaddr.
-    return realm.create<Table>(realm, *address);
+    auto cache = WebAssembly::Detail::get_cache(realm);
+    return WebAssembly::Table::create(move(cache), element_type, address_type, initial, maximum, reference_value.to<Wasm::Reference>());
 }
 
-Table::Table(JS::Realm& realm, Wasm::TableAddress address)
-    : Bindings::PlatformObject(realm)
-    , m_address(address)
+JS::Value table(JS::Realm& realm, GC::Ref<WebAssembly::Table> table)
 {
+    return wrap(host_defined_wrapper_world(realm), realm, table);
 }
 
-void Table::initialize(JS::Realm& realm)
+static WebIDL::ExceptionOr<Wasm::Reference> value_to_table_reference(JS::Realm& realm, WebAssembly::Table& table, Optional<JS::Value> value)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Table, WebAssembly.Table);
-    Base::initialize(realm);
+    auto element_type = TRY(table.element_type());
+    auto reference_value = !value.has_value()
+        ? WebAssembly::Detail::default_webassembly_value(realm, element_type)
+        : TRY(WebAssembly::Detail::to_webassembly_value(realm, *value, element_type));
 
-    // https://webassembly.github.io/spec/js-api/#initialize-a-table-object
-    // 1. Let map be the surrounding agent's associated Table object cache.
-    auto& cache = Detail::get_cache(realm);
-
-    // 2. Assert: map[tableaddr] doesn't exist.
-    auto exists = cache.table_instances().contains(m_address);
-    VERIFY(!exists);
-
-    // 3. Set table.[[Table]] to tableaddr.
-    // NOTE: This is already set by the Table constructor.
-
-    // 4. Set map[tableaddr] to table.
-    cache.add_table_instance(m_address, *this);
+    return reference_value.to<Wasm::Reference>();
 }
 
-// https://webassembly.github.io/spec/js-api/#dom-table-grow
-WebIDL::ExceptionOr<JS::Value> Table::grow(JS::Value delta_value, Optional<JS::Value> value)
+WebIDL::ExceptionOr<JS::Value> grow(JS::Realm& realm, WebAssembly::Table& table, JS::Value delta_value, Optional<JS::Value> value)
 {
-    auto& vm = this->vm();
-
-    // 1. Let tableaddr be this.[[Table]].
-    // 2. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm());
-    auto* table = cache.abstract_machine().store().get(address());
-    if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table to grow"sv);
-
-    // 3. Let initialSize be table_size(store, tableaddr).
-    auto initial_size = table->elements().size();
-
-    // 4. Let (addrtype, limits, elementtype) be table_type(store, tableaddr).
-    auto address_type = table->type().limits().address_type();
-    auto element_type = table->type().element_type();
-
-    // 5. Let delta64 be ? AddressValueToU64(delta, addrtype).
+    auto& vm = realm.vm();
+    auto address_type = TRY(table.address_type());
     auto delta = TRY(address_value_to_u64(vm, delta_value, address_type));
-
-    // 6. If value is missing, let ref be DefaultValue(elementtype).
-    // 7. Otherwise, let ref be ? ToWebAssemblyValue(value, elementtype).
-    auto reference_value = !value.has_value()
-        ? Detail::default_webassembly_value(vm, element_type)
-        : TRY(Detail::to_webassembly_value(vm, *value, element_type));
-    auto const& reference = reference_value.to<Wasm::Reference>();
-
-    // 8. Let result be table_grow(store, tableaddr, delta64, ref).
-    // 9. If result is error, throw a RangeError exception.
-    if (!table->grow(delta, reference))
-        return vm.throw_completion<JS::RangeError>("Failed to grow table"sv);
-
-    // 10. Set the surrounding agent's associated store to result.
-    // NOTE: The store is updated in-place.
-
-    // 11. Return U64ToAddressValue(initialSize, addrtype).
+    auto reference = TRY(value_to_table_reference(realm, table, value));
+    auto initial_size = TRY(table.grow(delta, reference));
     return table_limit_to_js_value(vm, initial_size, address_type);
 }
 
-// https://webassembly.github.io/spec/js-api/#dom-table-get
-WebIDL::ExceptionOr<JS::Value> Table::get(JS::Value index_value) const
+WebIDL::ExceptionOr<JS::Value> get(JS::Realm& realm, WebAssembly::Table& table, JS::Value index_value)
 {
-    auto& vm = this->vm();
-
-    // 1. Let tableaddr be this.[[Table]].
-    // 2. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm());
-    auto* table = cache.abstract_machine().store().get(address());
-    if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
-
-    // 3. Let (addrtype, limits, elementtype) be table_type(store, tableaddr).
-    auto address_type = table->type().limits().address_type();
-    auto element_type = table->type().element_type();
-
-    // 4. If elementtype matches exnref, throw a TypeError exception.
-    if (element_type.kind() == Wasm::ValueType::ExceptionReference)
-        return vm.throw_completion<JS::TypeError>("Cannot get an exnref table element"sv);
-
-    // 5. Let index64 be ? AddressValueToU64(index, addrtype).
+    auto& vm = realm.vm();
+    auto address_type = TRY(table.address_type());
     auto index = TRY(address_value_to_u64(vm, index_value, address_type));
-
-    // 6. Let result be table_read(store, tableaddr, index64).
-    // 7. If result is error, throw a RangeError exception.
-    if (table->elements().size() <= index)
-        return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
-
-    auto& ref = table->elements()[index];
-
-    // 8. Return ! ToJSValue(result).
-    Wasm::Value wasm_value { ref };
-    return Detail::to_js_value(vm, wasm_value, element_type);
+    auto reference = TRY(table.get(index));
+    auto element_type = TRY(table.element_type());
+    auto wasm_value = Wasm::Value { reference };
+    return WebAssembly::Detail::to_js_value(realm, wasm_value, element_type);
 }
 
-// https://webassembly.github.io/spec/js-api/#dom-table-set
-WebIDL::ExceptionOr<void> Table::set(JS::Value index_value, Optional<JS::Value> value)
+WebIDL::ExceptionOr<void> set(JS::Realm& realm, WebAssembly::Table& table, JS::Value index_value, Optional<JS::Value> value)
 {
-    auto& vm = this->vm();
-
-    // 1. Let tableaddr be this.[[Table]].
-    // 2. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm());
-    auto* table = cache.abstract_machine().store().get(address());
-    if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
-
-    // 3. Let (addrtype, limits, elementtype) be table_type(store, tableaddr).
-    auto address_type = table->type().limits().address_type();
-    auto element_type = table->type().element_type();
-
-    // 4. If elementtype matches exnref, throw a TypeError exception.
-    if (element_type.kind() == Wasm::ValueType::ExceptionReference)
-        return vm.throw_completion<JS::TypeError>("Cannot set an exnref table element"sv);
-
-    // 5. Let index64 be ? AddressValueToU64(index, addrtype).
+    auto& vm = realm.vm();
+    auto address_type = TRY(table.address_type());
     auto index = TRY(address_value_to_u64(vm, index_value, address_type));
-
-    if (table->elements().size() <= index)
-        return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
-
-    // 6. If value is missing, let ref be DefaultValue(elementtype).
-    // 7. Otherwise, let ref be ? ToWebAssemblyValue(value, elementtype).
-    auto reference_value = !value.has_value()
-        ? Detail::default_webassembly_value(vm, element_type)
-        : TRY(Detail::to_webassembly_value(vm, *value, element_type));
-    auto const& reference = reference_value.to<Wasm::Reference>();
-
-    // 8. Let store be table_write(store, tableaddr, index64, ref).
-    // 9. If store is error, throw a RangeError exception.
-    table->elements()[index] = reference;
-
-    // 10. Set the surrounding agent's associated store to store.
-    // NOTE: The store is updated in-place.
-    return {};
+    auto reference = TRY(value_to_table_reference(realm, table, value));
+    return table.set(index, reference);
 }
 
-// https://webassembly.github.io/spec/js-api/#dom-table-length
-WebIDL::ExceptionOr<JS::Value> Table::length() const
+WebIDL::ExceptionOr<JS::Value> length(JS::Realm& realm, WebAssembly::Table& table)
 {
-    auto& vm = this->vm();
-
-    // 1. Let tableaddr be this.[[Table]].
-    // 2. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm());
-    auto* table = cache.abstract_machine().store().get(address());
-    if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
-
-    // 3. Let addrtype be the address type in table_type(store, tableaddr).
-    auto address_type = table->type().limits().address_type();
-
-    // 4. Let length64 be table_size(store, tableaddr).
-    auto length = table->elements().size();
-
-    // 5. Return U64ToAddressValue(length64, addrtype).
-    return table_limit_to_js_value(vm, length, address_type);
+    auto address_type = TRY(table.address_type());
+    auto length = TRY(table.length());
+    return table_limit_to_js_value(realm.vm(), length, address_type);
 }
 
 }

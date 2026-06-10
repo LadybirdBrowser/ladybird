@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLLegendElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
 #include <LibWeb/Layout/LegendBox.h>
@@ -20,12 +19,6 @@ HTMLLegendElement::HTMLLegendElement(DOM::Document& document, DOM::QualifiedName
 }
 
 HTMLLegendElement::~HTMLLegendElement() = default;
-
-void HTMLLegendElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLegendElement);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-legend-form
 HTMLFormElement* HTMLLegendElement::form()

@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLBaseElement.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::HTML {
 
@@ -20,12 +20,6 @@ HTMLBaseElement::HTMLBaseElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 HTMLBaseElement::~HTMLBaseElement() = default;
-
-void HTMLBaseElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLBaseElement);
-    Base::initialize(realm);
-}
 
 void HTMLBaseElement::inserted()
 {
@@ -91,7 +85,7 @@ void HTMLBaseElement::set_the_frozen_base_url(URL::URL const& old_base_url)
     if (!url_record.has_value()
         || url_record->scheme() == "data"
         || url_record->scheme() == "javascript"
-        || ContentSecurityPolicy::is_base_allowed_for_document(realm(), url_record.value(), document) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        || ContentSecurityPolicy::is_base_allowed_for_document(HTML::relevant_realm(*this), url_record.value(), document) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         // then set element's frozen base URL to document's fallback base URL and return.
         m_frozen_base_url = document.fallback_base_url();
         return;

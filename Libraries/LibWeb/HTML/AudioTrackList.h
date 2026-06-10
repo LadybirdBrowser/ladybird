@@ -15,16 +15,19 @@
 namespace Web::HTML {
 
 class AudioTrackList final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(AudioTrackList, DOM::EventTarget);
+    WEB_WRAPPABLE(AudioTrackList, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(AudioTrackList);
 
 public:
+    static GC::Ref<AudioTrackList> create();
+
     void add_track(GC::Ref<AudioTrack>);
     void remove_all_tracks();
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotracklist-length
     size_t length() const { return m_audio_tracks.size(); }
 
+    GC::Ptr<AudioTrack> item(size_t index) const;
     GC::Ptr<AudioTrack> get_track_by_id(StringView id) const;
     bool has_enabled_track() const;
 
@@ -48,12 +51,9 @@ public:
     WebIDL::CallbackType* onremovetrack();
 
 private:
-    explicit AudioTrackList(JS::Realm&);
+    explicit AudioTrackList();
 
     virtual void visit_edges(Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const& property_name) const override;
 
     Vector<GC::Ref<AudioTrack>> m_audio_tracks;
 };

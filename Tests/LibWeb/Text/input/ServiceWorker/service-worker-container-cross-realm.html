@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        setTimeout(() => {
+            // We need to do this spoofing later in the event loop so that we don't end up
+            // telling the test runner the wrong URL in page_did_finish_loading.
+            spoofCurrentURL("https://example.com/service-worker-container-cross-realm.html");
+
+            const iframe = document.createElement("iframe");
+            iframe.onload = () => {
+                const other = iframe.contentWindow;
+                const container = other.navigator.serviceWorker;
+
+                println(`frame has serviceWorker: ${!!container}`);
+
+                const readyGetter = Object.getOwnPropertyDescriptor(ServiceWorkerContainer.prototype, "ready").get;
+                const ready = readyGetter.call(container);
+                println(`ready promise uses iframe Promise: ${ready instanceof other.Promise}`);
+                println(`ready promise uses top Promise: ${ready instanceof Promise}`);
+                println(`ready promise cache is stable: ${ready === other.navigator.serviceWorker.ready}`);
+
+                const getRegistrationPromise = ServiceWorkerContainer.prototype.getRegistration.call(container, "https://not-example.test/");
+                getRegistrationPromise.catch(() => {});
+                println(`getRegistration promise uses iframe Promise: ${getRegistrationPromise instanceof other.Promise}`);
+                println(`getRegistration promise uses top Promise: ${getRegistrationPromise instanceof Promise}`);
+
+                const registerPromise = ServiceWorkerContainer.prototype.register.call(container, "service-worker.js");
+                registerPromise.catch(() => {});
+                println(`register promise uses iframe Promise: ${registerPromise instanceof other.Promise}`);
+                println(`register promise uses top Promise: ${registerPromise instanceof Promise}`);
+
+                done();
+            };
+            document.body.append(iframe);
+        }, 0);
+    });
+</script>

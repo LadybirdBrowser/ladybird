@@ -8,20 +8,20 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::DOM {
 
-class DOMImplementation final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMImplementation, Bindings::PlatformObject);
+class DOMImplementation final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DOMImplementation, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMImplementation);
 
 public:
     [[nodiscard]] static GC::Ref<DOMImplementation> create(Document&);
     virtual ~DOMImplementation();
 
-    WebIDL::ExceptionOr<GC::Ref<XMLDocument>> create_document(Optional<FlyString> const&, String const&, GC::Ptr<DocumentType>) const;
-    GC::Ref<Document> create_html_document(Optional<Utf16String> const& title) const;
+    WebIDL::ExceptionOr<GC::Ref<XMLDocument>> create_document(Optional<FlyString> const&, String const&, GC::Ptr<DocumentType>);
+    GC::Ref<Document> create_html_document(Optional<Utf16String> const& title);
     WebIDL::ExceptionOr<GC::Ref<DocumentType>> create_document_type(String const& name, String const& public_id, String const& system_id);
 
     // https://dom.spec.whatwg.org/#dom-domimplementation-hasfeature
@@ -34,8 +34,7 @@ public:
 private:
     explicit DOMImplementation(Document&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Document& document() { return m_document; }
     Document const& document() const { return m_document; }

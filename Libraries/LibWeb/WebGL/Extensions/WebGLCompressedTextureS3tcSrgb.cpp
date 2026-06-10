@@ -7,9 +7,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLCompressedTextureS3tcSrgb.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tcSrgb.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -18,13 +16,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLCompressedTextureS3tcSrgb);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> WebGLCompressedTextureS3tcSrgb::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> WebGLCompressedTextureS3tcSrgb::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    return realm.create<WebGLCompressedTextureS3tcSrgb>(realm, context);
+    auto extension = GC::Heap::the().allocate<WebGLCompressedTextureS3tcSrgb>(context);
+    return GC::Ref<WebGLExtension> { extension };
 }
 
-WebGLCompressedTextureS3tcSrgb::WebGLCompressedTextureS3tcSrgb(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
+WebGLCompressedTextureS3tcSrgb::WebGLCompressedTextureS3tcSrgb(GC::Ref<WebGLRenderingContextBase> context)
+    : WebGLExtension()
     , m_context(context)
 {
     m_context->enable_compressed_texture_format(GL_COMPRESSED_SRGB_S3TC_DXT1_EXT);
@@ -33,13 +32,7 @@ WebGLCompressedTextureS3tcSrgb::WebGLCompressedTextureS3tcSrgb(JS::Realm& realm,
     m_context->enable_compressed_texture_format(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT);
 }
 
-void WebGLCompressedTextureS3tcSrgb::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLCompressedTextureS3tcSrgb);
-    Base::initialize(realm);
-}
-
-void WebGLCompressedTextureS3tcSrgb::visit_edges(Visitor& visitor)
+void WebGLCompressedTextureS3tcSrgb::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

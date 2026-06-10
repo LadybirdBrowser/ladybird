@@ -5,8 +5,6 @@
  */
 
 #include <LibGfx/Path.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGRectElement.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
@@ -20,12 +18,6 @@ GC_DEFINE_ALLOCATOR(SVGRectElement);
 SVGRectElement::SVGRectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGeometryElement(document, qualified_name)
 {
-}
-
-void SVGRectElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGRectElement);
-    Base::initialize(realm);
 }
 
 void SVGRectElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -158,9 +150,9 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::x() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementYAttribute
@@ -168,9 +160,9 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::y() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementWidthAttribute
@@ -178,9 +170,9 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::width() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_width.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_width.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_width.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_width.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementHeightAttribute
@@ -188,9 +180,9 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::height() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_height.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_height.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_height.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_height.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementRXAttribute
@@ -198,9 +190,9 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::rx() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_radius_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_radius_x.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementRYAttribute
@@ -208,9 +200,9 @@ GC::Ref<SVGAnimatedLength> SVGRectElement::ry() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_radius_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_radius_y.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 }

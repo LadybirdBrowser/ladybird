@@ -17,7 +17,7 @@ namespace Web::SVG {
 class SVGFEDropShadowElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEDropShadowElement> {
-    WEB_PLATFORM_OBJECT(SVGFEDropShadowElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEDropShadowElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEDropShadowElement);
 
 public:
@@ -38,8 +38,6 @@ public:
 
 private:
     SVGFEDropShadowElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

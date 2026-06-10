@@ -10,9 +10,14 @@
 
 #include <AK/Debug.h>
 #include <LibGfx/Painter.h>
-#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
+
+namespace Web::Bindings {
+
+struct DOMMatrix2DInit;
+
+}
 
 namespace Web::HTML {
 
@@ -75,8 +80,8 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> get_transform()
     {
         auto transform = drawing_state().transform;
-        Bindings::DOMMatrix2DInit init = { transform.a(), transform.b(), transform.c(), transform.d(), transform.e(), transform.f(), {}, {}, {}, {}, {}, {} };
-        return Geometry::DOMMatrix::create_from_dom_matrix_2d_init(my_realm(), init);
+        Geometry::DOMMatrix2DInit init = { transform.a(), transform.b(), transform.c(), transform.d(), transform.e(), transform.f() };
+        return Geometry::DOMMatrix::create_from_dom_matrix_2d_init(init);
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-settransform
@@ -95,10 +100,10 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-settransform-matrix
-    WebIDL::ExceptionOr<void> set_transform(Bindings::DOMMatrix2DInit& init)
+    WebIDL::ExceptionOr<void> set_transform(Geometry::DOMMatrix2DInit const& init)
     {
         // 1. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
-        auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(my_realm(), init));
+        auto matrix = Geometry::DOMMatrix::create_from_dom_matrix_2d_init(init);
 
         // 2. If one or more of matrix's m11 element, m12 element, m21 element, m22 element, m41 element, or m42 element are infinite or NaN, then return.
         if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))
@@ -114,6 +119,11 @@ public:
 
         flush_transform();
         return {};
+    }
+
+    WebIDL::ExceptionOr<void> set_transform(Bindings::DOMMatrix2DInit const& init)
+    {
+        return set_transform(TRY(Geometry::validate_and_fixup_dom_matrix_2d_init(init)));
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-resettransform

@@ -5,10 +5,9 @@
  */
 
 #include <AK/NeverDestroyed.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Plugin.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/Plugin.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 
@@ -16,23 +15,23 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Plugin);
 
-Plugin::Plugin(JS::Realm& realm, String name)
-    : Bindings::PlatformObject(realm)
-    , m_name(move(name))
+GC::Ref<Plugin> Plugin::create(Window& window, String name)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .supports_named_properties = true,
-        .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
-    };
+    return GC::Heap::the().allocate<Plugin>(window, move(name));
+}
+
+Plugin::Plugin(Window& window, String name)
+    : m_name(move(name))
+    , m_window(window)
+{
 }
 
 Plugin::~Plugin() = default;
 
-void Plugin::initialize(JS::Realm& realm)
+void Plugin::visit_edges(GC::Cell::Visitor& visitor)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Plugin);
-    Base::initialize(realm);
+    Base::visit_edges(visitor);
+    visitor.visit(m_window);
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin-name
@@ -62,8 +61,7 @@ String Plugin::filename() const
 Vector<FlyString> Plugin::supported_property_names() const
 {
     // The Plugin interface supports named properties. If the user agent's PDF viewer supported is true, then they are the PDF viewer mime types. Otherwise, they are the empty list.
-    auto const& window = as<HTML::Window>(HTML::relevant_global_object(*this));
-    if (!window.page().pdf_viewer_supported())
+    if (!m_window->page().pdf_viewer_supported())
         return {};
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-types
@@ -79,16 +77,14 @@ Vector<FlyString> Plugin::supported_property_names() const
 size_t Plugin::length() const
 {
     // The Plugin interface's length getter steps are to return this's relevant global object's PDF viewer mime type objects's size.
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
-    return window.pdf_viewer_mime_type_objects().size();
+    return m_window->pdf_viewer_mime_type_objects().size();
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin-item
 GC::Ptr<MimeType> Plugin::item(u32 index) const
 {
     // 1. Let mimeTypes be this's relevant global object's PDF viewer mime type objects.
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
-    auto mime_types = window.pdf_viewer_mime_type_objects();
+    auto mime_types = m_window->pdf_viewer_mime_type_objects();
 
     // 2. If index < mimeTypes's size, then return mimeTypes[index].
     if (index < mime_types.size())
@@ -101,8 +97,7 @@ GC::Ptr<MimeType> Plugin::item(u32 index) const
 GC::Ptr<MimeType> Plugin::named_item(FlyString const& name) const
 {
     // 1. For each MimeType mimeType of this's relevant global object's PDF viewer mime type objects: if mimeType's type is name, then return mimeType.
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
-    auto mime_types = window.pdf_viewer_mime_type_objects();
+    auto mime_types = m_window->pdf_viewer_mime_type_objects();
 
     for (auto& mime_type : mime_types) {
         if (mime_type->type() == name)
@@ -111,22 +106,6 @@ GC::Ptr<MimeType> Plugin::named_item(FlyString const& name) const
 
     // 2. Return null.
     return nullptr;
-}
-
-Optional<JS::Value> Plugin::item_value(size_t index) const
-{
-    auto return_value = item(index);
-    if (!return_value)
-        return {};
-    return return_value.ptr();
-}
-
-JS::Value Plugin::named_item_value(FlyString const& name) const
-{
-    auto return_value = named_item(name);
-    if (!return_value)
-        return JS::js_null();
-    return return_value.ptr();
 }
 
 }

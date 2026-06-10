@@ -11,16 +11,21 @@
 
 namespace Web::WebAudio {
 
+using DistanceModelType = Bindings::DistanceModelType;
+using PanningModelType = Bindings::PanningModelType;
+using PannerOptions = Bindings::PannerOptions;
+
 // https://webaudio.github.io/web-audio-api/#PannerNode
 class PannerNode final : public AudioNode {
-    WEB_PLATFORM_OBJECT(PannerNode, AudioNode);
+    WEB_WRAPPABLE(PannerNode, AudioNode);
     GC_DECLARE_ALLOCATOR(PannerNode);
 
 public:
     virtual ~PannerNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<PannerNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::PannerOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<PannerNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::PannerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<PannerNode>> create(GC::Ref<BaseAudioContext>, PannerOptions const& = {});
+    static WebIDL::ExceptionOr<void> validate_options(PannerOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<PannerNode>> create_for_constructor(GC::Ref<BaseAudioContext>, PannerOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -32,11 +37,11 @@ public:
     GC::Ref<AudioParam const> orientation_y() const { return m_orientation_y; }
     GC::Ref<AudioParam const> orientation_z() const { return m_orientation_z; }
 
-    Bindings::PanningModelType panning_model() const { return m_panning_model; }
-    void set_panning_model(Bindings::PanningModelType value) { m_panning_model = value; }
+    PanningModelType panning_model() const { return m_panning_model; }
+    void set_panning_model(PanningModelType value) { m_panning_model = value; }
 
-    Bindings::DistanceModelType distance_model() const { return m_distance_model; }
-    void set_distance_model(Bindings::DistanceModelType value) { m_distance_model = value; }
+    DistanceModelType distance_model() const { return m_distance_model; }
+    void set_distance_model(DistanceModelType value) { m_distance_model = value; }
 
     double ref_distance() const { return m_ref_distance; }
     WebIDL::ExceptionOr<void> set_ref_distance(double);
@@ -61,17 +66,15 @@ public:
 
     // ^AudioNode
     virtual WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
-    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
+    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(ChannelCountMode) override;
 
 protected:
-    PannerNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::PannerOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    PannerNode(GC::Ref<BaseAudioContext>, PannerOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-panningmodel
-    Bindings::PanningModelType m_panning_model { Bindings::PanningModelType::Equalpower };
+    PanningModelType m_panning_model { PanningModelType::Equalpower };
 
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-positionx
     GC::Ref<AudioParam> m_position_x;
@@ -92,7 +95,7 @@ private:
     GC::Ref<AudioParam> m_orientation_z;
 
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-distancemodel
-    Bindings::DistanceModelType m_distance_model { Bindings::DistanceModelType::Inverse };
+    DistanceModelType m_distance_model { DistanceModelType::Inverse };
 
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-refdistance
     double m_ref_distance { 1.0 };

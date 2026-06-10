@@ -4,37 +4,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CompositionEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/UIEvents/CompositionEvent.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(CompositionEvent);
 
-GC::Ref<CompositionEvent> CompositionEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
+GC::Ref<CompositionEvent> CompositionEvent::create(FlyString const& event_name, CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<CompositionEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<CompositionEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> CompositionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
-{
-    return realm.create<CompositionEvent>(realm, event_name, event_init);
-}
-
-CompositionEvent::CompositionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
-    : UIEvent(realm, event_name, event_init)
+CompositionEvent::CompositionEvent(FlyString const& event_name, CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, event_init, time_stamp)
     , m_data(event_init.data)
 {
 }
 
 CompositionEvent::~CompositionEvent() = default;
-
-void CompositionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CompositionEvent);
-    Base::initialize(realm);
-}
 
 // https://w3c.github.io/uievents/#dom-compositionevent-initcompositionevent
 void CompositionEvent::init_composition_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data)

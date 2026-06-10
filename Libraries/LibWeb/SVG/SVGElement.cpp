@@ -6,9 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -30,12 +27,6 @@ GC_DEFINE_ALLOCATOR(SVGElement);
 SVGElement::SVGElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : Element(document, move(qualified_name))
 {
-}
-
-void SVGElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGElement);
-    Base::initialize(realm);
 }
 
 struct NamedPropertyID {
@@ -312,7 +303,7 @@ GC::Ref<SVGAnimatedString> SVGElement::class_name()
 {
     // The className IDL attribute reflects the ‘class’ attribute.
     if (!m_class_name_animated_string)
-        m_class_name_animated_string = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::class_, OptionalNone {}, OptionalNone {} });
+        m_class_name_animated_string = SVGAnimatedString::create(*this, DOM::QualifiedName { AttributeNames::class_, OptionalNone {}, OptionalNone {} });
 
     return *m_class_name_animated_string;
 }
@@ -344,9 +335,9 @@ GC::Ptr<SVGElement> SVGElement::viewport_element()
 GC::Ref<SVGAnimatedLength> SVGElement::fake_animated_length_fixme() const
 {
     // FIXME: All callers of this method must implement their animated length correctly.
-    auto base_length = SVGLength::create(realm(), 0, 0, SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, 0, SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, 0, SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, 0, SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::PropertyID property) const
@@ -357,13 +348,11 @@ GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::Pro
             auto const& style_value = computed_properties->property(property);
 
             if (!style_value.has_auto() && (style_value.is_length() || style_value.is_percentage() || style_value.is_calculated()))
-                return SVGLength::from_length_percentage(realm(), CSS::LengthPercentage::from_style_value(style_value), read_only);
+                return SVGLength::from_length_percentage(CSS::LengthPercentage::from_style_value(style_value), read_only);
         }
-        return SVGLength::create(realm(), 0, 0, read_only);
+        return SVGLength::create(0, 0, read_only);
     };
-    return SVGAnimatedLength::create(
-        realm(),
-        make_length(SVGLength::ReadOnly::No),
+    return SVGAnimatedLength::create(make_length(SVGLength::ReadOnly::No),
         make_length(SVGLength::ReadOnly::Yes));
 }
 

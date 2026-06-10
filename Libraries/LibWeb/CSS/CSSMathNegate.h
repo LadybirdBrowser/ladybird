@@ -12,17 +12,15 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathnegate
 class CSSMathNegate final : public CSSMathValue {
-    WEB_PLATFORM_OBJECT(CSSMathNegate, CSSMathValue);
+    WEB_WRAPPABLE(CSSMathNegate, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathNegate);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathNegate> create(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);
-    static GC::Ref<CSSMathNegate> construct_impl(JS::Realm&, CSSNumberish);
+    [[nodiscard]] static GC::Ref<CSSMathNegate> create(NumericType, GC::Ref<CSSNumericValue>);
+    static GC::Ref<CSSMathNegate> create_from_numberish(CSSNumberish);
 
     virtual ~CSSMathNegate() override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> value() const;
 
@@ -33,7 +31,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathNegate(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);
+    CSSMathNegate(NumericType, GC::Ref<CSSNumericValue>);
     GC::Ref<CSSNumericValue> m_value;
 };
 

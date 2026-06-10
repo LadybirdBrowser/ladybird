@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/SinglyLinkedList.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#writablestreamdefaultcontroller
-class WritableStreamDefaultController final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WritableStreamDefaultController, Bindings::PlatformObject);
+class WritableStreamDefaultController final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(WritableStreamDefaultController, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(WritableStreamDefaultController);
 
 public:
@@ -54,11 +54,9 @@ public:
     void error_steps();
 
 private:
-    explicit WritableStreamDefaultController(JS::Realm&);
+    WritableStreamDefaultController();
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#writablestreamdefaultcontroller-abortalgorithm
     // A promise-returning algorithm, taking one argument (the abort reason), which communicates a requested abort to the underlying sink

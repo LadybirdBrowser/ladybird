@@ -5,12 +5,16 @@
  */
 
 #include <AK/RefPtr.h>
+#include <LibGC/Heap.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/ConsoleObject.h>
+#include <LibWeb/Bindings/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/Bindings/MessageEvent.h>
-#include <LibWeb/Fetch/Enums.h>
+#include <LibWeb/Bindings/SharedWorkerGlobalScope.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
@@ -30,7 +34,7 @@
 
 namespace WebWorker {
 
-WorkerHost::WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name)
+WorkerHost::WorkerHost(URL::URL url, Web::HTML::WorkerType type, String name)
     : m_url(move(url))
     , m_type(type)
     , m_name(move(name))
@@ -51,7 +55,7 @@ static Web::HTML::WorkerGlobalScope::Owner relevant_owner_to_add(Web::HTML::Seri
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::Bindings::RequestCredentials credentials, bool is_shared)
+void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::HTML::RequestCredentials credentials, bool is_shared)
 {
     m_is_shared = is_shared;
 
@@ -67,16 +71,19 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         Web::Bindings::main_thread_vm(),
         [page, is_shared](JS::Realm& realm) -> JS::Object* {
             // For the global object, if is shared is true, create a new SharedWorkerGlobalScope object.
-            if (is_shared)
-                return realm.heap().allocate<Web::HTML::SharedWorkerGlobalScope>(realm, page);
+            if (is_shared) {
+                auto worker_global_scope = GC::Heap::the().allocate<Web::HTML::SharedWorkerGlobalScope>(page);
+                return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *worker_global_scope }).ptr();
+            }
             // Otherwise, create a new DedicatedWorkerGlobalScope object.
-            return realm.heap().allocate<Web::HTML::DedicatedWorkerGlobalScope>(realm, page);
+            auto worker_global_scope = GC::Heap::the().allocate<Web::HTML::DedicatedWorkerGlobalScope>(page);
+            return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *worker_global_scope }).ptr();
         },
         nullptr);
 
     // 6. Let worker global scope be the global object of realm execution context's Realm component.
-    // NOTE: This is the DedicatedWorkerGlobalScope or SharedWorkerGlobalScope object created in the previous step.
-    GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope = as<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object());
+    // NOTE: This is the DedicatedWorkerGlobalScope or SharedWorkerGlobalScope object wrapped in the previous step.
+    GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope { Web::Bindings::impl_from<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object()) };
     m_worker_global_scope = worker_global_scope;
 
     // AD-HOC: The spec assumes when setting up the worker environment settings object that the URL is already set on
@@ -101,7 +108,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
     // AD-HOC: Create a console object for the worker.
     auto& console_object = *inside_settings->realm().intrinsics().console_object();
-    m_console = console_object.heap().allocate<Web::HTML::WorkerDebugConsoleClient>(console_object.console());
+    m_console = GC::Heap::the().allocate<Web::HTML::WorkerDebugConsoleClient>(console_object.console());
     VERIFY(m_console);
     console_object.console().set_client(*m_console);
 
@@ -109,7 +116,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     worker_global_scope->set_name(m_name);
 
     // IMPLEMENTATION DEFINED: We need an object to represent the fetch response's client
-    auto outside_settings = inside_settings->realm().create<Web::HTML::EnvironmentSettingsSnapshot>(inside_settings->realm(), inside_settings->realm_execution_context().copy(), outside_settings_snapshot);
+    auto outside_settings = GC::Heap::the().allocate<Web::HTML::EnvironmentSettingsSnapshot>(inside_settings->realm_execution_context().copy(), outside_settings_snapshot);
 
     // HACK: The environment settings object used for the worker script fetch should have a Window as its global scope,
     //       but the EnvironmentSettingsSnapshot used here has a WorkerGlobalScope (we don't have access to a Window).
@@ -132,7 +139,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         shared_global_scope.set_type(m_type);
 
         // 4. Set worker global scope's credentials to options["credentials"].
-        shared_global_scope.set_credentials(Web::Fetch::from_bindings_enum(credentials));
+        shared_global_scope.set_credentials(static_cast<Web::Fetch::Infrastructure::Request::CredentialsMode>(credentials));
     }
 
     // 11. Let destination be "sharedworker" if is shared is true, and "worker" otherwise.
@@ -142,7 +149,6 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel, and processCustomFetchResponse:
     auto perform_fetch_function = [inside_settings, worker_global_scope, is_shared](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
         auto& realm = inside_settings->realm();
-        auto& vm = realm.vm();
 
         Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
 
@@ -150,7 +156,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         //    and abort these steps.
         if (is_top_level == Web::HTML::TopLevelModule::No) {
             fetch_algorithms_input.process_response_consume_body = move(process_custom_fetch_response);
-            Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+            Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
             return {};
         }
 
@@ -159,13 +165,11 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
         // NB: We need to store the process custom fetch response function on the heap here, because we're storing it
         //     in another heap function
-        auto process_custom_fetch_response_function = GC::create_function(vm.heap(), move(process_custom_fetch_response));
+        auto process_custom_fetch_response_function = GC::create_function(GC::Heap::the(), move(process_custom_fetch_response));
 
         // 3. Fetch request with processResponseConsumeBody set to the following steps given response response and
         //    null, failure, or a byte sequence bodyBytes:
         fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inside_settings, is_shared](auto response, auto body_bytes) {
-            auto& vm = inside_settings->vm();
-
             // 1. Set worker global scope's url to response's url.
             worker_global_scope->set_url(response->url().value_or({}));
 
@@ -179,7 +183,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             // 4. If the Run CSP initialization for a global object algorithm returns "Blocked" when executed upon
             //    worker global scope, set response to a network error. [CSP]
             if (worker_global_scope->run_csp_initialization() == Web::ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
-                response = Web::Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"_string);
+                response = Web::Fetch::Infrastructure::Response::network_error("Blocked by Content Security Policy"_string);
             }
 
             // FIXME: Use worker global scope's policy container's embedder policy
@@ -201,7 +205,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             // 10. Run processCustomFetchResponse with response and bodyBytes.
             process_custom_fetch_response_function->function()(response, body_bytes);
         };
-        Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+        Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
         return {};
     };
     auto perform_fetch = Web::HTML::create_perform_the_fetch_hook(inside_settings->heap(), move(perform_fetch_function));
@@ -236,7 +240,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         //         (step 5) to connect_shared_worker_impl. Each connecting page gets its own pair
         //         since the connect event fires once per owner, not once at worker startup.
         if (!is_shared) {
-            inside_port = Web::HTML::MessagePort::create(realm);
+            inside_port = Web::HTML::MessagePort::create(worker_global_scope);
 
             // FIXME:  1. Set inside port's message event target to worker global scope.
 
@@ -244,11 +248,11 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             worker_global_scope->set_internal_port(*inside_port);
 
             Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
-            MUST(inside_port->transfer_receiving_steps(decoder));
+            MUST(inside_port->transfer_receiving_steps(realm, decoder));
         }
 
         // 6. Create a new WorkerLocation object and associate it with worker global scope.
-        worker_global_scope->set_location(realm.create<Web::HTML::WorkerLocation>(*worker_global_scope));
+        worker_global_scope->set_location(GC::Heap::the().allocate<Web::HTML::WorkerLocation>(*worker_global_scope));
 
         // FIXME: 7. Closing orphan workers: Start monitoring the worker such that no sooner than it
         //     stops being a protected worker, and no later than it stops being a permissible worker,
@@ -300,10 +304,10 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         // FIXME: 17. Disentangle all the ports in the list of the worker's ports.
         // FIXME: 18. Empty worker global scope's owner set.
     };
-    auto on_complete = Web::HTML::create_on_fetch_script_complete(inside_settings->vm().heap(), move(on_complete_function));
+    auto on_complete = Web::HTML::create_on_fetch_script_complete(GC::Heap::the(), move(on_complete_function));
 
     // 12. Obtain script by switching on the value of options's type member:
-    if (m_type == Web::Bindings::WorkerType::Classic) {
+    if (m_type == Web::HTML::WorkerType::Classic) {
         // -> "classic":
         //    Fetch a classic worker script given url, outside settings, destination, inside settings, and with
         //    onComplete and performFetch as defined below.
@@ -316,7 +320,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         // -> "module":
         //    Fetch a module worker script graph given url, outside settings, destination, the value of the credentials
         //    member of options, inside settings, and with onComplete and performFetch as defined below.
-        VERIFY(m_type == Web::Bindings::WorkerType::Module);
+        VERIFY(m_type == Web::HTML::WorkerType::Module);
         // FIXME: Pass credentials
         if (auto err = Web::HTML::fetch_module_worker_script_graph(m_url, outside_settings, destination, inside_settings, perform_fetch, on_complete); err.is_error()) {
             dbgln("Failed to run worker script");
@@ -345,31 +349,30 @@ void WorkerHost::connect_shared_worker_impl(Web::HTML::TransferDataEncoder messa
     VERIFY(m_worker_global_scope);
     VERIFY(m_inside_settings);
 
-    auto& realm = m_inside_settings->realm();
-
     // 11.5.5. Let insidePort be a new MessagePort in insideSettings's realm.
-    auto inside_port = Web::HTML::MessagePort::create(realm);
+    auto inside_port = Web::HTML::MessagePort::create(*m_worker_global_scope);
 
     // 11.5.6. Entangle outsidePort and insidePort.
+    auto& realm = m_inside_settings->realm();
     Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
-    MUST(inside_port->transfer_receiving_steps(decoder));
+    MUST(inside_port->transfer_receiving_steps(realm, decoder));
 
     // 11.5.7. Queue a global task on the DOM manipulation task source given workerGlobalScope to
     //         fire an event named connect at workerGlobalScope, using MessageEvent, with the data
     //         attribute initialized to the empty string, the ports attribute initialized to a new
     //         frozen array containing only insidePort, and the source attribute initialized to
     //         insidePort.
-    Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, *m_worker_global_scope, GC::create_function(realm.heap(), [worker_global_scope = GC::Root { *m_worker_global_scope }, inside_port] {
+    Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, Web::HTML::relevant_global_object(*m_worker_global_scope), GC::create_function(GC::Heap::the(), [worker_global_scope = GC::Root { *m_worker_global_scope }, inside_port] {
         auto& realm = worker_global_scope->realm();
         auto& vm = realm.vm();
         Web::HTML::TemporaryExecutionContext const context(realm);
 
-        Web::Bindings::MessageEventInit event_init {};
+        Web::HTML::MessageEventInit event_init {};
         event_init.data = GC::Ref { vm.empty_string() };
         event_init.ports.append(inside_port);
         event_init.source = Web::HTML::NullableMessageEventSource { inside_port };
 
-        auto message_event = Web::HTML::MessageEvent::create(realm, Web::HTML::EventNames::connect, event_init);
+        auto message_event = Web::HTML::MessageEvent::create(realm.global_object(), Web::HTML::EventNames::connect, event_init);
         worker_global_scope->dispatch_event(message_event);
     }));
 

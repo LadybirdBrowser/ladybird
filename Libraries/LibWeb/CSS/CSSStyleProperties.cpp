@@ -5,10 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/CSSStyleProperties.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -42,7 +41,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleProperties);
 
-GC::Ref<CSSStyleProperties> CSSStyleProperties::create(JS::Realm& realm, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create(Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
 {
     // https://drafts.csswg.org/cssom/#dom-cssstylerule-style
     // The style attribute must return a CSSStyleProperties object for the style rule, with the following properties:
@@ -51,10 +50,10 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create(JS::Realm& realm, Vector<
     //     declarations: The declared declarations in the rule, in specified order.
     //     parent CSS rule: The context object.
     //     owner node: Null.
-    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), OptionalNone {});
+    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), OptionalNone {});
 }
 
-GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(JS::Realm& realm, Optional<DOM::AbstractElement> element_reference)
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(Optional<DOM::AbstractElement> element_reference)
 {
     // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
     // 6.  Return a live CSSStyleProperties object with the following properties:
@@ -64,7 +63,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(JS::Realm&
     //     parent CSS rule: Null.
     //     owner node: obj.
     // AD-HOC: Rather than instantiate with a list of decls, they're generated on demand.
-    return realm.create<CSSStyleProperties>(realm, Computed::Yes, Readonly::Yes, Vector<StyleProperty> {}, OrderedHashMap<Utf16FlyString, StyleProperty> {}, move(element_reference));
+    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::Yes, Readonly::Yes, Vector<StyleProperty> {}, OrderedHashMap<Utf16FlyString, StyleProperty> {}, move(element_reference));
 }
 
 GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM::AbstractElement element_reference, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
@@ -72,12 +71,11 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM:
     // https://drafts.csswg.org/cssom/#dom-elementcssinlinestyle-style
     // The style attribute must return a CSS declaration block object whose readonly flag is unset, whose parent CSS
     // rule is null, and whose owner node is the context object.
-    auto& realm = element_reference.element().realm();
-    return realm.create<CSSStyleProperties>(realm, Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), move(element_reference));
+    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), move(element_reference));
 }
 
-CSSStyleProperties::CSSStyleProperties(JS::Realm& realm, Computed computed, Readonly readonly, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement> owner_node)
-    : CSSStyleDeclaration(realm, computed, readonly)
+CSSStyleProperties::CSSStyleProperties(Computed computed, Readonly readonly, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement> owner_node)
+    : CSSStyleDeclaration(computed, readonly)
     , m_properties(move(properties))
     , m_custom_properties(move(custom_properties))
 {
@@ -115,12 +113,6 @@ Vector<StyleProperty> CSSStyleProperties::convert_declarations_to_specified_orde
     return specified_order_declarations;
 }
 
-void CSSStyleProperties::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleProperties);
-    Base::initialize(realm);
-}
-
 size_t CSSStyleProperties::external_memory_size() const
 {
     auto size = Base::external_memory_size();
@@ -156,8 +148,10 @@ String CSSStyleProperties::item(size_t index) const
         return string_from_property_id(property_id).to_string();
     }
 
-    if (index < custom_properties_count)
-        return m_custom_properties.keys()[index].to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+    if (index < custom_properties_count) {
+        auto keys = m_custom_properties.keys();
+        return keys[index].to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+    }
 
     return CSS::string_from_property_id(m_properties[index - custom_properties_count].property_id).to_string();
 }
@@ -196,7 +190,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(Utf16FlyString const&
 {
     // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
     if (is_computed())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties in result of getComputedStyle()"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify properties in result of getComputedStyle()"_utf16);
 
     // 2. If property is not a custom property, follow these substeps:
     //    1. Let property be property converted to ASCII lowercase.
@@ -205,6 +199,9 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(Utf16FlyString const&
     auto property = PropertyNameAndID::from_name(property_name);
     if (!property.has_value())
         return {};
+
+    if (value.is_empty() && is_readonly())
+        return WebIDL::NoModificationAllowedError::create("Cannot remove property: CSSStyleProperties is read-only."_utf16);
 
     // NB: The remaining steps are implemented in set_property_internal().
     return set_property_internal(property.release_value(), value, priority);
@@ -217,7 +214,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyName
 
     // 3. If value is the empty string, invoke removeProperty() with property as argument and return.
     if (value.is_empty()) {
-        MUST(remove_property_internal(property));
+        TRY(remove_property_internal(property));
         return {};
     }
 
@@ -285,6 +282,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyName
 
 WebIDL::ExceptionOr<void> CSSStyleProperties::set_property(PropertyID property_id, StringView css_text, StringView priority)
 {
+    VERIFY(!is_computed());
     return set_property_internal(PropertyNameAndID::from_id(property_id), css_text, priority);
 }
 
@@ -362,13 +360,17 @@ static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowT
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 String CSSStyleProperties::get_property_value(Utf16FlyString const& property_name) const
 {
-    if (auto property = PropertyNameAndID::from_name(property_name); property.has_value()) {
-        if (auto style_property = get_property_internal(*property); style_property.has_value())
-            return style_property->value->to_string(is_computed() ? SerializationMode::ResolvedValue : SerializationMode::Normal);
+    auto property = PropertyNameAndID::from_name(property_name);
+    if (!property.has_value())
+        return {};
+    if (auto style_property = get_property_internal(property.value()); style_property.has_value()) {
+        return style_property->value->to_string(
+            is_computed() ? SerializationMode::ResolvedValue
+                          : SerializationMode::Normal);
     }
-
     return {};
 }
+
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
 StringView CSSStyleProperties::get_property_priority(Utf16FlyString const& property_name) const
 {
@@ -381,7 +383,7 @@ StringView CSSStyleProperties::get_property_priority(Utf16FlyString const& prope
             return {};
         return maybe_custom_property.value().important == Important::Yes ? "important"sv : ""sv;
     }
-    auto maybe_property = get_property(property->id());
+    auto maybe_property = get_property_internal(property.value());
     if (!maybe_property.has_value())
         return {};
     return maybe_property->important == Important::Yes ? "important"sv : ""sv;
@@ -412,7 +414,7 @@ RefPtr<StyleValue const> CSSStyleProperties::get_property_style_value(PropertyID
 WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyNameAndID const& property, NonnullRefPtr<StyleValue const> style_value)
 {
     if (is_computed()) {
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties in result of getComputedStyle()"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify properties in result of getComputedStyle()"_utf16);
     }
 
     if (property.is_custom_property()) {
@@ -1112,15 +1114,17 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
 WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property(Utf16FlyString const& property_name)
 {
+    // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
+    if (is_readonly())
+        return WebIDL::NoModificationAllowedError::create("Cannot remove property: CSSStyleProperties is read-only."_utf16);
+
     return remove_property_internal(PropertyNameAndID::from_name(property_name));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
 WebIDL::ExceptionOr<String> CSSStyleProperties::remove_property_internal(Optional<PropertyNameAndID> const& property)
 {
-    // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
-    if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot remove property: CSSStyleProperties is read-only."_utf16);
+    VERIFY(!is_readonly());
 
     // 2. If property is not a custom property, let property be property converted to ASCII lowercase.
     // NB: Already done by creating a PropertyNameAndID.
@@ -1236,8 +1240,8 @@ String CSSStyleProperties::serialized() const
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.
         // NB: We have to inline this here as the actual implementation does not accept custom properties.
-        auto property_string = property.to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
-        String serialized_declaration = serialize_a_css_declaration(property_string, value, declaration.value.important);
+        auto property_name = property.to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+        String serialized_declaration = serialize_a_css_declaration(property_name, value, declaration.value.important);
 
         // 7. Append serialized declaration to list.
         list.append(move(serialized_declaration));
@@ -1452,7 +1456,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_text(StringView css_text)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly()) {
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties: CSSStyleProperties is read-only."_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify properties: CSSStyleProperties is read-only."_utf16);
     }
 
     // 2. Empty the declarations.

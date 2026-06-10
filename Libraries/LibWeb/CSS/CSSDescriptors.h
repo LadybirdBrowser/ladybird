@@ -14,7 +14,7 @@ namespace Web::CSS {
 
 // A non-spec base class for descriptor-list classes
 class CSSDescriptors : public CSSStyleDeclaration {
-    WEB_NON_IDL_PLATFORM_OBJECT(CSSDescriptors, CSSStyleDeclaration);
+    WEB_NON_IDL_WRAPPABLE(CSSDescriptors, CSSStyleDeclaration);
 
 public:
     virtual ~CSSDescriptors() override;
@@ -34,7 +34,7 @@ public:
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
 protected:
-    CSSDescriptors(JS::Realm&, AtRuleID, Vector<Descriptor>);
+    CSSDescriptors(AtRuleID, Vector<Descriptor>);
 
 private:
     bool set_a_css_declaration(DescriptorNameAndID const&, NonnullRefPtr<StyleValue const>, Important);

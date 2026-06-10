@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <text id="text" x="5">hello</text>
+</svg>
+<script>
+test(() => {
+    const list = document.getElementById("text").x.baseVal;
+    const length = list.getItem(0);
+
+    println(`initial length: ${list.length}`);
+    println(`initial [0]: ${list[0].value}`);
+    println(`same wrapper: ${list[0] === list.getItem(0)}`);
+
+    try {
+        list[0] = length;
+    } catch (e) {
+        println(`existing index: ${e.name}: ${e.message}`);
+    }
+
+    try {
+        list[1] = length;
+    } catch (e) {
+        println(`new index: ${e.name}: ${e.message}`);
+    }
+
+    try {
+        list[0] = {};
+    } catch (e) {
+        println(`wrong type: ${e.name}: ${e.message}`);
+    }
+});
+</script>

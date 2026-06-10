@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedNumber.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedNumber.h>
 
@@ -15,26 +14,23 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGAnimatedNumber);
 
 GC::Ref<SVGAnimatedNumber> SVGAnimatedNumber::create(
-    JS::Realm& realm,
     GC::Ref<SVGElement> element,
     DOM::QualifiedName reflected_attribute,
     float initial_value,
     SupportsSecondValue supports_second_value,
     ValueRepresented value_represented)
 {
-    return realm.create<SVGAnimatedNumber>(realm, element, move(reflected_attribute), initial_value,
+    return GC::Heap::the().allocate<SVGAnimatedNumber>(element, move(reflected_attribute), initial_value,
         supports_second_value, value_represented);
 }
 
 SVGAnimatedNumber::SVGAnimatedNumber(
-    JS::Realm& realm,
     GC::Ref<SVGElement> element,
     DOM::QualifiedName reflected_attribute,
     float initial_value,
     SupportsSecondValue supports_second_value,
     ValueRepresented value_represented)
-    : PlatformObject(realm)
-    , m_element(element)
+    : m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
     , m_initial_value(initial_value)
     , m_supports_second_value(supports_second_value)
@@ -151,13 +147,7 @@ float SVGAnimatedNumber::get_base_or_anim_value() const
     return parse_value_or_initial(value);
 }
 
-void SVGAnimatedNumber::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedNumber);
-    Base::initialize(realm);
-}
-
-void SVGAnimatedNumber::visit_edges(Visitor& visitor)
+void SVGAnimatedNumber::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);

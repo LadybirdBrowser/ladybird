@@ -8,19 +8,20 @@
 
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/QueuingStrategyInit.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#countqueuingstrategy
-class CountQueuingStrategy final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CountQueuingStrategy, Bindings::PlatformObject);
+class CountQueuingStrategy final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CountQueuingStrategy, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CountQueuingStrategy);
 
 public:
-    static GC::Ref<CountQueuingStrategy> construct_impl(JS::Realm&, Bindings::QueuingStrategyInit const&);
+    static GC::Ref<CountQueuingStrategy> create(double high_water_mark);
+    static GC::Ref<CountQueuingStrategy> create_for_constructor(Bindings::QueuingStrategyInit const&);
 
     virtual ~CountQueuingStrategy() override;
 
@@ -32,12 +33,10 @@ public:
         return m_high_water_mark;
     }
 
-    GC::Ref<WebIDL::CallbackType> size();
+    GC::Ref<WebIDL::CallbackType> size(JS::Realm&);
 
 private:
-    explicit CountQueuingStrategy(JS::Realm&, double high_water_mark);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit CountQueuingStrategy(double high_water_mark);
 
     // https://streams.spec.whatwg.org/#countqueuingstrategy-highwatermark
     double m_high_water_mark { 0 };

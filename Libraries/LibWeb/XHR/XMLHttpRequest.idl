@@ -31,7 +31,7 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     attribute unsigned long timeout;
     attribute boolean withCredentials;
     [SameObject] readonly attribute XMLHttpRequestUpload upload;
-    undefined send(optional (Document or XMLHttpRequestBodyInit)? body = null);
+    [NeedsThisObjectRealm] undefined send(optional (Document or XMLHttpRequestBodyInit)? body = null);
     undefined abort();
 
     // response
@@ -42,7 +42,7 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     ByteString getAllResponseHeaders();
     undefined overrideMimeType(DOMString mime);
     attribute XMLHttpRequestResponseType responseType;
-    readonly attribute any response;
+    [NeedsThisObjectRealm] readonly attribute any response;
     readonly attribute DOMString responseText;
     [Exposed=Window] readonly attribute Document? responseXML;
 

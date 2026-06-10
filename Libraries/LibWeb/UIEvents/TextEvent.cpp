@@ -4,31 +4,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextEvent.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(TextEvent);
 
-GC::Ref<TextEvent> TextEvent::create(JS::Realm& realm, FlyString const& event_name)
+GC::Ref<TextEvent> TextEvent::create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<TextEvent>(realm, event_name);
+    return GC::Heap::the().allocate<TextEvent>(event_name, time_stamp);
 }
 
-TextEvent::TextEvent(JS::Realm& realm, FlyString const& event_name)
-    : UIEvent(realm, event_name)
+TextEvent::TextEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, time_stamp)
 {
 }
 
 TextEvent::~TextEvent() = default;
-
-void TextEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextEvent);
-    Base::initialize(realm);
-}
 
 // https://w3c.github.io/uievents/#dom-textevent-inittextevent
 void TextEvent::init_text_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data)

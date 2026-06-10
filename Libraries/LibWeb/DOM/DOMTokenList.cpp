@@ -7,8 +7,8 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/DOMTokenList.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -60,18 +60,14 @@ GC_DEFINE_ALLOCATOR(DOMTokenList);
 
 GC::Ref<DOMTokenList> DOMTokenList::create(Element& associated_element, FlyString associated_attribute)
 {
-    auto& realm = associated_element.realm();
-    return realm.create<DOMTokenList>(associated_element, move(associated_attribute));
+    return GC::Heap::the().allocate<DOMTokenList>(associated_element, move(associated_attribute));
 }
 
 // https://dom.spec.whatwg.org/#ref-for-domtokenlist%E2%91%A0%E2%91%A2
 DOMTokenList::DOMTokenList(Element& associated_element, FlyString associated_attribute)
-    : Bindings::PlatformObject(associated_element.realm())
-    , m_associated_element(associated_element)
+    : m_associated_element(associated_element)
     , m_associated_attribute(move(associated_attribute))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
-
     // When a DOMTokenList object set is created:
     // 1. Let element be set’s element.
     // 2. Let attributeName be set’s attribute name.
@@ -82,13 +78,7 @@ DOMTokenList::DOMTokenList(Element& associated_element, FlyString associated_att
     associated_attribute_changed(value);
 }
 
-void DOMTokenList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMTokenList);
-    Base::initialize(realm);
-}
-
-void DOMTokenList::visit_edges(Cell::Visitor& visitor)
+void DOMTokenList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_element);
@@ -320,14 +310,14 @@ WebIDL::ExceptionOr<void> DOMTokenList::validate_token(StringView token) const
 WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_empty(StringView token) const
 {
     if (token.is_empty())
-        return WebIDL::SyntaxError::create(realm(), "Non-empty DOM tokens are not allowed"_utf16);
+        return WebIDL::SyntaxError::create("Non-empty DOM tokens are not allowed"_utf16);
     return {};
 }
 
 WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_whitespace(StringView token) const
 {
     if (any_of(token, Infra::is_ascii_whitespace))
-        return WebIDL::InvalidCharacterError::create(realm(), "DOM tokens containing ASCII whitespace are not allowed"_utf16);
+        return WebIDL::InvalidCharacterError::create("DOM tokens containing ASCII whitespace are not allowed"_utf16);
     return {};
 }
 
@@ -346,14 +336,6 @@ void DOMTokenList::run_update_steps()
     // 2. Set an attribute value given set’s element, set’s attribute name, and the result of running the ordered set
     //    serializer for set’s token set.
     associated_element->set_attribute_value(m_associated_attribute, serialize_ordered_set());
-}
-
-Optional<JS::Value> DOMTokenList::item_value(size_t index) const
-{
-    auto string = item(index);
-    if (!string.has_value())
-        return {};
-    return JS::PrimitiveString::create(vm(), string.release_value());
 }
 
 }

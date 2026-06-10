@@ -6,7 +6,6 @@
  */
 
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/CSS.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
@@ -17,19 +16,20 @@
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
 
 // https://www.w3.org/TR/cssom-1/#dom-css-escape
-WebIDL::ExceptionOr<String> escape(JS::VM&, StringView identifier)
+WebIDL::ExceptionOr<String> escape(StringView identifier)
 {
     // The escape(ident) operation must return the result of invoking serialize an identifier of ident.
     return serialize_an_identifier(identifier);
 }
 
 // https://www.w3.org/TR/css-conditional-3/#dom-css-supports
-bool supports(JS::VM&, Utf16FlyString const& property_name, StringView value)
+bool supports(Utf16FlyString const& property_name, StringView value)
 {
     // 1. If property is an ASCII case-insensitive match for any defined CSS property that the UA supports, or is a
     //    custom property name string, and value successfully parses according to that property’s grammar, return true.
@@ -45,16 +45,14 @@ bool supports(JS::VM&, Utf16FlyString const& property_name, StringView value)
 // https://www.w3.org/TR/css-conditional-3/#dom-css-supports
 WebIDL::ExceptionOr<bool> supports(JS::VM& vm, StringView condition_text)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. If conditionText, parsed and evaluated as a <supports-condition>, would return true, return true.
-    if (auto supports = parse_css_supports(Parser::ParsingParams { realm }, condition_text); supports && supports->matches())
+    if (auto supports = parse_css_supports(Parser::ParsingParams {}, condition_text); supports && supports->matches())
         return true;
 
     // 2. Otherwise, If conditionText, wrapped in parentheses and then parsed and evaluated as a <supports-condition>, would return true, return true.
     auto wrapped_condition_text = TRY_OR_THROW_OOM(vm, String::formatted("({})", condition_text));
 
-    if (auto supports = parse_css_supports(Parser::ParsingParams { realm }, wrapped_condition_text); supports && supports->matches())
+    if (auto supports = parse_css_supports(Parser::ParsingParams {}, wrapped_condition_text); supports && supports->matches())
         return true;
 
     // 3. Otherwise, return false.
@@ -62,23 +60,20 @@ WebIDL::ExceptionOr<bool> supports(JS::VM& vm, StringView condition_text)
 }
 
 // https://www.w3.org/TR/css-properties-values-api-1/#the-registerproperty-function
-WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefinition const& definition)
+WebIDL::ExceptionOr<void> register_property(DOM::Document& document, PropertyDefinition const& definition)
 {
     // 1. Let property set be the value of the current global object’s associated Document’s [[registeredPropertySet]] slot.
-    auto& realm = *vm.current_realm();
-    auto& window = static_cast<Web::HTML::Window&>(realm.global_object());
-    auto& document = window.associated_document();
     auto& property_set = document.registered_property_set();
 
     // 2. If name is not a custom property name string, throw a SyntaxError and exit this algorithm.
     if (!is_a_custom_property_name_string(definition.name))
-        return WebIDL::SyntaxError::create(realm, "Invalid property name"_utf16);
+        return WebIDL::SyntaxError::create("Invalid property name"_utf16);
 
     // If property set already contains an entry with name as its property name (compared codepoint-wise),
     // throw an InvalidModificationError and exit this algorithm.
     auto property_name = Utf16FlyString::from_utf8(definition.name);
     if (property_set.contains(property_name))
-        return WebIDL::InvalidModificationError::create(realm, "Property already registered"_utf16);
+        return WebIDL::InvalidModificationError::create("Property already registered"_utf16);
 
     auto parsing_params = CSS::Parser::ParsingParams { document };
 
@@ -87,7 +82,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefini
     auto syntax_component_values = parse_component_values_list(parsing_params, definition.syntax);
     auto maybe_syntax = parse_as_syntax(syntax_component_values, Parser::LimitSingleComponentIdentToCustomIdent::Yes);
     if (!maybe_syntax) {
-        return WebIDL::SyntaxError::create(realm, "Invalid syntax definition"_utf16);
+        return WebIDL::SyntaxError::create("Invalid syntax definition"_utf16);
     }
 
     RefPtr<StyleValue const> initial_value_maybe;
@@ -108,12 +103,12 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefini
             // If this fails, throw a SyntaxError and exit this algorithm.
             // Otherwise, let parsed initial value be the parsed result.
             if (!initial_value_maybe) {
-                return WebIDL::SyntaxError::create(realm, "Invalid initial value"_utf16);
+                return WebIDL::SyntaxError::create("Invalid initial value"_utf16);
             }
         }
     } else if (!definition.initial_value.has_value()) {
         // Otherwise, if initialValue is not present, throw a SyntaxError and exit this algorithm.
-        return WebIDL::SyntaxError::create(realm, "Initial value must be provided for non-universal syntax"_utf16);
+        return WebIDL::SyntaxError::create("Initial value must be provided for non-universal syntax"_utf16);
     } else {
         // Otherwise, parse initialValue according to syntax definition.
         // NB: We don't need to worry about explicitly rejecting arbitrary substitution functions here since all
@@ -127,14 +122,14 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefini
 
         // If this fails, throw a SyntaxError and exit this algorithm.
         if (!initial_value_maybe || initial_value_maybe->is_guaranteed_invalid()) {
-            return WebIDL::SyntaxError::create(realm, "Invalid initial value"_utf16);
+            return WebIDL::SyntaxError::create("Invalid initial value"_utf16);
         }
         // Otherwise, let parsed initial value be the parsed result.
         // NB: Already done
 
         // If parsed initial value is not computationally independent, throw a SyntaxError and exit this algorithm.
         if (!initial_value_maybe->is_computationally_independent())
-            return WebIDL::SyntaxError::create(realm, "Initial value must be computationally independent"_utf16);
+            return WebIDL::SyntaxError::create("Initial value must be computationally independent"_utf16);
     }
 
     // 5. Set inherit flag to the value of inherits.
@@ -153,6 +148,12 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefini
     document.did_change_custom_property_registrations();
 
     return {};
+}
+
+WebIDL::ExceptionOr<void> register_property(JS::Realm& realm, PropertyDefinition const& definition)
+{
+    auto& window = HTML::relevant_window(realm.global_object());
+    return register_property(window.associated_document(), definition);
 }
 
 }

@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ResizeObserver.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::ResizeObserver {
 
 // https://drafts.csswg.org/resize-observer-1/#resizeobserversize
-class ResizeObserverSize : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ResizeObserverSize, Bindings::PlatformObject);
+class ResizeObserverSize : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ResizeObserverSize, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ResizeObserverSize);
 
 public:
@@ -22,8 +22,8 @@ public:
         double block_size { 0 };
     };
 
-    static RawSize compute_box_size(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
-    static GC::Ref<ResizeObserverSize> calculate_box_size(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
+    static RawSize compute_box_size(DOM::Element& target, ObservedBox);
+    static GC::Ref<ResizeObserverSize> calculate_box_size(DOM::Element& target, ObservedBox);
 
     double inline_size() const { return m_inline_size; }
     void set_inline_size(double inline_size) { m_inline_size = inline_size; }
@@ -35,12 +35,10 @@ public:
     bool equals(ResizeObserverSize const& other) const;
 
 private:
-    explicit ResizeObserverSize(JS::Realm& realm)
-        : PlatformObject(realm)
+    ResizeObserverSize()
+        : Bindings::Wrappable()
     {
     }
-
-    virtual void initialize(JS::Realm&) override;
 
     double m_inline_size { 0 };
     double m_block_size { 0 };

@@ -6,7 +6,9 @@
 
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -19,6 +21,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/Worker.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
@@ -32,7 +35,25 @@ static HashMap<WorkerAgentOwnerToken, GC::Ref<WorkerAgentParent>>& worker_agent_
     return *map;
 }
 
-WorkerAgentParent::WorkerAgentParent(URL::URL url, Bindings::WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings, GC::Ref<DOM::EventTarget> worker_event_target, Bindings::AgentType agent_type)
+static void report_worker_exception(WindowOrWorkerGlobalScopeMixin& window_or_worker, ErrorEvent& error)
+{
+    auto& realm = relevant_realm(window_or_worker);
+    auto wrapped_error = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { error });
+    window_or_worker.report_an_exception(wrapped_error, WindowOrWorkerGlobalScopeMixin::OmitError::Yes);
+}
+
+GC::Ref<WorkerAgentParent> WorkerAgentParent::create(URL::URL url, WorkerOptions const& options,
+    GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings,
+    GC::Ref<DOM::EventTarget> worker_event_target, AgentType agent_type)
+{
+    auto agent = GC::Heap::the().allocate<WorkerAgentParent>(move(url), options, outside_port, outside_settings, worker_event_target, agent_type);
+    agent->start();
+    return agent;
+}
+
+WorkerAgentParent::WorkerAgentParent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port,
+    GC::Ref<EnvironmentSettingsObject> outside_settings, GC::Ref<DOM::EventTarget> worker_event_target,
+    AgentType agent_type)
     : m_worker_options(options)
     , m_agent_type(agent_type)
     , m_url(move(url))
@@ -43,17 +64,18 @@ WorkerAgentParent::WorkerAgentParent(URL::URL url, Bindings::WorkerOptions const
 {
 }
 
-void WorkerAgentParent::initialize(JS::Realm& realm)
+void WorkerAgentParent::start()
 {
-    Base::initialize(realm);
-
+    auto& realm = m_outside_settings->realm();
     m_outside_settings->keep_worker_agent_alive_while_starting(*this);
 
-    m_message_port = MessagePort::create(realm);
+    auto* global_scope = window_or_worker_global_scope_from_global_object(realm.global_object());
+    VERIFY(global_scope);
+    m_message_port = MessagePort::create(global_scope->this_impl());
     m_message_port->entangle_with(*m_outside_port);
 
     TransferDataEncoder data_holder;
-    MUST(m_message_port->transfer_steps(data_holder));
+    MUST(m_message_port->transfer_steps(realm, data_holder));
 
     // FIXME: Specification says this supposed to happen in step 11 of onComplete handler defined in https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
     //        but that would require introducing a new IPC message type to communicate this from WebWorker to WebContent process,
@@ -126,33 +148,41 @@ void WorkerAgentParent::dispatch_error_event()
 {
     // See: https://html.spec.whatwg.org/multipage/workers.html#worker-processing-model, onComplete handler for fetching script.
     // 1. Queue a global task on the DOM manipulation task source given worker's relevant global object to fire an event named error at worker.
-    queue_global_task(Task::Source::DOMManipulation, m_outside_settings->global_object(), GC::create_function(m_outside_settings->heap(), [this] {
-        m_worker_event_target->dispatch_event(DOM::Event::create(m_outside_settings->realm(), EventNames::error));
-    }));
+    auto outside_global_object = GC::Ref { m_outside_settings->global_object() };
+    auto event_target = GC::Ref { *m_worker_event_target };
+    queue_global_task(Task::Source::DOMManipulation, *outside_global_object,
+        GC::create_function(GC::Heap::the(), [event_target, outside_global_object] {
+            event_target->dispatch_event(DOM::Event::create(
+                EventNames::error,
+                HighResolutionTime::current_high_resolution_time(*outside_global_object)));
+        }));
 }
 
 void WorkerAgentParent::dispatch_worker_exception(String message, String filename, u32 lineno, u32 colno)
 {
     // https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
     // 7.2: If global implements DedicatedWorkerGlobalScope, queue a global task on the DOM manipulation task source with the global's associated Worker's relevant global object to run these steps:
-    queue_global_task(Task::Source::DOMManipulation, m_outside_settings->global_object(), GC::create_function(m_outside_settings->heap(), [this, message = move(message), filename = move(filename), lineno, colno]() {
+    queue_global_task(Task::Source::DOMManipulation, m_outside_settings->global_object(), GC::create_function(GC::Heap::the(), [this, message = move(message), filename = move(filename), lineno, colno]() {
         auto& realm = m_outside_settings->realm();
 
         // 2. Set notHandled to the result of firing an event named error at workerObject, using ErrorEvent, with the
         //    cancelable attribute initialized to true, and additional attributes initialized according to errorInfo.
-        Bindings::ErrorEventInit event_init {};
+        ErrorEventInit event_init {};
         event_init.cancelable = true;
         event_init.message = message;
         event_init.filename = filename;
         event_init.lineno = lineno;
         event_init.colno = colno;
         event_init.error = JS::js_null();
-        auto error = ErrorEvent::create(realm, EventNames::error, event_init);
+        auto error = ErrorEvent::create(EventNames::error, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
         bool not_handled = m_worker_event_target->dispatch_event(error);
 
         // 3. If notHandled is true, then report exception for workerObject's relevant global object with omitError set to true.
-        if (not_handled)
-            as<WindowOrWorkerGlobalScopeMixin>(m_outside_settings->global_object()).report_an_exception(error, WindowOrWorkerGlobalScopeMixin::OmitError::Yes);
+        if (not_handled) {
+            auto* window_or_worker = window_or_worker_global_scope_from_global_object(m_outside_settings->global_object());
+            VERIFY(window_or_worker);
+            report_worker_exception(*window_or_worker, error);
+        }
     }));
 }
 

@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/EXTBlendMinMax.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/EXTBlendMinMax.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -15,24 +13,19 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTBlendMinMax);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTBlendMinMax::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> EXTBlendMinMax::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    return realm.create<EXTBlendMinMax>(realm, context);
+    auto extension = GC::Heap::the().allocate<EXTBlendMinMax>(context);
+    return GC::Ref<WebGLExtension> { extension };
 }
 
-EXTBlendMinMax::EXTBlendMinMax(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
+EXTBlendMinMax::EXTBlendMinMax(GC::Ref<WebGLRenderingContextBase> context)
+    : WebGLExtension()
     , m_context(context)
 {
 }
 
-void EXTBlendMinMax::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(EXTBlendMinMax);
-    Base::initialize(realm);
-}
-
-void EXTBlendMinMax::visit_edges(Visitor& visitor)
+void EXTBlendMinMax::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

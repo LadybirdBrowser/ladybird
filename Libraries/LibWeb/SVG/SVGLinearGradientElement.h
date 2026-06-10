@@ -13,7 +13,7 @@
 namespace Web::SVG {
 
 class SVGLinearGradientElement : public SVGGradientElement {
-    WEB_PLATFORM_OBJECT(SVGLinearGradientElement, SVGGradientElement);
+    WEB_WRAPPABLE(SVGLinearGradientElement, SVGGradientElement);
     GC_DECLARE_ALLOCATOR(SVGLinearGradientElement);
 
 public:
@@ -30,8 +30,6 @@ public:
 
 protected:
     SVGLinearGradientElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
 private:
     GC::Ptr<SVGLinearGradientElement const> linked_linear_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const

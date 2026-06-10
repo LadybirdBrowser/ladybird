@@ -6,8 +6,7 @@
  */
 
 #include "CSSKeyframeRule.h"
-#include <LibWeb/Bindings/CSSKeyframeRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/Dump.h>
 
@@ -15,29 +14,23 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeyframeRule);
 
-GC::Ref<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, Percentage key, CSSStyleProperties& declarations)
+GC::Ref<CSSKeyframeRule> CSSKeyframeRule::create(Percentage key, CSSStyleProperties& declarations)
 {
-    return realm.create<CSSKeyframeRule>(realm, key, declarations);
+    return GC::Heap::the().allocate<CSSKeyframeRule>(key, declarations);
 }
 
-CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, Percentage key, CSSStyleProperties& declarations)
-    : CSSRule(realm, Type::Keyframe)
+CSSKeyframeRule::CSSKeyframeRule(Percentage key, CSSStyleProperties& declarations)
+    : CSSRule(Type::Keyframe)
     , m_key(key)
     , m_declarations(declarations)
 {
     m_declarations->set_parent_rule(*this);
 }
 
-void CSSKeyframeRule::visit_edges(Visitor& visitor)
+void CSSKeyframeRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_declarations);
-}
-
-void CSSKeyframeRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSKeyframeRule);
-    Base::initialize(realm);
 }
 
 String CSSKeyframeRule::serialized() const

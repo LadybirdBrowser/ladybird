@@ -8,6 +8,7 @@
 #include <AK/Debug.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -39,9 +40,9 @@ GC_DEFINE_ALLOCATOR(EventLoop);
 EventLoop::EventLoop(Type type)
     : m_type(type)
 {
-    m_task_queue = heap().allocate<TaskQueue>(*this);
+    m_task_queue = GC::Heap::the().allocate<TaskQueue>(*this);
 
-    m_rendering_task_function = GC::create_function(heap(), [this] {
+    m_rendering_task_function = GC::create_function(GC::Heap::the(), [this] {
         update_the_rendering();
     });
 }
@@ -63,7 +64,7 @@ void EventLoop::visit_edges(Visitor& visitor)
 void EventLoop::schedule()
 {
     if (!m_system_event_loop_timer) {
-        m_system_event_loop_timer = Platform::Timer::create_single_shot(heap(), 0, GC::create_function(heap(), [this] {
+        m_system_event_loop_timer = Platform::Timer::create_single_shot(GC::Heap::the(), 0, GC::create_function(GC::Heap::the(), [this] {
             process();
         }));
     }
@@ -101,7 +102,7 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     //       2. Perform any steps that appear after this spin the event loop instance in the original algorithm.
     //       NOTE: This is achieved by returning from the function.
 
-    Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, goal_condition] {
+    Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), [this, goal_condition] {
         if (goal_condition->function()())
             return true;
         if (m_task_queue->has_runnable_tasks()) {
@@ -219,7 +220,7 @@ void EventLoop::queue_task_to_update_the_rendering()
         if (document->is_decoded_svg())
             continue;
 
-        queue_global_task(Task::Source::Rendering, *navigable->active_window(), *m_rendering_task_function);
+        queue_global_task(Task::Source::Rendering, HTML::relevant_global_object(*navigable->active_window()), *m_rendering_task_function);
     }
 }
 
@@ -483,7 +484,7 @@ void EventLoop::update_the_rendering()
 
         bool requires_style_and_layout_update = false;
 
-        TemporaryExecutionContext context { document->realm() };
+        TemporaryExecutionContext context { document->relevant_settings_object() };
 
         for (auto const& timeline : document->associated_animation_timelines()) {
             auto* scroll_timeline = as_if<Animations::ScrollTimeline>(*timeline);
@@ -560,7 +561,7 @@ void EventLoop::update_the_rendering()
         // - the document is still loading
         // - the document has pending stylesheet requests
         // FIXME: - the document has pending layout operations which might cause the user agent to request a font, or which depend on recently-loaded fonts
-        TemporaryExecutionContext context(document->realm(), TemporaryExecutionContext::CallbacksEnabled::Yes);
+        TemporaryExecutionContext context(document->relevant_settings_object(), TemporaryExecutionContext::CallbacksEnabled::Yes);
         document->fonts()->set_is_pending_on_the_environment(document->readiness() == DocumentReadyState::Loading);
     }
 }
@@ -585,7 +586,7 @@ TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC
     // 5. Set task's source to source.
     // 6. Set task's document to the document.
     // 7. Set task's script evaluation environment settings object set to an empty set.
-    auto task = HTML::Task::create(event_loop->vm(), source, document, steps);
+    auto task = HTML::Task::create(source, document, steps);
 
     // 8. Let queue be the task queue to which source is associated on event loop.
     // 9. Append task to queue.
@@ -605,7 +606,7 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, G
 
     // 2. Let document be global's associated Document, if global is a Window object; otherwise null.
     DOM::Document* document { nullptr };
-    if (auto* window_object = as_if<HTML::Window>(global_object))
+    if (auto* window_object = window_from_global_object(global_object))
         document = &window_object->associated_document();
 
     // 3. Queue a task given source, event loop, document, and steps.
@@ -624,8 +625,7 @@ void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<void(
     // 4. Set microtask's steps to steps.
     // 5. Set microtask's source to the microtask task source.
     // 6. Set microtask's document to document.
-    auto& vm = event_loop.vm();
-    auto microtask = HTML::Task::create(vm, HTML::Task::Source::Microtask, document, steps);
+    auto microtask = HTML::Task::create(HTML::Task::Source::Microtask, document, steps);
 
     // FIXME: 7. Set microtask's script evaluation environment settings object set to an empty set.
 

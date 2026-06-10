@@ -6,32 +6,35 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ScreenOrientation.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::CSS {
 
+using OrientationLockType = Bindings::OrientationLockType;
+using OrientationType = Bindings::OrientationType;
+
 class ScreenOrientation final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(ScreenOrientation, DOM::EventTarget);
+    WEB_WRAPPABLE(ScreenOrientation, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(ScreenOrientation);
 
 public:
-    [[nodiscard]] static GC::Ref<ScreenOrientation> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<ScreenOrientation> create();
 
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> lock(Bindings::OrientationLockType);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> lock(JS::Realm&, OrientationLockType);
+    WebIDL::ExceptionOr<void> lock();
     void unlock();
-    Bindings::OrientationType type() const;
+    OrientationType type() const;
     WebIDL::UnsignedShort angle() const;
 
     void set_onchange(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onchange();
 
 private:
-    explicit ScreenOrientation(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    ScreenOrientation();
 };
 
 }

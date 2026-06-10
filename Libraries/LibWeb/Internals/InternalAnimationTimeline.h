@@ -12,8 +12,10 @@ namespace Web::Internals {
 
 class InternalAnimationTimeline : public Web::Animations::AnimationTimeline {
 public:
-    WEB_PLATFORM_OBJECT(InternalAnimationTimeline, Web::Animations::AnimationTimeline);
+    WEB_WRAPPABLE(InternalAnimationTimeline, Web::Animations::AnimationTimeline);
     GC_DECLARE_ALLOCATOR(InternalAnimationTimeline);
+
+    [[nodiscard]] static GC::Ref<InternalAnimationTimeline> create(GC::Ref<DOM::Document>);
 
     virtual Optional<Animations::TimeValue> duration() const override { return {}; }
 
@@ -24,10 +26,8 @@ public:
     void set_time(Optional<double> time);
 
 private:
-    explicit InternalAnimationTimeline(JS::Realm&, GC::Ref<DOM::Document>);
+    explicit InternalAnimationTimeline(GC::Ref<DOM::Document>);
     virtual ~InternalAnimationTimeline() override = default;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

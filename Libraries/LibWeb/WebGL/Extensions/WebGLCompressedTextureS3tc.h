@@ -6,24 +6,23 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 
 namespace Web::WebGL {
 
-class WebGLCompressedTextureS3tc : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLCompressedTextureS3tc, Bindings::PlatformObject);
+class WebGLCompressedTextureS3tc : public WebGLExtension {
+    WEB_WRAPPABLE(WebGLCompressedTextureS3tc, WebGLExtension);
     GC_DECLARE_ALLOCATOR(WebGLCompressedTextureS3tc);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
-    void initialize(JS::Realm&) override;
-    void visit_edges(Visitor&) override;
+    void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    WebGLCompressedTextureS3tc(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    WebGLCompressedTextureS3tc(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

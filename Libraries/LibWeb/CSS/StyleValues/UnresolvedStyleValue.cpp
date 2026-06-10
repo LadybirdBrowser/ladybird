@@ -106,10 +106,10 @@ bool UnresolvedStyleValue::equals(StyleValue const& other) const
     return comparison_text() == other_unresolved.comparison_text();
 }
 
-static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm&, ReadonlySpan<Parser::ComponentValue>);
+static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(ReadonlySpan<Parser::ComponentValue>);
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-var
-static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm, Parser::Function function)
+static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(Parser::Function function)
 {
     // NB: A var() might not be representable as a CSSVariableReferenceValue, for example if it has invalid syntax or
     //    it contains an ASF in its variable-name slot. In those cases, we return null here, so it's treated like a
@@ -139,25 +139,25 @@ static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm
     //    component values. Otherwise, set it to null.
     GC::Ptr<CSSUnparsedValue> fallback;
     if (var_arguments.size() > 1)
-        fallback = reify_a_list_of_component_values(realm, var_arguments[1]);
+        fallback = reify_a_list_of_component_values(var_arguments[1]);
 
     // 4. Return object.
-    return CSSVariableReferenceValue::create(realm, move(variable), move(fallback));
+    return CSSVariableReferenceValue::create(move(variable), move(fallback));
 }
 
 class Reifier {
 public:
-    static Vector<CSSUnparsedSegment> reify(JS::Realm& realm, ReadonlySpan<Parser::ComponentValue> source_values)
+    static Vector<CSSUnparsedSegment> reify(ReadonlySpan<Parser::ComponentValue> source_values)
     {
         Reifier reifier;
-        reifier.process_values(realm, source_values);
+        reifier.process_values(source_values);
         if (!reifier.m_unserialized_values.is_empty())
             reifier.serialize_unserialized_values();
         return move(reifier.m_reified_values);
     }
 
 private:
-    void process_values(JS::Realm& realm, ReadonlySpan<Parser::ComponentValue> source_values)
+    void process_values(ReadonlySpan<Parser::ComponentValue> source_values)
     {
         // NB: var() could be arbitrarily nested within other functions and blocks, so we have to walk the tree.
         //     Also, a var() might not be representable, if it has an ASF in place of its name, so those will be part
@@ -167,7 +167,7 @@ private:
                 // First parse the var() to see if it is representable as a CSSVariableReferenceValue. It might not be,
                 // for example if it has an ASF in the place of its variable name. In that case we fall back to
                 // serializing it like a regular function.
-                if (auto var_reference = reify_a_var_reference(realm, component_value.function())) {
+                if (auto var_reference = reify_a_var_reference(component_value.function())) {
                     serialize_unserialized_values();
                     m_reified_values.append(GC::Ref { *var_reference });
                     continue;
@@ -177,7 +177,7 @@ private:
             if (component_value.is_function()) {
                 auto& function = component_value.function();
                 m_unserialized_values.append(function.name_token);
-                process_values(realm, function.value);
+                process_values(function.value);
                 m_unserialized_values.append(function.end_token);
                 continue;
             }
@@ -185,7 +185,7 @@ private:
             if (component_value.is_block()) {
                 auto& block = component_value.block();
                 m_unserialized_values.append(block.token);
-                process_values(realm, block.value);
+                process_values(block.value);
                 m_unserialized_values.append(block.end_token);
                 continue;
             }
@@ -204,22 +204,22 @@ private:
     Vector<Parser::ComponentValue> m_unserialized_values {};
 };
 
-static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm& realm, ReadonlySpan<Parser::ComponentValue> component_values)
+static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(ReadonlySpan<Parser::ComponentValue> component_values)
 {
     // To reify a list of component values from a list:
     // 1. Replace all var() references in list with CSSVariableReferenceValue objects, as described in §5.4 var() References.
     // 2. Replace each remaining maximal subsequence of component values in list with a single string of their concatenated serializations.
-    auto reified_values = Reifier::reify(realm, component_values);
+    auto reified_values = Reifier::reify(component_values);
 
     // 3. Return a new CSSUnparsedValue whose [[tokens]] slot is set to list.
-    return CSSUnparsedValue::create(realm, move(reified_values));
+    return CSSUnparsedValue::create(move(reified_values));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-list-of-component-values
-GC::Ref<CSSStyleValue> UnresolvedStyleValue::reify(JS::Realm& realm, Utf16FlyString const&) const
+GC::Ref<CSSStyleValue> UnresolvedStyleValue::reify(Utf16FlyString const&) const
 {
     auto component_values = values();
-    return reify_a_list_of_component_values(realm, component_values);
+    return reify_a_list_of_component_values(component_values);
 }
 
 }

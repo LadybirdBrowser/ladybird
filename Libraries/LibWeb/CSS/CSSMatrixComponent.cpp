@@ -5,8 +5,8 @@
  */
 
 #include "CSSMatrixComponent.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSMatrixComponent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -17,13 +17,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMatrixComponent);
 
-GC::Ref<CSSMatrixComponent> CSSMatrixComponent::create(JS::Realm& realm, Is2D is_2d, GC::Ref<Geometry::DOMMatrix> matrix)
+GC::Ref<CSSMatrixComponent> CSSMatrixComponent::create(Is2D is_2d, GC::Ref<Geometry::DOMMatrix> matrix)
 {
-    return realm.create<CSSMatrixComponent>(realm, is_2d, matrix);
+    return GC::Heap::the().allocate<CSSMatrixComponent>(is_2d, matrix);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmatrixcomponent-cssmatrixcomponent
-WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::construct_impl(JS::Realm& realm, GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Optional<Bindings::CSSMatrixComponentOptions> options)
+WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::create_from_dom_matrix_read_only(GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Optional<bool> is_2d_option)
 {
     // The CSSMatrixComponent(matrix, options) constructor must, when invoked, perform the following steps:
 
@@ -33,30 +33,29 @@ WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::construct_i
     // 2. If options was passed and has a is2D field, set this’s is2D internal slot to the value of that field.
     // 3. Otherwise, set this’s is2D internal slot to the value of matrix’s is2D internal slot.
     auto is_2d = matrix->is2d() ? Is2D::Yes : Is2D::No;
-    if (options.has_value() && options->is2d.has_value())
-        is_2d = options->is2d.value() ? Is2D::Yes : Is2D::No;
+    if (is_2d_option.has_value())
+        is_2d = is_2d_option.value() ? Is2D::Yes : Is2D::No;
 
-    auto this_ = CSSMatrixComponent::create(realm, is_2d, Geometry::DOMMatrix::create_from_dom_matrix_read_only(realm, matrix));
+    auto this_ = CSSMatrixComponent::create(is_2d, Geometry::DOMMatrix::create_from_dom_matrix_read_only(matrix));
 
     // 4. Return this.
     return this_;
 }
 
-CSSMatrixComponent::CSSMatrixComponent(JS::Realm& realm, Is2D is_2d, GC::Ref<Geometry::DOMMatrix> matrix)
-    : CSSTransformComponent(realm, is_2d)
+WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::create_for_constructor(GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Bindings::CSSMatrixComponentOptions const& options)
+{
+    return create_from_dom_matrix_read_only(matrix, options.is2d);
+}
+
+CSSMatrixComponent::CSSMatrixComponent(Is2D is_2d, GC::Ref<Geometry::DOMMatrix> matrix)
+    : CSSTransformComponent(is_2d)
     , m_matrix(matrix)
 {
 }
 
 CSSMatrixComponent::~CSSMatrixComponent() = default;
 
-void CSSMatrixComponent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMatrixComponent);
-    Base::initialize(realm);
-}
-
-void CSSMatrixComponent::visit_edges(Visitor& visitor)
+void CSSMatrixComponent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_matrix);

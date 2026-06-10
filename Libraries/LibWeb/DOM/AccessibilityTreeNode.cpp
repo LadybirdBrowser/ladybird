@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -14,9 +15,9 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(AccessibilityTreeNode);
 
-GC::Ref<AccessibilityTreeNode> AccessibilityTreeNode::create(Document* document, DOM::Node const* value)
+GC::Ref<AccessibilityTreeNode> AccessibilityTreeNode::create(DOM::Node const* value)
 {
-    return document->realm().create<AccessibilityTreeNode>(value);
+    return GC::Heap::the().allocate<AccessibilityTreeNode>(value);
 }
 
 AccessibilityTreeNode::AccessibilityTreeNode(GC::Ptr<DOM::Node const> value)

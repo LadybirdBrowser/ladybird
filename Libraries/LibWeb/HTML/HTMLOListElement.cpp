@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLOListElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -24,12 +22,6 @@ HTMLOListElement::HTMLOListElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLOListElement::~HTMLOListElement() = default;
-
-void HTMLOListElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOListElement);
-    Base::initialize(realm);
-}
 
 void HTMLOListElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {

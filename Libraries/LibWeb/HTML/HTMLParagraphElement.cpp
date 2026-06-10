@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLParagraphElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
@@ -20,12 +18,6 @@ HTMLParagraphElement::HTMLParagraphElement(DOM::Document& document, DOM::Qualifi
 }
 
 HTMLParagraphElement::~HTMLParagraphElement() = default;
-
-void HTMLParagraphElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLParagraphElement);
-    Base::initialize(realm);
-}
 
 bool HTMLParagraphElement::is_presentational_hint(FlyString const& name) const
 {

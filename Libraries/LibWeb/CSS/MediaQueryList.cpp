@@ -5,14 +5,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaQueryList.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::CSS {
 
@@ -20,21 +21,15 @@ GC_DEFINE_ALLOCATOR(MediaQueryList);
 
 GC::Ref<MediaQueryList> MediaQueryList::create(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)
 {
-    return document.realm().create<MediaQueryList>(document, move(media));
+    return GC::Heap::the().allocate<MediaQueryList>(document, move(media));
 }
 
 MediaQueryList::MediaQueryList(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)
-    : DOM::EventTarget(document.realm())
+    : DOM::EventTarget()
     , m_document(document)
     , m_media(move(media))
 {
     evaluate();
-}
-
-void MediaQueryList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaQueryList);
-    Base::initialize(realm);
 }
 
 void MediaQueryList::visit_edges(Cell::Visitor& visitor)
@@ -129,6 +124,18 @@ void MediaQueryList::set_onchange(WebIDL::CallbackType* event_handler)
 WebIDL::CallbackType* MediaQueryList::onchange()
 {
     return event_handler_attribute(HTML::EventNames::change);
+}
+
+}
+
+namespace Web::Bindings {
+
+JS::Realm& wrapper_realm_for_media_query_list(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, CSS::MediaQueryList& media_query_list)
+{
+    if (!wrapper_world.is_main_world())
+        return preferred_realm;
+
+    return HTML::relevant_realm(*media_query_list.m_document);
 }
 
 }

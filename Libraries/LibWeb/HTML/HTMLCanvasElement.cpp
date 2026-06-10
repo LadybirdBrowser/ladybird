@@ -6,10 +6,13 @@
 
 #include <AK/Base64.h>
 #include <AK/Checked.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SharedImage.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HTMLCanvasElement.h>
+#include <LibWeb/Bindings/CanvasRenderingContext2DSettings.h>
+#include <LibWeb/Bindings/WebGLRenderingContextBase.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -18,12 +21,15 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/CanvasBox.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -31,6 +37,7 @@
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::HTML {
 
@@ -45,10 +52,8 @@ HTMLCanvasElement::HTMLCanvasElement(DOM::Document& document, DOM::QualifiedName
 
 HTMLCanvasElement::~HTMLCanvasElement() = default;
 
-void HTMLCanvasElement::initialize(JS::Realm& realm)
+void HTMLCanvasElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLCanvasElement);
-    Base::initialize(realm);
     document().page().register_canvas_element({}, unique_id());
 }
 
@@ -251,22 +256,22 @@ void HTMLCanvasElement::adjust_computed_style(CSS::ComputedProperties& style)
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
-JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement::create_2d_context(JS::Value options)
+HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_2d_context(CanvasRenderingContext2DSettings context_attributes)
 {
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<CanvasRenderingContext2D>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    m_context = TRY(CanvasRenderingContext2D::create(realm(), *this, options));
+    m_context = CanvasRenderingContext2D::create(*this, context_attributes);
     return HasOrCreatedContext::Yes;
 }
 
 template<typename ContextType>
-JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement::create_webgl_context(JS::Value options)
+HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_webgl_context(WebGL::WebGLContextAttributes context_attributes)
 {
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    auto maybe_context = TRY(ContextType::create(realm(), *this, options));
+    auto maybe_context = ContextType::create(*this, context_attributes);
     if (!maybe_context)
         return HasOrCreatedContext::No;
 
@@ -274,8 +279,17 @@ JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement:
     return HasOrCreatedContext::Yes;
 }
 
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-getcontext
-JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::get_context(String const& type, JS::Value options)
+HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_webgl_context(WebGL::WebGLContextAttributes context_attributes)
+{
+    return create_webgl_context<WebGL::WebGLRenderingContext>(context_attributes);
+}
+
+HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_webgl2_context(WebGL::WebGLContextAttributes context_attributes)
+{
+    return create_webgl_context<WebGL::WebGL2RenderingContext>(context_attributes);
+}
+
+JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::get_context(String const& context_id, JS::Value options)
 {
     // 1. If options is not an object, then set options to null.
     if (!options.is_object())
@@ -284,26 +298,32 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     // 2. Set options to the result of converting options to a JavaScript value.
     // NOTE: No-op.
 
-    // 3. Run the steps in the cell of the following table whose column header matches this canvas element's canvas context mode and whose row header matches contextId:
+    // 3. Run the steps in the cell of the following table whose column header
+    // matches this canvas element's canvas context mode and whose row header
+    // matches contextId:
     // NOTE: See the spec for the full table.
-    if (type == "2d"sv) {
-        if (TRY(create_2d_context(options)) == HasOrCreatedContext::Yes)
-            return m_context.get<GC::Ref<HTML::CanvasRenderingContext2D>>();
+    if (context_id == "2d"sv) {
+        auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(vm(), options));
+        if (create_2d_context(context_attributes) == HTMLCanvasElement::HasOrCreatedContext::Yes)
+            return context().get<GC::Ref<HTML::CanvasRenderingContext2D>>();
 
         return Empty {};
     }
 
-    // NOTE: The WebGL spec says "experimental-webgl" is also acceptable and must be equivalent to "webgl". Other engines accept this, so we do too.
-    if (type.is_one_of("webgl"sv, "experimental-webgl"sv)) {
-        if (TRY(create_webgl_context<WebGL::WebGLRenderingContext>(options)) == HasOrCreatedContext::Yes)
-            return m_context.get<GC::Ref<WebGL::WebGLRenderingContext>>();
+    // NOTE: The WebGL spec says "experimental-webgl" is also acceptable and
+    // must be equivalent to "webgl". Other engines accept this, so we do too.
+    if (context_id.is_one_of("webgl"sv, "experimental-webgl"sv)) {
+        auto context_attributes = TRY(Bindings::convert_to_idl_value_for_web_gl_context_attributes(vm(), options));
+        if (create_webgl_context(context_attributes) == HTMLCanvasElement::HasOrCreatedContext::Yes)
+            return context().get<GC::Ref<WebGL::WebGLRenderingContext>>();
 
         return Empty {};
     }
 
-    if (type == "webgl2"sv) {
-        if (TRY(create_webgl_context<WebGL::WebGL2RenderingContext>(options)) == HasOrCreatedContext::Yes)
-            return m_context.get<GC::Ref<WebGL::WebGL2RenderingContext>>();
+    if (context_id == "webgl2"sv) {
+        auto context_attributes = TRY(Bindings::convert_to_idl_value_for_web_gl_context_attributes(vm(), options));
+        if (create_webgl2_context(context_attributes) == HTMLCanvasElement::HasOrCreatedContext::Yes)
+            return context().get<GC::Ref<WebGL::WebGL2RenderingContext>>();
 
         return Empty {};
     }
@@ -331,7 +351,7 @@ Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, siz
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
-String HTMLCanvasElement::to_data_url(StringView type, Optional<JS::Value> js_quality)
+String HTMLCanvasElement::to_data_url(StringView type, Optional<double> quality)
 {
     // It is possible the canvas doesn't have an associated bitmap so create one
     allocate_painting_surface_if_needed();
@@ -351,7 +371,6 @@ String HTMLCanvasElement::to_data_url(StringView type, Optional<JS::Value> js_qu
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
     auto bitmap = surface->snapshot_bitmap();
-    Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
     auto file = serialize_bitmap(bitmap, type, quality);
 
     // 4. If file is null, then return "data:,".
@@ -368,8 +387,14 @@ String HTMLCanvasElement::to_data_url(StringView type, Optional<JS::Value> js_qu
     return URL::create_with_data(file.value().mime_type, base64_encoded_or_error.release_value(), true).to_string();
 }
 
+String HTMLCanvasElement::to_data_url(String const& type, Optional<JS::Value> quality)
+{
+    auto quality_number = quality.has_value() && quality->is_number() ? Optional<double> { quality->as_double() } : Optional<double> {};
+    return to_data_url(type, quality_number);
+}
+
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob
-WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, Optional<JS::Value> js_quality)
+WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(StringView type, Optional<double> quality, GC::Ref<ToBlobCompletionCallback> completion_callback)
 {
     // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
 
@@ -378,10 +403,8 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     //    then set result to a copy of this canvas element's bitmap.
     auto bitmap_result = get_bitmap_from_surface();
 
-    Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
-
     // 4. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type, quality] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, bitmap_result, type, quality, completion_callback] {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
         if (bitmap_result) {
@@ -390,22 +413,32 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
         }
 
         // 2. Queue an element task on the canvas blob serialization task source given the canvas element to run these steps:
-        queue_an_element_task(Task::Source::CanvasBlobSerializationTask, [this, callback, file_result = move(file_result)] {
-            auto maybe_error = Bindings::throw_dom_exception_if_needed(vm(), [&]() -> WebIDL::ExceptionOr<void> {
-                // 1. If result is non-null, then set result to a new Blob object, created in the relevant realm of this canvas element, representing result. [FILEAPI]
-                GC::Ptr<FileAPI::Blob> blob_result;
-                if (file_result.has_value())
-                    blob_result = FileAPI::Blob::create(realm(), file_result->buffer, TRY_OR_THROW_OOM(vm(), String::from_utf8(file_result->mime_type)));
-
-                // 2. Invoke callback with « result » and "report".
-                TRY(WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report, { { blob_result } }));
-                return {};
-            });
-            if (maybe_error.is_throw_completion())
-                report_exception(maybe_error.throw_completion(), realm());
+        queue_an_element_task(Task::Source::CanvasBlobSerializationTask, [completion_callback, file_result = move(file_result)] {
+            completion_callback->function()(file_result);
         });
     }));
     return {};
+}
+
+WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, String const& type, Optional<JS::Value> quality)
+{
+    auto quality_number = quality.has_value() && quality->is_number() ? Optional<double> { quality->as_double() } : Optional<double> {};
+    auto completion_callback = GC::create_function(GC::Heap::the(), [this, callback](Optional<HTML::SerializeBitmapResult> file_result) {
+        HTML::TemporaryExecutionContext execution_context { document().relevant_settings_object(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        auto& realm = HTML::relevant_realm(*this);
+        auto maybe_error = WebIDL::throw_dom_exception_if_needed(vm(), realm, [&]() -> WebIDL::ExceptionOr<void> {
+            GC::Ptr<FileAPI::Blob> blob_result;
+            if (file_result.has_value())
+                blob_result = FileAPI::Blob::create(file_result->buffer, TRY_OR_THROW_OOM(vm(), String::from_utf8(file_result->mime_type)));
+
+            auto callback_argument = blob_result ? Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *blob_result }) : JS::js_null();
+            TRY(WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report, { { callback_argument } }));
+            return {};
+        });
+        if (maybe_error.is_throw_completion())
+            HTML::report_exception(maybe_error.throw_completion(), HTML::relevant_realm(*this));
+    });
+    return to_blob(type, quality_number, completion_callback);
 }
 
 RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()

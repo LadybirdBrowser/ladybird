@@ -6,11 +6,14 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibJS/Forward.h>
 #include <LibJS/Runtime/ErrorData.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -94,19 +97,16 @@ static u16 get_legacy_code_for_name(FlyString const& name)
 
 // https://webidl.spec.whatwg.org/#idl-DOMException
 class WEB_API DOMException
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public JS::ErrorData
     , public Bindings::Serializable {
-    WEB_PLATFORM_OBJECT(DOMException, Bindings::PlatformObject);
+    WEB_WRAPPABLE(DOMException, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMException);
 
 public:
-    static GC::Ref<DOMException> create(JS::Realm& realm, FlyString name, Utf16String const& message);
-    static GC::Ref<DOMException> create(JS::Realm& realm);
-
-    // JS constructor has message first, name second
-    // FIXME: This is a completely pointless footgun, let's use the same order for both factories.
-    static GC::Ref<DOMException> construct_impl(JS::Realm& realm, Utf16String const& message, FlyString name);
+    static GC::Ref<DOMException> create(FlyString name, Utf16String const& message);
+    static GC::Ref<DOMException> create();
+    static GC::Ref<DOMException> create_for_constructor(Utf16String const& message, FlyString const& name) { return create(name, message); }
 
     virtual ~DOMException() override;
 
@@ -114,31 +114,30 @@ public:
     Utf16FlyString const& message() const { return m_message; }
     u16 code() const { return get_legacy_code_for_name(m_name); }
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
 protected:
-    DOMException(JS::Realm&, FlyString name, Utf16String const& message);
-    explicit DOMException(JS::Realm&);
+    DOMException(FlyString name, Utf16String const& message);
+    DOMException();
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
-
-private:
-    virtual ErrorData* error_data() final { return this; }
-    virtual ErrorData const* error_data() const final { return this; }
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     FlyString m_name;
     Utf16FlyString m_message;
 };
 
-#define __ENUMERATE(ErrorName)                                                            \
-    class ErrorName final {                                                               \
-    public:                                                                               \
-        static GC::Ref<DOMException> create(JS::Realm& realm, Utf16String const& message) \
-        {                                                                                 \
-            return DOMException::create(realm, #ErrorName##_fly_string, message);         \
-        }                                                                                 \
+#define __ENUMERATE(ErrorName)                                                      \
+    class ErrorName final {                                                         \
+    public:                                                                         \
+        static GC::Ref<DOMException> create(Utf16String const& message)             \
+        {                                                                           \
+            return DOMException::create(#ErrorName##_fly_string, message);          \
+        }                                                                           \
+        static GC::Ref<DOMException> create(JS::Realm&, Utf16String const& message) \
+        {                                                                           \
+            return DOMException::create(#ErrorName##_fly_string, message);          \
+        }                                                                           \
     };
 ENUMERATE_DOM_EXCEPTION_ERROR_NAMES
 #undef __ENUMERATE
@@ -147,10 +146,19 @@ ENUMERATE_DOM_EXCEPTION_ERROR_NAMES
 
 namespace Web {
 
-inline JS::Completion throw_completion(GC::Ref<WebIDL::DOMException> exception)
-{
-    return JS::throw_completion(JS::Value(exception));
+WEB_API JS::Completion throw_completion(JS::Realm&, GC::Ref<WebIDL::DOMException> exception);
+
 }
+
+namespace Web::Bindings {
+
+struct DOMExceptionReportDetails {
+    String name;
+    String message;
+};
+
+WEB_API WebIDL::DOMException* dom_exception_from_object(JS::Object&);
+WEB_API Optional<DOMExceptionReportDetails> dom_exception_report_details(JS::Object&);
 
 }
 

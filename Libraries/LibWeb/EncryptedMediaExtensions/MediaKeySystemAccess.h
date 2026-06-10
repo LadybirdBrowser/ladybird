@@ -8,32 +8,31 @@
 
 #include <AK/RefPtr.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>
 #include <LibWeb/EncryptedMediaExtensions/KeySystem.h>
 
 namespace Web::EncryptedMediaExtensions {
 
 // https://w3c.github.io/encrypted-media/#dom-mediakeysystemaccess
-class MediaKeySystemAccess : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MediaKeySystemAccess, Bindings::PlatformObject);
+class MediaKeySystemAccess : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MediaKeySystemAccess, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MediaKeySystemAccess);
 
 public:
     virtual ~MediaKeySystemAccess() override;
-    [[nodiscard]] static GC::Ref<MediaKeySystemAccess> create(JS::Realm&, Utf16String const&, Bindings::MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
+    [[nodiscard]] static GC::Ref<MediaKeySystemAccess> create(Utf16String const&, MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
 
     [[nodiscard]] Utf16String key_system() const { return m_key_system; }
-    [[nodiscard]] Bindings::MediaKeySystemConfiguration get_configuration() const { return m_configuration; }
+    [[nodiscard]] MediaKeySystemConfiguration const& get_configuration() const { return m_configuration; }
 
 protected:
-    explicit MediaKeySystemAccess(JS::Realm&, Utf16String const&, Bindings::MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
-    virtual void initialize(JS::Realm&) override;
+    explicit MediaKeySystemAccess(Utf16String const&, MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
 
 private:
     Utf16String m_key_system;
 
-    Bindings::MediaKeySystemConfiguration m_configuration;
+    MediaKeySystemConfiguration m_configuration;
     NonnullOwnPtr<KeySystem> m_cdm_implementation;
 };
 

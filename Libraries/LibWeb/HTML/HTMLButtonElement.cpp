@@ -4,14 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLButtonElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/HTML/CommandEvent.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
@@ -24,12 +26,6 @@ HTMLButtonElement::HTMLButtonElement(DOM::Document& document, DOM::QualifiedName
 }
 
 HTMLButtonElement::~HTMLButtonElement() = default;
-
-void HTMLButtonElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLButtonElement);
-    Base::initialize(realm);
-}
 
 void HTMLButtonElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
@@ -229,12 +225,12 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         // NOTE: DOM standard issue #1328 tracks how to better standardize associated event data in a way which makes
         //       sense on Events. Currently an event attribute initialized to a value cannot also have a getter, and so
         //       an internal slot (or map of additional fields) is required to properly specify this.
-        Bindings::CommandEventInit event_init {};
+        CommandEventInit event_init {};
         event_init.command = command;
         event_init.source = this;
         event_init.cancelable = true;
 
-        auto event = CommandEvent::create(realm(), HTML::EventNames::command, move(event_init));
+        auto event = CommandEvent::create(HTML::EventNames::command, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         event->set_is_trusted(true);
         auto continue_ = target->dispatch_event(event);
 
@@ -293,8 +289,10 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
     }
 
     // 6. Otherwise, run the popover target attribute activation behavior given element and event's target.
-    else if (event.target() && event.target()->is_dom_node())
-        PopoverTargetAttributes::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
+    else if (auto target = event.target()) {
+        if (auto* target_node = as_if<DOM::Node>(*target))
+            PopoverTargetAttributes::popover_target_activation_behaviour(*this, *target_node);
+    }
 }
 
 bool HTMLButtonElement::is_focusable() const

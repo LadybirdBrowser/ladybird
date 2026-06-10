@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ChannelSplitterNode.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/ChannelSplitterNode.h>
 
@@ -13,33 +12,23 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(ChannelSplitterNode);
 
-ChannelSplitterNode::ChannelSplitterNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ChannelSplitterOptions const& options)
-    : AudioNode(realm, context)
+ChannelSplitterNode::ChannelSplitterNode(GC::Ref<BaseAudioContext> context, ChannelSplitterOptions const& options)
+    : AudioNode(context)
     , m_number_of_outputs(options.number_of_outputs)
 {
 }
 
 ChannelSplitterNode::~ChannelSplitterNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ChannelSplitterOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::create(GC::Ref<BaseAudioContext> context, ChannelSplitterOptions const& options)
 {
-    return construct_impl(realm, context, options);
-}
-
-WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ChannelSplitterOptions const& options)
-{
-    // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelsplitter
-    // An IndexSizeError exception MUST be thrown if numberOfOutputs is less than 1 or is greater than the number of supported channels.
-    if (options.number_of_outputs < 1 || options.number_of_outputs > BaseAudioContext::MAX_NUMBER_OF_CHANNELS)
-        return WebIDL::IndexSizeError::create(realm, "Invalid number of outputs"_utf16);
-
-    auto node = realm.create<ChannelSplitterNode>(realm, context, options);
+    auto node = GC::Heap::the().allocate<ChannelSplitterNode>(context, options);
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#ChannelSplitterNode
     AudioNodeDefaultOptions default_options;
-    default_options.channel_count_mode = Bindings::ChannelCountMode::Explicit;
-    default_options.channel_interpretation = Bindings::ChannelInterpretation::Discrete;
+    default_options.channel_count_mode = ChannelCountMode::Explicit;
+    default_options.channel_interpretation = ChannelInterpretation::Discrete;
     default_options.channel_count = node->number_of_outputs();
     // FIXME: Set tail-time to no
 
@@ -48,10 +37,20 @@ WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::construct
     return node;
 }
 
-void ChannelSplitterNode::initialize(JS::Realm& realm)
+WebIDL::ExceptionOr<void> ChannelSplitterNode::validate_options(ChannelSplitterOptions const& options)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ChannelSplitterNode);
-    Base::initialize(realm);
+    // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelsplitter
+    // An IndexSizeError exception MUST be thrown if numberOfOutputs is less than 1 or is greater than the number of supported channels.
+    if (options.number_of_outputs < 1 || options.number_of_outputs > BaseAudioContext::MAX_NUMBER_OF_CHANNELS)
+        return WebIDL::IndexSizeError::create("Invalid number of outputs"_utf16);
+
+    return {};
+}
+
+WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::create_for_constructor(GC::Ref<BaseAudioContext> context, ChannelSplitterOptions const& options)
+{
+    TRY(validate_options(options));
+    return create(context, options);
 }
 
 WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_count(WebIDL::UnsignedLong channel_count)
@@ -59,27 +58,27 @@ WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_count(WebIDL::Unsigne
     // https://webaudio.github.io/web-audio-api/#audionode-channelcount-constraints
     // The channel count cannot be changed, and an InvalidStateError exception MUST be thrown for any attempt to change the value.
     if (channel_count != m_number_of_outputs)
-        return WebIDL::InvalidStateError::create(realm(), "Channel count must be equal to number of outputs"_utf16);
+        return WebIDL::InvalidStateError::create("Channel count must be equal to number of outputs"_utf16);
 
     return AudioNode::set_channel_count(channel_count);
 }
 
-WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_count_mode(Bindings::ChannelCountMode channel_count_mode)
+WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_count_mode(ChannelCountMode channel_count_mode)
 {
     // https://webaudio.github.io/web-audio-api/#audionode-channelcountmode-constraints
     // The channel count mode cannot be changed from "explicit" and an InvalidStateError exception MUST be thrown for any attempt to change the value.
-    if (channel_count_mode != Bindings::ChannelCountMode::Explicit)
-        return WebIDL::InvalidStateError::create(realm(), "Channel count mode must be 'explicit'"_utf16);
+    if (channel_count_mode != ChannelCountMode::Explicit)
+        return WebIDL::InvalidStateError::create("Channel count mode must be 'explicit'"_utf16);
 
     return AudioNode::set_channel_count_mode(channel_count_mode);
 }
 
-WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_interpretation(Bindings::ChannelInterpretation channel_interpretation)
+WebIDL::ExceptionOr<void> ChannelSplitterNode::set_channel_interpretation(ChannelInterpretation channel_interpretation)
 {
     // https://webaudio.github.io/web-audio-api/#audionode-channelinterpretation-constraints
     // The channel interpretation can not be changed from "discrete" and a InvalidStateError exception MUST be thrown for any attempt to change the value.
-    if (channel_interpretation != Bindings::ChannelInterpretation::Discrete)
-        return WebIDL::InvalidStateError::create(realm(), "Channel interpretation must be 'discrete'"_utf16);
+    if (channel_interpretation != ChannelInterpretation::Discrete)
+        return WebIDL::InvalidStateError::create("Channel interpretation must be 'discrete'"_utf16);
 
     return AudioNode::set_channel_interpretation(channel_interpretation);
 }

@@ -6,7 +6,9 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/NumberFormat.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -20,12 +22,12 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/MediaControls.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
-#include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::HTML {
 
@@ -45,18 +47,17 @@ MediaControls::~MediaControls()
 
 void MediaControls::visit_edges(GC::Cell::Visitor& visitor)
 {
-    visitor.visit(m_request_animation_frame_callback);
+    (void)visitor;
 }
 
 void MediaControls::create_shadow_tree()
 {
     auto& media_element = *m_media_element;
     auto& document = media_element.document();
-    auto& realm = media_element.realm();
 
     bool is_video = is<HTMLVideoElement>(media_element);
 
-    auto shadow_root = realm.create<DOM::ShadowRoot>(document, media_element, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document, media_element, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     media_element.set_shadow_root(shadow_root);
 
@@ -84,17 +85,19 @@ GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& real
 {
     auto callback_function = JS::NativeFunction::create(
         realm, [handler = move(handler)](JS::VM& vm) {
-            if (auto event = vm.argument(0).as_if<T>()) {
-                if (handler(*event))
-                    event->prevent_default();
+            if (auto* event = Bindings::event_from_callback_argument(vm)) {
+                if (auto* typed_event = as_if<T>(*event)) {
+                    if (handler(*typed_event))
+                        typed_event->prevent_default();
+                }
             }
             return JS::js_undefined();
         },
         0, Utf16FlyString {}, &realm);
-    auto callback = realm.heap().allocate<WebIDL::CallbackType>(*callback_function, realm);
-    auto listener = DOM::IDLEventListener::create(realm, callback);
+    auto callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*callback_function, realm);
+    auto listener = DOM::IDLEventListener::create(callback);
 
-    Bindings::AddEventListenerOptions options;
+    DOM::EventTarget::AddEventListenerOptions options;
     options.once = listen_once == ListenOnce::Yes;
     target.add_event_listener(event_name, listener, options);
 
@@ -140,7 +143,7 @@ void MediaControls::remove_event_listeners()
     m_registered_event_listeners.clear();
 
     if (m_media_element) {
-        auto& window = as<HTML::Window>(m_media_element->realm().global_object());
+        auto& window = relevant_window(HTML::relevant_realm(*m_media_element).global_object());
         window.cancel_animation_frame(m_request_animation_frame_id);
     }
 }
@@ -148,7 +151,7 @@ void MediaControls::remove_event_listeners()
 void MediaControls::set_up_event_listeners()
 {
     auto& media_element = *m_media_element;
-    auto& realm = media_element.realm();
+    auto& realm = HTML::relevant_realm(media_element);
 
     // Media element state events
     add_event_listener(realm, media_element, HTML::EventNames::play, [this]() {
@@ -247,8 +250,8 @@ void MediaControls::set_up_event_listeners()
 
         set_current_time(*position);
 
-        auto& realm = m_media_element->realm();
-        auto& window = as<HTML::Window>(realm.global_object());
+        auto& realm = HTML::relevant_realm(*m_media_element);
+        auto& window = relevant_window(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
@@ -277,15 +280,15 @@ void MediaControls::set_up_event_listeners()
                 if (m_media_element->ended()) {
                     auto loop = m_media_element->has_attribute(HTML::AttributeNames::loop);
                     if (loop)
-                        m_media_element->play();
+                        m_media_element->play_from_user_interaction();
                 } else {
-                    m_media_element->play();
+                    m_media_element->play_from_user_interaction();
                 }
             }
 
             update_play_pause_icon();
 
-            auto& window_inner = static_cast<HTML::Window&>(relevant_global_object(*m_media_element));
+            auto& window_inner = relevant_window(*m_media_element);
             window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
             return true;
         });
@@ -318,8 +321,8 @@ void MediaControls::set_up_event_listeners()
 
         set_volume(*volume);
 
-        auto& realm = m_media_element->realm();
-        auto& window = as<HTML::Window>(realm.global_object());
+        auto& realm = HTML::relevant_realm(*m_media_element);
+        auto& window = relevant_window(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
@@ -343,7 +346,7 @@ void MediaControls::set_up_event_listeners()
             if (volume.has_value())
                 set_volume(*volume);
 
-            auto& window_inner = static_cast<HTML::Window&>(relevant_global_object(*m_media_element));
+            auto& window_inner = relevant_window(*m_media_element);
             window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
             return true;
         });
@@ -423,16 +426,6 @@ void MediaControls::set_up_event_listeners()
         return true;
     });
 
-    // Use requestAnimationFrame to update the timeline, since timeupdate only fires every 250ms.
-    auto request_animation_frame_callback_function = JS::NativeFunction::create(
-        realm, [this](JS::VM&) {
-            m_request_animation_frame_id = 0;
-            update_timeline();
-            request_timeline_update();
-            return JS::js_undefined();
-        },
-        0, Utf16FlyString {}, &realm);
-    m_request_animation_frame_callback = realm.heap().allocate<WebIDL::CallbackType>(request_animation_frame_callback_function, realm);
     request_timeline_update();
 }
 
@@ -441,7 +434,7 @@ void MediaControls::toggle_playback()
     if (m_scrubbing_timeline != Scrubbing::No)
         return;
     if (m_media_element->paused())
-        m_media_element->play();
+        m_media_element->play_from_user_interaction();
     else
         m_media_element->pause();
     show_controls();
@@ -506,7 +499,7 @@ void MediaControls::update_timeline()
         progress = (m_media_element->current_time() / duration);
 
     if (m_last_timeline_progress != progress) {
-        MUST(m_dom->timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, format_percent(progress)));
+        MUST(m_dom->timeline_fill->style()->set_property(CSS::PropertyID::Width, format_percent(progress)));
         m_last_timeline_progress = progress;
     }
 
@@ -525,7 +518,7 @@ void MediaControls::update_timeline()
         auto range = MUST(DOM::create_element(m_media_element->document(), HTML::TagNames::div, Namespace::HTML));
         static String const& timeline_buffered_class = *new String("timeline-buffered"_string);
         MUST(range->class_list()->toggle(timeline_buffered_class, true));
-        MUST(range->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
+        MUST(range->style()->set_property(CSS::PropertyID::Display, "block"sv));
         m_dom->timeline_track->insert_before(range, nullptr);
         m_buffered_ranges.empend(*range);
     }
@@ -541,7 +534,7 @@ void MediaControls::update_timeline()
         range.left = left;
         range.width = width;
 
-        auto style = range.element->style_for_bindings();
+        auto style = range.element->style();
         MUST(style->set_property(CSS::PropertyID::Left, format_percent(left)));
         MUST(style->set_property(CSS::PropertyID::Width, format_percent(width)));
     }
@@ -554,9 +547,13 @@ void MediaControls::request_timeline_update()
     if (!m_media_element->potentially_playing())
         return;
 
-    auto& realm = m_media_element->realm();
-    auto& window = as<HTML::Window>(realm.global_object());
-    m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
+    auto& realm = HTML::relevant_realm(*m_media_element);
+    auto& window = relevant_window(realm.global_object());
+    m_request_animation_frame_id = window.request_animation_frame([this](double) {
+        m_request_animation_frame_id = 0;
+        update_timeline();
+        request_timeline_update();
+    });
 }
 
 void MediaControls::update_timestamp()
@@ -582,10 +579,10 @@ void MediaControls::update_volume_and_mute_indicator()
     auto muted = !has_audio || m_media_element->muted();
 
     if (muted) {
-        MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, "0"sv));
+        MUST(m_dom->volume_fill->style()->set_property(CSS::PropertyID::Width, "0"sv));
     } else {
         auto percentage = volume * 100.0;
-        MUST(m_dom->volume_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
+        MUST(m_dom->volume_fill->style()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
     }
 
     auto new_volume_icon_state = [&] {
@@ -650,7 +647,7 @@ void MediaControls::update_placeholder_visibility()
         return;
 
     auto display = should_show_placeholder() ? "flex"sv : "none"sv;
-    MUST(m_dom->placeholder_circle->style_for_bindings()->set_property(CSS::PropertyID::Display, display));
+    MUST(m_dom->placeholder_circle->style()->set_property(CSS::PropertyID::Display, display));
 }
 
 bool MediaControls::should_show_placeholder() const
@@ -670,6 +667,7 @@ static Vector<String> const& visible_class()
 
 void MediaControls::show_controls()
 {
+    VERIFY(m_media_element);
     VERIFY(m_dom->control_bar);
 
     MUST(m_dom->control_bar->class_list()->add(visible_class()));
@@ -687,6 +685,7 @@ void MediaControls::show_controls()
 
 void MediaControls::hide_controls()
 {
+    VERIFY(m_media_element);
     VERIFY(m_dom->control_bar);
 
     if (m_scrubbing_timeline != Scrubbing::No || m_scrubbing_volume || m_hovering_controls)

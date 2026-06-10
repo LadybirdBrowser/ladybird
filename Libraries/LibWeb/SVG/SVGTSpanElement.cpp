@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGTSpanElement.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Layout/SVGTextBox.h>
 #include <LibWeb/SVG/SVGTSpanElement.h>
 #include <LibWeb/SVG/SVGTextElement.h>
@@ -16,12 +16,6 @@ GC_DEFINE_ALLOCATOR(SVGTSpanElement);
 SVGTSpanElement::SVGTSpanElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGTextPositioningElement(document, move(qualified_name))
 {
-}
-
-void SVGTSpanElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTSpanElement);
-    Base::initialize(realm);
 }
 
 RefPtr<Layout::Node> SVGTSpanElement::create_layout_node(CSS::ComputedProperties const& style)

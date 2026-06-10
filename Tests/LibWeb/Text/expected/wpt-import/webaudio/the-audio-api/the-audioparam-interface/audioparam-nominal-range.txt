@@ -253,7 +253,7 @@ Pass	> [Offline createChannelSplitter]
 Pass	  ChannelSplitterNode has no AudioParams as expected
 Pass	< [Offline createChannelSplitter] All assertions passed. (total 1 assertions)
 Pass	> [Offline createChannelMerger] 
-Pass	  AudioNode has no AudioParams as expected
+Pass	  ChannelMergerNode has no AudioParams as expected
 Pass	< [Offline createChannelMerger] All assertions passed. (total 1 assertions)
 Pass	> [Online createMediaElementSource] 
 Pass	  MediaElementAudioSourceNode has no AudioParams as expected

@@ -5,31 +5,23 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLFramebuffer.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLFramebuffer.h>
 
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLFramebuffer);
 
-GC::Ref<WebGLFramebuffer> WebGLFramebuffer::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLFramebuffer> WebGLFramebuffer::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
-    return realm.create<WebGLFramebuffer>(realm, context, handle);
+    return GC::Heap::the().allocate<WebGLFramebuffer>(context, handle);
 }
 
-WebGLFramebuffer::WebGLFramebuffer(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : WebGLObject(realm, context, handle)
+WebGLFramebuffer::WebGLFramebuffer(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+    : WebGLObject(context, handle)
 {
 }
 
 WebGLFramebuffer::~WebGLFramebuffer() = default;
-
-void WebGLFramebuffer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLFramebuffer);
-    Base::initialize(realm);
-}
 
 }

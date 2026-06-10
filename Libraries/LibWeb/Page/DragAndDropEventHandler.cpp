@@ -15,8 +15,10 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
 #include <LibWeb/UIEvents/KeyCode.h>
@@ -551,7 +553,7 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     }
 
     // 6. Let dataTransfer be a newly created DataTransfer object associated with the given drag data store.
-    auto data_transfer = HTML::DataTransfer::create(realm, *m_drag_data_store);
+    auto data_transfer = HTML::DataTransfer::create(*m_drag_data_store);
 
     // 7. Set the effectAllowed attribute to the drag data store's drag data store allowed effects state.
     data_transfer->set_effect_allowed_internal(m_drag_data_store->allowed_effects_state());
@@ -596,7 +598,7 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
 
     // 9. Let event be the result of creating an event using DragEvent.
     // FIXME: Implement https://dom.spec.whatwg.org/#concept-event-create
-    Bindings::DragEventInit event_init {};
+    HTML::DragEventInit event_init {};
 
     // 10. Initialize event's type attribute to e, its bubbles attribute to true, its view attribute to window, its
     //     relatedTarget attribute to related target, and its dataTransfer attribute to dataTransfer.
@@ -605,7 +607,9 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     event_init.data_transfer = data_transfer;
 
     if (target) {
-        auto& window = static_cast<HTML::Window&>(HTML::relevant_global_object(*target));
+        auto* target_node = as_if<DOM::Node>(target.ptr());
+        VERIFY(target_node);
+        auto& window = HTML::relevant_window(*target_node);
         event_init.view = window.window();
     }
 
@@ -626,7 +630,7 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     event_init.button = button;
     event_init.buttons = buttons;
 
-    auto event = HTML::DragEvent::create(realm, name, event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
+    auto event = HTML::DragEvent::create(name, event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(realm.global_object()));
 
     // The "create an event" AO in step 9 should set these.
     event->set_is_trusted(true);

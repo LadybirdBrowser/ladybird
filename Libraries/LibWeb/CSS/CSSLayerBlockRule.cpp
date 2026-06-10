@@ -5,8 +5,7 @@
  */
 
 #include "CSSLayerBlockRule.h"
-#include <LibWeb/Bindings/CSSLayerBlockRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
 
@@ -14,9 +13,9 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSLayerBlockRule);
 
-GC::Ref<CSSLayerBlockRule> CSSLayerBlockRule::create(JS::Realm& realm, FlyString name, CSSRuleList& rules)
+GC::Ref<CSSLayerBlockRule> CSSLayerBlockRule::create(FlyString name, CSSRuleList& rules)
 {
-    return realm.create<CSSLayerBlockRule>(realm, move(name), rules);
+    return GC::Heap::the().allocate<CSSLayerBlockRule>(move(name), rules);
 }
 
 FlyString CSSLayerBlockRule::next_unique_anonymous_layer_name()
@@ -25,8 +24,8 @@ FlyString CSSLayerBlockRule::next_unique_anonymous_layer_name()
     return MUST(String::formatted("#{}", ++s_anonymous_layer_id));
 }
 
-CSSLayerBlockRule::CSSLayerBlockRule(JS::Realm& realm, FlyString name, CSSRuleList& rules)
-    : CSSGroupingRule(realm, rules, Type::LayerBlock)
+CSSLayerBlockRule::CSSLayerBlockRule(FlyString name, CSSRuleList& rules)
+    : CSSGroupingRule(rules, Type::LayerBlock)
     , m_name(move(name))
 {
     if (m_name.is_empty()) {
@@ -34,12 +33,6 @@ CSSLayerBlockRule::CSSLayerBlockRule(JS::Realm& realm, FlyString name, CSSRuleLi
     } else {
         m_name_internal = m_name;
     }
-}
-
-void CSSLayerBlockRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSLayerBlockRule);
-    Base::initialize(realm);
 }
 
 String CSSLayerBlockRule::serialized() const

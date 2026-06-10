@@ -39,9 +39,21 @@ public:
         Yes
     };
 
-    WebIDL::ExceptionOr<GC::Ref<Animation>> animate(GC::Ptr<JS::Object> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options = {});
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(Optional<Bindings::GetAnimationsOptions> const& options = {});
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, Optional<Bindings::GetAnimationsOptions> const& options = {});
+    struct GetAnimationsOptions {
+        bool subtree { false };
+        Optional<CSS::Selector::PseudoElementSelector> pseudo_element;
+    };
+
+    struct KeyframeAnimationOptions : public KeyframeEffect::Options {
+        String id;
+        Optional<GC::Ptr<AnimationTimeline>> timeline;
+    };
+
+    WebIDL::ExceptionOr<GC::Ref<Animation>> animate(Vector<BaseKeyframe> keyframes, Variant<double, KeyframeAnimationOptions> const& options);
+    WebIDL::ExceptionOr<GC::Ref<Animation>> animate(JS::Realm&, GC::Ptr<JS::Object> keyframes, Variant<double, Bindings::KeyframeAnimationOptions> const& options);
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(GetAnimationsOptions const& options);
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(Bindings::GetAnimationsOptions const& options);
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, GetAnimationsOptions const& options);
     bool has_relevant_animations() const;
 
     void associate_with_animation(GC::Ref<Animation>);

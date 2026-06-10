@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSPageRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSPageRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -16,23 +15,17 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPageRule);
 
-GC::Ref<CSSPageRule> CSSPageRule::create(JS::Realm& realm, PageSelectorList&& selectors, GC::Ref<CSSPageDescriptors> style, CSSRuleList& rules)
+GC::Ref<CSSPageRule> CSSPageRule::create(PageSelectorList&& selectors, GC::Ref<CSSPageDescriptors> style, CSSRuleList& rules)
 {
-    return realm.create<CSSPageRule>(realm, move(selectors), style, rules);
+    return GC::Heap::the().allocate<CSSPageRule>(move(selectors), style, rules);
 }
 
-CSSPageRule::CSSPageRule(JS::Realm& realm, PageSelectorList&& selectors, GC::Ref<CSSPageDescriptors> style, CSSRuleList& rules)
-    : CSSGroupingRule(realm, rules, Type::Page)
+CSSPageRule::CSSPageRule(PageSelectorList&& selectors, GC::Ref<CSSPageDescriptors> style, CSSRuleList& rules)
+    : CSSGroupingRule(rules, Type::Page)
     , m_selectors(move(selectors))
     , m_style(style)
 {
     m_style->set_parent_rule(*this);
-}
-
-void CSSPageRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSPageRule);
-    Base::initialize(realm);
 }
 
 // https://drafts.csswg.org/cssom/#dom-csspagerule-selectortext
@@ -89,7 +82,7 @@ String CSSPageRule::serialized() const
     return builder.to_string_without_validation();
 }
 
-void CSSPageRule::visit_edges(Visitor& visitor)
+void CSSPageRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);

@@ -8,26 +8,28 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/String.h>
+#include <LibWeb/Bindings/WebGLContextEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::WebGL {
 
+using WebGLContextEventInit = Bindings::WebGLContextEventInit;
+
 class WebGLContextEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(WebGLContextEvent, DOM::Event);
+    WEB_WRAPPABLE(WebGLContextEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(WebGLContextEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<WebGLContextEvent> create(JS::Realm&, FlyString const& type, Bindings::WebGLContextEventInit const&);
-    static WebIDL::ExceptionOr<GC::Ref<WebGLContextEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::WebGLContextEventInit const&);
+    [[nodiscard]] static GC::Ref<WebGLContextEvent> create(FlyString const& type, WebGLContextEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~WebGLContextEvent() override;
 
     String const& status_message() const { return m_status_message; }
 
 private:
-    WebGLContextEvent(JS::Realm&, FlyString const& type, Bindings::WebGLContextEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
+    WebGLContextEvent(FlyString const& type, WebGLContextEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     String m_status_message;
 };

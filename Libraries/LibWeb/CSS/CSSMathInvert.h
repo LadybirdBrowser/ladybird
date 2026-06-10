@@ -12,17 +12,15 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathinvert
 class CSSMathInvert final : public CSSMathValue {
-    WEB_PLATFORM_OBJECT(CSSMathInvert, CSSMathValue);
+    WEB_WRAPPABLE(CSSMathInvert, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathInvert);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathInvert> create(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);
-    static GC::Ref<CSSMathInvert> construct_impl(JS::Realm&, CSSNumberish);
+    [[nodiscard]] static GC::Ref<CSSMathInvert> create(NumericType, GC::Ref<CSSNumericValue>);
+    static GC::Ref<CSSMathInvert> create_from_numberish(CSSNumberish);
 
     virtual ~CSSMathInvert() override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> value() const;
 
@@ -33,7 +31,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathInvert(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);
+    CSSMathInvert(NumericType, GC::Ref<CSSNumericValue>);
     GC::Ref<CSSNumericValue> m_value;
 };
 

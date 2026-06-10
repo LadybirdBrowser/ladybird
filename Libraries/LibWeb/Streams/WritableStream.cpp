@@ -4,13 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/PromiseCapability.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
 #include <LibWeb/Bindings/UnderlyingSink.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Bindings/WritableStream.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
@@ -24,22 +29,25 @@ namespace Web::Streams {
 
 GC_DEFINE_ALLOCATOR(WritableStream);
 
+WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::create_for_constructor(JS::Realm& realm, GC::Ptr<JS::Object> underlying_sink_object, QueuingStrategy const& strategy)
+{
+    auto underlying_sink = underlying_sink_object ? JS::Value { underlying_sink_object } : JS::js_null();
+    auto underlying_sink_dict = TRY(Bindings::convert_to_idl_value_for_underlying_sink(realm.vm(), underlying_sink));
+    if (underlying_sink_dict.type.has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'type'"sv };
+
+    return create(realm, underlying_sink_object, underlying_sink_dict, strategy);
+}
+
 // https://streams.spec.whatwg.org/#ws-constructor
-WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::Realm& realm, GC::Ptr<JS::Object> underlying_sink_object, Bindings::QueuingStrategy const& strategy)
+WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::create(JS::Realm& realm, GC::Ptr<JS::Object> underlying_sink_object, UnderlyingSink const& underlying_sink_dict, QueuingStrategy const& strategy)
 {
     auto& vm = realm.vm();
 
-    auto writable_stream = realm.create<WritableStream>(realm);
+    auto writable_stream = GC::Heap::the().allocate<WritableStream>();
 
     // 1. If underlyingSink is missing, set it to null.
     auto underlying_sink = underlying_sink_object ? JS::Value(underlying_sink_object) : JS::js_null();
-
-    // 2. Let underlyingSinkDict be underlyingSink, converted to an IDL value of type UnderlyingSink.
-    auto underlying_sink_dict = TRY(Bindings::convert_to_idl_value_for_underlying_sink(vm, underlying_sink));
-
-    // 3. If underlyingSinkDict["type"] exists, throw a RangeError exception.
-    if (underlying_sink_dict.type.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Invalid use of reserved key 'type'"sv };
 
     // 4. Perform ! InitializeWritableStream(this).
     // Note: This AO configures slot values which are already specified in the class's field initializers.
@@ -51,23 +59,36 @@ WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::
     auto high_water_mark = TRY(extract_high_water_mark(strategy, 1));
 
     // 7. Perform ? SetUpWritableStreamDefaultControllerFromUnderlyingSink(this, underlyingSink, underlyingSinkDict, highWaterMark, sizeAlgorithm).
-    TRY(set_up_writable_stream_default_controller_from_underlying_sink(*writable_stream, underlying_sink, underlying_sink_dict, high_water_mark, size_algorithm));
+    TRY(set_up_writable_stream_default_controller_from_underlying_sink(realm, *writable_stream, underlying_sink, underlying_sink_dict, high_water_mark, size_algorithm));
 
     return writable_stream;
 }
 
-WritableStream::WritableStream(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+WritableStream::WritableStream()
 {
 }
 
-void WritableStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStream);
-    Base::initialize(realm);
 }
 
-void WritableStream::visit_edges(Cell::Visitor& visitor)
+namespace Web::Bindings {
+
+Streams::WritableStream* writable_stream_from_object(JS::Object& object)
+{
+    return Bindings::impl_from<Streams::WritableStream>(&object);
+}
+
+void serialize_writable_stream_with_transfer(JS::Realm& realm, HTML::TransferDataEncoder& data_holder, GC::Ref<Streams::WritableStream> stream)
+{
+    JS::Value wrapped_stream = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, stream);
+    auto result = MUST(HTML::structured_serialize_with_transfer(realm, wrapped_stream, { { wrapped_stream.as_object() } }));
+    data_holder.extend(move(result.transfer_data_holders));
+}
+
+}
+
+namespace Web::Streams {
+
+void WritableStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_close_request);
@@ -92,10 +113,8 @@ bool WritableStream::locked() const
 }
 
 // https://streams.spec.whatwg.org/#ws-close
-GC::Ref<WebIDL::Promise> WritableStream::close()
+GC::Ref<WebIDL::Promise> WritableStream::close(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // 1. If ! IsWritableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(*this)) {
         auto exception = JS::TypeError::create(realm, "Cannot close a locked stream"sv);
@@ -109,14 +128,12 @@ GC::Ref<WebIDL::Promise> WritableStream::close()
     }
 
     // 3. Return ! WritableStreamClose(this).
-    return writable_stream_close(*this);
+    return writable_stream_close(realm, *this);
 }
 
 // https://streams.spec.whatwg.org/#ws-abort
-GC::Ref<WebIDL::Promise> WritableStream::abort(Optional<JS::Value> reason)
+GC::Ref<WebIDL::Promise> WritableStream::abort(JS::Realm& realm, Optional<JS::Value> reason)
 {
-    auto& realm = this->realm();
-
     // 1. If ! IsWritableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(*this)) {
         auto exception = JS::TypeError::create(realm, "Cannot abort a locked stream"sv);
@@ -124,71 +141,68 @@ GC::Ref<WebIDL::Promise> WritableStream::abort(Optional<JS::Value> reason)
     }
 
     // 2. Return ! WritableStreamAbort(this, reason).
-    return writable_stream_abort(*this, reason.value_or(JS::js_undefined()));
+    return writable_stream_abort(realm, *this, reason.value_or(JS::js_undefined()));
 }
 
 // https://streams.spec.whatwg.org/#ws-get-writer
-WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStream::get_writer()
+WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStream::get_writer(JS::Realm& realm)
 {
     // 1. Return ? AcquireWritableStreamDefaultWriter(this).
-    return acquire_writable_stream_default_writer(*this);
+    return acquire_writable_stream_default_writer(realm, *this);
 }
 
 // https://streams.spec.whatwg.org/#ref-for-transfer-steps①
-WebIDL::ExceptionOr<void> WritableStream::transfer_steps(HTML::TransferDataEncoder& data_holder)
+WebIDL::ExceptionOr<void> WritableStream::transfer_steps(JS::Realm& realm, HTML::TransferDataEncoder& data_holder)
 {
-    auto& realm = this->realm();
-    auto& vm = realm.vm();
-
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 1. If ! IsWritableStreamLocked(value) is true, throw a "DataCloneError" DOMException.
     if (is_writable_stream_locked(*this))
-        return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_utf16);
+        return WebIDL::DataCloneError::create("Cannot transfer locked WritableStream"_utf16);
 
     // 2. Let port1 be a new MessagePort in the current Realm.
-    auto port1 = HTML::MessagePort::create(realm);
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(realm.global_object());
+    VERIFY(global_scope);
+    auto port1 = HTML::MessagePort::create(global_scope->this_impl());
 
     // 3. Let port2 be a new MessagePort in the current Realm.
-    auto port2 = HTML::MessagePort::create(realm);
+    auto port2 = HTML::MessagePort::create(global_scope->this_impl());
 
     // 4. Entangle port1 and port2.
     port1->entangle_with(port2);
 
     // 5. Let readable be a new ReadableStream in the current Realm.
-    auto readable = realm.create<ReadableStream>(realm);
+    auto readable = GC::Heap::the().allocate<ReadableStream>();
 
     // 6. Perform ! SetUpCrossRealmTransformReadable(readable, port1).
     set_up_cross_realm_transform_readable(realm, readable, port1);
 
     // 7. Let promise be ! ReadableStreamPipeTo(readable, value, false, false, false).
-    auto promise = readable_stream_pipe_to(readable, *this, false, false, false);
+    auto promise = readable_stream_pipe_to(realm, readable, *this, false, false, false);
 
     // 8. Set promise.[[PromiseIsHandled]] to true.
     WebIDL::mark_promise_as_handled(promise);
 
     // 9. Set dataHolder.[[port]] to ! StructuredSerializeWithTransfer(port2, « port2 »).
-    auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2, { { port2 } }));
-    data_holder.extend(move(result.transfer_data_holders));
+    Bindings::serialize_message_port_with_transfer(realm, data_holder, port2);
 
     return {};
 }
 
 // https://streams.spec.whatwg.org/#ref-for-transfer-receiving-steps①
-WebIDL::ExceptionOr<void> WritableStream::transfer_receiving_steps(HTML::TransferDataDecoder& data_holder)
+WebIDL::ExceptionOr<void> WritableStream::transfer_receiving_steps(JS::Realm& realm, HTML::TransferDataDecoder& data_holder)
 {
-    auto& realm = this->realm();
-
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 1. Let deserializedRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[port]], the current Realm).
     auto deserialized_record = MUST(HTML::structured_deserialize_with_transfer_internal(data_holder, realm));
 
     // 2. Let port be deserializedRecord.[[Deserialized]].
-    auto& port = as<HTML::MessagePort>(deserialized_record.as_object());
+    auto* port = Bindings::message_port_from_object(deserialized_record.as_object());
+    VERIFY(port);
 
     // 3. Perform ! SetUpCrossRealmTransformWritable(value, port).
-    set_up_cross_realm_transform_writable(realm, *this, port);
+    set_up_cross_realm_transform_writable(realm, *this, *port);
 
     return {};
 }

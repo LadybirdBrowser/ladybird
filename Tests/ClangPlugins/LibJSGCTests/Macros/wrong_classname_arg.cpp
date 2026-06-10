@@ -8,6 +8,7 @@
 
 #include <LibJS/Runtime/PrototypeObject.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 // An incorrect first argument for JS_PROTOTYPE_OBJECT is a compile error, so that is not tested
 
@@ -29,6 +30,11 @@ class TestEnvironmentClass : JS::Environment {
 class TestPlatformClass : Web::Bindings::PlatformObject {
     // expected-error@+1 {{Expected first argument of WEB_PLATFORM_OBJECT macro invocation to be TestPlatformClass}}
     WEB_NON_IDL_PLATFORM_OBJECT(bad, Web::Bindings::PlatformObject);
+};
+
+class TestWrappableClass : Web::Bindings::Wrappable {
+    // expected-error@+1 {{Expected first argument of WEB_WRAPPABLE macro invocation to be TestWrappableClass}}
+    WEB_NON_IDL_WRAPPABLE(bad, Web::Bindings::Wrappable);
 };
 
 struct Outer {

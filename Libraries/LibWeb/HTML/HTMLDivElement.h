@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLDivElement : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLDivElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLDivElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLDivElement);
 
 public:
@@ -27,7 +27,6 @@ protected:
     HTMLDivElement(DOM::Document&, DOM::QualifiedName);
 
 private:
-    virtual void initialize(JS::Realm&) override;
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 };

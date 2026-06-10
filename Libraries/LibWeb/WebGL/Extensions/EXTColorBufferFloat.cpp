@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/EXTColorBufferFloat.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/EXTColorBufferFloat.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -15,24 +13,19 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTColorBufferFloat);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTColorBufferFloat::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> EXTColorBufferFloat::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    return realm.create<EXTColorBufferFloat>(realm, context);
+    auto extension = GC::Heap::the().allocate<EXTColorBufferFloat>(context);
+    return GC::Ref<WebGLExtension> { extension };
 }
 
-EXTColorBufferFloat::EXTColorBufferFloat(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
+EXTColorBufferFloat::EXTColorBufferFloat(GC::Ref<WebGLRenderingContextBase> context)
+    : WebGLExtension()
     , m_context(context)
 {
 }
 
-void EXTColorBufferFloat::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(EXTColorBufferFloat);
-    Base::initialize(realm);
-}
-
-void EXTColorBufferFloat::visit_edges(Visitor& visitor)
+void EXTColorBufferFloat::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

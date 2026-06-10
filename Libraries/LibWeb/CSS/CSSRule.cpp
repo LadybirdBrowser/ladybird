@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSRule.h>
@@ -15,13 +14,12 @@
 
 namespace Web::CSS {
 
-CSSRule::CSSRule(JS::Realm& realm, Type type)
-    : PlatformObject(realm)
-    , m_type(type)
+CSSRule::CSSRule(Type type)
+    : m_type(type)
 {
 }
 
-void CSSRule::visit_edges(Cell::Visitor& visitor)
+void CSSRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_parent_style_sheet);

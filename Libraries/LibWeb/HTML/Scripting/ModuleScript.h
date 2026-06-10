@@ -52,6 +52,8 @@ protected:
     ModuleScript(Optional<URL::URL> base_url, ByteString filename, EnvironmentSettingsObject&);
 
 private:
+    static GC::Ref<ModuleScript> create_internal(Optional<URL::URL> base_url, ByteString const& filename, EnvironmentSettingsObject&);
+
     virtual bool is_module_script() const final { return true; }
     virtual void visit_edges(JS::Cell::Visitor&) override;
 

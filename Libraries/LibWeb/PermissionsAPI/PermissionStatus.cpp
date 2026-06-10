@@ -5,9 +5,7 @@
  */
 
 #include <AK/Types.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PermissionStatus.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -15,6 +13,8 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
 
@@ -22,20 +22,22 @@ namespace Web::PermissionsAPI {
 
 GC_DEFINE_ALLOCATOR(PermissionStatus);
 
-void PermissionStatus::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PermissionStatus);
-    Base::initialize(realm);
-}
-
-PermissionStatus::PermissionStatus(JS::Realm& realm, String const& name, Bindings::PermissionDescriptor const& query)
-    : DOM::EventTarget(realm)
+PermissionStatus::PermissionStatus(GC::Ref<DOM::EventTarget> relevant_global_object, String const& name,
+    PermissionDescriptor query)
+    : DOM::EventTarget()
     , m_name(name)
-    , m_query(query)
+    , m_query(move(query))
+    , m_global_object(relevant_global_object)
 {
 }
 
-GC::Ref<PermissionStatus> PermissionStatus::create(JS::Realm& realm, Bindings::PermissionDescriptor permission_desc)
+void PermissionStatus::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_global_object);
+}
+
+GC::Ref<PermissionStatus> PermissionStatus::create(GC::Ref<DOM::EventTarget> relevant_global_object, PermissionDescriptor permission_desc)
 {
     // 1. Let name be permissionDesc's name.
     String name = permission_desc.name;
@@ -48,18 +50,28 @@ GC::Ref<PermissionStatus> PermissionStatus::create(JS::Realm& realm, Bindings::P
     // If unspecified, this defaults to PermissionStatus. No subtypes exist yet in Ladybird.
     // 1. Initialize status's [[query]] internal slot to permissionDesc.
     // 2. Initialize status's name to name.
-    auto status = realm.create<PermissionStatus>(realm, name, permission_desc);
+    auto status = GC::Heap::the().allocate<PermissionStatus>(relevant_global_object, name, move(permission_desc));
 
     // 4. Return status.
     return status;
 }
 
+PermissionState PermissionStatus::state() const
+{
+    return m_state;
+}
+
+JS::Object& PermissionStatus::relevant_global_object() const
+{
+    return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
+}
+
 // https://w3c.github.io/permissions/#dfn-permissionstatus-update-steps
 void PermissionStatus::update_steps()
 {
-    auto& relevant_global_object = HTML::relevant_global_object(*this);
+    auto& relevant_global_object = this->relevant_global_object();
     // 1. If this's relevant global object is a Window object, then:
-    if (auto* window = as_if<HTML::Window>(relevant_global_object)) {
+    if (auto* window = HTML::window_from_global_object(relevant_global_object)) {
         // 1. Let document be status's relevant global object's associated Document.
         auto const& document = window->associated_document();
         // 2. If document is null or document is not fully active, terminate this algorithm.
@@ -75,9 +87,10 @@ void PermissionStatus::update_steps()
     permission_query_algorithm(query, *this);
 
     // 4. Queue a task on the permissions task source to fire an event named change at status.
-    HTML::queue_a_task(
-        HTML::Task::Source::Permissions, nullptr, nullptr, GC::create_function(realm().heap(), [this] {
-            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::change));
+    HTML::queue_global_task(HTML::Task::Source::Permissions, relevant_global_object,
+        GC::create_function(GC::Heap::the(), [this, relevant_global_object = GC::Ref(relevant_global_object)] {
+            dispatch_event(DOM::Event::create(HTML::EventNames::change,
+                HighResolutionTime::current_high_resolution_time(*relevant_global_object)));
         }));
 }
 

@@ -7,31 +7,41 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Geometry/DOMMatrixReadOnly.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/Canvas/CanvasPath.h>
+
+namespace Web::Bindings {
+
+struct DOMMatrix2DInit;
+
+}
+
+namespace Web::Geometry {
+
+class DOMMatrix;
+
+}
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#path2d
 class Path2D final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public CanvasPath {
 
-    WEB_PLATFORM_OBJECT(Path2D, Bindings::PlatformObject);
+    WEB_WRAPPABLE(Path2D, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Path2D);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Path2D>> construct_impl(JS::Realm&, Optional<Variant<GC::Ref<Path2D>, String>> const& path);
+    static GC::Ref<Path2D> create(Optional<Variant<GC::Ref<Path2D>, String>> const& path);
 
     virtual ~Path2D() override;
 
-    WebIDL::ExceptionOr<void> add_path(GC::Ref<Path2D> path, Bindings::DOMMatrix2DInit& transform);
+    WebIDL::ExceptionOr<void> add_path(GC::Ref<Path2D> path, GC::Ref<Geometry::DOMMatrix> transform);
+    WebIDL::ExceptionOr<void> add_path(GC::Ref<Path2D> path, Bindings::DOMMatrix2DInit const& transform);
 
 private:
-    Path2D(JS::Realm&, Optional<Variant<GC::Ref<Path2D>, String>> const&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit Path2D(Optional<Variant<GC::Ref<Path2D>, String>> const&);
 };
 
 }

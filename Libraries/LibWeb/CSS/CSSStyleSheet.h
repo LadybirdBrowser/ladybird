@@ -8,9 +8,12 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/Variant.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSRule.h>
@@ -21,7 +24,14 @@
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/StyleInvalidationReason.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace Web::ViewTransition {
+
+class ViewTransition;
+
+}
 
 namespace Web::CSS {
 
@@ -30,9 +40,16 @@ class StyleScope;
 struct ShadowRootStylesheetEffects;
 struct StyleCache;
 
+using CSSStyleSheetOptions = Bindings::CSSStyleSheetInit;
+
+WEB_API CSSStyleSheet* css_style_sheet_from_value(JS::Value);
+WEB_API JS::Value css_style_sheet(JS::Realm&, CSSStyleSheet&);
+WEB_API void resolve_css_style_sheet_promise(JS::Realm&, WebIDL::Promise const&, CSSStyleSheet&);
+WEB_API GC::Ref<JS::SyntheticModule> create_css_style_sheet_default_export_module(JS::Realm&, CSSStyleSheet&, StringView filename);
+
 // https://drafts.csswg.org/cssom-1/#cssstylesheet
 class WEB_API CSSStyleSheet final : public StyleSheet {
-    WEB_PLATFORM_OBJECT(CSSStyleSheet, StyleSheet);
+    WEB_WRAPPABLE(CSSStyleSheet, StyleSheet);
     GC_DECLARE_ALLOCATOR(CSSStyleSheet);
 
 public:
@@ -50,7 +67,7 @@ public:
 
         virtual GC::Ptr<CSSStyleSheet> parent_style_sheet_for_subresource() = 0;
         LoadingState loading_state() const { return m_loading_state; }
-        virtual void visit_edges(Cell::Visitor&) = 0;
+        virtual void visit_edges(GC::Cell::Visitor&) = 0;
 
         void set_loading_state(LoadingState);
 
@@ -58,8 +75,9 @@ public:
         LoadingState m_loading_state { LoadingState::Unloaded };
     };
 
-    [[nodiscard]] static GC::Ref<CSSStyleSheet> create(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, Optional<Bindings::CSSStyleSheetInit> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, CSSStyleSheetOptions const& options = {});
+    [[nodiscard]] static GC::Ref<CSSStyleSheet> create(CSSRuleList&, MediaList&, Optional<::URL::URL> location);
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> create_constructed(DOM::Document const&, CSSStyleSheetOptions const& options = {});
 
     virtual ~CSSStyleSheet() override;
 
@@ -79,8 +97,10 @@ public:
     WebIDL::ExceptionOr<WebIDL::Long> add_rule(Optional<String> selector, Optional<String> style, Optional<WebIDL::UnsignedLong> index);
     WebIDL::ExceptionOr<void> remove_rule(Optional<WebIDL::UnsignedLong> index);
     WebIDL::ExceptionOr<void> delete_rule(unsigned index);
+    void delete_rule_without_validation(Badge<::Web::ViewTransition::ViewTransition>, unsigned index);
 
-    GC::Ref<WebIDL::Promise> replace(String text);
+    WebIDL::ExceptionOr<void> replace(JS::Realm&, String, GC::Ref<WebIDL::Promise>);
+    WebIDL::ExceptionOr<void> replace_a_stylesheet(String text, Function<void()> did_replace);
     WebIDL::ExceptionOr<void> replace_sync(StringView text);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
@@ -131,10 +151,9 @@ public:
     void check_if_loading_completed();
 
 private:
-    CSSStyleSheet(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
+    CSSStyleSheet(CSSRuleList&, MediaList&, Optional<::URL::URL> location);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     void recalculate_rule_caches();

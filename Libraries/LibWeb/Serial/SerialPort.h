@@ -6,13 +6,21 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/SerialPort.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/WritableStream.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Serial {
+
+using SerialInputSignals = Bindings::SerialInputSignals;
+using SerialOptions = Bindings::SerialOptions;
+using SerialOutputSignals = Bindings::SerialOutputSignals;
+using SerialPortInfo = Bindings::SerialPortInfo;
 
 enum SerialPortState : u8 {
     Closed,
@@ -25,21 +33,22 @@ enum SerialPortState : u8 {
 
 // https://wicg.github.io/serial/#serialport-interface
 class SerialPort : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(SerialPort, DOM::EventTarget);
+    WEB_WRAPPABLE(SerialPort, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SerialPort);
 
+public:
     // https://wicg.github.io/serial/#getinfo-method
-    Bindings::SerialPortInfo get_info() const;
+    SerialPortInfo get_info() const;
     // https://wicg.github.io/serial/#open-method
-    GC::Ref<WebIDL::Promise> open(Bindings::SerialOptions const&);
+    void open(JS::Realm&, SerialOptions const&, GC::Ref<WebIDL::Promise>);
     // https://wicg.github.io/serial/#setsignals-method
-    GC::Ref<WebIDL::Promise> set_signals(Bindings::SerialOutputSignals const& = {});
+    void set_signals(JS::Realm&, SerialOutputSignals const&, GC::Ref<WebIDL::Promise>);
     // https://wicg.github.io/serial/#getsignals-method
-    GC::Ref<WebIDL::Promise> get_signals() const;
+    void get_signals(JS::Realm&, GC::Ref<WebIDL::Promise>) const;
     // https://wicg.github.io/serial/#close-method
-    GC::Ref<WebIDL::Promise> close();
+    void close(JS::Realm&, GC::Ref<WebIDL::Promise>);
     // https://wicg.github.io/serial/#forget-method
-    GC::Ref<WebIDL::Promise> forget();
+    void forget(JS::Realm&, GC::Ref<WebIDL::Promise>);
 
     // https://wicg.github.io/serial/#connected-attribute
     bool connected() const { return m_connected; }
@@ -60,9 +69,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    explicit SerialPort(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit SerialPort();
 
     // https://wicg.github.io/serial/#dfn-state
     // Tracks the active state of the SerialPort

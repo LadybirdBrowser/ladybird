@@ -20,11 +20,11 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-animations/#interface-csskeyframesrule
 class CSSKeyframesRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSKeyframesRule, CSSRule);
+    WEB_WRAPPABLE(CSSKeyframesRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSKeyframesRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSKeyframesRule> create(JS::Realm&, FlyString name, GC::Ref<CSSRuleList>);
+    [[nodiscard]] static GC::Ref<CSSKeyframesRule> create(FlyString name, GC::Ref<CSSRuleList>);
 
     virtual ~CSSKeyframesRule() = default;
 
@@ -35,10 +35,8 @@ public:
     void set_name(String const& name) { m_name = name; }
 
 private:
-    CSSKeyframesRule(JS::Realm&, FlyString name, GC::Ref<CSSRuleList> keyframes);
-    virtual void visit_edges(Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
+    CSSKeyframesRule(FlyString name, GC::Ref<CSSRuleList> keyframes);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

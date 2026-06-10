@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cue = new VTTCue(0, 1, "hello");
+        const describe = value => typeof value === "string" ? JSON.stringify(value) : value;
+
+        for (const property of ["line", "position"]) {
+            println(`${property}: ${describe(cue[property])}`);
+            cue[property] = 42;
+            println(`${property}: ${describe(cue[property])}`);
+            cue[property] = "auto";
+            println(`${property}: ${describe(cue[property])}`);
+        }
+
+        for (const [property, values] of [
+            ["lineAlign", ["start", "center", "end"]],
+            ["positionAlign", ["auto", "line-left", "center", "line-right"]],
+            ["align", ["start", "center", "end", "left", "right"]],
+            ["vertical", ["", "rl", "lr"]],
+        ]) {
+            for (const value of values) {
+                cue[property] = value;
+                println(`${property}: ${describe(cue[property])}`);
+            }
+        }
+    });
+</script>

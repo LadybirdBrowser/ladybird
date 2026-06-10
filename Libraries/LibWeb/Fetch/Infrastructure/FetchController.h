@@ -42,7 +42,7 @@ public:
         Stopped,
     };
 
-    [[nodiscard]] static GC::Ref<FetchController> create(JS::VM&);
+    [[nodiscard]] static GC::Ref<FetchController> create();
 
     void set_full_timing_info(GC::Ref<FetchTimingInfo> full_timing_info) { m_full_timing_info = full_timing_info; }
     void set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps);
@@ -54,7 +54,7 @@ public:
     void process_next_manual_redirect() const;
     [[nodiscard]] GC::Ref<FetchTimingInfo> extract_full_timing_info() const;
     void abort(JS::Realm&, Optional<JS::Value>);
-    JS::Value deserialize_a_serialized_abort_reason(JS::Realm&);
+    Optional<HTML::SerializationRecord> const& serialized_abort_reason() const { return m_serialized_abort_reason; }
     void terminate();
 
     void set_fetch_params(Badge<FetchParams>, GC::Ref<FetchParams> fetch_params) { m_fetch_params = fetch_params; }
@@ -117,7 +117,7 @@ class FetchControllerHolder : public JS::Cell {
     GC_DECLARE_ALLOCATOR(FetchControllerHolder);
 
 public:
-    static GC::Ref<FetchControllerHolder> create(JS::VM&);
+    static GC::Ref<FetchControllerHolder> create();
 
     [[nodiscard]] GC::Ptr<FetchController> const& controller() const { return m_controller; }
     void set_controller(GC::Ref<FetchController> controller) { m_controller = controller; }

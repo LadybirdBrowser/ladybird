@@ -4,30 +4,23 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/BufferedChangeEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/MediaSourceExtensions/BufferedChangeEvent.h>
 
 namespace Web::MediaSourceExtensions {
 
 GC_DEFINE_ALLOCATOR(BufferedChangeEvent);
 
-WebIDL::ExceptionOr<GC::Ref<BufferedChangeEvent>> BufferedChangeEvent::construct_impl(JS::Realm& realm, AK::FlyString const& type, Bindings::BufferedChangeEventInit const& event_init)
+GC::Ref<BufferedChangeEvent> BufferedChangeEvent::create(AK::FlyString const& type, BufferedChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<BufferedChangeEvent>(realm, type, event_init);
+    return GC::Heap::the().allocate<BufferedChangeEvent>(type, event_init, time_stamp);
 }
 
-BufferedChangeEvent::BufferedChangeEvent(JS::Realm& realm, AK::FlyString const& type, Bindings::BufferedChangeEventInit const& event_init)
-    : DOM::Event(realm, type, event_init)
+BufferedChangeEvent::BufferedChangeEvent(AK::FlyString const& type, BufferedChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(type, event_init, time_stamp)
 {
 }
 
 BufferedChangeEvent::~BufferedChangeEvent() = default;
-
-void BufferedChangeEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(BufferedChangeEvent);
-    Base::initialize(realm);
-}
 
 }

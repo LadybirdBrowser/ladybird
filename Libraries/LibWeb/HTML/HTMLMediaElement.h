@@ -15,16 +15,25 @@
 #include <AK/Variant.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
+#include <LibJS/Forward.h>
 #include <LibMedia/Forward.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/MediaControls.h>
+#include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/DOMException.h>
+
+namespace Web::Bindings {
+
+enum class CanPlayTypeResult : u8;
+
+}
 
 namespace Web::HTML {
 
@@ -38,7 +47,7 @@ class SourceElementSelector;
 using OptionalMediaProvider = Variant<Empty, GC::Ref<MediaSourceExtensions::MediaSource>, GC::Ref<FileAPI::Blob>>;
 
 class HTMLMediaElement : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLMediaElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLMediaElement, HTMLElement);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
@@ -118,12 +127,13 @@ public:
     void set_current_playback_position(double);
 
     double duration() const;
-    JS::Object* get_start_date();
+    JS::Object* get_start_date(JS::Realm&) const;
     bool show_poster() const { return m_show_poster; }
     bool paused() const { return m_paused; }
     bool ended() const;
     bool potentially_playing() const;
-    GC::Ref<WebIDL::Promise> play();
+    void play(GC::Ref<WebIDL::Promise>);
+    void play_from_user_interaction();
     void pause();
 
     double volume() const { return m_volume; }
@@ -154,7 +164,7 @@ public:
 
     void update_video_frame_and_timeline();
 
-    GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
+    GC::Ref<TextTrack> add_text_track(TextTrackKind kind, String const& label, String const& language);
 
     void update_ready_state();
 
@@ -182,7 +192,7 @@ public:
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -281,7 +291,7 @@ private:
     template<typename ErrorType>
     void reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises, Utf16String message)
     {
-        auto& realm = this->realm();
+        auto& realm = document().relevant_settings_object().realm();
 
         auto error = ErrorType::create(realm, move(message));
         reject_pending_play_promises(promises, error);

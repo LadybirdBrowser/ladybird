@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Origin.h>
+#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOMURL/Origin.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -15,47 +16,59 @@ namespace Web::DOMURL {
 
 GC_DEFINE_ALLOCATOR(Origin);
 
-Origin::Origin(JS::Realm& realm, URL::Origin origin)
-    : PlatformObject(realm)
-    , m_origin(move(origin))
+Origin::Origin(URL::Origin origin)
+    : m_origin(move(origin))
 {
 }
 
 Origin::~Origin() = default;
 
-void Origin::initialize(JS::Realm& realm)
+GC::Ref<Origin> Origin::create(URL::Origin origin)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Origin);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<Origin>(move(origin));
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-origin-constructor
-GC::Ref<Origin> Origin::construct_impl(JS::Realm& realm)
+GC::Ref<Origin> Origin::create_opaque()
 {
     // The new Origin() constructor steps are to set this's origin to a unique opaque origin.
-    return realm.create<Origin>(realm, URL::Origin::create_opaque());
+    return create(URL::Origin::create_opaque());
+}
+
+GC::Ref<Origin> Origin::construct_impl()
+{
+    return create_opaque();
+}
+
+static Optional<URL::Origin> extract_origin_from_platform_object(JS::Value value)
+{
+    auto object = value.as_if<Bindings::PlatformObject>();
+    if (!object)
+        return {};
+    return object->extract_an_origin();
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-origin-from
-WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
+WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::Value value)
 {
-    auto& realm = *vm.current_realm();
-
     // NB: IDL only ever sees HTML::WindowProxy but we want to use HTML::Window.
-    if (auto window_proxy = value.as_if<HTML::WindowProxy>())
-        value = window_proxy->window();
+    if (auto window_proxy = value.as_if<HTML::WindowProxy>()) {
+        if (auto window = window_proxy->window()) {
+            auto origin = window->extract_an_origin();
+            if (origin.has_value())
+                return create(origin.release_value());
+        }
+    }
 
     // 1. If value is a platform object:
-    if (auto object = value.as_if<Bindings::PlatformObject>()) {
+    if (auto origin = extract_origin_from_platform_object(value); origin.has_value()) {
         // 1. Let origin be the result of executing value's extract an origin operation.
-        auto origin = object->extract_an_origin();
-
         // 2. If origin is not null, then return a new Origin object whose origin is origin.
-        if (origin.has_value())
-            return realm.create<Origin>(realm, origin.release_value());
+        return create(origin.release_value());
     }
+
     // 2. If value is a string:
-    else if (value.is_string()) {
+    if (value.is_string()) {
         auto string = value.as_string().utf8_string_view();
 
         // 1. Let parsedURL be the result of basic URL parsing value.
@@ -63,7 +76,7 @@ WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
 
         // 2. If parsedURL is not failure, then return a new Origin object whose origin is set to parsedURL's origin.
         if (parsed_url.has_value())
-            return realm.create<Origin>(realm, parsed_url->origin());
+            return create(parsed_url->origin());
     }
 
     // 3. Throw a TypeError.

@@ -29,11 +29,11 @@ interface mixin WebGLRenderingContextBase {
     [FIXME] attribute PredefinedColorSpace drawingBufferColorSpace;
     [FIXME] attribute PredefinedColorSpace unpackColorSpace;
 
-    WebGLContextAttributes? getContextAttributes();
+    [ImplementedInBindings] WebGLContextAttributes? getContextAttributes();
     boolean isContextLost();
 
     sequence<DOMString>? getSupportedExtensions();
-    object? getExtension(DOMString name);
+    [ImplementedInBindings] object? getExtension(DOMString name);
 
     undefined activeTexture(GLenum texture);
     undefined attachShader(WebGLProgram program, WebGLShader shader);
@@ -100,28 +100,28 @@ interface mixin WebGLRenderingContextBase {
 
     GLint getAttribLocation(WebGLProgram program, DOMString name);
 
-    any getBufferParameter(GLenum target, GLenum pname);
-    any getParameter(GLenum pname);
+    [ImplementedInBindings] any getBufferParameter(GLenum target, GLenum pname);
+    [ImplementedInBindings] any getParameter(GLenum pname);
 
     GLenum getError();
 
     [FIXME] any getFramebufferAttachmentParameter(GLenum target, GLenum attachment, GLenum pname);
-    any getProgramParameter(WebGLProgram program, GLenum pname);
+    [ImplementedInBindings] any getProgramParameter(WebGLProgram program, GLenum pname);
     DOMString? getProgramInfoLog(WebGLProgram program);
-    any getRenderbufferParameter(GLenum target, GLenum pname);
-    any getShaderParameter(WebGLShader shader, GLenum pname);
+    [ImplementedInBindings] any getRenderbufferParameter(GLenum target, GLenum pname);
+    [ImplementedInBindings] any getShaderParameter(WebGLShader shader, GLenum pname);
     WebGLShaderPrecisionFormat? getShaderPrecisionFormat(GLenum shadertype, GLenum precisiontype);
     DOMString? getShaderInfoLog(WebGLShader shader);
 
     DOMString? getShaderSource(WebGLShader shader);
 
-    any getTexParameter(GLenum target, GLenum pname);
+    [ImplementedInBindings] any getTexParameter(GLenum target, GLenum pname);
 
-    any getUniform(WebGLProgram program, WebGLUniformLocation location);
+    [ImplementedInBindings] any getUniform(WebGLProgram program, WebGLUniformLocation location);
 
     WebGLUniformLocation? getUniformLocation(WebGLProgram program, DOMString name);
 
-    any getVertexAttrib(GLuint index, GLenum pname);
+    [ImplementedInBindings] any getVertexAttrib(GLuint index, GLenum pname);
 
     GLintptr getVertexAttribOffset(GLuint index, GLenum pname);
 
@@ -565,5 +565,5 @@ interface mixin WebGLRenderingContextBase {
     const GLenum BROWSER_DEFAULT_WEBGL = 0x9244;
 
     // https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
-    [NewObject] Promise<undefined> makeXRCompatible();
+    [ImplementedInBindings, NeedsThisObjectRealm, NewObject] Promise<undefined> makeXRCompatible();
 };

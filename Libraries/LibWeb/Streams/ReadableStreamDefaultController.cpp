@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ReadableStreamDefaultController.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultController.h>
@@ -18,8 +16,7 @@ namespace Web::Streams {
 
 GC_DEFINE_ALLOCATOR(ReadableStreamDefaultController);
 
-ReadableStreamDefaultController::ReadableStreamDefaultController(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+ReadableStreamDefaultController::ReadableStreamDefaultController()
 {
 }
 
@@ -45,14 +42,14 @@ WebIDL::ExceptionOr<void> ReadableStreamDefaultController::close()
 }
 
 // https://streams.spec.whatwg.org/#rs-default-controller-enqueue
-WebIDL::ExceptionOr<void> ReadableStreamDefaultController::enqueue(Optional<JS::Value> chunk)
+WebIDL::ExceptionOr<void> ReadableStreamDefaultController::enqueue(JS::Realm& realm, Optional<JS::Value> chunk)
 {
     // 1. If ! ReadableStreamDefaultControllerCanCloseOrEnqueue(this) is false, throw a TypeError exception.
     if (!readable_stream_default_controller_can_close_or_enqueue(*this))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot enqueue chunk to stream"sv };
 
     // 2. Perform ? ReadableStreamDefaultControllerEnqueue(this, chunk).
-    TRY(readable_stream_default_controller_enqueue(*this, chunk.value_or(JS::js_undefined())));
+    TRY(readable_stream_default_controller_enqueue(realm, *this, chunk.value_or(JS::js_undefined())));
 
     return {};
 }
@@ -123,13 +120,7 @@ void ReadableStreamDefaultController::release_steps()
     // 1. Return.
 }
 
-void ReadableStreamDefaultController::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamDefaultController);
-    Base::initialize(realm);
-}
-
-void ReadableStreamDefaultController::visit_edges(Cell::Visitor& visitor)
+void ReadableStreamDefaultController::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto const& item : m_queue)

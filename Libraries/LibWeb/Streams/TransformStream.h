@@ -7,25 +7,26 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/Bindings/Transferable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
+#include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
 
 class TransformStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Transferable {
-    WEB_PLATFORM_OBJECT(TransformStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(TransformStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TransformStream);
 
 public:
     virtual ~TransformStream() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<TransformStream>> construct_impl(JS::Realm&, GC::Ptr<JS::Object> transformer_object = {}, Bindings::QueuingStrategy const& writable_strategy = {}, Bindings::QueuingStrategy const& readable_strategy = {});
+    static WebIDL::ExceptionOr<GC::Ref<TransformStream>> create_for_constructor(JS::Realm&, GC::Ptr<JS::Object> transformer_object, QueuingStrategy const& writable_strategy = {}, QueuingStrategy const& readable_strategy = {});
+    static WebIDL::ExceptionOr<GC::Ref<TransformStream>> create(JS::Realm&, GC::Ptr<JS::Object> transformer_object, Transformer const&, QueuingStrategy const& writable_strategy = {}, QueuingStrategy const& readable_strategy = {});
 
     // https://streams.spec.whatwg.org/#ts-readable
     GC::Ref<ReadableStream> readable() { return *m_readable; }
@@ -40,24 +41,23 @@ public:
 
     GC::Ptr<WebIDL::Promise> backpressure_change_promise() const { return m_backpressure_change_promise; }
     void set_backpressure_change_promise(GC::Ptr<WebIDL::Promise> value) { m_backpressure_change_promise = value; }
+    JS::Realm& backpressure_change_promise_realm() const;
 
     GC::Ptr<TransformStreamDefaultController> controller() const { return m_controller; }
     void set_controller(GC::Ptr<TransformStreamDefaultController> value) { m_controller = value; }
 
-    void set_up(GC::Ref<TransformAlgorithm>, GC::Ptr<FlushAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {});
+    void set_up(JS::Realm&, GC::Ref<TransformAlgorithm>, GC::Ptr<FlushAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {});
     void enqueue(JS::Value chunk);
 
     // ^Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::TransformStream; }
 
 private:
-    explicit TransformStream(JS::Realm& realm);
+    TransformStream();
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#transformstream-backpressure
     // Whether there was backpressure on [[readable]] the last time it was observed

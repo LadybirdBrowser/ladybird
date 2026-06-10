@@ -12,10 +12,15 @@
 #include <LibCompress/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/CompressionStream.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+
+namespace Web::Bindings {
+
+enum class CompressionFormat : u8;
+
+}
 
 namespace Web::Compression {
 
@@ -26,23 +31,23 @@ using Compressor = Variant<
 
 // https://compression.spec.whatwg.org/#compressionstream
 class CompressionStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Streams::GenericTransformStreamMixin {
-    WEB_PLATFORM_OBJECT(CompressionStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(CompressionStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CompressionStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<CompressionStream>> construct_impl(JS::Realm&, Bindings::CompressionFormat);
+    static WebIDL::ExceptionOr<GC::Ref<CompressionStream>> create(JS::Realm&, Compressor, NonnullOwnPtr<AllocatingMemoryStream>);
+    static WebIDL::ExceptionOr<GC::Ref<CompressionStream>> create_for_constructor(JS::Realm&, Bindings::CompressionFormat);
     virtual ~CompressionStream() override;
 
 private:
-    CompressionStream(JS::Realm&, GC::Ref<Streams::TransformStream>, Compressor, NonnullOwnPtr<AllocatingMemoryStream>);
+    CompressionStream(GC::Ref<Streams::TransformStream>, Compressor, NonnullOwnPtr<AllocatingMemoryStream>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> compress_and_enqueue_chunk(JS::Value);
-    WebIDL::ExceptionOr<void> compress_flush_and_enqueue();
+    WebIDL::ExceptionOr<void> compress_and_enqueue_chunk(JS::Realm&, JS::Value);
+    WebIDL::ExceptionOr<void> compress_flush_and_enqueue(JS::Realm&);
 
     enum class Finish {
         No,

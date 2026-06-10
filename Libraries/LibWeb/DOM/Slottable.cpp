@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Slottable.h>
@@ -70,12 +70,12 @@ GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag 
         return nullptr;
 
     // 4. If the open flag is set and shadow’s mode is not "open", then return null.
-    if (open_flag == OpenFlag::Set && shadow->mode() != Bindings::ShadowRootMode::Open)
+    if (open_flag == OpenFlag::Set && shadow->mode() != Web::DOM::ShadowRootMode::Open)
         return nullptr;
 
     // 5. If shadow’s slot assignment is "manual", then return the slot in shadow’s descendants whose manually assigned
     //    nodes contains slottable, if any; otherwise null.
-    if (shadow->slot_assignment() == Bindings::SlotAssignmentMode::Manual) {
+    if (shadow->slot_assignment() == Web::DOM::SlotAssignmentMode::Manual) {
         GC::Ptr<HTML::HTMLSlotElement> slot;
 
         shadow->for_each_in_subtree_of_type<HTML::HTMLSlotElement>([&](auto& child) {
@@ -112,7 +112,7 @@ Vector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
     auto* host = shadow_root.host();
 
     // 5. If root’s slot assignment is "manual", then:
-    if (shadow_root.slot_assignment() == Bindings::SlotAssignmentMode::Manual) {
+    if (shadow_root.slot_assignment() == Web::DOM::SlotAssignmentMode::Manual) {
         // 1. Let result be « ».
         // 2. For each slottable slottable of slot’s manually assigned nodes, if slottable’s parent is host, append slottable to result.
         for (auto const& slottable : slot->manually_assigned_nodes()) {
@@ -275,7 +275,7 @@ void signal_a_slot_change(GC::Ref<HTML::HTMLSlotElement> slottable)
         signal_slots.append(slottable);
 
     // 2. Queue a mutation observer microtask.
-    Bindings::queue_mutation_observer_microtask();
+    queue_mutation_observer_microtask(HTML::relevant_similar_origin_window_agent(slottable));
 }
 
 }

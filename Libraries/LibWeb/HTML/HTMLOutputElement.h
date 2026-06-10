@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 class HTMLOutputElement final
     : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLOutputElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLOutputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLOutputElement);
 
 public:
@@ -60,8 +60,6 @@ public:
 
 private:
     HTMLOutputElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;

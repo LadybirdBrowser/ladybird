@@ -12,6 +12,7 @@
 #include <AK/Checked.h>
 #include <AK/NumericLimits.h>
 #include <AK/OwnPtr.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -21,9 +22,6 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/Segmenter.h>
-#include <LibWeb/Bindings/CanvasRenderingContext2D.h>
-#include <LibWeb/Bindings/DOMRectReadOnly.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
@@ -36,7 +34,9 @@
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/ImageRequest.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/Path2D.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TextMetrics.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -48,15 +48,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CanvasRenderingContext2D);
 
-JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> CanvasRenderingContext2D::create(JS::Realm& realm, HTMLCanvasElement& element, JS::Value options)
+GC::Ref<CanvasRenderingContext2D> CanvasRenderingContext2D::create(HTMLCanvasElement& element, HTML::CanvasRenderingContext2DSettings context_attributes)
 {
-    auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(realm.vm(), options));
-    return realm.create<CanvasRenderingContext2D>(realm, element, context_attributes);
+    return GC::Heap::the().allocate<CanvasRenderingContext2D>(element, context_attributes);
 }
 
-CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element, Bindings::CanvasRenderingContext2DSettings context_attributes)
-    : PlatformObject(realm)
-    , CanvasPath(static_cast<Bindings::PlatformObject&>(*this), *this)
+CanvasRenderingContext2D::CanvasRenderingContext2D(HTMLCanvasElement& element, HTML::CanvasRenderingContext2DSettings context_attributes)
+    : CanvasPath(static_cast<CanvasState const&>(*this))
     , m_element(element)
     , m_size(element.bitmap_size_for_canvas())
     , m_context_attributes(move(context_attributes))
@@ -65,13 +63,7 @@ CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasE
 
 CanvasRenderingContext2D::~CanvasRenderingContext2D() = default;
 
-void CanvasRenderingContext2D::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::CanvasRenderingContext2DPrototype>(realm, "CanvasRenderingContext2D"_string));
-}
-
-void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
+void CanvasRenderingContext2D::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     CanvasState::visit_edges(visitor);
@@ -99,6 +91,11 @@ size_t CanvasRenderingContext2D::external_memory_size() const
 GC::Ref<HTMLCanvasElement> CanvasRenderingContext2D::canvas_for_binding() const
 {
     return *m_element;
+}
+
+JS::Realm& CanvasRenderingContext2D::my_realm()
+{
+    return HTML::relevant_realm(*m_element);
 }
 
 Gfx::Path CanvasRenderingContext2D::rect_path(float x, float y, float width, float height)
@@ -314,14 +311,14 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
     // - "rtl": start=right, end=left
 
     // Determine if we're in RTL mode
-    bool is_rtl = drawing_state.direction == Bindings::CanvasDirection::Rtl;
+    bool is_rtl = drawing_state.direction == CanvasDirection::Rtl;
 
     // Center alignment is the same regardless of direction
-    if (drawing_state.text_align == Bindings::CanvasTextAlign::Center) {
+    if (drawing_state.text_align == CanvasTextAlign::Center) {
         transform = Gfx::AffineTransform {}.set_translation({ -text_width / 2, 0 }).multiply(transform);
     }
     // Handle "start" alignment
-    else if (drawing_state.text_align == Bindings::CanvasTextAlign::Start) {
+    else if (drawing_state.text_align == CanvasTextAlign::Start) {
         // In RTL, "start" means right-aligned (translate by full width)
         if (is_rtl) {
             transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
@@ -329,7 +326,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
         // In LTR, "start" means left-aligned (no translation needed - default)
     }
     // Handle "end" alignment
-    else if (drawing_state.text_align == Bindings::CanvasTextAlign::End) {
+    else if (drawing_state.text_align == CanvasTextAlign::End) {
         // In RTL, "end" means left-aligned (no translation needed)
         if (!is_rtl) {
             // In LTR, "end" means right-aligned (translate by full width)
@@ -337,7 +334,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
         }
     }
     // Explicit "left" and "right" alignments ignore direction
-    else if (drawing_state.text_align == Bindings::CanvasTextAlign::Right) {
+    else if (drawing_state.text_align == CanvasTextAlign::Right) {
         transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
     }
     // Left is the default - no translation needed
@@ -347,16 +344,16 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
     auto const& font_pixel_metrics = font.pixel_metrics();
     auto baseline_y_offset = [&] {
         switch (drawing_state.text_baseline) {
-        case Bindings::CanvasTextBaseline::Top:
+        case CanvasTextBaseline::Top:
             return font_pixel_metrics.ascent;
-        case Bindings::CanvasTextBaseline::Hanging:
+        case CanvasTextBaseline::Hanging:
             return font_pixel_metrics.ascent * 0.8f;
-        case Bindings::CanvasTextBaseline::Middle:
+        case CanvasTextBaseline::Middle:
             return (font_pixel_metrics.ascent - font_pixel_metrics.descent) / 2.0f;
-        case Bindings::CanvasTextBaseline::Alphabetic:
+        case CanvasTextBaseline::Alphabetic:
             return 0.0f;
-        case Bindings::CanvasTextBaseline::Ideographic:
-        case Bindings::CanvasTextBaseline::Bottom:
+        case CanvasTextBaseline::Ideographic:
+        case CanvasTextBaseline::Bottom:
             return -font_pixel_metrics.descent;
         }
         VERIFY_NOT_REACHED();
@@ -391,27 +388,27 @@ void CanvasRenderingContext2D::begin_path()
     path().clear();
 }
 
-static Gfx::Path::CapStyle to_gfx_cap(Bindings::CanvasLineCap const& cap_style)
+static Gfx::Path::CapStyle to_gfx_cap(CanvasLineCap const& cap_style)
 {
     switch (cap_style) {
-    case Bindings::CanvasLineCap::Butt:
+    case CanvasLineCap::Butt:
         return Gfx::Path::CapStyle::Butt;
-    case Bindings::CanvasLineCap::Round:
+    case CanvasLineCap::Round:
         return Gfx::Path::CapStyle::Round;
-    case Bindings::CanvasLineCap::Square:
+    case CanvasLineCap::Square:
         return Gfx::Path::CapStyle::Square;
     }
     VERIFY_NOT_REACHED();
 }
 
-static Gfx::Path::JoinStyle to_gfx_join(Bindings::CanvasLineJoin const& join_style)
+static Gfx::Path::JoinStyle to_gfx_join(CanvasLineJoin const& join_style)
 {
     switch (join_style) {
-    case Bindings::CanvasLineJoin::Round:
+    case CanvasLineJoin::Round:
         return Gfx::Path::JoinStyle::Round;
-    case Bindings::CanvasLineJoin::Bevel:
+    case CanvasLineJoin::Bevel:
         return Gfx::Path::JoinStyle::Bevel;
-    case Bindings::CanvasLineJoin::Miter:
+    case CanvasLineJoin::Miter:
         return Gfx::Path::JoinStyle::Miter;
     }
 
@@ -506,18 +503,18 @@ void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
-WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings) const
+WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<ImageData::Settings> const& settings) const
 {
     // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
-        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_utf16);
+        return WebIDL::IndexSizeError::create("Width and height must not be zero"_utf16);
 
     int abs_width = abs(width);
     int abs_height = abs(height);
 
     // 2. Let newImageData be a new ImageData object.
     // 3. Initialize newImageData given the absolute magnitude of sw, the absolute magnitude of sh, settings set to settings, and defaultColorSpace set to this's color space.
-    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
+    auto image_data = TRY(ImageData::create(HTML::relevant_realm(*m_element), abs_width, abs_height, settings));
 
     // 4. Initialize the image data of newImageData to transparent black.
     // ... this is handled by ImageData::create()
@@ -535,19 +532,19 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_d
     // 3. Initialize the image data of newImageData to transparent black.
     // NOTE: No-op, already done during creation.
     // 4. Return newImageData.
-    return TRY(ImageData::create(realm(), image_data.width(), image_data.height()));
+    return TRY(ImageData::create(HTML::relevant_realm(*m_element), image_data.width(), image_data.height()));
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
-WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings) const
+WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data(int x, int y, int width, int height, Optional<ImageData::Settings> const& settings) const
 {
     // 1. If either the sw or sh arguments are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
-        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_utf16);
+        return WebIDL::IndexSizeError::create("Width and height must not be zero"_utf16);
 
     // 2. If the CanvasRenderingContext2D's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
     if (!m_origin_clean)
-        return WebIDL::SecurityError::create(realm(), "CanvasRenderingContext2D is not origin-clean"_utf16);
+        return WebIDL::SecurityError::create("CanvasRenderingContext2D is not origin-clean"_utf16);
 
     // ImageData initialization requires positive width and height
     // https://html.spec.whatwg.org/multipage/canvas.html#initialize-an-imagedata-object
@@ -556,7 +553,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
 
     // 3. Let imageData be a new ImageData object.
     // 4. Initialize imageData given sw, sh, settings set to settings, and defaultColorSpace set to this's color space.
-    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
+    auto image_data = TRY(ImageData::create(HTML::relevant_realm(*m_element), abs_width, abs_height, settings));
 
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
     auto surface = m_element->surface();
@@ -623,7 +620,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_dat
 
     // 2. If IsDetachedBuffer(buffer) is true, then throw an "InvalidStateError" DOMException
     if (buffer->is_detached())
-        return WebIDL::InvalidStateError::create(image_data.realm(), "ImageData's underlying buffer is detached"_utf16);
+        return WebIDL::InvalidStateError::create("ImageData's underlying buffer is detached"_utf16);
 
     // 3. If dirtyWidth is negative, then let dirtyX be dirtyX+dirtyWidth, and let dirtyWidth be equal to the
     //    absolute magnitude of dirtyWidth.
@@ -722,7 +719,7 @@ GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(Utf16String const& t
     // TextMetrics object with members behaving as described in the following
     // list:
     auto prepared_text = prepare_text(text);
-    auto metrics = TextMetrics::create(realm());
+    auto metrics = TextMetrics::create();
     // FIXME: Use the font that was used to create the glyphs in prepared_text.
     auto const& font = font_cascade_list()->first();
     auto const& font_pixel_metrics = font.pixel_metrics();
@@ -732,20 +729,20 @@ GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(Utf16String const& t
 
     float baseline_offset = 0;
     switch (drawing_state().text_baseline) {
-    case Bindings::CanvasTextBaseline::Top:
+    case CanvasTextBaseline::Top:
         baseline_offset = ascent;
         break;
-    case Bindings::CanvasTextBaseline::Hanging:
+    case CanvasTextBaseline::Hanging:
         baseline_offset = hanging_baseline;
         break;
-    case Bindings::CanvasTextBaseline::Middle:
+    case CanvasTextBaseline::Middle:
         baseline_offset = (ascent - descent) / 2.0f;
         break;
-    case Bindings::CanvasTextBaseline::Alphabetic:
+    case CanvasTextBaseline::Alphabetic:
         baseline_offset = 0;
         break;
-    case Bindings::CanvasTextBaseline::Ideographic:
-    case Bindings::CanvasTextBaseline::Bottom:
+    case CanvasTextBaseline::Ideographic:
+    case CanvasTextBaseline::Bottom:
         baseline_offset = -descent;
         break;
     }
@@ -898,7 +895,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         [](GC::Ref<HTMLImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
             if (image_element->current_request().state() == HTML::ImageRequest::State::Broken)
-                return WebIDL::InvalidStateError::create(image_element->realm(), "Image element state is broken"_utf16);
+                return WebIDL::InvalidStateError::create("Image element state is broken"_utf16);
 
             // If image is not fully decodable, then return bad.
             auto current_image_frame = image_element->current_image_frame();
@@ -937,14 +934,14 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         [](GC::Ref<OffscreenCanvas> offscreen_canvas) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (offscreen_canvas->width() == 0 || offscreen_canvas->height() == 0)
-                return WebIDL::InvalidStateError::create(offscreen_canvas->realm(), "OffscreenCanvas width or height is zero"_utf16);
+                return WebIDL::InvalidStateError::create("OffscreenCanvas width or height is zero"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         },
         // HTMLCanvasElement
         [](GC::Ref<HTMLCanvasElement> canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (canvas_element->width() == 0 || canvas_element->height() == 0)
-                return WebIDL::InvalidStateError::create(canvas_element->realm(), "Canvas width or height is zero"_utf16);
+                return WebIDL::InvalidStateError::create("Canvas width or height is zero"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         },
 
@@ -952,7 +949,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         // FIXME: VideoFrame
         [](GC::Ref<ImageBitmap> image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             if (image_bitmap->is_detached())
-                return WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image bitmap is detached"_utf16);
+                return WebIDL::InvalidStateError::create("Image bitmap is detached"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         }));
     if (usability.has_value())
@@ -997,12 +994,12 @@ void CanvasRenderingContext2D::set_image_smoothing_enabled(bool enabled)
     drawing_state().image_smoothing_enabled = enabled;
 }
 
-Bindings::ImageSmoothingQuality CanvasRenderingContext2D::image_smoothing_quality() const
+ImageSmoothingQuality CanvasRenderingContext2D::image_smoothing_quality() const
 {
     return drawing_state().image_smoothing_quality;
 }
 
-void CanvasRenderingContext2D::set_image_smoothing_quality(Bindings::ImageSmoothingQuality quality)
+void CanvasRenderingContext2D::set_image_smoothing_quality(ImageSmoothingQuality quality)
 {
     drawing_state().image_smoothing_quality = quality;
 }

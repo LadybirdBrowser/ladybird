@@ -16,10 +16,10 @@ Vector<Parser::ComponentValue> CustomIdentStyleValue::tokenize() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-ident
-GC::Ref<CSSStyleValue> CustomIdentStyleValue::reify(JS::Realm& realm, Utf16FlyString const&) const
+GC::Ref<CSSStyleValue> CustomIdentStyleValue::reify(Utf16FlyString const&) const
 {
     // 1. Return a new CSSKeywordValue with its value internal slot set to the serialization of ident.
-    return CSSKeywordValue::create(realm, m_custom_ident);
+    return CSSKeywordValue::create(m_custom_ident);
 }
 
 }

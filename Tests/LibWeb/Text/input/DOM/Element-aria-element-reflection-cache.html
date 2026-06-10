@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const owner = document.createElement("div");
+        const target = document.createElement("span");
+        target.id = "target";
+        owner.setAttribute("aria-controls", "target");
+        document.body.append(owner, target);
+
+        const first = owner.ariaControlsElements;
+        const second = owner.ariaControlsElements;
+        println(`first === second: ${first === second}`);
+        println(`length: ${second.length}`);
+        println(`element id: ${second[0].id}`);
+    });
+</script>

@@ -21,7 +21,7 @@ namespace Web::SVG {
 
 class SVGSVGElement final : public SVGGraphicsElement
     , public SVGFitToViewBox {
-    WEB_PLATFORM_OBJECT(SVGSVGElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGSVGElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGSVGElement);
 
 public:
@@ -81,7 +81,7 @@ public:
 private:
     SVGSVGElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Visitor&) override;
 
     virtual bool is_svg_svg_element() const override { return true; }

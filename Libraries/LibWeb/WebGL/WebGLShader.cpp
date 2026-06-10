@@ -6,32 +6,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLShader.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLShader.h>
 
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLShader);
 
-GC::Ref<WebGLShader> WebGLShader::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle, GLenum type)
+GC::Ref<WebGLShader> WebGLShader::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle, GLenum type)
 {
-    return realm.create<WebGLShader>(realm, context, handle, type);
+    return GC::Heap::the().allocate<WebGLShader>(context, handle, type);
 }
 
-WebGLShader::WebGLShader(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle, GLenum type)
-    : WebGLObject(realm, context, handle)
+WebGLShader::WebGLShader(GC::Ref<WebGLRenderingContextBase> context, GLuint handle, GLenum type)
+    : WebGLObject(context, handle)
     , m_type(type)
 {
 }
 
 WebGLShader::~WebGLShader() = default;
-
-void WebGLShader::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLShader);
-    Base::initialize(realm);
-}
 
 }

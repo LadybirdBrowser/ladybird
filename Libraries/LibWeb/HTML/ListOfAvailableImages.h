@@ -49,6 +49,8 @@ public:
     ListOfAvailableImages();
     ~ListOfAvailableImages();
 
+    [[nodiscard]] static GC::Ref<ListOfAvailableImages> create();
+
     void add(Key const&, GC::Ref<DecodedImageData>, bool ignore_higher_layer_caching);
     void remove(Key const&);
     void prune_to_limits(size_t external_memory_limit, size_t count_limit);

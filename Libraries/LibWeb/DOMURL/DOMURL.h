@@ -10,7 +10,7 @@
 #pragma once
 
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
@@ -18,22 +18,22 @@
 
 namespace Web::DOMURL {
 
-class DOMURL : public Bindings::PlatformObject {
+class DOMURL : public Bindings::Wrappable {
     // NOTE: This is 'URL' in the IDL, but we call it DOMURL to avoid name conflicts with LibURL.
-    WEB_PLATFORM_OBJECT(URL, Bindings::PlatformObject);
+    WEB_WRAPPABLE(URL, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMURL);
 
 public:
-    [[nodiscard]] static GC::Ref<DOMURL> create(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
-    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> construct_impl(JS::Realm&, String const& url, Optional<String> const& base = {});
+    [[nodiscard]] static GC::Ref<DOMURL> create(URL::URL, GC::Ref<URLSearchParams> query);
+    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> create_from_url(String const& url, Optional<String> const& base = {});
 
     virtual ~DOMURL() override;
 
-    static WebIDL::ExceptionOr<Utf16String> create_object_url(JS::VM&, FileAPI::BlobURLEntry::Object object);
-    static void revoke_object_url(JS::VM&, StringView url);
+    static WebIDL::ExceptionOr<Utf16String> create_object_url(FileAPI::BlobURLEntry::Object object);
+    static void revoke_object_url(StringView url);
 
-    static GC::Ptr<DOMURL> parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base = {});
-    static bool can_parse(JS::VM&, String const& url, Optional<String> const& base = {});
+    static GC::Ptr<DOMURL> parse_for_bindings(String const& url, Optional<String> const& base = {});
+    static bool can_parse(String const& url, Optional<String> const& base = {});
 
     String href() const;
     WebIDL::ExceptionOr<void> set_href(String const&);
@@ -85,12 +85,11 @@ public:
     virtual Optional<URL::Origin> extract_an_origin() const override;
 
 private:
-    DOMURL(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
+    DOMURL(URL::URL, GC::Ref<URLSearchParams> query);
 
-    static GC::Ref<DOMURL> initialize_a_url(JS::Realm&, URL::URL const&);
+    static GC::Ref<DOMURL> initialize_a_url(URL::URL const&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     URL::URL m_url;
     GC::Ref<URLSearchParams> m_query;

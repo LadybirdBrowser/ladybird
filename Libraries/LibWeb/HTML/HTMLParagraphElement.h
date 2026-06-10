@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLParagraphElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLParagraphElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLParagraphElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLParagraphElement);
 
 public:
@@ -26,8 +26,6 @@ public:
 
 private:
     HTMLParagraphElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

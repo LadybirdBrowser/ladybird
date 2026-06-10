@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
@@ -21,7 +22,6 @@ bool can_load_document_with_type(MimeSniff::MimeType const&);
 template<typename MutateDocument>
 GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigable> navigable, Optional<String> navigation_id, HTML::UserNavigationInvolvement user_involvement, MutateDocument mutate_document)
 {
-    auto& vm = navigable->vm();
     VERIFY(navigable->active_document());
 
     // 1. Let origin be a new opaque origin.
@@ -56,9 +56,10 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     //    FIXME: navigation timing type: navTimingType
     //    about base URL: null
     //    user involvement: userInvolvement
-    auto response = Fetch::Infrastructure::Response::create(vm);
+    auto response = Fetch::Infrastructure::Response::create();
     response->url_list().append(URL::about_error()); // AD-HOC: https://github.com/whatwg/html/issues/9122
-    auto navigation_params = vm.heap().allocate<HTML::NavigationParams>(
+    auto& heap = GC::Heap::the();
+    auto navigation_params = heap.allocate<HTML::NavigationParams>(
         move(navigation_id),
         navigable,
         nullptr,
@@ -68,7 +69,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
         move(coop_enforcement_result),
         nullptr,
         move(origin),
-        vm.heap().allocate<HTML::PolicyContainer>(vm.heap()),
+        heap.allocate<HTML::PolicyContainer>(heap),
         HTML::SandboxingFlagSet {},
         move(coop),
         OptionalNone {},

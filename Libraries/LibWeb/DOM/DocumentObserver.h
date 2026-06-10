@@ -6,9 +6,10 @@
 
 #pragma once
 
+#include <LibGC/Cell.h>
 #include <LibGC/Function.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
@@ -16,12 +17,14 @@
 
 namespace Web::DOM {
 
-class WEB_API DocumentObserver final : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(DocumentObserver, Bindings::PlatformObject);
+class WEB_API DocumentObserver final : public GC::Cell {
+    GC_CELL(DocumentObserver, GC::Cell);
     GC_DECLARE_ALLOCATOR(DocumentObserver);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
+
+    static GC::Ref<DocumentObserver> create(Document&);
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> document_became_active() const { return m_document_became_active; }
     void set_document_became_active(Function<void()>);
@@ -45,9 +48,9 @@ public:
     void set_document(GC::Ref<Document>);
 
 private:
-    explicit DocumentObserver(JS::Realm&, Document&);
+    explicit DocumentObserver(Document&);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     GC::Ref<Document> m_document;

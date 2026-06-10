@@ -17,7 +17,7 @@ namespace Web::SVG {
 class SVGFEOffsetElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEOffsetElement> {
-    WEB_PLATFORM_OBJECT(SVGFEOffsetElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEOffsetElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEOffsetElement);
 
 public:
@@ -29,8 +29,6 @@ public:
 
 private:
     SVGFEOffsetElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

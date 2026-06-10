@@ -1,10 +1,10 @@
 // https://streams.spec.whatwg.org/#rbs-controller-class-definition
-[Exposed=*]
+    [Exposed=*]
 interface ReadableByteStreamController {
-    readonly attribute ReadableStreamBYOBRequest? byobRequest;
+    [NeedsThisObjectRealm] readonly attribute ReadableStreamBYOBRequest? byobRequest;
     readonly attribute unrestricted double? desiredSize;
 
-    undefined close();
+    [NeedsThisObjectRealm] undefined close();
     undefined error(optional any e);
-    undefined enqueue(ArrayBufferView chunk);
+    [NeedsThisObjectRealm] undefined enqueue(ArrayBufferView chunk);
 };

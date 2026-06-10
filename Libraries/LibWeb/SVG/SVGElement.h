@@ -18,7 +18,7 @@ class WEB_API SVGElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGOrMathMLElement<SVGElement> {
-    WEB_PLATFORM_OBJECT(SVGElement, DOM::Element);
+    WEB_WRAPPABLE(SVGElement, DOM::Element);
     GC_DECLARE_ALLOCATOR(SVGElement);
 
 public:
@@ -39,8 +39,6 @@ public:
 
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;

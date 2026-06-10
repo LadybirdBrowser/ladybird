@@ -11,6 +11,7 @@
 
 #include "Interpolation.h"
 #include <AK/IntegralMath.h>
+#include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -2265,7 +2266,7 @@ static T composite_raw_values(T underlying_raw_value, T animated_raw_value)
     return underlying_raw_value + animated_raw_value;
 }
 
-static Optional<GridTrackSizeList> composite_grid_track_size_list(PropertyID property_id, CalculationContext const& calculation_context, GridTrackSizeList const& underlying, GridTrackSizeList const& animated, Bindings::CompositeOperation composite_operation)
+static Optional<GridTrackSizeList> composite_grid_track_size_list(PropertyID property_id, CalculationContext const& calculation_context, GridTrackSizeList const& underlying, GridTrackSizeList const& animated, Animations::CompositeOperation composite_operation)
 {
     // https://drafts.csswg.org/css-grid-2/#track-sizing
     // Animation type: if the list lengths match, by computed value type per item in the computed track list;
@@ -2377,7 +2378,7 @@ static RefPtr<StyleValue const> composite_mixed_value(StyleValue const& underlyi
     return {};
 }
 
-RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue const& underlying_value, StyleValue const& animated_value, Bindings::CompositeOperation composite_operation)
+RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue const& underlying_value, StyleValue const& animated_value, Animations::CompositeOperation composite_operation)
 {
     auto calculation_context = CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
 
@@ -2387,7 +2388,7 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
         return composite_raw_values(underlying_dimension.raw_value(), animated_dimension.raw_value());
     };
 
-    if (composite_operation == Bindings::CompositeOperation::Replace)
+    if (composite_operation == Animations::CompositeOperation::Replace)
         return {};
 
     if (underlying_value.type() != animated_value.type() || underlying_value.is_calculated() || animated_value.is_calculated())
@@ -2673,13 +2674,13 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
         // https://drafts.csswg.org/filter-effects/#addition
         // Given two filter values representing an base value (base filter list) and a value to add (added filter list),
         // returns the concatenation of the the two lists: ‘base filter list added filter list’.
-        if (composite_operation == Bindings::CompositeOperation::Add) {
+        if (composite_operation == Animations::CompositeOperation::Add) {
             Vector<FilterValue> result = underlying_list.filter_value_list();
             result.extend(animated_list.filter_value_list());
             return FilterValueListStyleValue::create(move(result));
         }
 
-        VERIFY(composite_operation == Bindings::CompositeOperation::Accumulate);
+        VERIFY(composite_operation == Animations::CompositeOperation::Accumulate);
         auto result = accumulate_filter_function(underlying_list, animated_list);
         if (result.is_empty())
             return {};

@@ -6,8 +6,6 @@
 
 #include <AK/Math.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextTrackCue.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/TextTrackCue.h>
 
@@ -15,19 +13,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TextTrackCue);
 
-TextTrackCue::TextTrackCue(JS::Realm& realm, GC::Ptr<TextTrack> track)
-    : DOM::EventTarget(realm)
+TextTrackCue::TextTrackCue(GC::Ptr<TextTrack> track)
+    : DOM::EventTarget()
     , m_track(track)
 {
 }
 
 TextTrackCue::~TextTrackCue() = default;
-
-void TextTrackCue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextTrackCue);
-    Base::initialize(realm);
-}
 
 void TextTrackCue::visit_edges(JS::Cell::Visitor& visitor)
 {

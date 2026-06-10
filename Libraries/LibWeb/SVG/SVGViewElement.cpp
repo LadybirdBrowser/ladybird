@@ -5,7 +5,6 @@
  */
 
 #include "SVGViewElement.h"
-#include <LibWeb/Bindings/SVGViewElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -20,11 +19,9 @@ SVGViewElement::SVGViewElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-void SVGViewElement::initialize(JS::Realm& realm)
+void SVGViewElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGViewElement);
-    Base::initialize(realm);
-    SVGFitToViewBox::initialize(realm);
+    SVGFitToViewBox::initialize_fit_to_view_box();
 }
 
 void SVGViewElement::visit_edges(Visitor& visitor)

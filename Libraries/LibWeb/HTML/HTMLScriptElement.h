@@ -19,7 +19,7 @@
 namespace Web::HTML {
 
 class HTMLScriptElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLScriptElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLScriptElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLScriptElement);
 
 public:
@@ -49,7 +49,7 @@ public:
     virtual void post_connection() override;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#dom-script-supports
-    static bool supports(JS::VM&, StringView type)
+    static bool supports(StringView type)
     {
         return type.is_one_of("classic"sv, "module"sv, "importmap"sv);
     }
@@ -86,8 +86,6 @@ private:
     HTMLScriptElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_script_element() const override { return true; }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;

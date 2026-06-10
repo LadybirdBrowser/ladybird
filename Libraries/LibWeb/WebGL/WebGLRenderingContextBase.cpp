@@ -12,9 +12,19 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <AK/ByteBuffer.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/BitmapExport.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/SkiaUtils.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
+#include <LibWeb/Bindings/WebGLBuffer.h>
+#include <LibWeb/Bindings/WebGLRenderingContextBase.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -22,6 +32,7 @@ extern "C" {
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -39,7 +50,24 @@ extern "C" {
 #include <LibWeb/WebGL/Extensions/WebGLDebugRendererInfo.h>
 #include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
+#include <LibWeb/WebGL/WebGL2RenderingContext.h>
+#include <LibWeb/WebGL/WebGLBuffer.h>
+#include <LibWeb/WebGL/WebGLFramebuffer.h>
+#include <LibWeb/WebGL/WebGLProgram.h>
+#include <LibWeb/WebGL/WebGLQuery.h>
+#include <LibWeb/WebGL/WebGLRenderbuffer.h>
+#include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
+#include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
+#include <LibWeb/WebGL/WebGLSampler.h>
+#include <LibWeb/WebGL/WebGLShader.h>
+#include <LibWeb/WebGL/WebGLSync.h>
+#include <LibWeb/WebGL/WebGLTexture.h>
+#include <LibWeb/WebGL/WebGLTransformFeedback.h>
+#include <LibWeb/WebGL/WebGLUniformLocation.h>
+#include <LibWeb/WebGL/WebGLVertexArrayObject.h>
+#include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 #include <core/SkCanvas.h>
 #include <core/SkColorSpace.h>
@@ -101,14 +129,13 @@ static constexpr Optional<Gfx::ExportFormat> determine_export_format(WebIDL::Uns
     return {};
 }
 
-WebGLRenderingContextBase::WebGLRenderingContextBase(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+WebGLRenderingContextBase::WebGLRenderingContextBase()
 {
 }
 
 struct Extension {
     Vector<StringView> required_angle_extensions;
-    JS::ThrowCompletionOr<GC::Ref<JS::Object>> (*factory)(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    GC::Ref<WebGLExtension> (*factory)(GC::Ref<WebGLRenderingContextBase>);
     Optional<OpenGLContext::WebGLVersion> only_for_webgl_version { OptionalNone {} };
 };
 
@@ -204,7 +231,7 @@ Optional<Vector<String>> WebGLRenderingContextBase::get_supported_extensions()
     return webgl_extensions;
 }
 
-JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
+GC::Ptr<WebGLExtension> WebGLRenderingContextBase::get_extension(String const& name)
 {
     // Returns an object if, and only if, name is an ASCII case-insensitive match [HTML] for one of the names returned
     // from getSupportedExtensions; otherwise, returns null. The object returned from getExtension contains any constants
@@ -216,7 +243,7 @@ JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
         return supported_extension.equals_ignoring_ascii_case(name);
     });
     if (supported_extension_iterator == supported_extensions->end())
-        return nullptr;
+        return {};
 
     auto maybe_extension = m_enabled_extensions.get(name);
     if (maybe_extension.has_value())
@@ -226,13 +253,13 @@ JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
     auto const& extension_info = available_webgl_extensions().get(name).release_value();
 
     if (!extension_info.factory)
-        return nullptr;
+        return {};
 
     for (auto const& required_extension : extension_info.required_angle_extensions) {
         context().request_extension(null_terminated_string(required_extension).data());
     }
 
-    auto extension = MUST(extension_info.factory(realm(), *this));
+    auto extension = extension_info.factory(*this);
     m_enabled_extensions.set(name, extension);
     return extension;
 }
@@ -242,7 +269,7 @@ void WebGLRenderingContextBase::enable_compressed_texture_format(WebIDL::Unsigne
     m_enabled_compressed_texture_formats.append(format);
 }
 
-void WebGLRenderingContextBase::visit_edges(Cell::Visitor& visitor)
+void WebGLRenderingContextBase::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_enabled_extensions);
@@ -353,31 +380,267 @@ bool WebGLRenderingContextBase::is_context_lost() const
     return m_context_lost;
 }
 
-// https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
-GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
+}
+
+namespace Web::Bindings {
+
+JS::Object* webgl_extension(JS::Realm& realm, GC::Ref<WebGL::WebGLExtension> extension)
 {
-    // 1. If the requesting document’s origin is not allowed to use the "xr-spatial-tracking" permissions policy,
+    return wrap(host_defined_wrapper_world(realm), realm, extension).ptr();
+}
+
+JS::Value webgl_wrappable(JS::Realm& realm, GC::Ref<Wrappable> wrappable)
+{
+    return wrap(host_defined_wrapper_world(realm), realm, wrappable);
+}
+
+JS::Value webgl_buffer(JS::Realm& realm, GC::Ref<WebGL::WebGLRenderingContextBase> context, u32 handle)
+{
+    return wrap(host_defined_wrapper_world(realm), realm, WebGL::WebGLBuffer::create(context, handle));
+}
+
+Optional<WebGLContextAttributes> get_context_attributes(JS::Realm&, WebGL::WebGLRenderingContext& context)
+{
+    return context.get_context_attributes();
+}
+
+Optional<WebGLContextAttributes> get_context_attributes(JS::Realm&, WebGL::WebGL2RenderingContext& context)
+{
+    return context.get_context_attributes();
+}
+
+JS::Object* get_extension(JS::Realm& realm, WebGL::WebGLRenderingContext& context, String const& name)
+{
+    auto extension = context.get_extension(name);
+    if (!extension)
+        return nullptr;
+    return webgl_extension(realm, GC::Ref { *extension });
+}
+
+JS::Object* get_extension(JS::Realm& realm, WebGL::WebGL2RenderingContext& context, String const& name)
+{
+    auto extension = context.get_extension(name);
+    if (!extension)
+        return nullptr;
+    return webgl_extension(realm, GC::Ref { *extension });
+}
+
+JS::Value get_buffer_parameter(JS::Realm&, WebGL::WebGLRenderingContextImpl& context, WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_buffer_parameter(target, pname);
+    if (!result.has_value())
+        return JS::js_null();
+    return JS::Value(*result);
+}
+
+static JS::Value webgl_parameter_value_to_js_value(WebGL::WebGLParameterValue const& value)
+{
+    return value.visit(
+        [](WebIDL::Long value) { return JS::Value(value); },
+        [](WebIDL::UnsignedLong value) { return JS::Value(value); },
+        [](double value) { return JS::Value(value); },
+        [](bool value) { return JS::Value(value); });
+}
+
+static JS::Value webgl_parameter_result_to_js_value(JS::Realm& realm, WebGL::WebGLRenderingContextImpl& context, WebGL::WebGLParameterResult const& result)
+{
+    return result.visit(
+        [](WebGL::WebGLParameterValue const& value) {
+            return webgl_parameter_value_to_js_value(value);
+        },
+        [&](WebGL::WebGLFloat32ArrayParameter const& parameter) -> JS::Value {
+            auto byte_buffer = MUST(ByteBuffer::copy(to_readonly_bytes(parameter.values.span())));
+            auto array_buffer = JS::ArrayBuffer::create(realm, move(byte_buffer));
+            return JS::Float32Array::create(realm, parameter.values.size(), array_buffer);
+        },
+        [&](WebGL::WebGLInt32ArrayParameter const& parameter) -> JS::Value {
+            auto byte_buffer = MUST(ByteBuffer::copy(to_readonly_bytes(parameter.values.span())));
+            auto array_buffer = JS::ArrayBuffer::create(realm, move(byte_buffer));
+            return JS::Int32Array::create(realm, parameter.values.size(), array_buffer);
+        },
+        [&](WebGL::WebGLUnsignedIntArrayParameter const& parameter) -> JS::Value {
+            auto byte_buffer = MUST(ByteBuffer::copy(to_readonly_bytes(parameter.values.span())));
+            auto array_buffer = JS::ArrayBuffer::create(realm, move(byte_buffer));
+            return JS::Uint32Array::create(realm, parameter.values.size(), array_buffer);
+        },
+        [&](WebGL::WebGLBooleanArrayParameter const& parameter) -> JS::Value {
+            auto array = MUST(JS::Array::create(realm, parameter.values.size()));
+            for (size_t i = 0; i < parameter.values.size(); ++i)
+                MUST(array->create_data_property(JS::PropertyKey { i }, JS::Value(parameter.values[i])));
+            return array;
+        },
+        [&](WebGL::WebGLStringParameter const& parameter) -> JS::Value {
+            return JS::PrimitiveString::create(realm.vm(), parameter.value);
+        },
+        [&](GC::Ptr<WebGL::WebGLBuffer> value) {
+            return webgl_wrappable(realm, value);
+        },
+        [&](GC::Ptr<WebGL::WebGLFramebuffer> value) {
+            return webgl_wrappable(realm, value);
+        },
+        [&](GC::Ptr<WebGL::WebGLProgram> value) {
+            return webgl_wrappable(realm, value);
+        },
+        [&](GC::Ptr<WebGL::WebGLRenderbuffer> value) {
+            return webgl_wrappable(realm, value);
+        },
+        [&](GC::Ptr<WebGL::WebGLTexture> value) {
+            return webgl_wrappable(realm, value);
+        },
+        [&](GC::Ptr<WebGL::WebGLTransformFeedback> value) {
+            return webgl_wrappable(realm, value);
+        },
+        [&](GC::Ptr<WebGL::WebGLVertexArrayObject> value) {
+            return webgl_wrappable(realm, value);
+        },
+        [&](WebGL::WebGLSamplerBindingParameter const& parameter) {
+            return webgl_wrappable(realm, GC::Ptr<WebGL::WebGLSampler> { WebGL::WebGLSampler::create(context, parameter.handle) });
+        },
+        [](WebGL::WebGLInfinityParameter const&) {
+            return JS::js_infinity();
+        });
+}
+
+JS::Value get_parameter(JS::Realm& realm, WebGL::WebGLRenderingContextImpl& context, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_parameter(pname);
+    if (!result.has_value())
+        return JS::js_null();
+    return webgl_parameter_result_to_js_value(realm, context, *result);
+}
+
+JS::Value get_program_parameter(JS::Realm&, WebGL::WebGLRenderingContextImpl& context, GC::Ref<WebGL::WebGLProgram> program, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_program_parameter(program, pname);
+    if (!result.has_value())
+        return JS::js_null();
+    return webgl_parameter_value_to_js_value(*result);
+}
+
+JS::Value get_renderbuffer_parameter(JS::Realm&, WebGL::WebGLRenderingContextImpl& context, WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_renderbuffer_parameter(target, pname);
+    if (!result.has_value())
+        return JS::js_null();
+    return JS::Value(*result);
+}
+
+JS::Value get_shader_parameter(JS::Realm&, WebGL::WebGLRenderingContextImpl& context, GC::Ref<WebGL::WebGLShader> shader, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_shader_parameter(shader, pname);
+    if (!result.has_value())
+        return JS::js_null();
+    return webgl_parameter_value_to_js_value(*result);
+}
+
+JS::Value get_tex_parameter(JS::Realm&, WebGL::WebGLRenderingContextImpl& context, WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_tex_parameter(target, pname);
+    if (!result.has_value())
+        return JS::js_null();
+    return webgl_parameter_value_to_js_value(*result);
+}
+
+JS::Value get_vertex_attrib(JS::Realm& realm, WebGL::WebGLRenderingContextImpl& context, WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_vertex_attrib(index, pname);
+    if (!result.has_value())
+        return JS::js_null();
+
+    return result->visit(
+        [&](WebGL::WebGLCurrentVertexAttrib const& current_vertex_attrib) -> JS::Value {
+            auto byte_buffer = MUST(ByteBuffer::copy(to_readonly_bytes(current_vertex_attrib.values.span())));
+            auto array_buffer = JS::ArrayBuffer::create(realm, move(byte_buffer));
+            return JS::Float32Array::create(realm, current_vertex_attrib.values.size(), array_buffer);
+        },
+        [&](WebGL::WebGLVertexAttribBufferBinding const& buffer_binding) -> JS::Value {
+            return Bindings::webgl_buffer(realm, context, buffer_binding.handle);
+        },
+        [&](WebGL::WebGLParameterValue const& value) -> JS::Value {
+            return webgl_parameter_value_to_js_value(value);
+        });
+}
+
+JS::Value get_uniform(JS::Realm&, WebGL::WebGLRenderingContextImpl& context, GC::Ref<WebGL::WebGLProgram> program, GC::Ref<WebGL::WebGLUniformLocation> location)
+{
+    return JS::Value(context.get_uniform(program, location));
+}
+
+JS::Value get_query_parameter(JS::Realm&, WebGL::WebGL2RenderingContext& context, GC::Ref<WebGL::WebGLQuery> query, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_query_parameter(query, pname);
+    if (!result.has_value())
+        return JS::js_null();
+    return webgl_parameter_value_to_js_value(*result);
+}
+
+JS::Value get_sync_parameter(JS::Realm&, WebGL::WebGL2RenderingContext& context, GC::Ref<WebGL::WebGLSync> sync, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_sync_parameter(sync, pname);
+    if (!result.has_value())
+        return JS::js_null();
+    return JS::Value(*result);
+}
+
+JS::Value get_active_uniforms(JS::Realm& realm, WebGL::WebGL2RenderingContext& context, GC::Ref<WebGL::WebGLProgram> program, Vector<WebIDL::UnsignedLong> uniform_indices, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_active_uniforms(program, move(uniform_indices), pname);
+    if (!result.has_value())
+        return JS::js_null();
+
+    Vector<JS::Value> values;
+    values.ensure_capacity(result->size());
+    for (auto const& value : *result)
+        values.unchecked_append(webgl_parameter_value_to_js_value(value));
+    return JS::Array::create_from(realm, values);
+}
+
+JS::Value get_internalformat_parameter(JS::Realm& realm, WebGL::WebGL2RenderingContext& context, WebIDL::UnsignedLong target, WebIDL::UnsignedLong internalformat, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_internalformat_parameter(target, internalformat, pname);
+    if (!result.has_value())
+        return JS::js_null();
+
+    auto byte_buffer = MUST(ByteBuffer::copy(to_readonly_bytes(result->span())));
+    auto array_buffer = JS::ArrayBuffer::create(realm, move(byte_buffer));
+    return JS::Int32Array::create(realm, result->size(), array_buffer);
+}
+
+JS::Value get_active_uniform_block_parameter(JS::Realm& realm, WebGL::WebGL2RenderingContext& context, GC::Ref<WebGL::WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong pname)
+{
+    auto result = context.get_active_uniform_block_parameter(program, uniform_block_index, pname);
+    if (!result.has_value())
+        return JS::js_null();
+
+    return result->visit(
+        [](WebGL::WebGLParameterValue const& value) {
+            return webgl_parameter_value_to_js_value(value);
+        },
+        [&](Vector<WebIDL::UnsignedLong> const& active_uniform_indices) -> JS::Value {
+            auto byte_buffer = MUST(ByteBuffer::copy(to_readonly_bytes(active_uniform_indices.span())));
+            auto array_buffer = JS::ArrayBuffer::create(realm, move(byte_buffer));
+            return JS::Uint32Array::create(realm, active_uniform_indices.size(), array_buffer);
+        });
+}
+
+// https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
+static void run_make_xr_compatible_steps(JS::Realm& realm, GC::Ref<WebGL::WebGLRenderingContextBase> context, GC::Ref<WebIDL::Promise> promise)
+{
+    // 1. If the requesting document's origin is not allowed to use the "xr-spatial-tracking" permissions policy,
     //    resolve promise and return it.
     // FIXME: Implement this.
 
-    // 2. Let promise be a new Promise created in the Realm of this WebGLRenderingContextBase.
-    auto& realm = this->realm();
-    auto promise = WebIDL::create_promise(realm);
-
-    // 3. Let context be this.
-    auto context = this;
-
     // 4. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, context, promise]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, context, promise]() {
         // 1. Let device be the result of ensuring an immersive XR device is selected.
         // FIXME: Implement https://immersive-web.github.io/webxr/#ensure-an-immersive-xr-device-is-selected
 
-        // 2. Set context’s XR compatible boolean as follows:
+        // 2. Set context's XR compatible boolean as follows:
 
-        // -> If context’s WebGL context lost flag is set:
+        // -> If context's WebGL context lost flag is set:
         if (context->is_context_lost()) {
-            // Queue a task to set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
+            // Queue a task to set context's XR compatible boolean to false and reject promise with an InvalidStateError.
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, context]() {
                 context->set_xr_compatible(false);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "The WebGL context has been lost."_utf16));
@@ -385,17 +648,17 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
         }
         // -> If device is null:
         else if (false) {
-            // Queue a task to set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
+            // Queue a task to set context's XR compatible boolean to false and reject promise with an InvalidStateError.
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, context]() {
                 context->set_xr_compatible(false);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Could not select an immersive XR device."_utf16));
             }));
         }
-        // -> If context’s XR compatible boolean is true:
+        // -> If context's XR compatible boolean is true:
         else if (context->xr_compatible()) {
             // Queue a task to resolve promise.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise]() {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise]() {
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 WebIDL::resolve_promise(realm, promise);
             }));
@@ -403,8 +666,8 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
         // -> If context was created on a compatible graphics adapter for device:
         // FIXME: For now we just pretend that this happened, so that we can resolve the promise and proceed running basic WPT tests for this.
         else if (true) {
-            // Queue a task to set context’s XR compatible boolean to true and resolve promise.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
+            // Queue a task to set context's XR compatible boolean to true and resolve promise.
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, context]() {
                 context->set_xr_compatible(true);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 WebIDL::resolve_promise(realm, promise);
@@ -413,7 +676,7 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
         // -> Otherwise:
         else {
             // Queue a task on the WebGL task source to perform the following steps:
-            HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(realm.heap(), []() {
+            HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(GC::Heap::the(), []() {
                 // 1. Force context to be lost.
 
                 // 2. Handle the context loss as described by the WebGL specification:
@@ -421,8 +684,12 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
             }));
         }
     }));
+}
 
-    // 5. Return promise.
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> make_xr_compatible(JS::Realm& realm, WebGL::WebGLRenderingContextBase& context)
+{
+    auto promise = WebIDL::create_promise(realm);
+    run_make_xr_compatible_steps(realm, context, promise);
     return promise;
 }
 

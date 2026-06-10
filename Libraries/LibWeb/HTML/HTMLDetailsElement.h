@@ -16,7 +16,7 @@
 namespace Web::HTML {
 
 class HTMLDetailsElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLDetailsElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLDetailsElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLDetailsElement);
 
 public:
@@ -27,8 +27,6 @@ public:
 
 private:
     HTMLDetailsElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void inserted() override;

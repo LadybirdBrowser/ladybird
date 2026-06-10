@@ -5,9 +5,9 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/CSSRuleList.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
@@ -28,27 +28,19 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSRuleList);
 
-GC::Ref<CSSRuleList> CSSRuleList::create(JS::Realm& realm, ReadonlySpan<GC::Ref<CSSRule>> rules)
+GC::Ref<CSSRuleList> CSSRuleList::create(ReadonlySpan<GC::Ref<CSSRule>> rules)
 {
-    auto rule_list = realm.create<CSSRuleList>(realm);
+    auto rule_list = GC::Heap::the().allocate<CSSRuleList>();
     for (auto rule : rules)
         rule_list->m_rules.append(rule);
     return rule_list;
 }
 
-CSSRuleList::CSSRuleList(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+CSSRuleList::CSSRuleList()
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
 }
 
-void CSSRuleList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSRuleList);
-    Base::initialize(realm);
-}
-
-void CSSRuleList::visit_edges(Cell::Visitor& visitor)
+void CSSRuleList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
@@ -69,7 +61,7 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
 
     // 2. If index is greater than length, then throw an IndexSizeError exception.
     if (index > length)
-        return WebIDL::IndexSizeError::create(realm(), "CSS rule index out of bounds."_utf16);
+        return WebIDL::IndexSizeError::create("CSS rule index out of bounds."_utf16);
 
     // 3. Set new rule to the results of performing parse a CSS rule on argument rule.
     // NOTE: The insert-a-css-rule spec expects `rule` to be a string, but the CSSStyleSheet.insertRule()
@@ -78,7 +70,7 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
 
     CSSRule* new_rule = nullptr;
     if (rule.has<StringView>()) {
-        Parser::ParsingParams parsing_params { realm() };
+        Parser::ParsingParams parsing_params;
         parsing_params.declared_namespaces = declared_namespaces;
 
         new_rule = parse_css_rule(parsing_params, rule.get<StringView>());
@@ -88,7 +80,7 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
 
     // 4. If new rule is a syntax error, and nested is set, perform the following substeps:
     if (!new_rule && nested == Nested::Yes) {
-        Parser::ParsingParams parsing_params { realm() };
+        Parser::ParsingParams parsing_params;
         parsing_params.rule_context = rule_context();
         parsing_params.declared_namespaces = declared_namespaces;
 
@@ -97,15 +89,15 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
 
         // - If declarations is empty, throw a SyntaxError exception.
         if (declarations.custom_properties.is_empty() && declarations.properties.is_empty())
-            return WebIDL::SyntaxError::create(realm(), "Unable to parse CSS declarations block."_utf16);
+            return WebIDL::SyntaxError::create("Unable to parse CSS declarations block."_utf16);
 
         // - Otherwise, set new rule to a new nested declarations rule with declarations as it contents.
-        new_rule = CSSNestedDeclarations::create(realm(), CSSStyleProperties::create(realm(), move(declarations.properties), move(declarations.custom_properties)));
+        new_rule = CSSNestedDeclarations::create(CSSStyleProperties::create(move(declarations.properties), move(declarations.custom_properties)));
     }
 
     // 5. If new rule is a syntax error, throw a SyntaxError exception.
     if (!new_rule)
-        return WebIDL::SyntaxError::create(realm(), "Unable to parse CSS rule."_utf16);
+        return WebIDL::SyntaxError::create("Unable to parse CSS rule."_utf16);
 
     auto has_rule_of_type_other_than_specified_before_index = [&](Vector<CSSRule::Type> types, size_t index) {
         for (size_t i = 0; i < index; i++) {
@@ -149,11 +141,11 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
 
     // FIXME: There are more constraints that we should check here - Parser::is_valid_in_the_current_context is probably a good reference for that.
     if (rule_is_disallowed || (nested == Nested::Yes && first_is_one_of(new_rule->type(), CSSRule::Type::Import, CSSRule::Type::Namespace)))
-        return WebIDL::HierarchyRequestError::create(realm(), "Cannot insert rule at specified index."_utf16);
+        return WebIDL::HierarchyRequestError::create("Cannot insert rule at specified index."_utf16);
 
     // 7. If new rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
     if (new_rule->type() == CSSRule::Type::Namespace && any_of(m_rules, [](auto existing_rule) { return existing_rule->type() != CSSRule::Type::Import && existing_rule->type() != CSSRule::Type::Namespace; }))
-        return WebIDL::InvalidStateError::create(realm(), "Cannot insert @namespace rule into a stylesheet with non-namespace/import rules"_utf16);
+        return WebIDL::InvalidStateError::create("Cannot insert @namespace rule into a stylesheet with non-namespace/import rules"_utf16);
 
     // 8. Insert new rule into list at the zero-indexed position index.
     m_rules.insert(index, *new_rule);
@@ -174,7 +166,7 @@ WebIDL::ExceptionOr<void> CSSRuleList::remove_a_css_rule(u32 index)
 
     // 2. If index is greater than or equal to length, then throw an IndexSizeError exception.
     if (index >= length)
-        return WebIDL::IndexSizeError::create(realm(), "CSS rule index out of bounds."_utf16);
+        return WebIDL::IndexSizeError::create("CSS rule index out of bounds."_utf16);
 
     // 3. Set old rule to the indexth item in list.
     CSSRule& old_rule = m_rules[index];
@@ -183,9 +175,24 @@ WebIDL::ExceptionOr<void> CSSRuleList::remove_a_css_rule(u32 index)
     if (old_rule.type() == CSSRule::Type::Namespace) {
         for (auto& rule : m_rules) {
             if (rule->type() != CSSRule::Type::Import && rule->type() != CSSRule::Type::Namespace)
-                return WebIDL::InvalidStateError::create(realm(), "Cannot remove @namespace rule from a stylesheet with non-namespace/import rules."_utf16);
+                return WebIDL::InvalidStateError::create("Cannot remove @namespace rule from a stylesheet with non-namespace/import rules."_utf16);
         }
     }
+
+    remove_a_css_rule_without_validation(index);
+    return {};
+}
+
+void CSSRuleList::remove_a_css_rule_without_validation(Badge<CSSStyleSheet>, u32 index)
+{
+    remove_a_css_rule_without_validation(index);
+}
+
+void CSSRuleList::remove_a_css_rule_without_validation(u32 index)
+{
+    VERIFY(index < m_rules.size());
+
+    CSSRule& old_rule = m_rules[index];
 
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
@@ -201,7 +208,6 @@ WebIDL::ExceptionOr<void> CSSRuleList::remove_a_css_rule(u32 index)
 
     if (on_change)
         on_change();
-    return {};
 }
 
 void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(Web::CSS::CSSRule const&)> const& callback) const
@@ -332,13 +338,6 @@ bool CSSRuleList::evaluate_media_queries(DOM::Document const& document, Function
     }
 
     return any_media_queries_changed_match_state;
-}
-
-Optional<JS::Value> CSSRuleList::item_value(size_t index) const
-{
-    if (auto value = item(index))
-        return value;
-    return {};
 }
 
 Vector<Parser::RuleContext> CSSRuleList::rule_context() const

@@ -22,7 +22,7 @@ class SVGPatternElement
     : public SVGElement
     , public SVGFitToViewBox
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGPatternElement, SVGElement);
+    WEB_WRAPPABLE(SVGPatternElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGPatternElement);
 
 public:
@@ -52,7 +52,7 @@ public:
 protected:
     SVGPatternElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

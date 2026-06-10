@@ -34,6 +34,87 @@ def operation_is_default_to_json(operation: Operation) -> bool:
     )
 
 
+def bindings_wrapper_interface_name_for_operation(
+    context: GenerationContext,
+    interface: Interface,
+    operation: Operation,
+) -> str:
+    for mixin in context.mixins.values():
+        for mixin_operation in mixin.regular_operations:
+            if (
+                mixin_operation.name == operation.name
+                and "ImplementedInBindings" in mixin_operation.extended_attributes
+            ):
+                return mixin.name
+
+    return interface.name
+
+
+def bindings_wrapper_header_for_operation(
+    context: GenerationContext, interface: Interface, operation: Operation
+) -> str:
+    wrapper_interface_name = bindings_wrapper_interface_name_for_operation(context, interface, operation)
+    if wrapper_interface_name in ("NodeIterator", "TreeWalker"):
+        return "LibWeb/Bindings/ImplementedInBindings.h"
+    if wrapper_interface_name == "SubtleCrypto":
+        return "LibWeb/Crypto/SubtleCrypto.h"
+    if wrapper_interface_name == "Element":
+        return "LibWeb/DOM/Element.h"
+    if wrapper_interface_name == "Window":
+        return "LibWeb/HTML/Window.h"
+    if wrapper_interface_name == "AnimationFrameProvider":
+        return "LibWeb/HTML/Window.h"
+    return "LibWeb/Bindings/ImplementedInBindings.h"
+
+
+def bindings_operation_arguments(arguments: str, has_this_object: bool, realm_argument: str = "realm") -> str:
+    bindings_arguments = [realm_argument]
+    if has_this_object:
+        bindings_arguments.append("*idl_object")
+    if arguments:
+        bindings_arguments.append(arguments)
+    return ", ".join(bindings_arguments)
+
+
+def bindings_operation_call(
+    operation: Operation, arguments: str, has_this_object: bool, realm_argument: str = "realm"
+) -> str:
+    bindings_arguments = bindings_operation_arguments(arguments, has_this_object, realm_argument)
+    return f"Web::Bindings::{idl_implementation_cpp_name(operation)}({bindings_arguments})"
+
+
+def implementation_operation_call(
+    interface: Interface,
+    operation: Operation,
+    arguments: str,
+    realm_argument: str = "realm",
+    extra_argument: Optional[str] = None,
+) -> str:
+    callee_arguments_with_realm = f"{realm_argument}, {arguments}" if arguments else realm_argument
+    callee_arguments_with_vm = f"vm, {arguments}" if arguments else "vm"
+    if extra_argument is not None:
+        arguments = f"{arguments}, {extra_argument}" if arguments else extra_argument
+        callee_arguments_with_realm = f"{callee_arguments_with_realm}, {extra_argument}"
+        callee_arguments_with_vm = f"{callee_arguments_with_vm}, {extra_argument}"
+    if "NeedsCallerRealm" in operation.extended_attributes or "NeedsThisObjectRealm" in operation.extended_attributes:
+        return f"""[&]<typename Implementation = {fully_qualified_name_for_interface(interface)}> {{
+        if constexpr (requires(Implementation& implementation) {{ implementation.{idl_implementation_cpp_name(operation)}({callee_arguments_with_realm}); }})
+            return static_cast<Implementation&>(*idl_object).{idl_implementation_cpp_name(operation)}({callee_arguments_with_realm});
+        else if constexpr (requires(Implementation& implementation) {{ implementation.{idl_implementation_cpp_name(operation)}({arguments}); }})
+            return static_cast<Implementation&>(*idl_object).{idl_implementation_cpp_name(operation)}({arguments});
+        else
+            return static_cast<Implementation&>(*idl_object).{idl_implementation_cpp_name(operation)}({callee_arguments_with_vm});
+    }}()"""
+    return f"""[&]<typename Implementation = {fully_qualified_name_for_interface(interface)}> {{
+        if constexpr (requires(Implementation& implementation) {{ implementation.{idl_implementation_cpp_name(operation)}({arguments}); }})
+            return static_cast<Implementation&>(*idl_object).{idl_implementation_cpp_name(operation)}({arguments});
+        else if constexpr (requires(Implementation& implementation) {{ implementation.{idl_implementation_cpp_name(operation)}({callee_arguments_with_realm}); }})
+            return static_cast<Implementation&>(*idl_object).{idl_implementation_cpp_name(operation)}({callee_arguments_with_realm});
+        else
+            return static_cast<Implementation&>(*idl_object).{idl_implementation_cpp_name(operation)}({callee_arguments_with_vm});
+    }}()"""
+
+
 # https://webidl.spec.whatwg.org/#dfn-json-types
 def idl_type_is_json_type(idl_type: IDLType, context: GenerationContext) -> bool:
     # The JSON types are:
@@ -258,12 +339,19 @@ def write_stringifier(
     attribute = interface.stringifier.attribute
     stringifier_type = attribute.type if attribute is not None else IDLType("DOMString")
     stringifier_cpp_name = idl_implementation_cpp_name(attribute) if attribute is not None else "to_string"
+    stringifier_call = f"""[&]<typename Implementation = {fully_qualified_name_for_interface(interface)}> {{
+        if constexpr (requires(Implementation& implementation) {{ implementation.{stringifier_cpp_name}(); }})
+            return static_cast<Implementation&>(*idl_object).{stringifier_cpp_name}();
+        else
+            return static_cast<Implementation&>(*idl_object).{stringifier_cpp_name}(realm);
+    }}()"""
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({receiver_class}::to_string)
 {{
     WebIDL::log_trace(vm, "{receiver_class}::to_string");
+    auto& realm = *vm.current_realm();
     auto* idl_object = TRY(impl_from(vm));
-    auto R = TRY(throw_dom_exception_if_needed(vm, [&] {{ return idl_object->{stringifier_cpp_name}(); }}));
+    auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {stringifier_call}; }}));
     return {to_javascript_value(stringifier_type, "R", includes, context)};
 }}
 
@@ -287,6 +375,9 @@ def write_operation(
         return
 
     return_type_is_promise = operation.return_type.name == "Promise"
+    implemented_in_bindings = "ImplementedInBindings" in operation.extended_attributes
+    if implemented_in_bindings:
+        includes.add(bindings_wrapper_header_for_operation(context, interface, operation))
 
     arguments = ", ".join(idl_identifier_cpp_name(parameter) for parameter in operation.parameters)
     callee_arguments = arguments
@@ -316,7 +407,11 @@ def write_operation(
         )
     if not operation_invokes_as_static:
         out.write(
-            f"""    [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = TRY(impl_from(vm));
+            f"""    auto this_value = vm.this_value();
+    if (this_value.is_nullish())
+        this_value = &vm.current_realm()->global_object();
+    [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = TRY(impl_from(vm, this_value));
+    [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
 
 """
         )
@@ -342,10 +437,31 @@ def write_operation(
         callee = fully_qualified_name_for_interface(interface)
         if interface.is_namespace:
             callee = fully_qualified_name_for_interface(interface).partition("::")[0]
-        out.write(
-            f"""    [[maybe_unused]] auto R = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {callee}::{idl_implementation_cpp_name(operation)}({callee_arguments}); }}));
+        if implemented_in_bindings:
+            out.write(
+                f"""    [[maybe_unused]] auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {bindings_operation_call(operation, arguments, has_this_object=False)}; }}));
 """
-        )
+            )
+        elif "NeedsCallerRealm" in operation.extended_attributes or interface.is_namespace:
+            first_argument = "realm" if "NeedsCallerRealm" in operation.extended_attributes else "vm"
+            callee_arguments = f"{first_argument}, {arguments}" if arguments else first_argument
+            if "DoesNotNeedVM" in operation.extended_attributes:
+                callee_arguments = arguments
+            out.write(
+                f"""    [[maybe_unused]] auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {callee}::{idl_implementation_cpp_name(operation)}({callee_arguments}); }}));
+"""
+            )
+        else:
+            callee_arguments_with_vm = f"vm, {arguments}" if arguments else "vm"
+            out.write(
+                f"""    [[maybe_unused]] auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&]<typename Implementation = {callee}> {{
+        if constexpr (requires {{ Implementation::{idl_implementation_cpp_name(operation)}({arguments}); }})
+            return Implementation::{idl_implementation_cpp_name(operation)}({arguments});
+        else
+            return Implementation::{idl_implementation_cpp_name(operation)}({callee_arguments_with_vm});
+    }}));
+"""
+            )
         if return_type_is_promise:
             out.write(
                 f"""        return R;
@@ -378,22 +494,58 @@ def write_operation(
             raise RuntimeError(
                 f"Unsupported promise-returning [CEReactions] operation '{operation.name}' on '{interface.name}'"
             )
-        ce_reactions_steps = wrap_with_ce_reactions(includes, "original_steps()")
+        realm_argument = "realm" if "NeedsCallerRealm" in operation.extended_attributes else "this_object_realm"
+        operation_call = implementation_operation_call(interface, operation, arguments, realm_argument)
+        if implemented_in_bindings:
+            operation_call = bindings_operation_call(
+                operation, arguments, has_this_object=True, realm_argument=realm_argument
+            )
+        ce_reactions_steps = wrap_with_ce_reactions(includes, "original_steps()", realm_argument)
         out.write(
             f"""    auto original_steps = [&] {{
-        return throw_dom_exception_if_needed(vm, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({arguments}); }});
+        return WebIDL::throw_dom_exception_if_needed(vm, {realm_argument}, [&] {{ return {operation_call}; }});
     }};
 
     [[maybe_unused]] auto R = TRY({ce_reactions_steps});
-    return {to_javascript_value(operation.return_type, "R", includes, context)};
+    return {to_javascript_value(operation.return_type, "R", includes, context, realm_argument)};
 }}
 
 """
         )
         return
+    realm_argument = "realm" if "NeedsCallerRealm" in operation.extended_attributes else "this_object_realm"
+    operation_call = implementation_operation_call(interface, operation, arguments, realm_argument)
+    if implemented_in_bindings:
+        operation_call = bindings_operation_call(
+            operation, arguments, has_this_object=True, realm_argument=realm_argument
+        )
     if return_type_is_promise:
+        if "CreatesPromise" in operation.extended_attributes:
+            operation_call = implementation_operation_call(
+                interface, operation, arguments, realm_argument, extra_argument="promise"
+            )
+            out.write(
+                f"""    auto promise = WebIDL::create_promise({realm_argument});
+    TRY(WebIDL::throw_dom_exception_if_needed(vm, {realm_argument}, [&] {{ return {operation_call}; }}));
+        return promise;
+    }};
+
+    auto maybe_R = steps();
+
+    // And then, if an exception E was thrown:
+    // 1. If op has a return type that is a promise type, then return ! Call(%Promise.reject%, %Promise%, «E»).
+    // 2. Otherwise, end these steps and allow the exception to propagate.
+    if (maybe_R.is_throw_completion())
+        return WebIDL::create_rejected_promise(realm, maybe_R.error_value())->promise();
+
+    return {to_javascript_value(operation.return_type, "maybe_R.release_value()", includes, context, realm_argument)};
+}}
+
+"""
+            )
+            return
         out.write(
-            f"""    [[maybe_unused]] auto R = TRY(throw_dom_exception_if_needed(vm, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({arguments}); }}));
+            f"""    [[maybe_unused]] auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, {realm_argument}, [&] {{ return {operation_call}; }}));
         return R;
     }};
 
@@ -405,15 +557,15 @@ def write_operation(
     if (maybe_R.is_throw_completion())
         return WebIDL::create_rejected_promise(realm, maybe_R.error_value())->promise();
 
-    return {to_javascript_value(operation.return_type, "maybe_R.release_value()", includes, context)};
+    return {to_javascript_value(operation.return_type, "maybe_R.release_value()", includes, context, realm_argument)};
 }}
 
 """
         )
         return
     out.write(
-        f"""    [[maybe_unused]] auto R = TRY(throw_dom_exception_if_needed(vm, [&] {{ return idl_object->{idl_implementation_cpp_name(operation)}({arguments}); }}));
-    return {to_javascript_value(operation.return_type, "R", includes, context)};
+        f"""    [[maybe_unused]] auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, {realm_argument}, [&] {{ return {operation_call}; }}));
+    return {to_javascript_value(operation.return_type, "R", includes, context, realm_argument)};
 }}
 
 """
@@ -432,7 +584,7 @@ def default_to_json_getter_steps(
         return (
             f'auto {value_name} = idl_object->get_attribute_value("{reflected_attribute_name(attribute)}"_fly_string);'
         )
-    return f"auto {value_name} = TRY(throw_dom_exception_if_needed(vm, [&] {{ return idl_object->{idl_implementation_cpp_name(attribute)}(); }}));"
+    return f"auto {value_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return idl_object->{idl_implementation_cpp_name(attribute)}(); }}));"
 
 
 # https://webidl.spec.whatwg.org/#collect-attribute-values

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationObserver.h>
 
@@ -12,14 +12,18 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationObserver);
 
-NavigationObserver::NavigationObserver(JS::Realm& realm, Navigable& navigable)
-    : Bindings::PlatformObject(realm)
-    , m_navigable(navigable)
+GC::Ref<NavigationObserver> NavigationObserver::create(Navigable& navigable)
+{
+    return GC::Heap::the().allocate<NavigationObserver>(navigable);
+}
+
+NavigationObserver::NavigationObserver(Navigable& navigable)
+    : m_navigable(navigable)
 {
     m_navigable->register_navigation_observer({}, *this);
 }
 
-void NavigationObserver::visit_edges(Cell::Visitor& visitor)
+void NavigationObserver::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_navigable);
@@ -36,7 +40,7 @@ void NavigationObserver::finalize()
 void NavigationObserver::set_navigation_complete(Function<void()> callback)
 {
     if (callback)
-        m_navigation_complete = GC::create_function(vm().heap(), move(callback));
+        m_navigation_complete = GC::create_function(GC::Heap::the(), move(callback));
     else
         m_navigation_complete = nullptr;
 }
@@ -44,7 +48,7 @@ void NavigationObserver::set_navigation_complete(Function<void()> callback)
 void NavigationObserver::set_ongoing_navigation_changed(Function<void()> callback)
 {
     if (callback)
-        m_ongoing_navigation_changed = GC::create_function(vm().heap(), move(callback));
+        m_ongoing_navigation_changed = GC::create_function(GC::Heap::the(), move(callback));
     else
         m_ongoing_navigation_changed = nullptr;
 }

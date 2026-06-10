@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Gamepad/EventNames.h>
 #include <LibWeb/Gamepad/Gamepad.h>
@@ -97,10 +97,10 @@ static constexpr double ANALOG_BUTTON_PRESS_THRESHOLD = 0.1;
 static constexpr double GAMEPAD_EXPOSURE_AXIS_THRESHOLD = 0.5;
 
 // https://w3c.github.io/gamepad/#dfn-a-new-gamepad
-GC::Ref<Gamepad> Gamepad::create(JS::Realm& realm, SDL_JoystickID sdl_joystick_id)
+GC::Ref<Gamepad> Gamepad::create(HTML::Window& window, SDL_JoystickID sdl_joystick_id)
 {
     // 1. Let gamepad be a newly created Gamepad instance:
-    auto gamepad = realm.create<Gamepad>(realm, sdl_joystick_id);
+    auto gamepad = GC::Heap::the().allocate<Gamepad>(window, sdl_joystick_id);
 
     //    1. Initialize gamepad's id attribute to an identification string for the gamepad.
     //    FIXME: What is the encoding used by SDL?
@@ -114,7 +114,6 @@ GC::Ref<Gamepad> Gamepad::create(JS::Realm& realm, SDL_JoystickID sdl_joystick_i
     //    1. Let navigator be gamepad's relevant global object's Navigator object.
     //    The rest of the steps are implemented in NavigatorGamepad.
     //    NOTE: Gamepad is only exposed on Window.
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(gamepad));
     gamepad->m_index = window.navigator()->select_an_unused_gamepad_index({});
 
     //    3. Initialize gamepad's mapping attribute to the result of selecting a mapping for the gamepad device.
@@ -124,7 +123,7 @@ GC::Ref<Gamepad> Gamepad::create(JS::Realm& realm, SDL_JoystickID sdl_joystick_i
     gamepad->m_connected = true;
 
     //    5. Set gamepad.[[timestamp]] to the current high resolution time given gamepad's relevant global object.
-    gamepad->m_timestamp = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(gamepad));
+    gamepad->m_timestamp = HighResolutionTime::current_high_resolution_time(window.realm().global_object());
 
     //    6. Set gamepad.[[axes]] to the result of initializing axes for gamepad.
     gamepad->initialize_axes();
@@ -133,30 +132,25 @@ GC::Ref<Gamepad> Gamepad::create(JS::Realm& realm, SDL_JoystickID sdl_joystick_i
     gamepad->initialize_buttons();
 
     //    8. Set gamepad.[[vibrationActuator]] to the result of constructing a GamepadHapticActuator for gamepad.
-    gamepad->m_vibration_actuator = GamepadHapticActuator::create(realm, gamepad);
+    gamepad->m_vibration_actuator = GamepadHapticActuator::create(window, gamepad);
 
     // 2. Return gamepad.
     return gamepad;
 }
 
-Gamepad::Gamepad(JS::Realm& realm, SDL_JoystickID sdl_joystick_id)
-    : PlatformObject(realm)
+Gamepad::Gamepad(HTML::Window& window, SDL_JoystickID sdl_joystick_id)
+    : m_window(window)
     , m_sdl_joystick_id(sdl_joystick_id)
 {
     m_sdl_gamepad = SDL_OpenGamepad(m_sdl_joystick_id);
 }
 
-void Gamepad::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Gamepad);
-    Base::initialize(realm);
-}
-
-void Gamepad::visit_edges(Cell::Visitor& visitor)
+void Gamepad::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_buttons);
     visitor.visit(m_vibration_actuator);
+    visitor.visit(m_window);
 }
 
 void Gamepad::finalize()
@@ -252,8 +246,6 @@ void Gamepad::initialize_axes()
 // https://w3c.github.io/gamepad/#dfn-initializing-buttons
 void Gamepad::initialize_buttons()
 {
-    auto& realm = this->realm();
-
     // 1. Let inputCount be the number of button inputs exposed by the device represented by gamepad.
     Vector<Variant<SDL_GamepadButton, SDL_GamepadAxis>> inputs;
 
@@ -364,7 +356,7 @@ void Gamepad::initialize_buttons()
     // 11. For each buttonIndex of the range from 0 to buttonsSize − 1, append a new GamepadButton to buttons.
     // 12. Return buttons.
     for (size_t final_button_index = 0; final_button_index < buttons_size; ++final_button_index) {
-        auto gamepad_button = realm.create<GamepadButton>(realm);
+        auto gamepad_button = GamepadButton::create();
         m_buttons.append(gamepad_button);
     }
 }
@@ -409,19 +401,19 @@ void Gamepad::select_a_mapping()
             });
 
         if (!has_standard_button) {
-            m_mapping = Bindings::GamepadMappingType::Empty;
+            m_mapping = GamepadMappingType::Empty;
             return;
         }
     }
 
     for (auto const standard_gamepad_axis : standard_gamepad_axes_layout) {
         if (!SDL_GamepadHasAxis(m_sdl_gamepad, standard_gamepad_axis)) {
-            m_mapping = Bindings::GamepadMappingType::Empty;
+            m_mapping = GamepadMappingType::Empty;
             return;
         }
     }
 
-    m_mapping = Bindings::GamepadMappingType::Standard;
+    m_mapping = GamepadMappingType::Standard;
 }
 
 // https://w3c.github.io/gamepad/#dfn-map-and-normalize-axes
@@ -537,11 +529,11 @@ void Gamepad::map_and_normalize_buttons()
 // https://w3c.github.io/gamepad/#dfn-update-gamepad-state
 void Gamepad::update_gamepad_state(Badge<NavigatorGamepadPartial>)
 {
-    auto& realm = this->realm();
+    auto& realm = m_window->realm();
 
     // 1. Let now be the current high resolution time given gamepad's relevant global object.
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
-    auto now = HighResolutionTime::current_high_resolution_time(window);
+    auto now = HighResolutionTime::current_high_resolution_time(m_window->realm().global_object());
+    auto& window = *m_window;
 
     // 2. Set gamepad.[[timestamp]] to now.
     m_timestamp = now;
@@ -579,15 +571,8 @@ void Gamepad::update_gamepad_state(Badge<NavigatorGamepadPartial>)
                 //    to fire an event named gamepadconnected at gamepad's relevant global object using GamepadEvent
                 //    with its gamepad attribute initialized to connectedGamepad.
                 if (document.is_fully_active()) {
-                    auto gamepad_connected_event_init = Bindings::GamepadEventInit {
-                        {
-                            .bubbles = false,
-                            .cancelable = false,
-                            .composed = false,
-                        },
-                        connected_gamepad,
-                    };
-                    auto gamepad_connected_event = MUST(GamepadEvent::construct_impl(realm, EventNames::gamepadconnected, gamepad_connected_event_init));
+                    GamepadEventInit gamepad_connected_event_init { {}, connected_gamepad };
+                    auto gamepad_connected_event = GamepadEvent::create(EventNames::gamepadconnected, gamepad_connected_event_init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
                     window.dispatch_event(gamepad_connected_event);
                 }
             }

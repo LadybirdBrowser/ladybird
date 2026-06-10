@@ -6,8 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSKeyframesRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/Dump.h>
@@ -16,13 +15,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeyframesRule);
 
-GC::Ref<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, FlyString name, GC::Ref<CSSRuleList> css_rules)
+GC::Ref<CSSKeyframesRule> CSSKeyframesRule::create(FlyString name, GC::Ref<CSSRuleList> css_rules)
 {
-    return realm.create<CSSKeyframesRule>(realm, move(name), move(css_rules));
+    return GC::Heap::the().allocate<CSSKeyframesRule>(move(name), move(css_rules));
 }
 
-CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, FlyString name, GC::Ref<CSSRuleList> keyframes)
-    : CSSRule(realm, Type::Keyframes)
+CSSKeyframesRule::CSSKeyframesRule(FlyString name, GC::Ref<CSSRuleList> keyframes)
+    : CSSRule(Type::Keyframes)
     , m_name(move(name))
     , m_rules(move(keyframes))
 {
@@ -30,16 +29,10 @@ CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, FlyString name, GC::Ref<CSS
         rule->set_parent_rule(this);
 }
 
-void CSSKeyframesRule::visit_edges(Visitor& visitor)
+void CSSKeyframesRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
-}
-
-void CSSKeyframesRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSKeyframesRule);
-    Base::initialize(realm);
 }
 
 String CSSKeyframesRule::serialized() const

@@ -9,7 +9,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/DOMEventListener.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -18,26 +18,37 @@
 
 namespace Web::DOM {
 
-class WEB_API EventTarget : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(EventTarget, Bindings::PlatformObject);
+class WEB_API EventTarget : public Bindings::Wrappable {
+    WEB_WRAPPABLE(EventTarget, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(EventTarget);
 
 public:
     virtual ~EventTarget() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<EventTarget>> construct_impl(JS::Realm&);
+    static GC::Ref<EventTarget> create();
 
     virtual bool is_focusable() const { return false; }
 
-    void add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::AddEventListenerOptions, bool> const& options);
-    void remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::EventListenerOptions, bool> const& options);
+    struct EventListenerOptions {
+        bool capture { false };
+    };
+
+    struct AddEventListenerOptions {
+        bool capture { false };
+        Optional<bool> passive;
+        bool once { false };
+        GC::Ptr<AbortSignal> signal;
+    };
+
+    void add_event_listener(FlyString const& type, IDLEventListener* callback, AddEventListenerOptions const& options);
+    void remove_event_listener(FlyString const& type, IDLEventListener* callback, EventListenerOptions const& options);
 
     // NOTE: These are for internal use only. They operate as though addEventListener(type, callback) was called instead of addEventListener(type, callback, options).
     void add_event_listener_without_options(FlyString const& type, IDLEventListener& callback);
     void remove_event_listener_without_options(FlyString const& type, IDLEventListener& callback);
 
     virtual bool dispatch_event(Event&);
-    WebIDL::ExceptionOr<bool> dispatch_event_binding(Event&);
+    WebIDL::ExceptionOr<bool> dispatch_event_for_bindings(Event&);
 
     virtual EventTarget* get_parent(Event const&) { return nullptr; }
 
@@ -64,18 +75,14 @@ public:
     virtual bool is_universal_global_scope_mixin() const { return false; }
 
 protected:
-    explicit EventTarget(JS::Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
+    EventTarget();
 
     void element_event_handler_attribute_changed(FlyString const& local_name, Optional<String> const& value);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
 private:
-    // ^JS::Object
-    virtual bool is_dom_event_target() const final { return true; }
-
     struct Data {
         Vector<GC::Ref<DOMEventListener>> event_listener_list;
 
@@ -94,12 +101,5 @@ private:
 };
 
 bool is_window_reflecting_body_element_event_handler(FlyString const& name);
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::DOM::EventTarget>() const { return is_dom_event_target(); }
 
 }

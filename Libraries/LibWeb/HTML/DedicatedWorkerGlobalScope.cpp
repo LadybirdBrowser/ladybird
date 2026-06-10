@@ -4,36 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DedicatedWorkerExposedInterfaces.h>
-#include <LibWeb/Bindings/DedicatedWorkerGlobalScope.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DedicatedWorkerGlobalScope);
 
-DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
-    : WorkerGlobalScope(realm, page)
+DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(GC::Ref<Web::Page> page)
+    : WorkerGlobalScope(page)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .has_global_interface_extended_attribute = true };
 }
 
 DedicatedWorkerGlobalScope::~DedicatedWorkerGlobalScope() = default;
-
-void DedicatedWorkerGlobalScope::initialize_web_interfaces_impl()
-{
-    auto& realm = this->realm();
-    add_dedicated_worker_exposed_interfaces(*this);
-
-    DedicatedWorkerGlobalScopeGlobalMixin::initialize(realm, *this);
-
-    Base::initialize_web_interfaces_impl();
-}
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-close
 void DedicatedWorkerGlobalScope::close()
@@ -49,21 +37,26 @@ void DedicatedWorkerGlobalScope::finalize()
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage-options
-WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, Bindings::StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, StructuredSerializeOptions const& options)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
-    return m_internal_port->post_message(message, options);
+    return m_internal_port->post_message(realm, message, options);
+}
+
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
+{
+    return post_message(realm, message, StructuredSerializeOptions { .transfer = options.transfer });
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage
-WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
-    return m_internal_port->post_message(message, transfer);
+    return m_internal_port->post_message(realm, message, transfer);
 }
 
 WebIDL::CallbackType* DedicatedWorkerGlobalScope::onmessage()

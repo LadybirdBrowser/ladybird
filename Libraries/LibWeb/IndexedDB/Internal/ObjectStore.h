@@ -13,7 +13,6 @@
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
@@ -31,12 +30,12 @@ class ObjectStore : public JS::Cell {
     GC_DECLARE_ALLOCATOR(ObjectStore);
 
 public:
-    [[nodiscard]] static GC::Ref<ObjectStore> create(JS::Realm&, GC::Ref<Database>, String, bool, Optional<KeyPath> const&);
+    [[nodiscard]] static GC::Ref<ObjectStore> create(GC::Ref<Database>, String, bool, Optional<KeyPath> const&);
     virtual ~ObjectStore();
 
     String name() const { return m_name; }
     void set_name(String name) { m_name = move(name); }
-    Optional<KeyPath> key_path() const { return m_key_path; }
+    Optional<KeyPath> const& key_path() const { return m_key_path; }
     bool uses_inline_keys() const { return m_key_path.has_value(); }
     bool uses_out_of_line_keys() const { return !m_key_path.has_value(); }
     KeyGenerator& key_generator() { return *m_key_generator; }

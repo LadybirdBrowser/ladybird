@@ -7,7 +7,6 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
@@ -16,9 +15,9 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(BitmapDecodedImageData);
 
-ErrorOr<GC::Ref<BitmapDecodedImageData>> BitmapDecodedImageData::create(JS::Realm& realm, Vector<Frame>&& frames, size_t loop_count, bool animated)
+ErrorOr<GC::Ref<BitmapDecodedImageData>> BitmapDecodedImageData::create(Vector<Frame>&& frames, size_t loop_count, bool animated)
 {
-    return realm.create<BitmapDecodedImageData>(move(frames), loop_count, animated);
+    return GC::Heap::the().allocate<BitmapDecodedImageData>(move(frames), loop_count, animated);
 }
 
 BitmapDecodedImageData::BitmapDecodedImageData(Vector<Frame>&& frames, size_t loop_count, bool animated)

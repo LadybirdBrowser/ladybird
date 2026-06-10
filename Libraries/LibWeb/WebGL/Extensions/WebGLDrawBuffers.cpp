@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLDrawBuffers.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -19,13 +17,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLDrawBuffers);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> WebGLDrawBuffers::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<WebGLExtension> WebGLDrawBuffers::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    return realm.create<WebGLDrawBuffers>(realm, context);
+    auto extension = GC::Heap::the().allocate<WebGLDrawBuffers>(context);
+    return GC::Ref<WebGLExtension> { extension };
 }
 
-WebGLDrawBuffers::WebGLDrawBuffers(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
+WebGLDrawBuffers::WebGLDrawBuffers(GC::Ref<WebGLRenderingContextBase> context)
+    : WebGLExtension()
     , m_context(context)
 {
 }
@@ -36,13 +35,7 @@ void WebGLDrawBuffers::draw_buffers_webgl(Vector<GLenum> buffers)
     glDrawBuffersEXT(buffers.size(), buffers.data());
 }
 
-void WebGLDrawBuffers::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLDrawBuffers);
-    Base::initialize(realm);
-}
-
-void WebGLDrawBuffers::visit_edges(Visitor& visitor)
+void WebGLDrawBuffers::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGClipPathElement.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
@@ -21,12 +19,6 @@ SVGClipPathElement::SVGClipPathElement(DOM::Document& document, DOM::QualifiedNa
 
 SVGClipPathElement::~SVGClipPathElement()
 {
-}
-
-void SVGClipPathElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGClipPathElement);
-    Base::initialize(realm);
 }
 
 void SVGClipPathElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)

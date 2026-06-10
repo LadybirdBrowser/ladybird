@@ -26,7 +26,7 @@ struct SessionHistoryTraversalQueueEntry : public JS::Cell {
     GC_DECLARE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
 public:
-    static GC::Ref<SessionHistoryTraversalQueueEntry> create(JS::VM& vm, GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<HTML::Navigable> target_navigable);
+    static GC::Ref<SessionHistoryTraversalQueueEntry> create(GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<HTML::Navigable> target_navigable);
 
     GC::Ptr<HTML::Navigable> target_navigable() const { return m_target_navigable; }
     void execute_steps(NonnullRefPtr<Core::Promise<Empty>> promise) const { m_steps->function()(move(promise)); }

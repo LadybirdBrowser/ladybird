@@ -96,7 +96,7 @@ public:
         UniqueTaskSourceStart
     };
 
-    static GC::Ref<Task> create(JS::VM&, Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps);
+    static GC::Ref<Task> create(Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps);
 
     virtual ~Task() override;
 

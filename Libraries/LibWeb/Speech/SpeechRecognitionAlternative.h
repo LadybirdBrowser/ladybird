@@ -9,17 +9,17 @@
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Speech {
 
-class SpeechRecognitionAlternative final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SpeechRecognitionAlternative, Bindings::PlatformObject);
+class SpeechRecognitionAlternative final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SpeechRecognitionAlternative, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SpeechRecognitionAlternative);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechRecognitionAlternative> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<SpeechRecognitionAlternative> create();
     virtual ~SpeechRecognitionAlternative() override;
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionalternative-transcript
@@ -29,9 +29,7 @@ public:
     float confidence() const { return m_confidence; }
 
 private:
-    explicit SpeechRecognitionAlternative(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit SpeechRecognitionAlternative();
 
     String m_transcript;
     float m_confidence { 0.f };

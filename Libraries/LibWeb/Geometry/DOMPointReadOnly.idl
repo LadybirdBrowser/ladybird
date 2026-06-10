@@ -5,7 +5,7 @@ interface DOMPointReadOnly {
     constructor(optional unrestricted double x = 0, optional unrestricted double y = 0,
                 optional unrestricted double z = 0, optional unrestricted double w = 1);
 
-    [NewObject] static DOMPointReadOnly fromPoint(optional DOMPointInit other = {});
+    [ImplementedAs=dom_point_read_only_from_point, NewObject] static DOMPointReadOnly fromPoint(optional DOMPointInit other = {});
 
     readonly attribute unrestricted double x;
     readonly attribute unrestricted double y;

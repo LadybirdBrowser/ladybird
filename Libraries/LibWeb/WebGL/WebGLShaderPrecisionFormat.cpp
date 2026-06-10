@@ -5,34 +5,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLShaderPrecisionFormat.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
 
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLShaderPrecisionFormat);
 
-GC::Ref<WebGLShaderPrecisionFormat> WebGLShaderPrecisionFormat::create(JS::Realm& realm, GLint range_min, GLint range_max, GLint precision)
+GC::Ref<WebGLShaderPrecisionFormat> WebGLShaderPrecisionFormat::create(GLint range_min, GLint range_max, GLint precision)
 {
-    return realm.create<WebGLShaderPrecisionFormat>(realm, range_min, range_max, precision);
+    return GC::Heap::the().allocate<WebGLShaderPrecisionFormat>(range_min, range_max, precision);
 }
 
-WebGLShaderPrecisionFormat::WebGLShaderPrecisionFormat(JS::Realm& realm, GLint range_min, GLint range_max, GLint precision)
-    : Bindings::PlatformObject(realm)
-    , m_range_min(range_min)
+WebGLShaderPrecisionFormat::WebGLShaderPrecisionFormat(GLint range_min, GLint range_max, GLint precision)
+    : m_range_min(range_min)
     , m_range_max(range_max)
     , m_precision(precision)
 {
 }
 
 WebGLShaderPrecisionFormat::~WebGLShaderPrecisionFormat() = default;
-
-void WebGLShaderPrecisionFormat::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLShaderPrecisionFormat);
-    Base::initialize(realm);
-}
 
 }

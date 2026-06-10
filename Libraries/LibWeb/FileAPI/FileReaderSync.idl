@@ -4,7 +4,7 @@ interface FileReaderSync {
     constructor();
     // Synchronously return strings
 
-    ArrayBuffer readAsArrayBuffer(Blob blob);
+    [NeedsCallerRealm] ArrayBuffer readAsArrayBuffer(Blob blob);
     DOMString readAsText(Blob blob, optional DOMString encoding);
     DOMString readAsBinaryString(Blob blob);
     DOMString readAsDataURL(Blob blob);

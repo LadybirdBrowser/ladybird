@@ -8,83 +8,82 @@
 #include <LibCompress/Deflate.h>
 #include <LibCompress/Gzip.h>
 #include <LibCompress/Zlib.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/CompressionStream.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Compression/CompressionStream.h>
+#include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
+#include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Compression {
 
 GC_DEFINE_ALLOCATOR(CompressionStream);
 
-// https://compression.spec.whatwg.org/#dom-compressionstream-compressionstream
-WebIDL::ExceptionOr<GC::Ref<CompressionStream>> CompressionStream::construct_impl(JS::Realm& realm, Bindings::CompressionFormat format)
+static ErrorOr<Compressor> create_compressor(Bindings::CompressionFormat format, AllocatingMemoryStream& input_stream)
+{
+    auto stream = MaybeOwned<Stream> { input_stream };
+    switch (format) {
+    case Bindings::CompressionFormat::Deflate:
+        return TRY(Compress::ZlibCompressor::create(move(stream)));
+    case Bindings::CompressionFormat::DeflateRaw:
+        return TRY(Compress::DeflateCompressor::create(move(stream)));
+    case Bindings::CompressionFormat::Gzip:
+        return TRY(Compress::GzipCompressor::create(move(stream)));
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+WebIDL::ExceptionOr<GC::Ref<CompressionStream>> CompressionStream::create_for_constructor(JS::Realm& realm, Bindings::CompressionFormat format)
 {
     // 1. If format is unsupported in CompressionStream, then throw a TypeError.
     // 2. Set this's format to format.
     auto input_stream = make<AllocatingMemoryStream>();
-
-    auto compressor = [&, input_stream = MaybeOwned<Stream> { *input_stream }]() mutable -> ErrorOr<Compressor> {
-        switch (format) {
-        case Bindings::CompressionFormat::Deflate:
-            return TRY(Compress::ZlibCompressor::create(move(input_stream)));
-        case Bindings::CompressionFormat::DeflateRaw:
-            return TRY(Compress::DeflateCompressor::create(move(input_stream)));
-        case Bindings::CompressionFormat::Gzip:
-            return TRY(Compress::GzipCompressor::create(move(input_stream)));
-        }
-
-        VERIFY_NOT_REACHED();
-    }();
-
+    auto compressor = create_compressor(format, *input_stream);
     if (compressor.is_error())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Unable to create compressor: {}", compressor.error())) };
 
+    return create(realm, compressor.release_value(), move(input_stream));
+}
+
+// https://compression.spec.whatwg.org/#dom-compressionstream-compressionstream
+WebIDL::ExceptionOr<GC::Ref<CompressionStream>> CompressionStream::create(JS::Realm& realm, Compressor compressor, NonnullOwnPtr<AllocatingMemoryStream> input_stream)
+{
     // 5. Set this's transform to a new TransformStream.
     // NOTE: We do this first so that we may store it as nonnull in the GenericTransformStream.
-    auto stream = realm.create<CompressionStream>(realm, realm.create<Streams::TransformStream>(realm), compressor.release_value(), move(input_stream));
+    auto transform_stream = GC::Heap::the().allocate<Streams::TransformStream>();
+    auto stream = GC::Heap::the().allocate<CompressionStream>(transform_stream, move(compressor), move(input_stream));
 
     // 3. Let transformAlgorithm be an algorithm which takes a chunk argument and runs the compress and enqueue a chunk
     //    algorithm with this and chunk.
-    auto transform_algorithm = GC::create_function(realm.heap(), [stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-        auto& realm = stream->realm();
-        auto& vm = realm.vm();
-
-        if (auto result = stream->compress_and_enqueue_chunk(chunk); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
-            return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
-        }
+    auto transform_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+        if (auto result = stream->compress_and_enqueue_chunk(realm, chunk); result.is_error())
+            return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
 
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 4. Let flushAlgorithm be an algorithm which takes no argument and runs the compress flush and enqueue algorithm with this.
-    auto flush_algorithm = GC::create_function(realm.heap(), [stream]() -> GC::Ref<WebIDL::Promise> {
-        auto& realm = stream->realm();
-        auto& vm = realm.vm();
-
-        if (auto result = stream->compress_flush_and_enqueue(); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
-            return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
-        }
+    auto flush_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)]() -> GC::Ref<WebIDL::Promise> {
+        if (auto result = stream->compress_flush_and_enqueue(realm); result.is_error())
+            return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
 
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 6. Set up this's transform with transformAlgorithm set to transformAlgorithm and flushAlgorithm set to flushAlgorithm.
-    stream->m_transform->set_up(transform_algorithm, flush_algorithm);
+    stream->m_transform->set_up(realm, transform_algorithm, flush_algorithm);
 
     return stream;
 }
 
-CompressionStream::CompressionStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform, Compressor compressor, NonnullOwnPtr<AllocatingMemoryStream> input_stream)
-    : Bindings::PlatformObject(realm)
-    , Streams::GenericTransformStreamMixin(transform)
+CompressionStream::CompressionStream(GC::Ref<Streams::TransformStream> transform, Compressor compressor, NonnullOwnPtr<AllocatingMemoryStream> input_stream)
+    : Streams::GenericTransformStreamMixin(transform)
     , m_compressor(move(compressor))
     , m_output_stream(move(input_stream))
 {
@@ -92,23 +91,15 @@ CompressionStream::CompressionStream(JS::Realm& realm, GC::Ref<Streams::Transfor
 
 CompressionStream::~CompressionStream() = default;
 
-void CompressionStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CompressionStream);
-    Base::initialize(realm);
-}
-
-void CompressionStream::visit_edges(JS::Cell::Visitor& visitor)
+void CompressionStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     Streams::GenericTransformStreamMixin::visit_edges(visitor);
 }
 
 // https://compression.spec.whatwg.org/#compress-and-enqueue-a-chunk
-WebIDL::ExceptionOr<void> CompressionStream::compress_and_enqueue_chunk(JS::Value chunk)
+WebIDL::ExceptionOr<void> CompressionStream::compress_and_enqueue_chunk(JS::Realm& realm, JS::Value chunk)
 {
-    auto& realm = this->realm();
-
     // 1. If chunk is not a BufferSource type, then throw a TypeError.
     if (!WebIDL::is_buffer_source_type(chunk))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource type"sv };
@@ -137,10 +128,8 @@ WebIDL::ExceptionOr<void> CompressionStream::compress_and_enqueue_chunk(JS::Valu
 }
 
 // https://compression.spec.whatwg.org/#compress-flush-and-enqueue
-WebIDL::ExceptionOr<void> CompressionStream::compress_flush_and_enqueue()
+WebIDL::ExceptionOr<void> CompressionStream::compress_flush_and_enqueue(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // 1. Let buffer be the result of compressing an empty input with cs's format and context, with the finish flag.
     auto maybe_buffer = compress({}, Finish::Yes);
     if (maybe_buffer.is_error())

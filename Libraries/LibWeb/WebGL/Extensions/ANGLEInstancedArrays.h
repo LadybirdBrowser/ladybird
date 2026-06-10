@@ -6,29 +6,28 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 #include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
 
-class ANGLEInstancedArrays : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ANGLEInstancedArrays, Bindings::PlatformObject);
+class ANGLEInstancedArrays : public WebGLExtension {
+    WEB_WRAPPABLE(ANGLEInstancedArrays, WebGLExtension);
     GC_DECLARE_ALLOCATOR(ANGLEInstancedArrays);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
     void draw_arrays_instanced_angle(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
     void draw_elements_instanced_angle(GLenum mode, GLsizei count, GLenum type, GLintptr offset, GLsizei primcount);
     void vertex_attrib_divisor_angle(GLuint index, GLuint divisor);
 
 protected:
-    void initialize(JS::Realm&) override;
-    void visit_edges(Visitor&) override;
+    void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    ANGLEInstancedArrays(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    ANGLEInstancedArrays(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/IDBCursor.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>
 #include <LibWeb/IndexedDB/IDBCursorWithValue.h>
@@ -18,9 +18,25 @@ GC_DEFINE_ALLOCATOR(IDBCursor);
 
 IDBCursor::~IDBCursor() = default;
 
-IDBCursor::IDBCursor(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
-    : PlatformObject(realm)
-    , m_value(value)
+JS::Value IDBCursor::key(JS::Realm& realm)
+{
+    // The key getter steps are to return the result of converting a key to a
+    // value with the cursor's current key.
+    if (auto key = current_key())
+        return convert_a_key_to_a_value(realm, *key);
+
+    return JS::js_undefined();
+}
+
+JS::Value IDBCursor::primary_key(JS::Realm& realm)
+{
+    // The primaryKey getter steps are to return the result of converting a key
+    // to a value with the cursor's current effective key.
+    return convert_a_key_to_a_value(realm, effective_key());
+}
+
+IDBCursor::IDBCursor(CursorSourceHandle source_handle, GC::Ptr<Key> position, CursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
+    : m_value(value)
     , m_position(position)
     , m_direction(direction)
     , m_got_value(got_value == GotValue::Yes)
@@ -31,22 +47,16 @@ IDBCursor::IDBCursor(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr
 {
 }
 
-GC::Ref<IDBCursor> IDBCursor::create(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
+GC::Ref<IDBCursor> IDBCursor::create(CursorSourceHandle source_handle, GC::Ptr<Key> position, CursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
 {
     // A cursor that has its key only flag set to false implements the IDBCursorWithValue interface as well.
     if (key_only == KeyOnly::No)
-        return realm.create<IDBCursorWithValue>(realm, source_handle, position, direction, got_value, key, value, range, key_only);
+        return GC::Heap::the().allocate<IDBCursorWithValue>(source_handle, position, direction, got_value, key, value, range, key_only);
 
-    return realm.create<IDBCursor>(realm, source_handle, position, direction, got_value, key, value, range, key_only);
+    return GC::Heap::the().allocate<IDBCursor>(source_handle, position, direction, got_value, key, value, range, key_only);
 }
 
-void IDBCursor::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBCursor);
-    Base::initialize(realm);
-}
-
-void IDBCursor::visit_edges(Visitor& visitor)
+void IDBCursor::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_position);
@@ -66,20 +76,9 @@ GC_DEFINE_ALLOCATOR(IDBCursorWithValue);
 
 IDBCursorWithValue::~IDBCursorWithValue() = default;
 
-IDBCursorWithValue::IDBCursorWithValue(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
-    : IDBCursor(realm, source_handle, position, direction, got_value, key, value, range, key_only)
+IDBCursorWithValue::IDBCursorWithValue(CursorSourceHandle source_handle, GC::Ptr<Key> position, CursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
+    : IDBCursor(source_handle, position, direction, got_value, key, value, range, key_only)
 {
-}
-
-void IDBCursorWithValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBCursorWithValue);
-    Base::initialize(realm);
-}
-
-void IDBCursorWithValue::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
 }
 
 bool IDBCursor::is_source_or_object_store_deleted() const
@@ -102,6 +101,13 @@ GC::Ref<IDBTransaction> IDBCursor::transaction()
         [](GC::Ref<IDBIndex> index) { return index->transaction(); });
 }
 
+JS::Object& IDBCursor::relevant_global_object() const
+{
+    return m_source_handle.visit([](auto const& source) -> JS::Object& {
+        return source->relevant_global_object();
+    });
+}
+
 // https://w3c.github.io/IndexedDB/#cursor-source
 CursorSource IDBCursor::internal_source()
 {
@@ -111,35 +117,25 @@ CursorSource IDBCursor::internal_source()
         [](GC::Ref<IDBIndex> index) -> CursorSource { return index->index(); });
 }
 
-// https://w3c.github.io/IndexedDB/#dom-idbcursor-key
-JS::Value IDBCursor::key()
-{
-    // The key getter steps are to return the result of converting a key to a value with the cursor’s current key.
-    if (!m_key)
-        return JS::js_undefined();
-
-    return convert_a_key_to_a_value(realm(), *m_key);
-}
-
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-continue
 WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let transaction be this's transaction.
     auto transaction = this->transaction();
 
     // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while continuing cursor"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while continuing cursor"_utf16);
 
     // 3. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
     if (is_source_or_object_store_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Source or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Source or its object store has been deleted"_utf16);
 
     // 4. If this's got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
     if (!m_got_value)
-        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while continuing"_utf16);
+        return WebIDL::InvalidStateError::create("Cursor is active or EOL while continuing"_utf16);
 
     // 5. If key is given, then:
     GC::Ptr<Key> key_value;
@@ -149,20 +145,20 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
 
         // 2. If r is invalid, throw a "DataError" DOMException.
         if (r->is_invalid())
-            return WebIDL::DataError::create(realm, Utf16String::from_utf8(r->value_as_string()));
+            return WebIDL::DataError::create(Utf16String::from_utf8(r->value_as_string()));
 
         // 3. Let key be r.
         key_value = r;
 
         // 4. If key is less than or equal to this's position and this's direction is "next" or "nextunique", then throw a "DataError" DOMException.
         auto is_less_than_or_equal_to = Key::less_than(*key_value, *this->position()) || Key::equals(*key_value, *this->position());
-        if (is_less_than_or_equal_to && (m_direction == Bindings::IDBCursorDirection::Next || m_direction == Bindings::IDBCursorDirection::Nextunique))
-            return WebIDL::DataError::create(realm, "Key is less than or equal to cursor's position"_utf16);
+        if (is_less_than_or_equal_to && (m_direction == CursorDirection::Next || m_direction == CursorDirection::Nextunique))
+            return WebIDL::DataError::create("Key is less than or equal to cursor's position"_utf16);
 
         // 5. If key is greater than or equal to this's position and this's direction is "prev" or "prevunique", then throw a "DataError" DOMException.
         auto is_greater_than_or_equal_to = Key::greater_than(*key_value, *this->position()) || Key::equals(*key_value, *this->position());
-        if (is_greater_than_or_equal_to && (m_direction == Bindings::IDBCursorDirection::Prev || m_direction == Bindings::IDBCursorDirection::Prevunique))
-            return WebIDL::DataError::create(realm, "Key is greater than or equal to cursor's position"_utf16);
+        if (is_greater_than_or_equal_to && (m_direction == CursorDirection::Prev || m_direction == CursorDirection::Prevunique))
+            return WebIDL::DataError::create("Key is greater than or equal to cursor's position"_utf16);
     }
 
     // 6. Set this's got value flag to false.
@@ -178,8 +174,9 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
     request->set_done(false);
 
     // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and key (if given).
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, key_value] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, key_value));
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this, &realm, key_value] -> WebIDL::ExceptionOr<JS::Value> {
+        auto result = iterate_a_cursor(realm, *this, key_value);
+        return Bindings::idb_cursor_result(realm, result);
     });
 
     // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -203,17 +200,10 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
         });
 }
 
-// https://w3c.github.io/IndexedDB/#dom-idbcursor-primarykey
-JS::Value IDBCursor::primary_key() const
-{
-    // The primaryKey getter steps are to return the result of converting a key to a value with the cursor’s current effective key.
-    return convert_a_key_to_a_value(realm(), effective_key());
-}
-
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-advance
 WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. If count is 0 (zero), throw a TypeError.
     if (count == 0)
@@ -224,15 +214,15 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while advancing cursor"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while advancing cursor"_utf16);
 
     // 4. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
     if (is_source_or_object_store_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Source or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Source or its object store has been deleted"_utf16);
 
     // 5. If this’s got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
     if (!m_got_value)
-        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while advancing"_utf16);
+        return WebIDL::InvalidStateError::create("Cursor is active or EOL while advancing"_utf16);
 
     // 6. Set this’s got value flag to false.
     m_got_value = false;
@@ -247,8 +237,9 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
     request->set_done(false);
 
     // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and count.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, count] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, nullptr, nullptr, count));
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this, &realm, count] -> WebIDL::ExceptionOr<JS::Value> {
+        auto result = iterate_a_cursor(realm, *this, nullptr, nullptr, count);
+        return Bindings::idb_cursor_result(realm, result);
     });
 
     // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -261,37 +252,37 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-continueprimarykey
 WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, JS::Value primary_key_param)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
 
     // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while continuing cursor"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while continuing cursor"_utf16);
 
     // 3. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
     if (is_source_or_object_store_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Source or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Source or its object store has been deleted"_utf16);
 
     // 4. If this’s source is not an index throw an "InvalidAccessError" DOMException.
     if (!m_source_handle.has<GC::Ref<IDBIndex>>())
-        return WebIDL::InvalidAccessError::create(realm, "Cursor source is not an index"_utf16);
+        return WebIDL::InvalidAccessError::create("Cursor source is not an index"_utf16);
 
     // 5. If this’s direction is not "next" or "prev", throw an "InvalidAccessError" DOMException.
-    if (m_direction != Bindings::IDBCursorDirection::Next && m_direction != Bindings::IDBCursorDirection::Prev)
-        return WebIDL::InvalidAccessError::create(realm, "Cursor direction is not next or prev"_utf16);
+    if (m_direction != CursorDirection::Next && m_direction != CursorDirection::Prev)
+        return WebIDL::InvalidAccessError::create("Cursor direction is not next or prev"_utf16);
 
     // 6. If this’s got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
     if (!m_got_value)
-        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while continuing"_utf16);
+        return WebIDL::InvalidStateError::create("Cursor is active or EOL while continuing"_utf16);
 
     // 7. Let r be the result of converting a value to a key with key. Rethrow any exceptions.
     auto r = TRY(convert_a_value_to_a_key(realm, key_param));
 
     // 8. If r is invalid, throw a "DataError" DOMException.
     if (r->is_invalid())
-        return WebIDL::DataError::create(realm, Utf16String::from_utf8(r->value_as_string()));
+        return WebIDL::DataError::create(Utf16String::from_utf8(r->value_as_string()));
 
     // 9. Let key be r.
     auto key = r;
@@ -301,26 +292,26 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
 
     // 11. If r is invalid, throw a "DataError" DOMException.
     if (r->is_invalid())
-        return WebIDL::DataError::create(realm, Utf16String::from_utf8(r->value_as_string()));
+        return WebIDL::DataError::create(Utf16String::from_utf8(r->value_as_string()));
 
     // 12. Let primaryKey be r.
     auto primary_key = r;
 
     // 13. If key is less than this’s position and this’s direction is "next", throw a "DataError" DOMException.
-    if (Key::less_than(*key, *this->position()) && m_direction == Bindings::IDBCursorDirection::Next)
-        return WebIDL::DataError::create(realm, "Key is less than cursor's position"_utf16);
+    if (Key::less_than(*key, *this->position()) && m_direction == CursorDirection::Next)
+        return WebIDL::DataError::create("Key is less than cursor's position"_utf16);
 
     // 14. If key is greater than this’s position and this’s direction is "prev", throw a "DataError" DOMException.
-    if (Key::greater_than(*key, *this->position()) && m_direction == Bindings::IDBCursorDirection::Prev)
-        return WebIDL::DataError::create(realm, "Key is greater than cursor's position"_utf16);
+    if (Key::greater_than(*key, *this->position()) && m_direction == CursorDirection::Prev)
+        return WebIDL::DataError::create("Key is greater than cursor's position"_utf16);
 
     // 15. If key is equal to this’s position and primaryKey is less than or equal to this’s object store position and this’s direction is "next", throw a "DataError" DOMException.
-    if (Key::equals(*key, *this->position()) && (Key::less_than(*primary_key, *this->object_store_position()) || Key::equals(*primary_key, *this->object_store_position())) && m_direction == Bindings::IDBCursorDirection::Next)
-        return WebIDL::DataError::create(realm, "Key is equal to cursor's position"_utf16);
+    if (Key::equals(*key, *this->position()) && (Key::less_than(*primary_key, *this->object_store_position()) || Key::equals(*primary_key, *this->object_store_position())) && m_direction == CursorDirection::Next)
+        return WebIDL::DataError::create("Key is equal to cursor's position"_utf16);
 
     // 16. If key is equal to this’s position and primaryKey is greater than or equal to this’s object store position and this’s direction is "prev", throw a "DataError" DOMException.
-    if (Key::equals(*key, *this->position()) && (Key::greater_than(*primary_key, *this->object_store_position()) || Key::equals(*primary_key, *this->object_store_position())) && m_direction == Bindings::IDBCursorDirection::Prev)
-        return WebIDL::DataError::create(realm, "Key is equal to cursor's position"_utf16);
+    if (Key::equals(*key, *this->position()) && (Key::greater_than(*primary_key, *this->object_store_position()) || Key::equals(*primary_key, *this->object_store_position())) && m_direction == CursorDirection::Prev)
+        return WebIDL::DataError::create("Key is equal to cursor's position"_utf16);
 
     // 17. Set this’s got value flag to false.
     m_got_value = false;
@@ -335,8 +326,9 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
     request->set_done(false);
 
     // 21. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, key, and primaryKey.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, key, primary_key] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, key, primary_key));
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this, &realm, key, primary_key] -> WebIDL::ExceptionOr<JS::Value> {
+        auto result = iterate_a_cursor(realm, *this, key, primary_key);
+        return Bindings::idb_cursor_result(realm, result);
     });
 
     // 22. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -363,30 +355,30 @@ GC::Ref<ObjectStore> IDBCursor::effective_object_store() const
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-update
 WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
 
     // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while updating cursor"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while updating cursor"_utf16);
 
     // 3. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
     if (transaction->is_readonly())
-        return WebIDL::ReadOnlyError::create(realm, "Transaction is read-only while updating cursor"_utf16);
+        return WebIDL::ReadOnlyError::create("Transaction is read-only while updating cursor"_utf16);
 
     // 4. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
     if (is_source_or_object_store_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Source or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Source or its object store has been deleted"_utf16);
 
     // 5. If this’s got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
     if (!m_got_value)
-        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while updating"_utf16);
+        return WebIDL::InvalidStateError::create("Cursor is active or EOL while updating"_utf16);
 
     // 6. If this’s key only flag is true, throw an "InvalidStateError" DOMException.
     if (m_key_only)
-        return WebIDL::InvalidStateError::create(realm, "Cursor is key-only while updating"_utf16);
+        return WebIDL::InvalidStateError::create("Cursor is key-only while updating"_utf16);
 
     // 7. Let targetRealm be a user-agent defined Realm.
     // NOTE: this is 'realm' above
@@ -402,18 +394,18 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
 
         // 2. If kpk is failure, invalid, or not equal to this’s effective key, throw a "DataError" DOMException.
         if (kpk.is_error())
-            return WebIDL::DataError::create(realm, "Key path is invalid"_utf16);
+            return WebIDL::DataError::create("Key path is invalid"_utf16);
 
         auto kpk_value = kpk.release_value();
         if (kpk_value->is_invalid())
-            return WebIDL::DataError::create(realm, "Key path is invalid"_utf16);
+            return WebIDL::DataError::create("Key path is invalid"_utf16);
 
         if (!Key::equals(*kpk_value, *this->effective_key()))
-            return WebIDL::DataError::create(realm, "Key path is not equal to effective key"_utf16);
+            return WebIDL::DataError::create("Key path is not equal to effective key"_utf16);
     }
 
     // 10. Let operation be an algorithm to run store a record into an object store with this’s effective object store, clone, this’s effective key, and false.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, clone] -> WebIDL::ExceptionOr<JS::Value> {
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this, &realm, clone] -> WebIDL::ExceptionOr<JS::Value> {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         auto optional_key = TRY(store_a_record_into_an_object_store(realm, *this->effective_object_store(), clone, this->effective_key(), false));
 
@@ -432,35 +424,35 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-update
 WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::delete_()
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
 
     // 2. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting cursor"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while deleting cursor"_utf16);
 
     // 3. If transaction is a read-only transaction, throw a "ReadOnlyError" DOMException.
     if (transaction->is_readonly())
-        return WebIDL::ReadOnlyError::create(realm, "Transaction is read-only while deleting cursor"_utf16);
+        return WebIDL::ReadOnlyError::create("Transaction is read-only while deleting cursor"_utf16);
 
     // 4. If this’s source or effective object store has been deleted, throw an "InvalidStateError" DOMException.
     if (is_source_or_object_store_deleted())
-        return WebIDL::InvalidStateError::create(realm, "Source or its object store has been deleted"_utf16);
+        return WebIDL::InvalidStateError::create("Source or its object store has been deleted"_utf16);
 
     // 5. If this’s got value flag is false, indicating that the cursor is being iterated or has iterated past its end, throw an "InvalidStateError" DOMException.
     if (!m_got_value)
-        return WebIDL::InvalidStateError::create(realm, "Cursor is active or EOL while deleting"_utf16);
+        return WebIDL::InvalidStateError::create("Cursor is active or EOL while deleting"_utf16);
 
     // 6. If this’s key only flag is true, throw an "InvalidStateError" DOMException.
     if (m_key_only)
-        return WebIDL::InvalidStateError::create(realm, "Cursor is key-only while deleting"_utf16);
+        return WebIDL::InvalidStateError::create("Cursor is key-only while deleting"_utf16);
 
     // 7. Let operation be an algorithm to run delete records from an object store with this’s effective object store and this’s effective key.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm] -> WebIDL::ExceptionOr<JS::Value> {
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this] -> WebIDL::ExceptionOr<JS::Value> {
         auto effective_key = this->effective_key();
-        auto range = IDBKeyRange::create(realm, effective_key, effective_key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
+        auto range = IDBKeyRange::create(effective_key, effective_key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
         return delete_records_from_an_object_store(*this->effective_object_store(), range);
     });
 

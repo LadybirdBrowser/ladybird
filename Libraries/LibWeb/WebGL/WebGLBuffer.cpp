@@ -8,32 +8,24 @@
  */
 
 #include <GLES2/gl2.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLBuffer.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLBuffer.h>
 
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLBuffer);
 
-GC::Ref<WebGLBuffer> WebGLBuffer::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLBuffer> WebGLBuffer::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
-    return realm.create<WebGLBuffer>(realm, context, handle);
+    return GC::Heap::the().allocate<WebGLBuffer>(context, handle);
 }
 
-WebGLBuffer::WebGLBuffer(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : WebGLObject(realm, context, handle)
+WebGLBuffer::WebGLBuffer(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+    : WebGLObject(context, handle)
 {
 }
 
 WebGLBuffer::~WebGLBuffer() = default;
-
-void WebGLBuffer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLBuffer);
-    Base::initialize(realm);
-}
 
 bool WebGLBuffer::is_compatible_with(GLenum target)
 {

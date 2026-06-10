@@ -15,13 +15,16 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom-view/#visualviewport
 class VisualViewport final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(VisualViewport, DOM::EventTarget);
+    WEB_WRAPPABLE(VisualViewport, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(VisualViewport);
 
 public:
     [[nodiscard]] static GC::Ref<VisualViewport> create(DOM::Document&);
 
     virtual ~VisualViewport() override = default;
+
+    DOM::Document& document() { return m_document; }
+    DOM::Document const& document() const { return m_document; }
 
     CSSPixelPoint offset() const { return m_offset; }
 
@@ -52,8 +55,6 @@ public:
 
 private:
     explicit VisualViewport(DOM::Document&);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     void update_accumulated_visual_context();

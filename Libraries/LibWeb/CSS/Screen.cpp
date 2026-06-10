@@ -5,9 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/Rect.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Screen.h>
 #include <LibWeb/CSS/Screen.h>
 #include <LibWeb/CSS/ScreenOrientation.h>
 #include <LibWeb/DOM/Document.h>
@@ -19,19 +18,13 @@ GC_DEFINE_ALLOCATOR(Screen);
 
 GC::Ref<Screen> Screen::create(HTML::Window& window)
 {
-    return window.realm().create<Screen>(window);
+    return GC::Heap::the().allocate<Screen>(window);
 }
 
 Screen::Screen(HTML::Window& window)
-    : DOM::EventTarget(window.realm())
+    : DOM::EventTarget()
     , m_window(window)
 {
-}
-
-void Screen::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Screen);
-    Base::initialize(realm);
 }
 
 void Screen::visit_edges(Cell::Visitor& visitor)
@@ -88,7 +81,7 @@ u32 Screen::pixel_depth() const
 GC::Ref<ScreenOrientation> Screen::orientation()
 {
     if (!m_orientation)
-        m_orientation = ScreenOrientation::create(realm());
+        m_orientation = ScreenOrientation::create();
     return *m_orientation;
 }
 

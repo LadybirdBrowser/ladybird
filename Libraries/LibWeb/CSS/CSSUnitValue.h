@@ -13,13 +13,13 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunitvalue
 class CSSUnitValue final : public CSSNumericValue {
-    WEB_PLATFORM_OBJECT(CSSUnitValue, CSSNumericValue);
+    WEB_WRAPPABLE(CSSUnitValue, CSSNumericValue);
     GC_DECLARE_ALLOCATOR(CSSUnitValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSUnitValue> create(JS::Realm&, double value, FlyString unit);
-    static GC::Ptr<CSSUnitValue> create_from_sum_value_item(JS::Realm&, SumValueItem const&);
-    static WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> construct_impl(JS::Realm&, double value, FlyString unit);
+    [[nodiscard]] static GC::Ref<CSSUnitValue> create(double value, FlyString unit);
+    static GC::Ptr<CSSUnitValue> create_from_sum_value_item(SumValueItem const&);
+    static WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> create_for_constructor(double value, FlyString unit);
 
     virtual ~CSSUnitValue() override = default;
 
@@ -30,6 +30,7 @@ public:
 
     void serialize_unit_value(StringBuilder&, Optional<double> minimum, Optional<double> maximum) const;
 
+    Optional<double> converted_value_to_unit(FlyString const& unit) const;
     GC::Ptr<CSSUnitValue> converted_to_unit(FlyString const& unit) const;
 
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
@@ -39,9 +40,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    explicit CSSUnitValue(JS::Realm&, double value, FlyString unit, NumericType type);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit CSSUnitValue(double value, FlyString unit, NumericType type);
 
     double m_value;
     FlyString m_unit;

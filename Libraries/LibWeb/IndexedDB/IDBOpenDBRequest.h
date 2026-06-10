@@ -14,13 +14,13 @@ namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#idbopendbrequest
 class IDBOpenDBRequest : public IDBRequest {
-    WEB_PLATFORM_OBJECT(IDBOpenDBRequest, IDBRequest);
+    WEB_WRAPPABLE(IDBOpenDBRequest, IDBRequest);
     GC_DECLARE_ALLOCATOR(IDBOpenDBRequest);
 
 public:
     virtual ~IDBOpenDBRequest();
 
-    [[nodiscard]] static GC::Ref<IDBOpenDBRequest> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<IDBOpenDBRequest> create(GC::Ref<DOM::EventTarget> relevant_global_object);
 
     void set_onblocked(WebIDL::CallbackType*);
     WebIDL::CallbackType* onblocked();
@@ -28,9 +28,8 @@ public:
     WebIDL::CallbackType* onupgradeneeded();
 
 protected:
-    explicit IDBOpenDBRequest(JS::Realm&);
+    explicit IDBOpenDBRequest(GC::Ref<DOM::EventTarget> relevant_global_object);
 
-    virtual void initialize(JS::Realm&) override;
     virtual EventTarget* get_parent(DOM::Event const&) override;
 };
 

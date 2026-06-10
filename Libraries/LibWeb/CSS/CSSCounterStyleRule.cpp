@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSCounterStyleRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Enums.h>
@@ -20,13 +19,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSCounterStyleRule);
 
-GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
+GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
 {
-    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols), move(additive_symbols), move(speak_as));
+    return GC::Heap::the().allocate<CSSCounterStyleRule>(name, move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols), move(additive_symbols), move(speak_as));
 }
 
-CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
-    : CSSRule(realm, Type::CounterStyle)
+CSSCounterStyleRule::CSSCounterStyleRule(FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
+    : CSSRule(Type::CounterStyle)
     , m_name(move(name))
     , m_system(move(system))
     , m_negative(move(negative))
@@ -141,7 +140,7 @@ FlyString CSSCounterStyleRule::system() const
 void CSSCounterStyleRule::set_system(FlyString const& system)
 {
     // 1. parse the given value as the descriptor associated with the attribute.
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
     auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::System), system);
 
     // 2. If the result is invalid according to the given descriptor’s grammar, or would cause the @counter-style rule
@@ -174,7 +173,7 @@ FlyString CSSCounterStyleRule::negative() const
 
 void CSSCounterStyleRule::set_negative(FlyString const& negative)
 {
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Negative), negative)) {
         m_negative = value;
@@ -192,7 +191,7 @@ FlyString CSSCounterStyleRule::prefix() const
 
 void CSSCounterStyleRule::set_prefix(FlyString const& prefix)
 {
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Prefix), prefix)) {
         m_prefix = value;
@@ -210,7 +209,7 @@ FlyString CSSCounterStyleRule::suffix() const
 
 void CSSCounterStyleRule::set_suffix(FlyString const& suffix)
 {
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Suffix), suffix)) {
         m_suffix = value;
@@ -228,7 +227,7 @@ FlyString CSSCounterStyleRule::range() const
 
 void CSSCounterStyleRule::set_range(FlyString const& range)
 {
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Range), range)) {
         m_range = value;
@@ -246,7 +245,7 @@ FlyString CSSCounterStyleRule::pad() const
 
 void CSSCounterStyleRule::set_pad(FlyString const& pad)
 {
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Pad), pad)) {
         m_pad = value;
@@ -264,7 +263,7 @@ FlyString CSSCounterStyleRule::fallback() const
 
 void CSSCounterStyleRule::set_fallback(FlyString const& fallback)
 {
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Fallback), fallback)) {
         m_fallback = value;
@@ -286,7 +285,7 @@ void CSSCounterStyleRule::set_symbols(FlyString const& symbols)
     // On setting, run the following steps:
 
     // 1. parse the given value as the descriptor associated with the attribute.
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Symbols), symbols);
 
@@ -319,7 +318,7 @@ void CSSCounterStyleRule::set_additive_symbols(FlyString const& additive_symbols
     // On setting, run the following steps:
 
     // 1. parse the given value as the descriptor associated with the attribute.
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::AdditiveSymbols), additive_symbols);
 
@@ -348,7 +347,7 @@ FlyString CSSCounterStyleRule::speak_as() const
 
 void CSSCounterStyleRule::set_speak_as(FlyString const& speak_as)
 {
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::SpeakAs), speak_as)) {
         m_speak_as = value;
@@ -369,12 +368,6 @@ void CSSCounterStyleRule::clear_caches()
         style_scope.invalidate_counter_style_cache();
         style_scope.node().invalidate_style(DOM::StyleInvalidationReason::CounterStyleCacheInvalidated);
     });
-}
-
-void CSSCounterStyleRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSCounterStyleRule);
-    Base::initialize(realm);
 }
 
 }

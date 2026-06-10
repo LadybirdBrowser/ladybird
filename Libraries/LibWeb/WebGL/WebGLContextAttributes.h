@@ -6,27 +6,10 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/WebGLRenderingContext.h>
+#include <LibWeb/Bindings/WebGLRenderingContextBase.h>
 
 namespace Web::WebGL {
 
-// https://www.khronos.org/registry/webgl/specs/latest/1.0/#WEBGLCONTEXTATTRIBUTES
-struct WebGLContextAttributes {
-    bool alpha { true };
-    bool depth { true };
-    bool stencil { false };
-    bool antialias { true };
-    bool premultiplied_alpha { true };
-    bool preserve_drawing_buffer { false };
-    Bindings::WebGLPowerPreference power_preference { Bindings::WebGLPowerPreference::Default };
-    bool fail_if_major_performance_caveat { false };
-    bool desynchronized { false };
-
-    // https://immersive-web.github.io/webxr/#dom-webglcontextattributes-xrcompatible
-    bool xr_compatible { false };
-};
-
-JS::ThrowCompletionOr<WebGLContextAttributes> convert_value_to_context_attributes_dictionary(JS::VM&, JS::Value value);
+using WebGLContextAttributes = Bindings::WebGLContextAttributes;
 
 }

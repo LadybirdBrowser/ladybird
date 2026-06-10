@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMStringList.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -13,22 +12,14 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DOMStringList);
 
-GC::Ref<DOMStringList> DOMStringList::create(JS::Realm& realm, Vector<String> list)
+GC::Ref<DOMStringList> DOMStringList::create(Vector<String> list)
 {
-    return realm.create<DOMStringList>(realm, list);
+    return GC::Heap::the().allocate<DOMStringList>(move(list));
 }
 
-DOMStringList::DOMStringList(JS::Realm& realm, Vector<String> list)
-    : Bindings::PlatformObject(realm)
-    , m_list(move(list))
+DOMStringList::DOMStringList(Vector<String> list)
+    : m_list(move(list))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
-}
-
-void DOMStringList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMStringList);
-    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-domstringlist-length
@@ -54,14 +45,6 @@ bool DOMStringList::contains(StringView string)
 {
     // The contains(string) method steps are to return true if this's associated list contains string, and false otherwise.
     return m_list.contains_slow(string);
-}
-
-Optional<JS::Value> DOMStringList::item_value(size_t index) const
-{
-    if (index >= m_list.size())
-        return {};
-
-    return JS::PrimitiveString::create(vm(), m_list.at(index));
 }
 
 }

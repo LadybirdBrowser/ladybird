@@ -10,47 +10,21 @@
  */
 
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Keyword.h>
+#include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/HTML/Window.h>
 
 namespace Web {
-
-GC::Ref<JS::Realm> internal_css_realm()
-{
-    static auto& realm = *new GC::Root<JS::Realm>;
-    static auto& window = *new GC::Root<HTML::Window>;
-    static auto& execution_context = *new OwnPtr<JS::ExecutionContext>;
-    if (!realm) {
-        execution_context = Bindings::create_a_new_javascript_realm(
-            Bindings::main_thread_vm(),
-            [&](JS::Realm& realm) -> JS::Object* {
-                window = HTML::Window::create(realm);
-                return window;
-            },
-            [&](JS::Realm&) -> JS::Object* {
-                return window;
-            });
-
-        realm = *execution_context->realm;
-        auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
-        auto host_defined = make<Bindings::HostDefined>(intrinsics);
-        realm->set_host_defined(move(host_defined));
-    }
-    return *realm;
-}
 
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<::URL::URL> location, GC::Ptr<CSS::MediaList> media_list)
 {
     if (css.is_empty()) {
-        auto rule_list = CSS::CSSRuleList::create(*context.realm);
+        auto rule_list = CSS::CSSRuleList::create();
         if (!media_list)
-            media_list = CSS::MediaList::create(*context.realm, {});
-        auto style_sheet = CSS::CSSStyleSheet::create(*context.realm, rule_list, *media_list, location);
+            media_list = CSS::MediaList::create({});
+        auto style_sheet = CSS::CSSStyleSheet::create(rule_list, *media_list, location);
         style_sheet->set_source_text({});
         return style_sheet;
     }

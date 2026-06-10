@@ -5,9 +5,8 @@
  */
 
 #include "CSSContainerRule.h"
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CSSContainerRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -17,26 +16,20 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSContainerRule);
 
-GC::Ref<CSSContainerRule> CSSContainerRule::create(JS::Realm& realm, Vector<Condition>&& conditions, CSSRuleList& rules)
+GC::Ref<CSSContainerRule> CSSContainerRule::create(Vector<Condition>&& conditions, CSSRuleList& rules)
 {
-    return realm.create<CSSContainerRule>(realm, move(conditions), rules);
+    return GC::Heap::the().allocate<CSSContainerRule>(move(conditions), rules);
 }
 
-CSSContainerRule::CSSContainerRule(JS::Realm& realm, Vector<Condition>&& conditions, CSSRuleList& rules)
-    : CSSConditionRule(realm, rules, Type::Container)
+CSSContainerRule::CSSContainerRule(Vector<Condition>&& conditions, CSSRuleList& rules)
+    : CSSConditionRule(rules, Type::Container)
     , m_conditions(move(conditions))
 {
 }
 
 CSSContainerRule::~CSSContainerRule() = default;
 
-void CSSContainerRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSContainerRule);
-    Base::initialize(realm);
-}
-
-void CSSContainerRule::visit_edges(Cell::Visitor& visitor)
+void CSSContainerRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_cached_parent_container_rule);

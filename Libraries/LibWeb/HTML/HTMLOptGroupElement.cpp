@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLOptGroupElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 
@@ -19,12 +17,6 @@ HTMLOptGroupElement::HTMLOptGroupElement(DOM::Document& document, DOM::Qualified
 }
 
 HTMLOptGroupElement::~HTMLOptGroupElement() = default;
-
-void HTMLOptGroupElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOptGroupElement);
-    Base::initialize(realm);
-}
 
 void HTMLOptGroupElement::inserted()
 {

@@ -8,33 +8,35 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/CustomEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
+using CustomEventInit = Bindings::CustomEventInit;
+
 // https://dom.spec.whatwg.org/#customevent
 class WEB_API CustomEvent : public Event {
-    WEB_PLATFORM_OBJECT(CustomEvent, Event);
+    WEB_WRAPPABLE(CustomEvent, Event);
     GC_DECLARE_ALLOCATOR(CustomEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CustomEvent> create(JS::Realm&, FlyString const& event_name, Bindings::CustomEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<CustomEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::CustomEventInit const&);
+    [[nodiscard]] static GC::Ref<CustomEvent> create(JS::Object const& relevant_global_object, FlyString const& event_name, CustomEventInit const& = {});
+    [[nodiscard]] static GC::Ref<CustomEvent> create(FlyString const& event_name, CustomEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~CustomEvent() override;
 
     // https://dom.spec.whatwg.org/#dom-customevent-detail
-    JS::Value detail() const { return m_detail; }
+    JS::Value const& detail() const { return m_detail; }
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void init_custom_event(String const& type, bool bubbles, bool cancelable, JS::Value detail);
 
 private:
-    CustomEvent(JS::Realm&, FlyString const& event_name, Bindings::CustomEventInit const& event_init);
+    CustomEvent(FlyString const& event_name, CustomEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     // https://dom.spec.whatwg.org/#dom-customevent-initcustomevent-type-bubbles-cancelable-detail-detail
     JS::Value m_detail { JS::js_null() };

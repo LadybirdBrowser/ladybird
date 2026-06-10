@@ -21,9 +21,8 @@ namespace Web::HTML {
 WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url, Fetch::NullableBodyInit const& data)
 {
     auto& navigator = as<Navigator>(*this);
-    auto& realm = navigator.realm();
-    auto& vm = realm.vm();
-    auto& relevant_settings_object = HTML::relevant_settings_object(navigator);
+    auto& realm = navigator.window().realm();
+    auto& relevant_settings_object = HTML::relevant_settings_object(navigator.window());
 
     // 1. Set base to this's relevant settings object's API base URL.
     auto base_url = relevant_settings_object.api_base_url();
@@ -74,7 +73,7 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url,
     // FIXME: 7. Set the return value to true, return the sendBeacon() call, and continue to run the following steps in parallel:
 
     // 7.1 Let req be a new request, initialized as follows:
-    auto req = Fetch::Infrastructure::Request::create(vm);
+    auto req = Fetch::Infrastructure::Request::create();
     req->set_method("POST"sv);                         // method: POST
     req->set_client(&relevant_settings_object);        // client: this's relevant settings object
     req->set_url_list({ parsed_url.release_value() }); // url: parsedUrl
@@ -88,7 +87,7 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url,
     req->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Beacon);      // initiator type: "beacon"
 
     // 7.2 Fetch req.
-    (void)Fetch::Fetching::fetch(realm, req, Fetch::Infrastructure::FetchAlgorithms::create(vm, {}));
+    (void)Fetch::Fetching::fetch(realm, req, Fetch::Infrastructure::FetchAlgorithms::create({}));
 
     return true;
 }

@@ -5,8 +5,7 @@
  */
 
 #include "CSSLayerStatementRule.h"
-#include <LibWeb/Bindings/CSSLayerStatementRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/Dump.h>
 
@@ -14,21 +13,15 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSLayerStatementRule);
 
-GC::Ref<CSSLayerStatementRule> CSSLayerStatementRule::create(JS::Realm& realm, Vector<FlyString> name_list)
+GC::Ref<CSSLayerStatementRule> CSSLayerStatementRule::create(Vector<FlyString> name_list)
 {
-    return realm.create<CSSLayerStatementRule>(realm, move(name_list));
+    return GC::Heap::the().allocate<CSSLayerStatementRule>(move(name_list));
 }
 
-CSSLayerStatementRule::CSSLayerStatementRule(JS::Realm& realm, Vector<FlyString> name_list)
-    : CSSRule(realm, Type::LayerStatement)
+CSSLayerStatementRule::CSSLayerStatementRule(Vector<FlyString> name_list)
+    : CSSRule(Type::LayerStatement)
     , m_name_list(move(name_list))
 {
-}
-
-void CSSLayerStatementRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSLayerStatementRule);
-    Base::initialize(realm);
 }
 
 String CSSLayerStatementRule::serialized() const

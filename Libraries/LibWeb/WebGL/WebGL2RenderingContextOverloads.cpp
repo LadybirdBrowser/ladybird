@@ -25,8 +25,8 @@ extern "C" {
 
 namespace Web::WebGL {
 
-WebGL2RenderingContextOverloads::WebGL2RenderingContextOverloads(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
-    : WebGL2RenderingContextImpl(realm, move(context))
+WebGL2RenderingContextOverloads::WebGL2RenderingContextOverloads(NonnullOwnPtr<OpenGLContext> context)
+    : WebGL2RenderingContextImpl(move(context))
 {
 }
 

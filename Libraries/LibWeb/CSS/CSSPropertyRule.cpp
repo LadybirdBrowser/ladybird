@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSPropertyRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
@@ -15,13 +14,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPropertyRule);
 
-GC::Ref<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, Utf16FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
+GC::Ref<CSSPropertyRule> CSSPropertyRule::create(Utf16FlyString name, Utf16FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
 {
-    return realm.create<CSSPropertyRule>(realm, move(name), move(syntax), inherits, move(initial_value));
+    return GC::Heap::the().allocate<CSSPropertyRule>(move(name), move(syntax), inherits, move(initial_value));
 }
 
-CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, Utf16FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
-    : CSSRule(realm, Type::Property)
+CSSPropertyRule::CSSPropertyRule(Utf16FlyString name, Utf16FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
+    : CSSRule(Type::Property)
     , m_name(move(name))
     , m_syntax(move(syntax))
     , m_inherits(inherits)
@@ -36,17 +35,11 @@ Optional<String> CSSPropertyRule::initial_value() const
     return {};
 }
 
-void CSSPropertyRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSPropertyRule);
-    Base::initialize(realm);
-}
-
 CustomPropertyRegistration CSSPropertyRule::to_registration() const
 {
     return CustomPropertyRegistration {
         .property_name = m_name,
-        .syntax = m_syntax.to_string(),
+        .syntax = m_syntax.to_utf16_string().to_utf8_but_should_be_ported_to_utf16(),
         .inherit = m_inherits,
         .initial_value = m_initial_value,
     };
@@ -64,14 +57,16 @@ String CSSPropertyRule::serialized() const
 
     // 1. The string "@property" followed by a single SPACE (U+0020).
     // 2. The result of performing serialize an identifier on the rule’s name, followed by a single SPACE (U+0020).
-    builder.appendff("@property {} ", serialize_an_identifier(name().to_utf16_string().to_utf8_but_should_be_ported_to_utf16()));
+    auto name = this->name().to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+    builder.appendff("@property {} ", serialize_an_identifier(name));
 
     // 3. The string "{ ", i.e., a single LEFT CURLY BRACKET (U+007B), followed by a SPACE (U+0020).
     builder.append("{ "sv);
 
     // 4. The string "syntax:", followed by a single SPACE (U+0020).
     // 5. The result of performing serialize a string on the rule’s syntax, followed by a single SEMICOLON (U+003B), followed by a SPACE (U+0020).
-    builder.appendff("syntax: {}; ", serialize_a_string(syntax()));
+    auto syntax = this->syntax().to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+    builder.appendff("syntax: {}; ", serialize_a_string(syntax));
 
     // 6. The string "inherits:", followed by a single SPACE (U+0020).
     // 7. For the rule’s inherits attribute, one of the following depending on the attribute’s value:

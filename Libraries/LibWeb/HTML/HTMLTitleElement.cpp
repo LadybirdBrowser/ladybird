@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLTitleElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLTitleElement.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -20,12 +19,6 @@ HTMLTitleElement::HTMLTitleElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLTitleElement::~HTMLTitleElement() = default;
-
-void HTMLTitleElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTitleElement);
-    Base::initialize(realm);
-}
 
 void HTMLTitleElement::children_changed(ChildrenChangedMetadata const& metadata)
 {

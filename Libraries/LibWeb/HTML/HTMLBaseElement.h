@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLBaseElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLBaseElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLBaseElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLBaseElement);
 
 public:
@@ -28,8 +28,6 @@ public:
 
 private:
     HTMLBaseElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual bool is_html_base_element() const override { return true; }
 
     // https://html.spec.whatwg.org/multipage/semantics.html#frozen-base-url

@@ -11,11 +11,11 @@
 namespace Web::CSS {
 
 class CSSNamespaceRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSNamespaceRule, CSSRule);
+    WEB_WRAPPABLE(CSSNamespaceRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSNamespaceRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSNamespaceRule> create(JS::Realm&, Optional<FlyString> prefix, FlyString namespace_uri);
+    [[nodiscard]] static GC::Ref<CSSNamespaceRule> create(Optional<FlyString> prefix, FlyString namespace_uri);
 
     virtual ~CSSNamespaceRule() = default;
 
@@ -25,9 +25,7 @@ public:
     FlyString const& prefix() const { return m_prefix; }
 
 private:
-    CSSNamespaceRule(JS::Realm&, Optional<FlyString> prefix, FlyString namespace_uri);
-
-    virtual void initialize(JS::Realm&) override;
+    CSSNamespaceRule(Optional<FlyString> prefix, FlyString namespace_uri);
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

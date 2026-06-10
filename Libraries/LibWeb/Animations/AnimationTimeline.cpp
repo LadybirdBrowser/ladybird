@@ -6,7 +6,6 @@
 
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
-#include <LibWeb/Bindings/AnimationTimeline.h>
 #include <LibWeb/DOM/Document.h>
 
 namespace Web::Animations {
@@ -56,7 +55,7 @@ NullableCSSNumberish AnimationTimeline::duration_for_bindings() const
     // available time. For a monotonic timeline, there is no upper bound on current time, and timeline duration is
     // unresolved. For a non-monotonic (e.g. scroll) timeline, the duration has a fixed upper bound. In this case, the
     // timeline is a progress-based timeline, and its timeline duration is 100%.
-    return NullableCSSNumberish::from_optional_css_numberish_time(realm(), duration());
+    return NullableCSSNumberish::from_optional_css_numberish_time(duration());
 }
 
 // https://drafts.csswg.org/web-animations-1/#timeline
@@ -66,10 +65,10 @@ bool AnimationTimeline::is_inactive() const
     return !m_current_time.has_value();
 }
 
-AnimationTimeline::AnimationTimeline(JS::Realm& realm, GC::Ref<DOM::Document> document)
-    : Bindings::PlatformObject(realm)
-    , m_associated_document(document)
+AnimationTimeline::AnimationTimeline(GC::Ref<DOM::Document> document)
+    : m_associated_document(document)
 {
+    m_associated_document->associate_with_timeline(*this);
 }
 
 void AnimationTimeline::finalize()
@@ -78,14 +77,7 @@ void AnimationTimeline::finalize()
     m_associated_document->disassociate_with_timeline(*this);
 }
 
-void AnimationTimeline::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationTimeline);
-    Base::initialize(realm);
-    m_associated_document->associate_with_timeline(*this);
-}
-
-void AnimationTimeline::visit_edges(Cell::Visitor& visitor)
+void AnimationTimeline::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_document);

@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/StorageEvent.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StorageEvent.h>
 
@@ -13,16 +12,11 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(StorageEvent);
 
-GC::Ref<StorageEvent> StorageEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::StorageEventInit const& event_init)
+GC::Ref<StorageEvent> StorageEvent::create(FlyString const& event_name, StorageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    auto event = realm.create<StorageEvent>(realm, event_name, event_init);
+    auto event = GC::Heap::the().allocate<StorageEvent>(event_name, event_init, time_stamp);
     event->set_is_trusted(true);
     return event;
-}
-
-GC::Ref<StorageEvent> StorageEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::StorageEventInit const& event_init)
-{
-    return realm.create<StorageEvent>(realm, event_name, event_init);
 }
 
 StorageEvent::~StorageEvent() = default;
@@ -51,20 +45,14 @@ void StorageEvent::init_storage_event(
     m_storage_area = storage_area;
 }
 
-StorageEvent::StorageEvent(JS::Realm& realm, FlyString const& event_name, Bindings::StorageEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+StorageEvent::StorageEvent(FlyString const& event_name, StorageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_key(event_init.key)
     , m_old_value(event_init.old_value)
     , m_new_value(event_init.new_value)
     , m_url(event_init.url)
     , m_storage_area(event_init.storage_area)
 {
-}
-
-void StorageEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StorageEvent);
-    Base::initialize(realm);
 }
 
 void StorageEvent::visit_edges(Visitor& visitor)

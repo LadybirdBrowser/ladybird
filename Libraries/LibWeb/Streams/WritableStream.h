@@ -9,10 +9,11 @@
 #include <AK/Forward.h>
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/Bindings/Transferable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Streams/Algorithms.h>
+#include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
@@ -34,9 +35,9 @@ struct PendingAbortRequest {
 
 // https://streams.spec.whatwg.org/#writablestream
 class WritableStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Transferable {
-    WEB_PLATFORM_OBJECT(WritableStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(WritableStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(WritableStream);
 
 public:
@@ -47,14 +48,15 @@ public:
         Errored,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> construct_impl(JS::Realm& realm, GC::Ptr<JS::Object> underlying_sink, Bindings::QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> create_for_constructor(JS::Realm&, GC::Ptr<JS::Object> underlying_sink_object, QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> create(JS::Realm&, GC::Ptr<JS::Object> underlying_sink_object, UnderlyingSink const&, QueuingStrategy const& = {});
 
     virtual ~WritableStream() = default;
 
     bool locked() const;
-    GC::Ref<WebIDL::Promise> abort(Optional<JS::Value> reason);
-    GC::Ref<WebIDL::Promise> close();
-    WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> get_writer();
+    GC::Ref<WebIDL::Promise> abort(JS::Realm&, Optional<JS::Value> reason);
+    GC::Ref<WebIDL::Promise> close(JS::Realm&);
+    WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> get_writer(JS::Realm&);
 
     bool backpressure() const { return m_backpressure; }
     void set_backpressure(bool value) { m_backpressure = value; }
@@ -89,16 +91,14 @@ public:
     SinglyLinkedList<GC::Ref<WebIDL::Promise>>& write_requests() { return m_write_requests; }
 
     // ^Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::WritableStream; }
 
 private:
-    explicit WritableStream(JS::Realm&);
+    WritableStream();
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#writablestream-backpressure
     // A boolean indicating the backpressure signal set by the controller

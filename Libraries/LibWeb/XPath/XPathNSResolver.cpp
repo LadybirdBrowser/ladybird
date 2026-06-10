@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Object.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibGC/Heap.h>
 
 #include "XPathNSResolver.h"
 
@@ -15,18 +12,17 @@ namespace Web::XPath {
 
 GC_DEFINE_ALLOCATOR(XPathNSResolver);
 
-GC::Ref<XPathNSResolver> XPathNSResolver::create(JS::Realm& realm, GC::Ref<WebIDL::CallbackType> callback)
+GC::Ref<XPathNSResolver> XPathNSResolver::create(GC::Ref<WebIDL::CallbackType> callback)
 {
-    return realm.create<XPathNSResolver>(realm, callback);
+    return GC::Heap::the().allocate<XPathNSResolver>(move(callback));
 }
 
-XPathNSResolver::XPathNSResolver(JS::Realm& realm, GC::Ref<WebIDL::CallbackType> callback)
-    : JS::Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())
-    , m_callback(callback)
+XPathNSResolver::XPathNSResolver(GC::Ref<WebIDL::CallbackType> callback)
+    : m_callback(move(callback))
 {
 }
 
-void XPathNSResolver::visit_edges(Cell::Visitor& visitor)
+void XPathNSResolver::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_callback);

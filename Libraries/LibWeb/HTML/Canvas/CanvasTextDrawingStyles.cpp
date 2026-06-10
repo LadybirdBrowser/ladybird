@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 
@@ -49,19 +50,18 @@ Variant<DOM::Document*, HTML::WorkerGlobalScope*> CanvasTextDrawingStyles<Canvas
         // 2. Otherwise, object's font style source object is an OffscreenCanvas object:
 
         // 1. Let global be object's relevant global object.
-        auto& global_object = HTML::relevant_global_object(font_style_source_object);
+        auto& global_object = font_style_source_object.relevant_global_object();
 
         // 2. If global is a Window object, then return global's associated Document.
-        if (is<HTML::Window>(global_object)) {
-            auto& window = as<HTML::Window>(global_object);
-            return &(window.associated_document());
-        }
+        if (auto* window = window_from_global_object(global_object))
+            return &(window->associated_document());
 
         // 3. Assert: global implements WorkerGlobalScope.
-        VERIFY(is<HTML::WorkerGlobalScope>(global_object));
+        auto* worker_global_scope = Bindings::worker_global_scope_from_global_object(global_object);
+        VERIFY(worker_global_scope);
 
         // 4. Return global.
-        return &(as<HTML::WorkerGlobalScope>(global_object));
+        return worker_global_scope;
     };
 }
 template<typename CanvasType>

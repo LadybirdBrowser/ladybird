@@ -52,21 +52,13 @@ ParsingParams::ParsingParams(ValueParsingContext value_context)
 {
 }
 
-ParsingParams::ParsingParams(JS::Realm& realm, ParsingMode mode)
-    : realm(realm)
-    , mode(mode)
-{
-}
-
-ParsingParams::ParsingParams(JS::Realm& realm, IsUAStyleSheet is_ua_style_sheet)
-    : realm(realm)
-    , is_ua_style_sheet(is_ua_style_sheet)
+ParsingParams::ParsingParams(IsUAStyleSheet is_ua_style_sheet)
+    : is_ua_style_sheet(is_ua_style_sheet)
 {
 }
 
 ParsingParams::ParsingParams(DOM::Document const& document, ParsingMode mode)
-    : realm(const_cast<JS::Realm&>(document.realm()))
-    , document(&document)
+    : document(&document)
     , mode(mode)
 {
 }
@@ -79,7 +71,6 @@ Parser Parser::create(ParsingParams const& context, StringView input, StringView
 
 Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
     : m_document(context.document)
-    , m_realm(context.realm)
     , m_parsing_mode(context.mode)
     , m_is_ua_style_sheet(context.is_ua_style_sheet)
     , m_tokens(move(tokens))
@@ -188,10 +179,10 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
     // To parse a CSS stylesheet, first parse a stylesheet.
     auto const& style_sheet = parse_a_stylesheet(m_token_stream, location);
 
-    auto rule_list = CSSRuleList::create(realm(), convert_rules(style_sheet.rules));
+    auto rule_list = CSSRuleList::create(convert_rules(style_sheet.rules));
     if (!media_list)
-        media_list = MediaList::create(realm(), {});
-    return CSSStyleSheet::create(realm(), rule_list, *media_list, move(location));
+        media_list = MediaList::create({});
+    return CSSStyleSheet::create(rule_list, *media_list, move(location));
 }
 
 RefPtr<Supports> Parser::parse_as_supports()
@@ -1952,7 +1943,7 @@ GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declarat
     for (auto const& declaration : declarations) {
         extract_property(declaration, dest);
     }
-    return CSSStyleProperties::create(realm(), move(properties.properties), move(properties.custom_properties));
+    return CSSStyleProperties::create(move(properties.properties), move(properties.custom_properties));
 }
 
 Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration const& declaration)
@@ -2356,12 +2347,6 @@ HTML::Window const* Parser::window() const
     if (!m_document)
         return nullptr;
     return m_document->window();
-}
-
-JS::Realm& Parser::realm() const
-{
-    VERIFY(m_realm);
-    return *m_realm;
 }
 
 bool Parser::in_quirks_mode() const

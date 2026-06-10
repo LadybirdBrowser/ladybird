@@ -17,17 +17,16 @@ namespace Web::CSS {
 // https://drafts.csswg.org/cssom/#cssstyleproperties
 class WEB_API CSSStyleProperties
     : public CSSStyleDeclaration {
-    WEB_PLATFORM_OBJECT(CSSStyleProperties, CSSStyleDeclaration);
+    WEB_WRAPPABLE(CSSStyleProperties, CSSStyleDeclaration);
     GC_DECLARE_ALLOCATOR(CSSStyleProperties);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleProperties> create(JS::Realm&, Vector<StyleProperty>, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties);
+    [[nodiscard]] static GC::Ref<CSSStyleProperties> create(Vector<StyleProperty>, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties);
 
-    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_resolved_style(JS::Realm&, Optional<DOM::AbstractElement>);
+    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_resolved_style(Optional<DOM::AbstractElement>);
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::AbstractElement, Vector<StyleProperty>, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties);
 
     virtual ~CSSStyleProperties() override = default;
-    virtual void initialize(JS::Realm&) override;
 
     virtual size_t length() const override;
     virtual String item(size_t index) const override;
@@ -59,6 +58,8 @@ public:
     String css_float() const;
     WebIDL::ExceptionOr<void> set_css_float(StringView);
 
+    ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES
+
     virtual String serialized() const final override;
     String serialize_a_css_value(StyleProperty const&) const;
     String serialize_a_css_value(Vector<StyleProperty>) const;
@@ -67,7 +68,7 @@ public:
     void set_declarations_from_text(StringView);
 
 private:
-    CSSStyleProperties(JS::Realm&, Computed, Readonly, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement>);
+    CSSStyleProperties(Computed, Readonly, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement>);
     static Vector<StyleProperty> convert_declarations_to_specified_order(Vector<StyleProperty>&);
 
     virtual size_t external_memory_size() const override;
@@ -87,5 +88,7 @@ private:
     Vector<StyleProperty> m_properties;
     OrderedHashMap<Utf16FlyString, StyleProperty> m_custom_properties;
 };
+
+#undef ENUMERATE_GENERATED_CSS_STYLE_PROPERTIES
 
 }

@@ -12,6 +12,7 @@
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/ServiceWorkerRegistration.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerRecord.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
@@ -30,7 +31,7 @@ public:
     static Optional<Registration&> get(StorageAPI::StorageKey const&, Optional<URL::URL> scope);
 
     // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
-    static Registration& set(StorageAPI::StorageKey const&, URL::URL const&, Bindings::ServiceWorkerUpdateViaCache);
+    static Registration& set(StorageAPI::StorageKey const&, URL::URL const&, ServiceWorkerUpdateViaCache);
 
     // https://w3c.github.io/ServiceWorker/#scope-match-algorithm
     static Optional<Registration&> match(StorageAPI::StorageKey const&, URL::URL const&);
@@ -43,8 +44,8 @@ public:
 
     StorageAPI::StorageKey const& storage_key() const { return m_storage_key; }
     URL::URL const& scope_url() const { return m_scope_url; }
-    Bindings::ServiceWorkerUpdateViaCache update_via_cache() const { return m_update_via_cache_mode; }
-    void set_update_via_cache(Bindings::ServiceWorkerUpdateViaCache update_via_cache_mode) { m_update_via_cache_mode = update_via_cache_mode; }
+    ServiceWorkerUpdateViaCache update_via_cache() const { return m_update_via_cache_mode; }
+    void set_update_via_cache(ServiceWorkerUpdateViaCache update_via_cache_mode) { m_update_via_cache_mode = update_via_cache_mode; }
 
     void set_last_update_check_time(MonotonicTime time) { m_last_update_check_time = time; }
 
@@ -56,7 +57,7 @@ public:
     bool is_stale() const;
 
 private:
-    Registration(StorageAPI::StorageKey, URL::URL, Bindings::ServiceWorkerUpdateViaCache);
+    Registration(StorageAPI::StorageKey, URL::URL, ServiceWorkerUpdateViaCache);
 
     StorageAPI::StorageKey m_storage_key; // https://w3c.github.io/ServiceWorker/#service-worker-registration-storage-key
     URL::URL m_scope_url;                 // https://w3c.github.io/ServiceWorker/#dfn-scope-url
@@ -66,8 +67,8 @@ private:
     ServiceWorkerRecord* m_waiting_worker { nullptr };    // https://w3c.github.io/ServiceWorker/#dfn-waiting-worker
     ServiceWorkerRecord* m_active_worker { nullptr };     // https://w3c.github.io/ServiceWorker/#dfn-active-worker
 
-    Optional<MonotonicTime> m_last_update_check_time;                                                               // https://w3c.github.io/ServiceWorker/#dfn-last-update-check-time
-    Bindings::ServiceWorkerUpdateViaCache m_update_via_cache_mode = Bindings::ServiceWorkerUpdateViaCache::Imports; // https://w3c.github.io/ServiceWorker/#dfn-update-via-cache
+    Optional<MonotonicTime> m_last_update_check_time;                                           // https://w3c.github.io/ServiceWorker/#dfn-last-update-check-time
+    ServiceWorkerUpdateViaCache m_update_via_cache_mode = ServiceWorkerUpdateViaCache::Imports; // https://w3c.github.io/ServiceWorker/#dfn-update-via-cache
     // FIXME: A service worker registration has one or more task queues... https://w3c.github.io/ServiceWorker/#dfn-service-worker-registration-task-queue
     // FIXME: Spec bug: A service worker registration has an associated NavigationPreloadManager object.
     //        This can't possibly be true. The association is the other way around.

@@ -26,7 +26,7 @@ class HTMLImageElement final
     , public LazyLoadingElement<HTMLImageElement>
     , public Layout::ImageProvider
     , public DOM::ViewportClient {
-    WEB_PLATFORM_OBJECT(HTMLImageElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLImageElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLImageElement);
     LAZY_LOADING_ELEMENT(HTMLImageElement);
 
@@ -70,7 +70,8 @@ public:
     String current_src() const;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> decode() const;
+    GC::Ref<WebIDL::Promise> decode(JS::Realm&) const;
+    void decode(GC::Ref<WebIDL::Promise>) const;
 
     virtual Optional<ARIA::Role> default_role() const override;
 
@@ -125,7 +126,7 @@ private:
 
     virtual bool is_html_image_element() const override { return true; }
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void finalize() override;
 
     virtual void adopted_from(DOM::Document&) override;

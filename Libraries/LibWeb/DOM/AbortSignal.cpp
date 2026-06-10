@@ -5,34 +5,30 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/AbortSignal.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventHandler.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(AbortSignal);
 
-WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::construct_impl(JS::Realm& realm)
+GC::Ref<AbortSignal> AbortSignal::create()
 {
-    return realm.create<AbortSignal>(realm);
+    return GC::Heap::the().allocate<AbortSignal>();
 }
 
-AbortSignal::AbortSignal(JS::Realm& realm)
-    : EventTarget(realm)
+AbortSignal::AbortSignal()
+    : EventTarget()
 {
-}
-
-void AbortSignal::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AbortSignal);
-    Base::initialize(realm);
 }
 
 // https://dom.spec.whatwg.org/#abortsignal-add
@@ -43,7 +39,7 @@ Optional<AbortSignal::AbortAlgorithmID> AbortSignal::add_abort_algorithm(Functio
         return {};
 
     // 2. Append algorithm to signal’s abort algorithms.
-    m_abort_algorithms.set(++m_next_abort_algorithm_id, GC::create_function(vm().heap(), move(abort_algorithm)));
+    m_abort_algorithms.set(++m_next_abort_algorithm_id, GC::create_function(GC::Heap::the(), move(abort_algorithm)));
     return m_next_abort_algorithm_id;
 }
 
@@ -55,17 +51,16 @@ void AbortSignal::remove_abort_algorithm(AbortAlgorithmID id)
 }
 
 // https://dom.spec.whatwg.org/#abortsignal-signal-abort
-void AbortSignal::signal_abort(JS::Value reason)
+void AbortSignal::signal_abort(JS::Value reason, JS::Object& relevant_global_object)
 {
     // 1. If signal is aborted, then return.
     if (aborted())
         return;
 
     // 2. Set signal’s abort reason to reason if it is given; otherwise to a new "AbortError" DOMException.
-    if (!reason.is_undefined())
-        m_abort_reason = reason;
-    else
-        m_abort_reason = WebIDL::AbortError::create(realm(), "Aborted without reason"_utf16).ptr();
+    // Callers create the default DOMException at the JS boundary.
+    VERIFY(!reason.is_undefined());
+    m_abort_reason = reason;
 
     // 3. Let dependentSignalsToAbort be a new list.
     Vector<GC::Root<AbortSignal>> dependent_signals_to_abort;
@@ -83,7 +78,7 @@ void AbortSignal::signal_abort(JS::Value reason)
     }
 
     // https://dom.spec.whatwg.org/#run-the-abort-steps
-    auto run_the_abort_steps = [](auto& signal) {
+    auto run_the_abort_steps = [&relevant_global_object](auto& signal) {
         // 1. For each algorithm in signal’s abort algorithms: run algorithm.
         for (auto const& algorithm : signal.m_abort_algorithms)
             algorithm.value->function()();
@@ -92,7 +87,7 @@ void AbortSignal::signal_abort(JS::Value reason)
         signal.m_abort_algorithms.clear();
 
         // 3. Fire an event named abort at signal.
-        auto abort_event = Event::create(signal.realm(), HTML::EventNames::abort);
+        auto abort_event = Event::create(HTML::EventNames::abort, HighResolutionTime::current_high_resolution_time(relevant_global_object));
         abort_event->set_is_trusted(true);
         signal.dispatch_event(abort_event);
     };
@@ -144,15 +139,15 @@ size_t AbortSignal::external_memory_size() const
 }
 
 // https://dom.spec.whatwg.org/#dom-abortsignal-abort
-WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::abort(JS::VM& vm, Optional<JS::Value> maybe_reason)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::abort(JS::Realm& realm, Optional<JS::Value> maybe_reason)
 {
     // 1. Let signal be a new AbortSignal object.
-    auto signal = TRY(construct_impl(*vm.current_realm()));
+    auto signal = create();
 
     // 2. Set signal’s abort reason to reason if it is given; otherwise to a new "AbortError" DOMException.
     auto reason = maybe_reason.value_or(JS::js_undefined());
     if (reason.is_undefined())
-        reason = WebIDL::AbortError::create(*vm.current_realm(), "Aborted without reason"_utf16).ptr();
+        reason = throw_completion(realm, WebIDL::AbortError::create("Aborted without reason"_utf16)).value();
 
     signal->set_reason(reason);
 
@@ -161,23 +156,22 @@ WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::abort(JS::VM& vm, Optiona
 }
 
 // https://dom.spec.whatwg.org/#dom-abortsignal-timeout
-WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::timeout(JS::VM& vm, WebIDL::UnsignedLongLong milliseconds)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::timeout(JS::Realm& realm, WebIDL::UnsignedLongLong milliseconds)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let signal be a new AbortSignal object.
-    auto signal = TRY(construct_impl(realm));
+    auto signal = create();
 
     // 2. Let global be signal’s relevant global object.
-    auto& global = HTML::relevant_global_object(signal);
-    auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(global);
+    auto& global = realm.global_object();
+    auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(global);
+    VERIFY(window_or_worker);
 
     // 3. Run steps after a timeout given global, "AbortSignal-timeout", milliseconds, and the following step:
-    window_or_worker.run_steps_after_a_timeout(milliseconds, [&realm, &global, signal]() {
+    window_or_worker->run_steps_after_a_timeout(milliseconds, [&realm, &global, signal]() {
         // 1. Queue a global task on the timer task source given global to signal abort given signal and a new "TimeoutError" DOMException.
-        HTML::queue_global_task(HTML::Task::Source::TimerTask, global, GC::create_function(realm.heap(), [&realm, signal]() mutable {
-            auto reason = WebIDL::TimeoutError::create(realm, "Signal timed out"_utf16);
-            signal->signal_abort(reason);
+        HTML::queue_global_task(HTML::Task::Source::TimerTask, global, GC::create_function(GC::Heap::the(), [&realm, &global, signal]() mutable {
+            auto reason = throw_completion(realm, WebIDL::TimeoutError::create("Signal timed out"_utf16)).value();
+            signal->signal_abort(reason, global);
         }));
     });
 
@@ -186,17 +180,17 @@ WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::timeout(JS::VM& vm, WebID
 }
 
 // https://dom.spec.whatwg.org/#dom-abortsignal-any
-WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::any(JS::VM& vm, ReadonlySpan<GC::Ref<AbortSignal>> signals)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::any(ReadonlySpan<GC::Ref<AbortSignal>> signals)
 {
     // The static any(signals) method steps are to return the result of creating a dependent abort signal from signals using AbortSignal and the current realm.
-    return create_dependent_abort_signal(*vm.current_realm(), signals);
+    return create_dependent_abort_signal(signals);
 }
 
 // https://dom.spec.whatwg.org/#create-a-dependent-abort-signal
-WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::create_dependent_abort_signal(JS::Realm& realm, ReadonlySpan<GC::Ref<AbortSignal>> signals)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::create_dependent_abort_signal(ReadonlySpan<GC::Ref<AbortSignal>> signals)
 {
     // 1. Let resultSignal be a new object implementing signalInterface using realm.
-    auto result_signal = TRY(construct_impl(realm));
+    auto result_signal = create();
 
     // 2. For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.
     for (auto const& signal : signals) {

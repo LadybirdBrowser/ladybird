@@ -13,7 +13,7 @@
 namespace Web::SVG {
 
 class SVGClipPathElement final : public SVGGraphicsElement {
-    WEB_PLATFORM_OBJECT(SVGClipPathElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGClipPathElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGClipPathElement);
 
 public:
@@ -38,7 +38,6 @@ public:
 
 private:
     SVGClipPathElement(DOM::Document&, DOM::QualifiedName);
-    virtual void initialize(JS::Realm&) override;
 
     Optional<ClipPathUnits> m_clip_path_units = {};
 };

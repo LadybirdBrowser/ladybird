@@ -5,8 +5,7 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <LibWeb/Bindings/DOMStringMap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/DOMStringMap.h>
@@ -17,31 +16,17 @@ GC_DEFINE_ALLOCATOR(DOMStringMap);
 
 GC::Ref<DOMStringMap> DOMStringMap::create(DOM::Element& element)
 {
-    auto& realm = element.realm();
-    return realm.create<DOMStringMap>(element);
+    return GC::Heap::the().allocate<DOMStringMap>(element);
 }
 
 DOMStringMap::DOMStringMap(DOM::Element& element)
-    : PlatformObject(element.realm())
-    , m_associated_element(element)
+    : m_associated_element(element)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_named_properties = true,
-        .has_named_property_setter = true,
-        .has_named_property_deleter = true,
-        .has_legacy_override_built_ins_interface_extended_attribute = true,
-    };
 }
 
 DOMStringMap::~DOMStringMap() = default;
 
-void DOMStringMap::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMStringMap);
-    Base::initialize(realm);
-}
-
-void DOMStringMap::visit_edges(Cell::Visitor& visitor)
+void DOMStringMap::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_element);
@@ -126,12 +111,8 @@ String DOMStringMap::determine_value_of_named_property(FlyString const& name) co
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-setitem
-WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String const& name, JS::Value unconverted_value)
+WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_named_property(String const& name, String const& value)
 {
-    // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
-    //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_string(vm()));
-
     StringBuilder builder;
 
     // 3. Insert the string data- at the front of name.
@@ -147,7 +128,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
         if (current_character == '-' && character_index + 1 < name_view.length()) {
             auto next_character = name_view[character_index + 1];
             if (is_ascii_lower_alpha(next_character))
-                return WebIDL::SyntaxError::create(realm(), "Name cannot contain a '-' followed by a lowercase character."_utf16);
+                return WebIDL::SyntaxError::create("Name cannot contain a '-' followed by a lowercase character."_utf16);
         }
 
         // 2. For each ASCII upper alpha in name, insert a U+002D HYPHEN-MINUS character (-) before the character and replace the character with the same character converted to ASCII lowercase.
@@ -164,7 +145,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 
     // 4. If name is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!DOM::is_valid_attribute_local_name(data_name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Name is not a valid attribute local name."_utf16);
+        return WebIDL::InvalidCharacterError::create("Name is not a valid attribute local name."_utf16);
 
     // 5. Set an attribute value for the DOMStringMap's associated element using name and value.
     m_associated_element->set_attribute_value(data_name, value);
@@ -172,14 +153,8 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
     return {};
 }
 
-// https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-setitem
-WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_existing_named_property(String const& name, JS::Value value)
-{
-    return set_value_of_new_named_property(name, value);
-}
-
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-removeitem
-WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::delete_value(String const& name)
+void DOMStringMap::delete_named_property(String const& name)
 {
     StringBuilder builder;
 
@@ -201,14 +176,6 @@ WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::del
     // Remove an attribute by name given name and the DOMStringMap's associated element.
     auto data_name = MUST(builder.to_string());
     m_associated_element->remove_attribute(data_name);
-
-    // The spec doesn't have the step. This indicates that the deletion was successful.
-    return DidDeletionFail::No;
-}
-
-JS::Value DOMStringMap::named_item_value(FlyString const& name) const
-{
-    return JS::PrimitiveString::create(vm(), determine_value_of_named_property(name));
 }
 
 }

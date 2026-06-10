@@ -16,10 +16,9 @@ def wrap_with_extended_attribute_exposure_checks(
 """
 
     if extended_attributes.get("Exposed") == "Window":
-        includes.add("AK/TypeCasts.h")
-        includes.add("LibWeb/HTML/Window.h")
+        includes.add("LibWeb/HTML/Scripting/Environments.h")
         text = text.replace("\n", "\n    ")
-        text = f"""    if (is<HTML::Window>(realm.global_object())) {{
+        text = f"""    if (HTML::window_from_global_object(realm.global_object())) {{
     {text}    }}
 """
 
@@ -33,14 +32,14 @@ def wrap_with_extended_attribute_exposure_checks(
     return text
 
 
-def wrap_with_ce_reactions(includes: GeneratedIncludes, expression: str) -> str:
+def wrap_with_ce_reactions(includes: GeneratedIncludes, expression: str, this_object_realm: str) -> str:
+    includes.add("LibWeb/HTML/CustomElements/CustomElementReactions.h")
     includes.add("LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h")
-    includes.add("LibWeb/Bindings/MainThreadVM.h")
     return f"""[&]() -> decltype({expression}) {{
         // For [CEReactions]: https://html.spec.whatwg.org/multipage/custom-elements.html#cereactions
 
         // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
-        auto& reactions_stack = HTML::relevant_similar_origin_window_agent(*idl_object).custom_element_reactions_stack;
+        auto& reactions_stack = HTML::relevant_similar_origin_window_agent({this_object_realm}.global_object()).custom_element_reactions_stack;
         reactions_stack.element_queue_stack.append({{}});
 
         // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value, let value be the returned value. If they throw an exception, let exception be the thrown exception.
@@ -49,7 +48,7 @@ def wrap_with_ce_reactions(includes: GeneratedIncludes, expression: str) -> str:
         // 3. Let queue be the result of popping from this object's relevant agent's custom element reactions stack.
         // 4. Invoke custom element reactions in queue.
         auto queue = reactions_stack.element_queue_stack.take_last();
-        Bindings::invoke_custom_element_reactions(queue);
+        HTML::invoke_custom_element_reactions(queue);
 
         // 5. If an exception exception was thrown by the original steps, rethrow exception.
         if (value_or_exception.is_error())

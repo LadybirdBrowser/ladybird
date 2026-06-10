@@ -12,17 +12,15 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathclamp
 class CSSMathClamp final : public CSSMathValue {
-    WEB_PLATFORM_OBJECT(CSSMathClamp, CSSMathValue);
+    WEB_WRAPPABLE(CSSMathClamp, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathClamp);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathClamp> create(JS::Realm&, NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> construct_impl(JS::Realm&, CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
+    [[nodiscard]] static GC::Ref<CSSMathClamp> create(NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> create_for_constructor(CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
 
     virtual ~CSSMathClamp() override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> lower() const;
     GC::Ref<CSSNumericValue> value() const;
@@ -35,7 +33,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathClamp(JS::Realm&, NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);
+    CSSMathClamp(NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);
     GC::Ref<CSSNumericValue> m_lower;
     GC::Ref<CSSNumericValue> m_value;
     GC::Ref<CSSNumericValue> m_upper;

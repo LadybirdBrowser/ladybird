@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLFrameElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -13,11 +11,18 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLFrameElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLFrameElement);
+
+static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, FlyString const& event_name)
+{
+    return DOM::Event::create(event_name, HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));
+}
 
 HTMLFrameElement::HTMLFrameElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : NavigableContainer(document, move(qualified_name))
@@ -28,12 +33,6 @@ HTMLFrameElement::HTMLFrameElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLFrameElement::~HTMLFrameElement() = default;
-
-void HTMLFrameElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFrameElement);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#frames:html-element-insertion-steps
 void HTMLFrameElement::inserted()
@@ -103,7 +102,7 @@ void HTMLFrameElement::process_the_frame_attributes(InitialInsertion initial_ins
     // 3. If url matches about:blank and initialInsertion is true, then:
     if (url_matches_about_blank(*url) && initial_insertion == InitialInsertion::Yes) {
         // 1. Fire an event named load at element.
-        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
+        dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
 
         // 2. Return.
         return;

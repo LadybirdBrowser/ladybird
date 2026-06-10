@@ -5,19 +5,43 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/BooleanObject.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaCapabilities.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::MediaCapabilitiesAPI {
 
+static GC::Ref<JS::Object> media_capabilities_decoding_info_to_object(JS::Realm& realm, MediaCapabilitiesDecodingInfo const& info)
+{
+    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+
+    // FIXME: Also include configuration in this object.
+
+    MUST(object->create_data_property("supported"_utf16_fly_string, JS::BooleanObject::create(realm, info.supported)));
+    MUST(object->create_data_property("smooth"_utf16_fly_string, JS::BooleanObject::create(realm, info.smooth)));
+    MUST(object->create_data_property("powerEfficient"_utf16_fly_string, JS::BooleanObject::create(realm, info.power_efficient)));
+
+    return object;
+}
+
+// https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task
+static void queue_a_media_capabilities_task(JS::Object& global_object, Function<void()> steps)
+{
+    // When an algorithm queues a Media Capabilities task T, the user agent MUST queue a global task T on the
+    // media capabilities task source using the global object of the the current realm record.
+    HTML::queue_global_task(HTML::Task::Source::MediaCapabilities, global_object, GC::create_function(GC::Heap::the(), move(steps)));
+}
+
 // https://w3c.github.io/media-capabilities/#valid-mediaconfiguration
-bool is_valid_media_configuration(Bindings::MediaConfiguration const& configuration)
+static bool is_valid_media_configuration(MediaDecodingConfiguration const& configuration)
 {
     //  For a MediaConfiguration to be a valid MediaConfiguration, all of the following conditions MUST be true:
 
@@ -37,7 +61,7 @@ bool is_valid_media_configuration(Bindings::MediaConfiguration const& configurat
 }
 
 // https://w3c.github.io/media-capabilities/#valid-mediadecodingconfiguration
-bool is_valid_media_decoding_configuration(Bindings::MediaDecodingConfiguration const& configuration)
+bool is_valid_media_decoding_configuration(MediaDecodingConfiguration const& configuration)
 {
     // For a MediaDecodingConfiguration to be a valid MediaDecodingConfiguration, all of the following
     // conditions MUST be true:
@@ -75,7 +99,7 @@ bool is_valid_video_mime_type(StringView string)
 }
 
 // https://w3c.github.io/media-capabilities/#valid-video-configuration
-bool is_valid_video_configuration(Bindings::VideoConfiguration const& configuration)
+bool is_valid_video_configuration(VideoConfiguration const& configuration)
 {
     // To check if a VideoConfiguration configuration is a valid video configuration, the following steps MUST be
     // run:
@@ -97,7 +121,7 @@ bool is_valid_video_configuration(Bindings::VideoConfiguration const& configurat
 }
 
 // https://w3c.github.io/media-capabilities/#valid-video-configuration
-bool is_valid_audio_configuration(Bindings::AudioConfiguration const& configuration)
+bool is_valid_audio_configuration(AudioConfiguration const& configuration)
 {
     // To check if a AudioConfiguration configuration is a valid audio configuration, the following steps MUST be
     // run:
@@ -112,76 +136,54 @@ bool is_valid_audio_configuration(Bindings::AudioConfiguration const& configurat
 
 GC_DEFINE_ALLOCATOR(MediaCapabilities);
 
-GC::Ref<MediaCapabilities> MediaCapabilities::create(JS::Realm& realm)
+GC::Ref<MediaCapabilities> MediaCapabilities::create()
 {
-    return realm.create<MediaCapabilities>(realm);
+    return GC::Heap::the().allocate<MediaCapabilities>();
 }
 
-MediaCapabilities::MediaCapabilities(JS::Realm& realm)
-    : PlatformObject(realm)
+MediaCapabilities::MediaCapabilities()
 {
-}
-
-void MediaCapabilities::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaCapabilities);
-    Base::initialize(realm);
-}
-
-// https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task
-void queue_a_media_capabilities_task(JS::VM& vm, Function<void()> steps)
-{
-    // When an algorithm queues a Media Capabilities task T, the user agent MUST queue a global task T on the
-    // media capabilities task source using the global object of the the current realm record.
-    queue_global_task(HTML::Task::Source::MediaCapabilities, vm.current_realm()->global_object(), GC::create_function(vm.current_realm()->heap(), move(steps)));
 }
 
 // https://w3c.github.io/media-capabilities/#dom-mediacapabilities-decodinginfo
-GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(Bindings::MediaDecodingConfiguration const& configuration)
+void MediaCapabilities::decoding_info(JS::Realm& realm, MediaDecodingConfiguration const& configuration, GC::Ref<WebIDL::Promise> promise)
 {
-    auto& realm = this->realm();
     // The decodingInfo() method MUST run the following steps:
 
     // 1. If configuration is not a valid MediaDecodingConfiguration, return a Promise rejected with a newly created
     //    TypeError.
     if (!is_valid_media_decoding_configuration(configuration)) {
-        return WebIDL::create_rejected_promise_from_exception(realm, vm().throw_completion<JS::TypeError>("The given configuration is not a valid MediaDecodingConfiguration"sv));
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "The given configuration is not a valid MediaDecodingConfiguration"sv));
+        return;
     }
 
     // 2. If configuration.keySystemConfiguration exists, run the following substeps:
     // FIXME: Implement this.
 
-    // 3. Let p be a new Promise.
-    auto p = WebIDL::create_promise(realm);
-
     // 4. Run the following steps in parallel:
-    auto& vm = this->vm();
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&vm, &realm, p, configuration]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, promise, configuration]() mutable {
         HTML::TemporaryExecutionContext context(realm);
         // 1. Run the Create a MediaCapabilitiesDecodingInfo algorithm with configuration.
-        auto result = to_object(realm, create_a_media_capabilities_decoding_info(configuration));
+        auto result = media_capabilities_decoding_info_to_object(realm, create_a_media_capabilities_decoding_info(configuration));
 
         // Queue a Media Capabilities task to resolve p with its result.
-        queue_a_media_capabilities_task(vm, [&realm, p, result] {
+        queue_a_media_capabilities_task(realm.global_object(), [&realm, promise, result] {
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            WebIDL::resolve_promise(realm, p, JS::Value(result));
+            WebIDL::resolve_promise(realm, promise, JS::Value(result));
         });
     }));
-
-    // 5. Return p.
-    return p;
 }
 
 // https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
-Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(Bindings::MediaDecodingConfiguration configuration)
+MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDecodingConfiguration configuration)
 {
     // 1. Let info be a new MediaCapabilitiesDecodingInfo instance. Unless stated otherwise, reading and
     //    writing apply to info for the next steps.
-    Bindings::MediaCapabilitiesDecodingInfo info = {};
+    MediaCapabilitiesDecodingInfo info = {};
 
     // 2. Set configuration to be a new MediaDecodingConfiguration. For every property in configuration create
     //    a new property with the same name and value in configuration.
-    Bindings::MediaDecodingConfiguration info_configuration {};
+    MediaDecodingConfiguration info_configuration {};
     info_configuration.audio = configuration.audio;
     info_configuration.video = configuration.video;
     info_configuration.type = configuration.type;
@@ -216,9 +218,9 @@ Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_inf
     return info;
 }
 
-bool is_able_to_decode_media(Bindings::MediaDecodingConfiguration configuration)
+bool is_able_to_decode_media(MediaDecodingConfiguration const& configuration)
 {
-    if (configuration.type != Bindings::MediaDecodingType::MediaSource)
+    if (configuration.type != MediaDecodingType::MediaSource)
         return false;
 
     if (configuration.video.has_value()) {
@@ -234,19 +236,6 @@ bool is_able_to_decode_media(Bindings::MediaDecodingConfiguration configuration)
     }
 
     return true;
-}
-
-GC::Ref<JS::Object> to_object(JS::Realm& realm, Bindings::MediaCapabilitiesDecodingInfo const& info)
-{
-    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
-
-    // FIXME: Also include configuration in this object.
-
-    MUST(object->create_data_property("supported"_utf16_fly_string, JS::BooleanObject::create(realm, info.supported)));
-    MUST(object->create_data_property("smooth"_utf16_fly_string, JS::BooleanObject::create(realm, info.smooth)));
-    MUST(object->create_data_property("powerEfficient"_utf16_fly_string, JS::BooleanObject::create(realm, info.power_efficient)));
-
-    return object;
 }
 
 }

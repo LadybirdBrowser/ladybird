@@ -8,19 +8,18 @@
 
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Speech {
 
-class SpeechGrammar final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SpeechGrammar, Bindings::PlatformObject);
+class SpeechGrammar final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SpeechGrammar, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SpeechGrammar);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SpeechGrammar>> construct_impl(JS::Realm&);
+    static GC::Ref<SpeechGrammar> create();
     virtual ~SpeechGrammar() override;
 
     // https://wicg.github.io/speech-api/#dom-speechgrammar-src
@@ -32,9 +31,7 @@ public:
     void set_weight(float weight) { m_weight = weight; }
 
 private:
-    explicit SpeechGrammar(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit SpeechGrammar();
 
     String m_src;
     float m_weight { 1.f };

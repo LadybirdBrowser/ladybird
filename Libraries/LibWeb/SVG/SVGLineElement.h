@@ -12,7 +12,7 @@
 namespace Web::SVG {
 
 class SVGLineElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGLineElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGLineElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGLineElement);
 
 public:
@@ -29,8 +29,6 @@ public:
 
 private:
     SVGLineElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     Optional<NumberPercentage> m_x1;
     Optional<NumberPercentage> m_y1;

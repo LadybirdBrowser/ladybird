@@ -18,7 +18,7 @@ namespace Web::SVG {
 class SVGScriptElement
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGScriptElement, SVGElement);
+    WEB_WRAPPABLE(SVGScriptElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGScriptElement);
 
 public:
@@ -38,8 +38,6 @@ public:
 
 protected:
     SVGScriptElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
 private:
     virtual bool is_svg_script_element() const final { return true; }

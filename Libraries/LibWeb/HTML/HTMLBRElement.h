@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLBRElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLBRElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLBRElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLBRElement);
 
 public:
@@ -26,8 +26,6 @@ private:
     virtual bool is_html_br_element() const override { return true; }
 
     HTMLBRElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

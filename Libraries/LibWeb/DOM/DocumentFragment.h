@@ -6,19 +6,22 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::DOM {
 
 class WEB_API DocumentFragment
     : public ParentNode {
-    WEB_PLATFORM_OBJECT(DocumentFragment, ParentNode);
+    WEB_WRAPPABLE(DocumentFragment, ParentNode);
     GC_DECLARE_ALLOCATOR(DocumentFragment);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> construct_impl(JS::Realm& realm);
+    [[nodiscard]] static GC::Ref<DocumentFragment> create(Document&);
+    [[nodiscard]] static GC::Ref<DocumentFragment> construct_impl(JS::Realm&);
 
     virtual ~DocumentFragment() override = default;
 
@@ -32,7 +35,6 @@ public:
 protected:
     explicit DocumentFragment(Document& document);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

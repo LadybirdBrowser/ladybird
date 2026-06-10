@@ -8,14 +8,18 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
+#include <AK/FlyString.h>
 #include <AK/LexicalPath.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf16FlyString.h>
 #include <LibCore/Promise.h>
 #include <LibCore/Resource.h>
+#include <LibGC/Heap.h>
+#include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -28,15 +32,36 @@
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/IncrementalDocumentParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
 #include <LibXML/Parser/Parser.h>
 
 namespace Web {
+
+static void add_pdf_viewer_ready_listener(DOM::Document& document, GC::Ref<Fetch::Infrastructure::Response> response)
+{
+    auto& realm = document.relevant_settings_object().realm();
+    auto js_response = Fetch::Response::create(response, Fetch::Headers::Guard::Response);
+
+    auto listener_function = JS::NativeFunction::create(
+        realm, [&document, js_response](JS::VM&) mutable -> JS::ThrowCompletionOr<JS::Value> {
+            DOM::CustomEventInit init;
+            auto& realm = document.relevant_settings_object().realm();
+            init.detail = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { js_response });
+            document.dispatch_event(*DOM::CustomEvent::create("ladybirdpdf"_fly_string, init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(document))));
+            return JS::js_undefined();
+        },
+        0, Utf16FlyString {}, &realm);
+    auto callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*listener_function, realm);
+    document.add_event_listener_without_options("ladybirdviewerready"_fly_string, *DOM::IDLEventListener::create(*callback));
+}
 
 // Replaces a document's content with a simple error message.
 static void convert_to_xml_error_document(DOM::Document& document, Utf16String error_string)
@@ -44,7 +69,7 @@ static void convert_to_xml_error_document(DOM::Document& document, Utf16String e
     auto html_element = MUST(DOM::create_element(document, HTML::TagNames::html, Namespace::HTML));
     auto body_element = MUST(DOM::create_element(document, HTML::TagNames::body, Namespace::HTML));
     MUST(html_element->append_child(body_element));
-    MUST(body_element->append_child(document.realm().create<DOM::Text>(document, move(error_string))));
+    MUST(body_element->append_child(DOM::Text::create(document, move(error_string))));
     document.remove_all_children();
     MUST(document.append_child(html_element));
 
@@ -120,7 +145,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
         auto mime_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list());
         auto url = navigation_params.response->url().value();
         auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, *data, mime_type);
-        document->set_deferred_parser_start(GC::create_function(document->heap(), [parser, url] {
+        document->set_deferred_parser_start(GC::create_function(GC::Heap::the(), [parser, url] {
             parser->run(url);
         }));
     }
@@ -183,7 +208,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
     if (auto maybe_encoding = type.parameters().get("charset"sv); maybe_encoding.has_value())
         content_encoding = maybe_encoding.value();
 
-    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
+    auto process_body = GC::create_function(GC::Heap::the(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
         Optional<TextCodec::Decoder&> decoder;
         // The actual HTTP headers and other metadata, not the headers as mutated or implied by the algorithms given in this specification,
         // are the ones that must be used when determining the character encoding according to the rules given in the above specifications.
@@ -224,15 +249,15 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
         if (document->ready_to_run_scripts()) {
             run_xml_parser();
         } else {
-            document->set_deferred_parser_start(GC::create_function(document->heap(), move(run_xml_parser)));
+            document->set_deferred_parser_start(GC::create_function(GC::Heap::the(), move(run_xml_parser)));
         }
     });
 
-    auto process_body_error = GC::create_function(document->heap(), [](JS::Value) {
+    auto process_body_error = GC::create_function(GC::Heap::the(), [](JS::Value) {
         dbgln("FIXME: Load html page with an error if read of body failed.");
     });
 
-    auto& realm = document->realm();
+    auto& realm = document->relevant_settings_object().realm();
     navigation_params.response->body()->fully_read(realm, process_body, process_body_error, GC::Ref { realm.global_object() });
 
     return document;
@@ -266,7 +291,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually causes a
     //    load event to be fired.
     // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) {
+    auto process_body = GC::create_function(GC::Heap::the(), [document, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) {
         auto encoding = run_encoding_sniffing_algorithm(document, data, mime);
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
@@ -289,21 +314,21 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
             auto title = Utf16String::from_utf8_with_replacement_character(LexicalPath::basename(url.to_byte_string()));
             auto title_element = MUST(DOM::create_element(document, HTML::TagNames::title, Namespace::HTML));
             MUST(document->head()->append_child(title_element));
-            auto title_text = document->realm().create<DOM::Text>(document, move(title));
+            auto title_text = DOM::Text::create(document, move(title));
             MUST(title_element->append_child(*title_text));
         };
         if (document->ready_to_run_scripts()) {
             run_text_parser();
         } else {
-            document->set_deferred_parser_start(GC::create_function(document->heap(), move(run_text_parser)));
+            document->set_deferred_parser_start(GC::create_function(GC::Heap::the(), move(run_text_parser)));
         }
     });
 
-    auto process_body_error = GC::create_function(document->heap(), [](JS::Value) {
+    auto process_body_error = GC::create_function(GC::Heap::the(), [](JS::Value) {
         dbgln("FIXME: Load html page with an error if read of body failed.");
     });
 
-    auto& realm = document->realm();
+    auto& realm = document->relevant_settings_object().realm();
     navigation_params.response->body()->fully_read(realm, process_body, process_body_error, GC::Ref { realm.global_object() });
 
     // 6. Return document.
@@ -335,7 +360,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         auto title_element = TRY(DOM::create_element(document, HTML::TagNames::title, Namespace::HTML));
         TRY(document->head()->append_child(title_element));
 
-        auto title_text = document->realm().template create<DOM::Text>(document, move(title));
+        auto title_text = DOM::Text::create(document, move(title));
         TRY(title_element->append_child(*title_text));
         return {};
     };
@@ -393,11 +418,11 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     // FIXME: We should not need to force the media file to load before saying that parsing has completed!
     //        However, if we don't, then we get stuck in HTMLParser::the_end() waiting for the media file to load, which
     //        never happens.
-    auto& realm = document->realm();
+    auto& realm = document->relevant_settings_object().realm();
     navigation_params.response->body()->fully_read(
         realm,
-        GC::create_function(document->heap(), [document](ByteBuffer) { HTML::HTMLParser::the_end(document); }),
-        GC::create_function(document->heap(), [](JS::Value) {}),
+        GC::create_function(GC::Heap::the(), [document](ByteBuffer) { HTML::HTMLParser::the_end(document); }),
+        GC::create_function(GC::Heap::the(), [](JS::Value) {}),
         GC::Ref { realm.global_object() });
 
     // 9. Return document.
@@ -427,26 +452,14 @@ static GC::Ref<DOM::Document> load_pdf_document(HTML::NavigationParams const& na
     auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params));
     document->set_origin(URL::Origin("resource"_string, String {}, {}));
 
-    auto& realm = document->realm();
-    auto js_response = Fetch::Response::create(realm, GC::Ref(*navigation_params.response), Fetch::Headers::Guard::Response);
+    add_pdf_viewer_ready_listener(document, GC::Ref(*navigation_params.response));
 
-    auto listener_fn = JS::NativeFunction::create(
-        realm, [document, js_response](JS::VM&) mutable -> JS::ThrowCompletionOr<JS::Value> {
-            Bindings::CustomEventInit init;
-            init.detail = JS::Value(js_response.ptr());
-            document->dispatch_event(*DOM::CustomEvent::create(document->realm(), "ladybirdpdf"_fly_string, init));
-            return JS::js_undefined();
-        },
-        0, Utf16FlyString {}, &realm);
-    auto callback = realm.heap().allocate<WebIDL::CallbackType>(*listener_fn, realm);
-    document->add_event_listener_without_options("ladybirdviewerready"_fly_string, *DOM::IDLEventListener::create(realm, *callback));
-
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document->heap(), [document, pdf_url] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [document, pdf_url] {
         auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, *viewer_bytes);
         if (document->ready_to_run_scripts()) {
             parser->run(pdf_url);
         } else {
-            document->set_deferred_parser_start(GC::create_function(document->heap(), [parser, pdf_url] {
+            document->set_deferred_parser_start(GC::create_function(GC::Heap::the(), [parser, pdf_url] {
                 parser->run(pdf_url);
             }));
         }

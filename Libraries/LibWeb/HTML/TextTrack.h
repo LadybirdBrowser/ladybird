@@ -8,7 +8,6 @@
 
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/TextTrack.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -16,8 +15,11 @@
 
 namespace Web::HTML {
 
+using TextTrackKind = Bindings::TextTrackKind;
+using TextTrackMode = Bindings::TextTrackMode;
+
 class TextTrack final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(TextTrack, DOM::EventTarget);
+    WEB_WRAPPABLE(TextTrack, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(TextTrack);
 
 public:
@@ -29,11 +31,11 @@ public:
         FailedToLoad,
     };
 
-    static GC::Ref<TextTrack> create(JS::Realm&);
+    static GC::Ref<TextTrack> create();
     virtual ~TextTrack() override;
 
-    Bindings::TextTrackKind kind();
-    void set_kind(Bindings::TextTrackKind);
+    TextTrackKind kind();
+    void set_kind(TextTrackKind);
 
     String label();
     void set_label(String);
@@ -44,8 +46,8 @@ public:
     String id();
     void set_id(String);
 
-    Bindings::TextTrackMode mode();
-    void set_mode(Bindings::TextTrackMode);
+    TextTrackMode mode();
+    void set_mode(TextTrackMode);
 
     void set_oncuechange(WebIDL::CallbackType*);
     WebIDL::CallbackType* oncuechange();
@@ -57,24 +59,23 @@ public:
     void unregister_observer(Badge<TextTrackObserver>, TextTrackObserver&);
 
 private:
-    TextTrack(JS::Realm&);
+    TextTrack();
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Bindings::TextTrackKind m_kind { Bindings::TextTrackKind::Subtitles };
+    TextTrackKind m_kind { TextTrackKind::Subtitles };
     String m_label {};
     String m_language {};
 
     String m_id {};
 
-    Bindings::TextTrackMode m_mode { Bindings::TextTrackMode::Disabled };
+    TextTrackMode m_mode { TextTrackMode::Disabled };
 
     ReadinessState m_readiness_state { ReadinessState::NotLoaded };
 
     HashTable<GC::Ref<TextTrackObserver>> m_observers;
 };
 
-Bindings::TextTrackKind text_track_kind_from_string(String);
+TextTrackKind text_track_kind_from_string(String);
 
 }

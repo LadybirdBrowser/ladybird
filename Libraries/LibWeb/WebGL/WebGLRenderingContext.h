@@ -8,7 +8,7 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLContextAttributes.h>
@@ -17,14 +17,15 @@
 namespace Web::WebGL {
 
 class WebGLRenderingContext final : public WebGLRenderingContextOverloads {
-    WEB_PLATFORM_OBJECT(WebGLRenderingContext, WebGLRenderingContextOverloads);
+    WEB_WRAPPABLE(WebGLRenderingContext, WebGLRenderingContextOverloads);
     GC_DECLARE_ALLOCATOR(WebGLRenderingContext);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> create(JS::Realm&, HTML::HTMLCanvasElement& canvas_element, JS::Value options);
+    static GC::Ptr<WebGLRenderingContext> create(HTML::HTMLCanvasElement& canvas_element, WebGLContextAttributes);
 
     virtual ~WebGLRenderingContext() override;
 
+    virtual JS::Object& relevant_global_object() const override;
     void present() override;
     void needs_to_present() override;
 
@@ -42,11 +43,9 @@ public:
     WebIDL::Long drawing_buffer_height() const;
 
 private:
-    virtual void initialize(JS::Realm&) override;
+    WebGLRenderingContext(HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
-    WebGLRenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<HTML::HTMLCanvasElement> m_canvas_element;
 

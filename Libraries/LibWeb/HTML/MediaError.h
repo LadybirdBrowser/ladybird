@@ -7,13 +7,12 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
-class MediaError final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MediaError, Bindings::PlatformObject);
+class MediaError final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MediaError, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MediaError);
 
 public:
@@ -24,13 +23,13 @@ public:
         SrcNotSupported = 4,
     };
 
+    [[nodiscard]] static GC::Ref<MediaError> create(Code, String message);
+
     Code code() const { return m_code; }
     String const& message() const { return m_message; }
 
 private:
-    MediaError(JS::Realm&, Code code, String message);
-
-    virtual void initialize(JS::Realm&) override;
+    MediaError(Code code, String message);
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-mediaerror-code
     Code m_code;

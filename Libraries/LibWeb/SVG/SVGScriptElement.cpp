@@ -7,13 +7,13 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibCore/ImmutableBytes.h>
-#include <LibWeb/Bindings/SVGScriptElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -26,12 +26,6 @@ GC_DEFINE_ALLOCATOR(SVGScriptElement);
 SVGScriptElement::SVGScriptElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, move(qualified_name))
 {
-}
-
-void SVGScriptElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGScriptElement);
-    Base::initialize(realm);
 }
 
 void SVGScriptElement::visit_edges(Cell::Visitor& visitor)
@@ -106,8 +100,7 @@ void SVGScriptElement::process_the_script_element()
         }
         auto script_url = maybe_script_url.release_value();
 
-        auto& vm = realm().vm();
-        auto request = Fetch::Infrastructure::Request::create(vm);
+        auto request = Fetch::Infrastructure::Request::create();
         request->set_url(script_url);
         request->set_destination(Fetch::Infrastructure::Request::Destination::Script);
         // FIXME: Use CORS state specified by the ‘crossorigin’ attribute.
@@ -139,8 +132,8 @@ void SVGScriptElement::process_the_script_element()
                       [&](auto) { self->finish_external_script_fetch(script_url, {}); });
               };
 
-        (void)Fetch::Fetching::fetch(realm(), request,
-            Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+        (void)Fetch::Fetching::fetch(HTML::relevant_realm(*this), request,
+            Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
         return;
     }
 

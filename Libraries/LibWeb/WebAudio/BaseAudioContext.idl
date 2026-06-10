@@ -37,5 +37,5 @@ interface BaseAudioContext : EventTarget {
     StereoPannerNode createStereoPanner ();
     [FIXME] WaveShaperNode createWaveShaper ();
 
-    Promise<AudioBuffer> decodeAudioData (ArrayBuffer audioData, optional DecodeSuccessCallback? successCallback, optional DecodeErrorCallback? errorCallback);
+    [NeedsThisObjectRealm] Promise<AudioBuffer> decodeAudioData (ArrayBuffer audioData, optional DecodeSuccessCallback? successCallback, optional DecodeErrorCallback? errorCallback);
 };

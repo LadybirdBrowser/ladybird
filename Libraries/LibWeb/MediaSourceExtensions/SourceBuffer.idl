@@ -7,9 +7,9 @@ enum AppendMode {
 // https://w3c.github.io/media-source/#dom-sourcebuffer
 [Exposed=(Window,DedicatedWorker)]
 interface SourceBuffer : EventTarget {
-    attribute AppendMode mode;
+    [ImplementedAs=mode] attribute AppendMode mode;
     readonly  attribute boolean updating;
-    readonly  attribute TimeRanges buffered;
+    [NeedsCallerRealmForGetter] readonly attribute TimeRanges buffered;
     [FIXME] attribute double timestampOffset;
     [FIXME] readonly  attribute AudioTrackList audioTracks;
     [FIXME] readonly  attribute VideoTrackList videoTracks;

@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Window.h>
@@ -15,7 +14,7 @@
 namespace Web::CSS {
 
 class Screen final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Screen, DOM::EventTarget);
+    WEB_WRAPPABLE(Screen, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Screen);
 
 public:
@@ -36,8 +35,6 @@ public:
 
 private:
     explicit Screen(HTML::Window&);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     HTML::Window const& window() const { return *m_window; }

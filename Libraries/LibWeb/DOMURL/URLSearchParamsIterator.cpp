@@ -19,19 +19,20 @@ void Intrinsics::create_web_prototype_and_constructor<URLSearchParamsIteratorPro
     m_prototypes.set("URLSearchParamsIterator"_fly_string, prototype);
 }
 
+static void set_url_search_params_iterator_prototype(JS::Realm& realm, DOMURL::URLSearchParamsIterator& iterator)
+{
+    static auto const& name = *new FlyString("URLSearchParamsIterator"_fly_string);
+    Detail::set_prototype_for_interface_on<URLSearchParamsIteratorPrototype>(realm, iterator, name);
+}
+
 }
 
 namespace Web::DOMURL {
 
 GC_DEFINE_ALLOCATOR(URLSearchParamsIterator);
 
-WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> URLSearchParamsIterator::create(URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
-{
-    return url_search_params.realm().create<URLSearchParamsIterator>(url_search_params, iteration_kind);
-}
-
-URLSearchParamsIterator::URLSearchParamsIterator(URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
-    : PlatformObject(url_search_params.realm())
+URLSearchParamsIterator::URLSearchParamsIterator(JS::Realm& realm, URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
+    : JS::Object(realm, nullptr)
     , m_url_search_params(url_search_params)
     , m_iteration_kind(iteration_kind)
 {
@@ -39,13 +40,14 @@ URLSearchParamsIterator::URLSearchParamsIterator(URLSearchParams const& url_sear
 
 URLSearchParamsIterator::~URLSearchParamsIterator() = default;
 
-void URLSearchParamsIterator::initialize(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> URLSearchParamsIterator::create(JS::Realm& realm, URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(URLSearchParamsIterator);
-    Base::initialize(realm);
+    auto iterator = realm.create<URLSearchParamsIterator>(realm, url_search_params, iteration_kind);
+    Bindings::set_url_search_params_iterator_prototype(realm, iterator);
+    return iterator;
 }
 
-void URLSearchParamsIterator::visit_edges(JS::Cell::Visitor& visitor)
+void URLSearchParamsIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_url_search_params);
@@ -62,7 +64,8 @@ JS::Object* URLSearchParamsIterator::next()
     else if (m_iteration_kind == JS::Object::PropertyKind::Value)
         return create_iterator_result_object(vm(), JS::PrimitiveString::create(vm(), entry.value), false);
 
-    return create_iterator_result_object(vm(), JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm(), entry.name), JS::PrimitiveString::create(vm(), entry.value) }), false);
+    auto& realm = *vm().current_realm();
+    return create_iterator_result_object(vm(), JS::Array::create_from(realm, { JS::PrimitiveString::create(vm(), entry.name), JS::PrimitiveString::create(vm(), entry.value) }), false);
 }
 
 }

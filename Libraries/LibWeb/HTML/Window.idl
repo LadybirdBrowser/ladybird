@@ -48,8 +48,8 @@ interface Window : EventTarget {
     boolean confirm(optional DOMString message = "");
     DOMString? prompt(optional DOMString message = "", optional DOMString default = "");
 
-    undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer = []);
-    undefined postMessage(any message, optional WindowPostMessageOptions options = {});
+    [NeedsCallerRealm] undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer = []);
+    [ImplementedInBindings, NeedsCallerRealm] undefined postMessage(any message, optional WindowPostMessageOptions options = {});
 
     // https://dom.spec.whatwg.org/#interface-window-extensions
     [Replaceable] readonly attribute (Event or undefined) event; // legacy
@@ -76,12 +76,12 @@ interface Window : EventTarget {
     [Replaceable, ImplementedAs=scroll_x] readonly attribute double pageXOffset;
     [Replaceable] readonly attribute double scrollY;
     [Replaceable, ImplementedAs=scroll_y] readonly attribute double pageYOffset;
-    Promise<undefined> scroll(optional ScrollToOptions options = {});
-    Promise<undefined> scroll(unrestricted double x, unrestricted double y);
-    [ImplementedAs=scroll] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
-    [ImplementedAs=scroll] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
-    Promise<undefined> scrollBy(optional ScrollToOptions options = {});
-    Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
+    [CreatesPromise] Promise<undefined> scroll(optional ScrollToOptions options = {});
+    [CreatesPromise] Promise<undefined> scroll(unrestricted double x, unrestricted double y);
+    [ImplementedAs=scroll, CreatesPromise] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
+    [ImplementedAs=scroll, CreatesPromise] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
+    [CreatesPromise] Promise<undefined> scrollBy(optional ScrollToOptions options = {});
+    [CreatesPromise] Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
 
     // client
     [Replaceable] readonly attribute long screenX;
@@ -93,7 +93,7 @@ interface Window : EventTarget {
     [Replaceable] readonly attribute double devicePixelRatio;
 
     // https://w3c.github.io/requestidlecallback/#window_extensions
-    unsigned long requestIdleCallback(IdleRequestCallback callback, optional IdleRequestOptions options = {});
+    [ImplementedInBindings] unsigned long requestIdleCallback(IdleRequestCallback callback, optional IdleRequestOptions options = {});
     undefined cancelIdleCallback(unsigned long handle);
 
     // https://w3c.github.io/selection-api/#extensions-to-window-interface

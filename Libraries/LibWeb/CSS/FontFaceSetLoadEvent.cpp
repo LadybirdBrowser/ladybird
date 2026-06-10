@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSetLoadEvent.h>
 
@@ -13,30 +12,18 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(FontFaceSetLoadEvent);
 
-GC::Ref<FontFaceSetLoadEvent> FontFaceSetLoadEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init)
+GC::Ref<FontFaceSetLoadEvent> FontFaceSetLoadEvent::create(FlyString const& event_name, FontFaceSetLoadEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<FontFaceSetLoadEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<FontFaceSetLoadEvent>(event_name, event_init, time_stamp);
 }
 
-// https://drafts.csswg.org/css-font-loading/#dom-fontfacesetloadevent-fontfacesetloadevent
-WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> FontFaceSetLoadEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init)
-{
-    return create(realm, event_name, event_init);
-}
-
-FontFaceSetLoadEvent::FontFaceSetLoadEvent(JS::Realm& realm, FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+FontFaceSetLoadEvent::FontFaceSetLoadEvent(FlyString const& event_name, FontFaceSetLoadEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
 {
     m_fontfaces.ensure_capacity(event_init.fontfaces.size());
     for (auto const& font_face : event_init.fontfaces) {
         m_fontfaces.unchecked_append(font_face);
     }
-}
-
-void FontFaceSetLoadEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FontFaceSetLoadEvent);
-    Base::initialize(realm);
 }
 
 void FontFaceSetLoadEvent::visit_edges(Visitor& visitor)

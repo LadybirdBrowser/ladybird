@@ -9,6 +9,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/ClipboardItem.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DataTransfer.h>
@@ -23,9 +24,13 @@ constexpr inline Array MANDATORY_DATA_TYPES = {
     "text/plain"sv, "text/html"sv, "image/png"sv
 };
 
+using PresentationStyle = Bindings::PresentationStyle;
+
+StringView presentation_style_to_string(PresentationStyle);
+
 // https://w3c.github.io/clipboard-apis/#clipboard-item-interface
-class ClipboardItem : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ClipboardItem, Bindings::PlatformObject);
+class ClipboardItem : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ClipboardItem, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ClipboardItem);
 
 public:
@@ -35,28 +40,28 @@ public:
         GC::Ref<WebIDL::Promise> data; // The actual data for this representation.
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> construct_impl(JS::Realm&, GC::OrderedRootHashMap<String, GC::Ref<WebIDL::Promise>> const& items, Bindings::ClipboardItemOptions const& options = {});
+    static GC::Ref<ClipboardItem> create();
+    static WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> create(GC::OrderedRootHashMap<String, GC::Ref<WebIDL::Promise>> const& items, PresentationStyle);
+    static WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> create(GC::OrderedRootHashMap<String, GC::Ref<WebIDL::Promise>> const& items, Bindings::ClipboardItemOptions const&);
 
     virtual ~ClipboardItem() override;
 
-    Bindings::PresentationStyle presentation_style() const { return m_presentation_style; }
+    PresentationStyle presentation_style() const;
 
     Vector<String> const& types() const { return m_types; }
 
     Vector<Representation> const& representations() const { return m_representations; }
     void append_representation(Representation);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> get_type(JS::Realm&, String const& type) const;
 
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> get_type(String const& type);
-
-    static bool supports(JS::VM&, String const& type);
+    static bool supports(String const& type);
 
 private:
-    ClipboardItem(JS::Realm&);
+    ClipboardItem();
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    Bindings::PresentationStyle m_presentation_style;
+    PresentationStyle m_presentation_style;
     Vector<String> m_types;
     Vector<Representation> m_representations;
 };

@@ -9,9 +9,6 @@
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
-#include <LibWeb/Bindings/AnimationEffect.h>
-#include <LibWeb/Bindings/CSSStyleSheet.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
@@ -31,64 +28,48 @@ namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(AnimationEffect);
 
-Bindings::FillMode css_fill_mode_to_bindings_fill_mode(CSS::AnimationFillMode mode)
+FillMode css_fill_mode_to_fill_mode(CSS::AnimationFillMode mode)
 {
     switch (mode) {
     case CSS::AnimationFillMode::Backwards:
-        return Bindings::FillMode::Backwards;
+        return FillMode::Backwards;
     case CSS::AnimationFillMode::Both:
-        return Bindings::FillMode::Both;
+        return FillMode::Both;
     case CSS::AnimationFillMode::Forwards:
-        return Bindings::FillMode::Forwards;
+        return FillMode::Forwards;
     case CSS::AnimationFillMode::None:
-        return Bindings::FillMode::None;
+        return FillMode::None;
     default:
         VERIFY_NOT_REACHED();
     }
 }
 
-Bindings::PlaybackDirection css_animation_direction_to_bindings_playback_direction(CSS::AnimationDirection direction)
+PlaybackDirection css_animation_direction_to_playback_direction(CSS::AnimationDirection direction)
 {
     switch (direction) {
     case CSS::AnimationDirection::Alternate:
-        return Bindings::PlaybackDirection::Alternate;
+        return PlaybackDirection::Alternate;
     case CSS::AnimationDirection::AlternateReverse:
-        return Bindings::PlaybackDirection::AlternateReverse;
+        return PlaybackDirection::AlternateReverse;
     case CSS::AnimationDirection::Normal:
-        return Bindings::PlaybackDirection::Normal;
+        return PlaybackDirection::Normal;
     case CSS::AnimationDirection::Reverse:
-        return Bindings::PlaybackDirection::Reverse;
+        return PlaybackDirection::Reverse;
     default:
         VERIFY_NOT_REACHED();
     }
 }
 
-Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming const& effect_timing)
-{
-    return {
-        .delay = effect_timing.delay,
-        .direction = effect_timing.direction,
-        .duration = effect_timing.duration.visit(
-            [](double const& value) -> Variant<double, String> { return value; },
-            [](String const& value) -> Variant<double, String> { return value; },
-            // NB: We check that this isn't the case in the caller
-            [](GC::Ref<CSS::CSSNumericValue>) -> Variant<double, String> { VERIFY_NOT_REACHED(); }),
-        .easing = effect_timing.easing,
-        .end_delay = effect_timing.end_delay,
-        .fill = effect_timing.fill,
-        .iteration_start = effect_timing.iteration_start,
-        .iterations = effect_timing.iterations,
-    };
-}
-
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-gettiming
-Bindings::EffectTiming AnimationEffect::get_timing() const
+EffectTiming AnimationEffect::get_timing() const
 {
     // 1. Returns the specified timing properties for this animation effect.
     return {
         .delay = m_specified_start_delay,
         .direction = m_playback_direction,
-        .duration = m_specified_iteration_duration,
+        .duration = m_specified_iteration_duration.visit(
+            [](double value) -> Variant<double, GC::Ref<CSS::CSSNumericValue>, String> { return value; },
+            [](String const& value) -> Variant<double, GC::Ref<CSS::CSSNumericValue>, String> { return value; }),
         .easing = m_timing_function.to_string(),
         .end_delay = m_specified_end_delay,
         .fill = m_fill_mode,
@@ -99,7 +80,7 @@ Bindings::EffectTiming AnimationEffect::get_timing() const
 
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-getcomputedtiming
 // https://drafts.csswg.org/web-animations-2/#dom-animationeffect-getcomputedtiming
-Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
+ComputedEffectTiming AnimationEffect::get_computed_timing() const
 {
     // 1. Returns the calculated timing properties for this animation effect.
 
@@ -113,28 +94,28 @@ Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
     //       If duration is the string auto, this attribute will return the current calculated value of the intrinsic
     //       iteration duration, which may be a expressed as a double representing the duration in milliseconds or a
     //       percentage when the effect is associated with a progress-based timeline.
-    auto duration = m_iteration_duration.as_css_numberish(realm());
+    auto duration = m_iteration_duration.as_css_numberish();
 
     //     - fill: likewise, while getTiming() may return the string auto, getComputedTiming() must return the specific
     //       FillMode used for timing calculations as defined in the description of the fill member of the EffectTiming
     //       interface.
     //
     //       In this level of the specification, that simply means that an auto value is replaced by the none FillMode.
-    auto fill = m_fill_mode == Bindings::FillMode::Auto ? Bindings::FillMode::None : m_fill_mode;
+    auto fill = m_fill_mode == FillMode::Auto ? FillMode::None : m_fill_mode;
 
-    Bindings::ComputedEffectTiming computed_timing {};
+    ComputedEffectTiming computed_timing {};
     computed_timing.delay = m_specified_start_delay;
+    computed_timing.direction = m_playback_direction;
+    computed_timing.duration = duration;
+    computed_timing.easing = m_timing_function.to_string();
     computed_timing.end_delay = m_specified_end_delay;
     computed_timing.fill = fill;
     computed_timing.iteration_start = m_iteration_start;
     computed_timing.iterations = m_iteration_count;
-    computed_timing.duration = duration;
-    computed_timing.direction = m_playback_direction;
-    computed_timing.easing = m_timing_function.to_string();
-    computed_timing.active_duration = active_duration().as_css_numberish(realm());
+    computed_timing.active_duration = active_duration().as_css_numberish();
     computed_timing.current_iteration = current_iteration();
-    computed_timing.end_time = end_time().as_css_numberish(realm());
-    computed_timing.local_time = NullableCSSNumberish::from_optional_css_numberish_time(realm(), local_time());
+    computed_timing.end_time = end_time().as_css_numberish();
+    computed_timing.local_time = NullableCSSNumberish::from_optional_css_numberish_time(local_time());
     computed_timing.progress = transformed_progress();
     return computed_timing;
 }
@@ -270,7 +251,7 @@ void AnimationEffect::normalize_specified_timing()
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-updatetiming
 // https://www.w3.org/TR/web-animations-1/#update-the-timing-properties-of-an-animation-effect
 // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
-WebIDL::ExceptionOr<void> AnimationEffect::update_timing(Bindings::OptionalEffectTiming const& timing)
+WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming const& timing)
 {
     // 1. If the iterationStart member of input exists and is less than zero, throw a TypeError and abort this
     //    procedure.
@@ -413,7 +394,7 @@ Optional<TimeValue> AnimationEffect::active_time() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#calculating-the-active-time
-Optional<TimeValue> AnimationEffect::active_time_using_fill(Bindings::FillMode fill_mode) const
+Optional<TimeValue> AnimationEffect::active_time_using_fill(FillMode fill_mode) const
 {
     // The active time is based on the local time and start delay. However, it is only defined when the animation effect
     // should produce an output and hence depends on its fill mode and phase as follows,
@@ -423,7 +404,7 @@ Optional<TimeValue> AnimationEffect::active_time_using_fill(Bindings::FillMode f
         // The result depends on the first matching condition from the following,
 
         // -> If the fill mode is backwards or both,
-        if (fill_mode == Bindings::FillMode::Backwards || fill_mode == Bindings::FillMode::Both) {
+        if (fill_mode == FillMode::Backwards || fill_mode == FillMode::Both) {
             // Return the result of evaluating max(local time - start delay, 0).
             return max(local_time().value() - m_start_delay, TimeValue::create_zero(associated_timeline()));
         }
@@ -444,7 +425,7 @@ Optional<TimeValue> AnimationEffect::active_time_using_fill(Bindings::FillMode f
         // The result depends on the first matching condition from the following,
 
         // -> If the fill mode is forwards or both,
-        if (fill_mode == Bindings::FillMode::Forwards || fill_mode == Bindings::FillMode::Both) {
+        if (fill_mode == FillMode::Forwards || fill_mode == FillMode::Both) {
             // Return the result of evaluating max(min(local time - start delay, active duration), 0).
             return max(min(local_time().value() - m_start_delay, active_duration()), TimeValue::create_zero(associated_timeline()));
         }
@@ -492,7 +473,7 @@ bool AnimationEffect::is_current() const
 
         // - the animation effect is associated with an animation not in the idle play state with a non-null associated
         //   timeline that is not monotonically increasing.
-        if (animation->play_state() != Bindings::AnimationPlayState::Idle && animation->timeline() && !animation->timeline()->is_monotonically_increasing())
+        if (animation->play_state() != AnimationPlayState::Idle && animation->timeline() && !animation->timeline()->is_monotonically_increasing())
             return true;
     }
 
@@ -652,13 +633,13 @@ AnimationDirection AnimationEffect::current_direction() const
 {
     // 2. Calculate the current direction using the first matching condition from the following list:
     // -> If playback direction is normal,
-    if (m_playback_direction == Bindings::PlaybackDirection::Normal) {
+    if (m_playback_direction == PlaybackDirection::Normal) {
         // Let the current direction be forwards.
         return AnimationDirection::Forwards;
     }
 
     // -> If playback direction is reverse,
-    if (m_playback_direction == Bindings::PlaybackDirection::Reverse) {
+    if (m_playback_direction == PlaybackDirection::Reverse) {
         // Let the current direction be reverse.
         return AnimationDirection::Backwards;
     }
@@ -667,7 +648,7 @@ AnimationDirection AnimationEffect::current_direction() const
     double d = current_iteration().value();
 
     //    2. If playback direction is alternate-reverse increment d by 1.
-    if (m_playback_direction == Bindings::PlaybackDirection::AlternateReverse)
+    if (m_playback_direction == PlaybackDirection::AlternateReverse)
         d += 1.0;
 
     //    3. If d % 2 == 0, let the current direction be forwards, otherwise let the current direction be reverse. If d
@@ -770,18 +751,11 @@ Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(StringView va
     return {};
 }
 
-AnimationEffect::AnimationEffect(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+AnimationEffect::AnimationEffect()
 {
 }
 
-void AnimationEffect::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationEffect);
-    Base::initialize(realm);
-}
-
-void AnimationEffect::visit_edges(JS::Cell::Visitor& visitor)
+void AnimationEffect::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_animation);

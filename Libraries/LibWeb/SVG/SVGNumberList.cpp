@@ -4,40 +4,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGNumberList.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/SVG/SVGNumber.h>
 #include <LibWeb/SVG/SVGNumberList.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGNumberList);
 
-GC::Ref<SVGNumberList> SVGNumberList::create(JS::Realm& realm, Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
+GC::Ref<SVGNumberList> SVGNumberList::create(Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
 {
-    return realm.create<SVGNumberList>(realm, move(items), read_only);
+    return GC::Heap::the().allocate<SVGNumberList>(move(items), read_only);
 }
 
-GC::Ref<SVGNumberList> SVGNumberList::create(JS::Realm& realm, ReadOnlyList read_only)
+GC::Ref<SVGNumberList> SVGNumberList::create(ReadOnlyList read_only)
 {
-    return realm.create<SVGNumberList>(realm, read_only);
+    return GC::Heap::the().allocate<SVGNumberList>(read_only);
 }
 
-SVGNumberList::SVGNumberList(JS::Realm& realm, Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
-    : Bindings::PlatformObject(realm)
-    , SVGList(realm, move(items), read_only)
-{
-}
-
-SVGNumberList::SVGNumberList(JS::Realm& realm, ReadOnlyList read_only)
-    : Bindings::PlatformObject(realm)
-    , SVGList(realm, read_only)
+SVGNumberList::SVGNumberList(Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
+    : SVGList(move(items), read_only)
 {
 }
 
-void SVGNumberList::initialize(JS::Realm& realm)
+SVGNumberList::SVGNumberList(ReadOnlyList read_only)
+    : SVGList(read_only)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGNumberList);
-    Base::initialize(realm);
 }
 
 void SVGNumberList::visit_edges(Visitor& visitor)

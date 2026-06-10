@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLHeadingElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -22,12 +20,6 @@ HTMLHeadingElement::HTMLHeadingElement(DOM::Document& document, DOM::QualifiedNa
 }
 
 HTMLHeadingElement::~HTMLHeadingElement() = default;
-
-void HTMLHeadingElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLHeadingElement);
-    Base::initialize(realm);
-}
 
 bool HTMLHeadingElement::is_presentational_hint(FlyString const& name) const
 {

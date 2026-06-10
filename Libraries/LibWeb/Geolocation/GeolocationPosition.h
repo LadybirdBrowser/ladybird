@@ -6,15 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/HighResolutionTime/EpochTimeStamp.h>
 
 namespace Web::Geolocation {
 
 // https://w3c.github.io/geolocation/#dom-geolocationposition
-class GeolocationPosition : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(GeolocationPosition, Bindings::PlatformObject);
+class GeolocationPosition : public Bindings::Wrappable {
+    WEB_WRAPPABLE(GeolocationPosition, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(GeolocationPosition);
 
 public:
@@ -23,10 +23,9 @@ public:
     bool is_high_accuracy() const { return m_is_high_accuracy; }
 
 private:
-    GeolocationPosition(JS::Realm&, GC::Ref<GeolocationCoordinates>, HighResolutionTime::EpochTimeStamp, bool is_high_accuracy);
+    GeolocationPosition(GC::Ref<GeolocationCoordinates>, HighResolutionTime::EpochTimeStamp, bool is_high_accuracy);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<GeolocationCoordinates const> m_coords;
     HighResolutionTime::EpochTimeStamp m_timestamp;

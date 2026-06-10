@@ -4,34 +4,26 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechRecognitionResultList.h>
 #include <LibWeb/Speech/SpeechRecognitionResultList.h>
 
 namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechRecognitionResultList);
 
-GC::Ref<SpeechRecognitionResultList> SpeechRecognitionResultList::create(JS::Realm& realm)
+GC::Ref<SpeechRecognitionResultList> SpeechRecognitionResultList::create()
 {
-    return realm.create<SpeechRecognitionResultList>(realm);
+    return GC::Heap::the().allocate<SpeechRecognitionResultList>();
 }
 
-SpeechRecognitionResultList::SpeechRecognitionResultList(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+SpeechRecognitionResultList::SpeechRecognitionResultList()
 {
 }
 
 SpeechRecognitionResultList::~SpeechRecognitionResultList() = default;
 
-void SpeechRecognitionResultList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechRecognitionResultList);
-    Base::initialize(realm);
-}
-
-void SpeechRecognitionResultList::visit_edges(Cell::Visitor& visitor)
+void SpeechRecognitionResultList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_results);

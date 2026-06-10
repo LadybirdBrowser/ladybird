@@ -6,34 +6,35 @@
 
 #pragma once
 
-#include <LibJS/Runtime/Set.h>
-#include <LibJS/Runtime/SetIterator.h>
-#include <LibWeb/Bindings/CustomStateSet.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/HashTable.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#customstateset
-class CustomStateSet final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CustomStateSet, Bindings::PlatformObject);
+class CustomStateSet final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CustomStateSet, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CustomStateSet);
 
 public:
-    [[nodiscard]] static GC::Ref<CustomStateSet> create(JS::Realm&, GC::Ref<DOM::Element>);
+    [[nodiscard]] static GC::Ref<CustomStateSet> create(GC::Ref<DOM::Element>);
     virtual ~CustomStateSet() override = default;
 
-    GC::Ref<JS::Set> set_entries() const { return m_set_entries; }
+    size_t set_size() const { return m_states.size(); }
+    OrderedHashTable<FlyString> const& states() const { return m_states; }
     bool has_state(FlyString const&) const;
-
-    void on_set_modified_from_js(Badge<Bindings::CustomStateSetPrototype>);
+    void add_state(FlyString const&);
+    bool remove_state(FlyString const&);
+    void clear_states();
+    DOM::Element& element() { return *m_element; }
 
 private:
-    CustomStateSet(JS::Realm&, GC::Ref<DOM::Element>);
+    CustomStateSet(GC::Ref<DOM::Element>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    GC::Ref<JS::Set> m_set_entries;
+    OrderedHashTable<FlyString> m_states;
     GC::Ref<DOM::Element> m_element;
 };
 

@@ -7,11 +7,12 @@
 #pragma once
 
 #include <AK/OwnPtr.h>
+#include <AK/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/ImageBitmap.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Transferable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 
@@ -19,31 +20,29 @@ namespace Web::HTML {
 
 using ImageBitmapSource = FlattenVariant<CanvasImageSource, Variant<GC::Ref<FileAPI::Blob>, GC::Ref<ImageData>>>;
 
-// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmapoptions
-struct ImageBitmapOptions {
-    // FIXME: Implement the rest of the fields
-    Optional<WebIDL::UnsignedLong> resize_width;
-    Optional<WebIDL::UnsignedLong> resize_height;
-    Bindings::ResizeQuality resize_quality = Bindings::ResizeQuality::Low;
-};
+using ResizeQuality = Bindings::ResizeQuality;
 
-class ImageBitmap final : public Bindings::PlatformObject
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmapoptions
+using ImageBitmapOptions = Bindings::ImageBitmapOptions;
+
+class ImageBitmap final
+    : public Bindings::Wrappable
     , public Web::Bindings::Serializable
     , public Web::Bindings::Transferable {
-    WEB_PLATFORM_OBJECT(ImageBitmap, Bindings::PlatformObject);
+    WEB_WRAPPABLE(ImageBitmap, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ImageBitmap);
 
 public:
-    static GC::Ref<ImageBitmap> create(JS::Realm&);
+    static GC::Ref<ImageBitmap> create();
     virtual ~ImageBitmap() override;
 
     // ^Web::Bindings::Serializable
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
     // ^Web::Bindings::Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override;
 
     WebIDL::UnsignedLong width() const;
@@ -56,15 +55,13 @@ public:
     Gfx::Bitmap* bitmap() const;
 
 private:
-    explicit ImageBitmap(JS::Realm&);
+    ImageBitmap();
 
     // FIXME: We don't implement this flag yet:
     // An ImageBitmap object's bitmap has an origin-clean flag, which indicates whether the bitmap is tainted by content
     // from a different origin. The flag is initially set to true and may be changed to false by the steps of
     // createImageBitmap().
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     WebIDL::UnsignedLong m_width = 0;

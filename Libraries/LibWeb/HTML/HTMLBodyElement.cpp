@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLBodyElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -31,17 +30,6 @@ HTMLBodyElement::HTMLBodyElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 HTMLBodyElement::~HTMLBodyElement() = default;
-
-void HTMLBodyElement::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
-
-void HTMLBodyElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLBodyElement);
-    Base::initialize(realm);
-}
 
 bool HTMLBodyElement::is_presentational_hint(FlyString const& name) const
 {

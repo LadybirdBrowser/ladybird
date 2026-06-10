@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/EventNames.h>
@@ -15,8 +16,8 @@ GC_DEFINE_ALLOCATOR(ServiceWorkerGlobalScope);
 
 ServiceWorkerGlobalScope::~ServiceWorkerGlobalScope() = default;
 
-ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
-    : HTML::WorkerGlobalScope(realm, page)
+ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(GC::Ref<Web::Page> page)
+    : HTML::WorkerGlobalScope(page)
 {
 }
 
@@ -90,11 +91,9 @@ GC::Ptr<WebIDL::CallbackType> ServiceWorkerGlobalScope::onmessageerror()
 // https://cookiestore.spec.whatwg.org/#ServiceWorkerGlobalScope
 GC::Ref<CookieStore::CookieStore> ServiceWorkerGlobalScope::cookie_store()
 {
-    auto& realm = this->realm();
-
     // The cookieStore getter steps are to return this’s associated CookieStore.
     if (!m_cookie_store)
-        m_cookie_store = realm.create<CookieStore::CookieStore>(realm, page()->client());
+        m_cookie_store = GC::Heap::the().allocate<CookieStore::CookieStore>(page()->client());
     return *m_cookie_store;
 }
 

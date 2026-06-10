@@ -13,6 +13,7 @@
 #include <AK/Optional.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Utf16String.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/ComputedProperties.h>

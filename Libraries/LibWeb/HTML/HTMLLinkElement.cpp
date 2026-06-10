@@ -10,11 +10,11 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
 #include <LibCore/ImmutableBytes.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/HTMLLinkElement.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleSheetList.h>
@@ -34,7 +34,9 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
@@ -45,18 +47,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLLinkElement);
 
+static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, FlyString const& event_name)
+{
+    return DOM::Event::create(event_name, HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));
+}
+
 HTMLLinkElement::HTMLLinkElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
 }
 
 HTMLLinkElement::~HTMLLinkElement() = default;
-
-void HTMLLinkElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLinkElement);
-    Base::initialize(realm);
-}
 
 void HTMLLinkElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -295,7 +296,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
     auto& document = this->document();
 
     // 2. Let options be a new link processing options with
-    auto options = realm().create<LinkProcessingOptions>(
+    auto options = GC::Heap::the().allocate<LinkProcessingOptions>(
         // crossorigin
         //     the state of el's crossorigin content attribute
         cors_setting_attribute_from_keyword(get_attribute(AttributeNames::crossorigin)),
@@ -372,7 +373,7 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
         return nullptr;
 
     // 5. Let request be the result of creating a potential-CORS request given url, options's destination, and options's crossorigin.
-    auto request = create_potential_CORS_request(vm(), *url, options.destination, options.crossorigin);
+    auto request = create_potential_CORS_request(*url, options.destination, options.crossorigin);
 
     // 6. Set request's policy container to options's policy container.
     request->set_policy_container(GC::Ref { *options.policy_container });
@@ -484,7 +485,7 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
         process_linked_resource(success, response, successful_body_bytes);
     };
 
-    m_fetch_controller = Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input)));
+    m_fetch_controller = Fetch::Fetching::fetch(HTML::relevant_realm(*this), *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-dns-prefetch:fetch-and-process-the-linked-resource-2
@@ -547,9 +548,9 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
                 return;
             link_element->m_fetch_controller = nullptr;
             if (response.is_network_error())
-                link_element->dispatch_event(DOM::Event::create(link_element->realm(), HTML::EventNames::error));
+                link_element->dispatch_event(create_event_for_element(*link_element, HTML::EventNames::error));
             else
-                link_element->dispatch_event(DOM::Event::create(link_element->realm(), HTML::EventNames::load));
+                link_element->dispatch_event(create_event_for_element(*link_element, HTML::EventNames::load));
         }
     });
 }
@@ -693,9 +694,7 @@ static bool type_matches_destination(StringView type, Optional<Fetch::Infrastruc
 // https://html.spec.whatwg.org/multipage/links.html#preload
 void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetch::Infrastructure::Response&)> process_response)
 {
-    auto& realm = this->realm();
-    auto& vm = realm.vm();
-
+    auto& realm = HTML::relevant_realm(*this);
     // 1. If options's type doesn't match options's destination, then return.
     if (!type_matches_destination(options.type, options.destination))
         return;
@@ -715,7 +714,7 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
     // FIXME: 5. Let unsafeEndTime be 0.
 
     // 6. Let entry be a new preload entry whose integrity metadata is options's integrity.
-    auto entry = realm.create<PreloadEntry>();
+    auto entry = PreloadEntry::create();
     entry->integrity_metadata = options.integrity;
 
     // 7. Let key be the result of creating a preload key given request.
@@ -726,10 +725,10 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::EarlyHint);
 
     // 9. Let controller be null.
-    auto controller_holder = Fetch::Infrastructure::FetchControllerHolder::create(vm);
+    auto controller_holder = Fetch::Infrastructure::FetchControllerHolder::create();
 
     // 10. Let reportTiming given a Document document be to report timing for controller given document's relevant global object.
-    auto report_timing = GC::Function<void(DOM::Document const&)>::create(realm.heap(), [controller_holder](DOM::Document const& document) {
+    auto report_timing = GC::Function<void(DOM::Document const&)>::create(GC::Heap::the(), [controller_holder](DOM::Document const& document) {
         controller_holder->controller()->report_timing(relevant_global_object(document));
     });
 
@@ -746,7 +745,7 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
             response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, byte_sequence->bytes()));
         // 2. Otherwise, set response to a network error.
         else
-            response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Expected preload response to contain a body"_string);
+            response = Fetch::Infrastructure::Response::network_error("Expected preload response to contain a body"_string);
 
         // FIXME: 3. Set unsafeEndTime to the unsafe shared current time.
 
@@ -766,11 +765,11 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
             process_response(response);
     };
 
-    m_fetch_controller = Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+    m_fetch_controller = Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     controller_holder->set_controller(*m_fetch_controller);
 
     // 12. Let commit be the following steps given a Document document:
-    auto commit = GC::Function<void(DOM::Document&)>::create(realm.heap(), [entry, report_timing, key = move(key)](DOM::Document& document) {
+    auto commit = GC::Function<void(DOM::Document&)>::create(GC::Heap::the(), [entry, report_timing, key = move(key)](DOM::Document& document) {
         // 1. If entry's response is not null, then call reportTiming given document.
         if (entry->response)
             report_timing->function()(document);
@@ -883,7 +882,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         auto maybe_decoded_string = css_decode_bytes(environment_encoding, mime_type_charset, body_bytes);
         if (maybe_decoded_string.is_error()) {
             dbgln("Failed to decode CSS file: {}", response.url().value_or(URL::URL()));
-            dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
+            dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
         } else {
             VERIFY(!response.url_list().is_empty());
             m_loaded_style_sheet = document_or_shadow_root_style_sheets().create_a_css_style_sheet(
@@ -899,12 +898,12 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 nullptr);
 
             // 2. Fire an event named load at el.
-            dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::load));
+            dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
         }
     }
     // 5. Otherwise, fire an event named error at el.
     else {
-        dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
+        dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
     }
 
     // 6. If el contributes a script-blocking style sheet, then:
@@ -935,7 +934,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>> decode_fav
     auto promise = Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>::construct();
 
     if (favicon_url.basename().ends_with(".svg"sv)) {
-        auto result = SVG::SVGDecodedImageData::create(document->realm(), document->page(), favicon_url, favicon_data);
+        auto result = SVG::SVGDecodedImageData::create(document->page(), favicon_url, favicon_data);
         if (result.is_error()) {
             promise->reject(Error::from_string_view("Failed to decode SVG favicon"sv));
             return promise;
@@ -987,9 +986,7 @@ RefPtr<Gfx::Bitmap const> HTMLLinkElement::load_favicon_if_window_is_active()
 // https://html.spec.whatwg.org/multipage/links.html#rel-icon:the-link-element-3
 void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> document)
 {
-    auto& realm = document->realm();
-    auto& vm = realm.vm();
-
+    auto& realm = document->relevant_settings_object().realm();
     // In the absence of a link with the icon keyword, for Document objects whose URL's scheme is an HTTP(S) scheme,
     // user agents may instead run these steps in parallel:
     if (document->has_active_favicon())
@@ -1022,7 +1019,7 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
     if (!favicon_url.has_value())
         return;
 
-    auto request = Fetch::Infrastructure::Request::create(vm);
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url(favicon_url.release_value());
     request->set_client(&document->relevant_settings_object());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
@@ -1032,17 +1029,17 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
     // 2. Let response be the result of fetching request.
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
     fetch_algorithms_input.process_response = [document, request](GC::Ref<Fetch::Infrastructure::Response> response) {
-        auto& realm = document->realm();
+        auto& realm = document->relevant_settings_object().realm();
         auto global = GC::Ref { realm.global_object() };
 
-        auto process_body = GC::create_function(realm.heap(), [document, request](ByteBuffer body) {
+        auto process_body = GC::create_function(GC::Heap::the(), [document, request](ByteBuffer body) {
             decode_favicon(body, request->url(), document)
                 ->when_resolved(GC::weak_callback(*document, [](DOM::Document& document, NonnullRefPtr<Gfx::Bitmap const>& favicon) {
                     if (auto navigable = document.navigable(); navigable && navigable->is_traversable())
                         navigable->traversable_navigable()->page().client().page_did_change_favicon(*favicon);
                 }));
         });
-        auto process_body_error = GC::create_function(realm.heap(), [](JS::Value) {
+        auto process_body_error = GC::create_function(GC::Heap::the(), [](JS::Value) {
         });
 
         // Check for failed favicon response
@@ -1055,7 +1052,7 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
             body->fully_read(realm, process_body, process_body_error, global);
     };
 
-    Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+    Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 }
 
 bool HTMLLinkElement::should_fetch_and_process_resource_type() const

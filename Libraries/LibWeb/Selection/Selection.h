@@ -6,18 +6,22 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Selection {
 
-class WEB_API Selection final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Selection, Bindings::PlatformObject);
+class WEB_API Selection final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Selection, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Selection);
 
 public:
-    [[nodiscard]] static GC::Ref<Selection> create(GC::Ref<JS::Realm>, GC::Ref<DOM::Document>);
+    [[nodiscard]] static GC::Ref<Selection> create(GC::Ref<DOM::Document>);
 
     virtual ~Selection() override;
 
@@ -74,12 +78,11 @@ public:
     void move_offset_to_previous_line(bool collapse_selection);
 
 private:
-    Selection(GC::Ref<JS::Realm>, GC::Ref<DOM::Document>);
+    explicit Selection(GC::Ref<DOM::Document>);
 
     [[nodiscard]] bool is_empty() const;
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void set_range(GC::Ptr<DOM::Range>);
 

@@ -28,6 +28,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibUnicode/Forward.h>
+#include <LibWeb/Bindings/Document.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/EnvironmentVariable.h>
@@ -42,6 +43,7 @@
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/Focus.h>
+#include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
@@ -53,8 +55,8 @@
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
-#include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/XPath/EvaluateResult.h>
 
 namespace Web::CSS {
 
@@ -63,6 +65,8 @@ class ImageStyleValueResource;
 }
 
 namespace Web::DOM {
+
+struct AdoptedStyleSheetsAccess;
 
 enum class QuirksMode {
     No,
@@ -206,7 +210,7 @@ struct PendingFullscreenEvent {
 class WEB_API Document
     : public ParentNode
     , public HTML::GlobalEventHandlers {
-    WEB_PLATFORM_OBJECT(Document, ParentNode);
+    WEB_WRAPPABLE(Document, ParentNode);
     GC_DECLARE_ALLOCATOR(Document);
 
 public:
@@ -224,9 +228,9 @@ public:
 
     static WebIDL::ExceptionOr<GC::Ref<Document>> create_and_initialize(Type, String content_type, HTML::NavigationParams const&);
 
-    [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, URL::URL const& url = URL::about_blank());
-    [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(JS::Realm&);
-    static GC::Ref<Document> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Document> create(Page&, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url = URL::about_blank());
+    [[nodiscard]] static GC::Ref<Document> create_for_constructor(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(Page&, GC::Ref<EventTarget> relevant_global_event_target);
     virtual ~Document() override;
 
     // AD-HOC: This number increments whenever a node is added or removed from the document, or an element attribute changes.
@@ -301,8 +305,6 @@ public:
 
     void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const;
 
-    CSS::StyleSheetList* style_sheets_for_bindings() { return &style_sheets(); }
-
     double ensure_element_shared_css_random_base_value(CSS::RandomCachingKey const&);
 
     Optional<String> get_style_sheet_source(CSS::StyleSheetIdentifier const&) const;
@@ -372,6 +374,7 @@ public:
 
     Page& page();
     Page const& page() const;
+    GC::Ref<EventTarget> relevant_global_event_target() const { return m_relevant_global_event_target; }
 
     Color background_color() const;
     Color canvas_background_color() const;
@@ -452,8 +455,11 @@ public:
 
     HTML::EnvironmentSettingsObject& relevant_settings_object() const;
 
-    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(String const& local_name, Variant<String, Bindings::ElementCreationOptions> const& options);
-    WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, Bindings::ElementCreationOptions> const& options);
+    using ElementCreationOptions = Bindings::ElementCreationOptions;
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(String const& local_name, ElementCreationOptions const& options);
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(String const& local_name, Variant<String, ElementCreationOptions> const& options);
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, ElementCreationOptions const& options);
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, ElementCreationOptions> const& options);
     GC::Ref<DocumentFragment> create_document_fragment();
     GC::Ref<Text> create_text_node(Utf16String data);
     WebIDL::ExceptionOr<GC::Ref<CDATASection>> create_cdata_section(Utf16String data);
@@ -502,9 +508,11 @@ public:
     // https://dom.spec.whatwg.org/#xml-document
     bool is_xml_document() const { return m_type == Type::XML; }
 
-    WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, Variant<bool, Bindings::ImportNodeOptions>);
-    void adopt_node(Node&);
-    WebIDL::ExceptionOr<GC::Ref<Node>> adopt_node_binding(GC::Ref<Node>);
+    using ImportNodeOptions = Bindings::ImportNodeOptions;
+    WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, ImportNodeOptions const&);
+    WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, Variant<bool, ImportNodeOptions> const&);
+    void adopt_node_steps(Node&);
+    WebIDL::ExceptionOr<GC::Ref<Node>> adopt_node(GC::Ref<Node>);
 
     DocumentType const* doctype() const;
     String const& compat_mode() const;
@@ -545,8 +553,8 @@ public:
 
     void set_window(HTML::Window&);
 
-    WebIDL::ExceptionOr<void> write(Vector<TrustedTypes::TrustedHTMLOrString> const& text);
-    WebIDL::ExceptionOr<void> writeln(Vector<TrustedTypes::TrustedHTMLOrString> const& text);
+    WebIDL::ExceptionOr<void> write(StringView text);
+    WebIDL::ExceptionOr<void> writeln(StringView text);
 
     WebIDL::ExceptionOr<Document*> open(Optional<String> const& = {}, Optional<String> const& = {});
     WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> open(StringView url, StringView name, StringView features);
@@ -638,7 +646,6 @@ public:
     void unregister_viewport_client(ViewportClient&);
     void inform_all_viewport_clients_about_the_current_viewport_rect();
 
-    bool has_focus_for_bindings() const;
     bool has_focus() const;
 
     bool allow_focus() const;
@@ -803,6 +810,7 @@ public:
 
     void start_intersection_observing_a_lazy_loading_element(Element&);
     void stop_intersection_observing_a_lazy_loading_element(Element&);
+    void process_lazy_load_intersection_observer_entries(ReadonlySpan<GC::Ref<IntersectionObserver::IntersectionObserverEntry>>);
 
     void shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::HTMLMetaElement const> meta_element = nullptr);
 
@@ -814,7 +822,7 @@ public:
 
     GC::Ref<HTML::SourceSnapshotParams> snapshot_source_snapshot_params() const;
 
-    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
+    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& shared_resource_requests() const;
@@ -912,17 +920,15 @@ public:
     void set_needs_accumulated_visual_contexts_update(bool value) { m_needs_accumulated_visual_contexts_update = value; }
     bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
 
-    virtual JS::Value named_item_value(FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }
+    Vector<GC::Ref<DOM::Element>> named_elements_with_name(FlyString const&) const;
+    static bool is_named_element_with_name(Element const&, FlyString const&);
 
     void gather_active_observations_at_depth(size_t depth);
     [[nodiscard]] size_t broadcast_active_resize_observations();
     [[nodiscard]] bool has_active_resize_observations();
     [[nodiscard]] bool has_skipped_resize_observations();
-
-    GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
-    WebIDL::ExceptionOr<void> set_adopted_style_sheets(JS::Value);
 
     void register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
@@ -972,7 +978,6 @@ public:
     Vector<GC::Root<Range>> find_matching_text(String const&, CaseSensitivity);
 
     void parse_html_from_a_string(StringView);
-    static WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::VM&, TrustedTypes::TrustedHTMLOrString const&);
 
     void set_console_client(GC::Ptr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
     GC::Ptr<JS::ConsoleClient> console_client() const { return m_console_client; }
@@ -1002,7 +1007,8 @@ public:
     Optional<Painting::CaretPosition> caret_position_from_point(CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection_start(CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection(CSSPixelPoint);
-    GC::Ptr<CaretPosition> caret_position_from_point(double x, double y, Bindings::CaretPositionFromPointOptions const&);
+    using CaretPositionFromPointOptions = Bindings::CaretPositionFromPointOptions;
+    GC::Ptr<CaretPosition> caret_position_from_point(double x, double y, CaretPositionFromPointOptions const&);
     TraversalDecision hit_test_all(CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);
 
     void set_caret_hit_test_debug_rect(Optional<CSSPixelRect>);
@@ -1032,7 +1038,7 @@ public:
     void set_onfullscreenerror(WebIDL::CallbackType*);
 
     // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
-    GC::Ptr<ViewTransition::ViewTransition> start_view_transition(GC::Ptr<WebIDL::CallbackType> update_callback);
+    GC::Ptr<ViewTransition::ViewTransition> start_view_transition(GC::Ptr<WebIDL::CallbackType> update_callback, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<WebIDL::Promise> update_callback_done_promise, GC::Ref<WebIDL::Promise> finished_promise);
     // https://drafts.csswg.org/css-view-transitions-1/#perform-pending-transition-operations
     void perform_pending_transition_operations();
     // https://drafts.csswg.org/css-view-transitions-1/#flush-the-update-callback-queue
@@ -1098,13 +1104,13 @@ public:
 
     void fullscreen_element_within_doc(GC::Ref<Element> element);
     GC::Ptr<Element> fullscreen_element() const;
-    GC::Ptr<Element> fullscreen_element_for_bindings() const;
+    GC::Ptr<Element> retargeted_fullscreen_element() const;
 
     bool fullscreen() const;
     bool fullscreen_enabled() const;
 
     void fully_exit_fullscreen();
-    GC::Ref<WebIDL::Promise> exit_fullscreen();
+    void exit_fullscreen(JS::Realm&, GC::Ptr<WebIDL::Promise>);
 
     void unfullscreen_element(GC::Ref<Element> element);
     void unfullscreen();
@@ -1145,12 +1151,16 @@ public:
     void upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry>, GC::Ref<HTML::CustomElementDefinition>, String local_name, Optional<String> name = {});
 
 protected:
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Document(JS::Realm&, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
+    Document(Page&, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
+    void initialize_document();
 
 private:
+    friend struct AdoptedStyleSheetsAccess;
+
+    GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
+
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
     // ^JS::Object
@@ -1176,7 +1186,7 @@ private:
         Yes,
         No,
     };
-    WebIDL::ExceptionOr<void> run_the_document_write_steps(Vector<TrustedTypes::TrustedHTMLOrString> const& text, AddLineFeed line_feed, TrustedTypes::InjectionSink sink);
+    WebIDL::ExceptionOr<void> run_the_document_write_steps(StringView text, AddLineFeed line_feed);
 
     void queue_intersection_observer_task();
     void queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver&, HighResolutionTime::DOMHighResTimeStamp time, GC::Ref<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<Element> target);
@@ -1211,7 +1221,7 @@ private:
         GC::Ptr<HTML::CustomElementRegistry> registry;
         Optional<String> is;
     };
-    WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(Variant<String, Bindings::ElementCreationOptions> const&) const;
+    WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(ElementCreationOptions const&) const;
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
@@ -1223,6 +1233,7 @@ private:
     mutable OwnPtr<ElementByIdMap> m_element_by_id;
 
     GC::Ptr<HTML::Window> m_window;
+    GC::Ref<DOM::EventTarget> m_relevant_global_event_target;
 
     RefPtr<Layout::Viewport> m_layout_root;
 
@@ -1629,12 +1640,5 @@ template<>
 inline bool Node::fast_is<Document>() const { return is_document(); }
 
 bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_string, URL::Host const& original_host);
-
-}
-
-namespace JS {
-
-template<>
-inline bool JS::Object::fast_is<Web::DOM::Document>() const { return is_dom_document(); }
 
 }

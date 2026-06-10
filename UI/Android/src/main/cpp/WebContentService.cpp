@@ -53,7 +53,7 @@ ErrorOr<int> service_main(int ipc_socket)
     auto image_decoder_client = TRY(bind_image_decoder_service());
     Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(image_decoder_client)));
 
-    Web::Bindings::initialize_main_thread_vm(Web::Bindings::AgentType::SimilarOriginWindow);
+    Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
 
     auto request_server_client = TRY(bind_request_server_service());
     Web::ResourceLoader::initialize(Web::Bindings::main_thread_vm().heap(), move(request_server_client));

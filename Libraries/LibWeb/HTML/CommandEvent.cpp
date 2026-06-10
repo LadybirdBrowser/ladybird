@@ -4,28 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CommandEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/CommandEvent.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CommandEvent);
 
-GC::Ref<CommandEvent> CommandEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::CommandEventInit const& event_init)
+GC::Ref<CommandEvent> CommandEvent::create(FlyString const& event_name, CommandEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<CommandEvent>(realm, event_name, move(event_init));
+    return GC::Heap::the().allocate<CommandEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<CommandEvent>> CommandEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::CommandEventInit const& event_init)
-{
-    return create(realm, event_name, move(event_init));
-}
-
-CommandEvent::CommandEvent(JS::Realm& realm, FlyString const& event_name, Bindings::CommandEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+CommandEvent::CommandEvent(FlyString const& event_name, CommandEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_source(event_init.source)
-    , m_command(move(event_init.command))
+    , m_command(event_init.command)
 {
 }
 
@@ -33,12 +27,6 @@ void CommandEvent::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_source);
-}
-
-void CommandEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CommandEvent);
-    Base::initialize(realm);
 }
 
 }

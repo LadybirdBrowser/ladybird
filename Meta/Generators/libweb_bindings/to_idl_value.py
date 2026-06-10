@@ -35,6 +35,7 @@ from Generators.libweb_bindings.cpp_types import is_typed_array_type
 from Generators.libweb_bindings.cpp_types import union_type_to_variant
 from Generators.libweb_bindings.default_values import cpp_default_value_conversion
 from Generators.libweb_bindings.includes import GeneratedIncludes
+from Generators.libweb_bindings.wrappers import interface_needs_wrapper
 from Utils.utils import make_name_acceptable_cpp
 from Utils.utils import string_to_cpp_enum_name
 from Utils.utils import title_case_to_snake_case
@@ -243,7 +244,7 @@ def write_dictionary_conversion(
     includes.add("LibJS/Runtime/VM.h")
     includes.add("LibJS/Runtime/Value.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
 
     parent_dictionary = context.dictionary_parent(dictionary)
 
@@ -284,7 +285,7 @@ JS::ThrowCompletionOr<{dictionary.name}> {converter_function_name(dictionary)}(J
             // 4. If jsMemberValue is not undefined, then:
             if (!js_member_value.is_undefined()) {{
                 // 1. Let idlMemberValue be the result of converting jsMemberValue to an IDL value whose type is the type member is declared to be of.
-                auto idl_member_value = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {conversion}; }}));
+                auto idl_member_value = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {conversion}; }}));
 
                 // 2. Set idlDict[key] to idlMemberValue.
                 return idl_member_value;
@@ -602,12 +603,26 @@ def interface_to_idl_value(
     includes.add("LibJS/Runtime/Value.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
     includes.add(interface_like_type.implementation_header)
+    if interface_like_type.name == "WindowProxy":
+        includes.add("AK/TypeCasts.h")
+        return f"""[&]() -> JS::ThrowCompletionOr<GC::Ref<{interface_like_type.fully_qualified_name}>> {{
+        if (!{value_name}.is_object())
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
+
+        if (auto* window_proxy = as_if<{interface_like_type.fully_qualified_name}>({value_name}.as_object()))
+            return GC::Ref {{ *window_proxy }};
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
+    }}()"""
+    includes.add("LibWeb/Bindings/Wrappable.h")
 
     # 1. If V implements I, then return the IDL interface type value that represents a reference to that platform object.
     # 2. Throw a TypeError.
     return f"""[&]() -> JS::ThrowCompletionOr<GC::Ref<{interface_like_type.fully_qualified_name}>> {{
-        if (auto impl = {value_name}.as_if<{interface_like_type.fully_qualified_name}>())
-            return *impl;
+        if (!{value_name}.is_object())
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
+
+        if (auto* impl = Web::Bindings::impl_from<{interface_like_type.fully_qualified_name}>(&{value_name}.as_object()))
+            return GC::Ref {{ *impl }};
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
     }}()"""
 
@@ -622,7 +637,7 @@ def callback_interface_to_idl_value(
     includes.add("LibJS/Runtime/Error.h")
     includes.add("LibJS/Runtime/Value.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
     includes.add("LibWeb/HTML/Scripting/Environments.h")
     includes.add("LibWeb/WebIDL/CallbackType.h")
     includes.add(implementation_header_for_interface(interface))
@@ -635,7 +650,7 @@ def callback_interface_to_idl_value(
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, {value_name});
 
         auto callback_type = vm.heap().allocate<WebIDL::CallbackType>({value_name}.as_object(), HTML::incumbent_realm());
-        return TRY(throw_dom_exception_if_needed(vm, [&] {{ return {cpp_type}::create(realm, callback_type); }}));
+        return {cpp_type}::create(callback_type);
     }}()"""
 
 
@@ -743,6 +758,12 @@ def sequence_to_idl_value(
     includes: GeneratedIncludes,
     context: GenerationContext,
 ) -> str:
+    includes.add("LibJS/Runtime/Error.h")
+    includes.add("LibJS/Runtime/Iterator.h")
+    includes.add("LibJS/Runtime/Value.h")
+    includes.add("LibJS/Runtime/ValueInlines.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
+
     element_type = sequence_type.parameters[0]
     element_cpp_type = cpp_type_for_idl_type_details(element_type, context)
     storage_type_name = element_cpp_type.contained_storage_type.value
@@ -776,7 +797,7 @@ def create_sequence_from_iterable(
     includes.add("LibJS/Runtime/Iterator.h")
     includes.add("LibJS/Runtime/Value.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
 
     element_type = sequence_type.parameters[0]
     element_cpp_type = cpp_type_for_idl_type_details(element_type, context)
@@ -801,7 +822,7 @@ def create_sequence_from_iterable(
 
             // 3. Initialize Si to the result of converting next to an IDL value of type T.
             auto next_value = next.release_value();
-            auto sequence_item = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value_from_type(element_type, identifier, {}, "next_value", includes, context)}; }}));
+            auto sequence_item = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value_from_type(element_type, identifier, {}, "next_value", includes, context)}; }}));
 
             // 4. Set i to i + 1.
             sequence.append(sequence_item);
@@ -963,6 +984,14 @@ def union_to_idl_value(
         }}
 """)
 
+    if (
+        types.interface_types
+        or types.array_buffer_type is not None
+        or types.data_view_type is not None
+        or types.typed_array_types
+    ):
+        includes.add("AK/TypeCasts.h")
+
     # NB: Doing this here simplifies logic below.
     append(f"""
         if ({value_name}.is_object()) {{
@@ -971,7 +1000,9 @@ def union_to_idl_value(
 
     # 5. If V is a platform object, then:
     if types.interface_types:
+        includes.add("AK/Traits.h")
         includes.add("LibWeb/Bindings/PlatformObject.h")
+        includes.add("LibWeb/Bindings/Wrappable.h")
         append("""
             if (is<PlatformObject>(object)) {
 """)
@@ -980,9 +1011,26 @@ def union_to_idl_value(
             assert interface_like_type is not None
             platform_object_cpp_type = interface_like_type.fully_qualified_name
             includes.add(interface_like_type.implementation_header)
+            if interface_like_type.name == "WindowProxy":
+                append(f"""
+                if (auto* window_proxy = as_if<{platform_object_cpp_type}>(object))
+                    return {variant_type} {{ GC::Ref {{ *window_proxy }} }};
+""")
+                continue
+            interface = context.interfaces.get(interface_type.name)
+            if interface is not None and interface_needs_wrapper(interface):
+                append(f"""
+                if (auto* impl = Web::Bindings::impl_from<{platform_object_cpp_type}>(&object))
+                    return {variant_type} {{ GC::Ref {{ *impl }} }};
+""")
+                continue
             # 1. If types includes an interface type that V implements, then return the IDL value that is a reference to the object V.
             append(f"""
-                if (auto* result = as_if<{platform_object_cpp_type}>(object))
+                if (auto* result = []<typename Impl>(JS::Object& object, Impl*) -> Impl* {{
+                    if constexpr (IsBaseOf<JS::Object, Impl>)
+                        return as_if<Impl>(object);
+                    return nullptr;
+                }}(object, static_cast<{platform_object_cpp_type}*>(nullptr)))
                     return {variant_type} {{ GC::Ref {{ *result }} }};
 """)
         # 2. If types includes object, then return the IDL value that is a reference to the object V.
@@ -1495,8 +1543,9 @@ def type_check_idl_value(
     if interface_like_type is None:
         raise RuntimeError(f"Unsupported IDL value type '{idl_type.name}' on '{interface_name}'")
 
-    includes.add("AK/TypeCasts.h")
+    includes.add("LibJS/Runtime/ValueInlines.h")
+    includes.add("LibWeb/Bindings/PlatformObject.h")
     includes.add(interface_like_type.implementation_header)
-    return f"""    if (!{value_name}.is<{interface_like_type.fully_qualified_name}>())
+    return f"""    if (!{value_name}.is_object() || !Web::Bindings::impl_from<{interface_like_type.fully_qualified_name}>(&{value_name}.as_object()))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.fully_qualified_name}");
 """

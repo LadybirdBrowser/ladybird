@@ -8,9 +8,7 @@
  */
 
 #include <AK/Utf16View.h>
-#include <LibWeb/Bindings/HTMLTextAreaElement.h>
-#include <LibWeb/Bindings/InputEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
@@ -23,6 +21,8 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/TextAreaBox.h>
 #include <LibWeb/Namespace.h>
@@ -50,12 +50,6 @@ void HTMLTextAreaElement::adjust_computed_style(CSS::ComputedProperties& style)
     //         This is required for the internal shadow tree to work correctly in layout.
     if (style.display().is_inline_outside() && style.display().is_flow_inside())
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
-}
-
-void HTMLTextAreaElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTextAreaElement);
-    Base::initialize(realm);
 }
 
 void HTMLTextAreaElement::visit_edges(Cell::Visitor& visitor)
@@ -90,7 +84,9 @@ void HTMLTextAreaElement::did_lose_focus()
     // The change event fires when the value is committed, if that makes sense for the control,
     // or else when the control loses focus
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
-        auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
+        auto change_event = DOM::Event::create(
+            HTML::EventNames::change,
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         change_event->set_bubbles(true);
         dispatch_event(change_event);
     });
@@ -133,10 +129,10 @@ void HTMLTextAreaElement::clear_algorithm()
     // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
     // changes caused by the user (and thus, e.g. do cause input events to fire).
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
-        Bindings::InputEventInit input_event_init;
+        UIEvents::InputEventInit input_event_init;
         input_event_init.bubbles = true;
         input_event_init.composed = true;
-        auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
+        auto input_event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, input_event_init, {}, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         dispatch_event(input_event);
     });
 }
@@ -252,7 +248,7 @@ WebIDL::Long HTMLTextAreaElement::max_length() const
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_max_length(WebIDL::Long value)
 {
     // The maxLength IDL attribute must reflect the maxlength content attribute, limited to only non-negative numbers.
-    set_attribute_value(HTML::AttributeNames::maxlength, TRY(convert_non_negative_integer_to_string(realm(), value)));
+    set_attribute_value(HTML::AttributeNames::maxlength, TRY(convert_non_negative_integer_to_string(value)));
     return {};
 }
 
@@ -270,7 +266,7 @@ WebIDL::Long HTMLTextAreaElement::min_length() const
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_min_length(WebIDL::Long value)
 {
     // The minLength IDL attribute must reflect the minlength content attribute, limited to only non-negative numbers.
-    set_attribute_value(HTML::AttributeNames::minlength, TRY(convert_non_negative_integer_to_string(realm(), value)));
+    set_attribute_value(HTML::AttributeNames::minlength, TRY(convert_non_negative_integer_to_string(value)));
     return {};
 }
 
@@ -348,7 +344,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return;
 
-    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
@@ -360,7 +356,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
 
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
     //       Otherwise, it will get filled in whenever that does get called.
-    m_text_node = realm().create<DOM::Text>(document(), m_raw_value);
+    m_text_node = DOM::Text::create(document(), m_raw_value);
     handle_maxlength_attribute();
     MUST(m_inner_text_element->append_child(*m_text_node));
 
@@ -368,7 +364,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     MUST(element->append_child(*m_placeholder_element));
     m_placeholder_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::Placeholder);
 
-    m_placeholder_text_node = realm().create<DOM::Text>(document(), Utf16String::from_utf8(get_attribute_value(HTML::AttributeNames::placeholder)));
+    m_placeholder_text_node = DOM::Text::create(document(), Utf16String::from_utf8(get_attribute_value(HTML::AttributeNames::placeholder)));
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     update_placeholder_visibility();
@@ -395,11 +391,11 @@ void HTMLTextAreaElement::update_placeholder_visibility()
         return;
     auto placeholder_text = get_attribute(AttributeNames::placeholder);
     if (placeholder_text.has_value() && m_text_node->data().is_empty()) {
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "inline"sv));
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "inline"sv));
+        MUST(m_inner_text_element->style()->set_property(CSS::PropertyID::Display, "inline"sv));
+        MUST(m_placeholder_element->style()->set_property(CSS::PropertyID::Display, "inline"sv));
     } else {
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"sv));
+        MUST(m_inner_text_element->style()->set_property(CSS::PropertyID::Display, "block"sv));
+        MUST(m_placeholder_element->style()->set_property(CSS::PropertyID::Display, "none"sv));
     }
 }
 
@@ -446,12 +442,12 @@ void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type, Option
     // interaction task source given the textarea element to fire an event named input at the textarea element, with the
     // bubbles and composed attributes initialized to true.
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this, input_type, data]() {
-        Bindings::InputEventInit input_event_init;
+        UIEvents::InputEventInit input_event_init;
         input_event_init.bubbles = true;
         input_event_init.composed = true;
         input_event_init.input_type = input_type.to_string();
         input_event_init.data = data;
-        auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
+        auto input_event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, input_event_init, {}, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         dispatch_event(input_event);
     });
 

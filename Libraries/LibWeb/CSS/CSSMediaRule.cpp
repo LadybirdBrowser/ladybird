@@ -5,9 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CSSMediaRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/Dump.h>
 
@@ -15,24 +14,18 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMediaRule);
 
-GC::Ref<CSSMediaRule> CSSMediaRule::create(JS::Realm& realm, MediaList& media_queries, CSSRuleList& rules)
+GC::Ref<CSSMediaRule> CSSMediaRule::create(MediaList& media_queries, CSSRuleList& rules)
 {
-    return realm.create<CSSMediaRule>(realm, media_queries, rules);
+    return GC::Heap::the().allocate<CSSMediaRule>(media_queries, rules);
 }
 
-CSSMediaRule::CSSMediaRule(JS::Realm& realm, MediaList& media, CSSRuleList& rules)
-    : CSSConditionRule(realm, rules, Type::Media)
+CSSMediaRule::CSSMediaRule(MediaList& media, CSSRuleList& rules)
+    : CSSConditionRule(rules, Type::Media)
     , m_media(media)
 {
 }
 
-void CSSMediaRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMediaRule);
-    Base::initialize(realm);
-}
-
-void CSSMediaRule::visit_edges(Cell::Visitor& visitor)
+void CSSMediaRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_media);

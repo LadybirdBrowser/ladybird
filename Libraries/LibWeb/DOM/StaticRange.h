@@ -9,19 +9,23 @@
 
 #include <LibWeb/DOM/AbstractRange.h>
 
+namespace Web::Bindings {
+
+struct StaticRangeInit;
+
+}
+
 namespace Web::DOM {
 
 class StaticRange final : public AbstractRange {
-    WEB_PLATFORM_OBJECT(StaticRange, AbstractRange);
+    WEB_WRAPPABLE(StaticRange, AbstractRange);
     GC_DECLARE_ALLOCATOR(StaticRange);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<StaticRange>> construct_impl(JS::Realm&, Bindings::StaticRangeInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<StaticRange>> create(Web::Bindings::StaticRangeInit const&);
 
     StaticRange(Node& start_container, u32 start_offset, Node& end_container, u32 end_offset);
     virtual ~StaticRange() override;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

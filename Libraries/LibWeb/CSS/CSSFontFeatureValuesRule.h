@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibJS/Runtime/MapIterator.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesMap.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/FontFeatureData.h>
@@ -16,11 +15,11 @@
 namespace Web::CSS {
 
 class CSSFontFeatureValuesRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSFontFeatureValuesRule, CSSRule);
+    WEB_WRAPPABLE(CSSFontFeatureValuesRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSFontFeatureValuesRule);
 
 public:
-    static GC::Ref<CSSFontFeatureValuesRule> create(JS::Realm&, Vector<FlyString> font_families);
+    static GC::Ref<CSSFontFeatureValuesRule> create(Vector<FlyString> font_families);
 
     static bool is_font_feature_value_type_at_keyword(FlyString const&);
 
@@ -42,10 +41,8 @@ public:
     virtual String serialized() const override;
 
 private:
-    CSSFontFeatureValuesRule(JS::Realm&, Vector<FlyString> font_families);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    CSSFontFeatureValuesRule(Vector<FlyString> font_families);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<FlyString> m_font_families;
     GC::Ref<CSSFontFeatureValuesMap> m_annotation;

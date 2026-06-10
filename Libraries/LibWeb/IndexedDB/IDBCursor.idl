@@ -2,8 +2,8 @@
 interface IDBCursor {
     [ImplementedAs=source_handle] readonly attribute (IDBObjectStore or IDBIndex) source;
     readonly attribute IDBCursorDirection direction;
-    readonly attribute any key;
-    readonly attribute any primaryKey;
+    [NeedsCallerRealmForGetter] readonly attribute any key;
+    [NeedsCallerRealmForGetter] readonly attribute any primaryKey;
     [SameObject] readonly attribute IDBRequest request;
     undefined advance([EnforceRange] unsigned long count);
     undefined continue(optional any key);

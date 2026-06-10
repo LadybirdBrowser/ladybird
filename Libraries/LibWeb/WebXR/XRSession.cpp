@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/XRSession.h>
-#include <LibWeb/Bindings/XRSessionEvent.h>
+#include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebXR/XRSession.h>
 #include <LibWeb/WebXR/XRSessionEvent.h>
@@ -21,21 +21,15 @@ namespace Web::WebXR {
 
 GC_DEFINE_ALLOCATOR(XRSession);
 
-GC::Ref<XRSession> XRSession::create(JS::Realm& realm, GC::Ref<XRSystem> xr_system)
+GC::Ref<XRSession> XRSession::create(GC::Ref<XRSystem> xr_system)
 {
-    return realm.create<XRSession>(realm, xr_system);
+    return GC::Heap::the().allocate<XRSession>(xr_system);
 }
 
-XRSession::XRSession(JS::Realm& realm, XRSystem& xr_system)
-    : DOM::EventTarget(realm)
+XRSession::XRSession(XRSystem& xr_system)
+    : DOM::EventTarget()
     , m_xr_system(xr_system)
 {
-}
-
-void XRSession::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XRSession);
-    Base::initialize(realm);
 }
 
 void XRSession::visit_edges(Cell::Visitor& visitor)
@@ -46,63 +40,15 @@ void XRSession::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_outstanding_promises);
 }
 
-GC::Ref<WebIDL::Promise> XRSession::create_promise(JS::Realm& realm)
-{
-    auto promise = WebIDL::create_promise(realm);
-
-    m_outstanding_promises.append(promise);
-
-    return promise;
-}
-void XRSession::resolve_promise(JS::Realm& realm, WebIDL::Promise const& promise, JS::Value value)
-{
-    WebIDL::resolve_promise(realm, promise, value);
-    m_outstanding_promises.remove_first_matching([&](auto& entry) { return entry == &promise; });
-}
-void XRSession::reject_promise(JS::Realm& realm, WebIDL::Promise const& promise, JS::Value value)
-{
-    WebIDL::reject_promise(realm, promise, value);
-    m_outstanding_promises.remove_first_matching([&](auto& entry) { return entry == &promise; });
-}
-
 // https://immersive-web.github.io/webxr/#dom-xrsession-updaterenderstate
-void XRSession::update_render_state(Bindings::XRRenderStateInit const&)
+void XRSession::update_render_state(XRRenderStateInit const&)
 {
     dbgln("FIXME: stubbed out XRSession.updateRenderState()");
 }
 
-GC::Ref<WebIDL::Promise> XRSession::end()
-{
-    // 1. Let promise be a new Promise in the relevant realm of this XRSession.
-    auto& realm = HTML::relevant_realm(*this);
-    auto promise = WebIDL::create_promise(realm);
-
-    // 2. If the ended value of this is true, reject promise with a "InvalidStateError" DOMException and return promise.
-    if (m_ended)
-        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Session already ended."_utf16));
-
-    // 3. Shut down this.
-    shut_down();
-
-    // 4. Queue a task to perform the following steps:
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise]() {
-        // 1. Wait until any platform-specific steps related to shutting down the session have completed.
-        // FIXME: Do this once we have any.
-
-        // 2. Resolve promise.
-        HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-        WebIDL::resolve_promise(realm, promise);
-    }));
-
-    // 5. Return promise.
-    return promise;
-}
-
 // https://immersive-web.github.io/webxr/#shut-down-the-session
-void XRSession::shut_down()
+void XRSession::shut_down(JS::Realm& realm)
 {
-    auto& realm = HTML::relevant_realm(*this);
-
     // 1. Set session’s ended value to true.
     m_ended = true;
 
@@ -115,7 +61,7 @@ void XRSession::shut_down()
 
     // 4. Reject any outstanding promises returned by session with an InvalidStateError, except for any promises returned by end().
     for (auto promise : m_outstanding_promises) {
-        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Session ended."_utf16));
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create("Session ended."_utf16));
     }
     m_outstanding_promises.clear();
 
@@ -126,11 +72,39 @@ void XRSession::shut_down()
     // FIXME: Implement this once we have any of this.
 
     // 6. Queue a task that fires an XRSessionEvent named end on session.
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [this, &realm]() {
-        Bindings::XRSessionEventInit init { Bindings::EventInit {}, *this };
-        auto event = XRSessionEvent::create(realm, HTML::EventNames::end, init);
+    auto& relevant_global_object = m_xr_system->relevant_global_object();
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, relevant_global_object = GC::Ref(relevant_global_object)]() {
+        XRSessionEventInit init { {}, GC::Ref { *this } };
+        auto event = XRSessionEvent::create(HTML::EventNames::end, init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
         this->dispatch_event(event);
     }));
+}
+
+// https://immersive-web.github.io/webxr/#dom-xrsession-end
+GC::Ref<WebIDL::Promise> XRSession::end(JS::Realm& realm)
+{
+    // 1. Let promise be a new Promise in the relevant realm of this XRSession.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 2. If the ended value of this is true, reject promise with a "InvalidStateError" DOMException and return promise.
+    if (ended())
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Session already ended."_utf16));
+
+    // 3. Shut down this.
+    shut_down(realm);
+
+    // 4. Queue a task to perform the following steps:
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [realm = GC::Ref(realm), promise]() {
+        // 1. Wait until any platform-specific steps related to shutting down the session have completed.
+        // FIXME: Do this once we have any.
+
+        // 2. Resolve promise.
+        HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        WebIDL::resolve_promise(realm, promise);
+    }));
+
+    // 5. Return promise.
+    return promise;
 }
 
 // https://immersive-web.github.io/webxr/#dom-xrsession-onend

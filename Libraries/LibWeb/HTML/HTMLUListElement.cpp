@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLUListElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -21,12 +19,6 @@ HTMLUListElement::HTMLUListElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLUListElement::~HTMLUListElement() = default;
-
-void HTMLUListElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLUListElement);
-    Base::initialize(realm);
-}
 
 bool HTMLUListElement::is_presentational_hint(FlyString const& name) const
 {

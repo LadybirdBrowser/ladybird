@@ -5,41 +5,34 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/HashChangeEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HashChangeEvent.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HashChangeEvent);
 
-[[nodiscard]] GC::Ref<HashChangeEvent> HashChangeEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
+[[nodiscard]] GC::Ref<HashChangeEvent> HashChangeEvent::create(FlyString const& event_name, HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<HashChangeEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<HashChangeEvent>(event_name, event_init, time_stamp);
 }
 
-GC::Ref<HashChangeEvent> HashChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
+GC::Ref<HashChangeEvent> HashChangeEvent::create(FlyString const& event_name, String old_url, String new_url, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<HashChangeEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<HashChangeEvent>(event_name, move(old_url), move(new_url), time_stamp);
 }
 
-HashChangeEvent::HashChangeEvent(JS::Realm& realm, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+HashChangeEvent::HashChangeEvent(FlyString const& event_name, HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_old_url(event_init.old_url)
     , m_new_url(event_init.new_url)
 {
 }
 
-void HashChangeEvent::initialize(JS::Realm& realm)
+HashChangeEvent::HashChangeEvent(FlyString const& event_name, String old_url, String new_url, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, time_stamp)
+    , m_old_url(move(old_url))
+    , m_new_url(move(new_url))
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HashChangeEvent);
-    Base::initialize(realm);
-}
-
-void HashChangeEvent::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
 }
 
 }

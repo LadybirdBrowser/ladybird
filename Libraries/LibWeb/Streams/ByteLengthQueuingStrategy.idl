@@ -4,5 +4,5 @@ interface ByteLengthQueuingStrategy {
     constructor(QueuingStrategyInit init);
 
     readonly attribute unrestricted double highWaterMark;
-    readonly attribute Function size;
+    [NeedsCallerRealmForGetter] readonly attribute Function size;
 };

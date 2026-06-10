@@ -12,7 +12,7 @@ namespace Web::SVG {
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElement
 class SVGRectElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGRectElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGRectElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGRectElement);
 
 public:
@@ -31,8 +31,6 @@ public:
 
 private:
     SVGRectElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     Gfx::FloatSize calculate_used_corner_radius_values(CSSPixelSize viewport_size) const;
 

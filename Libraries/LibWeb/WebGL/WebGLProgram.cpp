@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLProgram.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
 #include <LibWeb/WebGL/WebGLShader.h>
 
@@ -16,25 +14,19 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLProgram);
 
-GC::Ref<WebGLProgram> WebGLProgram::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLProgram> WebGLProgram::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
-    return realm.create<WebGLProgram>(realm, context, handle);
+    return GC::Heap::the().allocate<WebGLProgram>(context, handle);
 }
 
-WebGLProgram::WebGLProgram(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : WebGLObject(realm, context, handle)
+WebGLProgram::WebGLProgram(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+    : WebGLObject(context, handle)
 {
 }
 
 WebGLProgram::~WebGLProgram() = default;
 
-void WebGLProgram::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLProgram);
-    Base::initialize(realm);
-}
-
-void WebGLProgram::visit_edges(Cell::Visitor& visitor)
+void WebGLProgram::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_attached_vertex_shader);

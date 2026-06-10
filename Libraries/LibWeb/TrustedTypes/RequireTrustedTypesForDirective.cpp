@@ -11,6 +11,8 @@
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
@@ -84,7 +86,8 @@ ContentSecurityPolicy::Directives::Directive::Result RequireTrustedTypesForDirec
 bool does_sink_require_trusted_types(JS::Object& global, String sink_group, IncludeReportOnlyPolicies include_report_only_policies)
 {
     // 1. For each policy in global’s CSP list:
-    for (auto const policy : ContentSecurityPolicy::PolicyList::from_object(global)->policies()) {
+    auto csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
+    for (auto const policy : csp_list->policies()) {
         // 1. If policy’s directive set does not contain a directive whose name is "require-trusted-types-for", skip to the next policy.
         if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor))
             continue;
@@ -150,7 +153,8 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
     }
 
     // 4. For each policy in global’s CSP list:
-    for (auto const policy : ContentSecurityPolicy::PolicyList::from_object(global)->policies()) {
+    auto csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
+    for (auto const policy : csp_list->policies()) {
         // 1. If policy’s directive set does not contain a directive whose name is "require-trusted-types-for", skip to the next policy.
         if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor))
             continue;
@@ -166,7 +170,7 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
             continue;
 
         // 4. Let violation be the result of executing Create a violation object for global, policy, and directive on global, policy and "require-trusted-types-for"
-        auto violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor.to_string());
+        auto violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(global, policy, ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor.to_string());
 
         // 5. Set violation’s resource to "trusted-types-sink".
         violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesSink);

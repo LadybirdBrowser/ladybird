@@ -358,10 +358,10 @@ bool is_valid_floating_point_number(Utf16String const& string)
     return is_valid_floating_point_number(string.ascii_view());
 }
 
-WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm& realm, WebIDL::Long value)
+WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(WebIDL::Long value)
 {
     if (value < 0)
-        return WebIDL::IndexSizeError::create(realm, "The attribute is limited to only non-negative numbers"_utf16);
+        return WebIDL::IndexSizeError::create("The attribute is limited to only non-negative numbers"_utf16);
     return String::number(value);
 }
 

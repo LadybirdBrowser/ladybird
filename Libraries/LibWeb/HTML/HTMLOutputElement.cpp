@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLOutputElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/HTML/HTMLOutputElement.h>
 
@@ -19,12 +17,6 @@ HTMLOutputElement::HTMLOutputElement(DOM::Document& document, DOM::QualifiedName
 }
 
 HTMLOutputElement::~HTMLOutputElement() = default;
-
-void HTMLOutputElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOutputElement);
-    Base::initialize(realm);
-}
 
 void HTMLOutputElement::visit_edges(Cell::Visitor& visitor)
 {

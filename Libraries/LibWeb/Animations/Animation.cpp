@@ -6,18 +6,23 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Bindings/Animation.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/ImplementedInBindings.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -26,33 +31,18 @@ namespace Web::Animations {
 GC_DEFINE_ALLOCATOR(Animation);
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-animation
-GC::Ref<Animation> Animation::create(JS::Realm& realm, GC::Ptr<AnimationEffect> effect, Optional<GC::Ptr<AnimationTimeline>> timeline)
+GC::Ref<Animation> Animation::create(HTML::EnvironmentSettingsObject& environment, GC::Ptr<AnimationEffect> effect, GC::Ptr<AnimationTimeline> timeline)
 {
     // 1. Let animation be a new Animation object.
-    auto animation = realm.create<Animation>(realm);
+    auto animation = GC::Heap::the().allocate<Animation>(environment);
 
-    // 2. Run the procedure to set the timeline of an animation on animation passing timeline as the new timeline or, if
-    //    a timeline argument is missing, passing the default document timeline of the Document associated with the
-    //    Window that is the current global object.
-    if (!timeline.has_value()) {
-        auto& window = as<HTML::Window>(HTML::current_global_object());
-        timeline = window.associated_document().timeline();
-    }
-    animation->set_timeline(timeline.release_value());
+    // 2. Run the procedure to set the timeline of an animation on animation passing timeline as the new timeline.
+    animation->set_timeline(timeline);
 
     // 3. Run the procedure to set the associated effect of an animation on animation passing source as the new effect.
     animation->set_effect(effect);
 
     return animation;
-}
-
-GC::Ref<Animation> Animation::construct_impl(JS::Realm& realm, GC::Ptr<AnimationEffect> effect, Optional<GC::Ptr<AnimationTimeline>> timeline)
-{
-    // NB: If the timeline argument was not present, pass an OptionalNone so 'create' treats it as missing.
-    if (realm.vm().argument_count() < 2)
-        return create(realm, effect, OptionalNone {});
-
-    return create(realm, effect, timeline);
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-associated-effect-of-an-animation
@@ -186,13 +176,13 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
         m_hold_time = {};
 
         // 5. If previous play state is "finished" or "running"
-        if (first_is_one_of(previous_play_state, Bindings::AnimationPlayState::Finished, Bindings::AnimationPlayState::Running)) {
+        if (first_is_one_of(previous_play_state, AnimationPlayState::Finished, AnimationPlayState::Running)) {
             // 1. Schedule a pending play task
             m_pending_play_task = TaskState::Scheduled;
         }
 
         // 6. If previous play state is "paused" and previous progress is resolved:
-        if (previous_play_state == Bindings::AnimationPlayState::Paused && previous_progress.has_value()) {
+        if (previous_play_state == AnimationPlayState::Paused && previous_progress.has_value()) {
             // 1. Set hold time to previous progress * end time.
             m_hold_time = previous_progress_multiplied_by_end_time();
         }
@@ -202,7 +192,7 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
     else if (from_finite_timeline && previous_progress.has_value()) {
         // Run the procedure to set the current time to previous progress * end time.
         // NB: We know that the time we are passing is valid so we can wrap this in a MUST() to avoid error handling
-        MUST(set_current_time_for_bindings(previous_progress_multiplied_by_end_time().as_css_numberish(realm())));
+        MUST(set_current_time_for_bindings(previous_progress_multiplied_by_end_time().as_css_numberish()));
     }
 
     // 10. If the start time of animation is resolved, make animation’s hold time unresolved.
@@ -266,7 +256,7 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
 
     // FIXME: Figure out which element we should use for this, for now we just use the document element of the current
     //        window
-    return TimeValue::from_css_numberish(time.downcast<double, GC::Ref<CSS::CSSNumericValue>>(), DOM::AbstractElement { *as<HTML::Window>(realm().global_object()).associated_document().document_element() });
+    return TimeValue::from_css_numberish(time.downcast<double, GC::Ref<CSS::CSSNumericValue>>(), DOM::AbstractElement { *HTML::relevant_window(relevant_global_object()).associated_document().document_element() });
 
     VERIFY_NOT_REACHED();
 }
@@ -325,7 +315,8 @@ WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(NullableCSSNumb
     if (pending()) {
         m_pending_play_task = TaskState::None;
         m_pending_pause_task = TaskState::None;
-        WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+        auto& realm = HTML::relevant_realm(relevant_global_object());
+        Bindings::resolve_animation_promise(realm, current_ready_promise(), *this);
     }
 
     // 11. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
@@ -353,7 +344,7 @@ void Animation::calculate_auto_aligned_start_time()
         return;
 
     // 4. If play state is paused, and hold time is resolved, abort this procedure.
-    if (play_state() == Bindings::AnimationPlayState::Paused && m_hold_time.has_value())
+    if (play_state() == AnimationPlayState::Paused && m_hold_time.has_value())
         return;
 
     // 5. FIXME: Let start offset be the resolved timeline time corresponding to the start of the animation attachment
@@ -429,7 +420,8 @@ WebIDL::ExceptionOr<void> Animation::set_current_time_for_bindings(NullableCSSNu
         m_pending_pause_task = TaskState::None;
 
         // 5 Resolve animation’s current ready promise with animation.
-        WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+        auto& realm = HTML::relevant_realm(relevant_global_object());
+        Bindings::resolve_animation_promise(realm, current_ready_promise(), *this);
     }
 
     // 3. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
@@ -462,7 +454,7 @@ WebIDL::ExceptionOr<void> Animation::set_playback_rate(double new_playback_rate)
     // -> If animation is associated with a monotonically increasing timeline and the previous time is resolved,
     if (m_timeline && m_timeline->is_monotonically_increasing() && previous_time.has_value()) {
         // set the current time of animation to previous time.
-        TRY(set_current_time_for_bindings(previous_time->as_css_numberish(realm())));
+        TRY(set_current_time_for_bindings(previous_time->as_css_numberish()));
     }
     // -> If animation is associated with a non-null timeline that is not monotonically increasing, the start time of
     //    animation is resolved, associated effect end is not infinity, and either:
@@ -476,16 +468,7 @@ WebIDL::ExceptionOr<void> Animation::set_playback_rate(double new_playback_rate)
     return {};
 }
 
-// https://www.w3.org/TR/web-animations-1/#animation-play-state
-Bindings::AnimationPlayState Animation::play_state_for_bindings() const
-{
-    if (m_owning_element.has_value())
-        m_owning_element->document().update_style();
-
-    return play_state();
-}
-
-Bindings::AnimationPlayState Animation::play_state() const
+AnimationPlayState Animation::play_state() const
 {
     // The play state of animation, animation, at a given moment is the state corresponding to the first matching
     // condition from the following:
@@ -497,7 +480,7 @@ Bindings::AnimationPlayState Animation::play_state() const
     auto current_time = this->current_time();
     if (!current_time.has_value() && !m_start_time.has_value() && !pending()) {
         // → idle
-        return Bindings::AnimationPlayState::Idle;
+        return AnimationPlayState::Idle;
     }
 
     // -> Either of the following conditions are true:
@@ -505,7 +488,7 @@ Bindings::AnimationPlayState Animation::play_state() const
     //    - both the start time of animation is unresolved and it does not have a pending play task,
     if (m_pending_pause_task == TaskState::Scheduled || (!m_start_time.has_value() && m_pending_play_task == TaskState::None)) {
         // → paused
-        return Bindings::AnimationPlayState::Paused;
+        return AnimationPlayState::Paused;
     }
 
     // -> For animation, current time is resolved and either of the following conditions are true:
@@ -514,12 +497,20 @@ Bindings::AnimationPlayState Animation::play_state() const
     auto effective_playback_rate = this->effective_playback_rate();
     if (current_time.has_value() && ((effective_playback_rate > 0.0 && current_time.value() >= associated_effect_end()) || (effective_playback_rate < 0.0 && current_time->value <= 0))) {
         // → finished
-        return Bindings::AnimationPlayState::Finished;
+        return AnimationPlayState::Finished;
     }
 
     // -> Otherwise,
     //    → running
-    return Bindings::AnimationPlayState::Running;
+    return AnimationPlayState::Running;
+}
+
+AnimationPlayState Animation::play_state_for_bindings()
+{
+    if (auto owning_element = this->owning_element(); owning_element.has_value())
+        owning_element->document().update_style();
+
+    return play_state();
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-relevant
@@ -528,7 +519,7 @@ bool Animation::is_relevant() const
     // An animation is relevant if:
     // - Its associated effect is current or in effect, and
     // - Its replace state is not removed.
-    return (m_effect && (m_effect->is_current() || m_effect->is_in_effect())) && replace_state() != Bindings::AnimationReplaceState::Removed;
+    return (m_effect && (m_effect->is_current() || m_effect->is_in_effect())) && replace_state() != AnimationReplaceState::Removed;
 }
 
 // https://www.w3.org/TR/web-animations-1/#replaceable-animation
@@ -542,11 +533,11 @@ bool Animation::is_replaceable() const
         return false;
 
     // - The animation's play state is finished.
-    if (play_state() != Bindings::AnimationPlayState::Finished)
+    if (play_state() != AnimationPlayState::Finished)
         return false;
 
     // - The animation's replace state is not removed.
-    if (replace_state() == Bindings::AnimationReplaceState::Removed)
+    if (replace_state() == AnimationReplaceState::Removed)
         return false;
 
     // - The animation is associated with a monotonically increasing timeline.
@@ -568,16 +559,16 @@ bool Animation::is_replaceable() const
     return true;
 }
 
-void Animation::set_replace_state(Bindings::AnimationReplaceState value)
+void Animation::set_replace_state(AnimationReplaceState value)
 {
-    if (value == Bindings::AnimationReplaceState::Removed) {
+    if (value == AnimationReplaceState::Removed) {
         // Remove the associated effect from its target, if applicable
         if (m_effect && m_effect->target())
             m_effect->target()->disassociate_with_animation(*this);
 
         // Remove this animation from its timeline
         m_timeline->disassociate_with_animation(*this);
-    } else if (value == Bindings::AnimationReplaceState::Persisted && m_replace_state == Bindings::AnimationReplaceState::Removed) {
+    } else if (value == AnimationReplaceState::Persisted && m_replace_state == AnimationReplaceState::Removed) {
         // This animation was removed, but is now being "unremoved"; undo the effects from the if-statement above
         if (m_effect && m_effect->target())
             m_effect->target()->associate_with_animation(*this);
@@ -632,17 +623,17 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
     //       need for another invalidation. And in fact, if we did invalidate, it would lead to a crash, as the element
     //       would not have it's "m_needs_style_update" flag cleared.
 
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. If animation’s play state is not idle, perform the following steps:
-    if (play_state() != Bindings::AnimationPlayState::Idle) {
+    if (play_state() != AnimationPlayState::Idle) {
         HTML::TemporaryExecutionContext execution_context { realm };
 
         // 1. Run the procedure to reset an animation’s pending tasks on animation.
         reset_an_animations_pending_tasks();
 
         // 2. Reject the current finished promise with a DOMException named "AbortError".
-        auto dom_exception = WebIDL::AbortError::create(realm, "Animation was cancelled"_utf16);
+        auto dom_exception = WebIDL::AbortError::create("Animation was cancelled"_utf16);
         WebIDL::reject_promise(realm, current_finished_promise(), dom_exception);
 
         // 3. Set the [[PromiseIsHandled]] internal slot of the current finished promise to true.
@@ -658,9 +649,9 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
         // 8. Let timeline time be the current time of the timeline with which animation is associated. If animation is
         //    not associated with an active timeline, let timeline time be an unresolved time value.
         // 9. Set cancelEvent’s timelineTime to timeline time. If timeline time is unresolved, set it to null.
-        Bindings::AnimationPlaybackEventInit init;
-        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? NullableCSSNumberish { m_timeline->current_time()->as_css_numberish(realm) } : NullableCSSNumberish { Empty {} };
-        auto cancel_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::cancel, init);
+        AnimationPlaybackEventInit init;
+        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? NullableCSSNumberish { m_timeline->current_time()->as_css_numberish() } : NullableCSSNumberish { Empty {} };
+        auto cancel_event = AnimationPlaybackEvent::create(HTML::EventNames::cancel, init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
 
         // 10. If animation has a document for timing, then append cancelEvent to its document for timing's pending
         //     animation event queue along with its target, animation. If animation is associated with an active
@@ -675,7 +666,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
                 scheduled_event_time = m_timeline->convert_a_timeline_time_to_an_origin_relative_time(m_timeline->current_time());
             document->append_pending_animation_event({ cancel_event, *this, *this, scheduled_event_time });
         } else {
-            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function(heap(), [this, cancel_event]() {
+            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function(GC::Heap::the(), [this, cancel_event]() {
                 dispatch_event(cancel_event);
             }));
         }
@@ -689,7 +680,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
 
     // This time is needed for dispatching the animationcancel DOM event
     if (auto effect = m_effect)
-        m_saved_cancel_time = effect->active_time_using_fill(Bindings::FillMode::Both);
+        m_saved_cancel_time = effect->active_time_using_fill(FillMode::Both);
 
     if (should_invalidate == ShouldInvalidate::Yes)
         invalidate_effect();
@@ -702,9 +693,9 @@ WebIDL::ExceptionOr<void> Animation::finish()
     //    effect end is infinity, throw an "InvalidStateError" DOMException and abort these steps.
     auto effective_playback_rate = this->effective_playback_rate();
     if (effective_playback_rate == 0.0)
-        return WebIDL::InvalidStateError::create(realm(), "Animation with a playback rate of 0 cannot be finished"_utf16);
+        return WebIDL::InvalidStateError::create("Animation with a playback rate of 0 cannot be finished"_utf16);
     if (effective_playback_rate > 0.0 && isinf(associated_effect_end().value))
-        return WebIDL::InvalidStateError::create(realm(), "Animation with no end cannot be finished"_utf16);
+        return WebIDL::InvalidStateError::create("Animation with no end cannot be finished"_utf16);
 
     // 2. Apply any pending playback rate to animation.
     apply_any_pending_playback_rate();
@@ -749,8 +740,9 @@ WebIDL::ExceptionOr<void> Animation::finish()
     }
 
     if (should_resolve_ready_promise) {
-        HTML::TemporaryExecutionContext execution_context { realm() };
-        WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+        HTML::TemporaryExecutionContext execution_context { relevant_settings_object() };
+        auto& realm = HTML::relevant_realm(relevant_global_object());
+        Bindings::resolve_animation_promise(realm, current_ready_promise(), *this);
     }
 
     // 8. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
@@ -809,7 +801,7 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
         // -> If associated effect end is positive infinity,
         if (isinf(associated_effect_end.value) && associated_effect_end.value > 0) {
             // throw an "InvalidStateError" DOMException and abort these steps.
-            return WebIDL::InvalidStateError::create(realm(), "Cannot rewind an animation with an infinite effect end"_utf16);
+            return WebIDL::InvalidStateError::create("Cannot rewind an animation with an infinite effect end"_utf16);
         }
 
         // -> Otherwise,
@@ -858,7 +850,7 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
     // 11. If has pending ready promise is false, let animation’s current ready promise be a new promise in the relevant
     //     Realm of animation.
     if (!has_pending_ready_promise)
-        m_current_ready_promise = WebIDL::create_promise(realm());
+        m_current_ready_promise = WebIDL::create_promise(HTML::relevant_realm(relevant_global_object()));
 
     // 12. Schedule a task to run as soon as animation is ready. The task shall perform the following steps:
     //
@@ -886,7 +878,7 @@ WebIDL::ExceptionOr<void> Animation::pause()
         return {};
 
     // 2. If the play state of animation is paused, abort these steps.
-    if (play_state() == Bindings::AnimationPlayState::Paused)
+    if (play_state() == AnimationPlayState::Paused)
         return {};
 
     // 3. Let seek time be a time value that is initially unresolved.
@@ -909,7 +901,7 @@ WebIDL::ExceptionOr<void> Animation::pause()
             auto associated_effect_end = this->associated_effect_end();
             if (isinf(associated_effect_end.value) && associated_effect_end.value > 0) {
                 // throw an "InvalidStateError" DOMException and abort these steps.
-                return WebIDL::InvalidStateError::create(realm(), "Cannot pause an animation with an infinite effect end"_utf16);
+                return WebIDL::InvalidStateError::create("Cannot pause an animation with an infinite effect end"_utf16);
             }
 
             // Otherwise,
@@ -944,7 +936,7 @@ WebIDL::ExceptionOr<void> Animation::pause()
     // 9. If has pending ready promise is false, set animation’s current ready promise to a new promise in the relevant
     //    Realm of animation.
     if (!has_pending_ready_promise)
-        m_current_ready_promise = WebIDL::create_promise(realm());
+        m_current_ready_promise = WebIDL::create_promise(HTML::relevant_realm(relevant_global_object()));
 
     // 10. Schedule a task to be executed at the first possible moment where both of the following conditions are true:
     // NB: Criteria has been listed out in is_ready_to_run_pending_pause_task()
@@ -981,14 +973,14 @@ WebIDL::ExceptionOr<void> Animation::update_playback_rate(double new_playback_ra
     }
 
     // -> If previous play state is idle or paused, or animation’s current time is unresolved,
-    if (previous_play_state == Bindings::AnimationPlayState::Idle || previous_play_state == Bindings::AnimationPlayState::Paused || !current_time().has_value()) {
+    if (previous_play_state == AnimationPlayState::Idle || previous_play_state == AnimationPlayState::Paused || !current_time().has_value()) {
         // Apply any pending playback rate on animation.
         // Note: the second condition above is required so that if we have a running animation with an unresolved
         //       current time and no pending play task, we do not attempt to play it below.
         apply_any_pending_playback_rate();
     }
     // -> If previous play state is finished,
-    else if (previous_play_state == Bindings::AnimationPlayState::Finished) {
+    else if (previous_play_state == AnimationPlayState::Finished) {
         // 1. Let the unconstrained current time be the result of calculating the current time of animation
         //    substituting an unresolved time value for the hold time.
         Optional<TimeValue> unconstrained_current_time;
@@ -1026,12 +1018,10 @@ WebIDL::ExceptionOr<void> Animation::update_playback_rate(double new_playback_ra
 // https://www.w3.org/TR/web-animations-1/#dom-animation-reverse
 WebIDL::ExceptionOr<void> Animation::reverse()
 {
-    auto& realm = this->realm();
-
     // 1. If there is no timeline associated with animation, or the associated timeline is inactive throw an
     //    "InvalidStateError" DOMException and abort these steps.
     if (!m_timeline || m_timeline->is_inactive())
-        return WebIDL::InvalidStateError::create(realm, "Cannot reverse an animation with an inactive timeline"_utf16);
+        return WebIDL::InvalidStateError::create("Cannot reverse an animation with an inactive timeline"_utf16);
 
     // 2. Let original pending playback rate be animation’s pending playback rate.
     auto original_pending_playback_rate = m_pending_playback_rate;
@@ -1056,7 +1046,7 @@ WebIDL::ExceptionOr<void> Animation::reverse()
 void Animation::persist()
 {
     // Sets this animation’s replace state to persisted.
-    set_replace_state(Bindings::AnimationReplaceState::Persisted);
+    set_replace_state(AnimationReplaceState::Persisted);
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-time-to-timeline-time
@@ -1238,7 +1228,7 @@ WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<TimeValu
 // https://www.w3.org/TR/web-animations-1/#update-an-animations-finished-state
 void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify synchronously_notify)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let the unconstrained current time be the result of calculating the current time substituting an unresolved
     //    time value for the hold time if did seek is false. If did seek is true, the unconstrained current time is
@@ -1309,19 +1299,19 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
     m_previous_current_time = current_time();
 
     // 4. Let current finished state be true if the play state of animation is finished. Otherwise, let it be false.
-    auto current_finished_state = play_state() == Bindings::AnimationPlayState::Finished;
+    auto current_finished_state = play_state() == AnimationPlayState::Finished;
 
     // 5. If current finished state is true and the current finished promise is not yet resolved, perform the following
     //    steps:
     if (current_finished_state && !m_is_finished) {
         // 1. Let finish notification steps refer to the following procedure:
-        auto finish_notification_steps = GC::create_function(heap(), [this, &realm]() {
+        auto finish_notification_steps = GC::create_function(GC::Heap::the(), [this, &realm]() {
             // 1. If animation’s play state is not equal to finished, abort these steps.
-            if (play_state() != Bindings::AnimationPlayState::Finished)
+            if (play_state() != AnimationPlayState::Finished)
                 return;
 
             // 2. Resolve animation’s current finished promise object with animation.
-            WebIDL::resolve_promise(realm, current_finished_promise(), this);
+            Bindings::resolve_animation_promise(realm, current_finished_promise(), *this);
             m_is_finished = true;
 
             // 3. Create an AnimationPlaybackEvent, finishEvent.
@@ -1330,12 +1320,12 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             // 6. Set finishEvent’s timelineTime attribute to the current time of the timeline with which animation is
             //    associated. If animation is not associated with a timeline, or the timeline is inactive, let
             //    timelineTime be null.
-            Bindings::AnimationPlaybackEventInit init;
-            init.current_time = current_time()->as_css_numberish(realm);
+            AnimationPlaybackEventInit init;
+            init.current_time = current_time()->as_css_numberish();
             if (m_timeline && !m_timeline->is_inactive())
-                init.timeline_time = m_timeline->current_time()->as_css_numberish(realm);
+                init.timeline_time = m_timeline->current_time()->as_css_numberish();
 
-            auto finish_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::finish, init);
+            auto finish_event = AnimationPlaybackEvent::create(HTML::EventNames::finish, init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
 
             // 7. If animation has a document for timing, then append finishEvent to its document for timing's pending
             //    animation event queue along with its target, animation. For the scheduled event time, use the result
@@ -1352,9 +1342,9 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             //    manipulation task source.
             else {
                 // Manually create a task so its ID can be saved
-                auto& document = as<HTML::Window>(realm.global_object()).associated_document();
-                auto task = HTML::Task::create(vm(), HTML::Task::Source::DOMManipulation, &document,
-                    GC::create_function(heap(), [this, finish_event]() {
+                auto& document = HTML::relevant_window(realm.global_object()).associated_document();
+                auto task = HTML::Task::create(HTML::Task::Source::DOMManipulation, &document,
+                    GC::create_function(GC::Heap::the(), [this, finish_event]() {
                         dispatch_event(finish_event);
                     }));
                 m_pending_finish_microtask_id = task->id();
@@ -1375,9 +1365,9 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
         //    Otherwise, if synchronously notify is false, queue a microtask to run finish notification steps for
         //    animation unless there is already a microtask queued to run those steps for animation.
         else if (!m_pending_finish_microtask_id.has_value()) {
-            auto& document = as<HTML::Window>(realm.global_object()).associated_document();
+            auto& document = HTML::relevant_window(realm.global_object()).associated_document();
 
-            auto task = HTML::Task::create(vm(), HTML::Task::Source::DOMManipulation, &document, GC::create_function(heap(), [finish_notification_steps, &realm]() {
+            auto task = HTML::Task::create(HTML::Task::Source::DOMManipulation, &document, GC::create_function(GC::Heap::the(), [finish_notification_steps, &realm]() {
                 HTML::TemporaryExecutionContext context { realm };
                 finish_notification_steps->function()();
             }));
@@ -1400,7 +1390,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
 // https://www.w3.org/TR/web-animations-1/#animation-reset-an-animations-pending-tasks
 void Animation::reset_an_animations_pending_tasks()
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. If animation does not have a pending play task or a pending pause task, abort this procedure.
     if (!pending())
@@ -1416,7 +1406,7 @@ void Animation::reset_an_animations_pending_tasks()
     apply_any_pending_playback_rate();
 
     // 5. Reject animation’s current ready promise with a DOMException named "AbortError".
-    auto dom_exception = WebIDL::AbortError::create(realm, "Animation was cancelled"_utf16);
+    auto dom_exception = WebIDL::AbortError::create("Animation was cancelled"_utf16);
     WebIDL::reject_promise(realm, current_ready_promise(), dom_exception);
 
     // 6. Set the [[PromiseIsHandled]] internal slot of animation’s current ready promise to true.
@@ -1424,7 +1414,7 @@ void Animation::reset_an_animations_pending_tasks()
 
     // 7. Let animation’s current ready promise be the result of creating a new resolved Promise object with value
     //    animation in the relevant Realm of animation.
-    m_current_ready_promise = WebIDL::create_resolved_promise(realm, this);
+    m_current_ready_promise = Bindings::create_resolved_animation_promise(realm, *this);
 }
 
 // https://drafts.csswg.org/web-animations-2/#ready
@@ -1499,7 +1489,8 @@ void Animation::run_pending_play_task()
     }
 
     // 4. Resolve animation’s current ready promise with animation.
-    WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+    auto& realm = HTML::relevant_realm(relevant_global_object());
+    Bindings::resolve_animation_promise(realm, current_ready_promise(), *this);
 
     // 5. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
@@ -1550,11 +1541,17 @@ void Animation::run_pending_pause_task()
     m_start_time = {};
 
     // 5. Resolve animation’s current ready promise with animation.
-    WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+    auto& realm = HTML::relevant_realm(relevant_global_object());
+    Bindings::resolve_animation_promise(realm, current_ready_promise(), *this);
 
     // 6. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
     update_finished_state(DidSeek::No, SynchronouslyNotify::No);
+}
+
+JS::Object& Animation::relevant_global_object() const
+{
+    return m_environment->global_object();
 }
 
 GC::Ref<WebIDL::Promise> Animation::current_ready_promise() const
@@ -1562,7 +1559,8 @@ GC::Ref<WebIDL::Promise> Animation::current_ready_promise() const
     if (!m_current_ready_promise) {
         // The current ready promise is initially a resolved Promise created using the procedure to create a new
         // resolved Promise with the animation itself as its value and created in the relevant Realm of the animation.
-        m_current_ready_promise = WebIDL::create_resolved_promise(realm(), this);
+        auto& realm = HTML::relevant_realm(relevant_global_object());
+        m_current_ready_promise = Bindings::create_resolved_animation_promise(realm, *this);
     }
 
     return *m_current_ready_promise;
@@ -1572,7 +1570,7 @@ GC::Ref<WebIDL::Promise> Animation::current_finished_promise() const
 {
     if (!m_current_finished_promise) {
         // The current finished promise is initially a pending Promise object.
-        m_current_finished_promise = WebIDL::create_promise(realm());
+        m_current_finished_promise = WebIDL::create_promise(HTML::relevant_realm(relevant_global_object()));
     }
 
     return *m_current_finished_promise;
@@ -1587,22 +1585,18 @@ void Animation::invalidate_effect()
         target->document().set_needs_animated_style_update();
 }
 
-Animation::Animation(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+Animation::Animation(HTML::EnvironmentSettingsObject& environment)
+    : DOM::EventTarget()
+    , m_environment(environment)
 {
     static unsigned int next_animation_list_order = 0;
     m_global_animation_list_order = next_animation_list_order++;
 }
 
-void Animation::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Animation);
-    Base::initialize(realm);
-}
-
 void Animation::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_environment);
     visitor.visit(m_effect);
     visitor.visit(m_timeline);
     visitor.visit(m_current_ready_promise);
@@ -1616,6 +1610,32 @@ void Animation::finalize()
     Base::finalize();
     if (m_timeline)
         m_timeline->disassociate_with_animation(*this);
+}
+
+}
+
+namespace Web::Bindings {
+
+static JS::Value animation_wrapper_value(JS::Realm& realm, Animations::Animation const& animation)
+{
+    return wrap(host_defined_wrapper_world(realm), realm, GC::Ref { const_cast<Animations::Animation&>(animation) }).ptr();
+}
+
+GC::Ref<Animations::Animation> construct_animation(JS::Realm& realm, GC::Ptr<Animations::AnimationEffect> effect, Optional<GC::Ptr<Animations::AnimationTimeline>> timeline, size_t argument_count)
+{
+    auto& window = HTML::relevant_window(realm.global_object());
+    auto selected_timeline = argument_count < 2 ? GC::Ptr<Animations::AnimationTimeline> { window.associated_document().timeline() } : timeline.value();
+    return Animations::Animation::create(window.associated_document().relevant_settings_object(), effect, selected_timeline);
+}
+
+void resolve_animation_promise(JS::Realm& realm, WebIDL::Promise& promise, Animations::Animation const& animation)
+{
+    WebIDL::resolve_promise(realm, promise, animation_wrapper_value(realm, animation));
+}
+
+GC::Ref<WebIDL::Promise> create_resolved_animation_promise(JS::Realm& realm, Animations::Animation const& animation)
+{
+    return WebIDL::create_resolved_promise(realm, animation_wrapper_value(realm, animation));
 }
 
 }

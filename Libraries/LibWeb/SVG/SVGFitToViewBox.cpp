@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -13,9 +12,9 @@
 
 namespace Web::SVG {
 
-void SVGFitToViewBox::initialize(JS::Realm& realm)
+void SVGFitToViewBox::initialize_fit_to_view_box()
 {
-    m_view_box_for_bindings = realm.create<SVGAnimatedRect>(realm);
+    m_view_box_for_bindings = SVGAnimatedRect::create();
 }
 
 void SVGFitToViewBox::visit_edges(JS::Cell::Visitor& visitor)

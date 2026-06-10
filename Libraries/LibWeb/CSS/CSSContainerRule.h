@@ -21,7 +21,7 @@ struct CSSContainerCondition {
 
 // https://drafts.csswg.org/css-conditional-5/#the-csscontainerrule-interface
 class CSSContainerRule final : public CSSConditionRule {
-    WEB_PLATFORM_OBJECT(CSSContainerRule, CSSConditionRule);
+    WEB_WRAPPABLE(CSSContainerRule, CSSConditionRule);
     GC_DECLARE_ALLOCATOR(CSSContainerRule);
 
 public:
@@ -29,7 +29,7 @@ public:
         Optional<FlyString> container_name;
         RefPtr<ContainerQuery> container_query;
     };
-    [[nodiscard]] static GC::Ref<CSSContainerRule> create(JS::Realm&, Vector<Condition>&&, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSContainerRule> create(Vector<Condition>&&, CSSRuleList&);
 
     virtual ~CSSContainerRule() override;
 
@@ -47,10 +47,8 @@ public:
     virtual void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const override;
 
 private:
-    CSSContainerRule(JS::Realm&, Vector<Condition>&&, CSSRuleList&);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    CSSContainerRule(Vector<Condition>&&, CSSRuleList&);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;
     virtual String serialized() const override;
     CSSContainerRule const* find_parent_container_rule() const;

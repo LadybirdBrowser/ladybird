@@ -4,24 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/GeolocationPositionError.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 
 namespace Web::Geolocation {
 
 GC_DEFINE_ALLOCATOR(GeolocationPositionError);
 
-GeolocationPositionError::GeolocationPositionError(JS::Realm& realm, ErrorCode code)
-    : PlatformObject(realm)
-    , m_code(code)
+GeolocationPositionError::GeolocationPositionError(ErrorCode code)
+    : m_code(code)
 {
-}
-
-void GeolocationPositionError::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(GeolocationPositionError);
-    Base::initialize(realm);
 }
 
 // https://w3c.github.io/geolocation/#message-attribute

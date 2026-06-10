@@ -19,7 +19,7 @@ namespace Web::SVG {
 class SVGFEMorphologyElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEMorphologyElement> {
-    WEB_PLATFORM_OBJECT(SVGFEMorphologyElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEMorphologyElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEMorphologyElement);
 
 public:
@@ -35,8 +35,6 @@ public:
 
 private:
     SVGFEMorphologyElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& new_value, Optional<FlyString> const& namespace_) override;

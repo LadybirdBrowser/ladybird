@@ -5,9 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedString.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 #include <LibWeb/SVG/SVGElement.h>
 
@@ -15,14 +12,13 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedString);
 
-GC::Ref<SVGAnimatedString> SVGAnimatedString::create(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
+GC::Ref<SVGAnimatedString> SVGAnimatedString::create(GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
 {
-    return realm.create<SVGAnimatedString>(realm, element, move(reflected_attribute), move(deprecated_reflected_attribute), move(initial_value));
+    return GC::Heap::the().allocate<SVGAnimatedString>(element, move(reflected_attribute), move(deprecated_reflected_attribute), move(initial_value));
 }
 
-SVGAnimatedString::SVGAnimatedString(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
-    : Bindings::PlatformObject(realm)
-    , m_element(element)
+SVGAnimatedString::SVGAnimatedString(GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
+    : m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
     , m_deprecated_reflected_attribute(move(deprecated_reflected_attribute))
     , m_initial_value(move(initial_value))
@@ -31,13 +27,7 @@ SVGAnimatedString::SVGAnimatedString(JS::Realm& realm, GC::Ref<SVGElement> eleme
 
 SVGAnimatedString::~SVGAnimatedString() = default;
 
-void SVGAnimatedString::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedString);
-    Base::initialize(realm);
-}
-
-void SVGAnimatedString::visit_edges(Cell::Visitor& visitor)
+void SVGAnimatedString::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);

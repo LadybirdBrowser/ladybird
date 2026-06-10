@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
-#include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
@@ -16,21 +14,22 @@ namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#dommatrix
 class DOMMatrix : public DOMMatrixReadOnly {
-    WEB_PLATFORM_OBJECT(DOMMatrix, DOMMatrixReadOnly);
+    WEB_WRAPPABLE(DOMMatrix, DOMMatrixReadOnly);
     GC_DECLARE_ALLOCATOR(DOMMatrix);
 
 public:
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> create_from_constructor(Optional<Variant<String, Vector<double>>> const& init, DOMMatrixStringContext);
+    static GC::Ref<DOMMatrix> create_from_dom_matrix_2d_init(DOMMatrix2DInit const& init);
+    static GC::Ref<DOMMatrix> create_from_dom_matrix_init(DOMMatrixInit const& init);
+    static GC::Ref<DOMMatrix> create_from_dom_matrix_read_only(DOMMatrixReadOnly const& read_only_matrix);
+    static GC::Ref<DOMMatrix> create();
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> construct_impl(JS::Realm&, Optional<Variant<String, Vector<double>>> const& init);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> create_from_dom_matrix_2d_init(JS::Realm&, Bindings::DOMMatrix2DInit& init);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> create_from_dom_matrix_init(JS::Realm&, Bindings::DOMMatrixInit& init);
-    static GC::Ref<DOMMatrix> create_from_dom_matrix_read_only(JS::Realm&, DOMMatrixReadOnly const& read_only_matrix);
-    static GC::Ref<DOMMatrix> create(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_matrix(Bindings::DOMMatrixInit&);
 
     virtual ~DOMMatrix() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_matrix(JS::VM&, Bindings::DOMMatrixInit other = {});
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_float32_array(JS::VM&, GC::Ref<JS::Float32Array>);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_float64_array(JS::VM&, GC::Ref<JS::Float64Array>);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_float32_array(GC::Root<JS::Float32Array> const&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_float64_array(GC::Root<JS::Float64Array> const&);
 
     void set_m11(double value);
     void set_m12(double value);
@@ -56,9 +55,10 @@ public:
     void set_e(double value);
     void set_f(double value);
 
-    WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> multiply_self(Bindings::DOMMatrixInit other = {});
-    WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> multiply_self(GC::Ref<DOMMatrix>);
-    WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> pre_multiply_self(Bindings::DOMMatrixInit other = {});
+    GC::Ref<DOMMatrix> multiply_self(GC::Ref<DOMMatrix>);
+    WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> multiply_self(Bindings::DOMMatrixInit&);
+    GC::Ref<DOMMatrix> pre_multiply_self(GC::Ref<DOMMatrix>);
+    WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> pre_multiply_self(Bindings::DOMMatrixInit&);
     GC::Ref<DOMMatrix> translate_self(Optional<double> tx, Optional<double> ty, Optional<double> tz);
     GC::Ref<DOMMatrix> scale_self(Optional<double> scale_x, Optional<double> scale_y, Optional<double> scale_z, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z);
     GC::Ref<DOMMatrix> scale3d_self(Optional<double> scale, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z);
@@ -72,12 +72,10 @@ public:
     WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> set_matrix_value(String const& transform_list);
 
 private:
-    DOMMatrix(JS::Realm&, double m11, double m12, double m21, double m22, double m41, double m42);
-    DOMMatrix(JS::Realm&, double m11, double m12, double m13, double m14, double m21, double m22, double m23, double m24, double m31, double m32, double m33, double m34, double m41, double m42, double m43, double m44);
-    DOMMatrix(JS::Realm&, DOMMatrixReadOnly const& read_only_matrix);
-    explicit DOMMatrix(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    DOMMatrix(double m11, double m12, double m21, double m22, double m41, double m42);
+    DOMMatrix(double m11, double m12, double m13, double m14, double m21, double m22, double m23, double m24, double m31, double m32, double m33, double m34, double m41, double m42, double m43, double m44);
+    explicit DOMMatrix(DOMMatrixReadOnly const& read_only_matrix);
+    DOMMatrix();
 };
 
 }

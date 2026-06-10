@@ -9,8 +9,9 @@
 #include <LibGfx/BitmapExport.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -37,8 +38,8 @@ static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
 using TexImageSource = Variant<GC::Ref<HTML::ImageBitmap>, GC::Ref<HTML::ImageData>, GC::Ref<HTML::HTMLImageElement>, GC::Ref<HTML::HTMLCanvasElement>, GC::Ref<HTML::OffscreenCanvas>, GC::Ref<HTML::HTMLVideoElement>>;
 
-class WebGLRenderingContextBase : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextBase, Bindings::PlatformObject);
+class WebGLRenderingContextBase : public Bindings::Wrappable {
+    WEB_NON_IDL_WRAPPABLE(WebGLRenderingContextBase, Bindings::Wrappable);
 
 public:
     using Float32List = Variant<GC::Ref<JS::Float32Array>, Vector<float>>;
@@ -46,24 +47,22 @@ public:
     using Uint32List = Variant<GC::Ref<JS::Uint32Array>, Vector<WebIDL::UnsignedLong>>;
 
     virtual OpenGLContext& context() = 0;
+    virtual JS::Object& relevant_global_object() const = 0;
 
     bool is_context_lost() const;
 
     bool xr_compatible() const { return m_xr_compatible; }
     void set_xr_compatible(bool xr_compatible) { m_xr_compatible = xr_compatible; }
 
-    // https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
-    GC::Ref<WebIDL::Promise> make_xr_compatible();
-
     Optional<Vector<String>> get_supported_extensions();
-    JS::Object* get_extension(String const& name);
+    GC::Ptr<WebGLExtension> get_extension(String const& name);
 
     void enable_compressed_texture_format(WebIDL::UnsignedLong format);
 
 protected:
-    WebGLRenderingContextBase(JS::Realm&);
+    WebGLRenderingContextBase();
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // FIXME: Make this and any another instance of extension names a FlyString, similarly to HTML::TagNames
     bool extension_enabled(StringView extension) const;
@@ -183,7 +182,7 @@ private:
 
     // Extensions
     // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
-    HashMap<String, GC::Ref<JS::Object>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_extensions;
+    HashMap<String, GC::Ref<WebGLExtension>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_extensions;
 };
 
 }

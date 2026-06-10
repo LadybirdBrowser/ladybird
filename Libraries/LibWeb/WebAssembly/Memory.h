@@ -8,17 +8,26 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Memory.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/WebAssembly/WebAssembly.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
+
+namespace JS {
+
+class ArrayBuffer;
+class Realm;
+
+}
 
 namespace Web::WebAssembly {
 
-class Memory : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Memory, Bindings::PlatformObject);
+using MemoryDescriptor = Bindings::MemoryDescriptor;
+
+class Memory : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Memory, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Memory);
 
     enum class Shared {
@@ -27,30 +36,31 @@ class Memory : public Bindings::PlatformObject {
     };
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Memory>> construct_impl(JS::Realm&, Bindings::MemoryDescriptor& descriptor);
+    static WebIDL::ExceptionOr<GC::Ref<Memory>> create(NonnullRefPtr<Detail::WebAssemblyCache>, MemoryDescriptor const&);
+    static GC::Ref<Memory> create(NonnullRefPtr<Detail::WebAssemblyCache>, Wasm::MemoryAddress, Shared);
+    static WebIDL::ExceptionOr<GC::Ref<Memory>> construct_impl(JS::Realm&, MemoryDescriptor const&);
 
-    JS::ThrowCompletionOr<u32> grow(u32 delta);
-
-    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> to_fixed_length_buffer();
-    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> to_resizable_buffer();
-    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> buffer() const;
+    WebIDL::ExceptionOr<u32> grow(u32 delta);
+    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> to_fixed_length_buffer(JS::Realm&);
+    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> to_resizable_buffer(JS::Realm&);
+    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> buffer(JS::Realm&);
 
     Wasm::MemoryAddress address() const { return m_address; }
-    GC::Ptr<JS::ArrayBuffer> buffer_object() const { return m_buffer; }
+    bool is_shared() const { return m_shared == Shared::Yes; }
+    Detail::WebAssemblyCache& cache() { return *m_cache; }
+    Detail::WebAssemblyCache& cache() const { return *m_cache; }
 
 private:
-    Memory(JS::Realm&, Wasm::MemoryAddress, Shared shared);
+    Memory(NonnullRefPtr<Detail::WebAssemblyCache>, Wasm::MemoryAddress, Shared shared);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    static void refresh_the_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress);
-    static GC::Ref<JS::ArrayBuffer> create_a_fixed_length_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared, GC::Ref<GC::Cell> owner);
-    static JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> create_a_resizable_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared, size_t max_size, GC::Ref<GC::Cell> owner);
-
+    NonnullRefPtr<Detail::WebAssemblyCache> m_cache;
     Wasm::MemoryAddress m_address;
     Shared m_shared { Shared::No };
-    mutable GC::Ptr<JS::ArrayBuffer> m_buffer;
 };
+
+bool memory_has_buffer_object(Memory const&, JS::ArrayBuffer const&);
+void refresh_the_memory_buffer(Detail::WebAssemblyCache&, Wasm::MemoryAddress);
 
 }

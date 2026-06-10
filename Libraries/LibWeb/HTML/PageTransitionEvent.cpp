@@ -4,36 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PageTransitionEvent.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/PageTransitionEvent.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PageTransitionEvent);
 
-GC::Ref<PageTransitionEvent> PageTransitionEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init)
+GC::Ref<PageTransitionEvent> PageTransitionEvent::create(FlyString const& event_name, PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<PageTransitionEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<PageTransitionEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<PageTransitionEvent>> PageTransitionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init)
-{
-    return create(realm, event_name, event_init);
-}
-
-PageTransitionEvent::PageTransitionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+PageTransitionEvent::PageTransitionEvent(FlyString const& event_name, PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_persisted(event_init.persisted)
 {
 }
 
 PageTransitionEvent::~PageTransitionEvent() = default;
-
-void PageTransitionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PageTransitionEvent);
-    Base::initialize(realm);
-}
 
 }

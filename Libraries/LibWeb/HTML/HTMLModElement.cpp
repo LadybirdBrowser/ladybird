@@ -5,8 +5,6 @@
  */
 
 #include <AK/Assertions.h>
-#include <LibWeb/Bindings/HTMLModElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLModElement.h>
 
 namespace Web::HTML {
@@ -19,12 +17,6 @@ HTMLModElement::HTMLModElement(DOM::Document& document, DOM::QualifiedName quali
 }
 
 HTMLModElement::~HTMLModElement() = default;
-
-void HTMLModElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLModElement);
-    Base::initialize(realm);
-}
 
 Optional<ARIA::Role> HTMLModElement::default_role() const
 {

@@ -6,16 +6,21 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/FlyString.h>
+#include <AK/Vector.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/system-state.html#pluginarray
-class PluginArray : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(PluginArray, Bindings::PlatformObject);
+class PluginArray : public Bindings::Wrappable {
+    WEB_WRAPPABLE(PluginArray, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(PluginArray);
 
 public:
+    [[nodiscard]] static GC::Ref<PluginArray> create(Window&);
+
     virtual ~PluginArray() override;
 
     void refresh() const;
@@ -24,14 +29,14 @@ public:
     GC::Ptr<Plugin> named_item(FlyString const& name) const;
 
 private:
-    PluginArray(JS::Realm&);
+    PluginArray(Window&);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    // ^Bindings::PlatformObject
+    GC::Ref<Window> m_window;
+
+    // ^Bindings::Wrappable
     virtual Vector<FlyString> supported_property_names() const override;
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual JS::Value named_item_value(FlyString const& name) const override;
 };
 
 }

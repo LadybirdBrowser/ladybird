@@ -5,8 +5,6 @@
  */
 
 #include <AK/GenericLexer.h>
-#include <LibWeb/Bindings/HTMLFontElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -104,12 +102,6 @@ HTMLFontElement::HTMLFontElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 HTMLFontElement::~HTMLFontElement() = default;
-
-void HTMLFontElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFontElement);
-    Base::initialize(realm);
-}
 
 bool HTMLFontElement::is_presentational_hint(FlyString const& name) const
 {

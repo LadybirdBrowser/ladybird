@@ -19,7 +19,6 @@ class PolicyList final : public GC::Cell {
 public:
     [[nodiscard]] static GC::Ref<PolicyList> create(GC::Heap&, GC::RootVector<GC::Ref<Policy>> const&);
     [[nodiscard]] static GC::Ref<PolicyList> create(GC::Heap&, Vector<SerializedPolicy> const&);
-    [[nodiscard]] static GC::Ptr<PolicyList> from_object(JS::Object&);
 
     virtual ~PolicyList() = default;
 

@@ -8,6 +8,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/Forward.h>
 
@@ -25,11 +26,7 @@ class Policy final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(Policy);
 
 public:
-    enum class Disposition {
-#define __ENUMERATE_DISPOSITION_TYPE(type, _) type,
-        ENUMERATE_DISPOSITION_TYPES
-#undef __ENUMERATE_DISPOSITION_TYPE
-    };
+    using Disposition = Bindings::SecurityPolicyViolationEventDisposition;
 
     enum class Source {
         Header,

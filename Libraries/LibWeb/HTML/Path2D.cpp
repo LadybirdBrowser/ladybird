@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Path2D.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Path2D.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -17,15 +17,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Path2D);
 
-WebIDL::ExceptionOr<GC::Ref<Path2D>> Path2D::construct_impl(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> const& path)
+GC::Ref<Path2D> Path2D::create(Optional<Variant<GC::Ref<Path2D>, String>> const& path)
 {
-    return realm.create<Path2D>(realm, path);
+    return GC::Heap::the().allocate<Path2D>(path);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d
-Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> const& path)
-    : PlatformObject(realm)
-    , CanvasPath(static_cast<Bindings::PlatformObject&>(*this))
+Path2D::Path2D(Optional<Variant<GC::Ref<Path2D>, String>> const& path)
 {
     // 1. Let output be a new Path2D object.
     // 2. If path is not given, then return output.
@@ -59,14 +57,8 @@ Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> cons
 
 Path2D::~Path2D() = default;
 
-void Path2D::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::Path2DPrototype>(realm, "Path2D"_fly_string));
-}
-
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d-addpath
-WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, Bindings::DOMMatrix2DInit& transform)
+WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, GC::Ref<Geometry::DOMMatrix> matrix)
 {
     // The addPath(path, transform) method, when invoked on a Path2D object a, must run these steps:
 
@@ -75,7 +67,7 @@ WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, Bindings::DOMMa
         return {};
 
     // 2. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
-    auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(realm(), transform));
+    // NB: This is done by the binding helper before entering the implementation.
 
     // 3. If one or more of matrix's m11 element, m12 element, m21 element, m22 element, m41 element, or m42 element are infinite or NaN, then return.
     if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))
@@ -96,6 +88,12 @@ WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, Bindings::DOMMa
     this->move_to(xy.x(), xy.y());
 
     return {};
+}
+
+WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, Bindings::DOMMatrix2DInit const& transform)
+{
+    auto matrix = Geometry::DOMMatrix::create_from_dom_matrix_2d_init(TRY(Geometry::validate_and_fixup_dom_matrix_2d_init(transform)));
+    return add_path(path, matrix);
 }
 
 }

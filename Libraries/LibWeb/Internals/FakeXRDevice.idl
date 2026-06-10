@@ -40,7 +40,7 @@ interface FakeXRDevice {
     // FIXME: undefined setViews(sequence<FakeXRViewInit> primaryViews, sequence<FakeXRViewInit> secondaryViews);
     
     // behaves as if device was disconnected
-    Promise<undefined> disconnect();
+    [NeedsThisObjectRealm] Promise<undefined> disconnect();
     
     // Sets the origin of the viewer
     // FIXME: undefined setViewerOrigin(FakeXRRigidTransformInit origin, optional boolean emulatedPosition = false);

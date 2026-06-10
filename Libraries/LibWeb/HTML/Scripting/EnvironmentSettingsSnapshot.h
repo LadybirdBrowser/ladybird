@@ -19,7 +19,7 @@ class WEB_API EnvironmentSettingsSnapshot final
     GC_DECLARE_ALLOCATOR(EnvironmentSettingsSnapshot);
 
 public:
-    EnvironmentSettingsSnapshot(JS::Realm&, NonnullOwnPtr<JS::ExecutionContext>, SerializedEnvironmentSettingsObject const&);
+    EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::ExecutionContext>, SerializedEnvironmentSettingsObject const&);
 
     virtual ~EnvironmentSettingsSnapshot() override;
 

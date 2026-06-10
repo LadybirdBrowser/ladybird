@@ -5,8 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/ServiceWorker/ServiceWorker.h>
 
@@ -14,23 +12,17 @@ namespace Web::ServiceWorker {
 
 GC_DEFINE_ALLOCATOR(ServiceWorker);
 
-ServiceWorker::ServiceWorker(JS::Realm& realm, ServiceWorkerRecord* service_worker_record)
-    : DOM::EventTarget(realm)
+ServiceWorker::ServiceWorker(ServiceWorkerRecord* service_worker_record)
+    : DOM::EventTarget()
     , m_service_worker_record(service_worker_record)
 {
 }
 
 ServiceWorker::~ServiceWorker() = default;
 
-GC::Ref<ServiceWorker> ServiceWorker::create(JS::Realm& realm, ServiceWorkerRecord* service_worker_record)
+GC::Ref<ServiceWorker> ServiceWorker::create(ServiceWorkerRecord* service_worker_record)
 {
-    return realm.create<ServiceWorker>(realm, service_worker_record);
-}
-
-void ServiceWorker::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ServiceWorker);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<ServiceWorker>(service_worker_record);
 }
 
 // https://w3c.github.io/ServiceWorker/#dom-serviceworker-scripturl

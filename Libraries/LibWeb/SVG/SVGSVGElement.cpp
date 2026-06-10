@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMPointReadOnly.h>
-#include <LibWeb/Bindings/SVGSVGElement.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -15,6 +14,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/StaticNodeList.h>
+#include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -32,11 +32,9 @@ SVGSVGElement::SVGSVGElement(DOM::Document& document, DOM::QualifiedName qualifi
 {
 }
 
-void SVGSVGElement::initialize(JS::Realm& realm)
+void SVGSVGElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGSVGElement);
-    Base::initialize(realm);
-    SVGFitToViewBox::initialize(realm);
+    SVGFitToViewBox::initialize_fit_to_view_box();
 }
 
 void SVGSVGElement::visit_edges(Visitor& visitor)
@@ -208,19 +206,19 @@ void SVGSVGElement::set_current_scale(float)
 GC::Ref<Geometry::DOMPointReadOnly> SVGSVGElement::current_translate() const
 {
     dbgln("(STUBBED) SVGSVGElement::current_translate(). Called on: {}", debug_description());
-    return Geometry::DOMPointReadOnly::create(realm());
+    return Geometry::DOMPointReadOnly::create();
 }
 
 GC::Ref<DOM::NodeList> SVGSVGElement::get_intersection_list(GC::Ref<Geometry::DOMRectReadOnly>, GC::Ptr<SVGElement>) const
 {
     dbgln("(STUBBED) SVGSVGElement::get_intersection_list(). Called on: {}", debug_description());
-    return DOM::StaticNodeList::create(realm(), {});
+    return DOM::StaticNodeList::create({});
 }
 
 GC::Ref<DOM::NodeList> SVGSVGElement::get_enclosure_list(GC::Ref<Geometry::DOMRectReadOnly>, GC::Ptr<SVGElement>) const
 {
     dbgln("(STUBBED) SVGSVGElement::get_enclosure_list(). Called on: {}", debug_description());
-    return DOM::StaticNodeList::create(realm(), {});
+    return DOM::StaticNodeList::create({});
 }
 
 bool SVGSVGElement::check_intersection(GC::Ref<SVGElement>, GC::Ref<Geometry::DOMRectReadOnly>) const
@@ -245,30 +243,30 @@ void SVGSVGElement::deselect_all() const
 GC::Ref<SVGLength> SVGSVGElement::create_svg_length() const
 {
     // A new, detached SVGLength object whose value is the unitless <number> 0.
-    return SVGLength::create(realm(), SVGLength::SVG_LENGTHTYPE_NUMBER, 0, SVGLength::ReadOnly::No);
+    return SVGLength::create(SVGLength::SVG_LENGTHTYPE_NUMBER, 0, SVGLength::ReadOnly::No);
 }
 
 GC::Ref<Geometry::DOMPoint> SVGSVGElement::create_svg_point() const
 {
     // A new, detached DOMPoint object whose coordinates are all 0.
-    return Geometry::DOMPoint::from_point(vm(), Bindings::DOMPointInit {});
+    return Geometry::DOMPoint::create();
 }
 
 GC::Ref<Geometry::DOMMatrix> SVGSVGElement::create_svg_matrix() const
 {
     // A new, detached DOMMatrix object representing the identity matrix.
-    return Geometry::DOMMatrix::create(realm());
+    return Geometry::DOMMatrix::create();
 }
 
 GC::Ref<Geometry::DOMRect> SVGSVGElement::create_svg_rect() const
 {
     // A new, DOMRect object whose x, y, width and height are all 0.
-    return Geometry::DOMRect::construct_impl(realm(), 0, 0, 0, 0).release_value_but_fixme_should_propagate_errors();
+    return Geometry::DOMRect::create(0, 0, 0, 0);
 }
 
 GC::Ref<SVGTransform> SVGSVGElement::create_svg_transform() const
 {
-    return SVGTransform::create(realm());
+    return SVGTransform::create();
 }
 
 CSS::SizeWithAspectRatio SVGSVGElement::negotiate_natural_metrics(SVG::SVGSVGElement const& svg_root)

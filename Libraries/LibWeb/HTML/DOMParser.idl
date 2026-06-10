@@ -11,5 +11,5 @@ enum DOMParserSupportedType {
 interface DOMParser {
     constructor();
 
-    Document parseFromString((TrustedHTML or Utf16DOMString) string, DOMParserSupportedType type);
+    [NeedsCallerRealm] Document parseFromString((TrustedHTML or Utf16DOMString) string, DOMParserSupportedType type);
 };

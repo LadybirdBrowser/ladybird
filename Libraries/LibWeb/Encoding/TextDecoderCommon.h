@@ -8,8 +8,12 @@
 
 #include <AK/FlyString.h>
 #include <LibTextCodec/Forward.h>
+#include <LibWeb/Bindings/TextDecoder.h>
 
 namespace Web::Encoding {
+
+using TextDecoderOptions = Bindings::TextDecoderOptions;
+using TextDecodeOptions = Bindings::TextDecodeOptions;
 
 // https://encoding.spec.whatwg.org/#textdecodercommon
 class TextDecoderCommonMixin {

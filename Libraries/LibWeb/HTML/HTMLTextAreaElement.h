@@ -25,7 +25,7 @@ class WEB_API HTMLTextAreaElement final
     : public HTMLElement
     , public FormAssociatedTextControlElement
     , public AutocompleteElement {
-    WEB_PLATFORM_OBJECT(HTMLTextAreaElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTextAreaElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTextAreaElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLTextAreaElement);
 
@@ -151,8 +151,6 @@ private:
     virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
 
     virtual bool is_html_textarea_element() const final { return true; }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
 

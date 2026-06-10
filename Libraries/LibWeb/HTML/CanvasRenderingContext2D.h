@@ -13,7 +13,7 @@
 #include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawPath.h>
@@ -35,7 +35,7 @@
 namespace Web::HTML {
 
 class CanvasRenderingContext2D
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public CanvasPath
     , public CanvasState
     , public CanvasTransform
@@ -53,11 +53,11 @@ class CanvasRenderingContext2D
     , public CanvasPathDrawingStyles
     , public CanvasTextDrawingStyles<HTMLCanvasElement> {
 
-    WEB_PLATFORM_OBJECT(CanvasRenderingContext2D, Bindings::PlatformObject);
+    WEB_WRAPPABLE(CanvasRenderingContext2D, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> create(JS::Realm&, HTMLCanvasElement&, JS::Value options);
+    static GC::Ref<CanvasRenderingContext2D> create(HTMLCanvasElement&, HTML::CanvasRenderingContext2DSettings);
     virtual ~CanvasRenderingContext2D() override;
 
     virtual void fill_rect(float x, float y, float width, float height) override;
@@ -76,9 +76,9 @@ public:
     virtual void fill(StringView fill_rule) override;
     virtual void fill(Path2D& path, StringView fill_rule) override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<ImageData::Settings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(ImageData const& image_data) const override;
-    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<ImageData::Settings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height) override;
     WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Gfx::Painter&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
@@ -87,7 +87,7 @@ public:
 
     GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
 
-    virtual Bindings::CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
+    virtual HTML::CanvasRenderingContext2DSettings get_context_attributes() const override { return m_context_attributes; }
 
     virtual GC::Ref<TextMetrics> measure_text(Utf16String const&) override;
 
@@ -99,8 +99,8 @@ public:
 
     virtual bool image_smoothing_enabled() const override;
     virtual void set_image_smoothing_enabled(bool) override;
-    virtual Bindings::ImageSmoothingQuality image_smoothing_quality() const override;
-    virtual void set_image_smoothing_quality(Bindings::ImageSmoothingQuality) override;
+    virtual ImageSmoothingQuality image_smoothing_quality() const override;
+    virtual void set_image_smoothing_quality(ImageSmoothingQuality) override;
 
     virtual float global_alpha() const override;
     virtual void set_global_alpha(float) override;
@@ -130,18 +130,14 @@ protected:
     [[nodiscard]] Gfx::Painter* painter() override;
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() override { return m_element; }
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() const override { return m_element; }
-    JS::Realm& my_realm() override { return realm(); }
+    JS::Realm& my_realm() override;
     Gfx::Path& mutable_path() override { return path(); }
 
 private:
-    CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, Bindings::CanvasRenderingContext2DSettings);
+    CanvasRenderingContext2D(HTMLCanvasElement&, HTML::CanvasRenderingContext2DSettings);
 
-    virtual bool is_canvas_rendering_context_2d() const final { return true; }
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
-
     struct PreparedText {
         Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
         Gfx::TextAlignment physical_alignment;
@@ -173,7 +169,7 @@ private:
 
     Gfx::IntSize m_size;
     RefPtr<Gfx::PaintingSurface> m_surface;
-    Bindings::CanvasRenderingContext2DSettings m_context_attributes;
+    HTML::CanvasRenderingContext2DSettings m_context_attributes;
 };
 
 enum class CanvasImageSourceUsability {
@@ -183,12 +179,5 @@ enum class CanvasImageSourceUsability {
 
 WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const&);
 bool image_is_not_origin_clean(CanvasImageSource const&);
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::HTML::CanvasRenderingContext2D>() const { return is_canvas_rendering_context_2d(); }
 
 }

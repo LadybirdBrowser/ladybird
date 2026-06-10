@@ -16,7 +16,7 @@
 namespace Web::HTML {
 
 class HTMLTableElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLTableElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTableElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTableElement);
 
 public:
@@ -54,8 +54,6 @@ private:
     HTMLTableElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_table_element() const override { return true; }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual bool is_presentational_hint(FlyString const&) const override;

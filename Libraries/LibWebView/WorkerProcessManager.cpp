@@ -47,7 +47,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebWorkerClien
 Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, Web::HTML::WorkerAgentStartRequest request)
 {
     // 11.1. Let workerGlobalScope be null.
-    if (request.agent_type == Web::Bindings::AgentType::SharedWorker) {
+    if (request.agent_type == Web::HTML::AgentType::SharedWorker) {
         SharedWorkerKey key {
             .storage_key = request.storage_key,
             .url = request.url,
@@ -137,7 +137,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
         .owners = move(owners),
     };
 
-    if (request.agent_type == Web::Bindings::AgentType::SharedWorker) {
+    if (request.agent_type == Web::HTML::AgentType::SharedWorker) {
         agent.shared_worker_key = SharedWorkerKey {
             .storage_key = request.storage_key,
             .url = request.url,
@@ -404,7 +404,7 @@ void WorkerProcessManager::remove_owner(Web::HTML::WorkerAgentId agent_id, Owner
     if (!agent_owned_by_specified_owner)
         return;
 
-    if (agent.agent_type == Web::Bindings::AgentType::DedicatedWorker || agent.owners.is_empty())
+    if (agent.agent_type == Web::HTML::AgentType::DedicatedWorker || agent.owners.is_empty())
         remove_agent(agent_id);
 }
 

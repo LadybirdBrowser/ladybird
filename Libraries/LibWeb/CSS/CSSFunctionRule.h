@@ -32,14 +32,12 @@ struct FunctionParameter {
 
 // https://drafts.csswg.org/css-mixins-1/#cssfunctionrule
 class CSSFunctionRule : public CSSGroupingRule {
-    WEB_PLATFORM_OBJECT(CSSFunctionRule, CSSGroupingRule);
+    WEB_WRAPPABLE(CSSFunctionRule, CSSGroupingRule);
     GC_DECLARE_ALLOCATOR(CSSFunctionRule);
 
 public:
-    static GC::Ref<CSSFunctionRule> create(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
+    static GC::Ref<CSSFunctionRule> create(CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
     virtual ~CSSFunctionRule() override = default;
-
-    virtual void initialize(JS::Realm&) override;
 
     FlyString name() const { return m_name; }
     Vector<FunctionParameter> get_parameters() const;
@@ -48,7 +46,7 @@ public:
     String serialized() const override;
 
 private:
-    CSSFunctionRule(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
+    CSSFunctionRule(CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
 
     FlyString m_name;
     Vector<FunctionParameterInternal> m_parameters;

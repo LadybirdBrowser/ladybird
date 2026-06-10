@@ -4,37 +4,35 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Serial.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Serial/Serial.h>
 #include <LibWeb/Serial/SerialPort.h>
+#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Serial {
 
 GC_DEFINE_ALLOCATOR(Serial);
 
-Serial::Serial(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+GC::Ref<Serial> Serial::create()
+{
+    return GC::Heap::the().allocate<Serial>();
+}
+
+Serial::Serial()
+    : DOM::EventTarget()
 {
 }
 
-void Serial::initialize(JS::Realm& realm)
+static void reject_unknown_error(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Serial);
-    Base::initialize(realm);
+    WebIDL::reject_promise(realm, promise, WebIDL::UnknownError::create(realm, Utf16String {}));
 }
 
 // https://wicg.github.io/serial/#requestport-method
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> Serial::request_port(Bindings::SerialPortRequestOptions const&)
+void Serial::request_port(JS::Realm& realm, SerialPortRequestOptions const&, GC::Ref<WebIDL::Promise> promise)
 {
-    auto& realm = this->realm();
-
     // FIXME: 1. Let promise be a new promise.
 
     // FIXME: 2. If this's relevant global object's associated Document is not allowed to use the policy-controlled feature named "serial",
@@ -70,14 +68,12 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> Serial::request_port(Bindings::Ser
 
     // 6. Return promise.
     dbgln("FIXME: Unimplemented Serial::request_port()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
+    reject_unknown_error(realm, promise);
 }
 
 // https://wicg.github.io/serial/#getports-method
-GC::Ref<WebIDL::Promise> Serial::get_ports()
+void Serial::get_ports(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
 {
-    auto& realm = this->realm();
-
     // FIXME: 1. Let promise be a new promise.
 
     // FIXME: 2. If this's relevant global object's associated Document is not allowed to use the policy-controlled feature named "serial",
@@ -95,7 +91,7 @@ GC::Ref<WebIDL::Promise> Serial::get_ports()
 
     // 4. Return promise.
     dbgln("FIXME: Unimplemented Serial::get_ports()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
+    reject_unknown_error(realm, promise);
 }
 
 // https://wicg.github.io/serial/#onconnect-attribute

@@ -7,17 +7,19 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/String.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
-class CSSVariableReferenceValue : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSVariableReferenceValue, Bindings::PlatformObject);
+class CSSVariableReferenceValue : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CSSVariableReferenceValue, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CSSVariableReferenceValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSVariableReferenceValue> create(JS::Realm&, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback = nullptr);
-    static WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> construct_impl(JS::Realm&, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
+    [[nodiscard]] static GC::Ref<CSSVariableReferenceValue> create(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback = nullptr);
+    static WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> create_for_constructor(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
 
     virtual ~CSSVariableReferenceValue() override;
 
@@ -30,10 +32,9 @@ public:
     WebIDL::ExceptionOr<String> to_string() const;
 
 private:
-    CSSVariableReferenceValue(JS::Realm&, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
+    CSSVariableReferenceValue(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     FlyString m_variable;
     GC::Ptr<CSSUnparsedValue> m_fallback;

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ModuleRequest.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
@@ -15,6 +15,7 @@
 #include <LibWeb/WebAssembly/WebAssemblyModule.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
 
 namespace Web::HTML {
@@ -26,6 +27,13 @@ ModuleScript::~ModuleScript() = default;
 ModuleScript::ModuleScript(Optional<URL::URL> base_url, ByteString filename, EnvironmentSettingsObject& settings)
     : Script(move(base_url), move(filename), settings)
 {
+}
+
+GC::Ref<ModuleScript> ModuleScript::create_internal(Optional<URL::URL> base_url, ByteString const& filename, EnvironmentSettingsObject& settings)
+{
+    auto script = GC::Heap::the().allocate<ModuleScript>(move(base_url), filename, settings);
+    script->initialize(settings.realm());
+    return script;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-javascript-module-script
@@ -40,7 +48,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
     // 3. Set script's settings object to settings.
     // 4. Set script's base URL to baseURL.
-    auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
+    auto script = create_internal(move(base_url), filename, settings);
 
     // FIXME: 5. Set script's fetch options to options.
 
@@ -73,7 +81,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
 WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::ParsedProgram* parsed)
 {
     auto& realm = settings.realm();
-    auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
+    auto script = create_internal(move(base_url), filename, settings);
 
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
@@ -94,7 +102,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(
 WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compiled(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::CompiledProgram* compiled)
 {
     auto& realm = settings.realm();
-    auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
+    auto script = create_internal(move(base_url), filename, settings);
 
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
@@ -115,7 +123,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compile
 WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, NonnullRefPtr<JS::RustIntegration::DecodedBytecodeCache> bytecode_cache)
 {
     auto& realm = settings.realm();
-    auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
+    auto script = create_internal(move(base_url), filename, settings);
 
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
@@ -141,7 +149,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_scr
     // 1. Let script be a new module script that this algorithm will subsequently initialize.
     // 2. Set script's settings object to settings.
     // 3. Set script's base URL and fetch options to null.
-    auto script = realm.create<ModuleScript>(Optional<URL::URL> {}, filename, settings);
+    auto script = create_internal(Optional<URL::URL> {}, filename, settings);
 
     // 4. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
@@ -149,18 +157,18 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_scr
 
     // 5. Let sheet be the result of running the steps to create a constructed CSSStyleSheet with an empty dictionary as
     //    the argument.
-    auto sheet = TRY(CSS::CSSStyleSheet::construct_impl(realm));
+    auto sheet = TRY(CSS::CSSStyleSheet::create_constructed(*settings.responsible_document()));
 
     // 6. Run the steps to synchronously replace the rules of a CSSStyleSheet on sheet given source.
     //    If this throws an exception, catch it, and set script's parse error to that exception, and return script.
     if (auto result = sheet->replace_sync(source); result.is_error()) {
-        auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), result.exception());
+        auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, result.exception());
         script->set_parse_error(throw_completion.value());
         return script;
     }
 
     // 7. Set script's record to the result of CreateDefaultExportSyntheticModule(sheet).
-    script->m_record = JS::SyntheticModule::create_default_export_synthetic_module(realm, sheet, filename.view());
+    script->m_record = CSS::create_css_style_sheet_default_export_module(realm, sheet, filename.view());
 
     // 8. Return script.
     return script;
@@ -175,7 +183,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_json_module_sc
     // 2. Set script's settings object to settings.
     // 3. Set script's base URL and fetch options to null.
     //    FIXME: Set options.
-    auto script = realm.create<ModuleScript>(Optional<URL::URL> {}, filename, settings);
+    auto script = create_internal(Optional<URL::URL> {}, filename, settings);
 
     // 4. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
@@ -214,7 +222,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_mo
     // 3. Set script's settings object to settings.
     // 4. Set script's base URL to baseURL.
     // FIXME: 5. Set script's fetch options to options.
-    auto script = settings.realm().create<ModuleScript>(base_url, filename, settings);
+    auto script = create_internal(move(base_url), filename, settings);
 
     // 6. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
@@ -288,7 +296,7 @@ WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting
         // If Evaluate fails to complete as a result of the user agent aborting the running script,
         // then set evaluationPromise to a promise rejected with a new "QuotaExceededError" DOMException.
         if (elevation_promise_or_error.is_error()) {
-            evaluation_promise = WebIDL::create_rejected_promise(realm, WebIDL::QuotaExceededError::create(realm, "Failed to evaluate module script"_utf16).ptr());
+            evaluation_promise = WebIDL::create_rejected_promise(realm, WebIDL::QuotaExceededError::create("Failed to evaluate module script"_utf16));
         } else {
             evaluation_promise = elevation_promise_or_error.value();
         }
@@ -301,8 +309,10 @@ WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting
     // 8. If preventErrorReporting is false, then upon rejection of evaluationPromise with reason, report the exception given by reason for script.
     if (prevent_error_reporting == PreventErrorReporting::No) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-        WebIDL::upon_rejection(*evaluation_promise, GC::create_function(realm.heap(), [&realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
-            as<WindowOrWorkerGlobalScopeMixin>(realm.global_object()).report_an_exception(reason);
+        WebIDL::upon_rejection(*evaluation_promise, GC::create_function(GC::Heap::the(), [&realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+            auto* window_or_worker = window_or_worker_global_scope_from_global_object(realm.global_object());
+            VERIFY(window_or_worker);
+            window_or_worker->report_an_exception(reason);
             return JS::js_undefined();
         }));
     }

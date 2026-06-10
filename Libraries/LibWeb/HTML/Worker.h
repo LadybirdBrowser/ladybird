@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/AbstractWorker.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
+#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 #define ENUMERATE_WORKER_EVENT_HANDLERS(E)  \
@@ -18,24 +19,34 @@
 
 namespace Web::HTML {
 
+struct StructuredSerializeOptions;
+
+}
+
+namespace Web::Bindings {
+
+struct StructuredSerializeOptions;
+
+}
+
+namespace Web::HTML {
+
 // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
 class Worker
     : public DOM::EventTarget
     , public HTML::AbstractWorker {
-    WEB_PLATFORM_OBJECT(Worker, DOM::EventTarget);
+    WEB_WRAPPABLE(Worker, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Worker);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Worker>> create(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Bindings::WorkerOptions const& options);
-    static WebIDL::ExceptionOr<GC::Ref<Worker>> construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Bindings::WorkerOptions const& options)
-    {
-        return Worker::create(realm, script_url, options);
-    }
+    static WebIDL::ExceptionOr<GC::Ref<Worker>> create(WindowOrWorkerGlobalScopeMixin&, TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options);
+    static WebIDL::ExceptionOr<GC::Ref<Worker>> construct_impl(JS::Realm&, TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options);
 
     WebIDL::ExceptionOr<void> terminate();
 
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::StructuredSerializeOptions const&);
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, StructuredSerializeOptions const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, Bindings::StructuredSerializeOptions const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
 
     virtual ~Worker() = default;
 
@@ -51,23 +62,22 @@ public:
 #undef __ENUMERATE
 
 protected:
-    Worker(JS::Realm&, String const&, Bindings::WorkerOptions const&);
+    Worker(String const&, WorkerOptions const&);
 
     // ^AbstractWorker
     virtual DOM::EventTarget& this_event_target() override { return *this; }
 
 private:
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     String m_script_url;
-    Bindings::WorkerOptions m_options;
+    WorkerOptions m_options;
 
     GC::Ptr<MessagePort> m_outside_port;
 
     GC::Ptr<WorkerAgentParent> m_agent;
 };
 
-void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> outside_port, Bindings::WorkerOptions const& options);
+void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> outside_port, WorkerOptions const& options);
 
 }

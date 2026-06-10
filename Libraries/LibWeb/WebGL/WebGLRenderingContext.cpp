@@ -5,13 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLContextEvent.h>
-#include <LibWeb/Bindings/WebGLRenderingContext.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebGL/EventNames.h>
@@ -33,7 +33,7 @@ void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString
 {
     // To fire a WebGL context event named e means that an event using the WebGLContextEvent interface, with its type attribute [DOM4] initialized to e, its cancelable attribute initialized to true, and its isTrusted attribute [DOM4] initialized to true, is to be dispatched at the given object.
     // FIXME: Consider setting a status message.
-    auto event = WebGLContextEvent::create(canvas_element.realm(), type, Bindings::WebGLContextEventInit {});
+    auto event = WebGLContextEvent::create(type, {}, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(canvas_element)));
     event->set_is_trusted(true);
     event->set_cancelable(true);
     canvas_element.dispatch_event(*event);
@@ -46,11 +46,8 @@ void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_element)
     fire_webgl_context_event(canvas_element, EventNames::webglcontextcreationerror);
 }
 
-JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::create(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, JS::Value options)
+GC::Ptr<WebGLRenderingContext> WebGLRenderingContext::create(HTML::HTMLCanvasElement& canvas_element, WebGLContextAttributes context_attributes)
 {
-    // We should be coming here from getContext being called on a wrapped <canvas> element.
-    auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
-
     auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
     if (!skia_backend_context) {
         fire_webgl_context_creation_error(canvas_element);
@@ -69,11 +66,11 @@ JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::cre
 
     context->set_size(canvas_element.bitmap_size_for_canvas(1, 1));
 
-    return realm.create<WebGLRenderingContext>(realm, canvas_element, context.release_nonnull(), context_attributes, context_attributes);
+    return GC::Heap::the().allocate<WebGLRenderingContext>(canvas_element, context.release_nonnull(), context_attributes, context_attributes);
 }
 
-WebGLRenderingContext::WebGLRenderingContext(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)
-    : WebGLRenderingContextOverloads(realm, move(context))
+WebGLRenderingContext::WebGLRenderingContext(HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)
+    : WebGLRenderingContextOverloads(move(context))
     , m_canvas_element(canvas_element)
     , m_context_creation_parameters(context_creation_parameters)
     , m_actual_context_parameters(actual_context_parameters)
@@ -82,13 +79,12 @@ WebGLRenderingContext::WebGLRenderingContext(JS::Realm& realm, HTML::HTMLCanvasE
 
 WebGLRenderingContext::~WebGLRenderingContext() = default;
 
-void WebGLRenderingContext::initialize(JS::Realm& realm)
+JS::Object& WebGLRenderingContext::relevant_global_object() const
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLRenderingContext);
-    Base::initialize(realm);
+    return HTML::relevant_global_object(*m_canvas_element);
 }
 
-void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
+void WebGLRenderingContext::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     WebGLRenderingContextImpl::visit_edges(visitor);

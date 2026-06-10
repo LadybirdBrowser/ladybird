@@ -6,40 +6,54 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace Web::Bindings {
+
+struct PositionOptions;
+
+}
 
 namespace Web::Geolocation {
 
 // https://w3c.github.io/geolocation/#dfn-emulated-position-data
 using EmulatedPositionData = Variant<Empty, GC::Ref<GeolocationCoordinates>, GeolocationPositionError::ErrorCode>;
 
+using PositionOptions = Bindings::PositionOptions;
+
 // https://w3c.github.io/geolocation/#geolocation_interface
-class Geolocation : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Geolocation, Bindings::PlatformObject);
+class Geolocation : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Geolocation, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Geolocation);
 
 public:
-    void get_current_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, Bindings::PositionOptions const&);
-    WebIDL::Long watch_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, Bindings::PositionOptions const&);
+    [[nodiscard]] static GC::Ref<Geolocation> create(HTML::Window&);
+
+    void get_current_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, PositionOptions const&);
+    WebIDL::Long watch_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, PositionOptions const&);
     void clear_watch(WebIDL::Long);
 
 private:
-    Geolocation(JS::Realm&);
+    explicit Geolocation(HTML::Window&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    void acquire_a_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, Bindings::PositionOptions const&, Optional<WebIDL::UnsignedLong>);
+    HTML::Window& window() const { return m_window; }
+
+    void acquire_a_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, PositionOptions const&, Optional<WebIDL::UnsignedLong>);
     void call_back_with_error(GC::Ptr<WebIDL::CallbackType>, GeolocationPositionError::ErrorCode) const;
     EmulatedPositionData get_emulated_position_data() const;
-    void request_a_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, Bindings::PositionOptions const&, Optional<WebIDL::UnsignedLong> = {});
+    void request_a_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, PositionOptions const&, Optional<WebIDL::UnsignedLong>);
     void run_in_parallel_when_document_is_visible(DOM::Document&, GC::Ref<GC::Function<void()>>);
 
     // https://w3c.github.io/geolocation/#dfn-watchids
     HashTable<WebIDL::UnsignedLong> m_watch_ids;
+
+    GC::Ref<HTML::Window> m_window;
 
     // https://w3c.github.io/geolocation/#dfn-cachedposition
     GC::Ptr<GeolocationPosition> m_cached_position;

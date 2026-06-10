@@ -11,10 +11,10 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-stylevalue
-GC::Ref<CSSStyleValue> AbstractImageStyleValue::reify(JS::Realm& realm, Utf16FlyString const&) const
+GC::Ref<CSSStyleValue> AbstractImageStyleValue::reify(Utf16FlyString const&) const
 {
     // AD-HOC: There's no spec description of how to reify as a CSSImageValue.
-    return CSSImageValue::create(realm, *this);
+    return CSSImageValue::create(*this);
 }
 
 void AbstractImageStyleValue::load_any_resources(Layout::NodeWithStyle const& layout_node)

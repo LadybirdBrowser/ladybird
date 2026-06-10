@@ -10,7 +10,6 @@
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
@@ -21,10 +20,10 @@ namespace WebWorker {
 
 class WorkerHost : public RefCounted<WorkerHost> {
 public:
-    explicit WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name);
+    explicit WorkerHost(URL::URL url, Web::HTML::WorkerType type, String name);
     ~WorkerHost();
 
-    void run(GC::Ref<Web::Page>, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::Bindings::RequestCredentials, bool is_shared);
+    void run(GC::Ref<Web::Page>, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::HTML::RequestCredentials, bool is_shared);
     void connect_shared_worker(Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject);
 
 private:
@@ -46,7 +45,7 @@ private:
     GC::Root<Web::HTML::WorkerEnvironmentSettingsObject> m_inside_settings;
 
     URL::URL m_url;
-    Web::Bindings::WorkerType m_type;
+    Web::HTML::WorkerType m_type;
     String m_name;
     bool m_is_shared { false };
     bool m_accepting_shared_worker_connections { false };

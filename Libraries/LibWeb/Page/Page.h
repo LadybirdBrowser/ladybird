@@ -27,10 +27,10 @@
 #include <LibHTTP/Header.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibJS/Forward.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
@@ -70,7 +70,7 @@ class WEB_API Page final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Page);
 
 public:
-    static GC::Ref<Page> create(JS::VM&, GC::Ref<PageClient>);
+    static GC::Ref<Page> create(GC::Ref<PageClient>);
 
     ~Page();
 
@@ -284,8 +284,8 @@ public:
     bool listen_for_dom_mutations() const { return m_listen_for_dom_mutations; }
     void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
 
-    void enqueue_fullscreen_enter(GC::Ref<DOM::Element>, GC::Ref<DOM::Document>, DOM::RequestFullscreenError, GC::Ref<WebIDL::Promise>);
-    void enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::Ref<WebIDL::Promise>);
+    void enqueue_fullscreen_enter(GC::Ref<DOM::Element>, GC::Ref<DOM::Document>, DOM::RequestFullscreenError, GC::Ptr<WebIDL::Promise>);
+    void enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::Ptr<WebIDL::Promise>);
     void process_pending_fullscreen_operations();
 
     ViewportIsFullscreen viewport_is_fullscreen() const { return m_viewport_is_fullscreen; }
@@ -379,13 +379,13 @@ private:
         GC::Ref<DOM::Element> element;
         GC::Ref<DOM::Document> pending_doc;
         DOM::RequestFullscreenError error;
-        GC::Ref<WebIDL::Promise> promise;
+        GC::Ptr<WebIDL::Promise> promise;
     };
 
     struct PendingFullscreenExit {
         GC::Ref<DOM::Document> doc;
         bool resize;
-        GC::Ref<WebIDL::Promise> promise;
+        GC::Ptr<WebIDL::Promise> promise;
     };
 
     using PendingFullscreenOperation = Variant<PendingFullscreenEnter, PendingFullscreenExit>;

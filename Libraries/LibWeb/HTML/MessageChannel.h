@@ -6,18 +6,20 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-channels
-class MessageChannel final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MessageChannel, Bindings::PlatformObject);
+class MessageChannel final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MessageChannel, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MessageChannel);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<MessageChannel>> construct_impl(JS::Realm&);
+    static GC::Ref<MessageChannel> create(GC::Ref<DOM::EventTarget> relevant_global_object);
+    static GC::Ref<MessageChannel> create_for_constructor(JS::Realm&);
     virtual ~MessageChannel() override;
 
     MessagePort* port1();
@@ -27,10 +29,9 @@ public:
     MessagePort const* port2() const;
 
 private:
-    explicit MessageChannel(JS::Realm&);
+    MessageChannel(GC::Ref<MessagePort>, GC::Ref<MessagePort>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<MessagePort> m_port1;
     GC::Ptr<MessagePort> m_port2;

@@ -18,7 +18,7 @@ namespace Web::SVG {
 // https://www.w3.org/TR/filter-effects-1/#InterfaceSVGComponentTransferFunctionElement
 class SVGComponentTransferFunctionElement
     : public SVGElement {
-    WEB_PLATFORM_OBJECT(SVGComponentTransferFunctionElement, SVGElement);
+    WEB_WRAPPABLE(SVGComponentTransferFunctionElement, SVGElement);
 
 public:
     enum class Type : u8 {
@@ -47,8 +47,6 @@ public:
 
 protected:
     SVGComponentTransferFunctionElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

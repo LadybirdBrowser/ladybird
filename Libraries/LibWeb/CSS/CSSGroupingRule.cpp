@@ -5,9 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSGroupingRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -15,8 +12,8 @@
 
 namespace Web::CSS {
 
-CSSGroupingRule::CSSGroupingRule(JS::Realm& realm, CSSRuleList& rules, Type type)
-    : CSSRule(realm, type)
+CSSGroupingRule::CSSGroupingRule(CSSRuleList& rules, Type type)
+    : CSSRule(type)
     , m_rules(rules)
 {
     m_rules->set_owner_rule(*this);
@@ -24,13 +21,7 @@ CSSGroupingRule::CSSGroupingRule(JS::Realm& realm, CSSRuleList& rules, Type type
         rule->set_parent_rule(this);
 }
 
-void CSSGroupingRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSGroupingRule);
-    Base::initialize(realm);
-}
-
-void CSSGroupingRule::visit_edges(Cell::Visitor& visitor)
+void CSSGroupingRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/FakeXRDevice.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -13,32 +13,31 @@ namespace Web::Internals {
 
 GC_DEFINE_ALLOCATOR(FakeXRDevice);
 
-GC::Ref<FakeXRDevice> FakeXRDevice::create(JS::Realm& realm)
+GC::Ref<FakeXRDevice> FakeXRDevice::create(HTML::Window& window)
 {
-    return realm.create<FakeXRDevice>(realm);
+    return GC::Heap::the().allocate<FakeXRDevice>(window);
 }
 
-FakeXRDevice::FakeXRDevice(JS::Realm& realm)
-    : InternalsBase(realm)
+FakeXRDevice::FakeXRDevice(HTML::Window& window)
+    : InternalsBase(window)
 {
 }
 
 FakeXRDevice::~FakeXRDevice() = default;
 
-void FakeXRDevice::initialize(JS::Realm& realm)
+GC::Ref<WebIDL::Promise> FakeXRDevice::disconnect(JS::Realm& realm) const
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FakeXRDevice);
-    Base::initialize(realm);
+    auto promise = WebIDL::create_promise(realm);
+    disconnect(promise);
+    return promise;
 }
 
-GC::Ref<WebIDL::Promise> FakeXRDevice::disconnect() const
+void FakeXRDevice::disconnect(GC::Ref<WebIDL::Promise> promise) const
 {
     // behaves as if device was disconnected
     // FIXME: Implement this once we have actual devices that can disconnect.
-    auto& realm = HTML::relevant_realm(*this);
-    auto promise = WebIDL::create_promise(realm);
+    auto& realm = window().realm();
     WebIDL::resolve_promise(realm, promise);
-    return promise;
 }
 
 }

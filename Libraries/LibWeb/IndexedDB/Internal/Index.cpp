@@ -5,6 +5,7 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/MutationLog.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
@@ -25,9 +26,9 @@ GC_DEFINE_ALLOCATOR(Index);
 
 Index::~Index() = default;
 
-GC::Ref<Index> Index::create(JS::Realm& realm, GC::Ref<ObjectStore> store, String const& name, KeyPath const& key_path, bool unique, bool multi_entry)
+GC::Ref<Index> Index::create(GC::Ref<ObjectStore> store, String const& name, KeyPath const& key_path, bool unique, bool multi_entry)
 {
-    return realm.create<Index>(store, name, key_path, unique, multi_entry);
+    return GC::Heap::the().allocate<Index>(store, name, key_path, unique, multi_entry);
 }
 
 Index::Index(GC::Ref<ObjectStore> store, String const& name, KeyPath const& key_path, bool unique, bool multi_entry)

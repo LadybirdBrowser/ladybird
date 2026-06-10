@@ -28,7 +28,7 @@ public:
     struct PreloadedResponseCandidatePendingTag { };
     using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, GC::Ref<Response>>;
 
-    [[nodiscard]] static GC::Ref<FetchParams> create(JS::VM&, GC::Ref<Request>, GC::Ref<FetchTimingInfo>);
+    [[nodiscard]] static GC::Ref<FetchParams> create(GC::Ref<Request>, GC::Ref<FetchTimingInfo>);
     [[nodiscard]] static GC::Ref<FetchParams> copy(FetchParams const&);
 
     [[nodiscard]] GC::Ref<Request> request() const { return m_request; }

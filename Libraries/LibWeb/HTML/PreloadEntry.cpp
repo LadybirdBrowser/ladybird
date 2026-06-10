@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -13,6 +14,11 @@
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PreloadEntry);
+
+GC::Ref<PreloadEntry> PreloadEntry::create()
+{
+    return GC::Heap::the().allocate<PreloadEntry>();
+}
 
 void PreloadEntry::visit_edges(Cell::Visitor& visitor)
 {

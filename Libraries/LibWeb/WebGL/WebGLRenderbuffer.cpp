@@ -5,31 +5,23 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLRenderbuffer.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLRenderbuffer.h>
 
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLRenderbuffer);
 
-GC::Ref<WebGLRenderbuffer> WebGLRenderbuffer::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLRenderbuffer> WebGLRenderbuffer::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
-    return realm.create<WebGLRenderbuffer>(realm, context, handle);
+    return GC::Heap::the().allocate<WebGLRenderbuffer>(context, handle);
 }
 
-WebGLRenderbuffer::WebGLRenderbuffer(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : WebGLObject(realm, context, handle)
+WebGLRenderbuffer::WebGLRenderbuffer(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+    : WebGLObject(context, handle)
 {
 }
 
 WebGLRenderbuffer::~WebGLRenderbuffer() = default;
-
-void WebGLRenderbuffer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLRenderbuffer);
-    Base::initialize(realm);
-}
 
 }

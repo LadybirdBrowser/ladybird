@@ -15,28 +15,26 @@ using CSSUnparsedSegment = Variant<String, GC::Ref<CSSVariableReferenceValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunparsedvalue
 class CSSUnparsedValue final : public CSSStyleValue {
-    WEB_PLATFORM_OBJECT(CSSUnparsedValue, CSSStyleValue);
+    WEB_WRAPPABLE(CSSUnparsedValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSUnparsedValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSUnparsedValue> create(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> construct_impl(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
+    [[nodiscard]] static GC::Ref<CSSUnparsedValue> create(ReadonlySpan<CSSUnparsedSegment>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> create_for_constructor(ReadonlySpan<CSSUnparsedSegment>);
 
     virtual ~CSSUnparsedValue() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value) override;
+    Optional<CSSUnparsedSegment> token_at(size_t index) const;
+    WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, CSSUnparsedSegment);
+    WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, CSSUnparsedSegment);
 
     virtual WebIDL::ExceptionOr<String> to_string() const override;
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:
-    explicit CSSUnparsedValue(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    explicit CSSUnparsedValue(ReadonlySpan<CSSUnparsedSegment>);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     bool contains_unparsed_value(CSSUnparsedValue const&) const;
 

@@ -4,27 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceNavigation.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigation.h>
 
 namespace Web::NavigationTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceNavigation);
 
-PerformanceNavigation::PerformanceNavigation(JS::Realm& realm, u16 type, u16 redirect_count)
-    : PlatformObject(realm)
-    , m_type(type)
+GC::Ref<PerformanceNavigation> PerformanceNavigation::create(u16 type, u16 redirect_count)
+{
+    return GC::Heap::the().allocate<PerformanceNavigation>(type, redirect_count);
+}
+
+PerformanceNavigation::PerformanceNavigation(u16 type, u16 redirect_count)
+    : m_type(type)
     , m_redirect_count(redirect_count)
 {
 }
 PerformanceNavigation::~PerformanceNavigation() = default;
-
-void PerformanceNavigation::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceNavigation);
-    Base::initialize(realm);
-}
 
 u16 PerformanceNavigation::type() const
 {

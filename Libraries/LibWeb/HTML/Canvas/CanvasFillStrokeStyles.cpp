@@ -12,11 +12,11 @@
 #include <AK/String.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
 
 namespace Web::HTML {
@@ -93,21 +93,21 @@ CanvasFillStrokeStyles::FillOrStrokeStyleVariant CanvasFillStrokeStyles::stroke_
 
 WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1)
 {
-    return CanvasGradient::create_radial(my_realm(), x0, y0, r0, x1, y1, r1);
+    return CanvasGradient::create_radial(x0, y0, r0, x1, y1, r1);
 }
-GC::Ref<CanvasGradient> CanvasFillStrokeStyles::create_linear_gradient(double x0, double y0, double x1, double y1)
+WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_linear_gradient(double x0, double y0, double x1, double y1)
 {
-    return CanvasGradient::create_linear(my_realm(), x0, y0, x1, y1).release_value_but_fixme_should_propagate_errors();
+    return CanvasGradient::create_linear(x0, y0, x1, y1);
 }
 
-GC::Ref<CanvasGradient> CanvasFillStrokeStyles::create_conic_gradient(double start_angle, double x, double y)
+WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_conic_gradient(double start_angle, double x, double y)
 {
-    return CanvasGradient::create_conic(my_realm(), start_angle, x, y).release_value_but_fixme_should_propagate_errors();
+    return CanvasGradient::create_conic(start_angle, x, y);
 }
 
 WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasFillStrokeStyles::create_pattern(CanvasImageSource const& image, StringView repetition)
 {
-    return CanvasPattern::create(my_realm(), image, repetition);
+    return CanvasPattern::create(image, repetition);
 }
 
 }

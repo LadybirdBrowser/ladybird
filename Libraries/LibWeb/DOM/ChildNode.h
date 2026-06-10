@@ -101,7 +101,7 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#dom-childnode-remove
-    void remove_binding()
+    void remove_from_parent()
     {
         auto* node = static_cast<NodeType*>(this);
 

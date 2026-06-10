@@ -5,8 +5,7 @@
  */
 
 #include "CSSSkewX.h"
-#include <LibWeb/Bindings/CSSSkewX.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -18,13 +17,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSSkewX);
 
-GC::Ref<CSSSkewX> CSSSkewX::create(JS::Realm& realm, GC::Ref<CSSNumericValue> ax)
+GC::Ref<CSSSkewX> CSSSkewX::create(GC::Ref<CSSNumericValue> ax)
 {
-    return realm.create<CSSSkewX>(realm, ax);
+    return GC::Heap::the().allocate<CSSSkewX>(ax);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssskewx-cssskewx
-WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> CSSSkewX::construct_impl(JS::Realm& realm, GC::Ref<CSSNumericValue> ax)
+WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> CSSSkewX::create_for_constructor(GC::Ref<CSSNumericValue> ax)
 {
     // The CSSSkewX(ax) constructor must, when invoked, perform the following steps:
 
@@ -33,24 +32,18 @@ WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> CSSSkewX::construct_impl(JS::Realm& realm
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSSkewX ax component doesn't match <angle>"sv };
 
     // 2. Return a new CSSSkewX object with its ax internal slot set to ax, and its is2D internal slot set to true.
-    return CSSSkewX::create(realm, ax);
+    return CSSSkewX::create(ax);
 }
 
-CSSSkewX::CSSSkewX(JS::Realm& realm, GC::Ref<CSSNumericValue> ax)
-    : CSSTransformComponent(realm, Is2D::Yes)
+CSSSkewX::CSSSkewX(GC::Ref<CSSNumericValue> ax)
+    : CSSTransformComponent(Is2D::Yes)
     , m_ax(ax)
 {
 }
 
 CSSSkewX::~CSSSkewX() = default;
 
-void CSSSkewX::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSSkewX);
-    Base::initialize(realm);
-}
-
-void CSSSkewX::visit_edges(Visitor& visitor)
+void CSSSkewX::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_ax);
@@ -82,7 +75,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSSkewX::to_matrix() const
     //    As the entries of such a matrix are defined relative to the px unit, if any <length>s in this involved in
     //    generating the matrix are not compatible units with px (such as relative lengths or percentages), throw a
     //    TypeError.
-    auto matrix = Geometry::DOMMatrix::create(realm());
+    auto matrix = Geometry::DOMMatrix::create();
 
     // NB: to() throws a TypeError if the conversion can't be done.
     auto ax_rad = TRY(m_ax->to("rad"_fly_string))->value();

@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TrackEvent.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/HTML/TrackEvent.h>
@@ -16,26 +15,15 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TrackEvent);
 
-GC::Ref<TrackEvent> TrackEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::TrackEventInit const& event_init)
+GC::Ref<TrackEvent> TrackEvent::create(FlyString const& event_name, TrackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<TrackEvent>(realm, event_name, move(event_init));
+    return GC::Heap::the().allocate<TrackEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<TrackEvent>> TrackEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::TrackEventInit const& event_init)
-{
-    return create(realm, event_name, move(event_init));
-}
-
-TrackEvent::TrackEvent(JS::Realm& realm, FlyString const& event_name, Bindings::TrackEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+TrackEvent::TrackEvent(FlyString const& event_name, TrackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_track(event_init.track)
 {
-}
-
-void TrackEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TrackEvent);
-    Base::initialize(realm);
 }
 
 void TrackEvent::visit_edges(Visitor& visitor)

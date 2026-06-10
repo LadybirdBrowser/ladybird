@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
@@ -40,8 +41,6 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
 {
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-    auto& vm = realm.vm();
-
     // 1. Let stream be null.
     GC::Ptr<Streams::ReadableStream> stream;
 
@@ -51,12 +50,12 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
     }
     // 3. Otherwise, if object is a Blob object, set stream to the result of running object’s get stream.
     else if (auto* blob = object.get_pointer<GC::Ref<FileAPI::Blob>>()) {
-        stream = (*blob)->get_stream();
+        stream = (*blob)->get_stream(realm);
     }
     // 4. Otherwise, set stream to a new ReadableStream object, and set up stream with byte reading support.
     else {
-        stream = realm.create<Streams::ReadableStream>(realm);
-        stream->set_up_with_byte_reading_support();
+        stream = GC::Heap::the().allocate<Streams::ReadableStream>();
+        stream->set_up_with_byte_reading_support(realm);
     }
 
     // 5. Assert: stream is a ReadableStream object.
@@ -164,18 +163,18 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
         // Whenever one or more bytes are available and stream is not errored, enqueue the result of creating a
         // Uint8Array from the available bytes into stream.
         if (!bytes.is_empty() && !stream->is_errored()) {
-            auto array_buffer = JS::ArrayBuffer::create(stream->realm(), move(bytes));
-            auto chunk = JS::Uint8Array::create(stream->realm(), array_buffer->byte_length(), *array_buffer);
+            auto array_buffer = JS::ArrayBuffer::create(realm, move(bytes));
+            auto chunk = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
-            stream->enqueue(chunk).release_value_but_fixme_should_propagate_errors();
+            stream->enqueue(realm, chunk).release_value_but_fixme_should_propagate_errors();
         }
 
         // When running action is done, close stream.
-        stream->close();
+        stream->close(realm);
     }
 
     // 13. Let body be a body whose stream is stream, source is source, and length is length.
-    auto body = Infrastructure::Body::create(vm, *stream, move(source), move(length));
+    auto body = Infrastructure::Body::create(*stream, move(source), move(length));
 
     // 14. Return (body, type).
     return Infrastructure::BodyWithType { .body = body, .type = move(type) };

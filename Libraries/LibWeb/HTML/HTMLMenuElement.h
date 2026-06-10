@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLMenuElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLMenuElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLMenuElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLMenuElement);
 
 public:
@@ -25,8 +25,6 @@ public:
 
 private:
     HTMLMenuElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

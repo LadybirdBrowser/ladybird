@@ -6,10 +6,10 @@ interface NodeIterator {
     readonly attribute boolean pointerBeforeReferenceNode;
     readonly attribute unsigned long whatToShow;
 
-    readonly attribute NodeFilter? filter;
+    [ImplementedInBindings, ReturnsJSValue] readonly attribute NodeFilter? filter;
 
-    Node? nextNode();
-    Node? previousNode();
+    [ImplementedInBindings] Node? nextNode();
+    [ImplementedInBindings] Node? previousNode();
 
     undefined detach();
 };

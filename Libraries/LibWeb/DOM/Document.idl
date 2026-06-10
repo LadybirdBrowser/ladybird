@@ -4,7 +4,7 @@
 interface Document : Node {
     constructor();
 
-    [ImplementedAs=has_focus_for_bindings] boolean hasFocus();
+    boolean hasFocus();
 
     [PutForwards=href, LegacyUnforgeable] readonly attribute Location? location;
     attribute USVString domain;
@@ -24,10 +24,10 @@ interface Document : Node {
     [CEReactions] Document open(optional DOMString unused1, optional DOMString unused2);
     WindowProxy? open(USVString url, DOMString name, DOMString features);
     [CEReactions] undefined close();
-    [CEReactions] undefined write((TrustedHTML or Utf16DOMString)... text);
-    [CEReactions] undefined writeln((TrustedHTML or Utf16DOMString)... text);
+    [CEReactions, ImplementedInBindings] undefined write((TrustedHTML or Utf16DOMString)... text);
+    [CEReactions, ImplementedInBindings] undefined writeln((TrustedHTML or Utf16DOMString)... text);
 
-    static Document parseHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
+    [NeedsCallerRealm, ImplementedInBindings] static Document parseHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
 
     attribute DOMString cookie;
 
@@ -58,6 +58,9 @@ interface Document : Node {
 
     readonly attribute HTMLAllCollection all;
 
+    // https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem
+    getter object (DOMString name);
+
     undefined clear();
     undefined captureEvents();
     undefined releaseEvents();
@@ -77,7 +80,7 @@ interface Document : Node {
     Event createEvent(DOMString interface);
 
     [CEReactions, NewObject] Node importNode(Node node, optional (boolean or ImportNodeOptions) options = false);
-    [CEReactions, ImplementedAs=adopt_node_binding] Node adoptNode(Node node);
+    [CEReactions] Node adoptNode(Node node);
 
     readonly attribute DOMString compatMode;
     readonly attribute DocumentType? doctype;
@@ -126,7 +129,7 @@ interface Document : Node {
     attribute EventHandler onvisibilitychange;
 
     // https://drafts.csswg.org/css-view-transitions-1/#additions-to-document-api
-    [Experimental] ViewTransition startViewTransition(optional ViewTransitionUpdateCallback updateCallback);
+    [Experimental, ImplementedInBindings, NeedsThisObjectRealm] ViewTransition startViewTransition(optional ViewTransitionUpdateCallback updateCallback);
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#InterfaceDocumentExtensions
     readonly attribute SVGSVGElement? rootElement;

@@ -8,11 +8,12 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Types.h>
 #include <AK/Variant.h>
 #include <LibGC/ConservativeHashMap.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/EasingFunction.h>
 
 namespace Web::Animations {
@@ -22,9 +23,16 @@ enum class AnimationDirection {
     Backwards,
 };
 
-Bindings::FillMode css_fill_mode_to_bindings_fill_mode(CSS::AnimationFillMode mode);
-Bindings::PlaybackDirection css_animation_direction_to_bindings_playback_direction(CSS::AnimationDirection direction);
-Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming const&);
+using FillMode = Bindings::FillMode;
+using PlaybackDirection = Bindings::PlaybackDirection;
+
+using EffectTimingDuration = Variant<double, String>;
+using OptionalEffectTiming = Bindings::OptionalEffectTiming;
+using EffectTiming = Bindings::EffectTiming;
+using ComputedEffectTiming = Bindings::ComputedEffectTiming;
+
+FillMode css_fill_mode_to_fill_mode(CSS::AnimationFillMode mode);
+PlaybackDirection css_animation_direction_to_playback_direction(CSS::AnimationDirection direction);
 
 // This object lives for the duration of an animation update, and is used to store per-element data about animated CSS properties.
 struct AnimationUpdateContext {
@@ -41,16 +49,16 @@ struct AnimationUpdateContext {
 };
 
 // https://www.w3.org/TR/web-animations-1/#the-animationeffect-interface
-class AnimationEffect : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AnimationEffect, Bindings::PlatformObject);
+class AnimationEffect : public Bindings::Wrappable {
+    WEB_WRAPPABLE(AnimationEffect, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(AnimationEffect);
 
 public:
     static Optional<CSS::EasingFunction> parse_easing_string(StringView value);
 
-    Bindings::EffectTiming get_timing() const;
-    Bindings::ComputedEffectTiming get_computed_timing() const;
-    WebIDL::ExceptionOr<void> update_timing(Bindings::OptionalEffectTiming const& timing = {});
+    EffectTiming get_timing() const;
+    ComputedEffectTiming get_computed_timing() const;
+    WebIDL::ExceptionOr<void> update_timing(OptionalEffectTiming const& timing = {});
 
     TimeValue start_delay() const { return m_start_delay; }
     void set_specified_start_delay(double start_delay) { m_specified_start_delay = start_delay; }
@@ -58,8 +66,8 @@ public:
     TimeValue end_delay() const { return m_end_delay; }
     void set_specified_end_delay(double end_delay) { m_specified_end_delay = end_delay; }
 
-    Bindings::FillMode fill_mode() const { return m_fill_mode; }
-    void set_fill_mode(Bindings::FillMode fill_mode) { m_fill_mode = fill_mode; }
+    FillMode fill_mode() const { return m_fill_mode; }
+    void set_fill_mode(FillMode fill_mode) { m_fill_mode = fill_mode; }
 
     double iteration_start() const { return m_iteration_start; }
     void set_iteration_start(double iteration_start) { m_iteration_start = iteration_start; }
@@ -70,8 +78,8 @@ public:
     TimeValue const& iteration_duration() const { return m_iteration_duration; }
     void set_specified_iteration_duration(Variant<double, String> iteration_duration) { m_specified_iteration_duration = move(iteration_duration); }
 
-    Bindings::PlaybackDirection playback_direction() const { return m_playback_direction; }
-    void set_playback_direction(Bindings::PlaybackDirection playback_direction) { m_playback_direction = playback_direction; }
+    PlaybackDirection playback_direction() const { return m_playback_direction; }
+    void set_playback_direction(PlaybackDirection playback_direction) { m_playback_direction = playback_direction; }
 
     CSS::EasingFunction const& timing_function() { return m_timing_function; }
     void set_timing_function(CSS::EasingFunction value) { m_timing_function = move(value); }
@@ -85,7 +93,7 @@ public:
     Optional<TimeValue> local_time() const;
     TimeValue active_duration() const;
     Optional<TimeValue> active_time() const;
-    Optional<TimeValue> active_time_using_fill(Bindings::FillMode) const;
+    Optional<TimeValue> active_time_using_fill(FillMode) const;
 
     bool is_in_play() const;
     bool is_current() const;
@@ -130,14 +138,12 @@ public:
     virtual void update_computed_properties(AnimationUpdateContext&) = 0;
 
 protected:
-    AnimationEffect(JS::Realm&);
+    AnimationEffect();
     virtual ~AnimationEffect() = default;
 
     void invalidate_effect();
 
-    virtual void visit_edges(Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     TimeValue intrinsic_iteration_duration() const;
     void convert_a_time_based_animation_to_a_proportional_animation();
@@ -157,7 +163,7 @@ protected:
     TimeValue m_end_delay { TimeValue::Type::Milliseconds, 0.0 };
 
     // https://www.w3.org/TR/web-animations-1/#fill-mode
-    Bindings::FillMode m_fill_mode { Bindings::FillMode::Auto };
+    FillMode m_fill_mode { FillMode::Auto };
 
     // https://www.w3.org/TR/web-animations-1/#iteration-start
     double m_iteration_start { 0.0 };
@@ -166,7 +172,7 @@ protected:
     double m_iteration_count { 1.0 };
 
     // https://drafts.csswg.org/web-animations-2/#specified-iteration-duration
-    Variant<double, String> m_specified_iteration_duration { "auto"_string };
+    EffectTimingDuration m_specified_iteration_duration { "auto"_string };
 
     // https://www.w3.org/TR/web-animations-1/#iteration-duration
     // https://drafts.csswg.org/web-animations-2/#iteration-intervals
@@ -176,7 +182,7 @@ protected:
     TimeValue m_iteration_duration = { TimeValue::Type::Milliseconds, 0.0 };
 
     // https://www.w3.org/TR/web-animations-1/#playback-direction
-    Bindings::PlaybackDirection m_playback_direction { Bindings::PlaybackDirection::Normal };
+    PlaybackDirection m_playback_direction { PlaybackDirection::Normal };
 
     // https://www.w3.org/TR/web-animations-1/#animation-associated-effect
     GC::Ptr<Animation> m_associated_animation {};

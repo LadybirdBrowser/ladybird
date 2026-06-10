@@ -6,19 +6,22 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/VTTRegion.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebVTT {
 
+using ScrollSetting = Bindings::ScrollSetting;
+
 // https://w3c.github.io/webvtt/#vttregion
-class VTTRegion final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(VTTRegion, Bindings::PlatformObject);
+class VTTRegion final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(VTTRegion, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(VTTRegion);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<VTTRegion>> construct_impl(JS::Realm&);
+    static GC::Ref<VTTRegion> create();
     virtual ~VTTRegion() override = default;
 
     String const& id() const { return m_identifier; }
@@ -42,13 +45,11 @@ public:
     double viewport_anchor_y() const { return m_viewport_anchor_y; }
     WebIDL::ExceptionOr<void> set_viewport_anchor_y(double viewport_anchor_y);
 
-    Bindings::ScrollSetting scroll() const { return m_scroll_setting; }
-    void set_scroll(Bindings::ScrollSetting scroll) { m_scroll_setting = scroll; }
+    ScrollSetting scroll() const;
+    void set_scroll(ScrollSetting);
 
 private:
-    VTTRegion(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    VTTRegion();
 
     // https://w3c.github.io/webvtt/#webvtt-region-identifier
     String m_identifier {};
@@ -68,7 +69,7 @@ private:
     double m_viewport_anchor_y { 100 };
 
     // https://w3c.github.io/webvtt/#webvtt-region-scroll
-    Bindings::ScrollSetting m_scroll_setting { Bindings::ScrollSetting::Empty };
+    ScrollSetting m_scroll_setting { ScrollSetting::Empty };
 };
 
 }

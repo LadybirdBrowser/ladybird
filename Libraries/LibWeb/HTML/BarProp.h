@@ -7,25 +7,28 @@
 #pragma once
 
 #include <LibGC/CellAllocator.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#barprop
-class BarProp : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(BarProp, Bindings::PlatformObject);
+class BarProp : public Bindings::Wrappable {
+    WEB_WRAPPABLE(BarProp, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(BarProp);
 
 public:
-    BarProp(JS::Realm&);
-    static GC::Ref<BarProp> create(JS::Realm&);
+    BarProp(Window&);
+    static GC::Ref<BarProp> create(Window&);
 
+    [[nodiscard]] Window& window() { return m_window; }
+    [[nodiscard]] Window const& window() const { return m_window; }
     [[nodiscard]] bool visible() const;
 
 private:
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    GC::Ref<Window> m_window;
 };
 
 }

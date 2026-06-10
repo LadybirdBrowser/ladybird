@@ -5,9 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ResizeObserverEntry.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
@@ -17,22 +14,22 @@ namespace Web::ResizeObserver {
 GC_DEFINE_ALLOCATOR(ResizeObserverEntry);
 
 // https://drafts.csswg.org/resize-observer-1/#create-and-populate-resizeobserverentry-h
-WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_and_populate(JS::Realm& realm, DOM::Element& target)
+WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_and_populate(DOM::Element& target)
 {
     // 1. Let this be a new ResizeObserverEntry.
     // 2. Set this.target slot to target.
-    auto resize_observer_entry = realm.create<ResizeObserverEntry>(realm, target);
+    auto resize_observer_entry = GC::Heap::the().allocate<ResizeObserverEntry>(target);
 
     // 3. Set this.borderBoxSize slot to result of calculating box size given target and observedBox of "border-box".
-    auto border_box_size = ResizeObserverSize::calculate_box_size(realm, target, Bindings::ResizeObserverBoxOptions::BorderBox);
+    auto border_box_size = ResizeObserverSize::calculate_box_size(target, ObservedBox::BorderBox);
     resize_observer_entry->m_border_box_size.append(border_box_size);
 
     // 4. Set this.contentBoxSize slot to result of calculating box size given target and observedBox of "content-box".
-    auto content_box_size = ResizeObserverSize::calculate_box_size(realm, target, Bindings::ResizeObserverBoxOptions::ContentBox);
+    auto content_box_size = ResizeObserverSize::calculate_box_size(target, ObservedBox::ContentBox);
     resize_observer_entry->m_content_box_size.append(content_box_size);
 
     // 5. Set this.devicePixelContentBoxSize slot to result of calculating box size given target and observedBox of "device-pixel-content-box".
-    auto device_pixel_content_box_size = ResizeObserverSize::calculate_box_size(realm, target, Bindings::ResizeObserverBoxOptions::DevicePixelContentBox);
+    auto device_pixel_content_box_size = ResizeObserverSize::calculate_box_size(target, ObservedBox::DevicePixelContentBox);
     resize_observer_entry->m_device_pixel_content_box_size.append(device_pixel_content_box_size);
 
     // 6. Set this.contentRect to logical this.contentBoxSize given target and observedBox of "content-box".
@@ -57,18 +54,12 @@ WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_an
         // Set this.contentRect.top and this.contentRect.left to 0.
         // NOTE: This is already done by the default constructor.
     }
-    resize_observer_entry->m_content_rect = MUST(Geometry::DOMRectReadOnly::construct_impl(realm, x, y, width, height));
+    resize_observer_entry->m_content_rect = Geometry::DOMRectReadOnly::create(x, y, width, height);
 
     return resize_observer_entry;
 }
 
-void ResizeObserverEntry::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ResizeObserverEntry);
-    Base::initialize(realm);
-}
-
-void ResizeObserverEntry::visit_edges(JS::Cell::Visitor& visitor)
+void ResizeObserverEntry::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_target);
@@ -76,32 +67,6 @@ void ResizeObserverEntry::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_border_box_size);
     visitor.visit(m_device_pixel_content_box_size);
     visitor.visit(m_content_rect);
-}
-
-static GC::Ref<JS::Object> to_js_array(JS::Realm& realm, Vector<GC::Ref<ResizeObserverSize>> const& sizes)
-{
-    GC::RootVector<JS::Value> vector;
-    for (auto const& size : sizes)
-        vector.append(JS::Value(size.ptr()));
-
-    auto array = JS::Array::create_from(realm, vector);
-    MUST(array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
-    return array;
-}
-
-GC::Ref<JS::Object> ResizeObserverEntry::border_box_size_js_array() const
-{
-    return to_js_array(realm(), m_border_box_size);
-}
-
-GC::Ref<JS::Object> ResizeObserverEntry::content_box_size_js_array() const
-{
-    return to_js_array(realm(), m_content_box_size);
-}
-
-GC::Ref<JS::Object> ResizeObserverEntry::device_pixel_content_box_size_js_array() const
-{
-    return to_js_array(realm(), m_device_pixel_content_box_size);
 }
 
 }

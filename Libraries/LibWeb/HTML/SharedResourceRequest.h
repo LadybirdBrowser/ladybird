@@ -22,7 +22,7 @@ class SharedResourceRequest final : public JS::Cell {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(JS::Realm&, GC::Ref<Page>, URL::URL const&);
+    [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(DOM::Document&, URL::URL const&);
 
     virtual ~SharedResourceRequest() override;
 

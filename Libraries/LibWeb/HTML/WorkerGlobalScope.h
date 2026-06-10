@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <LibCore/Socket.h>
+#include <LibJS/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
@@ -20,7 +21,35 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerLocation.h>
 #include <LibWeb/HTML/WorkerNavigator.h>
+#include <LibWeb/HTML/WorkerTypes.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+
+namespace Web::HTML {
+
+class WorkerGlobalScope;
+
+}
+
+namespace Web::Bindings {
+
+WEB_API HTML::WorkerGlobalScope* worker_global_scope_from_global_object(JS::Object&);
+WEB_API HTML::WorkerGlobalScope const* worker_global_scope_from_global_object(JS::Object const&);
+WEB_API JS::Realm& main_world_realm(HTML::WorkerGlobalScope const&);
+WEB_API void initialize_worker_web_interfaces(HTML::WorkerGlobalScope&);
+
+}
+
+namespace Web::ServiceWorker {
+
+class ServiceWorkerGlobalScope;
+
+}
+
+namespace Web::Bindings {
+
+WEB_API ServiceWorker::ServiceWorkerGlobalScope* service_worker_global_scope_from_global_object(JS::Object&);
+
+}
 
 #define ENUMERATE_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(E)       \
     E(onerror, HTML::EventNames::error)                       \
@@ -39,8 +68,11 @@ class WEB_API WorkerGlobalScope
     : public DOM::EventTarget
     , public WindowOrWorkerGlobalScopeMixin
     , public UniversalGlobalScopeMixin {
-    WEB_PLATFORM_OBJECT(WorkerGlobalScope, DOM::EventTarget);
+    WEB_WRAPPABLE(WorkerGlobalScope, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(WorkerGlobalScope);
+
+    friend JS::Realm& Bindings::main_world_realm(WorkerGlobalScope const&);
+    friend void Bindings::initialize_worker_web_interfaces(WorkerGlobalScope&);
 
 public:
     using Owner = Variant<SerializedDocument, SerializedWorkerGlobalScope>;
@@ -49,6 +81,8 @@ public:
 
     virtual ~WorkerGlobalScope() override;
 
+    JS::Realm& realm() const;
+
     // ^WindowOrWorkerGlobalScopeMixin
     virtual DOM::EventTarget& this_impl() override { return *this; }
     virtual DOM::EventTarget const& this_impl() const override { return *this; }
@@ -56,11 +90,9 @@ public:
     using UniversalGlobalScopeMixin::atob;
     using UniversalGlobalScopeMixin::btoa;
     using UniversalGlobalScopeMixin::queue_microtask;
-    using UniversalGlobalScopeMixin::structured_clone;
     using WindowOrWorkerGlobalScopeMixin::clear_interval;
     using WindowOrWorkerGlobalScopeMixin::clear_timeout;
     using WindowOrWorkerGlobalScopeMixin::create_image_bitmap;
-    using WindowOrWorkerGlobalScopeMixin::fetch;
     using WindowOrWorkerGlobalScopeMixin::performance;
     using WindowOrWorkerGlobalScopeMixin::set_interval;
     using WindowOrWorkerGlobalScopeMixin::set_timeout;
@@ -72,7 +104,6 @@ public:
     GC::Ref<WorkerGlobalScope const> self() const { return *this; }
 
     virtual Optional<URL::Origin> extract_an_origin() const override { return window_or_worker_global_scope_extract_an_origin(); }
-    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object* prototype) override;
 
     GC::Ref<WorkerLocation> location() const;
     GC::Ref<WorkerNavigator> navigator() const;
@@ -95,16 +126,14 @@ public:
     String const& name() const { return m_name; }
     void set_name(String name) { m_name = move(name); }
 
-    Bindings::WorkerType type() const { return m_type; }
-    void set_type(Bindings::WorkerType type) { m_type = type; }
+    WorkerType type() const { return m_type; }
+    void set_type(WorkerType type) { m_type = type; }
 
     // Spec note: While the WorkerLocation object is created after the WorkerGlobalScope object,
     //            this is not problematic as it cannot be observed from script.
     void set_location(GC::Ref<WorkerLocation> loc) { m_location = move(loc); }
 
     void set_internal_port(GC::Ref<MessagePort> port);
-
-    void initialize_web_interfaces(Badge<WorkerEnvironmentSettingsObject>) { initialize_web_interfaces_impl(); }
 
     Web::Page* page() { return m_page.ptr(); }
 
@@ -119,7 +148,7 @@ public:
     auto const& owner_set() const { return m_owner_set; }
 
 protected:
-    explicit WorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
+    explicit WorkerGlobalScope(GC::Ref<Web::Page>);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -145,7 +174,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-type
     // A WorkerGlobalScope object has an associated type ("classic" or "module"). It is set during creation.
-    Bindings::WorkerType m_type { Bindings::WorkerType::Classic };
+    WorkerType m_type { WorkerType::Classic };
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-url
     // A WorkerGlobalScope object has an associated url (null or a URL). It is initially null.

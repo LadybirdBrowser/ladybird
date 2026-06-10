@@ -16,12 +16,12 @@ using CSSKeywordish = Variant<String, GC::Ref<CSSKeywordValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
 class CSSKeywordValue final : public CSSStyleValue {
-    WEB_PLATFORM_OBJECT(CSSKeywordValue, CSSStyleValue);
+    WEB_WRAPPABLE(CSSKeywordValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSKeywordValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSKeywordValue> create(JS::Realm&, FlyString value);
-    static WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> construct_impl(JS::Realm&, FlyString value);
+    [[nodiscard]] static GC::Ref<CSSKeywordValue> create(FlyString value);
+    static WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> create_for_constructor(FlyString value);
 
     virtual ~CSSKeywordValue() override = default;
 
@@ -33,13 +33,11 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:
-    explicit CSSKeywordValue(JS::Realm&, FlyString value);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit CSSKeywordValue(FlyString value);
 
     FlyString m_value;
 };
 
-GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(JS::Realm&, CSSKeywordish const&);
+GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(CSSKeywordish const&);
 
 }

@@ -7,9 +7,11 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Value.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/DragDataStore.h>
-#include <LibWeb/WebIDL/CachedAttribute.h>
 
 namespace Web::HTML {
 
@@ -33,13 +35,13 @@ ENUMERATE_DATA_TRANSFER_EFFECTS
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface
-class DataTransfer : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DataTransfer, Bindings::PlatformObject);
+class DataTransfer : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DataTransfer, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DataTransfer);
 
 public:
-    static GC::Ref<DataTransfer> create(JS::Realm&, NonnullRefPtr<DragDataStore>);
-    static GC::Ref<DataTransfer> construct_impl(JS::Realm&);
+    static GC::Ref<DataTransfer> create(NonnullRefPtr<DragDataStore>);
+    static GC::Ref<DataTransfer> create_for_constructor();
     virtual ~DataTransfer() override;
 
     FlyString const& drop_effect() const { return m_drop_effect; }
@@ -53,8 +55,9 @@ public:
 
     GC::Ref<DataTransferItemList> items();
 
-    ReadonlySpan<String> types() const;
-    DEFINE_CACHED_ATTRIBUTE(types);
+    ReadonlySpan<String> types_list() const;
+    JS::ThrowCompletionOr<JS::Value> types(JS::Realm&);
+    u64 types_revision() const { return m_types_revision; }
     String get_data(String const& format) const;
     void set_data(String const& format_argument, String const& value);
     void clear_data(Optional<String> maybe_format = {});
@@ -71,10 +74,9 @@ public:
     size_t length() const;
 
 private:
-    DataTransfer(JS::Realm&, NonnullRefPtr<DragDataStore>);
+    explicit DataTransfer(NonnullRefPtr<DragDataStore>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void update_data_transfer_types_list();
 
@@ -90,6 +92,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
     Vector<String> m_types;
+    u64 m_types_revision { 0 };
 
     // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface:drag-data-store-3
     RefPtr<DragDataStore> m_associated_drag_data_store;

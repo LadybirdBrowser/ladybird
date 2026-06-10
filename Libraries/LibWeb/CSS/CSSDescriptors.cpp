@@ -14,8 +14,8 @@
 
 namespace Web::CSS {
 
-CSSDescriptors::CSSDescriptors(JS::Realm& realm, AtRuleID at_rule_id, Vector<Descriptor> descriptors)
-    : CSSStyleDeclaration(realm, Computed::No, Readonly::No)
+CSSDescriptors::CSSDescriptors(AtRuleID at_rule_id, Vector<Descriptor> descriptors)
+    : CSSStyleDeclaration(Computed::No, Readonly::No)
     , m_at_rule_id(at_rule_id)
     , m_descriptors(move(descriptors))
 {
@@ -67,10 +67,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& pro
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
-
-    if (!property.is_ascii())
-        return {};
+        return WebIDL::NoModificationAllowedError::create("Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     // 2. If property is not a custom property, follow these substeps:
     Optional<DescriptorNameAndID> descriptor_name_and_id;
@@ -84,7 +81,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& pro
 
     // 3. If value is the empty string, invoke removeProperty() with property as argument and return.
     if (value.is_empty()) {
-        MUST(remove_property(property));
+        TRY(remove_property(property));
         return {};
     }
 
@@ -136,10 +133,7 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(Utf16FlyString const
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
-
-    if (!property.is_ascii())
-        return String {};
+        return WebIDL::NoModificationAllowedError::create("Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     // 2. If property is not a custom property, let property be property converted to ASCII lowercase.
     // AD-HOC: We compare names case-insensitively instead.
@@ -178,9 +172,6 @@ WebIDL::ExceptionOr<String> CSSDescriptors::remove_property(Utf16FlyString const
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 String CSSDescriptors::get_property_value(Utf16FlyString const& property) const
 {
-    if (!property.is_ascii())
-        return {};
-
     // 1. If property is not a custom property, follow these substeps: ...
     // NB: These substeps only apply to shorthands, and descriptors cannot be shorthands.
 
@@ -218,7 +209,6 @@ String CSSDescriptors::serialized() const
     for (auto const& descriptor : m_descriptors) {
         // 1. Let property be declaration’s property name.
         auto property = descriptor.descriptor_name_and_id.name();
-        auto property_string = property.to_utf16_string();
 
         // 2. If property is in already serialized, continue with the steps labeled declaration loop.
         // AD-HOC: Not needed as we don't have shorthands.
@@ -231,7 +221,8 @@ String CSSDescriptors::serialized() const
         auto value = descriptor.value->to_string(SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value, and the important flag set if declaration has its important flag set.
-        auto serialized_declaration = serialize_a_css_declaration(property_string.ascii_view(), value, Important::No);
+        auto property_name = property.to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+        auto serialized_declaration = serialize_a_css_declaration(property_name, value, Important::No);
 
         // 7. Append serialized declaration to list.
         list.append(serialized_declaration);
@@ -249,7 +240,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(StringView value)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     // 2. Empty the declarations.
     m_descriptors.clear();

@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLProgressElement.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -29,12 +28,6 @@ HTMLProgressElement::HTMLProgressElement(DOM::Document& document, DOM::Qualified
 }
 
 HTMLProgressElement::~HTMLProgressElement() = default;
-
-void HTMLProgressElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLProgressElement);
-    Base::initialize(realm);
-}
 
 void HTMLProgressElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -107,7 +100,7 @@ void HTMLProgressElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return;
 
-    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
@@ -124,7 +117,7 @@ void HTMLProgressElement::create_shadow_tree_if_needed()
 void HTMLProgressElement::update_progress_value_element()
 {
     if (m_progress_value_element)
-        MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position() * 100))));
+        MUST(m_progress_value_element->style()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position() * 100))));
 }
 
 }

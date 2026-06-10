@@ -20,12 +20,12 @@ dictionary TableDescriptor {
 // https://webassembly.github.io/spec/js-api/#tables
 [LegacyNamespace=WebAssembly, Exposed=*]
 interface Table {
-    constructor(TableDescriptor descriptor, optional any value);
+    [ImplementedInBindings] constructor(TableDescriptor descriptor, optional any value);
 
-    AddressValue grow(AddressValue delta, optional any value);
+    [ImplementedInBindings, NeedsCallerRealm] AddressValue grow(AddressValue delta, optional any value);
 
-    any get(AddressValue index);
-    undefined set(AddressValue index, optional any value);
+    [ImplementedInBindings, NeedsCallerRealm] any get(AddressValue index);
+    [ImplementedInBindings, NeedsCallerRealm] undefined set(AddressValue index, optional any value);
 
-    readonly attribute AddressValue length;
+    [ImplementedInBindings, NeedsCallerRealmForGetter] readonly attribute AddressValue length;
 };

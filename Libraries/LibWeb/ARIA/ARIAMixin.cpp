@@ -6,9 +6,10 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
-#include <LibJS/Runtime/Array.h>
+#include <LibGC/WeakInlines.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 
@@ -19,10 +20,7 @@ ARIAMixin::~ARIAMixin() = default;
 
 void ARIAMixin::visit_edges(GC::Cell::Visitor& visitor)
 {
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
-    visitor.visit(m_cached_##attribute);
-    ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
-#undef __ENUMERATE_ARIA_ATTRIBUTE
+    (void)visitor;
 }
 
 // https://www.w3.org/TR/wai-aria-1.2/#introroles
@@ -264,16 +262,6 @@ ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
             return;                                                                  \
         }                                                                            \
         m_##attribute = make<Vector<GC::Weak<DOM::Element>>>(value.release_value()); \
-    }                                                                                \
-                                                                                     \
-    GC::Ptr<JS::Array> ARIAMixin::cached_##attribute() const                         \
-    {                                                                                \
-        return m_cached_##attribute;                                                 \
-    }                                                                                \
-                                                                                     \
-    void ARIAMixin::set_cached_##attribute(GC::Ptr<JS::Array> value)                 \
-    {                                                                                \
-        m_cached_##attribute = value;                                                \
     }
 ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE

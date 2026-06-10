@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
@@ -16,22 +16,16 @@ GC_DEFINE_ALLOCATOR(StereoPannerNode);
 
 StereoPannerNode::~StereoPannerNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::StereoPannerOptions const& options)
-{
-    return construct_impl(realm, context, options);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-stereopannernode-stereopannernode
-WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::StereoPannerOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::create(GC::Ref<BaseAudioContext> context, StereoPannerOptions const& options)
 {
     // Create the node and allocate memory
-    auto node = realm.create<StereoPannerNode>(realm, context, options);
+    auto node = GC::Heap::the().allocate<StereoPannerNode>(context, options);
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#stereopannernode
     AudioNodeDefaultOptions default_options;
-    default_options.channel_count_mode = Bindings::ChannelCountMode::ClampedMax;
-    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    default_options.channel_count_mode = ChannelCountMode::ClampedMax;
+    default_options.channel_interpretation = ChannelInterpretation::Speakers;
     default_options.channel_count = 2;
     // FIXME: Set tail-time to no
 
@@ -39,13 +33,19 @@ WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::construct_impl(
     return node;
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-stereopannernode-stereopannernode
+WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> StereoPannerNode::create_for_constructor(GC::Ref<BaseAudioContext> context, StereoPannerOptions const& options)
+{
+    return create(context, options);
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcountmode
-WebIDL::ExceptionOr<void> StereoPannerNode::set_channel_count_mode(Bindings::ChannelCountMode mode)
+WebIDL::ExceptionOr<void> StereoPannerNode::set_channel_count_mode(ChannelCountMode mode)
 {
     // https://webaudio.github.io/web-audio-api/#audionode-channelcountmode-constraints
     // The channel count mode cannot be set to "max", and a NotSupportedError exception MUST be thrown for any attempt to set it to "max".
-    if (mode == Bindings::ChannelCountMode::Max) {
-        return WebIDL::NotSupportedError::create(realm(), "StereoPannerNode does not support 'max' as channelCountMode."_utf16);
+    if (mode == ChannelCountMode::Max) {
+        return WebIDL::NotSupportedError::create("StereoPannerNode does not support 'max' as channelCountMode."_utf16);
     }
 
     // If the mode is valid, call the base class implementation
@@ -58,22 +58,16 @@ WebIDL::ExceptionOr<void> StereoPannerNode::set_channel_count(WebIDL::UnsignedLo
     // https://webaudio.github.io/web-audio-api/#audionode-channelcount-constraints
     // The channel count cannot be greater than two, and a NotSupportedError exception MUST be thrown for any attempt to change it to a value greater than two.
     if (channel_count > 2) {
-        return WebIDL::NotSupportedError::create(realm(), "StereoPannerNode does not support channel count greater than 2"_utf16);
+        return WebIDL::NotSupportedError::create("StereoPannerNode does not support channel count greater than 2"_utf16);
     }
 
     return AudioNode::set_channel_count(channel_count);
 }
 
-StereoPannerNode::StereoPannerNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::StereoPannerOptions const& options)
-    : AudioNode(realm, context)
-    , m_pan(AudioParam::create(realm, context, options.pan, -1, 1, Bindings::AutomationRate::ARate))
+StereoPannerNode::StereoPannerNode(GC::Ref<BaseAudioContext> context, StereoPannerOptions const& options)
+    : AudioNode(context)
+    , m_pan(AudioParam::create(context, options.pan, -1, 1, AutomationRate::ARate))
 {
-}
-
-void StereoPannerNode::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StereoPannerNode);
-    Base::initialize(realm);
 }
 
 void StereoPannerNode::visit_edges(Cell::Visitor& visitor)

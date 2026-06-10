@@ -1,0 +1,7 @@
+legacy is option: <button is="x-ladybird-button"></button>
+dictionary is option: <button is="x-ladybird-button"></button>
+is plus registry error: NotSupportedError
+importNode false child count: 0
+importNode true child count: 1
+importNode selfOnly true child count: 0
+importNode selfOnly false child count: 1

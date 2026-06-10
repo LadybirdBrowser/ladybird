@@ -15,11 +15,11 @@ namespace Web::CSS {
 
 // https://www.w3.org/TR/css-conditional-3/#the-cssmediarule-interface
 class CSSMediaRule final : public CSSConditionRule {
-    WEB_PLATFORM_OBJECT(CSSMediaRule, CSSConditionRule);
+    WEB_WRAPPABLE(CSSMediaRule, CSSConditionRule);
     GC_DECLARE_ALLOCATOR(CSSMediaRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMediaRule> create(JS::Realm&, MediaList& media_queries, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSMediaRule> create(MediaList& media_queries, CSSRuleList&);
 
     virtual ~CSSMediaRule() = default;
 
@@ -39,10 +39,8 @@ public:
     bool did_evaluate() const { return m_did_evaluate; }
 
 private:
-    CSSMediaRule(JS::Realm&, MediaList&, CSSRuleList&);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    CSSMediaRule(MediaList&, CSSRuleList&);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

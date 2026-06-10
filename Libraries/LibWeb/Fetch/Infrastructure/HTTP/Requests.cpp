@@ -20,9 +20,9 @@ namespace Web::Fetch::Infrastructure {
 
 GC_DEFINE_ALLOCATOR(Request);
 
-GC::Ref<Request> Request::create(JS::VM& vm)
+GC::Ref<Request> Request::create()
 {
-    return vm.heap().allocate<Request>(HTTP::HeaderList::create());
+    return GC::Heap::the().allocate<Request>(HTTP::HeaderList::create());
 }
 
 Request::Request(NonnullRefPtr<HTTP::HeaderList> header_list)
@@ -217,10 +217,8 @@ ByteString Request::byte_serialize_origin() const
 GC::Ref<Request> Request::clone(JS::Realm& realm) const
 {
     // To clone a request request, run these steps:
-    auto& vm = realm.vm();
-
     // 1. Let newRequest be a copy of request, except for its body.
-    auto new_request = Infrastructure::Request::create(vm);
+    auto new_request = Infrastructure::Request::create();
     new_request->set_method(m_method);
     new_request->set_local_urls_only(m_local_urls_only);
     for (auto const& header : *m_header_list)

@@ -4,74 +4,69 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/Bindings/DOMQuad.h>
 #include <LibWeb/Bindings/DOMRectReadOnly.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMQuad.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::Geometry {
 
 GC_DEFINE_ALLOCATOR(DOMQuad);
 
-GC::Ref<DOMQuad> DOMQuad::construct_impl(JS::Realm& realm, Bindings::DOMPointInit const& p1, Bindings::DOMPointInit const& p2, Bindings::DOMPointInit const& p3, Bindings::DOMPointInit const& p4)
+GC::Ref<DOMQuad> DOMQuad::create()
 {
-    return realm.create<DOMQuad>(realm, p1, p2, p3, p4);
+    return GC::Heap::the().allocate<DOMQuad>(DOMPoint::create(), DOMPoint::create(), DOMPoint::create(), DOMPoint::create());
 }
 
-GC::Ref<DOMQuad> DOMQuad::create(JS::Realm& realm)
+GC::Ref<DOMQuad> DOMQuad::create(GC::Ref<DOMPoint> p1, GC::Ref<DOMPoint> p2, GC::Ref<DOMPoint> p3, GC::Ref<DOMPoint> p4)
 {
-    return realm.create<DOMQuad>(realm);
+    return GC::Heap::the().allocate<DOMQuad>(p1, p2, p3, p4);
 }
 
-DOMQuad::DOMQuad(JS::Realm& realm, Bindings::DOMPointInit const& p1, Bindings::DOMPointInit const& p2, Bindings::DOMPointInit const& p3, Bindings::DOMPointInit const& p4)
-    : PlatformObject(realm)
-    , m_p1(DOMPoint::from_point(realm.vm(), p1))
-    , m_p2(DOMPoint::from_point(realm.vm(), p2))
-    , m_p3(DOMPoint::from_point(realm.vm(), p3))
-    , m_p4(DOMPoint::from_point(realm.vm(), p4))
+static GC::Ref<DOMPoint> point_from_init(Bindings::DOMPointInit const& point)
 {
+    return DOMPoint::create(point.x, point.y, point.z, point.w);
 }
 
-DOMQuad::DOMQuad(JS::Realm& realm)
-    : PlatformObject(realm)
-    , m_p1(DOMPoint::create(realm))
-    , m_p2(DOMPoint::create(realm))
-    , m_p3(DOMPoint::create(realm))
-    , m_p4(DOMPoint::create(realm))
+static GC::Ref<DOMPoint> point_from_coordinates(double x, double y)
+{
+    return DOMPoint::create(x, y, 0, 1);
+}
+
+GC::Ref<DOMQuad> DOMQuad::create(Bindings::DOMPointInit const& p1, Bindings::DOMPointInit const& p2, Bindings::DOMPointInit const& p3, Bindings::DOMPointInit const& p4)
+{
+    return create(point_from_init(p1), point_from_init(p2), point_from_init(p3), point_from_init(p4));
+}
+
+GC::Ref<DOMQuad> DOMQuad::dom_quad_from_rect(Bindings::DOMRectInit const& other)
+{
+    return create(
+        point_from_coordinates(other.x, other.y),
+        point_from_coordinates(other.x + other.width, other.y),
+        point_from_coordinates(other.x + other.width, other.y + other.height),
+        point_from_coordinates(other.x, other.y + other.height));
+}
+
+GC::Ref<DOMQuad> DOMQuad::dom_quad_from_quad(Bindings::DOMQuadInit const& other)
+{
+    return create(
+        point_from_init(other.p1.value_or(Bindings::DOMPointInit {})),
+        point_from_init(other.p2.value_or(Bindings::DOMPointInit {})),
+        point_from_init(other.p3.value_or(Bindings::DOMPointInit {})),
+        point_from_init(other.p4.value_or(Bindings::DOMPointInit {})));
+}
+
+DOMQuad::DOMQuad(GC::Ref<DOMPoint> p1, GC::Ref<DOMPoint> p2, GC::Ref<DOMPoint> p3, GC::Ref<DOMPoint> p4)
+    : m_p1(p1)
+    , m_p2(p2)
+    , m_p3(p3)
+    , m_p4(p4)
 {
 }
 
 DOMQuad::~DOMQuad() = default;
-
-// https://drafts.fxtf.org/geometry/#dom-domquad-fromrect
-GC::Ref<DOMQuad> DOMQuad::from_rect(JS::VM& vm, Bindings::DOMRectInit const& other)
-{
-    // The fromRect(other) static method on DOMQuad must create a DOMQuad from the DOMRectInit dictionary other.
-    auto make_point = [](double x, double y) {
-        Bindings::DOMPointInit point {};
-        point.x = x;
-        point.y = y;
-        return point;
-    };
-
-    return construct_impl(*vm.current_realm(),
-        make_point(other.x, other.y),
-        make_point(other.x + other.width, other.y),
-        make_point(other.x + other.width, other.y + other.height),
-        make_point(other.x, other.y + other.height));
-}
-
-// https://drafts.fxtf.org/geometry/#dom-domquad-fromquad
-GC::Ref<DOMQuad> DOMQuad::from_quad(JS::VM& vm, Bindings::DOMQuadInit const& other)
-{
-    // The fromQuad(other) static method on DOMQuad must create a DOMQuad from the DOMQuadInit dictionary other.
-    return construct_impl(*vm.current_realm(),
-        other.p1.value_or(Bindings::DOMPointInit {}),
-        other.p2.value_or(Bindings::DOMPointInit {}),
-        other.p3.value_or(Bindings::DOMPointInit {}),
-        other.p4.value_or(Bindings::DOMPointInit {}));
-}
 
 // https://drafts.fxtf.org/geometry/#dom-domquad-getbounds
 GC::Ref<DOMRect> DOMQuad::get_bounds() const
@@ -91,7 +86,7 @@ GC::Ref<DOMRect> DOMQuad::get_bounds() const
     };
 
     // 1. Let bounds be a DOMRect object.
-    auto bounds = DOMRect::create(realm(), {});
+    auto bounds = DOMRect::create({});
 
     // 2. Let left be the NaN-safe minimum of point 1’s x coordinate, point 2’s x coordinate, point 3’s x coordinate and point 4’s x coordinate.
     auto left = nan_safe_minimum(m_p1->x(), m_p2->x(), m_p3->x(), m_p4->x());
@@ -115,35 +110,39 @@ GC::Ref<DOMRect> DOMQuad::get_bounds() const
     return bounds;
 }
 
-// https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
+void DOMQuad::visit_edges(GC::Cell::Visitor& visitor)
 {
-    auto& vm = this->vm();
+    Base::visit_edges(visitor);
+    visitor.visit(m_p1);
+    visitor.visit(m_p2);
+    visitor.visit(m_p3);
+    visitor.visit(m_p4);
+}
 
+// https://drafts.fxtf.org/geometry/#structured-serialization
+WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(JS::Realm& realm, HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
+{
     // 1. Set serialized.[[P1]] to the sub-serialization of value’s point 1.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p1, for_storage, memory)));
+    TRY(m_p1->serialization_steps(realm, serialized, for_storage, memory));
 
     // 2. Set serialized.[[P2]] to the sub-serialization of value’s point 2.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p2, for_storage, memory)));
+    TRY(m_p2->serialization_steps(realm, serialized, for_storage, memory));
 
     // 3. Set serialized.[[P3]] to the sub-serialization of value’s point 3.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p3, for_storage, memory)));
+    TRY(m_p3->serialization_steps(realm, serialized, for_storage, memory));
 
     // 4. Set serialized.[[P4]] to the sub-serialization of value’s point 4.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p4, for_storage, memory)));
+    TRY(m_p4->serialization_steps(realm, serialized, for_storage, memory));
 
     return {};
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(JS::Realm& realm, HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
 {
-    auto& vm = this->vm();
-    auto& realm = this->realm();
-
     auto deserialize_dom_point = [&](GC::Ref<DOMPoint>& storage) -> WebIDL::ExceptionOr<void> {
-        auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
-        storage = as<DOMPoint>(deserialized.as_object());
+        storage = DOMPoint::create();
+        TRY(storage->deserialization_steps(realm, serialized, memory));
         return {};
     };
 
@@ -160,21 +159,6 @@ WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(HTML::TransferDataDecod
     TRY(deserialize_dom_point(m_p4));
 
     return {};
-}
-
-void DOMQuad::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMQuad);
-    Base::initialize(realm);
-}
-
-void DOMQuad::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_p1);
-    visitor.visit(m_p2);
-    visitor.visit(m_p3);
-    visitor.visit(m_p4);
 }
 
 }

@@ -5,10 +5,11 @@
  */
 
 #include <AK/AnyOf.h>
-#include <LibWeb/Bindings/IDBDatabase.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -17,10 +18,11 @@ namespace Web::IndexedDB {
 
 GC_DEFINE_ALLOCATOR(IDBDatabase);
 
-IDBDatabase::IDBDatabase(JS::Realm& realm, Database& db)
-    : EventTarget(realm)
+IDBDatabase::IDBDatabase(GC::Ref<DOM::EventTarget> relevant_global_object, Database& db)
+    : EventTarget()
     , m_name(db.name())
     , m_associated_database(db)
+    , m_global_object(relevant_global_object)
     , m_uuid(Crypto::generate_random_uuid())
 {
     db.associate(*this);
@@ -41,15 +43,9 @@ void IDBDatabase::finalize()
     });
 }
 
-GC::Ref<IDBDatabase> IDBDatabase::create(JS::Realm& realm, Database& db)
+GC::Ref<IDBDatabase> IDBDatabase::create(GC::Ref<DOM::EventTarget> relevant_global_object, Database& db)
 {
-    return realm.create<IDBDatabase>(realm, db);
-}
-
-void IDBDatabase::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBDatabase);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<IDBDatabase>(relevant_global_object, db);
 }
 
 void IDBDatabase::visit_edges(Visitor& visitor)
@@ -57,12 +53,23 @@ void IDBDatabase::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_object_store_set);
     visitor.visit(m_associated_database);
+    visitor.visit(m_global_object);
     visitor.visit(m_transactions);
 
     for (auto& wait : m_pending_transaction_waits) {
         visitor.visit(wait.transactions);
         visitor.visit(wait.callback);
     }
+}
+
+HTML::WindowOrWorkerGlobalScopeMixin& IDBDatabase::relevant_global_scope() const
+{
+    return HTML::relevant_window_or_worker_global_scope(*m_global_object);
+}
+
+JS::Object& IDBDatabase::relevant_global_object() const
+{
+    return HTML::relevant_global_object(relevant_global_scope());
 }
 
 void IDBDatabase::set_onabort(WebIDL::CallbackType* event_handler)
@@ -113,21 +120,19 @@ void IDBDatabase::close()
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-createobjectstore
-WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(String const& name, Bindings::IDBObjectStoreParameters const& options)
+WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(String const& name, ObjectStoreParameters const& options)
 {
-    auto& realm = this->realm();
-
     // 1. Let database be this's associated database.
     auto database = associated_database();
 
     // 2. Let transaction be database’s upgrade transaction if it is not null, or throw an "InvalidStateError" DOMException otherwise.
     auto transaction = database->upgrade_transaction();
     if (!transaction)
-        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is null"_utf16);
+        return WebIDL::InvalidStateError::create("Upgrade transaction is null"_utf16);
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while creating object store"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while creating object store"_utf16);
 
     // 4. Let keyPath be options’s keyPath member if it is not undefined or null, or null otherwise.
     auto const& nullable_key_path = options.key_path;
@@ -137,11 +142,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
 
     // 5. If keyPath is not null and is not a valid key path, throw a "SyntaxError" DOMException.
     if (key_path.has_value() && !is_valid_key_path(key_path.value()))
-        return WebIDL::SyntaxError::create(realm, "Invalid key path"_utf16);
+        return WebIDL::SyntaxError::create("Invalid key path"_utf16);
 
     // 6. If an object store named name already exists in database throw a "ConstraintError" DOMException.
     if (database->object_store_with_name(name))
-        return WebIDL::ConstraintError::create(realm, "Object store already exists"_utf16);
+        return WebIDL::ConstraintError::create("Object store already exists"_utf16);
 
     // 7. Let autoIncrement be options’s autoIncrement member.
     auto auto_increment = options.auto_increment;
@@ -150,13 +155,13 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
 
     // 8. If autoIncrement is true and keyPath is an empty string or any sequence (empty or otherwise), throw an "InvalidAccessError" DOMException.
     if (auto_increment && is_empty_key_path_or_sequence)
-        return WebIDL::InvalidAccessError::create(realm, "Auto increment is true and key path is empty or sequence"_utf16);
+        return WebIDL::InvalidAccessError::create("Auto increment is true and key path is empty or sequence"_utf16);
 
     // 9. Let store be a new object store in database.
     //    Set the created object store's name to name.
     //    If autoIncrement is true, then the created object store uses a key generator.
     //    If keyPath is not null, set the created object store's key path to keyPath.
-    auto object_store = ObjectStore::create(realm, database, name, auto_increment, key_path);
+    auto object_store = ObjectStore::create(database, name, auto_increment, key_path);
 
     // AD-HOC: Add newly created object store to this's object store set.
     add_to_object_store_set(object_store);
@@ -178,30 +183,28 @@ GC::Ref<HTML::DOMStringList> IDBDatabase::object_store_names()
         names.append(object_store->name());
 
     // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
-    return create_a_sorted_name_list(realm(), names);
+    return create_a_sorted_name_list(names);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-deleteobjectstore
 WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
 {
-    auto& realm = this->realm();
-
     // 1. Let database be this's associated database.
     auto database = associated_database();
 
     // 2. Let transaction be database’s upgrade transaction if it is not null, or throw an "InvalidStateError" DOMException otherwise.
     auto transaction = database->upgrade_transaction();
     if (!transaction)
-        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is null"_utf16);
+        return WebIDL::InvalidStateError::create("Upgrade transaction is null"_utf16);
 
     // 3. If transaction’s state is not active, then throw a "TransactionInactiveError" DOMException.
     if (!transaction->is_active())
-        return WebIDL::TransactionInactiveError::create(realm, "Transaction is not active while deleting object store"_utf16);
+        return WebIDL::TransactionInactiveError::create("Transaction is not active while deleting object store"_utf16);
 
     // 4. Let store be the object store named name in database, or throw a "NotFoundError" DOMException if none.
     auto store = database->object_store_with_name(name);
     if (!store)
-        return WebIDL::NotFoundError::create(realm, "Object store not found while trying to delete"_utf16);
+        return WebIDL::NotFoundError::create("Object store not found while trying to delete"_utf16);
 
     // 5. Remove store from this's object store set.
     this->remove_from_object_store_set(*store);
@@ -229,18 +232,16 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-transaction
-WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<String, Vector<String>> store_names, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionOptions options)
+WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<String, Vector<String>> store_names, TransactionMode mode, TransactionOptions options)
 {
-    auto& realm = this->realm();
-
     // 1. If a live upgrade transaction is associated with the connection, throw an "InvalidStateError" DOMException.
     auto database = associated_database();
     if (database->upgrade_transaction())
-        return WebIDL::InvalidStateError::create(realm, "Upgrade transaction is live"_utf16);
+        return WebIDL::InvalidStateError::create("Upgrade transaction is live"_utf16);
 
     // 2. If this's close pending flag is true, then throw an "InvalidStateError" DOMException.
     if (close_pending())
-        return WebIDL::InvalidStateError::create(realm, "Close pending"_utf16);
+        return WebIDL::InvalidStateError::create("Close pending"_utf16);
 
     // 3. Let scope be the set of unique strings in storeNames if it is a sequence, or a set containing one string equal to storeNames otherwise.
     Vector<String> scope;
@@ -253,15 +254,15 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
     // 4. If any string in scope is not the name of an object store in the connected database, throw a "NotFoundError" DOMException.
     for (auto const& store_name : scope) {
         if (!database->object_store_with_name(store_name))
-            return WebIDL::NotFoundError::create(realm, "Provided object store names does not exist in database"_utf16);
+            return WebIDL::NotFoundError::create("Provided object store names does not exist in database"_utf16);
     }
 
     // 5. If scope is empty, throw an "InvalidAccessError" DOMException.
     if (scope.is_empty())
-        return WebIDL::InvalidAccessError::create(realm, "Scope is empty"_utf16);
+        return WebIDL::InvalidAccessError::create("Scope is empty"_utf16);
 
     // 6. If mode is not "readonly" or "readwrite", throw a TypeError.
-    if (mode != Bindings::IDBTransactionMode::Readonly && mode != Bindings::IDBTransactionMode::Readwrite)
+    if (mode != TransactionMode::Readonly && mode != TransactionMode::Readwrite)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid transaction mode"_string };
 
     // 7. Let transaction be a newly created transaction with this connection, mode, options’ durability member, and the set of object stores named in scope.
@@ -271,12 +272,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
         scope_stores.append(*store);
     }
 
-    auto transaction = IDBTransaction::create(realm, *this, mode, options.durability, scope_stores);
+    auto transaction = IDBTransaction::create(*this, mode, options.durability, scope_stores);
 
     // 8. Set transaction’s cleanup event loop to the current event loop.
     transaction->set_cleanup_event_loop(HTML::main_thread_event_loop());
 
-    block_on_conflicting_transactions(transaction);
+    block_on_conflicting_transactions(HTML::relevant_realm(relevant_global_object()), transaction);
 
     // 9. Return an IDBTransaction object representing transaction.
     return transaction;
@@ -331,7 +332,7 @@ void IDBDatabase::check_pending_transaction_waits()
 }
 
 // https://w3c.github.io/IndexedDB/#transaction-scheduling
-void IDBDatabase::block_on_conflicting_transactions(GC::Ref<IDBTransaction> transaction)
+void IDBDatabase::block_on_conflicting_transactions(JS::Realm& realm, GC::Ref<IDBTransaction> transaction)
 {
     // The following constraints define when a transaction can be started:
 
@@ -369,7 +370,7 @@ void IDBDatabase::block_on_conflicting_transactions(GC::Ref<IDBTransaction> tran
     }
 
     transaction->request_list().block_execution();
-    wait_for_transactions_to_finish(blocking, GC::create_function(realm().heap(), [transaction] {
+    wait_for_transactions_to_finish(blocking, GC::create_function(GC::Heap::the(), [&realm, transaction] {
         VERIFY(transaction->state() != IDBTransaction::TransactionState::Active);
         if (transaction->request_list().is_empty()) {
             // https://w3c.github.io/IndexedDB/#transaction-commit
@@ -383,7 +384,7 @@ void IDBDatabase::block_on_conflicting_transactions(GC::Ref<IDBTransaction> tran
 
             // FIXME: Update if this becomes explicit:
             //        https://github.com/w3c/IndexedDB/issues/489#issuecomment-3994928473
-            commit_a_transaction(transaction->realm(), transaction);
+            commit_a_transaction(realm, transaction);
             return;
         }
         if (!transaction->is_readonly())

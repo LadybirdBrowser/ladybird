@@ -6,13 +6,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/YUVData.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/VideoFrame.h>
-#include <LibWeb/Bindings/HTMLVideoElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -23,9 +22,12 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/AudioTrackList.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/VideoBox.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
@@ -34,18 +36,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLVideoElement);
 
+static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, FlyString const& event_name)
+{
+    return DOM::Event::create(event_name, HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));
+}
+
 HTMLVideoElement::HTMLVideoElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLMediaElement(document, move(qualified_name))
 {
 }
 
 HTMLVideoElement::~HTMLVideoElement() = default;
-
-void HTMLVideoElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLVideoElement);
-    Base::initialize(realm);
-}
 
 void HTMLVideoElement::finalize()
 {
@@ -99,7 +100,7 @@ void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> d
     if (dimensions.has_value()) {
         // the user agent must queue a media element task given the media element to fire an event named resize at the media element.
         queue_a_media_element_task([this] {
-            dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::resize));
+            dispatch_event(create_event_for_element(*this, HTML::EventNames::resize));
         });
     }
 
@@ -192,9 +193,7 @@ Optional<CSSPixelSize> HTMLVideoElement::natural_element_size() const
 // https://html.spec.whatwg.org/multipage/media.html#attr-video-poster
 WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optional<String> const& poster)
 {
-    auto& realm = this->realm();
-    auto& vm = realm.vm();
-
+    auto& realm = HTML::relevant_realm(*this);
     // 1. If there is an existing instance of this algorithm running for this video element, abort that instance of
     //    this algorithm without changing the poster frame.
     if (m_fetch_controller)
@@ -226,7 +225,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     // 5. Let request be a new request whose URL is the resulting URL record, client is the element's node document's
     //    relevant settings object, destination is "image", initiator type is "video", credentials mode is "include",
     //    and whose use-URL-credentials flag is set.
-    auto request = Fetch::Infrastructure::Request::create(vm);
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url_record.release_value());
     request->set_client(&document().relevant_settings_object());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
@@ -243,8 +242,8 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
         if (!weak_self)
             return;
         auto& self = *weak_self;
-        auto& realm = self.realm();
-        auto& global = self.document().realm().global_object();
+        auto& realm = HTML::relevant_realm(self);
+        auto& global = self.document().relevant_settings_object().realm().global_object();
 
         if (response->is_network_error()) {
             finalize(self, nullptr);
@@ -256,7 +255,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
             response = filtered_response.internal_response();
         }
 
-        auto on_image_data_read = GC::create_function(self.heap(), [weak_self](ByteBuffer image_data) {
+        auto on_image_data_read = GC::create_function(GC::Heap::the(), [weak_self](ByteBuffer image_data) {
             if (!weak_self)
                 return;
             // 6. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
@@ -279,7 +278,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
         });
 
         VERIFY(response->body());
-        auto on_body_read_error = GC::create_function(self.heap(), [weak_self](JS::Value) {
+        auto on_body_read_error = GC::create_function(GC::Heap::the(), [weak_self](JS::Value) {
             if (!weak_self)
                 return;
             finalize(*weak_self, nullptr);
@@ -288,7 +287,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
         response->body()->fully_read(realm, on_image_data_read, on_body_read_error, GC::Ref { global });
     };
 
-    m_fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+    m_fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 
     return {};
 }

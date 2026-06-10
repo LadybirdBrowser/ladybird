@@ -24,8 +24,8 @@ class PendingResponse : public JS::Cell {
 public:
     using Callback = Function<void(GC::Ref<Infrastructure::Response>)>;
 
-    [[nodiscard]] static GC::Ref<PendingResponse> create(JS::VM&, GC::Ref<Infrastructure::Request>);
-    [[nodiscard]] static GC::Ref<PendingResponse> create(JS::VM&, GC::Ref<Infrastructure::Request>, GC::Ref<Infrastructure::Response>);
+    [[nodiscard]] static GC::Ref<PendingResponse> create(GC::Ref<Infrastructure::Request>);
+    [[nodiscard]] static GC::Ref<PendingResponse> create(GC::Ref<Infrastructure::Request>, GC::Ref<Infrastructure::Response>);
 
     void when_loaded(Callback);
     void resolve(GC::Ref<Infrastructure::Response>);

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -44,7 +45,7 @@ JS::ThrowCompletionOr<GC::Ptr<CallbackType>> property_to_callback(JS::VM& vm, JS
     if (!property.is_function())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, property);
 
-    return vm.heap().allocate<CallbackType>(property.as_object(), HTML::incumbent_realm(), operation_returns_promise);
+    return GC::Heap::the().allocate<CallbackType>(property.as_object(), HTML::incumbent_realm(), operation_returns_promise);
 }
 
 }

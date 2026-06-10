@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class HTMLHeadingElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLHeadingElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLHeadingElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLHeadingElement);
 
 public:
@@ -40,8 +40,6 @@ private:
     HTMLHeadingElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_heading_element() const final { return true; }
-
-    virtual void initialize(JS::Realm&) override;
 
     mutable WebIDL::UnsignedLong m_cached_heading_level { 0 };
     mutable u64 m_dom_tree_version_for_cached_heading_level { 0 };

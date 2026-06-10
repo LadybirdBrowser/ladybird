@@ -6,24 +6,23 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/Extensions/WebGLExtension.h>
 
 namespace Web::WebGL {
 
-class EXTTextureNorm16 : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(EXTTextureNorm16, Bindings::PlatformObject);
+class EXTTextureNorm16 : public WebGLExtension {
+    WEB_WRAPPABLE(EXTTextureNorm16, WebGLExtension);
     GC_DECLARE_ALLOCATOR(EXTTextureNorm16);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<WebGLExtension> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
-    void initialize(JS::Realm&) override;
-    void visit_edges(Visitor&) override;
+    void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    EXTTextureNorm16(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    EXTTextureNorm16(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

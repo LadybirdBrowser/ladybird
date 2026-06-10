@@ -9,9 +9,8 @@
 
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
+#include <LibGC/Heap.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/DOMURL.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
@@ -20,9 +19,9 @@ namespace Web::DOMURL {
 
 GC_DEFINE_ALLOCATOR(DOMURL);
 
-GC::Ref<DOMURL> DOMURL::create(JS::Realm& realm, URL::URL url, GC::Ref<URLSearchParams> query)
+GC::Ref<DOMURL> DOMURL::create(URL::URL url, GC::Ref<URLSearchParams> query)
 {
-    return realm.create<DOMURL>(realm, move(url), query);
+    return GC::Heap::the().allocate<DOMURL>(move(url), query);
 }
 
 // https://url.spec.whatwg.org/#api-url-parser
@@ -48,17 +47,17 @@ static Optional<URL::URL> parse_api_url(String const& url, Optional<String> cons
 }
 
 // https://url.spec.whatwg.org/#url-initialize
-GC::Ref<DOMURL> DOMURL::initialize_a_url(JS::Realm& realm, URL::URL const& url_record)
+GC::Ref<DOMURL> DOMURL::initialize_a_url(URL::URL const& url_record)
 {
     // 1. Let query be urlRecord’s query, if that is non-null; otherwise the empty string.
     auto query = url_record.query().value_or(String {});
 
     // 2. Set url’s URL to urlRecord.
     // 3. Set url’s query object to a new URLSearchParams object.
-    auto query_object = URLSearchParams::create(realm, query);
+    auto query_object = URLSearchParams::create(query);
 
     // 4. Initialize url’s query object with query.
-    auto result_url = DOMURL::create(realm, url_record, move(query_object));
+    auto result_url = DOMURL::create(url_record, move(query_object));
 
     // 5. Set url’s query object’s URL object to url.
     result_url->m_query->m_url = result_url;
@@ -67,10 +66,8 @@ GC::Ref<DOMURL> DOMURL::initialize_a_url(JS::Realm& realm, URL::URL const& url_r
 }
 
 // https://url.spec.whatwg.org/#dom-url-parse
-GC::Ptr<DOMURL> DOMURL::parse_for_bindings(JS::VM& vm, String const& url, Optional<String> const& base)
+GC::Ptr<DOMURL> DOMURL::parse_for_bindings(String const& url, Optional<String> const& base)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
     auto parsed_url = parse_api_url(url, base);
 
@@ -81,11 +78,11 @@ GC::Ptr<DOMURL> DOMURL::parse_for_bindings(JS::VM& vm, String const& url, Option
     // 3. Let url be a new URL object.
     // 4. Initialize url with parsedURL.
     // 5. Return url.
-    return initialize_a_url(realm, parsed_url.value());
+    return initialize_a_url(parsed_url.value());
 }
 
 // https://url.spec.whatwg.org/#dom-url-url
-WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(JS::Realm& realm, String const& url, Optional<String> const& base)
+WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::create_from_url(String const& url, Optional<String> const& base)
 {
     // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
     auto parsed_url = parse_api_url(url, base);
@@ -95,39 +92,32 @@ WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(JS::Realm& realm, St
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid URL"sv };
 
     // 3. Initialize this with parsedURL.
-    return initialize_a_url(realm, parsed_url.value());
+    return initialize_a_url(parsed_url.value());
 }
 
-DOMURL::DOMURL(JS::Realm& realm, URL::URL url, GC::Ref<URLSearchParams> query)
-    : PlatformObject(realm)
-    , m_url(move(url))
+DOMURL::DOMURL(URL::URL url, GC::Ref<URLSearchParams> query)
+    : m_url(move(url))
     , m_query(move(query))
 {
 }
 
 DOMURL::~DOMURL() = default;
 
-void DOMURL::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(DOMURL, URL);
-    Base::initialize(realm);
-}
-
-void DOMURL::visit_edges(Cell::Visitor& visitor)
+void DOMURL::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_query);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-createObjectURL
-WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(JS::VM& vm, FileAPI::BlobURLEntry::Object object)
+WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(FileAPI::BlobURLEntry::Object object)
 {
     // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for obj.
-    return TRY_OR_THROW_OOM(vm, FileAPI::add_entry_to_blob_url_store(object));
+    return TRY_OR_THROW_OOM(JS::VM::the(), FileAPI::add_entry_to_blob_url_store(object));
 }
 
 // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL
-void DOMURL::revoke_object_url(JS::VM&, StringView url)
+void DOMURL::revoke_object_url(StringView url)
 {
     // 1. Let url record be the result of parsing url.
     auto url_record = parse(url);
@@ -160,7 +150,7 @@ void DOMURL::revoke_object_url(JS::VM&, StringView url)
 }
 
 // https://url.spec.whatwg.org/#dom-url-canparse
-bool DOMURL::can_parse(JS::VM&, String const& url, Optional<String> const& base)
+bool DOMURL::can_parse(String const& url, Optional<String> const& base)
 {
     // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
     auto parsed_url = parse_api_url(url, base);

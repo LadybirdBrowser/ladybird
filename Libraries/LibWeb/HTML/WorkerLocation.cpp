@@ -5,7 +5,6 @@
  */
 
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/WorkerLocation.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerLocation.h>
 
@@ -121,21 +120,13 @@ String WorkerLocation::hash() const
 }
 
 WorkerLocation::WorkerLocation(WorkerGlobalScope& global_scope)
-    : PlatformObject(global_scope.realm())
-    , m_global_scope(global_scope)
+    : m_global_scope(global_scope)
 {
-    // FIXME: Set prototype once we can get to worker scope prototypes.
 }
 
 WorkerLocation::~WorkerLocation() = default;
 
-void WorkerLocation::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WorkerLocation);
-    Base::initialize(realm);
-}
-
-void WorkerLocation::visit_edges(Cell::Visitor& visitor)
+void WorkerLocation::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_global_scope);

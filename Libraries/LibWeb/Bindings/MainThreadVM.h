@@ -10,12 +10,12 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
+#include <LibWeb/HTML/WorkerTypes.h>
 
 namespace Web::Bindings {
 
@@ -34,11 +34,9 @@ struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData
 
 HTML::Script* active_script();
 
-WEB_API void initialize_main_thread_vm(AgentType);
+WEB_API void initialize_main_thread_vm(HTML::AgentType);
 WEB_API JS::VM& main_thread_vm();
 
-void queue_mutation_observer_microtask();
 WEB_API NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM&, Function<JS::Object*(JS::Realm&)> create_global_object, Function<JS::Object*(JS::Realm&)> create_global_this_value);
-WEB_API void invoke_custom_element_reactions(Vector<GC::Weak<DOM::Element>>& element_queue);
 
 }

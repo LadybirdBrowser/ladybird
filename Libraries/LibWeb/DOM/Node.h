@@ -13,7 +13,6 @@
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
@@ -38,6 +37,12 @@ class StyleScope;
 
 }
 
+namespace Web::Bindings {
+
+struct GetRootNodeOptions;
+
+}
+
 namespace Web::DOM {
 
 enum class NameOrDescription {
@@ -51,6 +56,11 @@ enum class IsDescendant {
 };
 
 enum class ShouldComputeRole {
+    No,
+    Yes,
+};
+
+enum class RootNodeComposed {
     No,
     Yes,
 };
@@ -108,7 +118,7 @@ enum class SetNeedsLayoutTreeUpdateReason {
 
 class WEB_API Node : public EventTarget
     , public TreeNode<Node> {
-    WEB_PLATFORM_OBJECT(Node, EventTarget);
+    WEB_WRAPPABLE(Node, EventTarget);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
@@ -242,7 +252,7 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(GC::Ptr<Document> document = nullptr, bool subtree = false, GC::Ptr<Node> parent = nullptr, GC::Ptr<HTML::CustomElementRegistry> fallback_registry = nullptr) const;
     WebIDL::ExceptionOr<GC::Ref<Node>> clone_single_node(Document&, GC::Ptr<HTML::CustomElementRegistry> fallback_registry) const;
-    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node_binding(bool subtree);
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(bool subtree);
 
     WebIDL::ExceptionOr<void> move_node(Node& new_parent, Node* child);
 
@@ -391,7 +401,7 @@ public:
     template<typename T>
     T const* fast_as() const = delete;
 
-    WebIDL::ExceptionOr<void> ensure_pre_insertion_validity(JS::Realm&, GC::Ref<Node> node, GC::Ptr<Node> child) const;
+    WebIDL::ExceptionOr<void> ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child) const;
 
     bool is_host_including_inclusive_ancestor_of(Node const&) const;
 
@@ -420,7 +430,8 @@ public:
     bool is_same_node(Node const*) const;
     bool is_equal_node(Node const*) const;
 
-    GC::Ref<Node> get_root_node(Bindings::GetRootNodeOptions const& options = {});
+    GC::Ref<Node> get_root_node(RootNodeComposed = RootNodeComposed::No);
+    GC::Ref<Node> get_root_node(Bindings::GetRootNodeOptions const&);
 
     bool is_uninteresting_whitespace_node() const;
 
@@ -497,7 +508,6 @@ public:
     }
 
 protected:
-    Node(JS::Realm&, Document&, NodeType);
     Node(Document&, NodeType);
 
     void set_document(Document&);
@@ -546,6 +556,3 @@ private:
 };
 
 }
-
-template<>
-inline bool JS::Object::fast_is<Web::DOM::Node>() const { return is_dom_node(); }

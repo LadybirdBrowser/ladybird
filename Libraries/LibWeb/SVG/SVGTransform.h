@@ -7,18 +7,18 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::SVG {
 
 // FIXME: This class is just a stub.
 // https://svgwg.org/svg2-draft/single-page.html#coords-InterfaceSVGTransform
-class SVGTransform final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGTransform, Bindings::PlatformObject);
+class SVGTransform final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGTransform, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGTransform);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGTransform> create(JS::Realm& realm);
+    [[nodiscard]] static GC::Ref<SVGTransform> create();
     virtual ~SVGTransform() override;
 
     enum class Type : u16 {
@@ -41,9 +41,7 @@ public:
     void set_skew_y(float angle);
 
 private:
-    SVGTransform(JS::Realm& realm);
-
-    virtual void initialize(JS::Realm& realm) override;
+    SVGTransform();
 };
 
 }

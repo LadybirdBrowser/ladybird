@@ -13,7 +13,7 @@
 namespace Web::CSS {
 
 class CSSConditionRule : public CSSGroupingRule {
-    WEB_PLATFORM_OBJECT(CSSConditionRule, CSSGroupingRule);
+    WEB_WRAPPABLE(CSSConditionRule, CSSGroupingRule);
 
 public:
     virtual ~CSSConditionRule() = default;
@@ -24,9 +24,7 @@ public:
     virtual void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const override;
 
 protected:
-    CSSConditionRule(JS::Realm&, CSSRuleList&, Type);
-
-    virtual void initialize(JS::Realm&) override;
+    CSSConditionRule(CSSRuleList&, Type);
 };
 
 }

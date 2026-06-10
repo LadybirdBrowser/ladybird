@@ -4,24 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TimeRanges.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/TimeRanges.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TimeRanges);
 
-TimeRanges::TimeRanges(JS::Realm& realm)
-    : Base(realm)
+GC::Ref<TimeRanges> TimeRanges::create()
 {
+    return GC::Heap::the().allocate<TimeRanges>();
 }
 
-void TimeRanges::initialize(JS::Realm& realm)
+TimeRanges::TimeRanges()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TimeRanges);
-    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-timeranges-length
@@ -35,7 +31,7 @@ WebIDL::ExceptionOr<double> TimeRanges::start(u32 index) const
 {
     // These methods must throw "IndexSizeError" DOMExceptions if called with an index argument greater than or equal to the number of ranges represented by the object.
     if (index >= m_ranges.size())
-        return WebIDL::IndexSizeError::create(realm(), "Index argument is greater than or equal to the number of ranges represented by this TimeRanges object"_utf16);
+        return WebIDL::IndexSizeError::create("Index argument is greater than or equal to the number of ranges represented by this TimeRanges object"_utf16);
 
     // The start(index) method must return the position of the start of the indexth range represented by the object,
     // in seconds measured from the start of the timeline that the object covers.
@@ -47,7 +43,7 @@ WebIDL::ExceptionOr<double> TimeRanges::end(u32 index) const
 {
     // These methods must throw "IndexSizeError" DOMExceptions if called with an index argument greater than or equal to the number of ranges represented by the object.
     if (index >= m_ranges.size())
-        return WebIDL::IndexSizeError::create(realm(), "Index argument is greater than or equal to the number of ranges represented by this TimeRanges object"_utf16);
+        return WebIDL::IndexSizeError::create("Index argument is greater than or equal to the number of ranges represented by this TimeRanges object"_utf16);
 
     // The end(index) method must return the position of the end of the indexth range represented by the object,
     // in seconds measured from the start of the timeline that the object covers.

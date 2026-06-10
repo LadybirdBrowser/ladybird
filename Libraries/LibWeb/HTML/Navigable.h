@@ -14,7 +14,6 @@
 #include <AK/Tuple.h>
 #include <LibCore/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
@@ -172,7 +171,7 @@ public:
         Variant<Empty, String, POSTResource> document_resource = Empty {};
         GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
         bool exceptions_enabled = false;
-        Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto;
+        NavigationHistoryBehavior history_handling = NavigationHistoryBehavior::Auto;
         Optional<SerializationRecord> navigation_api_state = {};
         Optional<Vector<XHR::FormDataEntry>> form_data_entry_list = {};
         ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
@@ -275,8 +274,8 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position);
+    void scroll_viewport_by_delta(CSSPixelPoint delta, GC::Ptr<WebIDL::Promise>);
+    void perform_a_scroll_of_the_viewport(CSSPixelPoint position, GC::Ptr<WebIDL::Promise>);
     void reset_zoom();
 
 protected:

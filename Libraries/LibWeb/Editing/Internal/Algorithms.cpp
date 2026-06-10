@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/Color.h>
-#include <LibWeb/Bindings/Document.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -1545,7 +1544,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     if (!values_are_loosely_equivalent(command, effective_command_value(new_parent, command), new_value)) {
         auto const& command_definition = find_command_definition(command);
         if (command_definition->relevant_css_property.has_value()) {
-            auto inline_style = new_parent->style_for_bindings();
+            auto inline_style = new_parent->style();
             MUST(inline_style->set_property(command_definition->relevant_css_property.value(), new_value.value().to_utf8_but_should_be_ported_to_utf16()));
         }
     }
@@ -1555,7 +1554,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     //     "line-through".
     if (command == CommandNames::strikethrough && new_value == "line-through"sv
         && effective_command_value(new_parent, command) != "line-through"sv) {
-        auto inline_style = new_parent->style_for_bindings();
+        auto inline_style = new_parent->style();
         MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "line-through"sv));
     }
 
@@ -1563,7 +1562,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     //     new parent is not "underline", set the "text-decoration" property of new parent to "underline".
     if (command == CommandNames::underline && new_value == "underline"sv
         && effective_command_value(new_parent, command) != "underline"sv) {
-        auto inline_style = new_parent->style_for_bindings();
+        auto inline_style = new_parent->style();
         MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "underline"sv));
     }
 
@@ -2636,7 +2635,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
             element->remove_attribute_ns(Namespace::HTML, HTML::AttributeNames::align);
 
         // 2. Unset the CSS property "text-align" on element, if it's set by a style attribute.
-        auto inline_style = element->style_for_bindings();
+        auto inline_style = element->style();
         MUST(inline_style->remove_property(CSS::PropertyID::TextAlign));
 
         // 3. If element is a div or span or center with no attributes, remove it, preserving its descendants.
@@ -2723,7 +2722,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
             },
             [&] {
                 auto div = MUST(DOM::create_element(document, HTML::TagNames::div, Namespace::HTML));
-                auto inline_style = div->style_for_bindings();
+                auto inline_style = div->style();
                 MUST(inline_style->set_property(CSS::PropertyID::TextAlign, alignment_keyword));
                 return div;
             });
@@ -3787,7 +3786,7 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, FlyString 
         return element;
 
     // 3. Let replacement element be the result of calling createElement(new name) on the ownerDocument of element.
-    auto replacement_element = MUST(element->owner_document()->create_element(new_name.to_string(), Bindings::ElementCreationOptions {}));
+    auto replacement_element = MUST(element->owner_document()->create_element(new_name.to_string(), DOM::Document::ElementCreationOptions {}));
 
     // 4. Insert replacement element into element's parent immediately before element.
     element->parent()->insert_before(replacement_element, element);
@@ -4724,7 +4723,7 @@ RefPtr<CSS::StyleValue const> resolved_value(GC::Ref<DOM::Node> node, CSS::Prope
         return {};
 
     // Retrieve resolved style value
-    auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style(element->realm(), DOM::AbstractElement { static_cast<DOM::Element&>(*element) });
+    auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style(DOM::AbstractElement { static_cast<DOM::Element&>(*element) });
     auto optional_style_property = resolved_css_style_declaration->get_property(property_id);
     if (!optional_style_property.has_value())
         return {};

@@ -5,37 +5,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
-#include <LibWeb/Bindings/AnimationPlaybackEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 
 namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(AnimationPlaybackEvent);
 
-GC::Ref<AnimationPlaybackEvent> AnimationPlaybackEvent::create(JS::Realm& realm, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init)
+GC::Ref<AnimationPlaybackEvent> AnimationPlaybackEvent::create(FlyString const& type, AnimationPlaybackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<AnimationPlaybackEvent>(realm, type, event_init);
+    return GC::Heap::the().allocate<AnimationPlaybackEvent>(type, event_init, time_stamp);
 }
 
-// https://www.w3.org/TR/web-animations-1/#dom-animationplaybackevent-animationplaybackevent
-WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> AnimationPlaybackEvent::construct_impl(JS::Realm& realm, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init)
+GC::Ref<AnimationPlaybackEvent> AnimationPlaybackEvent::create(FlyString const& type, NullableCSSNumberish current_time, NullableCSSNumberish timeline_time, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return create(realm, type, event_init);
+    AnimationPlaybackEventInit event_init;
+    event_init.current_time = move(current_time);
+    event_init.timeline_time = move(timeline_time);
+    return create(type, event_init, time_stamp);
 }
 
-AnimationPlaybackEvent::AnimationPlaybackEvent(JS::Realm& realm, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init)
-    : DOM::Event(realm, type, event_init)
+AnimationPlaybackEvent::AnimationPlaybackEvent(FlyString const& type, AnimationPlaybackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(type, event_init, time_stamp)
     , m_current_time(event_init.current_time)
     , m_timeline_time(event_init.timeline_time)
 {
-}
-
-void AnimationPlaybackEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationPlaybackEvent);
-    Base::initialize(realm);
 }
 
 void AnimationPlaybackEvent::visit_edges(Visitor& visitor)

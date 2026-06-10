@@ -9,7 +9,6 @@
 
 #include "StyleValueList.h"
 #include <LibGC/RootVector.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSTransformComponent.h>
 #include <LibWeb/CSS/CSSTransformValue.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
@@ -106,11 +105,11 @@ Vector<Parser::ComponentValue> StyleValueList::tokenize() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-list
-static GC::Ptr<CSSStyleValue> reify_a_transform_list(JS::Realm& realm, StyleValueVector const& values)
+static GC::Ptr<CSSStyleValue> reify_a_transform_list(StyleValueVector const& values)
 {
     GC::RootVector<GC::Ref<CSSTransformComponent>> transform_components;
     for (auto const& transform : values) {
-        auto reified_transform = transform->as_transformation().reify_a_transform_function(realm);
+        auto reified_transform = transform->as_transformation().reify_a_transform_function();
 
         if (!reified_transform)
             return nullptr;
@@ -118,20 +117,20 @@ static GC::Ptr<CSSStyleValue> reify_a_transform_list(JS::Realm& realm, StyleValu
         // NB: Not all transform functions are reifiable, in which case we give up reifying as a transform list.
         transform_components.append(reified_transform.as_nonnull());
     }
-    return CSSTransformValue::create(realm, move(transform_components));
+    return CSSTransformValue::create(move(transform_components));
 }
 
-GC::Ref<CSSStyleValue> StyleValueList::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> StyleValueList::reify(Utf16FlyString const& associated_property) const
 {
     // NB: <transform-list> is a StyleValueList that contains TransformStyleValues. If that's what we are, follow the
     //     steps for reifying that.
     if (all_of(m_properties.values, [](auto const& it) { return it->is_transformation(); })) {
-        if (auto transform_list = reify_a_transform_list(realm, m_properties.values))
+        if (auto transform_list = reify_a_transform_list(m_properties.values))
             return transform_list.as_nonnull();
     }
 
     // NB: Otherwise, there isn't an equivalent CSSStyleValue for StyleValueList, so just use the default.
-    return Base::reify(realm, associated_property);
+    return Base::reify(associated_property);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations

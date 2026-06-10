@@ -4,36 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLContextEvent.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
 
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLContextEvent);
 
-GC::Ref<WebGLContextEvent> WebGLContextEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::WebGLContextEventInit const& event_init)
+GC::Ref<WebGLContextEvent> WebGLContextEvent::create(FlyString const& event_name, WebGLContextEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<WebGLContextEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<WebGLContextEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<WebGLContextEvent>> WebGLContextEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::WebGLContextEventInit const& event_init)
-{
-    return create(realm, event_name, event_init);
-}
-
-WebGLContextEvent::WebGLContextEvent(JS::Realm& realm, FlyString const& type, Bindings::WebGLContextEventInit const& event_init)
-    : DOM::Event(realm, type, event_init)
+WebGLContextEvent::WebGLContextEvent(FlyString const& type, WebGLContextEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(type, event_init, time_stamp)
     , m_status_message(event_init.status_message)
 {
 }
 
 WebGLContextEvent::~WebGLContextEvent() = default;
-
-void WebGLContextEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLContextEvent);
-    Base::initialize(realm);
-}
 
 }

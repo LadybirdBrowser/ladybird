@@ -4,34 +4,27 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/OfflineAudioCompletionEvent.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebAudio/OfflineAudioCompletionEvent.h>
 
 namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(OfflineAudioCompletionEvent);
 
-WebIDL::ExceptionOr<GC::Ref<OfflineAudioCompletionEvent>> OfflineAudioCompletionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const& event_init)
+GC::Ref<OfflineAudioCompletionEvent> OfflineAudioCompletionEvent::create(FlyString const& event_name, OfflineAudioCompletionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<OfflineAudioCompletionEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<OfflineAudioCompletionEvent>(event_name, event_init, time_stamp);
 }
 
-OfflineAudioCompletionEvent::OfflineAudioCompletionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+OfflineAudioCompletionEvent::OfflineAudioCompletionEvent(FlyString const& event_name, OfflineAudioCompletionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_rendered_buffer(event_init.rendered_buffer)
 {
 }
 
 OfflineAudioCompletionEvent::~OfflineAudioCompletionEvent() = default;
 
-void OfflineAudioCompletionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(OfflineAudioCompletionEvent);
-    Base::initialize(realm);
-}
-
-void OfflineAudioCompletionEvent::visit_edges(Cell::Visitor& visitor)
+void OfflineAudioCompletionEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rendered_buffer);

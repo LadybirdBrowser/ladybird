@@ -12,8 +12,10 @@
 #include <LibGfx/Font/Typeface.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/FontFace.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Enums.h>
@@ -31,6 +33,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -86,7 +89,7 @@ static int compute_width(StyleValue const& value)
     return static_cast<int>(StyleComputer::compute_font_width(value)->as_percentage().raw_value());
 }
 
-static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vector_font([[maybe_unused]] JS::Realm& realm, ByteBuffer data)
+static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vector_font(ByteBuffer data)
 {
     auto promise = Core::Promise<NonnullRefPtr<Gfx::Typeface const>>::construct();
 
@@ -122,14 +125,26 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vec
 
 GC_DEFINE_ALLOCATOR(FontFace);
 
-// https://drafts.csswg.org/css-font-loading/#font-face-constructor
-GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors)
+static void resolve_font_face_promise(JS::Realm& realm, WebIDL::Promise const& promise, FontFace& font_face)
 {
+    WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { font_face }));
+}
+
+GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, FontFaceDescriptors const& descriptors)
+{
+    auto& global_scope = HTML::relevant_window_or_worker_global_scope(realm.global_object());
+    return create_from_source(HTML::relevant_settings_object(global_scope), move(family), move(source), descriptors);
+}
+
+// https://drafts.csswg.org/css-font-loading/#font-face-constructor
+GC::Ref<FontFace> FontFace::create_from_source(HTML::EnvironmentSettingsObject& environment, String family, FontFaceSource source, FontFaceDescriptors const& descriptors)
+{
+    auto& realm = environment.realm();
     auto& vm = realm.vm();
 
     // 1. Let font face be a fresh FontFace object. Set font face’s status attribute to "unloaded",
     //    Set its internal [[FontStatusPromise]] slot to a fresh pending Promise object.
-    auto font_face = realm.create<FontFace>(realm, WebIDL::create_promise(realm));
+    auto font_face = GC::Heap::the().allocate<FontFace>(GC::Ref { environment }, WebIDL::create_promise(realm));
 
     //    Parse the family argument, and the members of the descriptors argument,
     //    according to the grammars of the corresponding descriptors of the CSS @font-face rule.
@@ -138,11 +153,11 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
     //    set font face’s corresponding attributes to the empty string, and set font face’s status attribute to "error".
     //    Otherwise, set font face’s corresponding attributes to the serialization of the parsed values.
 
-    Parser::ParsingParams parsing_params { realm };
+    Parser::ParsingParams parsing_params;
     auto try_set_descriptor = [&](DescriptorID descriptor_id, String const& string, auto setter_impl) {
         auto result = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(descriptor_id), string);
         if (!result) {
-            font_face->reject_status_promise(WebIDL::SyntaxError::create(realm, Utf16String::formatted("FontFace constructor: Invalid {}", to_string(descriptor_id))));
+            font_face->reject_status_promise(WebIDL::SyntaxError::create(Utf16String::formatted("FontFace constructor: Invalid {}", to_string(descriptor_id))));
             return;
         }
         (font_face.ptr()->*setter_impl)(result.release_nonnull());
@@ -162,13 +177,13 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
     if (auto* source_string = source.get_pointer<String>()) {
         parsed_source = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::Src), *source_string);
         if (!parsed_source) {
-            font_face->reject_status_promise(WebIDL::SyntaxError::create(realm, Utf16String::formatted("FontFace constructor: Invalid {}", to_string(DescriptorID::Src))));
+            font_face->reject_status_promise(WebIDL::SyntaxError::create(Utf16String::formatted("FontFace constructor: Invalid {}", to_string(DescriptorID::Src))));
         }
     }
     //    Return font face. If font face’s status is "error", terminate this algorithm;
     //    otherwise, complete the rest of these steps asynchronously.
     // FIXME: Do the rest of this asynchronously.
-    if (font_face->status() == Bindings::FontFaceLoadStatus::Error)
+    if (font_face->status() == FontFaceLoadStatus::Error)
         return font_face;
 
     // 2. If the source argument was a CSSOMString, set font face’s internal [[Urls]] slot to the string.
@@ -181,23 +196,23 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
         if (maybe_buffer.is_error()) {
             VERIFY(maybe_buffer.error().code() == ENOMEM);
             auto throw_completion = vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
-            font_face->reject_status_promise(throw_completion.value());
+            font_face->reject_status_promise(move(throw_completion));
         } else {
             font_face->m_binary_data = maybe_buffer.release_value();
         }
     }
 
     if (font_face->m_binary_data.is_empty() && font_face->m_urls.is_empty())
-        font_face->reject_status_promise(WebIDL::SyntaxError::create(realm, "FontFace constructor: Invalid font source"_utf16));
+        font_face->reject_status_promise(WebIDL::SyntaxError::create("FontFace constructor: Invalid font source"_utf16));
 
     // 3. If font face’s [[Data]] slot is not null, queue a task to run the following steps synchronously:
     if (font_face->m_binary_data.is_empty())
         return font_face;
 
-    HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font_face), GC::create_function(vm.heap(), [&realm, font_face] {
-        HTML::TemporaryExecutionContext context(font_face->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+    HTML::queue_global_task(HTML::Task::Source::FontLoading, font_face->task_global_object(), GC::create_function(GC::Heap::the(), [font_face] {
+        HTML::TemporaryExecutionContext context(*font_face->m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 1.  Set font face’s status attribute to "loading".
-        font_face->m_status = Bindings::FontFaceLoadStatus::Loading;
+        font_face->m_status = FontFaceLoadStatus::Loading;
 
         // 2. For each FontFaceSet font face is in:
         for (auto& font_face_set : font_face->m_containing_sets) {
@@ -211,18 +226,19 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
 
         // 3. Asynchronously, attempt to parse the data in it as a font.
         //    When this is completed, successfully or not, queue a task to run the following steps synchronously:
-        font_face->m_font_load_promise = load_vector_font(realm, move(font_face->m_binary_data));
+        font_face->m_font_load_promise = load_vector_font(move(font_face->m_binary_data));
 
         font_face->m_font_load_promise->when_resolved([font = GC::make_root(font_face)](auto const& vector_font) -> ErrorOr<void> {
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_function(font->heap(), [font = GC::Ref(*font), vector_font] {
-                HTML::TemporaryExecutionContext context(font->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, font->task_global_object(), GC::create_function(GC::Heap::the(), [font = GC::Ref(*font), vector_font] {
+                HTML::TemporaryExecutionContext context(*font->m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 1. If the load was successful, font face now represents the parsed font;
                 //    fulfill font face’s [[FontStatusPromise]] with font face, and set its status attribute to "loaded".
 
                 // FIXME: Are we supposed to set the properties of the FontFace based on the loaded vector font?
                 font->m_parsed_font = vector_font;
-                font->m_status = Bindings::FontFaceLoadStatus::Loaded;
-                WebIDL::resolve_promise(font->realm(), font->m_font_status_promise, font);
+                font->m_status = FontFaceLoadStatus::Loaded;
+                auto& realm = font->m_environment->realm();
+                resolve_font_face_promise(realm, font->m_font_status_promise, *font);
 
                 if (auto font_computer = font->font_computer(); font_computer.has_value())
                     font_computer->register_font_face(*font);
@@ -244,11 +260,11 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
             return {};
         });
         font_face->m_font_load_promise->when_rejected([font = GC::make_root(font_face)](auto const& error) {
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_function(font->heap(), [font = GC::Ref(*font), error = Error::copy(error)] {
-                HTML::TemporaryExecutionContext context(font->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, font->task_global_object(), GC::create_function(GC::Heap::the(), [font = GC::Ref(*font), error = Error::copy(error)] {
+                HTML::TemporaryExecutionContext context(*font->m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 2. Otherwise, reject font face’s [[FontStatusPromise]] with a DOMException named "SyntaxError"
                 //    and set font face’s status attribute to "error".
-                font->reject_status_promise(WebIDL::SyntaxError::create(font->realm(), Utf16String::formatted("Failed to load font: {}", error)));
+                font->reject_status_promise(WebIDL::SyntaxError::create(Utf16String::formatted("Failed to load font: {}", error)));
 
                 // For each FontFaceSet font face is in:
                 for (auto& font_face_set : font->m_containing_sets) {
@@ -271,11 +287,11 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
-GC::Ref<FontFace> FontFace::create_css_connected(JS::Realm& realm, CSSFontFaceRule& rule)
+GC::Ref<FontFace> FontFace::create_css_connected(HTML::EnvironmentSettingsObject& environment, CSSFontFaceRule& rule)
 {
-    HTML::TemporaryExecutionContext execution_context { realm };
+    HTML::TemporaryExecutionContext execution_context { environment };
 
-    auto font_face = realm.create<FontFace>(realm, WebIDL::create_promise(realm));
+    auto font_face = GC::Heap::the().allocate<FontFace>(environment, WebIDL::create_promise(environment.realm()));
 
     font_face->m_css_font_face_rule = &rule;
     font_face->reparse_connected_css_font_face_rule_descriptors();
@@ -315,7 +331,7 @@ ParsedFontFace FontFace::parsed_font_face() const
     // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
     return ParsedFontFace {
         // Create a dummy CSSFontFaceRule so that we load relative to the document's base URL
-        CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), {})),
+        CSSFontFaceRule::create(CSSFontFaceDescriptors::create({})),
         m_family,
         m_cached_weight_range,
         m_cached_slope,
@@ -333,24 +349,25 @@ ParsedFontFace FontFace::parsed_font_face() const
     };
 }
 
-FontFace::FontFace(JS::Realm& realm, GC::Ref<WebIDL::Promise> font_status_promise)
-    : Bindings::PlatformObject(realm)
+FontFace::FontFace(GC::Ref<HTML::EnvironmentSettingsObject> environment, GC::Ref<WebIDL::Promise> font_status_promise)
+    : m_environment(environment)
+    , m_status(FontFaceLoadStatus::Unloaded)
     , m_font_status_promise(font_status_promise)
 {
 }
 
 FontFace::~FontFace() = default;
 
-void FontFace::initialize(JS::Realm& realm)
+bool FontFace::should_be_registered_with_font_computer() const
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FontFace);
-    Base::initialize(realm);
+    return is_css_connected() || status() == FontFaceLoadStatus::Loaded;
 }
 
-void FontFace::visit_edges(JS::Cell::Visitor& visitor)
+void FontFace::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 
+    visitor.visit(m_environment);
     visitor.visit(m_font_status_promise);
     visitor.visit(m_css_font_face_rule);
     visitor.visit(m_font_loader);
@@ -358,25 +375,30 @@ void FontFace::visit_edges(JS::Cell::Visitor& visitor)
         visitor.visit(font_face_set);
 }
 
+JS::Object& FontFace::task_global_object() const
+{
+    return m_environment->global_object();
+}
+
 GC::Ref<WebIDL::Promise> FontFace::loaded() const
 {
     return m_font_status_promise;
 }
 
-void FontFace::reject_status_promise(JS::Value reason)
+void FontFace::reject_status_promise(WebIDL::Exception reason)
 {
-    if (m_status != Bindings::FontFaceLoadStatus::Error) {
-        WebIDL::reject_promise(realm(), m_font_status_promise, reason);
+    if (m_status != FontFaceLoadStatus::Error) {
+        WebIDL::reject_promise_with_exception(m_environment->realm(), m_font_status_promise, move(reason));
         WebIDL::mark_promise_as_handled(m_font_status_promise);
-        m_status = Bindings::FontFaceLoadStatus::Error;
+        m_status = FontFaceLoadStatus::Error;
     }
 }
 
 Optional<FontComputer&> FontFace::font_computer() const
 {
     for (auto& font_face_set : m_containing_sets) {
-        auto& global = HTML::relevant_global_object(font_face_set);
-        if (auto* window = as_if<HTML::Window>(global))
+        auto& global = font_face_set->relevant_settings_object().global_object();
+        if (auto* window = HTML::window_from_global_object(global))
             return window->associated_document().font_computer();
     }
     return {};
@@ -388,9 +410,8 @@ Optional<ComputationContext> FontFace::computation_context() const
         if (auto document = m_css_font_face_rule->descriptors()->parent_rule()->parent_style_sheet()->owning_document())
             return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
     }
-    auto& global = HTML::relevant_global_object(*this);
-    if (auto* window = as_if<HTML::Window>(global))
-        return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(window->associated_document()) };
+    if (auto document = m_environment->responsible_document())
+        return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
     return {};
 }
 
@@ -422,7 +443,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontFamily), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.family setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.family setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_family(string));
@@ -456,7 +477,7 @@ WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontStyle), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.style setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.style setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_style(string));
@@ -493,7 +514,7 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWeight), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.weight setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.weight setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_weight(string));
@@ -531,7 +552,7 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
     // NOTE: font-stretch is now an alias for font-width
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWidth), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.stretch setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.stretch setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_width(string));
@@ -568,7 +589,7 @@ WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::UnicodeRange), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.unicodeRange setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.unicodeRange setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_unicode_range(string));
@@ -602,7 +623,7 @@ WebIDL::ExceptionOr<void> FontFace::set_feature_settings(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.featureSettings setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.featureSettings setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_feature_settings(string));
@@ -626,7 +647,7 @@ WebIDL::ExceptionOr<void> FontFace::set_variation_settings(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.variationSettings setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.variationSettings setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_variation_settings(string));
@@ -650,7 +671,7 @@ WebIDL::ExceptionOr<void> FontFace::set_display(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontDisplay), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.display setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.display setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_display(string));
@@ -674,7 +695,7 @@ WebIDL::ExceptionOr<void> FontFace::set_ascent_override(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::AscentOverride), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.ascentOverride setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.ascentOverride setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_ascent_override(string));
@@ -698,7 +719,7 @@ WebIDL::ExceptionOr<void> FontFace::set_descent_override(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::DescentOverride), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.descentOverride setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.descentOverride setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_descent_override(string));
@@ -722,7 +743,7 @@ WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const& string)
 
     auto property = parse_css_descriptor(Parser::ParsingParams(), AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::LineGapOverride), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.lineGapOverride setter: Invalid descriptor value"_utf16);
+        return WebIDL::SyntaxError::create("FontFace.lineGapOverride setter: Invalid descriptor value"_utf16);
 
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_line_gap_override(string));
@@ -745,18 +766,18 @@ GC::Ref<WebIDL::Promise> FontFace::load()
 
     // 2. If font face’s [[Urls]] slot is null, or its status attribute is anything other than "unloaded",
     //    return font face’s [[FontStatusPromise]] and abort these steps.
-    if (font_face.m_urls.is_empty() || font_face.m_status != Bindings::FontFaceLoadStatus::Unloaded)
+    if (font_face.m_urls.is_empty() || font_face.m_status != FontFaceLoadStatus::Unloaded)
         return font_face.loaded();
 
     // 3. Otherwise, set font face’s status attribute to "loading", return font face’s [[FontStatusPromise]],
     //    and continue executing the rest of this algorithm asynchronously.
-    m_status = Bindings::FontFaceLoadStatus::Loading;
+    m_status = FontFaceLoadStatus::Loading;
 
     // AD-HOC: Switch the containing FontFaceSets to "loading" for URL-backed fonts too, mirroring the step the
     //         constructor performs for BufferSource-backed fonts.
     // Spec issue: https://github.com/w3c/csswg-drafts/issues/13235
     {
-        HTML::TemporaryExecutionContext context(realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        HTML::TemporaryExecutionContext context(*m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         for (auto& font_face_set : m_containing_sets) {
             if (font_face_set->loading_fonts().is_empty())
                 font_face_set->switch_to_loading();
@@ -764,19 +785,20 @@ GC::Ref<WebIDL::Promise> FontFace::load()
         }
     }
 
-    Web::Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
+    Web::Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this] {
         // 4. Using the value of font face’s [[Urls]] slot, attempt to load a font as defined in [CSS-FONTS-3],
         //     as if it was the value of a @font-face rule’s src descriptor.
 
         // 5. When the load operation completes, successfully or not, queue a task to run the following steps synchronously:
-        auto on_load = GC::create_function(heap(), [this](RefPtr<Gfx::Typeface const> maybe_typeface) {
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*this), GC::create_function(heap(), [this, maybe_typeface] {
-                HTML::TemporaryExecutionContext context(realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        auto on_load = GC::create_function(GC::Heap::the(), [this](RefPtr<Gfx::Typeface const> maybe_typeface) {
+            HTML::queue_global_task(HTML::Task::Source::FontLoading, task_global_object(), GC::create_function(GC::Heap::the(), [this, maybe_typeface] {
+                HTML::TemporaryExecutionContext context(*m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
                 //    is "NetworkError" and set font face’s status attribute to "error".
                 if (!maybe_typeface) {
-                    m_status = Bindings::FontFaceLoadStatus::Error;
-                    WebIDL::reject_promise(realm(), m_font_status_promise, WebIDL::NetworkError::create(realm(), "Failed to load font"_utf16));
+                    auto& realm = m_environment->realm();
+                    m_status = FontFaceLoadStatus::Error;
+                    WebIDL::reject_promise(realm, m_font_status_promise, WebIDL::NetworkError::create("Failed to load font"_utf16));
 
                     // For each FontFaceSet font face is in:
                     for (auto& font_face_set : m_containing_sets) {
@@ -794,9 +816,10 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                 // 2. Otherwise, font face now represents the loaded font; fulfill font face’s [[FontStatusPromise]] with font face
                 //    and set font face’s status attribute to "loaded".
                 else {
+                    auto& realm = m_environment->realm();
                     m_parsed_font = maybe_typeface;
-                    m_status = Bindings::FontFaceLoadStatus::Loaded;
-                    WebIDL::resolve_promise(realm(), m_font_status_promise, this);
+                    m_status = FontFaceLoadStatus::Loaded;
+                    resolve_font_face_promise(realm, m_font_status_promise, *this);
 
                     if (auto font_computer = this->font_computer(); font_computer.has_value())
                         font_computer->register_font_face(*this);
@@ -819,9 +842,8 @@ GC::Ref<WebIDL::Promise> FontFace::load()
         });
 
         // FIXME: We should probably put the 'font cache' on the WindowOrWorkerGlobalScope instead of tying it to the document's style computer
-        auto& global = HTML::relevant_global_object(*this);
-        if (auto* window = as_if<HTML::Window>(global)) {
-            auto& font_computer = const_cast<FontComputer&>(window->document()->font_computer());
+        if (auto document = m_environment->responsible_document()) {
+            auto& font_computer = document->font_computer();
 
             if (auto loader = font_computer.load_font_face(parsed_font_face(), move(on_load))) {
                 m_font_loader = loader;

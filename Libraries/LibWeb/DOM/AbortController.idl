@@ -5,5 +5,6 @@ interface AbortController {
 
     [SameObject] readonly attribute AbortSignal signal;
 
+    [NeedsThisObjectRealm]
     undefined abort(optional any reason);
 };

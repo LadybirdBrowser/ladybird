@@ -48,7 +48,7 @@ public:
         ProcessResponseConsumeBodyFunction process_response_consume_body;
     };
 
-    [[nodiscard]] static GC::Ref<FetchAlgorithms> create(JS::VM&, Input);
+    [[nodiscard]] static GC::Ref<FetchAlgorithms> create(Input);
 
     ProcessRequestBodyChunkLengthFunction const& process_request_body_chunk_length() const { return m_process_request_body_chunk_length->function(); }
     ProcessRequestEndOfBodyFunction const& process_request_end_of_body() const { return m_process_request_end_of_body->function(); }

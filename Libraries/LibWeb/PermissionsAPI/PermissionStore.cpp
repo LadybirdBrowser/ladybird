@@ -8,7 +8,7 @@
 
 namespace Web::PermissionsAPI {
 
-bool permission_key_is_equal_to(Bindings::PermissionDescriptor const&, URL::Origin const& key1, URL::Origin const& key2)
+bool permission_key_is_equal_to(PermissionDescriptor const&, URL::Origin const& key1, URL::Origin const& key2)
 {
     // FIXME: 1. If key1 is not of descriptor's permission key type or key2 is not of descriptor's permission key type, return false.
 
@@ -45,7 +45,7 @@ PermissionStore& PermissionStore::the()
     return s_the;
 }
 
-Optional<PermissionStoreEntry> PermissionStore::get_permission_store_entry(Bindings::PermissionDescriptor const& descriptor, URL::Origin const& key)
+Optional<PermissionStoreEntry> PermissionStore::get_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key)
 {
     // 1. If the user agent's permission store contains an entry whose descriptor is descriptor, and whose key is equal to key given descriptor, return that entry.
     for (auto const& entry : m_entries) {
@@ -57,7 +57,7 @@ Optional<PermissionStoreEntry> PermissionStore::get_permission_store_entry(Bindi
     return {};
 }
 
-void PermissionStore::set_permission_store_entry(Bindings::PermissionDescriptor const& descriptor, URL::Origin const& key, Bindings::PermissionState state)
+void PermissionStore::set_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key, PermissionState state)
 {
     // 1. Let newEntry be a new permission store entry whose descriptor is descriptor, and whose key is key, and whose state is state.
     PermissionStoreEntry new_entry { descriptor, key, state };
@@ -74,7 +74,7 @@ void PermissionStore::set_permission_store_entry(Bindings::PermissionDescriptor 
     m_entries.append(move(new_entry));
 }
 
-void PermissionStore::remove_permission_store_entry(Bindings::PermissionDescriptor const& descriptor, URL::Origin const& key)
+void PermissionStore::remove_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key)
 {
     // 1. Remove the entry whose descriptor is descriptor, and whose key is equal to key given descriptor, from the user agent's permission store.
     m_entries.remove_all_matching([&](auto const& entry) {

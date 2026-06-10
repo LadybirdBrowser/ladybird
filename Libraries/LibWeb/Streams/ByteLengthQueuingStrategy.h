@@ -8,19 +8,20 @@
 
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/QueuingStrategyInit.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#bytelengthqueuingstrategy
-class ByteLengthQueuingStrategy final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ByteLengthQueuingStrategy, Bindings::PlatformObject);
+class ByteLengthQueuingStrategy final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ByteLengthQueuingStrategy, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ByteLengthQueuingStrategy);
 
 public:
-    static GC::Ref<ByteLengthQueuingStrategy> construct_impl(JS::Realm&, Bindings::QueuingStrategyInit const&);
+    static GC::Ref<ByteLengthQueuingStrategy> create(double high_water_mark);
+    static GC::Ref<ByteLengthQueuingStrategy> create_for_constructor(Bindings::QueuingStrategyInit const&);
 
     virtual ~ByteLengthQueuingStrategy() override;
 
@@ -32,12 +33,10 @@ public:
         return m_high_water_mark;
     }
 
-    GC::Ref<WebIDL::CallbackType> size();
+    GC::Ref<WebIDL::CallbackType> size(JS::Realm&);
 
 private:
-    explicit ByteLengthQueuingStrategy(JS::Realm&, double high_water_mark);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit ByteLengthQueuingStrategy(double high_water_mark);
 
     // https://streams.spec.whatwg.org/#bytelengthqueuingstrategy-highwatermark
     double m_high_water_mark { 0 };

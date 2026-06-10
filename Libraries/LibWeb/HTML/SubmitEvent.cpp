@@ -4,41 +4,29 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SubmitEvent.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/SubmitEvent.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SubmitEvent);
 
-GC::Ref<SubmitEvent> SubmitEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::SubmitEventInit const& event_init)
+GC::Ref<SubmitEvent> SubmitEvent::create(FlyString const& event_name, SubmitEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    auto event = realm.create<SubmitEvent>(realm, event_name, event_init);
+    auto event = GC::Heap::the().allocate<SubmitEvent>(event_name, event_init, time_stamp);
     event->set_is_trusted(true);
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<SubmitEvent>> SubmitEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::SubmitEventInit const& event_init)
-{
-    return create(realm, event_name, event_init);
-}
-
-SubmitEvent::SubmitEvent(JS::Realm& realm, FlyString const& event_name, Bindings::SubmitEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+SubmitEvent::SubmitEvent(FlyString const& event_name, SubmitEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_submitter(event_init.submitter)
 {
 }
 
 SubmitEvent::~SubmitEvent() = default;
 
-void SubmitEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SubmitEvent);
-    Base::initialize(realm);
-}
-
-void SubmitEvent::visit_edges(Cell::Visitor& visitor)
+void SubmitEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_submitter);

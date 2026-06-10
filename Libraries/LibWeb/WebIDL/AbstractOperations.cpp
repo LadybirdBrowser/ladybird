@@ -354,8 +354,9 @@ JS::Completion invoke_callback(CallbackType& callback, Optional<JS::Value> this_
             // FIXME: 1. Assert: callable’s return type is undefined or any.
 
             // 2. Report an exception completion.[[Value]] for relevant realm’s global object.
-            auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(relevant_realm.global_object());
-            window_or_worker.report_an_exception(completion.release_value());
+            auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(relevant_realm.global_object());
+            VERIFY(window_or_worker);
+            window_or_worker->report_an_exception(completion.release_value());
 
             // 3. Return the unique undefined IDL value.
             return JS::js_undefined();
@@ -570,26 +571,5 @@ template WEB_API JS::ThrowCompletionOr<Long> convert_to_int(JS::VM& vm, JS::Valu
 template WEB_API JS::ThrowCompletionOr<UnsignedLong> convert_to_int(JS::VM& vm, JS::Value, EnforceRange, Clamp);
 template WEB_API JS::ThrowCompletionOr<LongLong> convert_to_int(JS::VM& vm, JS::Value, EnforceRange, Clamp);
 template WEB_API JS::ThrowCompletionOr<UnsignedLongLong> convert_to_int(JS::VM& vm, JS::Value, EnforceRange, Clamp);
-
-// AD-HOC: For same-object caching purposes, this can be used to compare a cached JS array of DOM::Elements with another
-//         list. Either list can be null, in which case they are considered the same only if they are both null.
-bool lists_contain_same_elements(GC::Ptr<JS::Array> array, Optional<GC::RootVector<GC::Ref<DOM::Element>>> const& elements)
-{
-    if (!array || !elements.has_value())
-        return !array && !elements.has_value();
-
-    bool is_equivalent = array->indexed_array_like_size() == elements->size();
-
-    for (size_t i = 0; is_equivalent && i < elements->size(); ++i) {
-        auto cached_value = array->get_without_side_effects(JS::PropertyKey { i });
-        auto const& cached_element = as<DOM::Element>(cached_value.as_object());
-
-        auto it = elements->find_if([&](auto const& element) { return element.ptr() == &cached_element; });
-        if (it == elements->end())
-            is_equivalent = false;
-    }
-
-    return is_equivalent;
-}
 
 }
