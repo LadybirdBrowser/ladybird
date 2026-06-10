@@ -22,6 +22,8 @@ add_executable(Compositor main.cpp)
 
 if (LINUX)
     target_sources(Compositor PRIVATE SandboxLinux.cpp)
+elseif (APPLE)
+    target_sources(Compositor PRIVATE SandboxMacOS.cpp)
 else()
     target_sources(Compositor PRIVATE SandboxUnimplemented.cpp)
 endif()

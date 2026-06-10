@@ -20,6 +20,8 @@ add_executable(WebWorker main.cpp)
 
 if (LINUX)
     target_sources(WebWorker PRIVATE ../RendererSandboxLinux.cpp)
+elseif (APPLE)
+    target_sources(WebWorker PRIVATE ../RendererSandboxMacOS.cpp)
 else()
     target_sources(WebWorker PRIVATE ../RendererSandboxUnimplemented.cpp)
 endif()

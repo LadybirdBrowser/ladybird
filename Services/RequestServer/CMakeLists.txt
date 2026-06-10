@@ -10,6 +10,8 @@ set(SOURCES
 
 if (LINUX)
     list(APPEND SOURCES SandboxLinux.cpp)
+elseif (APPLE)
+    list(APPEND SOURCES SandboxMacOS.cpp)
 else()
     list(APPEND SOURCES SandboxUnimplemented.cpp)
 endif()

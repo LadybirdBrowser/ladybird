@@ -87,4 +87,11 @@ Optional<ResourceSubstitution const&> ResourceSubstitutionMap::lookup(URL::URL c
     return it->value;
 }
 
+ErrorOr<void> ResourceSubstitutionMap::for_each_substitution(Function<ErrorOr<void>(ResourceSubstitution const&)> const& callback) const
+{
+    for (auto const& entry : m_substitutions)
+        TRY(callback(entry.value));
+    return {};
+}
+
 }
