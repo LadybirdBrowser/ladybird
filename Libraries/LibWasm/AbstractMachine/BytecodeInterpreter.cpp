@@ -338,6 +338,16 @@ struct ConvertToRaw<double> {
     u64 operator()(double value) const { return bit_cast<LittleEndian<u64>>(value); }
 };
 
+// Memory address operands are typed as the memory's address type (proposal 'memory64').
+// 32-bit addresses are stored sign-extended in the Value, so they must be truncated back to u32; 64-bit addresses are used as-is.
+static ALWAYS_INLINE u64 memory_base_address(MemoryInstance const& memory, Value const& entry)
+{
+    auto base = entry.to<u64>();
+    if (memory.type().limits().address_type() == AddressType::I32)
+        return static_cast<u32>(base);
+    return base;
+}
+
 #define TRAP_IF_NOT(x, ...)                                                                    \
     do {                                                                                       \
         if (trap_if_not(x, #x##sv __VA_OPT__(, ) __VA_ARGS__)) {                               \
@@ -2759,7 +2769,10 @@ HANDLE_INSTRUCTION(memory_size)
     auto instance = configuration.store().get(address);
     auto pages = instance->size() / Constants::page_size;
     dbgln_if(WASM_TRACE_DEBUG, "memory.size -> stack({})", pages);
-    configuration.push_to_destination<source_address_mix>(Value(static_cast<i32>(pages)), addresses.destination);
+    auto result = instance->type().limits().address_type() == AddressType::I32
+        ? Value(static_cast<i32>(pages))
+        : Value(static_cast<i64>(pages));
+    configuration.push_to_destination<source_address_mix>(result, addresses.destination);
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2770,14 +2783,19 @@ HANDLE_INSTRUCTION(memory_grow)
     auto& args = instruction->arguments().unsafe_get<Instruction::MemoryIndexArgument>();
     auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
     auto instance = configuration.store().get(address);
-    u32 old_pages = instance->size() / Constants::page_size;
+    u64 old_pages = instance->size() / Constants::page_size;
     auto& entry = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
-    auto new_pages = entry.template to<u32>();
+    bool const is_address32 = instance->type().limits().address_type() == AddressType::I32;
+    auto new_pages = entry.template to<u64>();
+    if (is_address32)
+        new_pages = static_cast<u32>(new_pages);
     dbgln_if(WASM_TRACE_DEBUG, "memory.grow({}), previously {} pages...", new_pages, old_pages);
-    if (instance->grow(static_cast<u64>(new_pages) * Constants::page_size))
-        entry = Value(static_cast<i32>(old_pages));
+    Checked<u64> size_to_grow { new_pages };
+    size_to_grow *= Constants::page_size;
+    if (!size_to_grow.has_overflow() && instance->grow(size_to_grow.value()))
+        entry = is_address32 ? Value(static_cast<i32>(old_pages)) : Value(static_cast<i64>(old_pages));
     else
-        entry = Value(static_cast<i32>(-1));
+        entry = is_address32 ? Value(static_cast<i32>(-1)) : Value(static_cast<i64>(-1));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2790,9 +2808,9 @@ HANDLE_INSTRUCTION(memory_fill)
         auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
         auto instance = configuration.store().get(address);
         // bounds checked by verifier.
-        auto const count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<u32>();
+        auto const count = memory_base_address(*instance, configuration.take_source<source_address_mix>(0, addresses.sources));
         auto const value = static_cast<u8>(configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>());
-        auto const destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<u32>();
+        auto const destination_offset = memory_base_address(*instance, configuration.take_source<source_address_mix>(2, addresses.sources));
 
         Checked<u64> checked_end = destination_offset;
         checked_end += count;
@@ -2820,13 +2838,13 @@ HANDLE_INSTRUCTION(memory_copy)
     auto source_instance = configuration.store().get(source_address);
     auto destination_instance = configuration.store().get(destination_address);
 
-    // Wasm memory.copy operands are i32 values used as unsigned offsets/counts.
-    auto count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<u32>();
-    auto source_offset = configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>();
-    auto destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<u32>();
+    auto const& count_memory = source_instance->type().limits().address_type() == AddressType::I32 ? *source_instance : *destination_instance;
+    auto count = memory_base_address(count_memory, configuration.take_source<source_address_mix>(0, addresses.sources));
+    auto source_offset = memory_base_address(*source_instance, configuration.take_source<source_address_mix>(1, addresses.sources));
+    auto destination_offset = memory_base_address(*destination_instance, configuration.take_source<source_address_mix>(2, addresses.sources));
 
-    auto source_position = saturating_add(static_cast<size_t>(source_offset), static_cast<size_t>(count));
-    auto destination_position = saturating_add(static_cast<size_t>(destination_offset), static_cast<size_t>(count));
+    auto source_position = saturating_add<u64>(source_offset, count);
+    auto destination_position = saturating_add<u64>(destination_offset, count);
     TRAP_IN_LOOP_IF_NOT(source_position <= source_instance->data().size());
     TRAP_IN_LOOP_IF_NOT(destination_position <= destination_instance->data().size());
 
@@ -2834,15 +2852,15 @@ HANDLE_INSTRUCTION(memory_copy)
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 
     if (destination_offset <= source_offset) {
-        for (u32 i = 0; i < count; ++i) {
+        for (u64 i = 0; i < count; ++i) {
             auto value = source_instance->data()[source_offset + i];
-            if (interpreter.store_to_memory(*destination_instance, static_cast<u64>(destination_offset) + i, value))
+            if (interpreter.store_to_memory(*destination_instance, destination_offset + i, value))
                 return Outcome::Return;
         }
     } else {
-        for (u32 i = count; i > 0; --i) {
+        for (u64 i = count; i > 0; --i) {
             auto value = source_instance->data()[source_offset + i - 1];
-            if (interpreter.store_to_memory(*destination_instance, static_cast<u64>(destination_offset) + i - 1, value))
+            if (interpreter.store_to_memory(*destination_instance, destination_offset + i - 1, value))
                 return Outcome::Return;
         }
     }
@@ -2860,12 +2878,13 @@ HANDLE_INSTRUCTION(memory_init)
     auto memory_address = configuration.frame().module().memories().data()[args.memory_index.value()];
     auto memory = configuration.store().unsafe_get(memory_address);
     // bounds checked by verifier.
+    // The count and source offset are always i32; the destination is typed as the memory's address type.
     auto count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<u32>();
     auto source_offset = configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>();
-    auto destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<u32>();
+    auto destination_offset = memory_base_address(*memory, configuration.take_source<source_address_mix>(2, addresses.sources));
 
-    auto source_position = saturating_add(static_cast<size_t>(source_offset), static_cast<size_t>(count));
-    auto destination_position = saturating_add(static_cast<size_t>(destination_offset), static_cast<size_t>(count));
+    auto source_position = saturating_add<u64>(source_offset, count);
+    auto destination_position = saturating_add<u64>(destination_offset, count);
     TRAP_IN_LOOP_IF_NOT(source_position <= data.data().size());
     TRAP_IN_LOOP_IF_NOT(destination_position <= memory->data().size());
 
@@ -5593,10 +5612,13 @@ bool BytecodeInterpreter::load_and_push(Configuration& configuration, Instructio
     auto& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
     auto memory = configuration.store().unsafe_get(address);
     auto& entry = configuration.source_value<mix>(0, addresses.sources); // bounds checked by verifier.
-    auto base = entry.template to<i32>();
-    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    auto base = memory_base_address(*memory, entry);
+    Checked<u64> end_address { base };
+    end_address += arg.offset;
+    end_address += sizeof(ReadType);
+    u64 instance_address = base + arg.offset;
     dbgln_if(WASM_TRACE_DEBUG, "load({} : {}) -> stack", instance_address, sizeof(ReadType));
-    if (instance_address + sizeof(ReadType) > memory->size()) {
+    if (end_address.has_overflow() || end_address.value() > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         dbgln_if(WASM_TRACE_DEBUG, "LibWasm: load_and_push - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
         return true;
@@ -5620,10 +5642,13 @@ bool BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
     auto& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
     auto memory = configuration.store().unsafe_get(address);
     auto& entry = configuration.source_value<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
-    auto base = entry.template to<i32>();
-    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    auto base = memory_base_address(*memory, entry);
+    Checked<u64> end_address { base };
+    end_address += arg.offset;
+    end_address += M * N / 8;
+    u64 instance_address = base + arg.offset;
     dbgln_if(WASM_TRACE_DEBUG, "vec-load({} : {}) -> stack", instance_address, M * N / 8);
-    if (instance_address + M * N / 8 > memory->size()) {
+    if (end_address.has_overflow() || end_address.value() > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         return true;
     }
@@ -5650,10 +5675,13 @@ bool BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Ins
     auto memory = configuration.store().unsafe_get(address);
     // bounds checked by verifier.
     auto vector = configuration.take_source<SourceAddressMix::Any>(0, addresses.sources).template to<u128>();
-    auto base = configuration.take_source<SourceAddressMix::Any>(1, addresses.sources).template to<u32>();
-    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.memory.offset;
+    auto base = memory_base_address(*memory, configuration.take_source<SourceAddressMix::Any>(1, addresses.sources));
+    Checked<u64> end_address { base };
+    end_address += memarg_and_lane.memory.offset;
+    end_address += N / 8;
+    u64 instance_address = base + memarg_and_lane.memory.offset;
     dbgln_if(WASM_TRACE_DEBUG, "load-lane({} : {}, lane {}) -> stack", instance_address, N / 8, memarg_and_lane.lane);
-    if (instance_address + N / 8 > memory->size()) {
+    if (end_address.has_overflow() || end_address.value() > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         return true;
     }
@@ -5672,10 +5700,13 @@ bool BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Ins
     auto& address = configuration.frame().module().memories().data()[memarg_and_lane.memory_index.value()];
     auto memory = configuration.store().unsafe_get(address);
     // bounds checked by verifier.
-    auto base = configuration.take_source<SourceAddressMix::Any>(0, addresses.sources).template to<u32>();
-    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.offset;
+    auto base = memory_base_address(*memory, configuration.take_source<SourceAddressMix::Any>(0, addresses.sources));
+    Checked<u64> end_address { base };
+    end_address += memarg_and_lane.offset;
+    end_address += N / 8;
+    u64 instance_address = base + memarg_and_lane.offset;
     dbgln_if(WASM_TRACE_DEBUG, "load-zero({} : {}) -> stack", instance_address, N / 8);
-    if (instance_address + N / 8 > memory->size()) {
+    if (end_address.has_overflow() || end_address.value() > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         return true;
     }
@@ -5694,10 +5725,13 @@ bool BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, In
     auto& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
     auto memory = configuration.store().unsafe_get(address);
     auto& entry = configuration.source_value<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
-    auto base = entry.template to<i32>();
-    u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
+    auto base = memory_base_address(*memory, entry);
+    Checked<u64> end_address { base };
+    end_address += arg.offset;
+    end_address += M / 8;
+    u64 instance_address = base + arg.offset;
     dbgln_if(WASM_TRACE_DEBUG, "vec-splat({} : {}) -> stack", instance_address, M / 8);
-    if (instance_address + M / 8 > memory->size()) {
+    if (end_address.has_overflow() || end_address.value() > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
         return true;
     }
@@ -5896,7 +5930,7 @@ bool BytecodeInterpreter::store_value(Configuration& configuration, Instruction 
 {
     auto& memarg = instruction.arguments().unsafe_get<Instruction::MemoryArgument>();
     dbgln_if(WASM_TRACE_DEBUG, "stack({}) -> temporary({}b)", value, sizeof(StoreT));
-    auto base = configuration.take_source<SourceAddressMix::Any>(address_source, addresses.sources).template to<i32>();
+    auto base = configuration.take_source<SourceAddressMix::Any>(address_source, addresses.sources);
     return store_to_memory(configuration, memarg, { &value, sizeof(StoreT) }, base);
 }
 
@@ -5907,16 +5941,21 @@ bool BytecodeInterpreter::pop_and_store_lane_n(Configuration& configuration, Ins
     // bounds checked by verifier.
     auto vector = configuration.take_source<SourceAddressMix::Any>(0, addresses.sources).template to<u128>();
     auto src = bit_cast<u8*>(&vector) + memarg_and_lane.lane * N / 8;
-    auto base = configuration.take_source<SourceAddressMix::Any>(1, addresses.sources).template to<u32>();
+    auto base = configuration.take_source<SourceAddressMix::Any>(1, addresses.sources);
     return store_to_memory(configuration, memarg_and_lane.memory, { src, N / 8 }, base);
 }
 
-bool BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruction::MemoryArgument const& arg, ReadonlyBytes data, u32 base)
+bool BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruction::MemoryArgument const& arg, ReadonlyBytes data, Value const& base_value)
 {
     auto const& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
     auto memory = configuration.store().unsafe_get(address);
-    u64 instance_address = static_cast<u64>(base) + arg.offset;
-    return store_to_memory(*memory, instance_address, data);
+    Checked<u64> instance_address { memory_base_address(*memory, base_value) };
+    instance_address += arg.offset;
+    if (instance_address.has_overflow()) [[unlikely]] {
+        m_trap = Trap::from_string("Memory access out of bounds");
+        return true;
+    }
+    return store_to_memory(*memory, instance_address.value(), data);
 }
 
 template<typename T>

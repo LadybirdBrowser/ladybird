@@ -198,9 +198,7 @@ public:
             return bit_cast<f64>(m_value.low());
         }
         if constexpr (IsSame<T, Reference>) {
-            switch (m_value.high() & 3) {
-            case 0:
-                return Reference { Reference::Func { bit_cast<FunctionAddress>(m_value.low()), bit_cast<Wasm::Module*>(m_value.high()) } };
+            switch (m_value.high()) {
             case 1:
                 return Reference { Reference::Extern { bit_cast<ExternAddress>(m_value.low()) } };
             case 2:
@@ -211,6 +209,8 @@ public:
                 return Reference { Reference::Null { ValueType(ValueType::Kind::ExceptionReference) } };
             case 5:
                 return Reference { Reference::Exception { bit_cast<ExceptionAddress>(m_value.low()) } };
+            default:
+                return Reference { Reference::Func { bit_cast<FunctionAddress>(m_value.low()), bit_cast<Wasm::Module*>(m_value.high()) } };
             }
         }
         VERIFY_NOT_REACHED();
