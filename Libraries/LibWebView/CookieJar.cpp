@@ -639,17 +639,25 @@ void CookieJar::TransientStorage::send_cookie_changed_notifications(ReadonlySpan
             return IterationDecision::Continue;
 
         HashTable<String> changed_domains;
-        Vector<HTTP::Cookie::Cookie> matching_cookies;
+        Vector<HTTP::Cookie::Cookie> page_cookies;
+        Vector<HTTP::Cookie::Cookie> host_cookies;
 
         for (auto const& cookie : cookies) {
             if (inform_web_view_about_changed_domains)
                 changed_domains.set(cookie.value.domain);
 
             if (HTTP::Cookie::cookie_matches_url(cookie.value, view.url(), *retrieval_host_canonical))
-                matching_cookies.append(cookie.value);
+                page_cookies.append(cookie.value);
+
+            if (cookie.value.host_only) {
+                if (cookie.value.domain == *retrieval_host_canonical)
+                    host_cookies.append(cookie.value);
+            } else if (HTTP::Cookie::domain_matches(*retrieval_host_canonical, cookie.value.domain)) {
+                host_cookies.append(cookie.value);
+            }
         }
 
-        view.notify_cookies_changed(changed_domains, matching_cookies);
+        view.notify_cookies_changed(changed_domains, page_cookies, host_cookies);
         return IterationDecision::Continue;
     });
 }

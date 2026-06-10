@@ -6,9 +6,13 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
+#include <AK/HashTable.h>
+#include <AK/JsonArray.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Forward.h>
+#include <LibHTTP/Forward.h>
 
 namespace DevTools {
 
@@ -21,6 +25,7 @@ public:
 
     Optional<String> host() const;
     JsonObject serialize_storage() const;
+    void on_cookies_changed(Vector<HTTP::Cookie::Cookie>);
 
 private:
     CookiesActor(DevToolsServer&, String name, WeakPtr<TabActor>);
@@ -29,8 +34,11 @@ private:
 
     void get_fields(Message const&);
     void get_store_objects(Message const&);
+    HashTable<String> visible_cookie_unique_keys(String const& host) const;
+    void send_cookie_store_update(String const& host, JsonArray added, JsonArray changed, JsonArray deleted);
 
     WeakPtr<TabActor> m_tab;
+    HashMap<String, HashTable<String>> m_visible_cookie_unique_keys;
 };
 
 }

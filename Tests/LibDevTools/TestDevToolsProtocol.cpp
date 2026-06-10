@@ -574,6 +574,18 @@ public:
         return fixture_cookies;
     }
 
+    virtual void listen_for_host_cookie_changes(DevTools::TabDescription const&, OnHostCookieChange callback) const override
+    {
+        ++listen_for_cookie_changes_call_count;
+        on_host_cookie_change = move(callback);
+    }
+
+    virtual void stop_listening_for_host_cookie_changes(DevTools::TabDescription const&) const override
+    {
+        ++stop_listening_for_cookie_changes_call_count;
+        on_host_cookie_change = nullptr;
+    }
+
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete callback) const override
     {
         ++inspect_tab_call_count;
@@ -967,6 +979,12 @@ public:
         on_node_picker_event(move(event));
     }
 
+    void emit_cookie_change(Vector<HTTP::Cookie::Cookie> cookies) const
+    {
+        VERIFY(on_host_cookie_change);
+        on_host_cookie_change(move(cookies));
+    }
+
     mutable Function<void(WebView::DOMNodeProperties)> on_dom_node_properties;
     mutable Function<void(WebView::Mutation)> on_dom_mutation;
     mutable Function<void(Web::CSS::StyleSheetIdentifier const&, String)> on_style_sheet_source;
@@ -976,6 +994,7 @@ public:
     mutable Function<void(u64, ByteBuffer)> on_network_response_body_received;
     mutable Function<void(DevToolsDelegate::NetworkRequestCompleteData)> on_network_request_finished;
     mutable Function<void(DevToolsDelegate::NodePickerEvent)> on_node_picker_event;
+    mutable Function<void(Vector<HTTP::Cookie::Cookie>)> on_host_cookie_change;
 
     struct NavigationListener {
         Function<void(String)> on_navigation_started;
@@ -988,6 +1007,8 @@ public:
 
     mutable size_t inspect_tab_call_count { 0 };
     mutable size_t cookies_call_count { 0 };
+    mutable size_t listen_for_cookie_changes_call_count { 0 };
+    mutable size_t stop_listening_for_cookie_changes_call_count { 0 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
     mutable size_t listen_for_dom_properties_call_count { 0 };
     mutable size_t stop_listening_for_dom_properties_call_count { 0 };
@@ -1130,6 +1151,7 @@ private:
             || *type == "pickerNodePicked"sv
             || *type == "pickerNodePreviewed"sv
             || *type == "tabListChanged"sv
+            || *type == "storesUpdate"sv
             || *type == "target-available-form"sv
             || *type == "target-destroyed-form"sv;
     }
@@ -1289,6 +1311,45 @@ static JsonObject read_packet_with_type(ProtocolClient& client, StringView packe
         if (message.get_string("type"sv).value_or({}) == packet_type)
             return message;
     }
+}
+
+static String get_cookies_actor(ProtocolClient& client)
+{
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("cookies"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+
+    auto cookie_resource = read_resource(client, "cookies"sv);
+    return actor_from(cookie_resource, "actor"sv);
+}
+
+static JsonObject get_cookie_store_objects(ProtocolClient& client, StringView cookies_actor, StringView host = "https://example.test"sv)
+{
+    JsonObject get_store_objects;
+    get_store_objects.set("to"sv, cookies_actor);
+    get_store_objects.set("type"sv, "getStoreObjects"sv);
+    get_store_objects.set("host"sv, host);
+    get_store_objects.set("names"sv, JsonValue {});
+    JsonObject options;
+    options.set("sessionString"sv, "Session"sv);
+    get_store_objects.set("options"sv, move(options));
+    return client.request(move(get_store_objects));
+}
+
+static JsonArray get_cookie_update_keys(JsonObject const& stores_update, StringView update_type, StringView host = "https://example.test"sv)
+{
+    return stores_update.get_object("data"sv)
+        ->get_object(update_type)
+        ->get_object("cookies"sv)
+        ->get_array(host)
+        .release_value();
 }
 
 TEST_CASE(root_actor_and_connection_errors)
@@ -1606,6 +1667,48 @@ TEST_CASE(storage_cookie_store_objects)
     auto filtered_data = filtered_objects.get_array("data"sv).release_value();
     EXPECT_EQ(filtered_data.size(), 1u);
     EXPECT_EQ(filtered_data.at(0).as_object().get_string("name"sv).value(), "beta"sv);
+}
+
+TEST_CASE(storage_cookie_change_events)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto initial_cookie = make_cookie("alpha"_string, "one"_string, "example.test"_string, "/"_string);
+    session->delegate.fixture_cookies.append(initial_cookie);
+
+    auto cookies_actor = get_cookies_actor(client);
+    EXPECT_EQ(session->delegate.listen_for_cookie_changes_call_count, 1u);
+
+    auto objects = get_cookie_store_objects(client, cookies_actor);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 1u);
+
+    auto added_cookie = make_cookie("beta"_string, "two"_string, "example.test"_string, "/"_string);
+    session->delegate.fixture_cookies.append(added_cookie);
+    session->delegate.emit_cookie_change({ added_cookie });
+    auto stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    EXPECT_EQ(stores_update.get_string("from"sv).value(), cookies_actor);
+    auto added_keys = get_cookie_update_keys(stores_update, "added"sv);
+    EXPECT_EQ(added_keys.size(), 1u);
+    EXPECT_EQ(added_keys.at(0).as_string(), cookie_unique_key("beta"sv, "example.test"sv, "/"sv));
+
+    auto changed_cookie = initial_cookie;
+    changed_cookie.value = "updated"_string;
+    session->delegate.fixture_cookies[0] = changed_cookie;
+    session->delegate.emit_cookie_change({ changed_cookie });
+    stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    auto changed_keys = get_cookie_update_keys(stores_update, "changed"sv);
+    EXPECT_EQ(changed_keys.size(), 1u);
+    EXPECT_EQ(changed_keys.at(0).as_string(), cookie_unique_key("alpha"sv, "example.test"sv, "/"sv));
+
+    auto deleted_cookie = changed_cookie;
+    session->delegate.fixture_cookies.remove(0);
+    session->delegate.emit_cookie_change({ deleted_cookie });
+    stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    auto deleted_keys = get_cookie_update_keys(stores_update, "deleted"sv);
+    EXPECT_EQ(deleted_keys.size(), 1u);
+    EXPECT_EQ(deleted_keys.at(0).as_string(), cookie_unique_key("alpha"sv, "example.test"sv, "/"sv));
 }
 
 TEST_CASE(walker_node_picker)

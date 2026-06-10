@@ -379,15 +379,27 @@ void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
     client().async_set_preferred_motion(page_id(), motion);
 }
 
-void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> cookies)
+void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> page_cookies, ReadonlySpan<HTTP::Cookie::Cookie> host_cookies)
 {
     for (auto const& domain : changed_domains) {
         if (auto document_index = m_document_cookie_version_indices.get(domain); document_index.has_value())
             Core::increment_shared_version(m_document_cookie_version_buffer, *document_index);
     }
 
-    if (!cookies.is_empty())
-        client().async_cookies_changed(page_id(), cookies);
+    if (!page_cookies.is_empty())
+        client().async_cookies_changed(page_id(), page_cookies);
+    if (m_on_host_cookie_change)
+        m_on_host_cookie_change(Vector<HTTP::Cookie::Cookie> { host_cookies });
+}
+
+void ViewImplementation::listen_for_host_cookie_changes(DevTools::DevToolsDelegate::OnHostCookieChange on_cookie_change)
+{
+    m_on_host_cookie_change = move(on_cookie_change);
+}
+
+void ViewImplementation::stop_listening_for_host_cookie_changes()
+{
+    m_on_host_cookie_change = nullptr;
 }
 
 ErrorOr<Core::SharedVersionIndex> ViewImplementation::ensure_document_cookie_version_index(Badge<WebContentClient>, String const& domain)

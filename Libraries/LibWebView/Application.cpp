@@ -1827,6 +1827,18 @@ Vector<HTTP::Cookie::Cookie> Application::cookies(DevTools::TabDescription const
     return Application::cookie_jar().get_all_cookies();
 }
 
+void Application::listen_for_host_cookie_changes(DevTools::TabDescription const& description, OnHostCookieChange on_host_cookie_change) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->listen_for_host_cookie_changes(move(on_host_cookie_change));
+}
+
+void Application::stop_listening_for_host_cookie_changes(DevTools::TabDescription const& description) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->stop_listening_for_host_cookie_changes();
+}
+
 void Application::inspect_tab(DevTools::TabDescription const& description, OnTabInspectionComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
