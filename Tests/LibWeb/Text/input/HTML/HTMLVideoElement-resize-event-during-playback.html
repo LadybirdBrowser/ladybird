@@ -26,8 +26,10 @@
         await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
 
         println("--- seek to end ---");
+        const sawEnded = new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+        const sawSeeked = new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
         video.currentTime = video.duration;
-        await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+        await Promise.all([sawEnded, sawSeeked]);
 
         done();
     });
