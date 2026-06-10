@@ -27,7 +27,7 @@ public:
         VERIFY(byte_count);
 
         auto capacity = allocation_size_for_string_data(byte_count);
-        void* slot = kmalloc(capacity);
+        void* slot = kmalloc(HeapPartition::String, capacity);
         if (!slot)
             return Error::from_errno(ENOMEM);
 
@@ -53,7 +53,7 @@ public:
         VERIFY(byte_count > MAX_SHORT_STRING_BYTE_COUNT);
 
         auto capacity = sizeof(StringData) + sizeof(StringData::SubstringData);
-        void* slot = kmalloc(capacity);
+        void* slot = kmalloc(HeapPartition::String, capacity);
         if (!slot)
             return Error::from_errno(ENOMEM);
 

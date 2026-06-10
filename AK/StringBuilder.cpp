@@ -17,10 +17,240 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringData.h>
 #include <AK/Utf16View.h>
+#include <AK/kmalloc.h>
 
 #include <simdutf.h>
 
 namespace AK {
+
+StringBuilder::Buffer::Buffer(Buffer const& other)
+{
+    MUST(try_resize(other.size()));
+    if (other.size() != 0)
+        __builtin_memcpy(data(), other.data(), other.size());
+}
+
+StringBuilder::Buffer::Buffer(Buffer&& other)
+{
+    move_from(move(other));
+}
+
+StringBuilder::Buffer::~Buffer()
+{
+    clear();
+}
+
+auto StringBuilder::Buffer::operator=(Buffer const& other) -> Buffer&
+{
+    if (this != &other) {
+        if (m_size > other.size())
+            trim(other.size(), true);
+        else
+            MUST(try_resize(other.size()));
+
+        if (other.size() != 0)
+            __builtin_memcpy(data(), other.data(), other.size());
+    }
+
+    return *this;
+}
+
+auto StringBuilder::Buffer::operator=(Buffer&& other) -> Buffer&
+{
+    if (this != &other) {
+        clear();
+        move_from(move(other));
+    }
+
+    return *this;
+}
+
+u8* StringBuilder::Buffer::data()
+{
+    return m_inline ? m_inline_buffer : m_outline_buffer;
+}
+
+u8 const* StringBuilder::Buffer::data() const
+{
+    return m_inline ? m_inline_buffer : m_outline_buffer;
+}
+
+Bytes StringBuilder::Buffer::span()
+{
+    return { data(), size() };
+}
+
+ReadonlyBytes StringBuilder::Buffer::span() const
+{
+    return { data(), size() };
+}
+
+void* StringBuilder::Buffer::end_pointer()
+{
+    return data() + m_size;
+}
+
+void StringBuilder::Buffer::clear()
+{
+    if (!m_inline) {
+        kfree(m_outline_buffer);
+        m_inline = true;
+    }
+    m_size = 0;
+}
+
+void StringBuilder::Buffer::resize(size_t new_size)
+{
+    MUST(try_resize(new_size));
+}
+
+void StringBuilder::Buffer::set_size(size_t new_size)
+{
+    ASSERT(new_size <= capacity());
+    m_size = new_size;
+}
+
+void StringBuilder::Buffer::ensure_capacity(size_t new_capacity)
+{
+    MUST(try_ensure_capacity(new_capacity));
+}
+
+ErrorOr<void> StringBuilder::Buffer::try_resize(size_t new_size)
+{
+    if (new_size <= m_size) {
+        trim(new_size, false);
+        return {};
+    }
+
+    TRY(try_ensure_capacity(new_size));
+    set_size(new_size);
+    return {};
+}
+
+ErrorOr<void> StringBuilder::Buffer::try_ensure_capacity(size_t new_capacity)
+{
+    if (new_capacity <= capacity())
+        return {};
+    return try_ensure_capacity_slowpath(new_capacity);
+}
+
+ErrorOr<void> StringBuilder::Buffer::try_append(char byte)
+{
+    auto old_size = size();
+    Checked<size_t> new_size = old_size;
+    new_size += 1;
+    VERIFY(!new_size.has_overflow());
+
+    TRY(try_resize(new_size.value()));
+    data()[old_size] = static_cast<u8>(byte);
+    return {};
+}
+
+ErrorOr<void> StringBuilder::Buffer::try_append(ReadonlyBytes bytes)
+{
+    return try_append(bytes.data(), bytes.size());
+}
+
+ErrorOr<void> StringBuilder::Buffer::try_append(void const* data, size_t data_size)
+{
+    if (data_size == 0)
+        return {};
+    VERIFY(data != nullptr);
+
+    auto old_size = size();
+    Checked<size_t> new_size = old_size;
+    new_size += data_size;
+    VERIFY(!new_size.has_overflow());
+
+    TRY(try_resize(new_size.value()));
+    __builtin_memcpy(this->data() + old_size, data, data_size);
+    return {};
+}
+
+void StringBuilder::Buffer::append(char byte)
+{
+    MUST(try_append(byte));
+}
+
+void StringBuilder::Buffer::append(void const* data, size_t data_size)
+{
+    MUST(try_append(data, data_size));
+}
+
+auto StringBuilder::Buffer::leak_outline_buffer() -> Optional<OutlineBuffer>
+{
+    if (m_inline)
+        return {};
+
+    auto* outline_buffer = m_outline_buffer;
+    auto size = m_size;
+    auto outline_capacity = m_outline_capacity;
+
+    m_inline = true;
+    m_size = 0;
+
+    return OutlineBuffer { Bytes { outline_buffer, size }, outline_capacity };
+}
+
+void StringBuilder::Buffer::move_from(Buffer&& other)
+{
+    m_size = other.m_size;
+    m_inline = other.m_inline;
+
+    if (other.m_inline) {
+        VERIFY(other.m_size <= inline_capacity);
+        if (other.m_size != 0)
+            __builtin_memcpy(m_inline_buffer, other.m_inline_buffer, other.m_size);
+    } else {
+        m_outline_buffer = other.m_outline_buffer;
+        m_outline_capacity = other.m_outline_capacity;
+    }
+
+    other.m_size = 0;
+    other.m_inline = true;
+}
+
+void StringBuilder::Buffer::trim(size_t size, bool may_discard_existing_data)
+{
+    VERIFY(size <= m_size);
+    if (!m_inline && size <= inline_capacity)
+        shrink_into_inline_buffer(size, may_discard_existing_data);
+    m_size = size;
+}
+
+void StringBuilder::Buffer::shrink_into_inline_buffer(size_t size, bool may_discard_existing_data)
+{
+    auto* outline_buffer = m_outline_buffer;
+    if (!may_discard_existing_data)
+        __builtin_memcpy(m_inline_buffer, outline_buffer, size);
+    kfree(outline_buffer);
+    m_inline = true;
+}
+
+ErrorOr<void> StringBuilder::Buffer::try_ensure_capacity_slowpath(size_t new_capacity)
+{
+    new_capacity = max(new_capacity, (capacity() * 3) / 2);
+    new_capacity = kmalloc_good_size(new_capacity);
+
+    if (m_inline) {
+        auto* new_buffer = static_cast<u8*>(kmalloc(HeapPartition::String, new_capacity));
+        if (!new_buffer)
+            return Error::from_errno(ENOMEM);
+
+        __builtin_memcpy(new_buffer, data(), m_size);
+        m_outline_buffer = new_buffer;
+    } else {
+        auto* new_buffer = static_cast<u8*>(krealloc(HeapPartition::String, m_outline_buffer, new_capacity));
+        if (!new_buffer)
+            return Error::from_errno(ENOMEM);
+
+        m_outline_buffer = new_buffer;
+    }
+
+    m_outline_capacity = new_capacity;
+    m_inline = false;
+    return {};
+}
 
 static constexpr size_t string_builder_prefix_size(StringBuilder::Mode mode)
 {
@@ -545,7 +775,7 @@ ErrorOr<void> StringBuilder::try_append_escaped_for_json(StringView string)
 
 auto StringBuilder::leak_buffer_for_string_construction() -> Optional<Buffer::OutlineBuffer>
 {
-    if (auto buffer = m_buffer.leak_outline_buffer({}); buffer.has_value()) {
+    if (auto buffer = m_buffer.leak_outline_buffer(); buffer.has_value()) {
         clear();
         return buffer;
     }

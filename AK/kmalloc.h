@@ -15,6 +15,7 @@ enum class HeapPartition {
     General,
     ArrayBuffer,
     JSObjectStorage,
+    String,
 };
 
 [[nodiscard]] void* ak_kcalloc(size_t count, size_t size);

@@ -47,7 +47,7 @@ ByteStringImpl::~ByteStringImpl() = default;
 NonnullRefPtr<ByteStringImpl const> ByteStringImpl::create_uninitialized(size_t length, char*& buffer)
 {
     VERIFY(length);
-    void* slot = kmalloc(allocation_size_for_stringimpl(length));
+    void* slot = kmalloc(HeapPartition::String, allocation_size_for_stringimpl(length));
     VERIFY(slot);
     auto new_stringimpl = adopt_ref(*new (slot) ByteStringImpl(ConstructWithInlineBuffer, length));
     buffer = const_cast<char*>(new_stringimpl->characters());
