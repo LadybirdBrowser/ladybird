@@ -265,7 +265,6 @@ public:
     Serializer(JS::VM& vm, SerializationMemory& memory, bool for_storage)
         : m_vm(vm)
         , m_memory(memory)
-        , m_next_id(memory.size())
         , m_for_storage(for_storage)
     {
     }
@@ -484,7 +483,8 @@ public:
         }
 
         // 25. Set memory[value] to serialized.
-        m_memory.set(make_root(value), m_next_id++);
+        // Nested sub-serialization above may already have claimed earlier ids.
+        m_memory.set(make_root(value), m_memory.size());
 
         // 26. If deep is true, then:
         if (deep) {
@@ -576,7 +576,6 @@ public:
 private:
     JS::VM& m_vm;
     SerializationMemory& m_memory; // JS value -> index
-    u32 m_next_id { 0 };
     bool m_for_storage { false };
 };
 
