@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): translate3d() vs. 'transform-origin'</title>
+    <link rel="author" title="Matt Woodrow" href="mailto:mwoodrow@mozilla.com">
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-origin-property">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#three-d-transform-functions">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#funcdef-translate3d">
+    <meta name="assert" content="This tests that translate3d() before and after
+    rotatex() is the same as an equivalent 'transform-origin'.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform3d-translate3d-ref.html">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="perspective: 1000px">
+      <div style="transform: translate3d(10px, 30px, -10px) rotatex(45deg)
+        translate3d(-10px, -30px, 10px); transform-origin: 0 0 0; width: 100px;
+        height: 100px; background: lime"></div>
+    </div>
+  </body>
+</html>

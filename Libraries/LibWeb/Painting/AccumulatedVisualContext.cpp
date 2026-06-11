@@ -94,7 +94,13 @@ static Optional<TransformData> compute_transform(PaintableBox const& paintable_b
     if (!paintable_box.has_css_transform())
         return {};
 
-    auto matrix = Gfx::FloatMatrix4x4::identity();
+    auto reference_box = paintable_box.transform_reference_box();
+    auto const& css_transform_origin = computed_values.transform_origin();
+    auto origin_x = css_transform_origin.x.to_px(paintable_box.layout_node(), reference_box.width());
+    auto origin_y = css_transform_origin.y.to_px(paintable_box.layout_node(), reference_box.height());
+    auto origin_z = css_transform_origin.z.to_px(paintable_box.layout_node(), 0).to_float();
+
+    auto matrix = Gfx::translation_matrix(Vector3 { 0.f, 0.f, origin_z });
     if (auto const& translate = computed_values.translate())
         matrix = matrix * translate->to_matrix(paintable_box);
     if (auto const& rotate = computed_values.rotate())
@@ -103,12 +109,9 @@ static Optional<TransformData> compute_transform(PaintableBox const& paintable_b
         matrix = matrix * scale->to_matrix(paintable_box);
     for (auto const& transform : computed_values.transformations())
         matrix = matrix * transform->to_matrix(paintable_box);
-    auto const& css_transform_origin = computed_values.transform_origin();
-    auto reference_box = paintable_box.transform_reference_box();
-    CSSPixelPoint origin {
-        reference_box.left() + css_transform_origin.x.to_px(paintable_box.layout_node(), reference_box.width()),
-        reference_box.top() + css_transform_origin.y.to_px(paintable_box.layout_node(), reference_box.height()),
-    };
+    matrix = matrix * Gfx::translation_matrix(Vector3 { 0.f, 0.f, -origin_z });
+
+    auto origin = reference_box.location() + CSSPixelPoint { origin_x, origin_y };
     auto scale = static_cast<float>(pixel_ratio);
     auto device_origin = origin.to_type<float>() * scale;
     return TransformData { scale_matrix_for_device_pixels(matrix, scale), device_origin };
