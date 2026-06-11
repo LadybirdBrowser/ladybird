@@ -1,0 +1,2 @@
+Use moved into shadow tree kept old fill: red
+Use moved into document tree updated fill: green

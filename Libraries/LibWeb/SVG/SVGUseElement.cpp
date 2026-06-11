@@ -74,6 +74,75 @@ void SVGUseElement::adopted_from(DOM::Document& old_document)
         m_load_event_delayer.emplace(document());
 }
 
+void SVGUseElement::inserted()
+{
+    Base::inserted();
+
+    // Only use elements in the document's node tree react to changes of the elements they reference, mirroring the
+    // document-wide traversal this registry replaced. A use element inside a shadow tree is itself part of a clone.
+    if (!root().is_document())
+        return;
+
+    register_for_referenced_element_changes();
+
+    // The insertion that connected us may have inserted our referenced element along with us, with its insertion
+    // steps running before ours, i.e. before we were registered to be notified about changes to it. If our shadow
+    // tree has not been populated yet, try resolving the reference again.
+    // NB: While the document is still loading, the document-completely-loaded hook repopulates empty shadow trees,
+    //     so there is nothing to do here in that case.
+    if (!instance_root() && document().is_completely_loaded()
+        && m_href.has_value() && m_href->fragment().has_value() && is_referenced_element_same_document()) {
+        clone_element_tree_as_our_shadow_tree(referenced_element());
+    }
+}
+
+void SVGUseElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
+{
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
+
+    if (old_root.is_document())
+        unregister_for_referenced_element_changes();
+}
+
+void SVGUseElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
+{
+    Base::moved_from(is_subtree_root, old_ancestor);
+
+    if (!old_ancestor)
+        return;
+
+    auto was_in_document_tree = old_ancestor->root().is_document();
+    auto is_in_document_tree = root().is_document();
+    if (was_in_document_tree == is_in_document_tree)
+        return;
+
+    if (was_in_document_tree) {
+        unregister_for_referenced_element_changes();
+        return;
+    }
+
+    register_for_referenced_element_changes();
+
+    if (!instance_root() && document().is_completely_loaded()
+        && m_href.has_value() && m_href->fragment().has_value() && is_referenced_element_same_document()) {
+        clone_element_tree_as_our_shadow_tree(referenced_element());
+    }
+}
+
+void SVGUseElement::register_for_referenced_element_changes()
+{
+    if (m_list_node.is_in_list())
+        return;
+    document().register_svg_use_element({}, *this);
+}
+
+void SVGUseElement::unregister_for_referenced_element_changes()
+{
+    if (!m_list_node.is_in_list())
+        return;
+    document().unregister_svg_use_element({}, *this);
+}
+
 void SVGUseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);

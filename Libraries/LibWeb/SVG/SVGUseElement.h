@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/IntrusiveList.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
@@ -46,6 +47,9 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
+    virtual void inserted() override;
+    virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
 
     virtual bool is_svg_use_element() const override { return true; }
 
@@ -64,6 +68,8 @@ private:
     bool is_valid_reference_element(Element const& reference_element) const;
     bool would_create_circular_reference(Element const& target) const;
     bool would_create_circular_reference_impl(Element const& target, GC::HeapHashTable<GC::Ref<Element const>>& visited) const;
+    void register_for_referenced_element_changes();
+    void unregister_for_referenced_element_changes();
 
     Optional<float> m_x;
     Optional<float> m_y;
@@ -74,6 +80,11 @@ private:
     GC::Ptr<DOM::DocumentObserver> m_document_observer;
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
+
+    IntrusiveListNode<SVGUseElement> m_list_node;
+
+public:
+    using DocumentUseElementList = IntrusiveList<&SVGUseElement::m_list_node>;
 };
 
 }

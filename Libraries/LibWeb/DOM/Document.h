@@ -53,6 +53,7 @@
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
+#include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -659,6 +660,10 @@ public:
 
     void register_document_observer(Badge<DocumentObserver>, DocumentObserver&);
     void unregister_document_observer(Badge<DocumentObserver>, DocumentObserver&);
+
+    void register_svg_use_element(Badge<SVG::SVGUseElement>, SVG::SVGUseElement&);
+    void unregister_svg_use_element(Badge<SVG::SVGUseElement>, SVG::SVGUseElement&);
+    SVG::SVGUseElement::DocumentUseElementList& svg_use_elements() { return m_svg_use_elements; }
 
     template<typename Callback>
     void for_each_node_iterator(Callback callback)
@@ -1381,6 +1386,11 @@ private:
     // It's responsibility of object that requires DocumentObserver to keep it alive.
     HashTable<GC::RawRef<DocumentObserver>> m_document_observers;
     Vector<GC::Ref<DocumentObserver>> m_document_observers_being_notified;
+
+    // Every SVG use element connected to this document's node tree, maintained by SVGUseElement on insertion and
+    // removal. This lets SVG elements notify interested use elements about mutations without traversing the entire
+    // document. Not visited: registered elements are connected and thus kept alive by the tree.
+    SVG::SVGUseElement::DocumentUseElementList m_svg_use_elements;
 
     // https://html.spec.whatwg.org/multipage/dom.html#is-initial-about:blank
     bool m_is_initial_about_blank { false };

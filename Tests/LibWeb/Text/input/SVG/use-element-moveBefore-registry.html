@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const SVG_NS = "http://www.w3.org/2000/svg";
+
+        function createSVGElement(localName) {
+            return document.createElementNS(SVG_NS, localName);
+        }
+
+        function createReferencedUse(id, fill) {
+            const svg = createSVGElement("svg");
+            svg.style.display = "none";
+
+            const source = createSVGElement("rect");
+            source.id = id;
+            source.setAttribute("width", "10");
+            source.setAttribute("height", "10");
+            source.setAttribute("fill", fill);
+
+            const use = createSVGElement("use");
+            use.setAttribute("href", `#${id}`);
+
+            svg.append(source, use);
+            document.body.appendChild(svg);
+            return { source, svg, use };
+        }
+
+        window.addEventListener("load", () => {
+            setTimeout(() => {
+                {
+                    const { source, use } = createReferencedUse("moveOutSource", "red");
+                    const host = document.createElement("div");
+                    document.body.appendChild(host);
+                    host.attachShadow({ mode: "open" });
+
+                    host.shadowRoot.moveBefore(use, null);
+                    source.setAttribute("fill", "green");
+
+                    println(`Use moved into shadow tree kept old fill: ${use.instanceRoot.getAttribute("fill")}`);
+                }
+
+                {
+                    const { source, svg, use } = createReferencedUse("moveInSource", "red");
+                    const host = document.createElement("div");
+                    document.body.appendChild(host);
+                    host.attachShadow({ mode: "open" });
+
+                    host.shadowRoot.appendChild(use);
+                    svg.moveBefore(use, null);
+                    source.setAttribute("fill", "green");
+
+                    println(`Use moved into document tree updated fill: ${use.instanceRoot.getAttribute("fill")}`);
+                }
+
+                done();
+            }, 0);
+        }, { once: true });
+    });
+</script>

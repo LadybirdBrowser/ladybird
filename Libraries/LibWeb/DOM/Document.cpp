@@ -207,6 +207,7 @@
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
+#include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -4888,6 +4889,16 @@ void Document::unregister_document_observer(Badge<DocumentObserver>, DocumentObs
 {
     bool was_removed = m_document_observers.remove(document_observer);
     VERIFY(was_removed);
+}
+
+void Document::register_svg_use_element(Badge<SVG::SVGUseElement>, SVG::SVGUseElement& use_element)
+{
+    m_svg_use_elements.append(use_element);
+}
+
+void Document::unregister_svg_use_element(Badge<SVG::SVGUseElement>, SVG::SVGUseElement& use_element)
+{
+    m_svg_use_elements.remove(use_element);
 }
 
 void Document::increment_number_of_things_delaying_the_load_event(Badge<DocumentLoadEventDelayer>)

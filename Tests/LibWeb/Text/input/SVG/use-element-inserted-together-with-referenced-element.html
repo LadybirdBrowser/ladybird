@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const SVG_NS = "http://www.w3.org/2000/svg";
+
+        // Build a detached subtree that contains both a use element and the element it
+        // references. Since the referenced element is not connected yet, the reference
+        // cannot resolve at construction time.
+        function makeSubtree(id, order) {
+            const svg = document.createElementNS(SVG_NS, "svg");
+            svg.style.display = "none";
+            const symbol = document.createElementNS(SVG_NS, "symbol");
+            symbol.id = id;
+            const rect = document.createElementNS(SVG_NS, "rect");
+            rect.setAttribute("width", "10");
+            rect.setAttribute("height", "10");
+            symbol.appendChild(rect);
+            const use = document.createElementNS(SVG_NS, "use");
+            use.setAttribute("href", `#${id}`);
+            if (order === "use-first")
+                svg.append(use, symbol);
+            else
+                svg.append(symbol, use);
+            return { svg, use };
+        }
+
+        window.addEventListener("load", () => {
+            setTimeout(() => {
+                // Inserting the subtree must resolve the reference no matter which of the
+                // two elements has its insertion steps run first.
+                let { svg, use } = makeSubtree("targetBeforeUse", "target-first");
+                document.body.appendChild(svg);
+                println(`Referenced element before use: has instance root: ${!!use.instanceRoot}`);
+
+                ({ svg, use } = makeSubtree("useBeforeTarget", "use-first"));
+                document.body.appendChild(svg);
+                println(`Use before referenced element: has instance root: ${!!use.instanceRoot}`);
+
+                done();
+            }, 0);
+        }, { once: true });
+    });
+</script>
