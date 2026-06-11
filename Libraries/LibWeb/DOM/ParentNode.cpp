@@ -266,6 +266,10 @@ GC::Ptr<Element> ParentNode::get_element_by_id(FlyString const& id) const
             auto const& shadow_root = static_cast<ShadowRoot const&>(*this);
             return shadow_root.element_by_id().get(id, shadow_root);
         }
+        // The document element's inclusive subtree contains every element in the document, so the document's cache
+        // gives the same answer as walking our subtree.
+        if (auto const& document = this->document(); document.document_element() == this)
+            return document.element_by_id().get(id, document);
     }
 
     GC::Ptr<Element> found_element;
