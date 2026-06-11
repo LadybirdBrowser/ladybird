@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/WeakInlines.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Page/ElementResizeAction.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/PaintableBox.h>

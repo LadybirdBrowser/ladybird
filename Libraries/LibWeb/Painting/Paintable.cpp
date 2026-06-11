@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
