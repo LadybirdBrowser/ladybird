@@ -982,6 +982,27 @@ void ViewImplementation::inspect_indexed_database_objects(String const& host, Op
         client().async_inspect_indexed_database_objects(page_id(), request_id, host, JsonValue {}, JsonValue { move(options) });
 }
 
+void ViewImplementation::delete_indexed_database(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
+{
+    auto request_id = m_next_indexed_database_inspection_request_id++;
+    m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
+    client().async_delete_indexed_database(page_id(), request_id, host, name);
+}
+
+void ViewImplementation::clear_indexed_database_object_store(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
+{
+    auto request_id = m_next_indexed_database_inspection_request_id++;
+    m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
+    client().async_clear_indexed_database_object_store(page_id(), request_id, host, name);
+}
+
+void ViewImplementation::delete_indexed_database_record(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
+{
+    auto request_id = m_next_indexed_database_inspection_request_id++;
+    m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
+    client().async_delete_indexed_database_record(page_id(), request_id, host, name);
+}
+
 void ViewImplementation::did_receive_indexed_database_inspection(u64 request_id, JsonObject result)
 {
     auto callback = m_pending_indexed_database_inspection_requests.take(request_id);

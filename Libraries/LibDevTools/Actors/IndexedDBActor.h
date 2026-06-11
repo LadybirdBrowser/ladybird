@@ -27,10 +27,15 @@ private:
 
     void get_fields(Message const&);
     void get_store_objects(Message const&);
+    void remove_database(Message const&);
+    void remove_all(Message const&);
+    void remove_item(Message const&);
     void on_indexed_database_changed(JsonObject);
 
     JsonObject serialize_storage(JsonObject hosts) const;
     void send_inspection_error(Message const&, Error const&);
+    void send_indexed_database_update(StringView update_type, String const& host, String const& name);
+    void send_indexed_database_clear(String const& host, String const& name);
 
     WeakPtr<TabActor> m_tab;
     u64 m_indexed_database_change_listener_id { 0 };

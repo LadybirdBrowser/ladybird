@@ -152,6 +152,9 @@ public:
 
     void inspect_indexed_database_storage(DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete);
     void inspect_indexed_database_objects(String const& host, Optional<JsonArray> names, JsonObject options, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete);
+    void delete_indexed_database(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete);
+    void clear_indexed_database_object_store(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete);
+    void delete_indexed_database_record(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete);
 
     ByteString selected_text();
     ByteString cut_selected_text();

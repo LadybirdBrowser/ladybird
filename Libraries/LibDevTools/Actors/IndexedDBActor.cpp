@@ -99,6 +99,21 @@ void IndexedDBActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "removeDatabase"sv) {
+        remove_database(message);
+        return;
+    }
+
+    if (message.type == "removeAll"sv) {
+        remove_all(message);
+        return;
+    }
+
+    if (message.type == "removeItem"sv) {
+        remove_item(message);
+        return;
+    }
+
     send_unrecognized_packet_type_error(message);
 }
 
@@ -167,6 +182,135 @@ void IndexedDBActor::get_store_objects(Message const& message)
 
             self->send_response({ .id = message_id }, result.release_value());
         });
+}
+
+void IndexedDBActor::remove_database(Message const& message)
+{
+    auto host = get_required_parameter<String>(message, "host"sv);
+    auto name = get_required_parameter<String>(message, "name"sv);
+    if (!host.has_value() || !name.has_value())
+        return;
+
+    auto tab = m_tab.strong_ref();
+    if (!tab) {
+        send_inspection_error(message, Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    devtools().delegate().delete_indexed_database(tab->description(), *host, *name,
+        [weak_self = make_weak_ptr<IndexedDBActor>(), message_id = message.id, host = *host, name = *name](ErrorOr<JsonObject> result) mutable {
+            auto self = weak_self.strong_ref();
+            if (!self)
+                return;
+
+            if (result.is_error()) {
+                self->send_inspection_error({ .id = message_id }, result.error());
+                return;
+            }
+
+            auto response = result.release_value();
+            auto blocked = response.get_bool("blocked"sv).value_or(false);
+            self->send_response({ .id = message_id }, move(response));
+            if (!blocked) {
+                JsonArray path;
+                path.must_append(name);
+                self->send_indexed_database_update("deleted"sv, host, path.serialized());
+            }
+        });
+}
+
+void IndexedDBActor::remove_all(Message const& message)
+{
+    auto host = get_required_parameter<String>(message, "host"sv);
+    auto name = get_required_parameter<String>(message, "name"sv);
+    if (!host.has_value() || !name.has_value())
+        return;
+
+    auto tab = m_tab.strong_ref();
+    if (!tab) {
+        send_inspection_error(message, Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    devtools().delegate().clear_indexed_database_object_store(tab->description(), *host, *name,
+        [weak_self = make_weak_ptr<IndexedDBActor>(), message_id = message.id, host = *host, name = *name](ErrorOr<JsonObject> result) mutable {
+            auto self = weak_self.strong_ref();
+            if (!self)
+                return;
+
+            if (result.is_error()) {
+                self->send_inspection_error({ .id = message_id }, result.error());
+                return;
+            }
+
+            auto response = result.release_value();
+            self->send_response({ .id = message_id }, move(response));
+            self->send_indexed_database_clear(host, name);
+        });
+}
+
+void IndexedDBActor::remove_item(Message const& message)
+{
+    auto host = get_required_parameter<String>(message, "host"sv);
+    auto name = get_required_parameter<String>(message, "name"sv);
+    if (!host.has_value() || !name.has_value())
+        return;
+
+    auto tab = m_tab.strong_ref();
+    if (!tab) {
+        send_inspection_error(message, Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    devtools().delegate().delete_indexed_database_record(tab->description(), *host, *name,
+        [weak_self = make_weak_ptr<IndexedDBActor>(), message_id = message.id, host = *host, name = *name](ErrorOr<JsonObject> result) mutable {
+            auto self = weak_self.strong_ref();
+            if (!self)
+                return;
+
+            if (result.is_error()) {
+                self->send_inspection_error({ .id = message_id }, result.error());
+                return;
+            }
+
+            auto response = result.release_value();
+            self->send_response({ .id = message_id }, move(response));
+            self->send_indexed_database_update("deleted"sv, host, name);
+        });
+}
+
+void IndexedDBActor::send_indexed_database_update(StringView update_type, String const& host, String const& name)
+{
+    JsonArray paths;
+    paths.must_append(name);
+
+    JsonObject hosts;
+    hosts.set(host, move(paths));
+
+    JsonObject indexed_database;
+    indexed_database.set("indexedDB"sv, move(hosts));
+
+    JsonObject update;
+    update.set(update_type, move(indexed_database));
+
+    on_indexed_database_changed(move(update));
+}
+
+void IndexedDBActor::send_indexed_database_clear(String const& host, String const& name)
+{
+    JsonArray paths;
+    paths.must_append(name);
+
+    JsonObject hosts;
+    hosts.set(host, move(paths));
+
+    JsonObject data;
+    data.set("clearedHostsOrPaths"sv, move(hosts));
+
+    JsonObject message;
+    message.set("type"sv, "storesCleared"sv);
+    message.set("data"sv, move(data));
+    send_message(move(message));
 }
 
 void IndexedDBActor::on_indexed_database_changed(JsonObject update)

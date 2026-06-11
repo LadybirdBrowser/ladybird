@@ -835,6 +835,10 @@ public:
         ++delete_indexed_database_call_count;
         last_indexed_database_host = host;
         last_indexed_database_name = name;
+        if (fail_delete_indexed_database) {
+            callback(Error::from_string_literal("IndexedDB operation failed"));
+            return;
+        }
         callback(JsonObject {});
     }
 
@@ -843,6 +847,10 @@ public:
         ++clear_indexed_database_object_store_call_count;
         last_indexed_database_host = host;
         last_indexed_database_name = name;
+        if (fail_clear_indexed_database_object_store) {
+            callback(Error::from_string_literal("IndexedDB operation failed"));
+            return;
+        }
         callback(JsonObject {});
     }
 
@@ -851,6 +859,10 @@ public:
         ++delete_indexed_database_record_call_count;
         last_indexed_database_host = host;
         last_indexed_database_name = name;
+        if (fail_delete_indexed_database_record) {
+            callback(Error::from_string_literal("IndexedDB operation failed"));
+            return;
+        }
         callback(JsonObject {});
     }
 
@@ -1338,6 +1350,9 @@ public:
     mutable size_t add_indexed_database_change_listener_call_count { 0 };
     mutable size_t remove_indexed_database_change_listener_call_count { 0 };
     mutable u64 next_indexed_database_change_listener_id { 1 };
+    mutable bool fail_delete_indexed_database { false };
+    mutable bool fail_clear_indexed_database_object_store { false };
+    mutable bool fail_delete_indexed_database_record { false };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
     mutable size_t listen_for_dom_properties_call_count { 0 };
     mutable size_t stop_listening_for_dom_properties_call_count { 0 };
@@ -1411,6 +1426,7 @@ public:
     mutable Optional<bool> last_reload_bypass_cache;
     mutable Optional<int> last_history_delta;
     mutable Optional<String> last_indexed_database_host;
+    mutable Optional<String> last_indexed_database_name;
 };
 
 class ProtocolClient {
@@ -1435,6 +1451,23 @@ public:
             return message;
         }
         return read_message_from_socket();
+    }
+
+    bool has_pending_message(AK::Duration timeout = 50_ms)
+    {
+        if (!m_pending_messages.is_empty())
+            return true;
+
+        for (i64 elapsed_ms = 0; elapsed_ms < timeout.to_milliseconds(); elapsed_ms += 5) {
+            pump(m_loop);
+            if (MUST(m_socket->can_read_without_blocking())) {
+                m_pending_messages.append(read_message_now());
+                return true;
+            }
+            MUST(Core::System::sleep_ms(5));
+        }
+
+        return false;
     }
 
     void send(JsonObject message)
@@ -2626,6 +2659,167 @@ TEST_CASE(storage_indexed_database_serializes_live_tree_updates)
     EXPECT_EQ(added_paths.at(0).as_string(), indexed_database_path("fixtures (default)"sv, "people"sv));
     EXPECT(!update.get_object("changed"sv).has_value());
     EXPECT(!update.get_object("deleted"sv).has_value());
+}
+
+TEST_CASE(storage_indexed_database_remove_database)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto indexed_database_actor = get_indexed_database_actor(client);
+
+    JsonObject remove_database;
+    remove_database.set("to"sv, indexed_database_actor);
+    remove_database.set("type"sv, "removeDatabase"sv);
+    remove_database.set("host"sv, "https://example.test"sv);
+    remove_database.set("name"sv, "fixtures (default)"sv);
+    EXPECT_EQ(client.request(move(remove_database)).get_string("from"sv).value(), indexed_database_actor);
+
+    EXPECT_EQ(session->delegate.delete_indexed_database_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_indexed_database_host.value(), "https://example.test"sv);
+    EXPECT_EQ(session->delegate.last_indexed_database_name.value(), "fixtures (default)"sv);
+
+    auto stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    EXPECT_EQ(stores_update.get_string("from"sv).value(), indexed_database_actor);
+
+    auto deleted_paths = get_indexed_database_update_paths(stores_update, "deleted"sv);
+    EXPECT_EQ(deleted_paths.size(), 1u);
+    EXPECT_EQ(deleted_paths.at(0).as_string(), indexed_database_path("fixtures (default)"sv));
+}
+
+TEST_CASE(storage_indexed_database_remove_database_error)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+    session->delegate.fail_delete_indexed_database = true;
+
+    auto indexed_database_actor = get_indexed_database_actor(client);
+
+    JsonObject remove_database;
+    remove_database.set("to"sv, indexed_database_actor);
+    remove_database.set("type"sv, "removeDatabase"sv);
+    remove_database.set("host"sv, "https://example.test"sv);
+    remove_database.set("name"sv, "fixtures (default)"sv);
+    auto response = client.request(move(remove_database));
+    EXPECT_EQ(response.get_string("error"sv).value(), "indexedDBInspectionFailed"sv);
+    EXPECT_EQ(response.get_string("message"sv).value(), "IndexedDB operation failed"sv);
+
+    EXPECT_EQ(session->delegate.delete_indexed_database_call_count, 1u);
+    EXPECT(!client.has_pending_message());
+}
+
+TEST_CASE(storage_indexed_database_remove_all)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto indexed_database_actor = get_indexed_database_actor(client);
+    auto store_path = indexed_database_path("fixtures (default)"sv, "people"sv);
+
+    JsonObject remove_all;
+    remove_all.set("to"sv, indexed_database_actor);
+    remove_all.set("type"sv, "removeAll"sv);
+    remove_all.set("host"sv, "https://example.test"sv);
+    remove_all.set("name"sv, store_path);
+    EXPECT_EQ(client.request(move(remove_all)).get_string("from"sv).value(), indexed_database_actor);
+
+    EXPECT_EQ(session->delegate.clear_indexed_database_object_store_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_indexed_database_host.value(), "https://example.test"sv);
+    EXPECT_EQ(session->delegate.last_indexed_database_name.value(), store_path);
+
+    auto stores_cleared = read_packet_with_type(client, "storesCleared"sv);
+    EXPECT_EQ(stores_cleared.get_string("from"sv).value(), indexed_database_actor);
+
+    auto cleared_paths = get_indexed_database_cleared_paths(stores_cleared);
+    EXPECT_EQ(cleared_paths.size(), 1u);
+    EXPECT_EQ(cleared_paths.at(0).as_string(), store_path);
+}
+
+TEST_CASE(storage_indexed_database_remove_all_error)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+    session->delegate.fail_clear_indexed_database_object_store = true;
+
+    auto indexed_database_actor = get_indexed_database_actor(client);
+    auto store_path = indexed_database_path("fixtures (default)"sv, "people"sv);
+
+    JsonObject remove_all;
+    remove_all.set("to"sv, indexed_database_actor);
+    remove_all.set("type"sv, "removeAll"sv);
+    remove_all.set("host"sv, "https://example.test"sv);
+    remove_all.set("name"sv, store_path);
+    auto response = client.request(move(remove_all));
+    EXPECT_EQ(response.get_string("error"sv).value(), "indexedDBInspectionFailed"sv);
+    EXPECT_EQ(response.get_string("message"sv).value(), "IndexedDB operation failed"sv);
+
+    EXPECT_EQ(session->delegate.clear_indexed_database_object_store_call_count, 1u);
+    EXPECT(!client.has_pending_message());
+}
+
+TEST_CASE(storage_indexed_database_remove_item)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto indexed_database_actor = get_indexed_database_actor(client);
+
+    JsonArray record_path_array;
+    record_path_array.must_append("fixtures (default)"sv);
+    record_path_array.must_append("people"sv);
+    record_path_array.must_append(1);
+    auto record_path = record_path_array.serialized();
+
+    JsonObject remove_item;
+    remove_item.set("to"sv, indexed_database_actor);
+    remove_item.set("type"sv, "removeItem"sv);
+    remove_item.set("host"sv, "https://example.test"sv);
+    remove_item.set("name"sv, record_path);
+    EXPECT_EQ(client.request(move(remove_item)).get_string("from"sv).value(), indexed_database_actor);
+
+    EXPECT_EQ(session->delegate.delete_indexed_database_record_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_indexed_database_host.value(), "https://example.test"sv);
+    EXPECT_EQ(session->delegate.last_indexed_database_name.value(), record_path);
+
+    auto stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    EXPECT_EQ(stores_update.get_string("from"sv).value(), indexed_database_actor);
+
+    auto deleted_paths = get_indexed_database_update_paths(stores_update, "deleted"sv);
+    EXPECT_EQ(deleted_paths.size(), 1u);
+    EXPECT_EQ(deleted_paths.at(0).as_string(), record_path);
+}
+
+TEST_CASE(storage_indexed_database_remove_item_error)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+    session->delegate.fail_delete_indexed_database_record = true;
+
+    auto indexed_database_actor = get_indexed_database_actor(client);
+
+    JsonArray record_path_array;
+    record_path_array.must_append("fixtures (default)"sv);
+    record_path_array.must_append("people"sv);
+    record_path_array.must_append(1);
+    auto record_path = record_path_array.serialized();
+
+    JsonObject remove_item;
+    remove_item.set("to"sv, indexed_database_actor);
+    remove_item.set("type"sv, "removeItem"sv);
+    remove_item.set("host"sv, "https://example.test"sv);
+    remove_item.set("name"sv, record_path);
+    auto response = client.request(move(remove_item));
+    EXPECT_EQ(response.get_string("error"sv).value(), "indexedDBInspectionFailed"sv);
+    EXPECT_EQ(response.get_string("message"sv).value(), "IndexedDB operation failed"sv);
+
+    EXPECT_EQ(session->delegate.delete_indexed_database_record_call_count, 1u);
+    EXPECT(!client.has_pending_message());
 }
 
 TEST_CASE(storage_cookie_store_objects)
