@@ -16,6 +16,7 @@ endpoint RequestServer
     init_transport(int peer_pid) => (int peer_pid)
     connect_new_client(::RequestServer::IsPrivate is_private) => (IPC::TransportHandle handle)
     connect_new_clients(size_t count, ::RequestServer::IsPrivate is_private) => (Vector<IPC::TransportHandle> handles)
+    close_server() =|
 
     set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings) =|
 
