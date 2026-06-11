@@ -24,14 +24,6 @@ from Generators.libweb_bindings.operations import write_stringifier
 from Utils.webidl_parser import Interface
 
 
-def global_mixin_member_interfaces(interface: Interface, context: GenerationContext) -> list[Interface]:
-    return [
-        interface_in_chain
-        for interface_in_chain in reversed(context.inheritance_stack(interface))
-        if interface_in_chain.name != "EventTarget"
-    ]
-
-
 def write_global_mixin_declaration(out: TextIO, context: GenerationContext, interface: Interface) -> None:
     out.write(
         f"""class {interface.name}GlobalMixin {{
@@ -45,34 +37,33 @@ private:
 """
     )
     declared_callbacks: set[str] = set()
-    for member_interface in global_mixin_member_interfaces(interface, context):
-        for attribute in member_interface.regular_attributes:
-            if "FIXME" in attribute.extended_attributes:
-                continue
-            getter_callback = attribute_getter_callback_name(attribute)
-            if getter_callback not in declared_callbacks:
-                declared_callbacks.add(getter_callback)
-                out.write(f"    JS_DECLARE_NATIVE_FUNCTION({getter_callback});\n")
-            if attribute_has_setter(attribute, include_replaceable=True):
-                setter_callback = attribute_setter_callback_name(attribute)
-                if setter_callback not in declared_callbacks:
-                    declared_callbacks.add(setter_callback)
-                    out.write(f"    JS_DECLARE_NATIVE_FUNCTION({setter_callback});\n")
-        for operations in overload_resolution.operation_overload_sets(member_interface).values():
-            operation = operations[0]
-            callback = idl_identifier_cpp_name(operation)
-            if callback not in declared_callbacks:
-                declared_callbacks.add(callback)
-                out.write(f"    JS_DECLARE_NATIVE_FUNCTION({callback});\n")
-            if len(operations) > 1:
-                for overload_index, overloaded_operation in enumerate(operations):
-                    overloaded_callback = idl_identifier_cpp_name(overloaded_operation, suffix=overload_index)
-                    if overloaded_callback not in declared_callbacks:
-                        declared_callbacks.add(overloaded_callback)
-                        out.write(f"    JS_DECLARE_NATIVE_FUNCTION({overloaded_callback});\n")
-        if member_interface.stringifier is not None and "to_string" not in declared_callbacks:
-            declared_callbacks.add("to_string")
-            out.write("    JS_DECLARE_NATIVE_FUNCTION(to_string);\n")
+    for attribute in interface.regular_attributes:
+        if "FIXME" in attribute.extended_attributes:
+            continue
+        getter_callback = attribute_getter_callback_name(attribute)
+        if getter_callback not in declared_callbacks:
+            declared_callbacks.add(getter_callback)
+            out.write(f"    JS_DECLARE_NATIVE_FUNCTION({getter_callback});\n")
+        if attribute_has_setter(attribute, include_replaceable=True):
+            setter_callback = attribute_setter_callback_name(attribute)
+            if setter_callback not in declared_callbacks:
+                declared_callbacks.add(setter_callback)
+                out.write(f"    JS_DECLARE_NATIVE_FUNCTION({setter_callback});\n")
+    for operations in overload_resolution.operation_overload_sets(interface).values():
+        operation = operations[0]
+        callback = idl_identifier_cpp_name(operation)
+        if callback not in declared_callbacks:
+            declared_callbacks.add(callback)
+            out.write(f"    JS_DECLARE_NATIVE_FUNCTION({callback});\n")
+        if len(operations) > 1:
+            for overload_index, overloaded_operation in enumerate(operations):
+                overloaded_callback = idl_identifier_cpp_name(overloaded_operation, suffix=overload_index)
+                if overloaded_callback not in declared_callbacks:
+                    declared_callbacks.add(overloaded_callback)
+                    out.write(f"    JS_DECLARE_NATIVE_FUNCTION({overloaded_callback});\n")
+    if interface.stringifier is not None and "to_string" not in declared_callbacks:
+        declared_callbacks.add("to_string")
+        out.write("    JS_DECLARE_NATIVE_FUNCTION(to_string);\n")
     out.write(
         """};
 
@@ -88,7 +79,6 @@ def write_global_mixin_implementation(
 
     includes.add("LibWeb/Bindings/Intrinsics.h")
 
-    member_interfaces = global_mixin_member_interfaces(interface, context)
     out.write(
         f"""{interface.name}GlobalMixin::{interface.name}GlobalMixin() = default;
 {interface.name}GlobalMixin::~{interface.name}GlobalMixin() = default;
@@ -101,11 +91,10 @@ void {interface.name}GlobalMixin::initialize(JS::Realm& realm, [[maybe_unused]] 
     object.set_prototype(&ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.namespaced_name}"_fly_string));
 """
     )
-    for member_interface in member_interfaces:
-        define_the_regular_attributes(out, includes, member_interface, include_replaceable_setters=True)
-        define_the_regular_operations(out, includes, member_interface)
-        define_the_stringifier(out, includes, member_interface)
-        define_the_constants(out, context, includes, member_interface)
+    define_the_regular_attributes(out, includes, interface, include_replaceable_setters=True)
+    define_the_regular_operations(out, includes, interface)
+    define_the_stringifier(out, includes, interface)
+    define_the_constants(out, context, includes, interface)
     out.write(
         f"""}}
 
@@ -115,10 +104,9 @@ void {interface.name}GlobalMixin::define_unforgeable_attributes(JS::Realm& realm
     [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable;
 """
     )
-    for member_interface in member_interfaces:
-        define_the_unforgeable_attributes(out, includes, member_interface, include_replaceable_setters=True)
-        define_the_regular_operations(out, includes, member_interface, unforgeable=True)
-        define_the_stringifier(out, includes, member_interface, unforgeable=True)
+    define_the_unforgeable_attributes(out, includes, interface, include_replaceable_setters=True)
+    define_the_regular_operations(out, includes, interface, unforgeable=True)
+    define_the_stringifier(out, includes, interface, unforgeable=True)
     out.write(
         """}
 
@@ -126,26 +114,21 @@ void {interface.name}GlobalMixin::define_unforgeable_attributes(JS::Realm& realm
     )
 
     defined_callbacks: set[str] = set()
-    for member_interface in member_interfaces:
-        for attribute in member_interface.regular_attributes:
-            if "FIXME" in attribute.extended_attributes:
-                continue
-            getter_callback = attribute_getter_callback_name(attribute)
-            if getter_callback not in defined_callbacks:
-                defined_callbacks.add(getter_callback)
-                write_attribute_getter(
-                    out, context, includes, member_interface, attribute, f"{interface.name}GlobalMixin"
-                )
-            if attribute_has_setter(attribute, include_replaceable=True):
-                setter_callback = attribute_setter_callback_name(attribute)
-                if setter_callback not in defined_callbacks:
-                    defined_callbacks.add(setter_callback)
-                    write_attribute_setter(
-                        out, context, includes, member_interface, attribute, f"{interface.name}GlobalMixin"
-                    )
-        write_regular_operations_for_receiver(
-            out, context, includes, member_interface, f"{interface.name}GlobalMixin", defined_callbacks
-        )
-        if member_interface.stringifier is not None and "to_string" not in defined_callbacks:
-            defined_callbacks.add("to_string")
-            write_stringifier(out, context, includes, member_interface, f"{interface.name}GlobalMixin")
+    for attribute in interface.regular_attributes:
+        if "FIXME" in attribute.extended_attributes:
+            continue
+        getter_callback = attribute_getter_callback_name(attribute)
+        if getter_callback not in defined_callbacks:
+            defined_callbacks.add(getter_callback)
+            write_attribute_getter(out, context, includes, interface, attribute, f"{interface.name}GlobalMixin")
+        if attribute_has_setter(attribute, include_replaceable=True):
+            setter_callback = attribute_setter_callback_name(attribute)
+            if setter_callback not in defined_callbacks:
+                defined_callbacks.add(setter_callback)
+                write_attribute_setter(out, context, includes, interface, attribute, f"{interface.name}GlobalMixin")
+    write_regular_operations_for_receiver(
+        out, context, includes, interface, f"{interface.name}GlobalMixin", defined_callbacks
+    )
+    if interface.stringifier is not None and "to_string" not in defined_callbacks:
+        defined_callbacks.add("to_string")
+        write_stringifier(out, context, includes, interface, f"{interface.name}GlobalMixin")
