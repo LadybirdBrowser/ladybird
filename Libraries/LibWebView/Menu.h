@@ -102,6 +102,7 @@ enum class ActionID {
     DumpCSSErrors,
     DumpCookies,
     DumpLocalStorage,
+    DumpSessionStorage,
     DumpGCGraph,
     DumpWasmStats,
     ShowLineBoxBorders,
