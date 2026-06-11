@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2023-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
+#include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
@@ -213,7 +214,7 @@ void HTMLIFrameElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* o
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#iframe-load-event-steps
-void run_iframe_load_event_steps(HTML::HTMLIFrameElement& element)
+void run_iframe_load_event_steps(HTMLIFrameElement& element)
 {
     // FIXME: 1. Assert: element's content navigable is not null.
     if (!element.content_navigable()) {
@@ -227,12 +228,45 @@ void run_iframe_load_event_steps(HTML::HTMLIFrameElement& element)
 
     // FIXME: 3. If childDocument has its mute iframe load flag set, then return.
 
-    // FIXME: 4. Set childDocument's iframe load in progress flag.
+    // 4. If element's pending resource-timing start time is not null:
+    if (element.pending_resource_start_time().has_value()) {
+        // 1. Assert: element's pending resource-timing URL is not null.
+        VERIFY(element.pending_resource_timing_url().has_value());
 
-    // 5. Fire an event named load at element.
+        // 2. Let global be element's node document's relevant global object.
+        auto& global = relevant_global_object(element.document());
+
+        // 3. Let fallbackTimingInfo be a new fetch timing info whose start time is element's pending resource-timing
+        //    start time and whose response end time is the current high resolution time given global.
+        auto fallback_timing_info = Fetch::Infrastructure::FetchTimingInfo::create(element.vm());
+        fallback_timing_info->set_start_time(element.pending_resource_start_time().value());
+        fallback_timing_info->set_end_time(HighResolutionTime::current_high_resolution_time(global));
+
+        // 4. Mark resource timing given fallbackTimingInfo, the result of parsing element's pending resource-timing
+        //    URL, "iframe", global, the empty string, a new response body info, and 0.
+        // FIXME: Our URL is already parsed, how are we supposed to parse it?
+        ResourceTiming::PerformanceResourceTiming::mark_resource_timing(
+            fallback_timing_info,
+            element.pending_resource_timing_url()->to_string(),
+            "iframe"_fly_string,
+            global,
+            Optional<Fetch::Infrastructure::Response::CacheState> {},
+            Fetch::Infrastructure::Response::BodyInfo {},
+            0);
+
+        // 5. Set element's pending resource-timing start time to null.
+        element.set_pending_resource_start_time({});
+
+        // 6. Set element's pending resource-timing URL to null.
+        element.set_pending_resource_timing_url({});
+    }
+
+    // FIXME: 5. Set childDocument's iframe load in progress flag.
+
+    // 6. Fire an event named load at element.
     element.dispatch_event(DOM::Event::create(element.realm(), HTML::EventNames::load));
 
-    // FIXME: 6. Unset childDocument's iframe load in progress flag.
+    // FIXME: 7. Unset childDocument's iframe load in progress flag.
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex

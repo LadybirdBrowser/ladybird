@@ -276,8 +276,15 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
         history_handling = Bindings::NavigationHistoryBehavior::Replace;
     }
 
-    // FIXME: 3. If element is an iframe, then set element's pending resource-timing start time to the current high resolution
-    //           time given element's node document's relevant global object.
+    // 3. If element is an iframe:
+    if (auto* iframe = as_if<HTMLIFrameElement>(this)) {
+        // 1. Set element's pending resource-timing start time to the current high resolution time given element's node
+        //    document's relevant global object.
+        iframe->set_pending_resource_start_time(HighResolutionTime::current_high_resolution_time(relevant_global_object(document())));
+
+        // 2. Set element's pending resource-timing URL to url.
+        iframe->set_pending_resource_timing_url(url);
+    }
 
     // 4. Navigate element's content navigable to url using element's node document, with historyHandling set to historyHandling,
     //    referrerPolicy set to referrerPolicy, documentResource set to srcdocString, and initialInsertion set to
