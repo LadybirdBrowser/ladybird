@@ -115,12 +115,19 @@
             .entry-text {
                 display: flex;
                 flex-direction: column;
+                flex: 1;
                 gap: 4px;
                 min-width: 0;
+                width: 100%;
             }
 
             .entry-title {
                 color: inherit;
+                display: block;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+
                 font-size: 14px;
                 font-weight: 600;
                 text-decoration: none;
@@ -183,11 +190,6 @@
 
                 .entry-meta {
                     text-align: left;
-                }
-
-                .entry-actions {
-                    width: 100%;
-                    justify-content: flex-end;
                 }
             }
         </style>
@@ -427,6 +429,7 @@
                                 className: "entry-title",
                                 href: entry.url,
                                 textContent: title,
+                                title,
                             }),
                             createElement("div", {
                                 className: "entry-url",
