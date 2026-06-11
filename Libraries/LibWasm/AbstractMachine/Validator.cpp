@@ -349,9 +349,12 @@ ErrorOr<void, ValidationError> Validator::validate(ElementSection const& section
         for (auto& expression : segment.init) {
             if (expression.instructions().is_empty())
                 continue;
+            // https://webassembly.github.io/spec/core/valid/modules.html#element-segments
             auto result = TRY(validate(expression, { segment.type }));
             if (!result.is_constant)
                 return Errors::invalid("element initializer"sv);
+            if (result.result_types.size() != 1)
+                return Errors::invalid("element initializer type"sv, segment.type, result.result_types);
         }
     }
     return {};

@@ -18,6 +18,7 @@
 #include <AK/SaturatingMath.h>
 #include <AK/ScopedValueRollback.h>
 #include <AK/Time.h>
+#include <AK/TypeCasts.h>
 #include <LibCore/File.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
@@ -5515,52 +5516,733 @@ HANDLE_INSTRUCTION(try_table)
     return Outcome::Return;
 }
 
-// Proposal "GC"; FIXME: Actually implement these :)
-#define HANDLE_WASM_GC_STUB(name)                           \
-    HANDLE_INSTRUCTION(name)                                \
-    {                                                       \
-        LOG_INSN;                                           \
-        interpreter.set_trap("Not Implemented: wasm-gc"sv); \
-        return Outcome::Return;                             \
+// Proposal "gc".
+
+#define GC_TRAP_IF(condition, message)         \
+    do {                                       \
+        if (condition) [[unlikely]] {          \
+            interpreter.set_trap(message##sv); \
+            return Outcome::Return;            \
+        }                                      \
+    } while (false)
+
+static ALWAYS_INLINE bool is_null_gc_reference(Value const& value)
+{
+    auto const tag = value.value().high();
+    return tag == 2 || tag == 3 || tag == 4 || tag == 8;
+}
+
+// https://webassembly.github.io/spec/core/exec/runtime.html#aggregate-instances
+static Value pack_into_field(ValueType const& storage_type, Value const& value)
+{
+    switch (storage_type.kind()) {
+    case ValueType::I8:
+        return Value(static_cast<u32>(value.to<u32>() & 0xff));
+    case ValueType::I16:
+        return Value(static_cast<u32>(value.to<u32>() & 0xffff));
+    default:
+        return value;
     }
+}
 
-HANDLE_WASM_GC_STUB(ref_eq)
-HANDLE_WASM_GC_STUB(ref_as_non_null)
-HANDLE_WASM_GC_STUB(br_on_null)
-HANDLE_WASM_GC_STUB(br_on_non_null)
-HANDLE_WASM_GC_STUB(struct_new)
-HANDLE_WASM_GC_STUB(struct_new_default)
-HANDLE_WASM_GC_STUB(struct_get)
-HANDLE_WASM_GC_STUB(struct_get_s)
-HANDLE_WASM_GC_STUB(struct_get_u)
-HANDLE_WASM_GC_STUB(struct_set)
-HANDLE_WASM_GC_STUB(array_new)
-HANDLE_WASM_GC_STUB(array_new_default)
-HANDLE_WASM_GC_STUB(array_new_fixed)
-HANDLE_WASM_GC_STUB(array_new_data)
-HANDLE_WASM_GC_STUB(array_new_elem)
-HANDLE_WASM_GC_STUB(array_get)
-HANDLE_WASM_GC_STUB(array_get_s)
-HANDLE_WASM_GC_STUB(array_get_u)
-HANDLE_WASM_GC_STUB(array_set)
-HANDLE_WASM_GC_STUB(array_len)
-HANDLE_WASM_GC_STUB(array_fill)
-HANDLE_WASM_GC_STUB(array_copy)
-HANDLE_WASM_GC_STUB(array_init_data)
-HANDLE_WASM_GC_STUB(array_init_elem)
-HANDLE_WASM_GC_STUB(ref_test)
-HANDLE_WASM_GC_STUB(ref_test_null)
-HANDLE_WASM_GC_STUB(ref_cast)
-HANDLE_WASM_GC_STUB(ref_cast_null)
-HANDLE_WASM_GC_STUB(br_on_cast)
-HANDLE_WASM_GC_STUB(br_on_cast_fail)
-HANDLE_WASM_GC_STUB(any_convert_extern)
-HANDLE_WASM_GC_STUB(extern_convert_any)
-HANDLE_WASM_GC_STUB(ref_i31)
-HANDLE_WASM_GC_STUB(i31_get_s)
-HANDLE_WASM_GC_STUB(i31_get_u)
+// https://webassembly.github.io/spec/core/exec/runtime.html#aggregate-instances
+// unpack^sx?_zt(val) = val                     if zt is a valtype
+//                    = extend^sx_|zt|,32(val)  if zt is a packtype
+static Value unpack_from_field(ValueType const& storage_type, Value const& value, bool sign_extend)
+{
+    switch (storage_type.kind()) {
+    case ValueType::I8:
+        return sign_extend
+            ? Value(static_cast<i32>(static_cast<i8>(value.to<u32>() & 0xff)))
+            : Value(static_cast<u32>(value.to<u32>() & 0xff));
+    case ValueType::I16:
+        return sign_extend
+            ? Value(static_cast<i32>(static_cast<i16>(value.to<u32>() & 0xffff)))
+            : Value(static_cast<u32>(value.to<u32>() & 0xffff));
+    default:
+        return value;
+    }
+}
 
-#undef HANDLE_WASM_GC_STUB
+static size_t storage_type_byte_width(ValueType const& storage_type)
+{
+    switch (storage_type.kind()) {
+    case ValueType::I8:
+        return 1;
+    case ValueType::I16:
+        return 2;
+    case ValueType::I32:
+    case ValueType::F32:
+        return 4;
+    case ValueType::I64:
+    case ValueType::F64:
+        return 8;
+    case ValueType::V128:
+        return 16;
+    default:
+        // References cannot be read out of a data segment (checked by the validator).
+        VERIFY_NOT_REACHED();
+    }
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+static Value value_from_segment_bytes(ValueType const& storage_type, ReadonlyBytes bytes)
+{
+    auto read_le = []<typename T>(ReadonlyBytes data) {
+        T value {};
+        __builtin_memcpy(&value, data.data(), sizeof(T));
+        return AK::convert_between_host_and_little_endian(value);
+    };
+    switch (storage_type.kind()) {
+    case ValueType::I8:
+        // Packed fields are stored pre-truncated; reads sign- or zero-extend, see unpack_from_field() above.
+        return Value(static_cast<u32>(bytes[0]));
+    case ValueType::I16:
+        return Value(static_cast<u32>(read_le.operator()<u16>(bytes)));
+    case ValueType::I32:
+        return Value(static_cast<i32>(read_le.operator()<u32>(bytes)));
+    case ValueType::I64:
+        return Value(static_cast<i64>(read_le.operator()<u64>(bytes)));
+    case ValueType::F32:
+        return Value(bit_cast<f32>(read_le.operator()<u32>(bytes)));
+    case ValueType::F64:
+        return Value(bit_cast<f64>(read_le.operator()<u64>(bytes)));
+    case ValueType::V128: {
+        u128 value {};
+        __builtin_memcpy(&value, bytes.data(), sizeof(u128));
+        return Value(value);
+    }
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+static bool reference_matches_type(Value const& value, ValueType const& target, Configuration& configuration)
+{
+    // See the encoding table in Value(Reference const&).
+    switch (value.value().high()) {
+    case 2: // null funcref / nofuncref
+    case 3: // null externref / noexternref
+    case 4: // null exnref / noexnref
+    case 8: // null in the any hierarchy
+        // "ref.null matches (ref null ht)": null only matches nullable targets. Validation
+        // keeps the hierarchies apart, so the target heap type always agrees with the null;
+        // in particular this is the only way to match the bottom (none/nofunc/...) types.
+        return target.is_nullable();
+    case 1: // a host externref
+        // Matches extern; also any, for an internalized host reference (tag 10) that lost its
+        // wrapper crossing a Reference boundary (e.g. an anyref table), see Value::to<Reference>().
+        return target.kind() == ValueType::ExternReference || target.kind() == ValueType::AnyReference;
+    case 5: // an exception
+        return target.kind() == ValueType::ExceptionReference;
+    case 6: { // a struct or array instance
+        auto& cell = *bit_cast<GC::Cell*>(value.value().low());
+        switch (target.kind()) {
+        case ValueType::AnyReference:
+        case ValueType::EqReference:
+            return true;
+        case ValueType::ExternReference:
+            // An externalized aggregate (tag 9) that lost its wrapper crossing a Reference boundary (e.g. an externref table); it is still in the extern hierarchy.
+            return true;
+        case ValueType::StructReference:
+            return is<StructInstance>(cell);
+        case ValueType::ArrayReference:
+            return is<ArrayInstance>(cell);
+        case ValueType::TypeUseReference: {
+            DefinedType const* actual = nullptr;
+            if (auto* struct_instance = as_if<StructInstance>(cell))
+                actual = &struct_instance->type();
+            else if (auto* array_instance = as_if<ArrayInstance>(cell))
+                actual = &array_instance->type();
+            return actual && matches_defined_type(*actual, *configuration.frame().module().canonical_types()[target.unsafe_typeindex().value()]);
+        }
+        default:
+            return false;
+        }
+    }
+    case 7: // an i31
+        // ExternReference covers an externalized i31 (tag 9) that lost its wrapper crossing a Reference boundary, as for tag 6 above.
+        return first_is_one_of(target.kind(), ValueType::I31Reference, ValueType::EqReference, ValueType::AnyReference, ValueType::ExternReference);
+    case 9 | (6 << 8): // an externalized struct or array instance
+    case 9 | (7 << 8): // an externalized i31
+        return target.kind() == ValueType::ExternReference;
+    case 10: // a host externref internalized into the any hierarchy
+        return target.kind() == ValueType::AnyReference;
+    default: { // a funcref; high is the defining Module* (null for host functions)
+        if (target.kind() == ValueType::FunctionReference)
+            return true;
+        if (target.kind() != ValueType::TypeUseReference)
+            return false;
+        auto* function = configuration.store().get(FunctionAddress { value.value().low() });
+        auto const* actual = function ? function->visit([](auto& f) { return f.defined_type(); }) : nullptr;
+        return actual && matches_defined_type(*actual, *configuration.frame().module().canonical_types()[target.unsafe_typeindex().value()]);
+    }
+    }
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(ref_eq)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    // bounds checked by verifier.
+    auto rhs = configuration.take_source<source_address_mix>(0, addresses.sources);
+    auto& lhs_slot = configuration.source_value<source_address_mix>(1, addresses.sources);
+    // Both operands are in the eq hierarchy: nulls are uniformly tag 8, i31s carry their payload and aggregates their cell pointer, so reference equality is bit equality.
+    auto const equal = lhs_slot.value() == rhs.value();
+    lhs_slot = Value(static_cast<i32>(equal ? 1 : 0));
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(ref_as_non_null)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto const& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+    GC_TRAP_IF(is_null_gc_reference(slot), "null reference");
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#control-instructions
+HANDLE_INSTRUCTION(br_on_null)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    // bounds checked by verifier.
+    auto value = configuration.take_source<source_address_mix>(0, addresses.sources);
+    auto const is_null = is_null_gc_reference(value);
+    // The branched-to label's arity does not include the reference; it is only put back when falling through.
+    if (!is_null)
+        configuration.value_stack().append(value);
+    short_ip.current_ip_value = interpreter.branch_to_label<true>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label, short_ip.current_ip_value, is_null).value();
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#control-instructions
+HANDLE_INSTRUCTION(br_on_non_null)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    // bounds checked by verifier.
+    auto value = configuration.take_source<source_address_mix>(0, addresses.sources);
+    auto const is_null = is_null_gc_reference(value);
+    if (!is_null)
+        configuration.value_stack().append(value);
+    short_ip.current_ip_value = interpreter.branch_to_label<true>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label, short_ip.current_ip_value, !is_null).value();
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(struct_new)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    {
+        auto const& type = *configuration.frame().module().canonical_types()[instruction->arguments().get<TypeIndex>().value()];
+        auto const& field_types = type.expansion().get<StructType>().fields();
+        auto const field_count = field_types.size();
+        auto operands = configuration.value_stack().span().slice_from_end(field_count);
+        Vector<Value> fields;
+        fields.ensure_capacity(field_count);
+        for (size_t i = 0; i < field_count; ++i)
+            fields.unchecked_append(pack_into_field(field_types[i].type(), operands[i]));
+        auto instance = configuration.store().heap().allocate<StructInstance>(type, move(fields));
+        configuration.value_stack().shrink(configuration.value_stack().size() - field_count);
+        configuration.push_to_destination<source_address_mix>(Value(Reference { Reference::GcObject { instance.ptr() } }), addresses.destination);
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(struct_new_default)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    {
+        auto const& type = *configuration.frame().module().canonical_types()[instruction->arguments().get<TypeIndex>().value()];
+        auto const& field_types = type.expansion().get<StructType>().fields();
+        Vector<Value> fields;
+        fields.ensure_capacity(field_types.size());
+        for (auto const& field_type : field_types)
+            fields.unchecked_append(Value(field_type.type().unpacked()));
+        auto instance = configuration.store().heap().allocate<StructInstance>(type, move(fields));
+        configuration.push_to_destination<source_address_mix>(Value(Reference { Reference::GcObject { instance.ptr() } }), addresses.destination);
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+template<SourceAddressMix mix>
+static bool struct_get_impl(BytecodeInterpreter& interpreter, Configuration& configuration, Instruction const* instruction, SourcesAndDestination const& addresses, bool sign_extend)
+{
+    auto& args = instruction->arguments().get<Instruction::StructFieldArgs>();
+    auto& slot = configuration.source_value<mix>(0, addresses.sources); // bounds checked by verifier.
+    if (is_null_gc_reference(slot)) [[unlikely]]
+        return interpreter.set_trap("null structure reference"sv);
+    auto& instance = *static_cast<StructInstance*>(bit_cast<GC::Cell*>(slot.value().low()));
+    auto const& field_types = configuration.frame().module().canonical_types()[args.type_index.value()]->expansion().get<StructType>().fields();
+    slot = unpack_from_field(field_types[args.field_index].type(), instance.fields()[args.field_index], sign_extend);
+    return false;
+}
+
+HANDLE_INSTRUCTION(struct_get)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    if (struct_get_impl<source_address_mix>(interpreter, configuration, instruction, addresses, false))
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(struct_get_s)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    if (struct_get_impl<source_address_mix>(interpreter, configuration, instruction, addresses, true))
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(struct_get_u)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    if (struct_get_impl<source_address_mix>(interpreter, configuration, instruction, addresses, false))
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(struct_set)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& args = instruction->arguments().get<Instruction::StructFieldArgs>();
+    // bounds checked by verifier.
+    auto value = configuration.take_source<source_address_mix>(0, addresses.sources);
+    auto reference = configuration.take_source<source_address_mix>(1, addresses.sources);
+    GC_TRAP_IF(is_null_gc_reference(reference), "null structure reference");
+    auto& instance = *static_cast<StructInstance*>(bit_cast<GC::Cell*>(reference.value().low()));
+    auto const& field_types = configuration.frame().module().canonical_types()[args.type_index.value()]->expansion().get<StructType>().fields();
+    instance.fields()[args.field_index] = pack_into_field(field_types[args.field_index].type(), value);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_new)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    {
+        auto const& type = *configuration.frame().module().canonical_types()[instruction->arguments().get<TypeIndex>().value()];
+        auto const& field_type = type.expansion().get<ArrayType>().type();
+        // bounds checked by verifier.
+        auto count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<u32>();
+        auto& slot = configuration.source_value<source_address_mix>(1, addresses.sources);
+        Vector<Value> elements;
+        GC_TRAP_IF(elements.try_ensure_capacity(count).is_error(), "Out of memory");
+        // The initializer stays live in `slot` (a scanned location) if the allocation below triggers a collection.
+        auto const element = pack_into_field(field_type.type(), slot);
+        for (u32 i = 0; i < count; ++i)
+            elements.unchecked_append(element);
+        auto instance = configuration.store().heap().allocate<ArrayInstance>(type, move(elements));
+        slot = Value(Reference { Reference::GcObject { instance.ptr() } });
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_new_default)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    {
+        auto const& type = *configuration.frame().module().canonical_types()[instruction->arguments().get<TypeIndex>().value()];
+        auto const& field_type = type.expansion().get<ArrayType>().type();
+        auto& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+        auto count = slot.template to<u32>();
+        Vector<Value> elements;
+        GC_TRAP_IF(elements.try_ensure_capacity(count).is_error(), "Out of memory");
+        auto const element = Value(field_type.type().unpacked());
+        for (u32 i = 0; i < count; ++i)
+            elements.unchecked_append(element);
+        auto instance = configuration.store().heap().allocate<ArrayInstance>(type, move(elements));
+        slot = Value(Reference { Reference::GcObject { instance.ptr() } });
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_new_fixed)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    {
+        auto& args = instruction->arguments().get<Instruction::ArrayNewFixedArgs>();
+        auto const& type = *configuration.frame().module().canonical_types()[args.type_index.value()];
+        auto const& field_type = type.expansion().get<ArrayType>().type();
+        auto operands = configuration.value_stack().span().slice_from_end(args.count);
+        Vector<Value> elements;
+        elements.ensure_capacity(args.count);
+        for (auto const& operand : operands)
+            elements.unchecked_append(pack_into_field(field_type.type(), operand));
+        auto instance = configuration.store().heap().allocate<ArrayInstance>(type, move(elements));
+        configuration.value_stack().shrink(configuration.value_stack().size() - args.count);
+        configuration.push_to_destination<source_address_mix>(Value(Reference { Reference::GcObject { instance.ptr() } }), addresses.destination);
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_new_data)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    {
+        auto& args = instruction->arguments().get<Instruction::ArrayDataArgs>();
+        auto const& type = *configuration.frame().module().canonical_types()[args.type_index.value()];
+        auto const& field_type = type.expansion().get<ArrayType>().type();
+        auto const element_size = storage_type_byte_width(field_type.type());
+        // bounds checked by verifier.
+        auto count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<u32>();
+        auto& slot = configuration.source_value<source_address_mix>(1, addresses.sources);
+        auto offset = slot.template to<u32>();
+        auto const& data = *configuration.store().get(configuration.frame().module().datas()[args.data_index.value()]);
+        GC_TRAP_IF(static_cast<u64>(offset) + static_cast<u64>(count) * element_size > data.size(), "out of bounds memory access");
+        Vector<Value> elements;
+        GC_TRAP_IF(elements.try_ensure_capacity(count).is_error(), "Out of memory");
+        auto bytes = data.data().span();
+        for (u32 i = 0; i < count; ++i)
+            elements.unchecked_append(value_from_segment_bytes(field_type.type(), bytes.slice(offset + static_cast<size_t>(i) * element_size, element_size)));
+        auto instance = configuration.store().heap().allocate<ArrayInstance>(type, move(elements));
+        slot = Value(Reference { Reference::GcObject { instance.ptr() } });
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_new_elem)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    {
+        auto& args = instruction->arguments().get<Instruction::ArrayElemArgs>();
+        auto const& type = *configuration.frame().module().canonical_types()[args.type_index.value()];
+        // bounds checked by verifier.
+        auto count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<u32>();
+        auto& slot = configuration.source_value<source_address_mix>(1, addresses.sources);
+        auto offset = slot.template to<u32>();
+        auto const& references = configuration.store().get(configuration.frame().module().elements()[args.element_index.value()])->references();
+        GC_TRAP_IF(static_cast<u64>(offset) + count > references.size(), "out of bounds table access");
+        Vector<Value> elements;
+        GC_TRAP_IF(elements.try_ensure_capacity(count).is_error(), "Out of memory");
+        for (u32 i = 0; i < count; ++i)
+            elements.unchecked_append(Value(references[offset + i]));
+        auto instance = configuration.store().heap().allocate<ArrayInstance>(type, move(elements));
+        slot = Value(Reference { Reference::GcObject { instance.ptr() } });
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+template<SourceAddressMix mix>
+static bool array_get_impl(BytecodeInterpreter& interpreter, Configuration& configuration, Instruction const* instruction, SourcesAndDestination const& addresses, bool sign_extend)
+{
+    // bounds checked by verifier.
+    auto index = configuration.take_source<mix>(0, addresses.sources).template to<u32>();
+    auto& slot = configuration.source_value<mix>(1, addresses.sources);
+    if (is_null_gc_reference(slot)) [[unlikely]]
+        return interpreter.set_trap("null array reference"sv);
+    auto& instance = *static_cast<ArrayInstance*>(bit_cast<GC::Cell*>(slot.value().low()));
+    if (index >= instance.elements().size()) [[unlikely]]
+        return interpreter.set_trap("out of bounds array access"sv);
+    auto const& field_type = configuration.frame().module().canonical_types()[instruction->arguments().get<TypeIndex>().value()]->expansion().get<ArrayType>().type();
+    slot = unpack_from_field(field_type.type(), instance.elements()[index], sign_extend);
+    return false;
+}
+
+HANDLE_INSTRUCTION(array_get)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    if (array_get_impl<source_address_mix>(interpreter, configuration, instruction, addresses, false))
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(array_get_s)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    if (array_get_impl<source_address_mix>(interpreter, configuration, instruction, addresses, true))
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(array_get_u)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    if (array_get_impl<source_address_mix>(interpreter, configuration, instruction, addresses, false))
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_set)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    // bounds checked by verifier.
+    auto value = configuration.take_source<source_address_mix>(0, addresses.sources);
+    auto index = configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>();
+    auto reference = configuration.take_source<source_address_mix>(2, addresses.sources);
+    GC_TRAP_IF(is_null_gc_reference(reference), "null array reference");
+    auto& instance = *static_cast<ArrayInstance*>(bit_cast<GC::Cell*>(reference.value().low()));
+    GC_TRAP_IF(index >= instance.elements().size(), "out of bounds array access");
+    auto const& field_type = configuration.frame().module().canonical_types()[instruction->arguments().get<TypeIndex>().value()]->expansion().get<ArrayType>().type();
+    instance.elements()[index] = pack_into_field(field_type.type(), value);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_len)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+    GC_TRAP_IF(is_null_gc_reference(slot), "null array reference");
+    auto& instance = *static_cast<ArrayInstance*>(bit_cast<GC::Cell*>(slot.value().low()));
+    slot = Value(static_cast<i32>(instance.elements().size()));
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_fill)
+{
+    LOG_INSN;
+    auto& value_stack = configuration.value_stack();
+    auto count = value_stack.take_last().to<u32>();
+    auto value = value_stack.take_last();
+    auto offset = value_stack.take_last().to<u32>();
+    auto reference = value_stack.take_last();
+    GC_TRAP_IF(is_null_gc_reference(reference), "null array reference");
+    auto& instance = *static_cast<ArrayInstance*>(bit_cast<GC::Cell*>(reference.value().low()));
+    GC_TRAP_IF(static_cast<u64>(offset) + count > instance.elements().size(), "out of bounds array access");
+    auto const& field_type = configuration.frame().module().canonical_types()[instruction->arguments().get<TypeIndex>().value()]->expansion().get<ArrayType>().type();
+    auto const element = pack_into_field(field_type.type(), value);
+    for (u32 i = 0; i < count; ++i)
+        instance.elements()[offset + i] = element;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_copy)
+{
+    LOG_INSN;
+    auto& value_stack = configuration.value_stack();
+    auto count = value_stack.take_last().to<u32>();
+    auto source_offset = value_stack.take_last().to<u32>();
+    auto source_reference = value_stack.take_last();
+    auto destination_offset = value_stack.take_last().to<u32>();
+    auto destination_reference = value_stack.take_last();
+    GC_TRAP_IF(is_null_gc_reference(destination_reference), "null array reference");
+    GC_TRAP_IF(is_null_gc_reference(source_reference), "null array reference");
+    auto& destination = *static_cast<ArrayInstance*>(bit_cast<GC::Cell*>(destination_reference.value().low()));
+    auto& source = *static_cast<ArrayInstance*>(bit_cast<GC::Cell*>(source_reference.value().low()));
+    GC_TRAP_IF(static_cast<u64>(destination_offset) + count > destination.elements().size(), "out of bounds array access");
+    GC_TRAP_IF(static_cast<u64>(source_offset) + count > source.elements().size(), "out of bounds array access");
+    if (destination_offset <= source_offset) {
+        for (u32 i = 0; i < count; ++i)
+            destination.elements()[destination_offset + i] = source.elements()[source_offset + i];
+    } else {
+        for (u32 i = count; i > 0; --i)
+            destination.elements()[destination_offset + i - 1] = source.elements()[source_offset + i - 1];
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_init_data)
+{
+    LOG_INSN;
+    auto& args = instruction->arguments().get<Instruction::ArrayDataArgs>();
+    auto& value_stack = configuration.value_stack();
+    auto count = value_stack.take_last().to<u32>();
+    auto source_offset = value_stack.take_last().to<u32>();
+    auto destination_offset = value_stack.take_last().to<u32>();
+    auto reference = value_stack.take_last();
+    GC_TRAP_IF(is_null_gc_reference(reference), "null array reference");
+    auto& instance = *static_cast<ArrayInstance*>(bit_cast<GC::Cell*>(reference.value().low()));
+    GC_TRAP_IF(static_cast<u64>(destination_offset) + count > instance.elements().size(), "out of bounds array access");
+    auto const& field_type = configuration.frame().module().canonical_types()[args.type_index.value()]->expansion().get<ArrayType>().type();
+    auto const element_size = storage_type_byte_width(field_type.type());
+    auto const& data = *configuration.store().get(configuration.frame().module().datas()[args.data_index.value()]);
+    GC_TRAP_IF(static_cast<u64>(source_offset) + static_cast<u64>(count) * element_size > data.size(), "out of bounds memory access");
+    auto bytes = data.data().span();
+    for (u32 i = 0; i < count; ++i)
+        instance.elements()[destination_offset + i] = value_from_segment_bytes(field_type.type(), bytes.slice(source_offset + static_cast<size_t>(i) * element_size, element_size));
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(array_init_elem)
+{
+    LOG_INSN;
+    auto& args = instruction->arguments().get<Instruction::ArrayElemArgs>();
+    auto& value_stack = configuration.value_stack();
+    auto count = value_stack.take_last().to<u32>();
+    auto source_offset = value_stack.take_last().to<u32>();
+    auto destination_offset = value_stack.take_last().to<u32>();
+    auto reference = value_stack.take_last();
+    GC_TRAP_IF(is_null_gc_reference(reference), "null array reference");
+    auto& instance = *static_cast<ArrayInstance*>(bit_cast<GC::Cell*>(reference.value().low()));
+    GC_TRAP_IF(static_cast<u64>(destination_offset) + count > instance.elements().size(), "out of bounds array access");
+    auto const& references = configuration.store().get(configuration.frame().module().elements()[args.element_index.value()])->references();
+    GC_TRAP_IF(static_cast<u64>(source_offset) + count > references.size(), "out of bounds table access");
+    for (u32 i = 0; i < count; ++i)
+        instance.elements()[destination_offset + i] = Value(references[source_offset + i]);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(ref_test)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+    slot = Value(static_cast<i32>(reference_matches_type(slot, instruction->arguments().get<ValueType>(), configuration) ? 1 : 0));
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+ALIAS_INSTRUCTION(ref_test_null, ref_test)
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(ref_cast)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto const& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+    GC_TRAP_IF(!reference_matches_type(slot, instruction->arguments().get<ValueType>(), configuration), "cast failure");
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+ALIAS_INSTRUCTION(ref_cast_null, ref_cast)
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#control-instructions
+HANDLE_INSTRUCTION(br_on_cast)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& args = instruction->arguments().get<Instruction::BranchOnCastArgs>();
+    // bounds checked by verifier.
+    auto value = configuration.take_source<source_address_mix>(0, addresses.sources);
+    auto const matches = reference_matches_type(value, args.target_type, configuration);
+    configuration.value_stack().append(value);
+    short_ip.current_ip_value = interpreter.branch_to_label<true>(configuration, args.branch.label, short_ip.current_ip_value, matches).value();
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#control-instructions
+HANDLE_INSTRUCTION(br_on_cast_fail)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& args = instruction->arguments().get<Instruction::BranchOnCastArgs>();
+    // bounds checked by verifier.
+    auto value = configuration.take_source<source_address_mix>(0, addresses.sources);
+    auto const matches = reference_matches_type(value, args.target_type, configuration);
+    configuration.value_stack().append(value);
+    short_ip.current_ip_value = interpreter.branch_to_label<true>(configuration, args.branch.label, short_ip.current_ip_value, !matches).value();
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(any_convert_extern)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+    auto const low = slot.value().low();
+    switch (slot.value().high()) {
+    case 3:
+        slot = Value(u128(0, 8));
+        break;
+    case 1:
+        slot = Value(u128(low, 10));
+        break;
+    case 9 | (6 << 8):
+        slot = Value(u128(low, 6));
+        break;
+    case 9 | (7 << 8):
+        slot = Value(u128(low, 7));
+        break;
+    default:
+        break;
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(extern_convert_any)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+    auto const low = slot.value().low();
+    switch (slot.value().high()) {
+    case 8:
+        slot = Value(u128(0, 3));
+        break;
+    case 6:
+        slot = Value(u128(low, 9 | (6 << 8)));
+        break;
+    case 7:
+        slot = Value(u128(low, 9 | (7 << 8)));
+        break;
+    case 10:
+        slot = Value(u128(low, 1));
+        break;
+    default:
+        break;
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(ref_i31)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+    slot = Value(u128(static_cast<u64>(slot.template to<u32>() & 0x7fffffff), 7));
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+// https://webassembly.github.io/spec/core/exec/instructions.html#reference-instructions
+HANDLE_INSTRUCTION(i31_get_s)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+    GC_TRAP_IF(is_null_gc_reference(slot), "null i31 reference");
+    auto const payload = static_cast<u32>(slot.value().low() & 0x7fffffff);
+    slot = Value(static_cast<i32>(payload << 1) >> 1);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(i31_get_u)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto& slot = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
+    GC_TRAP_IF(is_null_gc_reference(slot), "null i31 reference");
+    slot = Value(static_cast<u32>(slot.value().low() & 0x7fffffff));
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+#undef GC_TRAP_IF
 
 bool BytecodeInterpreter::trap_if_insufficient_native_stack_space(size_t minimum_native_stack_space_to_keep_free)
 {

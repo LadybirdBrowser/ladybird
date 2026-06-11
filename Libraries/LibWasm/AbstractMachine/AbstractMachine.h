@@ -182,6 +182,8 @@ public:
         // 6: a gc object
         // 7: an i31 reference
         // 8: a null reference in the any hierarchy
+        // 9 | (tag << 8): an "externalized" internal reference (extern.convert_any)
+        // 10: a host externref viewed as a value in the any hierarchy (any.convert_extern)
         // anything else: funcref, where high is the defining Module* (null for host functions)
         ref.ref().visit(
             [&](Reference::Func const& func) { m_value = u128(bit_cast<u64>(func.address), bit_cast<u64>(func.source_module.ptr())); },
@@ -213,7 +215,9 @@ public:
     // The gc cell behind this value if it holds a gc object reference, otherwise null.
     GC::Cell* gc_cell() const
     {
-        if (m_value.high() == 6)
+        // A gc object, either plain (tag 6) or externalized by extern.convert_any (tag 9
+        // wrapping tag 6).
+        if (m_value.high() == 6 || m_value.high() == (9 | (6 << 8)))
             return bit_cast<GC::Cell*>(m_value.low());
         return nullptr;
     }
@@ -268,6 +272,15 @@ public:
                 return Reference { Reference::I31 { static_cast<u32>(m_value.low()) } };
             case 8:
                 return Reference { Reference::Null { ValueType(ValueType::Kind::AnyReference) } };
+            case 9 | (6 << 8):
+                // An externalized gc object; boxing drops the extern.convert_any wrapper.
+                return Reference { Reference::GcObject { bit_cast<GC::Cell*>(m_value.low()) } };
+            case 9 | (7 << 8):
+                // An externalized i31; boxing drops the extern.convert_any wrapper.
+                return Reference { Reference::I31 { static_cast<u32>(m_value.low()) } };
+            case 10:
+                // A host externref internalized by any.convert_extern; boxing drops the wrapper.
+                return Reference { Reference::Extern { bit_cast<ExternAddress>(m_value.low()) } };
             default:
                 return Reference { Reference::Func { bit_cast<FunctionAddress>(m_value.low()), bit_cast<Wasm::Module*>(m_value.high()) } };
             }
@@ -818,6 +831,7 @@ public:
 
     auto& tables() const { return m_tables; }
     auto& globals() const { return m_globals; }
+    auto& elements() const { return m_elements; }
     auto& exceptions() const { return m_exceptions; }
 
 private:

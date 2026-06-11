@@ -157,6 +157,8 @@ void AbstractMachine::RootsProvider::for_each_conservative_range(AK::Function<vo
 
     for (auto& table : m_store.tables())
         report_references(table.elements().span());
+    for (auto& element : m_store.elements())
+        report_references(element.references().span());
     for (auto& global : m_store.globals())
         report_values(&global.value(), 1);
     for (auto& exception : m_store.exceptions())
@@ -565,6 +567,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     auto& auxiliary_instance = *auxiliary_instance_ptr;
 
     auxiliary_instance.cached_minimum_call_record_allocation_size = module.minimum_call_record_allocation_size();
+    auxiliary_instance.types() = module.type_section().types();
+    auxiliary_instance.canonical_types() = module.canonical_types();
 
     // https://webassembly.github.io/spec/core/exec/modules.html#instantiation
     // https://webassembly.github.io/spec/core/valid/matching.html#external-types
@@ -705,11 +709,12 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             Configuration config { m_store };
             if (m_should_limit_instruction_count)
                 config.enable_instruction_count_limit();
+            // https://webassembly.github.io/spec/core/exec/modules.html#instantiation
             config.set_frame(IsTailcall::No,
                 main_module_instance,
                 Vector<Value, ArgumentsStaticSize> {},
                 entry,
-                entry.instructions().size() - 1);
+                1uz);
             auto result = config.execute(interpreter);
             if (result.is_trap())
                 return InstantiationError { "Element section initialisation trapped", move(result.trap()) };
