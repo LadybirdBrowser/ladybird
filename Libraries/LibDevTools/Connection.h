@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
 #include <LibCore/Socket.h>
@@ -33,9 +35,11 @@ private:
     explicit Connection(NonnullOwnPtr<Core::BufferedTCPSocket>);
 
     ErrorOr<void> on_ready_to_read();
-    ErrorOr<JsonValue> read_message();
+    ErrorOr<void> read_available_data();
+    ErrorOr<Optional<JsonValue>> read_message();
 
     NonnullOwnPtr<Core::BufferedTCPSocket> m_socket;
+    ByteBuffer m_incoming_buffer;
 };
 
 }

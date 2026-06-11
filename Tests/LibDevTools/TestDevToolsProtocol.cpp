@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
@@ -21,6 +22,7 @@
 #include <LibHTTP/Header.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibTest/TestCase.h>
+#include <LibThreading/Thread.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ConsoleOutput.h>
@@ -1287,9 +1289,25 @@ public:
     {
         auto serialized = message.serialized();
         auto packet = MUST(String::formatted("{}:{}", serialized.byte_count(), serialized));
-        MUST(m_socket->set_blocking(true));
-        auto restore_nonblocking = ScopeGuard([&] { MUST(m_socket->set_blocking(false)); });
-        MUST(m_socket->write_until_depleted(packet.bytes()));
+        send_packet_bytes(packet.bytes());
+    }
+
+    NonnullRefPtr<Threading::Thread> send_in_two_fragments(JsonObject message, size_t first_fragment_size, Atomic<bool>& may_send_second_fragment, Atomic<bool>& sent_second_fragment)
+    {
+        auto serialized = message.serialized();
+        auto packet = MUST(String::formatted("{}:{}", serialized.byte_count(), serialized));
+        VERIFY(first_fragment_size < packet.byte_count());
+
+        send_packet_bytes(packet.bytes().slice(0, first_fragment_size));
+
+        return Threading::Thread::construct("DevToolsFragmentSender"sv, [this, packet = move(packet), first_fragment_size, &may_send_second_fragment, &sent_second_fragment]() -> intptr_t {
+            for (auto i = 0; i < 5000 && !may_send_second_fragment; ++i)
+                MUST(Core::System::sleep_ms(1));
+
+            sent_second_fragment = true;
+            send_packet_bytes(packet.bytes().slice(first_fragment_size));
+            return 0;
+        });
     }
 
     JsonObject request(StringView to, StringView type)
@@ -1307,6 +1325,13 @@ public:
     }
 
 private:
+    void send_packet_bytes(ReadonlyBytes bytes)
+    {
+        MUST(m_socket->set_blocking(true));
+        auto restore_nonblocking = ScopeGuard([&] { MUST(m_socket->set_blocking(false)); });
+        MUST(m_socket->write_until_depleted(bytes));
+    }
+
     ProtocolClient(Core::EventLoop& loop, NonnullOwnPtr<Core::TCPSocket> socket)
         : m_loop(loop)
         , m_socket(move(socket))
@@ -1766,6 +1791,34 @@ TEST_CASE(root_actor_and_connection_errors)
     client.send(move(second));
     EXPECT(client.read_message().has_array("workers"sv));
     EXPECT(client.read_message().has_array("addons"sv));
+}
+
+TEST_CASE(connection_accepts_fragmented_packets)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+
+    (void)client.read_message();
+    EXPECT_EQ(client.request("root"sv, "connect"sv).get_string("from"sv).value(), "root"sv);
+
+    JsonObject request;
+    request.set("to"sv, "root"sv);
+    request.set("type"sv, "getRoot"sv);
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> may_send_second_fragment { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> sent_second_fragment { false };
+    auto thread = client.send_in_two_fragments(move(request), 2, may_send_second_fragment, sent_second_fragment);
+    thread->start();
+
+    pump(session->loop);
+    EXPECT(!sent_second_fragment);
+
+    may_send_second_fragment = true;
+    MUST(thread->join());
+
+    auto root = client.read_message();
+    EXPECT_EQ(root.get_string("from"sv).value(), "root"sv);
+    EXPECT(root.has_string("deviceActor"sv));
 }
 
 TEST_CASE(history_navigation_requests)

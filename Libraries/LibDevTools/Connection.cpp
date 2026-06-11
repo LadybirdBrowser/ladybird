@@ -20,6 +20,8 @@ NonnullRefPtr<Connection> Connection::create(NonnullOwnPtr<Core::BufferedTCPSock
 Connection::Connection(NonnullOwnPtr<Core::BufferedTCPSocket> socket)
     : m_socket(move(socket))
 {
+    (void)m_socket->set_blocking(false);
+
     m_socket->on_ready_to_read = [this]() {
         if (auto result = on_ready_to_read(); result.is_error()) {
             if (on_connection_closed)
@@ -54,47 +56,71 @@ void Connection::send_message(JsonValue const& message)
     }
 }
 
-// https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#packets
-ErrorOr<JsonValue> Connection::read_message()
+ErrorOr<void> Connection::read_available_data()
 {
-    ByteBuffer length_buffer;
+    auto buffer = TRY(ByteBuffer::create_uninitialized(4096));
 
-    // FIXME: `read_until(':')` would be nicer here, but that seems to return immediately without receiving any data.
-    while (true) {
-        auto byte = TRY(m_socket->read_value<u8>());
-        if (byte == ':') {
+    while (TRY(m_socket->can_read_without_blocking())) {
+        auto bytes = TRY(m_socket->read_some(buffer));
+        if (bytes.is_empty()) {
+            if (m_socket->is_eof())
+                return Error::from_string_literal("DevTools client disconnected");
             break;
         }
 
-        length_buffer.append(byte);
+        TRY(m_incoming_buffer.try_append(bytes));
     }
 
-    auto length = StringView { length_buffer }.to_number<size_t>();
+    return {};
+}
+
+// https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#packets
+ErrorOr<Optional<JsonValue>> Connection::read_message()
+{
+    auto const packet = StringView { m_incoming_buffer };
+    auto colon_offset = packet.find(':');
+    if (!colon_offset.has_value())
+        return Optional<JsonValue> {};
+
+    auto length = packet.substring_view(0, *colon_offset).to_number<size_t>();
     if (!length.has_value())
         return Error::from_string_literal("Could not read message length from DevTools client");
 
-    ByteBuffer message_buffer;
-    message_buffer.resize(*length);
+    auto const message_offset = *colon_offset + 1;
+    auto const packet_size = message_offset + *length;
+    if (m_incoming_buffer.size() < packet_size)
+        return Optional<JsonValue> {};
 
-    TRY(m_socket->read_until_filled(message_buffer));
+    auto message = TRY(JsonValue::from_string(packet.substring_view(message_offset, *length)));
 
-    auto message = TRY(JsonValue::from_string(message_buffer));
     dbgln_if(DEVTOOLS_DEBUG, "\x1b[1;33m>>\x1b[0m {}", message);
+
+    if (packet_size == m_incoming_buffer.size()) {
+        m_incoming_buffer.clear();
+    } else {
+        m_incoming_buffer = TRY(m_incoming_buffer.slice(packet_size, m_incoming_buffer.size() - packet_size));
+    }
 
     return message;
 }
 
 ErrorOr<void> Connection::on_ready_to_read()
 {
+    TRY(read_available_data());
+
     // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#the-request-reply-pattern
     // Note that it is correct for a client to send several requests to a request/reply actor without waiting for a
     // reply to each request before sending the next; requests can be pipelined.
-    while (TRY(m_socket->can_read_without_blocking())) {
+    while (true) {
         auto message = TRY(read_message());
-        if (!message.is_object())
+        if (!message.has_value())
+            break;
+
+        auto value = message.release_value();
+        if (!value.is_object())
             continue;
 
-        Core::deferred_invoke([weak_self = make_weak_ptr<Connection>(), message = move(message)]() mutable {
+        Core::deferred_invoke([weak_self = make_weak_ptr<Connection>(), message = move(value)]() mutable {
             auto self = weak_self.strong_ref();
             if (!self)
                 return;
