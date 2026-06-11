@@ -78,6 +78,9 @@ public:
     using OnIndexedDBInspectionComplete = Function<void(ErrorOr<JsonObject>)>;
     virtual void inspect_indexed_database_storage(TabDescription const&, OnIndexedDBInspectionComplete) const { }
     virtual void inspect_indexed_database_objects(TabDescription const&, String const&, Optional<JsonArray>, JsonObject, OnIndexedDBInspectionComplete) const { }
+    using OnIndexedDatabaseChange = Function<void(JsonObject)>;
+    virtual u64 add_indexed_database_change_listener(TabDescription const&, OnIndexedDatabaseChange) const { return 0; }
+    virtual void remove_indexed_database_change_listener(TabDescription const&, u64) const { }
 
     using OnTabInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void inspect_tab(TabDescription const&, OnTabInspectionComplete) const { }

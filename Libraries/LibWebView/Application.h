@@ -284,6 +284,11 @@ private:
     virtual void remove_storage_change_listener(DevTools::TabDescription const&, u64) const override;
     virtual void inspect_indexed_database_storage(DevTools::TabDescription const&, OnIndexedDBInspectionComplete) const override;
     virtual void inspect_indexed_database_objects(DevTools::TabDescription const&, String const&, Optional<JsonArray>, JsonObject, OnIndexedDBInspectionComplete) const override;
+    virtual void delete_indexed_database(DevTools::TabDescription const&, String const&, String const&, OnIndexedDBInspectionComplete) const override;
+    virtual void clear_indexed_database_object_store(DevTools::TabDescription const&, String const&, String const&, OnIndexedDBInspectionComplete) const override;
+    virtual void delete_indexed_database_record(DevTools::TabDescription const&, String const&, String const&, OnIndexedDBInspectionComplete) const override;
+    virtual u64 add_indexed_database_change_listener(DevTools::TabDescription const&, OnIndexedDatabaseChange) const override;
+    virtual void remove_indexed_database_change_listener(DevTools::TabDescription const&, u64) const override;
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete) const override;
     virtual void inspect_accessibility_tree(DevTools::TabDescription const&, OnAccessibilityTreeInspectionComplete) const override;
     virtual void listen_for_dom_properties(DevTools::TabDescription const&, OnDOMNodePropertiesReceived) const override;

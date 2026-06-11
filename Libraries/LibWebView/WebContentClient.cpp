@@ -1086,6 +1086,12 @@ void WebContentClient::did_change_storage_item(u64 page_id, Web::StorageAPI::Sto
     }
 }
 
+void WebContentClient::did_update_indexed_database(u64 page_id, String update)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->notify_indexed_database_changed(parse_json(update, "IndexedDB update"sv));
+}
+
 void WebContentClient::did_post_broadcast_channel_message(u64, Web::HTML::BroadcastChannelMessage message)
 {
     WebContentClient::for_each_client([&](auto& client) {

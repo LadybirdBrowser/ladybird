@@ -23,9 +23,23 @@ IndexedDBActor::IndexedDBActor(DevToolsServer& devtools, String name, WeakPtr<Ta
     : Actor(devtools, move(name))
     , m_tab(move(tab))
 {
+    if (auto tab = m_tab.strong_ref()) {
+        m_indexed_database_change_listener_id = devtools.delegate().add_indexed_database_change_listener(
+            tab->description(),
+            weak_callback(*this, [](auto& self, JsonObject update) {
+                self.on_indexed_database_changed(move(update));
+            }));
+    }
 }
 
-IndexedDBActor::~IndexedDBActor() = default;
+IndexedDBActor::~IndexedDBActor()
+{
+    if (m_indexed_database_change_listener_id == 0)
+        return;
+
+    if (auto tab = m_tab.strong_ref())
+        devtools().delegate().remove_indexed_database_change_listener(tab->description(), m_indexed_database_change_listener_id);
+}
 
 JsonObject IndexedDBActor::serialize_storage(JsonObject hosts) const
 {
@@ -153,6 +167,14 @@ void IndexedDBActor::get_store_objects(Message const& message)
 
             self->send_response({ .id = message_id }, result.release_value());
         });
+}
+
+void IndexedDBActor::on_indexed_database_changed(JsonObject update)
+{
+    JsonObject message;
+    message.set("type"sv, "storesUpdate"sv);
+    message.set("data"sv, move(update));
+    send_message(move(message));
 }
 
 }

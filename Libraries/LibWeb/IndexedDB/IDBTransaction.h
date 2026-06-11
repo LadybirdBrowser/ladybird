@@ -108,6 +108,8 @@ public:
     void set_onerror(WebIDL::CallbackType*);
     WebIDL::CallbackType* onerror();
 
+    void notify_devtools_of_committed_changes();
+
 protected:
     explicit IDBTransaction(JS::Realm&, GC::Ref<IDBDatabase>, Bindings::IDBTransactionMode, Bindings::IDBTransactionDurability, Vector<GC::Ref<ObjectStore>>);
     virtual void initialize(JS::Realm&) override;

@@ -1997,6 +1997,52 @@ void Application::inspect_indexed_database_objects(DevTools::TabDescription cons
     view->inspect_indexed_database_objects(host, move(names), move(options), move(on_complete));
 }
 
+void Application::delete_indexed_database(DevTools::TabDescription const& description, String const& host, String const& name, OnIndexedDBInspectionComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->delete_indexed_database(host, name, move(on_complete));
+}
+
+void Application::clear_indexed_database_object_store(DevTools::TabDescription const& description, String const& host, String const& name, OnIndexedDBInspectionComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->clear_indexed_database_object_store(host, name, move(on_complete));
+}
+
+void Application::delete_indexed_database_record(DevTools::TabDescription const& description, String const& host, String const& name, OnIndexedDBInspectionComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->delete_indexed_database_record(host, name, move(on_complete));
+}
+
+u64 Application::add_indexed_database_change_listener(DevTools::TabDescription const& description, OnIndexedDatabaseChange on_indexed_database_change) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        return view->add_indexed_database_change_listener(move(on_indexed_database_change));
+    return 0;
+}
+
+void Application::remove_indexed_database_change_listener(DevTools::TabDescription const& description, u64 listener_id) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->remove_indexed_database_change_listener(listener_id);
+}
+
 void Application::inspect_tab(DevTools::TabDescription const& description, OnTabInspectionComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

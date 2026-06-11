@@ -17,6 +17,7 @@
 #include <LibDevTools/Connection.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
+#include <LibDevTools/IndexedDBSerialization.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/Header.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -829,6 +830,44 @@ public:
         callback(make_indexed_database_store_objects(names));
     }
 
+    virtual void delete_indexed_database(DevTools::TabDescription const&, String const& host, String const& name, OnIndexedDBInspectionComplete callback) const override
+    {
+        ++delete_indexed_database_call_count;
+        last_indexed_database_host = host;
+        last_indexed_database_name = name;
+        callback(JsonObject {});
+    }
+
+    virtual void clear_indexed_database_object_store(DevTools::TabDescription const&, String const& host, String const& name, OnIndexedDBInspectionComplete callback) const override
+    {
+        ++clear_indexed_database_object_store_call_count;
+        last_indexed_database_host = host;
+        last_indexed_database_name = name;
+        callback(JsonObject {});
+    }
+
+    virtual void delete_indexed_database_record(DevTools::TabDescription const&, String const& host, String const& name, OnIndexedDBInspectionComplete callback) const override
+    {
+        ++delete_indexed_database_record_call_count;
+        last_indexed_database_host = host;
+        last_indexed_database_name = name;
+        callback(JsonObject {});
+    }
+
+    virtual u64 add_indexed_database_change_listener(DevTools::TabDescription const&, OnIndexedDatabaseChange callback) const override
+    {
+        auto listener_id = next_indexed_database_change_listener_id++;
+        indexed_database_change_listeners.set(listener_id, move(callback));
+        ++add_indexed_database_change_listener_call_count;
+        return listener_id;
+    }
+
+    virtual void remove_indexed_database_change_listener(DevTools::TabDescription const&, u64 listener_id) const override
+    {
+        indexed_database_change_listeners.remove(listener_id);
+        ++remove_indexed_database_change_listener_call_count;
+    }
+
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete callback) const override
     {
         ++inspect_tab_call_count;
@@ -1243,6 +1282,13 @@ public:
         return fixture_session_storage_items;
     }
 
+    void emit_indexed_database_change(JsonObject update) const
+    {
+        VERIFY(!indexed_database_change_listeners.is_empty());
+        for (auto& listener : indexed_database_change_listeners)
+            listener.value(update);
+    }
+
     mutable Function<void(WebView::DOMNodeProperties)> on_dom_node_properties;
     mutable Function<void(WebView::Mutation)> on_dom_mutation;
     mutable Function<void(Web::CSS::StyleSheetIdentifier const&, String)> on_style_sheet_source;
@@ -1255,6 +1301,7 @@ public:
     mutable Function<void(Vector<HTTP::Cookie::Cookie>)> on_host_cookie_change;
     mutable HashMap<u64, Function<void(DevToolsDelegate::StorageChange)>> storage_change_listeners;
     String tab_url { "https://example.test/"_string };
+    mutable HashMap<u64, Function<void(JsonObject)>> indexed_database_change_listeners;
 
     struct NavigationListener {
         Function<void(String)> on_navigation_started;
@@ -1285,6 +1332,12 @@ public:
     mutable bool fail_clear_storage { false };
     mutable size_t inspect_indexed_database_storage_call_count { 0 };
     mutable size_t inspect_indexed_database_objects_call_count { 0 };
+    mutable size_t delete_indexed_database_call_count { 0 };
+    mutable size_t clear_indexed_database_object_store_call_count { 0 };
+    mutable size_t delete_indexed_database_record_call_count { 0 };
+    mutable size_t add_indexed_database_change_listener_call_count { 0 };
+    mutable size_t remove_indexed_database_change_listener_call_count { 0 };
+    mutable u64 next_indexed_database_change_listener_id { 1 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
     mutable size_t listen_for_dom_properties_call_count { 0 };
     mutable size_t stop_listening_for_dom_properties_call_count { 0 };
@@ -2494,6 +2547,85 @@ TEST_CASE(storage_indexed_database_store_objects)
     auto record = record_rows.at(0).as_object();
     EXPECT_EQ(record.get_integer<int>("name"sv).value(), 1);
     EXPECT_EQ(record.get_string("value"sv).value(), "{\"name\":\"Ada\"}"sv);
+}
+
+TEST_CASE(storage_indexed_database_change_events)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto indexed_database_actor = get_indexed_database_actor(client);
+    EXPECT_EQ(session->delegate.add_indexed_database_change_listener_call_count, 1u);
+
+    JsonArray added;
+    added.must_append(indexed_database_path("fixtures (default)"sv, "people"sv));
+
+    JsonArray record_path;
+    record_path.must_append("fixtures (default)"sv);
+    record_path.must_append("people"sv);
+    record_path.must_append(1);
+    JsonArray changed;
+    changed.must_append(record_path.serialized());
+
+    JsonArray deleted;
+    deleted.must_append(indexed_database_path("empty (default)"sv));
+
+    JsonObject added_hosts;
+    added_hosts.set("https://example.test"sv, move(added));
+    JsonObject added_types;
+    added_types.set("indexedDB"sv, move(added_hosts));
+
+    JsonObject changed_hosts;
+    changed_hosts.set("https://example.test"sv, move(changed));
+    JsonObject changed_types;
+    changed_types.set("indexedDB"sv, move(changed_hosts));
+
+    JsonObject deleted_hosts;
+    deleted_hosts.set("https://example.test"sv, move(deleted));
+    JsonObject deleted_types;
+    deleted_types.set("indexedDB"sv, move(deleted_hosts));
+
+    JsonObject update;
+    update.set("added"sv, move(added_types));
+    update.set("changed"sv, move(changed_types));
+    update.set("deleted"sv, move(deleted_types));
+    session->delegate.emit_indexed_database_change(move(update));
+
+    auto stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    EXPECT_EQ(stores_update.get_string("from"sv).value(), indexed_database_actor);
+
+    auto added_paths = get_indexed_database_update_paths(stores_update, "added"sv);
+    EXPECT_EQ(added_paths.size(), 1u);
+    EXPECT_EQ(added_paths.at(0).as_string(), indexed_database_path("fixtures (default)"sv, "people"sv));
+
+    auto changed_paths = get_indexed_database_update_paths(stores_update, "changed"sv);
+    EXPECT_EQ(changed_paths.size(), 1u);
+    EXPECT_EQ(changed_paths.at(0).as_string(), record_path.serialized());
+
+    auto deleted_paths = get_indexed_database_update_paths(stores_update, "deleted"sv);
+    EXPECT_EQ(deleted_paths.size(), 1u);
+    EXPECT_EQ(deleted_paths.at(0).as_string(), indexed_database_path("empty (default)"sv));
+}
+
+TEST_CASE(storage_indexed_database_serializes_live_tree_updates)
+{
+    Web::IndexedDB::TransactionChanges changes;
+    changes.added.append({ "fixtures"_string, "people"_string });
+    changes.added.append({ "fixtures"_string, "people"_string, JsonValue { 1 } });
+    changes.changed.append({ "fixtures"_string, "people"_string, JsonValue { 2 } });
+    changes.deleted.append({ "fixtures"_string, "people"_string, JsonValue { 3 } });
+
+    auto update = DevTools::IndexedDB::serialize_update("https://example.test/page"_string, changes);
+
+    auto added_paths = update.get_object("added"sv)
+                           ->get_object("indexedDB"sv)
+                           ->get_array("https://example.test"sv)
+                           .release_value();
+    EXPECT_EQ(added_paths.size(), 1u);
+    EXPECT_EQ(added_paths.at(0).as_string(), indexed_database_path("fixtures (default)"sv, "people"sv));
+    EXPECT(!update.get_object("changed"sv).has_value());
+    EXPECT(!update.get_object("deleted"sv).has_value());
 }
 
 TEST_CASE(storage_cookie_store_objects)
