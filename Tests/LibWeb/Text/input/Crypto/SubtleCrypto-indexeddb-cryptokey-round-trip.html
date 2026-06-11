@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        setTimeout(async () => {
+            spoofCurrentURL("https://example.com/indexeddb-cryptokey-round-trip.html");
+
+            const message = new TextEncoder().encode("indexeddb cryptokey round trip");
+            const hmacKey = await crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+            const ecPair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
+            const ed25519Pair = await crypto.subtle.generateKey({ name: "Ed25519" }, false, ["sign", "verify"]);
+            const x25519Alice = await crypto.subtle.generateKey({ name: "X25519" }, false, ["deriveBits"]);
+            const x25519Bob = await crypto.subtle.generateKey({ name: "X25519" }, false, ["deriveBits"]);
+            const expectedMac = new Uint8Array(await crypto.subtle.sign("HMAC", hmacKey, message));
+            const expectedBits = new Uint8Array(await crypto.subtle.deriveBits({ name: "X25519", public: x25519Bob.publicKey }, x25519Alice.privateKey, 256));
+
+            const dbName = "test-cryptokey-round-trip-" + Date.now() + Math.random();
+            const db = await new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, 1);
+                request.onupgradeneeded = event => event.target.result.createObjectStore("keys");
+                request.onsuccess = event => resolve(event.target.result);
+                request.onerror = () => reject(request.error);
+            });
+
+            await new Promise((resolve, reject) => {
+                const transaction = db.transaction("keys", "readwrite");
+                transaction.objectStore("keys").put(hmacKey, "hmac");
+                transaction.objectStore("keys").put(ecPair.privateKey, "ec-private");
+                transaction.objectStore("keys").put(ed25519Pair.privateKey, "ed25519-private");
+                transaction.objectStore("keys").put(x25519Alice.privateKey, "x25519-private");
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error);
+            });
+
+            const get = key => new Promise((resolve, reject) => {
+                const request = db.transaction("keys", "readonly").objectStore("keys").get(key);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+
+            const storedHmac = await get("hmac");
+            println(`hmac type=${storedHmac.type} extractable=${storedHmac.extractable} algorithm=${storedHmac.algorithm.name}`);
+            const mac = new Uint8Array(await crypto.subtle.sign("HMAC", storedHmac, message));
+            const macMatches = mac.length === expectedMac.length && mac.every((byte, i) => byte === expectedMac[i]);
+            println(`hmac signature matches=${macMatches}`);
+
+            const storedEcPrivate = await get("ec-private");
+            println(`ec type=${storedEcPrivate.type} extractable=${storedEcPrivate.extractable} curve=${storedEcPrivate.algorithm.namedCurve}`);
+            const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, storedEcPrivate, message);
+            const verified = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, ecPair.publicKey, signature, message);
+            println(`ec signature verifies=${verified}`);
+
+            const storedEd25519 = await get("ed25519-private");
+            println(`ed25519 type=${storedEd25519.type} extractable=${storedEd25519.extractable} algorithm=${storedEd25519.algorithm.name}`);
+            const ed25519Signature = await crypto.subtle.sign({ name: "Ed25519" }, storedEd25519, message);
+            const ed25519Verified = await crypto.subtle.verify({ name: "Ed25519" }, ed25519Pair.publicKey, ed25519Signature, message);
+            println(`ed25519 signature verifies=${ed25519Verified}`);
+
+            const storedX25519 = await get("x25519-private");
+            println(`x25519 type=${storedX25519.type} extractable=${storedX25519.extractable} algorithm=${storedX25519.algorithm.name}`);
+            const derivedBits = new Uint8Array(await crypto.subtle.deriveBits({ name: "X25519", public: x25519Bob.publicKey }, storedX25519, 256));
+            const bitsMatch = derivedBits.length === expectedBits.length && derivedBits.every((byte, i) => byte === expectedBits[i]);
+            println(`x25519 derived bits match=${bitsMatch}`);
+
+            db.close();
+            indexedDB.deleteDatabase(dbName);
+            done();
+        });
+    });
+</script>

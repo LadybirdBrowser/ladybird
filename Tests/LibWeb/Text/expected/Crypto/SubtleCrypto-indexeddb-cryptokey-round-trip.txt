@@ -1,0 +1,8 @@
+hmac type=secret extractable=false algorithm=HMAC
+hmac signature matches=true
+ec type=private extractable=false curve=P-256
+ec signature verifies=true
+ed25519 type=private extractable=false algorithm=Ed25519
+ed25519 signature verifies=true
+x25519 type=private extractable=false algorithm=X25519
+x25519 derived bits match=true
