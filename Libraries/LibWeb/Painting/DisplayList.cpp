@@ -264,10 +264,13 @@ void DisplayListPlayer::execute_impl(
             return false;
         };
 
-        while (applied_depth > common_ancestor_depth) {
-            restore({});
-            applied_depth--;
-        }
+        auto restore_to_depth = [&](size_t target_depth) {
+            while (applied_depth > target_depth) {
+                restore({});
+                --applied_depth;
+            }
+        };
+        restore_to_depth(common_ancestor_depth);
 
         auto result = SwitchResult::Switched;
         for_each_node_from_common_ancestor_to_target(
@@ -289,6 +292,8 @@ void DisplayListPlayer::execute_impl(
         if (result == SwitchResult::Switched) {
             applied_context_index = target_index;
             has_applied_context = true;
+        } else {
+            restore_to_depth(common_ancestor_depth);
         }
         return result;
     };
