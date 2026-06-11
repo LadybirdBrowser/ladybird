@@ -267,7 +267,6 @@ void DecodedAudioProducer::ThreadData::seek(AK::Duration timestamp)
     note_consumer_activity_while_locked();
     m_seek_id++;
     m_seek_timestamp = timestamp;
-    m_current_halting_status = PipelineStatus::Pending;
     m_downstream_needs_wake = true;
     m_demuxer->set_blocking_reads_aborted_for_track(m_track);
     wake();
@@ -405,8 +404,8 @@ DecoderErrorOr<void> DecodedAudioProducer::ThreadData::retrieve_next_block(Audio
 void DecodedAudioProducer::ThreadData::resolve_seek(u32 seek_id, bool moved_position)
 {
     m_last_processed_seek_id = seek_id;
-    VERIFY(m_current_halting_status != PipelineStatus::HaveData);
     if (moved_position) {
+        m_current_halting_status = PipelineStatus::Pending;
         m_moved_position_pending = true;
         m_queue.clear();
     }
@@ -426,10 +425,12 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
     auto handle_error = [&](DecoderError&& error) {
         auto locker = take_lock();
         m_queue.clear();
+        if (moved_position) {
+            m_current_halting_status = PipelineStatus::Pending;
+            m_moved_position_pending = true;
+        }
         enter_halting_state(PipelineStatus::Error, move(error));
         m_last_processed_seek_id = seek_id;
-        if (moved_position)
-            m_moved_position_pending = true;
     };
 
     while (true) {
