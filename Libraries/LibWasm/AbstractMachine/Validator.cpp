@@ -32,6 +32,17 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     m_context.types.extend(module.type_section().types());
     m_context.data_count = module.data_count_section().count();
 
+    // https://webassembly.github.io/spec/core/valid/modules.html#types
+    // Intern the type section's recursive groups as defined types ("the defined type sequence
+    // dt* is of the form roll*_x(rectype)") before anything else can refer to them; the rest of
+    // the sub type validation rule runs in validate(TypeSection const&) below.
+    {
+        auto canonical_types = TRY(canonicalize_module_types(module.type_section()));
+        m_context.canonical_types.extend(canonical_types);
+        module.set_canonical_types(move(canonical_types));
+    }
+    TRY(validate(module.type_section()));
+
     for (auto& import_ : module.import_section().imports()) {
         TRY(import_.description().visit(
             [&](TypeIndex const& index) -> ErrorOr<void, ValidationError> {
@@ -147,7 +158,6 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     TRY(validate(module.table_section()));
     TRY(validate(module.code_section()));
     TRY(validate(module.tag_section()));
-    TRY(validate(module.type_section()));
 
     for (auto& entry : module.code_section().functions())
         module.set_minimum_call_record_allocation_size(max(entry.func().body().compiled_instructions.max_call_rec_size, module.minimum_call_record_allocation_size()));
@@ -493,7 +503,11 @@ ErrorOr<void, ValidationError> Validator::validate(TypeSection::Type const& type
         if (supertype.is_final())
             return Errors::invalid("supertype, must not be final"sv);
 
-        // FIXME: - The composite type comptype matches the composite type comptype'.
+        // - The composite type comptype matches the composite type comptype'.
+        auto const* defined_type = m_context.canonical_types[this_type_index];
+        auto const* defined_supertype = m_context.canonical_types[supertype_index.value()];
+        if (!matches_composite_type(defined_type->expansion(), defined_supertype->expansion(), TypeContext {}))
+            return Errors::invalid("subtype, composite type must match its declared supertype"sv);
     }
 
     return type.description().visit(
@@ -2432,6 +2446,46 @@ VALIDATE_INSTRUCTION(try_table)
     auto& args = instruction.arguments().get<Instruction::TryTableArgs>();
     auto block_type = TRY(validate(args.block_type));
 
+    // https://webassembly.github.io/spec/core/valid/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-try-table-xref-syntax-types-syntax-blocktype-mathit-blocktype-xref-syntax-instructions-syntax-catch-mathit-catch-ast-xref-syntax-instructions-syntax-instr-mathit-instr-ast
+    // try_table bt catch* instr* is valid with [t1*] -> [t2*] if:
+    //  - The block type bt is valid as some instruction type [t1*] -> [t2*].
+    //  - For all catch in catch*: the catch clause catch is valid.
+    //    Note: the catch clauses are validated under C, without the try_table's own label.
+    for (auto& catch_ : args.catches()) {
+        // - The label C.labels[l] exists.
+        auto label = catch_.target_label();
+        TRY(validate(label));
+        auto& target_label_type = m_frames[(m_frames.size() - 1) - label.value()].labels();
+
+        Vector<ValueType> expected_label_types;
+        if (auto tag = catch_.matching_tag_index(); tag.has_value()) {
+            // - The tag C.tags[x] exists.
+            TRY(validate(tag.value()));
+            auto tag_type = m_context.tags[tag->value()];
+            TRY(validate(tag_type.type()));
+            auto& type = m_context.types[tag_type.type().value()];
+
+            // - The expansion of C.tags[x] is (func t* -> ε).
+            if (!type.is_function())
+                return Errors::invalid("catch tag type"sv, "a function type"sv, type);
+            auto& func = type.function();
+            if (!func.results().is_empty())
+                return Errors::invalid("catch tag type"sv, "no results"sv, func.results());
+
+            expected_label_types.extend(func.parameters());
+        }
+
+        // catch x l:         the result type t* matches the label C.labels[l].
+        // catch_ref x l:     the result type t* (ref exn) matches the label C.labels[l].
+        // catch_all l:       the result type ε matches the label C.labels[l].
+        // catch_all_ref l:   the result type (ref exn) matches the label C.labels[l].
+        if (catch_.is_ref())
+            expected_label_types.append(ValueType(ValueType::ExceptionReference, false));
+
+        if (!matches_result_types(expected_label_types.span(), target_label_type.span(), m_context.type_context()))
+            return Errors::non_conforming_types("catch"sv, expected_label_types.span(), target_label_type.span());
+    }
+
     auto& parameters = block_type.parameters();
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
@@ -2447,51 +2501,6 @@ VALIDATE_INSTRUCTION(try_table)
     for (auto& parameter : parameters)
         stack.append(parameter);
 
-    for (auto& catch_ : args.catches()) {
-        auto label = catch_.target_label();
-        TRY(validate(label));
-        auto& target_label_type = m_frames[(m_frames.size() - 1) - label.value()].labels();
-
-        if (auto tag = catch_.matching_tag_index(); tag.has_value()) {
-            TRY(validate(tag.value()));
-            auto tag_type = m_context.tags[tag->value()];
-            TRY(validate(tag_type.type()));
-            auto& type = m_context.types[tag_type.type().value()];
-
-            if (!type.is_function())
-                return Errors::invalid("catch type"sv, "a function type"sv, type);
-
-            auto& func = type.function();
-
-            if (!func.results().is_empty())
-                return Errors::invalid("catch type"sv, "empty"sv, func.results());
-
-            Span<ValueType const> parameters_to_check = func.parameters().span();
-            if (catch_.is_ref()) {
-                // catch_ref x l
-                auto& parameters = func.parameters();
-                if (parameters.is_empty() || parameters.last().kind() != ValueType::ExceptionReference)
-                    return Errors::invalid("catch_ref type"sv, "[..., exnref]"sv, parameters);
-                parameters_to_check = parameters_to_check.slice(0, parameters.size() - 1);
-            } else {
-                // catch x l
-                // (noop here)
-            }
-
-            if (parameters_to_check != target_label_type.span())
-                return Errors::non_conforming_types("catch"sv, parameters_to_check, target_label_type.span());
-        } else {
-            if (catch_.is_ref()) {
-                // catch_all_ref l
-                if (target_label_type.size() != 1 || target_label_type[0].kind() != ValueType::ExceptionReference)
-                    return Errors::invalid("catch_all_ref type"sv, "[exnref]"sv, target_label_type);
-            } else {
-                // catch_all l
-                if (!target_label_type.is_empty())
-                    return Errors::invalid("catch_all type"sv, "empty"sv, target_label_type);
-            }
-        }
-    }
     return {};
 }
 

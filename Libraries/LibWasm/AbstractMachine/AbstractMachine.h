@@ -15,6 +15,7 @@
 #include <AK/UFixedBigInt.h>
 #include <AK/Weakable.h>
 #include <LibWasm/Export.h>
+#include <LibWasm/TypeSystem.h>
 #include <LibWasm/Types.h>
 
 namespace Wasm {
@@ -364,6 +365,8 @@ public:
     ModuleInstance() = default;
 
     auto& types() const { return m_types; }
+    auto& canonical_types() const { return m_canonical_types; }
+    auto& canonical_types() { return m_canonical_types; }
     auto& functions() const { return m_functions; }
     auto& tables() const { return m_tables; }
     auto& memories() const { return m_memories; }
@@ -391,6 +394,7 @@ public:
 
 private:
     Vector<TypeSection::Type> m_types;
+    Vector<DefinedType const*> m_canonical_types;
     Vector<TagType> m_tag_types;
     Vector<FunctionAddress> m_functions;
     Vector<TableAddress> m_tables;
@@ -407,8 +411,9 @@ private:
 
 class WasmFunction {
 public:
-    explicit WasmFunction(FunctionType const& type, ModuleInstance const& instance, Module const& module, CodeSection::Code const& code)
+    explicit WasmFunction(FunctionType const& type, DefinedType const* defined_type, ModuleInstance const& instance, Module const& module, CodeSection::Code const& code)
         : m_type(type)
+        , m_defined_type(defined_type)
         , m_module(module.make_weak_ptr())
         , m_module_instance(instance.make_weak_ptr<ModuleInstance const>())
         , m_code(&code)
@@ -416,7 +421,8 @@ public:
     }
 
     auto& type() const { return m_type; }
-    // Callers must have already verified the module is alive (e.g., via Store::get() returning non-null).
+    // https://webassembly.github.io/spec/core/exec/runtime.html#function-instances
+    DefinedType const* defined_type() const { return m_defined_type; }
     ModuleInstance const& module() const { return *m_module_instance.strong_ref(); }
     RefPtr<ModuleInstance const> try_module() const { return m_module_instance.strong_ref(); }
     auto& code() const { return *m_code; }
@@ -424,6 +430,7 @@ public:
 
 private:
     FunctionType m_type;
+    DefinedType const* m_defined_type { nullptr };
     WeakPtr<Module const> m_module;
     WeakPtr<ModuleInstance const> m_module_instance;
     CodeSection::Code const* m_code;
@@ -442,9 +449,14 @@ public:
     auto& type() const { return m_type; }
     auto& name() const { return m_name; }
 
+    // Interned on the store.
+    DefinedType const* defined_type() const { return m_defined_type; }
+    void set_defined_type(DefinedType const* defined_type) { m_defined_type = defined_type; }
+
 private:
     AK::Function<Result(Configuration&, Span<Value>)> m_function;
     FunctionType m_type;
+    DefinedType const* m_defined_type { nullptr };
     ByteString m_name;
 };
 
@@ -641,17 +653,21 @@ private:
 
 class TagInstance {
 public:
-    TagInstance(FunctionType const& type, TagType::Flags flags)
+    TagInstance(FunctionType const& type, DefinedType const* defined_type, TagType::Flags flags)
         : m_type(type)
+        , m_defined_type(defined_type)
         , m_flags(flags)
     {
     }
 
     auto& type() const { return m_type; }
+    // https://webassembly.github.io/spec/core/exec/runtime.html#tag-instances
+    DefinedType const* defined_type() const { return m_defined_type; }
     auto flags() const { return m_flags; }
 
 private:
     FunctionType m_type;
+    DefinedType const* m_defined_type { nullptr };
     TagType::Flags m_flags;
 };
 
@@ -682,7 +698,7 @@ public:
     Optional<DataAddress> allocate_data(Vector<u8>);
     Optional<GlobalAddress> allocate(GlobalType const&, Value);
     Optional<ElementAddress> allocate(ValueType const&, Vector<Reference>);
-    Optional<TagAddress> allocate(FunctionType const&, TagType::Flags);
+    Optional<TagAddress> allocate(FunctionType const&, DefinedType const*, TagType::Flags);
     Optional<ExceptionAddress> allocate(TagInstance const&, Vector<Value>);
 
     Module const* get_module_for(FunctionAddress);

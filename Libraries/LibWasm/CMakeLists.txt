@@ -5,6 +5,7 @@ set(SOURCES
     AbstractMachine/Validator.cpp
     Parser/Parser.cpp
     Printer/Printer.cpp
+    TypeSystem.cpp
 )
 
 # FIXME: Add Windows support
