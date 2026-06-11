@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const workerScript = `
+            postMessage("self.importScripts is own property: " + Object.hasOwn(self, "importScripts"));
+            postMessage("idlharness would call null-this importScripts: " + (WorkerGlobalScope.prototype.importScripts !== self.importScripts));
+            postMessage("done");
+        `;
+        const workerURL = URL.createObjectURL(new Blob([workerScript], { type: "text/javascript" }));
+        const worker = new Worker(workerURL);
+        worker.onmessage = (event) => {
+            println(event.data);
+            if (event.data === "done") {
+                URL.revokeObjectURL(workerURL);
+                done();
+            }
+        };
+        worker.onerror = (event) => {
+            URL.revokeObjectURL(workerURL);
+            println(`FAIL: ${event.message}`);
+            done();
+        };
+    });
+</script>

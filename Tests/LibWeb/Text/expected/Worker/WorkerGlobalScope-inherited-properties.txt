@@ -1,0 +1,3 @@
+self.importScripts is own property: false
+idlharness would call null-this importScripts: false
+done
