@@ -78,13 +78,9 @@ void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<String
         if (namespace_.has_value())
             return;
 
-        // AD-HOC: This ensures that prepare_script() is not called when the src attribute is removed.
-        //         See: https://github.com/whatwg/html/pull/10188/files#r1685905457 for more information.
-        if (!value.has_value())
-            return;
-
-        // 2. If localName is src and element is connected, then run the script HTML element post-connection steps, given element.
-        if (is_connected())
+        // 2. If localName is src, value is not null, and element is connected, then run the script HTML element
+        //    post-connection steps, given element.
+        if (value.has_value() && is_connected())
             post_connection();
     } else if (name == HTML::AttributeNames::async) {
         // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:script-force-async
