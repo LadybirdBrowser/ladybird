@@ -878,17 +878,21 @@ after_step_7:
         if (m_pending_request && url_string == m_pending_request->current_url())
             return;
 
-        // 15. If urlString is the same as the current request's current URL and the current request's state is partially available,
-        //     then abort the image request for the pending request,
-        //     queue an element task on the DOM manipulation task source given the img element
-        //     to restart the animation if restart animation is set, and return.
+        // 15. If urlString is the same as the current request's current URL and the current request's state is
+        //     partially available:
         if (url_string == m_current_request->current_url() && m_current_request->state() == ImageRequest::State::PartiallyAvailable) {
+            // 1. Abort the image request for the pending request.
             abort_the_image_request(realm(), m_pending_request);
+
+            // 2. If restart animation is set, then queue an element task on the DOM manipulation task source given the
+            //    img element to restart the animation.
             if (restart_animations) {
                 queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
                     restart_the_animation();
                 });
             }
+
+            // 3. Return.
             return;
         }
 
