@@ -250,6 +250,7 @@ private:
     void recover_compositor_process();
     void crash_compositor_process();
     ErrorOr<void> launch_request_server();
+    void shutdown_request_server();
     ErrorOr<void> launch_image_decoder_server();
     ErrorOr<void> launch_devtools_server();
     ErrorOr<void> load_content_blocker_lists();

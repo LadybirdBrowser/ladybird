@@ -50,6 +50,7 @@ public:
     }
 
     pid_t pid() const { return m_process.pid(); }
+    ErrorOr<int> wait_for_termination() const { return m_process.wait_for_termination(); }
 
     ProcessOutputCapture& output_capture() { return m_output_capture; }
     ProcessOutputCapture const& output_capture() const { return m_output_capture; }
