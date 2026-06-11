@@ -91,22 +91,31 @@ public:
         case ValueType::F32:
         case ValueType::F64:
         case ValueType::V128:
+        case ValueType::I8:
+        case ValueType::I16:
             break;
         case ValueType::FunctionReference:
-            // ref.null funcref
+        case ValueType::NoFunctionReference:
+            // ref.null func | ref.null nofunc
             m_value = u128(0, 2);
             break;
         case ValueType::ExternReference:
-            // ref.null externref
+        case ValueType::NoExternReference:
+            // ref.null extern | ref.null noextern
             m_value = u128(0, 3);
             break;
         case ValueType::ExceptionReference:
-            // ref.null exnref
+        case ValueType::NoExceptionReference:
+            // ref.null exn | ref.null noexn
             m_value = u128(0, 4);
             break;
+        case ValueType::AnyReference:
+        case ValueType::EqReference:
+        case ValueType::I31Reference:
+        case ValueType::StructReference:
+        case ValueType::ArrayReference:
+        case ValueType::NoneReference:
         case ValueType::TypeUseReference:
-        case ValueType::UnsupportedHeapReference:
-            // ref.null (todo)
             m_value = u128(0, 5);
             break;
         }

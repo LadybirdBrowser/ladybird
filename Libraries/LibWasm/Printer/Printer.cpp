@@ -806,9 +806,24 @@ void Printer::print(Wasm::Value const& value, Wasm::ValueType const& type)
     case ValueType::V128:
         print("v128({:x})", value.value());
         break;
+    case ValueType::I8:
+        print("{}", value.to<i8>());
+        break;
+    case ValueType::I16:
+        print("{}", value.to<i16>());
+        break;
     case ValueType::FunctionReference:
+    case ValueType::NoFunctionReference:
     case ValueType::ExternReference:
+    case ValueType::NoExternReference:
     case ValueType::ExceptionReference:
+    case ValueType::NoExceptionReference:
+    case ValueType::AnyReference:
+    case ValueType::EqReference:
+    case ValueType::I31Reference:
+    case ValueType::StructReference:
+    case ValueType::ArrayReference:
+    case ValueType::NoneReference:
         print("addr({})",
             value.to<Reference>().ref().visit(
                 [](Wasm::Reference::Null const&) { return ByteString("null"); },
@@ -816,10 +831,7 @@ void Printer::print(Wasm::Value const& value, Wasm::ValueType const& type)
                 [](auto const& ref) { return ByteString::number(ref.address.value()); }));
         break;
     case ValueType::TypeUseReference:
-        print("unsupported-type-use-ref({})", type.unsafe_typeindex());
-        break;
-    case ValueType::UnsupportedHeapReference:
-        print("unsupported-heap-ref");
+        print("typed-ref({})", type.unsafe_typeindex());
         break;
     }
     TemporaryChange<size_t> change { m_indent, 0 };

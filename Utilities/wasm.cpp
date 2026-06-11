@@ -233,11 +233,21 @@ static ErrorOr<ParsedValue> parse_value(StringView spec)
                 width = sizeof(u64);
                 break;
             case Wasm::ValueType::V128:
+            case Wasm::ValueType::I8:
+            case Wasm::ValueType::I16:
             case Wasm::ValueType::FunctionReference:
+            case Wasm::ValueType::NoFunctionReference:
             case Wasm::ValueType::ExternReference:
+            case Wasm::ValueType::NoExternReference:
             case Wasm::ValueType::ExceptionReference:
+            case Wasm::ValueType::NoExceptionReference:
+            case Wasm::ValueType::AnyReference:
+            case Wasm::ValueType::EqReference:
+            case Wasm::ValueType::I31Reference:
+            case Wasm::ValueType::StructReference:
+            case Wasm::ValueType::ArrayReference:
+            case Wasm::ValueType::NoneReference:
             case Wasm::ValueType::TypeUseReference:
-            case Wasm::ValueType::UnsupportedHeapReference:
                 VERIFY_NOT_REACHED();
             }
             last_value = parsed.value.value();

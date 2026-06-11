@@ -10,35 +10,44 @@
 
 namespace Wasm::Constants {
 
-// Value
+// Number types
 static constexpr auto i32_tag = 0x7f;
 static constexpr auto i64_tag = 0x7e;
 static constexpr auto f32_tag = 0x7d;
 static constexpr auto f64_tag = 0x7c;
-static constexpr auto v128_tag = 0x7b;
-static constexpr auto function_reference_tag = 0x70;
-static constexpr auto extern_reference_tag = 0x6f;
 
-// wasm-gc references
+// Vector types
+static constexpr auto v128_tag = 0x7b;
+
+// Heap types
+static constexpr auto exn_reference_tag = 0x69;
 static constexpr auto array_reference_tag = 0x6a;
 static constexpr auto struct_reference_tag = 0x6b;
 static constexpr auto i31_reference_tag = 0x6c;
 static constexpr auto eq_reference_tag = 0x6d;
 static constexpr auto any_reference_tag = 0x6e;
+static constexpr auto extern_reference_tag = 0x6f;
+static constexpr auto function_reference_tag = 0x70;
 static constexpr auto none_reference_tag = 0x71;
 static constexpr auto noextern_reference_tag = 0x72;
 static constexpr auto nofunc_reference_tag = 0x73;
-static constexpr auto noexn_heap_reference_tag = 0x74;
+static constexpr auto noexn_reference_tag = 0x74;
 
+// Reference types
 static constexpr auto nullable_reference_tag_tag = 0x63;
 static constexpr auto non_nullable_reference_tag_tag = 0x64;
 
-// Composite
-static constexpr auto struct_tag = 0x5f;
+// Composite types
 static constexpr auto array_tag = 0x5e;
-
-// Function
+static constexpr auto struct_tag = 0x5f;
 static constexpr auto function_signature_tag = 0x60;
+static constexpr auto i16_tag = 0x77;
+static constexpr auto i8_tag = 0x78;
+
+// Recursive types
+static constexpr auto rec_group_tag = 0x4e;
+static constexpr auto sub_final_type_tag = 0x4f;
+static constexpr auto sub_type_tag = 0x50;
 
 // Global
 static constexpr auto const_tag = 0x00;
