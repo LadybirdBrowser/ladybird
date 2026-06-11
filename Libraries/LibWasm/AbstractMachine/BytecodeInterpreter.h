@@ -72,6 +72,7 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
 
     template<bool NeedsStackAdjustment>
     InstructionPointer branch_to_label(Configuration&, LabelIndex, InstructionPointer current_ip, bool actually_branching = true);
+    Optional<InstructionPointer> unwind_to_throw_handler(Configuration&, ExceptionAddress);
     template<typename ReadT, typename PushT, SourceAddressMix>
     bool load_and_push(Configuration&, Instruction const&, SourcesAndDestination const&);
     template<typename PopT, typename StoreT>

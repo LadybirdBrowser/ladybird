@@ -2012,9 +2012,16 @@ HANDLE_INSTRUCTION(synthetic_call_00)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_00(#{} -> {})", short_ip.current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(synthetic_call_01)
@@ -2024,9 +2031,16 @@ HANDLE_INSTRUCTION(synthetic_call_01)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_01(#{} -> {})", short_ip.current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(synthetic_call_10)
@@ -2036,9 +2050,16 @@ HANDLE_INSTRUCTION(synthetic_call_10)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_10(#{} -> {})", short_ip.current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(synthetic_call_11)
@@ -2048,9 +2069,16 @@ HANDLE_INSTRUCTION(synthetic_call_11)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_11(#{} -> {})", short_ip.current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(synthetic_call_20)
@@ -2060,9 +2088,16 @@ HANDLE_INSTRUCTION(synthetic_call_20)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_20(#{} -> {})", short_ip.current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(synthetic_call_21)
@@ -2072,9 +2107,16 @@ HANDLE_INSTRUCTION(synthetic_call_21)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_21(#{} -> {})", short_ip.current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(synthetic_call_30)
@@ -2084,9 +2126,16 @@ HANDLE_INSTRUCTION(synthetic_call_30)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_30(#{} -> {})", short_ip.current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(synthetic_call_31)
@@ -2096,9 +2145,16 @@ HANDLE_INSTRUCTION(synthetic_call_31)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "[{}] call_31(#{} -> {})", short_ip.current_ip_value, index.value(), address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingRegisters)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(unreachable)
@@ -2337,9 +2393,16 @@ HANDLE_INSTRUCTION(call)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "call({})", address.value());
-    if (interpreter.call_address(configuration, address, addresses) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(synthetic_call_with_record_0)
@@ -2349,9 +2412,16 @@ HANDLE_INSTRUCTION(synthetic_call_with_record_0)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "call.with_record.0({})", address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingCallRecord) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingCallRecord)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(synthetic_call_with_record_1)
@@ -2361,9 +2431,16 @@ HANDLE_INSTRUCTION(synthetic_call_with_record_1)
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "call.with_record.1({})", address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingCallRecord) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingCallRecord)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(return_call)
@@ -2410,9 +2487,16 @@ HANDLE_INSTRUCTION(call_indirect)
     TRAP_IN_LOOP_IF_NOT(type_actual && matches_defined_type(*type_actual, *type_expected));
 
     dbgln_if(WASM_TRACE_DEBUG, "call_indirect({} -> {})", index, address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::IndirectCall) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::IndirectCall)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(return_call_indirect)
@@ -2469,9 +2553,16 @@ HANDLE_INSTRUCTION(call_ref)
     TRAP_IN_LOOP_IF_NOT(type_actual && matches_defined_type(*type_actual, *type_expected));
 
     dbgln_if(WASM_TRACE_DEBUG, "call_ref({})", address.value());
-    if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::IndirectCall) == Outcome::Return)
+    switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::IndirectCall)) {
+    case Outcome::Return:
         return Outcome::Return;
-    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    default:
+        // A callee's thrown exception was caught by a try_table in this frame; continue at the catch's branch target.
+        short_ip.current_ip_value = to_underlying(outcome) - 1;
+        [[fallthrough]];
+    case Outcome::Continue:
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
 }
 
 HANDLE_INSTRUCTION(return_call_ref)
@@ -5483,13 +5574,28 @@ HANDLE_INSTRUCTION(i32x4_relaxed_dot_i8x16_i7x16_add_s)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+// https://webassembly.github.io/spec/core/exec/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-throw-ref
 HANDLE_INSTRUCTION(throw_ref)
 {
     LOG_INSN;
-    interpreter.set_trap("Not Implemented: Proposal 'Exception-handling'"sv);
+    LOAD_ADDRESSES();
+    auto const value = configuration.take_source<source_address_mix>(0, addresses.sources);
+    // 4. If val' is ref.null, then trap. (See the encoding table in Value(Reference const&): 4 is a null exnref.)
+    if (value.value().high() == 4) [[unlikely]] {
+        interpreter.set_trap("null exception reference"sv);
+        return Outcome::Return;
+    }
+    auto const exception_address = bit_cast<ExceptionAddress>(value.value().low());
+    if (auto continuation = interpreter.unwind_to_throw_handler(configuration, exception_address); continuation.has_value()) {
+        short_ip.current_ip_value = continuation->value() - 1;
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
+    // 5.5.2. "...the first non-value entry of the stack is not a handler: Throw the exception val' as a result."
+    interpreter.set_trap(Trap { UncaughtException { exception_address } });
     return Outcome::Return;
 }
 
+// https://webassembly.github.io/spec/core/exec/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-throw-x
 HANDLE_INSTRUCTION(throw_)
 {
     LOG_INSN;
@@ -5499,7 +5605,7 @@ HANDLE_INSTRUCTION(throw_)
         auto& type = tag_instance.type();
         auto values = Vector<Value>(configuration.value_stack().span().slice_from_end(type.parameters().size()));
         configuration.value_stack().shrink(configuration.value_stack().size() - type.parameters().size());
-        auto exception_address = configuration.store().allocate(tag_instance, move(values));
+        auto exception_address = configuration.store().allocate(tag_address, move(values));
         if (!exception_address.has_value()) {
             interpreter.set_trap("Out of memory"sv);
             return Outcome::Return;
@@ -5509,11 +5615,15 @@ HANDLE_INSTRUCTION(throw_)
     TAILCALL return InstructionHandler<Instructions::throw_ref.value()>::operator()<HasDynamicInsnLimit, Continue, SourceAddressMix::Any>(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+// https://webassembly.github.io/spec/core/exec/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-try-table-xref-syntax-instructions-syntax-blocktype-mathit-blocktype-xref-syntax-instructions-syntax-catch-mathit-catch-ast-xref-syntax-instructions-syntax-instr-mathit-instr-ast
 HANDLE_INSTRUCTION(try_table)
 {
     LOG_INSN;
-    interpreter.set_trap("Not Implemented: Proposal 'Exception-handling'"sv);
-    return Outcome::Return;
+    auto& args = instruction->arguments().unsafe_get<Instruction::TryTableArgs>();
+    auto& meta = args.meta;
+    auto label = Label(meta.arity, args.end_ip, configuration.value_stack().size() - meta.parameter_count, instruction);
+    configuration.label_stack().unchecked_append(move(label));
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 // Proposal "gc".
@@ -6337,6 +6447,50 @@ InstructionPointer BytecodeInterpreter::branch_to_label(Configuration& configura
     return actually_branching ? label.continuation().value() - 1 : current_ip;
 }
 
+// https://webassembly.github.io/spec/core/exec/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-throw-ref
+Optional<InstructionPointer> BytecodeInterpreter::unwind_to_throw_handler(Configuration& configuration, ExceptionAddress exception_address)
+{
+    auto& exception = *configuration.store().get(exception_address);
+    auto& label_stack = configuration.label_stack();
+    auto& frame = configuration.frame();
+    auto const frame_label_index = frame.label_index();
+    for (size_t label_index = label_stack.size(); label_index > frame_label_index + 1;) {
+        --label_index;
+        auto const& label = label_stack.data()[label_index];
+        auto const* try_table_instruction = label.try_table_instruction();
+        if (!try_table_instruction)
+            continue;
+        auto& args = try_table_instruction->arguments().unsafe_get<Instruction::TryTableArgs>();
+        for (auto& catch_ : args.catches()) {
+            // catch x l / catch_ref x l match if exns[a].tag = z.module.tags[x];
+            // catch_all l / catch_all_ref l match any exception.
+            if (auto tag_index = catch_.matching_tag_index(); tag_index.has_value()) {
+                if (frame.module().tags()[tag_index->value()] != exception.tag())
+                    continue;
+            }
+            // Matched: the handler and its label should be removed, and the exception's fields (plus the exnref for the _ref forms) replace them...
+            auto& value_stack = configuration.value_stack();
+            value_stack.shrink(label.stack_height(), true);
+            if (catch_.matching_tag_index().has_value()) {
+                value_stack.ensure_capacity(value_stack.size() + exception.params().size());
+                for (auto& field : exception.params())
+                    value_stack.unchecked_append(field);
+            }
+            if (catch_.is_ref())
+                value_stack.append(Value(Reference { Reference::Exception { exception_address } }));
+            label_stack.unsafe_shrink(label_index);
+            // ...followed by (br l), with l relative to the context outside the try_table.
+            label_stack.unsafe_shrink(label_stack.size() - catch_.target_label().value());
+            auto const& target = label_stack.unsafe_last();
+            value_stack.remove(target.stack_height(), value_stack.size() - target.stack_height() - target.arity());
+            return target.continuation();
+        }
+    }
+    // No handler in this frame matched; drop its labels (the frame is being unwound) so that a re-dispatch in the calling frame only ever sees that frame's own (still active) handlers.
+    label_stack.shrink(frame_label_index, true);
+    return {};
+}
+
 template<typename ReadType, typename PushType, SourceAddressMix mix>
 bool BytecodeInterpreter::load_and_push(Configuration& configuration, Instruction const& instruction, SourcesAndDestination const& addresses)
 {
@@ -6590,6 +6744,14 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
         }
 
         if (result.is_trap()) {
+            // https://webassembly.github.io/spec/core/exec/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-throw-ref
+            if (auto const* uncaught_exception = result.trap().data.get_pointer<UncaughtException>(); uncaught_exception && final_outcome == Outcome::Continue) {
+                if (auto continuation = unwind_to_throw_handler(configuration, uncaught_exception->address); continuation.has_value()) {
+                    // The callee's interpret() left the exception in m_trap; it's handled now.
+                    m_trap = Empty {};
+                    return static_cast<Outcome>(continuation->value());
+                }
+            }
             m_trap = move(result.trap());
             return Outcome::Return;
         }
@@ -7195,21 +7357,27 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         }
 
         auto& args = result.dispatches[i].instruction->arguments();
+        auto offset_to = [&](InstructionPointer ip) {
+            size_t offset = 0;
+            auto it = nops_to_remove_it;
+            while (it != nops_to_remove.end() && it.key() < ip.value()) {
+                ++offset;
+                ++it;
+            }
+            return offset;
+        };
         if (auto ptr = args.get_pointer<Instruction::StructuredInstructionArgs>()) {
-            auto offset_to = [&](InstructionPointer ip) {
-                size_t offset = 0;
-                auto it = nops_to_remove_it;
-                while (it != nops_to_remove.end() && it.key() < ip.value()) {
-                    ++offset;
-                    ++it;
-                }
-                return offset;
-            };
-
             InstructionPointer end_ip = ptr->end_ip.value() - offset_accumulated - offset_to(ptr->end_ip - ptr->else_ip().has_value());
             auto else_ip = ptr->else_ip().map([&](InstructionPointer const& ip) -> InstructionPointer { return ip.value() - offset_accumulated - offset_to(ip - 1); });
             auto instruction = *result.dispatches[i].instruction;
             instruction.arguments() = Instruction::StructuredInstructionArgs { ptr->block_type, end_ip, else_ip, ptr->meta };
+            auto& extra_instruction = append_extra_instruction(move(instruction));
+            result.dispatches[i].instruction = &extra_instruction;
+            result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
+        } else if (auto try_table_ptr = args.get_pointer<Instruction::TryTableArgs>()) {
+            InstructionPointer end_ip = try_table_ptr->end_ip.value() - offset_accumulated - offset_to(try_table_ptr->end_ip);
+            auto instruction = *result.dispatches[i].instruction;
+            instruction.arguments() = Instruction::TryTableArgs { try_table_ptr->block_type, end_ip, try_table_ptr->catches(), try_table_ptr->meta };
             auto& extra_instruction = append_extra_instruction(move(instruction));
             result.dispatches[i].instruction = &extra_instruction;
             result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
@@ -7265,16 +7433,22 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
             // Re-point absolute IPs in structured args (end_ip / else_ip) past the inserted ops.
             for (size_t i = 0; i < new_dispatches.size(); ++i) {
-                auto* sa = new_dispatches[i].instruction->arguments().get_pointer<Instruction::StructuredInstructionArgs>();
-                if (!sa)
-                    continue;
-                InstructionPointer new_end_ip = sa->end_ip.value() + shift_before(sa->end_ip.value());
-                auto new_else_ip = sa->else_ip().map([&](InstructionPointer ip) -> InstructionPointer { return ip.value() + shift_before(ip.value()); });
-                auto rebuilt = *new_dispatches[i].instruction;
-                rebuilt.arguments() = Instruction::StructuredInstructionArgs { sa->block_type, new_end_ip, new_else_ip, sa->meta };
-                auto& extra_instruction = append_extra_instruction(move(rebuilt));
-                new_dispatches[i].instruction = &extra_instruction;
-                new_dispatches[i].instruction_opcode = extra_instruction.opcode();
+                if (auto* sa = new_dispatches[i].instruction->arguments().get_pointer<Instruction::StructuredInstructionArgs>()) {
+                    InstructionPointer new_end_ip = sa->end_ip.value() + shift_before(sa->end_ip.value());
+                    auto new_else_ip = sa->else_ip().map([&](InstructionPointer ip) -> InstructionPointer { return ip.value() + shift_before(ip.value()); });
+                    auto rebuilt = *new_dispatches[i].instruction;
+                    rebuilt.arguments() = Instruction::StructuredInstructionArgs { sa->block_type, new_end_ip, new_else_ip, sa->meta };
+                    auto& extra_instruction = append_extra_instruction(move(rebuilt));
+                    new_dispatches[i].instruction = &extra_instruction;
+                    new_dispatches[i].instruction_opcode = extra_instruction.opcode();
+                } else if (auto* tta = new_dispatches[i].instruction->arguments().get_pointer<Instruction::TryTableArgs>()) {
+                    InstructionPointer new_end_ip = tta->end_ip.value() + shift_before(tta->end_ip.value());
+                    auto rebuilt = *new_dispatches[i].instruction;
+                    rebuilt.arguments() = Instruction::TryTableArgs { tta->block_type, new_end_ip, tta->catches(), tta->meta };
+                    auto& extra_instruction = append_extra_instruction(move(rebuilt));
+                    new_dispatches[i].instruction = &extra_instruction;
+                    new_dispatches[i].instruction_opcode = extra_instruction.opcode();
+                }
             }
 
             result.dispatches = move(new_dispatches);

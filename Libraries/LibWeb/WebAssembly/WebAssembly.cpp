@@ -702,7 +702,7 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
             if (result.is_trap()) {
                 if (auto ptr = result.trap().data.get_pointer<Wasm::ExternallyManagedTrap>())
                     return ptr->unsafe_external_object_as<JS::Completion>();
-                auto& trap = result.trap().data.get<ByteString>();
+                auto trap = result.trap().format();
                 // https://webassembly.github.io/spec/js-api/#stack-overflow
                 // 6.1. Whenever a stack overflow occurs in WebAssembly code, the same class of exception is thrown as for a stack overflow in JavaScript.
                 if (trap.ends_with(Wasm::Constants::stack_exhaustion_message))

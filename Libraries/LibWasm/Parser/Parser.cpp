@@ -406,12 +406,12 @@ ParseResult<Catch> Catch::parse(ConstrainedStream& stream)
     case 2: {
         // catch_all l
         auto label_index = TRY(GenericIndexParser<LabelIndex>::parse(stream));
-        return Catch { false, {}, label_index };
+        return Catch { false, label_index };
     }
     case 3: {
         // catch_all_ref l
         auto label_index = TRY(GenericIndexParser<LabelIndex>::parse(stream));
-        return Catch { true, {}, label_index };
+        return Catch { true, label_index };
     }
     default:
         return ParseError::InvalidTag;
@@ -1453,7 +1453,7 @@ ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<si
                     return true;
                 },
                 [&](Instruction::TryTableArgs& args) {
-                    args.end_ip = ip + 1;
+                    args.end_ip = ip;
                     return true;
                 },
                 [](auto&) { return false; });
