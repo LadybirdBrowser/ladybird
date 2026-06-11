@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): translatez() vs. 'transform-origin'</title>
+    <link rel="author" title="Matt Woodrow" href="mailto:mwoodrow@mozilla.com">
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-origin-property">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#three-d-transform-functions">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#funcdef-translatez">
+    <meta name="assert" content="This tests that translatez(+-10px) before and
+    after rotatex() is the same as an equivalent 'transform-origin', and
+    different from translatez(+-20px).">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform3d-translatez-ref.html">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-transforms/transform3d-translatez-notref.html">
+  </head>
+  <body>
+    <div style="transform: translatez(-10px) rotatex(45deg) translatez(10px); transform-origin: 0 0 0; width: 100px; height: 100px;">
+      Test Text
+    </div>
+  </body>
+</html>
