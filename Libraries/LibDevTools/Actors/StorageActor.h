@@ -25,6 +25,7 @@ public:
     StringView resource_key() const;
     Optional<String> host() const;
     JsonObject serialize_storage() const;
+    void on_storage_changed(DevToolsDelegate::StorageChange);
 
 private:
     StorageActor(DevToolsServer&, String name, WeakPtr<TabActor>, Web::StorageAPI::StorageEndpointType);
@@ -34,9 +35,12 @@ private:
     void get_fields(Message const&);
     void get_store_objects(Message const&);
     void send_store_objects(Message const&, Optional<String> requested_host, Optional<JsonArray> requested_names, JsonObject options, ErrorOr<Vector<DevToolsDelegate::StorageItem>>);
+    void send_store_update(DevToolsDelegate::StorageChange const&);
+    void send_store_cleared(DevToolsDelegate::StorageChange const&);
 
     WeakPtr<TabActor> m_tab;
     Web::StorageAPI::StorageEndpointType m_storage_endpoint;
+    u64 m_storage_change_listener_id { 0 };
 };
 
 }

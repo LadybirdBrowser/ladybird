@@ -15,6 +15,8 @@
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StorageEvent.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
 
 namespace Web::HTML {
@@ -187,7 +189,14 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
 
     // 1. Let thisDocument be storage's relevant global object's associated Document.
     auto& relevant_global = relevant_global_object(*this);
-    auto const& this_document = as<Window>(relevant_global).associated_document();
+    auto& this_document = as<Window>(relevant_global).associated_document();
+
+    if (auto storage_key = StorageAPI::obtain_a_storage_key(relevant_settings_object(*this)); storage_key.has_value()) {
+        auto storage_endpoint = type() == Type::Local
+            ? StorageAPI::StorageEndpointType::LocalStorage
+            : StorageAPI::StorageEndpointType::SessionStorage;
+        this_document.page().client().page_did_broadcast_storage_change(storage_endpoint, this_document.url().serialize(), key, old_value, new_value);
+    }
 
     // 2. Let url be the serialization of thisDocument's URL.
     auto url = this_document.url().serialize();

@@ -402,6 +402,24 @@ void ViewImplementation::stop_listening_for_host_cookie_changes()
     m_on_host_cookie_change = nullptr;
 }
 
+void ViewImplementation::notify_storage_changed(DevTools::DevToolsDelegate::StorageChange change)
+{
+    for (auto& listener : m_storage_change_listeners)
+        listener.value(change);
+}
+
+u64 ViewImplementation::add_storage_change_listener(DevTools::DevToolsDelegate::OnStorageChange on_storage_change)
+{
+    auto listener_id = m_next_storage_change_listener_id++;
+    m_storage_change_listeners.set(listener_id, move(on_storage_change));
+    return listener_id;
+}
+
+void ViewImplementation::remove_storage_change_listener(u64 listener_id)
+{
+    m_storage_change_listeners.remove(listener_id);
+}
+
 ErrorOr<Core::SharedVersionIndex> ViewImplementation::ensure_document_cookie_version_index(Badge<WebContentClient>, String const& domain)
 {
     return m_document_cookie_version_indices.try_ensure(domain, [&]() -> ErrorOr<Core::SharedVersionIndex> {

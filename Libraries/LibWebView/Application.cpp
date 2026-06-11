@@ -1882,6 +1882,19 @@ void Application::inspect_storage(DevTools::TabDescription const& description, W
     view->inspect_storage(storage_endpoint, request_id);
 }
 
+u64 Application::add_storage_change_listener(DevTools::TabDescription const& description, OnStorageChange on_storage_change) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        return view->add_storage_change_listener(move(on_storage_change));
+    return 0;
+}
+
+void Application::remove_storage_change_listener(DevTools::TabDescription const& description, u64 listener_id) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->remove_storage_change_listener(listener_id);
+}
+
 void Application::inspect_tab(DevTools::TabDescription const& description, OnTabInspectionComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

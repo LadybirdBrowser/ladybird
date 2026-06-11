@@ -43,9 +43,23 @@ StorageActor::StorageActor(DevToolsServer& devtools, String name, WeakPtr<TabAct
     , m_tab(move(tab))
     , m_storage_endpoint(storage_endpoint)
 {
+    if (auto tab = m_tab.strong_ref()) {
+        m_storage_change_listener_id = devtools.delegate().add_storage_change_listener(
+            tab->description(),
+            weak_callback(*this, [](auto& self, DevToolsDelegate::StorageChange change) {
+                self.on_storage_changed(move(change));
+            }));
+    }
 }
 
-StorageActor::~StorageActor() = default;
+StorageActor::~StorageActor()
+{
+    if (m_storage_change_listener_id == 0)
+        return;
+
+    if (auto tab = m_tab.strong_ref())
+        devtools().delegate().remove_storage_change_listener(tab->description(), m_storage_change_listener_id);
+}
 
 StringView StorageActor::resource_type() const
 {
@@ -199,6 +213,75 @@ void StorageActor::send_store_objects(Message const& message, Optional<String> r
     response.set("total"sv, total);
     response.set("data"sv, move(data));
     send_response(message, move(response));
+}
+
+void StorageActor::on_storage_changed(DevToolsDelegate::StorageChange change)
+{
+    if (change.storage_endpoint != m_storage_endpoint)
+        return;
+
+    auto storage_host = host();
+    if (!storage_host.has_value() || *storage_host != change.host)
+        return;
+
+    if (change.type == DevToolsDelegate::StorageChange::Type::Cleared) {
+        send_store_cleared(change);
+        return;
+    }
+
+    if (!change.key.has_value())
+        return;
+
+    send_store_update(change);
+}
+
+void StorageActor::send_store_update(DevToolsDelegate::StorageChange const& change)
+{
+    StringView update_type;
+    switch (change.type) {
+    case DevToolsDelegate::StorageChange::Type::Added:
+        update_type = "added"sv;
+        break;
+    case DevToolsDelegate::StorageChange::Type::Changed:
+        update_type = "changed"sv;
+        break;
+    case DevToolsDelegate::StorageChange::Type::Deleted:
+        update_type = "deleted"sv;
+        break;
+    case DevToolsDelegate::StorageChange::Type::Cleared:
+        VERIFY_NOT_REACHED();
+    }
+
+    JsonArray keys;
+    keys.must_append(*change.key);
+
+    JsonObject hosts;
+    hosts.set(change.host, move(keys));
+
+    JsonObject storage_updates;
+    storage_updates.set(resource_key(), move(hosts));
+
+    JsonObject data;
+    data.set(update_type, move(storage_updates));
+
+    JsonObject message;
+    message.set("type"sv, "storesUpdate"sv);
+    message.set("data"sv, move(data));
+    send_message(move(message));
+}
+
+void StorageActor::send_store_cleared(DevToolsDelegate::StorageChange const& change)
+{
+    JsonArray hosts;
+    hosts.must_append(change.host);
+
+    JsonObject data;
+    data.set("clearedHostsOrPaths"sv, move(hosts));
+
+    JsonObject message;
+    message.set("type"sv, "storesCleared"sv);
+    message.set("data"sv, move(data));
+    send_message(move(message));
 }
 
 }

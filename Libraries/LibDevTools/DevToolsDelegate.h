@@ -54,6 +54,24 @@ public:
     using OnStorageItemsReceived = Function<void(ErrorOr<Vector<StorageItem>>)>;
     virtual void inspect_storage(TabDescription const&, Web::StorageAPI::StorageEndpointType, OnStorageItemsReceived) const { }
 
+    struct StorageChange {
+        enum class Type : u8 {
+            Added,
+            Changed,
+            Deleted,
+            Cleared,
+        };
+
+        Web::StorageAPI::StorageEndpointType storage_endpoint;
+        String host;
+        Type type;
+        Optional<String> key;
+    };
+
+    using OnStorageChange = Function<void(StorageChange)>;
+    virtual u64 add_storage_change_listener(TabDescription const&, OnStorageChange) const { return 0; }
+    virtual void remove_storage_change_listener(TabDescription const&, u64) const { }
+
     using OnTabInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void inspect_tab(TabDescription const&, OnTabInspectionComplete) const { }
 
