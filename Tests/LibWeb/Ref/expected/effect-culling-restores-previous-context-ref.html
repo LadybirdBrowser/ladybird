@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+header {
+    position: relative;
+    z-index: 1;
+}
+
+header h1 {
+    background: red;
+}
+
+.later-context {
+    position: relative;
+    left: -80%;
+}
+
+.later-context span {
+    position: absolute;
+    width: 3em;
+    height: 2em;
+    overflow: hidden;
+    background: green;
+}
+
+.effect {
+    display: none;
+}
+</style>
+<header><h1>Heading</h1></header>
+<section class="later-context"><ul><li><a><span><div class="effect"></div></span></a></li></ul></section>
