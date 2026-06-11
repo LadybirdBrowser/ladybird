@@ -328,7 +328,7 @@ public:
     ErrorOr<void, ValidationError> validate(GlobalType const&);
     ErrorOr<void, ValidationError> validate(TagType const&);
     ErrorOr<void, ValidationError> validate(ValueType const&);
-    ErrorOr<void, ValidationError> validate(TypeSection::Type const&);
+    ErrorOr<void, ValidationError> validate(TypeSection::Type const&, size_t this_type_index);
 
     // Proposal 'memory64'
     ErrorOr<void, ValidationError> take_memory_address(Stack& stack, MemoryType const& memory, Instruction::MemoryArgument const& arg)

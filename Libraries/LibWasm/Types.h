@@ -190,7 +190,15 @@ private:
     Vector<u8, 8> m_buffer;
 };
 
-// https://webassembly.github.io/spec/core/bikeshed/#value-types%E2%91%A2
+// https://webassembly.github.io/spec/core/syntax/types.html#value-types
+// valtype ::= numtype | vectype | reftype
+// https://webassembly.github.io/spec/core/syntax/types.html#reference-types
+// reftype  ::= ref null? heaptype
+// https://webassembly.github.io/spec/core/syntax/types.html#heap-types
+// heaptype ::= absheaptype | typeidx
+// absheaptype ::= func | nofunc | extern | noextern | any | eq | i31 | struct | array | none | exn | noexn
+// https://webassembly.github.io/spec/core/syntax/types.html#composite-types
+// packtype ::= i8 | i16
 class ValueType {
 public:
     enum Kind : u8 {
@@ -199,11 +207,21 @@ public:
         F32,
         F64,
         V128,
+        I8,  // as packtype
+        I16, // as packtype
         FunctionReference,
+        NoFunctionReference,
         ExternReference,
+        NoExternReference,
+        AnyReference,
+        EqReference,
+        I31Reference,
+        StructReference,
+        ArrayReference,
+        NoneReference,
         ExceptionReference,
+        NoExceptionReference,
         TypeUseReference,
-        UnsupportedHeapReference, // Stub for wasm-gc proposal's reference types.
     };
 
     explicit ValueType(Kind kind)
@@ -211,8 +229,15 @@ public:
     {
     }
 
-    explicit ValueType(Kind kind, TypeIndex type_index)
+    explicit ValueType(Kind kind, bool nullable)
         : m_kind(kind)
+        , m_nullable(nullable)
+    {
+    }
+
+    explicit ValueType(Kind kind, TypeIndex type_index, bool nullable = true)
+        : m_kind(kind)
+        , m_nullable(nullable)
         , m_type_index(type_index)
     {
         VERIFY(kind == TypeUseReference);
@@ -223,11 +248,30 @@ public:
     bool is_nullable() const { return m_nullable; }
     void set_nullable(bool nullable) { m_nullable = nullable; }
 
-    auto is_reference() const { return m_kind == ExternReference || m_kind == FunctionReference || m_kind == TypeUseReference || m_kind == UnsupportedHeapReference; }
+    auto is_reference() const { return m_kind >= FunctionReference; }
     auto is_vector() const { return m_kind == V128; }
-    auto is_numeric() const { return !is_reference() && !is_vector(); }
+    auto is_packed() const { return m_kind == I8 || m_kind == I16; }
+    auto is_numeric() const { return !is_reference() && !is_vector() && !is_packed(); }
     auto is_typeuse() const { return m_kind == TypeUseReference; }
     auto kind() const { return m_kind; }
+
+    // https://webassembly.github.io/spec/core/syntax/types.html#aux-unpack
+    // unpack(valtype)  = valtype
+    // unpack(packtype) = i32
+    ValueType unpacked() const
+    {
+        if (is_packed())
+            return ValueType(I32);
+        return *this;
+    }
+
+    // https://webassembly.github.io/spec/core/valid/types.html#defaultable-types
+    bool is_defaultable() const
+    {
+        if (is_reference())
+            return m_nullable;
+        return true;
+    }
 
     auto unsafe_typeindex() const
     {
@@ -250,16 +294,36 @@ public:
             return "f64";
         case V128:
             return "v128";
+        case I8:
+            return "i8";
+        case I16:
+            return "i16";
         case FunctionReference:
-            return m_nullable ? "funcref" : "ref func";
+            return m_nullable ? "funcref" : "(ref func)";
+        case NoFunctionReference:
+            return m_nullable ? "nullfuncref" : "(ref nofunc)";
         case ExternReference:
-            return m_nullable ? "externref" : "ref extern";
+            return m_nullable ? "externref" : "(ref extern)";
+        case NoExternReference:
+            return m_nullable ? "nullexternref" : "(ref noextern)";
+        case AnyReference:
+            return m_nullable ? "anyref" : "(ref any)";
+        case EqReference:
+            return m_nullable ? "eqref" : "(ref eq)";
+        case I31Reference:
+            return m_nullable ? "i31ref" : "(ref i31)";
+        case StructReference:
+            return m_nullable ? "structref" : "(ref struct)";
+        case ArrayReference:
+            return m_nullable ? "arrayref" : "(ref array)";
+        case NoneReference:
+            return m_nullable ? "nullref" : "(ref none)";
         case ExceptionReference:
-            return "exnref";
+            return m_nullable ? "exnref" : "(ref exn)";
+        case NoExceptionReference:
+            return m_nullable ? "nullexnref" : "(ref noexn)";
         case TypeUseReference:
-            return ByteString::formatted("ref {} {}", m_nullable ? "null" : "", unsafe_typeindex().value());
-        case UnsupportedHeapReference:
-            return "todo.heapref";
+            return ByteString::formatted("(ref {}{})", m_nullable ? "null " : "", unsafe_typeindex().value());
         }
         VERIFY_NOT_REACHED();
     }
@@ -1014,13 +1078,22 @@ private:
 
 class TypeSection {
 public:
+    // https://webassembly.github.io/spec/core/syntax/types.html#recursive-types
+    // https://webassembly.github.io/spec/core/syntax/types.html#composite-types
     class Type {
     private:
-        using TypeDesc = Variant<FunctionType, StructType, ArrayType>;
+        using CompositeType = Variant<FunctionType, StructType, ArrayType>;
 
     public:
-        Type(TypeDesc type)
-            : m_description(type)
+        struct RecGroupSpan {
+            u32 first_type_index { 0 };
+            u32 size { 1 };
+        };
+
+        Type(CompositeType type, Vector<TypeIndex> supertypes = {}, bool is_final = true)
+            : m_description(move(type))
+            , m_supertypes(move(supertypes))
+            , m_is_final(is_final)
         {
         }
 
@@ -1033,6 +1106,16 @@ public:
         auto& struct_() const { return m_description.get<StructType>(); }
         bool is_struct() const { return m_description.has<StructType>(); }
 
+        auto& array() const { return m_description.get<ArrayType>(); }
+        bool is_array() const { return m_description.has<ArrayType>(); }
+
+        // sub final? x* ct
+        auto& supertypes() const { return m_supertypes; }
+        bool is_final() const { return m_is_final; }
+
+        auto& rec_group() const { return m_rec_group; }
+        void set_rec_group(RecGroupSpan span) { m_rec_group = span; }
+
         ByteString name() const
         {
             return m_description.visit(
@@ -1041,10 +1124,13 @@ public:
                 [](ArrayType const&) -> ByteString { return "array type"; });
         }
 
-        static ParseResult<Type> parse(ConstrainedStream& stream);
+        static ParseResult<Type> parse(ConstrainedStream& stream, Optional<u8> leading_tag = {});
 
     private:
-        TypeDesc m_description;
+        CompositeType m_description;
+        Vector<TypeIndex> m_supertypes;
+        bool m_is_final { true };
+        RecGroupSpan m_rec_group;
     };
 
     TypeSection() = default;

@@ -346,16 +346,26 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                     return JS::BigInt::create(vm, Crypto::SignedBigInteger::import_data(value.bytes()));
                 }
                 case Wasm::ValueType::FunctionReference:
+                case Wasm::ValueType::NoFunctionReference:
                 case Wasm::ValueType::ExternReference:
-                case Wasm::ValueType::ExceptionReference: {
+                case Wasm::ValueType::NoExternReference:
+                case Wasm::ValueType::ExceptionReference:
+                case Wasm::ValueType::NoExceptionReference:
+                case Wasm::ValueType::AnyReference:
+                case Wasm::ValueType::EqReference:
+                case Wasm::ValueType::I31Reference:
+                case Wasm::ValueType::StructReference:
+                case Wasm::ValueType::ArrayReference:
+                case Wasm::ValueType::NoneReference: {
                     auto ref = global->value().to<Wasm::Reference>();
                     return ref.ref().visit(
                         [&](Wasm::Reference::Null const&) -> JS::Value { return JS::js_null(); },
                         [](Wasm::Reference::Exception const&) -> JS::Value { return JS::js_undefined(); },
                         [&](auto const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.address.value())); });
                 }
+                case Wasm::ValueType::I8:
+                case Wasm::ValueType::I16:
                 case Wasm::ValueType::TypeUseReference:
-                case Wasm::ValueType::UnsupportedHeapReference:
                     return vm.throw_completion<JS::TypeError>("Unsupported heap reference"sv);
                 }
             }
@@ -449,8 +459,23 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             else
                 return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"sv);
             break;
-        case Wasm::ValueType::Kind::UnsupportedHeapReference:
-            return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"sv);
+        case Wasm::ValueType::Kind::NoFunctionReference:
+        case Wasm::ValueType::Kind::NoExternReference:
+        case Wasm::ValueType::Kind::AnyReference:
+        case Wasm::ValueType::Kind::EqReference:
+        case Wasm::ValueType::Kind::I31Reference:
+        case Wasm::ValueType::Kind::StructReference:
+        case Wasm::ValueType::Kind::ArrayReference:
+        case Wasm::ValueType::Kind::NoneReference:
+        case Wasm::ValueType::Kind::NoExceptionReference:
+            if (argument.is_null())
+                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(param.kind()) } }));
+            else
+                return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"sv);
+            break;
+        case Wasm::ValueType::Kind::I8:
+        case Wasm::ValueType::Kind::I16:
+            return vm.throw_completion<JS::TypeError>("Packed types are not valid parameter types"sv);
         }
     }
 
@@ -483,14 +508,24 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             return JS::Value(buf);
         }
         case Wasm::ValueType::FunctionReference:
+        case Wasm::ValueType::NoFunctionReference:
         case Wasm::ValueType::ExternReference:
+        case Wasm::ValueType::NoExternReference:
+        case Wasm::ValueType::AnyReference:
+        case Wasm::ValueType::EqReference:
+        case Wasm::ValueType::I31Reference:
+        case Wasm::ValueType::StructReference:
+        case Wasm::ValueType::ArrayReference:
+        case Wasm::ValueType::NoneReference:
             return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](Wasm::Reference::Exception) { return JS::Value(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
         case Wasm::ValueType::ExceptionReference:
+        case Wasm::ValueType::NoExceptionReference:
             return JS::js_null();
         case Wasm::ValueType::TypeUseReference:
             return JS::js_null();
-        case Wasm::ValueType::UnsupportedHeapReference:
-            return vm.throw_completion<JS::TypeError>("Unsupported heap reference"sv);
+        case Wasm::ValueType::I8:
+        case Wasm::ValueType::I16:
+            return vm.throw_completion<JS::TypeError>("Unsupported packed type"sv);
         }
         VERIFY_NOT_REACHED();
     };

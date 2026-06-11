@@ -425,11 +425,11 @@ ErrorOr<void, ValidationError> Validator::validate(TagSection const& section)
     return {};
 }
 
+// https://webassembly.github.io/spec/core/valid/types.html#recursive-types
 ErrorOr<void, ValidationError> Validator::validate(TypeSection const& section)
 {
-    for (auto& type : section.types()) {
-        TRY(validate(type));
-    }
+    for (size_t type_index = 0; type_index < section.types().size(); ++type_index)
+        TRY(validate(section.types()[type_index], type_index));
 
     return {};
 }
@@ -472,8 +472,30 @@ ErrorOr<void, ValidationError> Validator::validate(ValueType const& type)
     return {};
 }
 
-ErrorOr<void, ValidationError> Validator::validate(TypeSection::Type const& type)
+// https://webassembly.github.io/spec/core/valid/types.html#recursive-types
+ErrorOr<void, ValidationError> Validator::validate(TypeSection::Type const& type, size_t this_type_index)
 {
+    // - The length of x* is less than or equal to 1.
+    if (type.supertypes().size() > 1)
+        return Errors::invalid("supertype count, only a single supertype is allowed"sv);
+
+    // - For all x in x*:
+    for (auto supertype_index : type.supertypes()) {
+        // - The index x is less than x0.
+        if (supertype_index.value() >= this_type_index)
+            return Errors::invalid("supertype index, must precede the subtype"sv);
+
+        // - The type C.types[x] exists.
+        TRY(validate(supertype_index));
+
+        // - The sub type unroll(C.types[x]) is of the form (sub y* comptype').
+        auto const& supertype = m_context.types[supertype_index.value()];
+        if (supertype.is_final())
+            return Errors::invalid("supertype, must not be final"sv);
+
+        // FIXME: - The composite type comptype matches the composite type comptype'.
+    }
+
     return type.description().visit(
         [&](FunctionType const& function) { return validate(function); },
         [&](StructType const& struct_) { return validate(struct_); },
