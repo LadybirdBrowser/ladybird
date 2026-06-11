@@ -119,6 +119,7 @@
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
+#include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/DragEvent.h>
@@ -777,6 +778,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_style_invalidator);
     visitor.visit(m_deferred_parser_start);
     visitor.visit(m_custom_element_registry);
+    visitor.visit(m_ancestor_origins_list);
 }
 
 String const& Document::content_blocker_style_sheet()
@@ -9299,6 +9301,87 @@ void Document::ensure_cookie_version_index(URL::URL const& new_url, URL::URL con
 
     page().client().page_did_request_document_cookie_version_index(unique_id(), *new_domain);
     m_cookie_version_index = {};
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#internal-ancestor-origin-objects-list-creation-steps
+Vector<URL::Origin> Document::internal_ancestor_origin_objects_list_creation_steps(ReferrerPolicy::ReferrerPolicy referrer_policy) const
+{
+    // 1. Let output be « ».
+    Vector<URL::Origin> output;
+
+    // 2. Let parentDoc be document's container document.
+    auto parent_doc = container_document();
+
+    // 3. If parentDoc is null, then return output.
+    if (!parent_doc)
+        return output;
+
+    // 4. Assert: parentDoc is fully active.
+    VERIFY(parent_doc->is_fully_active());
+
+    // 5. Let ancestorOrigins be parentDoc's internal ancestor origin objects list.
+    auto ancestor_origins = parent_doc->internal_ancestor_origin_objects_list();
+
+    // 6. Let container be document's node navigable's container.
+    // AD-HOC: This isn't used, see https://github.com/whatwg/html/issues/12566
+    // auto container = navigable()->container();
+
+    // 7. Let masked be false.
+    auto masked = false;
+
+    // 8. If referrerPolicy is "no-referrer", then set masked to true.
+    if (referrer_policy == ReferrerPolicy::ReferrerPolicy::NoReferrer)
+        masked = true;
+
+    // 9. Otherwise, if referrerPolicy is "same-origin" and parentDoc's origin is not same origin with document's origin, then set masked to true.
+    else if (referrer_policy == ReferrerPolicy::ReferrerPolicy::SameOrigin && parent_doc->origin().is_same_origin(origin()))
+        masked = true;
+
+    // 10. If masked is true, then append a new opaque origin to output.
+    if (masked)
+        output.append(URL::Origin::create_opaque());
+
+    // 11. Otherwise, append parentDoc's origin to output.
+    else
+        output.append(parent_doc->origin());
+
+    // 12. For each ancestorOrigin of ancestorOrigins:
+    for (auto const& ancestor_origin : ancestor_origins.value()) {
+        // 1. If masked is true and ancestorOrigin is same origin with parentDoc's origin, then append a new opaque origin to output and continue.
+        if (masked && ancestor_origin.is_same_origin(parent_doc->origin())) {
+            output.append(URL::Origin::create_opaque());
+            continue;
+        }
+
+        // 2. Append ancestorOrigin to output and set masked to false.
+        output.append(ancestor_origin);
+        masked = false;
+    }
+
+    // 13. Return output.
+    return output;
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#ancestor-origins-list-creation-steps
+GC::Ref<HTML::DOMStringList> Document::ancestor_origins_list_creation_steps() const
+{
+    // 1. Let ancestorOrigins be document's internal ancestor origin objects list.
+    auto& ancestor_origins = m_internal_ancestor_origin_objects_list;
+
+    // 2. Assert: ancestorOrigins is not null.
+    VERIFY(ancestor_origins.has_value());
+
+    // 3. Let output be « ».
+    Vector<String> output;
+
+    // 4. For each origin of ancestorOrigins:
+    for (auto const& origin : ancestor_origins.value()) {
+        // 1. Append the serialization of origin to output.
+        output.append(origin.serialize());
+    }
+
+    // 5. Return a new DOMStringList object whose associated list is output.
+    return HTML::DOMStringList::create(realm(), move(output));
 }
 
 StringView to_string(SetNeedsLayoutReason reason)
