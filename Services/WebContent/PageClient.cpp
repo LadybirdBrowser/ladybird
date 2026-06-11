@@ -12,6 +12,7 @@
 #include <AK/Math.h>
 #include <LibCore/Process.h>
 #include <LibCore/Timer.h>
+#include <LibDevTools/IndexedDBSerialization.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -776,6 +777,18 @@ void PageClient::page_did_clear_storage(Web::StorageAPI::StorageEndpointType sto
 void PageClient::page_did_broadcast_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& url, Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value)
 {
     client().async_did_change_storage_item(m_id, storage_endpoint, url, key, old_value, new_value);
+}
+
+void PageClient::page_did_update_indexed_database(String const& url, Web::IndexedDB::TransactionChanges const& changes)
+{
+    if (!has_devtools_client())
+        return;
+
+    auto update = DevTools::IndexedDB::serialize_update(url, changes);
+    if (update.is_empty())
+        return;
+
+    client().async_did_update_indexed_database(m_id, update.serialized());
 }
 
 void PageClient::page_did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage const& message)

@@ -187,6 +187,48 @@ JsonObject serialize_objects(Web::DOM::Document& document, String const& host, J
         host);
 }
 
+static void append_indexed_database_update(JsonObject& update, StringView type, JsonArray paths, String const& host)
+{
+    if (paths.is_empty())
+        return;
+
+    JsonObject hosts;
+    hosts.set(host, move(paths));
+
+    JsonObject indexed_database;
+    indexed_database.set("indexedDB"sv, move(hosts));
+
+    update.set(type, move(indexed_database));
+}
+
+static JsonArray serialize_update_paths(Vector<Web::IndexedDB::TransactionChange> const& changes)
+{
+    JsonArray paths;
+    paths.ensure_capacity(changes.size());
+    for (auto const& change : changes) {
+        // FIXME: Firefox treats added IndexedDB update paths as storage tree additions, so record-level changes must
+        //        not be sent there or they appear as blank rows in the selected host view.
+        //        Remove this filter once Firefox supports record updates.
+        if (change.key.has_value())
+            continue;
+        paths.must_append(indexed_database_path(change.database_name, change.object_store_name, change.key));
+    }
+    return paths;
+}
+
+JsonObject serialize_update(String const& url, Web::IndexedDB::TransactionChanges const& changes)
+{
+    JsonObject update;
+    auto host = storage_host_for_url(url);
+    if (!host.has_value())
+        return update;
+
+    append_indexed_database_update(update, "added"sv, serialize_update_paths(changes.added), *host);
+    append_indexed_database_update(update, "changed"sv, serialize_update_paths(changes.changed), *host);
+    append_indexed_database_update(update, "deleted"sv, serialize_update_paths(changes.deleted), *host);
+    return update;
+}
+
 static ErrorOr<Web::IndexedDB::InspectionPath> parse_required_indexed_database_path(String const& name)
 {
     auto path = parse_indexed_database_path(JsonValue { name });

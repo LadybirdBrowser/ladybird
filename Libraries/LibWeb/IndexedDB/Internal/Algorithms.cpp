@@ -885,6 +885,7 @@ void commit_a_transaction(JS::Realm& realm, GC::Ref<IDBTransaction> transaction)
                 transaction->connection()->associated_database()->set_upgrade_transaction(nullptr);
 
             // AD-HOC: Discard mutation logs now that changes are permanent.
+            transaction->notify_devtools_of_committed_changes();
             transaction->discard_mutation_logs();
 
             // 2. Set transaction’s state to finished.

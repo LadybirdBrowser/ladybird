@@ -140,6 +140,9 @@ public:
     void notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> page_cookies, ReadonlySpan<HTTP::Cookie::Cookie> host_cookies);
     void listen_for_host_cookie_changes(DevTools::DevToolsDelegate::OnHostCookieChange);
     void stop_listening_for_host_cookie_changes();
+    void notify_indexed_database_changed(JsonObject);
+    u64 add_indexed_database_change_listener(DevTools::DevToolsDelegate::OnIndexedDatabaseChange);
+    void remove_indexed_database_change_listener(u64 listener_id);
     ErrorOr<Core::SharedVersionIndex> ensure_document_cookie_version_index(Badge<WebContentClient>, String const&);
     Optional<Core::SharedVersion> document_cookie_version(URL::URL const&) const;
 
@@ -604,6 +607,8 @@ protected:
     Core::AnonymousBuffer m_document_cookie_version_buffer;
     HashMap<String, Core::SharedVersionIndex> m_document_cookie_version_indices;
     DevTools::DevToolsDelegate::OnHostCookieChange m_on_host_cookie_change;
+    HashMap<u64, DevTools::DevToolsDelegate::OnIndexedDatabaseChange> m_indexed_database_change_listeners;
+    u64 m_next_indexed_database_change_listener_id { 1 };
 
     HashMap<u64, DevTools::DevToolsDelegate::OnStorageChange> m_storage_change_listeners;
     u64 m_next_storage_change_listener_id { 1 };

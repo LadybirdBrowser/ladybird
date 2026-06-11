@@ -7,12 +7,15 @@
 #include <LibWeb/Bindings/IDBDatabase.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::IndexedDB {
 
@@ -236,6 +239,25 @@ void IDBTransaction::discard_mutation_logs()
     for (auto& entry : m_store_mutation_logs)
         entry.store->set_mutation_log(nullptr);
     m_store_mutation_logs.clear();
+}
+
+void IDBTransaction::notify_devtools_of_committed_changes()
+{
+    auto document = HTML::relevant_settings_object(*this).responsible_document();
+    if (!document)
+        return;
+
+    if (!document->page().client().has_active_devtools_client())
+        return;
+
+    TransactionChanges changes;
+    auto database_name = m_connection->associated_database()->name();
+    for (auto const& entry : m_store_mutation_logs)
+        entry.log->append_changes(database_name, entry.store->name(), changes);
+    if (changes.is_empty())
+        return;
+
+    document->page().client().page_did_update_indexed_database(document->url().serialize(), changes);
 }
 
 }

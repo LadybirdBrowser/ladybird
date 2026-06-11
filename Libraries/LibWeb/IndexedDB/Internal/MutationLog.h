@@ -12,6 +12,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/Internal/KeyGenerator.h>
+#include <LibWeb/IndexedDB/TransactionChanges.h>
 
 namespace Web::IndexedDB {
 
@@ -66,6 +67,8 @@ public:
 
     // Clear the log without reverting (used after successful transaction commit).
     void clear() { m_entries.clear(); }
+
+    void append_changes(String const& database_name, String const& object_store_name, TransactionChanges&) const;
 
     [[nodiscard]] size_t position() const { return m_entries.size(); }
 

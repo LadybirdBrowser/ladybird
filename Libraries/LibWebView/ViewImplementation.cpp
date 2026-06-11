@@ -718,6 +718,24 @@ void ViewImplementation::remove_storage_change_listener(u64 listener_id)
     m_storage_change_listeners.remove(listener_id);
 }
 
+void ViewImplementation::notify_indexed_database_changed(JsonObject update)
+{
+    for (auto& listener : m_indexed_database_change_listeners)
+        listener.value(update);
+}
+
+u64 ViewImplementation::add_indexed_database_change_listener(DevTools::DevToolsDelegate::OnIndexedDatabaseChange on_indexed_database_change)
+{
+    auto listener_id = m_next_indexed_database_change_listener_id++;
+    m_indexed_database_change_listeners.set(listener_id, move(on_indexed_database_change));
+    return listener_id;
+}
+
+void ViewImplementation::remove_indexed_database_change_listener(u64 listener_id)
+{
+    m_indexed_database_change_listeners.remove(listener_id);
+}
+
 ErrorOr<Core::SharedVersionIndex> ViewImplementation::ensure_document_cookie_version_index(Badge<WebContentClient>, String const& domain)
 {
     return m_document_cookie_version_indices.try_ensure(domain, [&]() -> ErrorOr<Core::SharedVersionIndex> {
