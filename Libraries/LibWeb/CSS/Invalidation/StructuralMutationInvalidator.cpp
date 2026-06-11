@@ -144,6 +144,20 @@ void invalidate_structurally_affected_siblings(DOM::Node& node, DOM::StyleInvali
     }
 }
 
+void invalidate_self_and_structurally_affected_siblings(DOM::Node& node, DOM::StyleInvalidationReason)
+{
+    if (auto* element = as_if<DOM::Element>(node)) {
+        mark_sibling_for_style_update(*element);
+    } else if (!node.is_character_data()) {
+        node.set_needs_style_update(true);
+    }
+
+    // A property change inside an :nth-child(... of ...) filter can shift both forward and
+    // backward positional matches, similarly to removing an element from the filtered sibling list.
+    invalidate_structurally_affected_siblings(node, DOM::StyleInvalidationReason::NodeRemove);
+    mark_ancestors_as_having_child_needing_style_update(node);
+}
+
 void mark_ancestors_as_having_child_needing_style_update(DOM::Node& node)
 {
     for (auto* ancestor = node.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host())

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    .forward .item:nth-child(odd of :has(.flag)) .target {
+        color: rgb(1, 2, 3);
+    }
+
+    .backward .item:nth-last-child(odd of :has(.flag)) .target {
+        color: rgb(1, 2, 3);
+    }
+
+    .target {
+        color: rgb(4, 5, 6);
+    }
+</style>
+<script>
+    function makeFixture(className) {
+        const fixture = makeElement("section", { className });
+        const items = [];
+        const targets = [];
+
+        for (let i = 0; i < 3; ++i) {
+            const item = makeElement("div", { className: "item" });
+            const target = makeElement("span", { className: "target" });
+            item.appendChild(target);
+            if (i === 0 || i === 2)
+                item.appendChild(makeElement("span", { className: "flag" }));
+            fixture.appendChild(item);
+            items.push(item);
+            targets.push(target);
+        }
+
+        document.body.appendChild(fixture);
+        return { fixture, items, targets };
+    }
+
+    test(() => {
+        {
+            const { fixture, items, targets } = makeFixture("forward");
+            internals.updateStyle();
+            assertEqual("forward first target initially matches", getComputedStyle(targets[0]).color, "rgb(1, 2, 3)");
+            assertEqual("forward second target initially does not match", getComputedStyle(targets[1]).color, "rgb(4, 5, 6)");
+            assertEqual("forward third target initially does not match", getComputedStyle(targets[2]).color, "rgb(4, 5, 6)");
+
+            resetStyleCounters();
+            items[1].appendChild(makeElement("span", { className: "flag" }));
+            internals.updateStyle();
+
+            assertEqual("forward first target still matches", getComputedStyle(targets[0]).color, "rgb(1, 2, 3)");
+            assertEqual("forward second target still does not match", getComputedStyle(targets[1]).color, "rgb(4, 5, 6)");
+            assertEqual("forward third target starts matching", getComputedStyle(targets[2]).color, "rgb(1, 2, 3)");
+            printPassWithCounters(":nth-child of :has() invalidates following structural dependents");
+
+            fixture.remove();
+        }
+
+        {
+            const { fixture, items, targets } = makeFixture("backward");
+            internals.updateStyle();
+            assertEqual("backward first target initially does not match", getComputedStyle(targets[0]).color, "rgb(4, 5, 6)");
+            assertEqual("backward second target initially does not match", getComputedStyle(targets[1]).color, "rgb(4, 5, 6)");
+            assertEqual("backward third target initially matches", getComputedStyle(targets[2]).color, "rgb(1, 2, 3)");
+
+            resetStyleCounters();
+            items[1].appendChild(makeElement("span", { className: "flag" }));
+            internals.updateStyle();
+
+            assertEqual("backward first target starts matching", getComputedStyle(targets[0]).color, "rgb(1, 2, 3)");
+            assertEqual("backward second target still does not match", getComputedStyle(targets[1]).color, "rgb(4, 5, 6)");
+            assertEqual("backward third target still matches", getComputedStyle(targets[2]).color, "rgb(1, 2, 3)");
+            printPassWithCounters(":nth-last-child of :has() invalidates previous structural dependents");
+
+            fixture.remove();
+        }
+    });
+</script>

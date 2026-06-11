@@ -6,6 +6,7 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
+#include <LibWeb/CSS/Invalidation/StructuralMutationInvalidator.h>
 #include <LibWeb/CSS/Invalidation/StyleInvalidator.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
@@ -33,9 +34,11 @@ static NonnullRefPtr<CSS::InvalidationPlan> resolve_guarded_invalidation_plan(DO
 {
     auto resolved_plan = CSS::InvalidationPlan::create();
     resolved_plan->invalidate_self = plan.invalidate_self;
+    resolved_plan->invalidate_self_and_structurally_affected_siblings = plan.invalidate_self_and_structurally_affected_siblings;
 
     if (plan.invalidate_whole_subtree) {
         resolved_plan->invalidate_whole_subtree = true;
+        resolved_plan->invalidate_self_and_structurally_affected_siblings = false;
         return resolved_plan;
     }
 
@@ -84,6 +87,9 @@ bool StyleInvalidator::enqueue_invalidation_plan(DOM::Node& node, DOM::StyleInva
         node.invalidate_style(reason);
         return true;
     }
+
+    if (plan_to_apply.invalidate_self_and_structurally_affected_siblings)
+        invalidate_self_and_structurally_affected_siblings(node, reason);
 
     if (plan_to_apply.invalidate_self)
         node.set_needs_style_update(true);
@@ -134,6 +140,9 @@ void StyleInvalidator::apply_invalidation_plan(DOM::Element& element, DOM::Style
             element.set_child_needs_style_update(true);
         return;
     }
+
+    if (plan_to_apply.invalidate_self_and_structurally_affected_siblings)
+        invalidate_self_and_structurally_affected_siblings(element, reason);
 
     if (plan_to_apply.invalidate_self)
         element.set_needs_style_update(true);
