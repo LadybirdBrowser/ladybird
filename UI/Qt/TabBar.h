@@ -37,6 +37,7 @@ class QWheelEvent;
 namespace Ladybird {
 
 class Tab;
+class TabPreviewPopup;
 class TabWidget;
 
 enum class TabLayout : u8 {
@@ -66,6 +67,7 @@ private:
     virtual void resizeEvent(QResizeEvent*) override;
     virtual void tabLayoutChange() override;
 
+    virtual bool event(QEvent*) override;
     virtual void paintEvent(QPaintEvent*) override;
     virtual void contextMenuEvent(QContextMenuEvent* event) override;
     virtual void dragEnterEvent(QDragEnterEvent*) override;
@@ -87,6 +89,10 @@ private:
     bool start_window_move();
     void start_tab_drag(int index);
     void start_hover_animation(int tab_index, qreal target_progress);
+    void schedule_tab_preview(int index);
+    void show_tab_preview();
+    void hide_tab_preview();
+    QPoint tab_preview_position_for(int index, QSize const& popup_size) const;
 
     QRect visual_tab_rect(int index) const;
     int tab_index_at(QPoint const&) const;
@@ -113,6 +119,9 @@ private:
     QPointer<Tab> m_pressed_tab;
     QPoint m_position_in_selected_tab_while_dragging;
     QPoint m_drag_start_position;
+    QTimer* m_tab_preview_timer { nullptr };
+    TabPreviewPopup* m_tab_preview_popup { nullptr };
+    int m_tab_preview_index { -1 };
 };
 
 class TabWidget final : public QWidget {

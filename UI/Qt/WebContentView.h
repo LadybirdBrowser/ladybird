@@ -19,6 +19,7 @@
 #include <LibWebView/ViewImplementation.h>
 
 #include <QMenu>
+#include <QPixmap>
 #include <QTimer>
 #include <QUrl>
 
@@ -87,6 +88,7 @@ public:
         Dark,
     };
     void update_palette(PaletteMode = PaletteMode::Default);
+    Optional<QPixmap> tab_preview_pixmap(QSize const& maximum_size) const;
 
     using ViewImplementation::client;
 

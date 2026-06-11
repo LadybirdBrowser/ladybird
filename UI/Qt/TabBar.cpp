@@ -16,6 +16,7 @@
 #    include <UI/Qt/MacWindow.h>
 #endif
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WindowControlButton.h>
@@ -31,7 +32,11 @@
 #include <QEasingCurve>
 #include <QEvent>
 #include <QFontMetrics>
+#include <QFrame>
+#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
+#include <QHelpEvent>
+#include <QLabel>
 #include <QLayoutItem>
 #include <QLinearGradient>
 #include <QMimeData>
@@ -40,9 +45,11 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QScreen>
 #include <QStyle>
 #include <QTimer>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVBoxLayout>
 #include <QVariant>
 #include <QVariantAnimation>
@@ -71,6 +78,11 @@ static constexpr int TAB_CARD_SHAPE_VERTICAL_INSET = 3;
 static constexpr int HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE = 32;
 static constexpr int TAB_CONTENT_HORIZONTAL_INSET = 8;
 static constexpr int VERTICAL_TABS_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
+static constexpr int TAB_PREVIEW_HOVER_DELAY_MS = 350;
+static constexpr int TAB_PREVIEW_THUMBNAIL_WIDTH = 320;
+static constexpr int TAB_PREVIEW_THUMBNAIL_HEIGHT = 180;
+static constexpr int TAB_PREVIEW_SHADOW_MARGIN = 12;
+static constexpr int TAB_PREVIEW_CARD_GAP = 6;
 static constexpr int TAB_BUTTON_SIZE = 22;
 static constexpr int TAB_ICON_SIZE = 16;
 static constexpr int COLLAPSED_VERTICAL_TAB_BUTTON_SIZE = 16;
@@ -305,6 +317,159 @@ private:
     TabBar& m_tab_bar;
 };
 
+class TabPreviewThumbnail final : public QWidget {
+public:
+    explicit TabPreviewThumbnail(QWidget* parent)
+        : QWidget(parent)
+    {
+        setFixedSize(TAB_PREVIEW_THUMBNAIL_WIDTH, TAB_PREVIEW_THUMBNAIL_HEIGHT);
+    }
+
+    void set_colors(QColor background, QColor border)
+    {
+        m_background = background;
+        m_border = border;
+        update();
+    }
+
+    void set_pixmap(QPixmap pixmap)
+    {
+        m_pixmap = AK::move(pixmap);
+        update();
+    }
+
+private:
+    virtual void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        auto outer_rect = rect();
+        outer_rect.adjust(0, 0, -1, -1);
+
+        QPainterPath outer_path;
+        outer_path.addRoundedRect(outer_rect, 7, 7);
+        painter.fillPath(outer_path, m_background);
+
+        if (!m_pixmap.isNull()) {
+            auto image_rect = rect().adjusted(1, 1, -1, -1);
+            QPainterPath image_path;
+            image_path.addRoundedRect(image_rect, 6, 6);
+
+            painter.save();
+            painter.setClipPath(image_path);
+
+            auto x = image_rect.x() + (image_rect.width() - m_pixmap.width()) / 2;
+            auto y = image_rect.y() + (image_rect.height() - m_pixmap.height()) / 2;
+            painter.drawPixmap(x, y, m_pixmap);
+            painter.restore();
+        }
+
+        painter.setPen(m_border);
+        painter.drawPath(outer_path);
+    }
+
+    QColor m_background;
+    QColor m_border;
+    QPixmap m_pixmap;
+};
+
+class TabPreviewPopup final : public QWidget {
+public:
+    explicit TabPreviewPopup(QWidget* parent)
+        : QWidget(parent, Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
+    {
+        setAttribute(Qt::WA_TranslucentBackground);
+        setAttribute(Qt::WA_ShowWithoutActivating);
+
+        auto* outer_layout = new QVBoxLayout(this);
+        outer_layout->setContentsMargins(TAB_PREVIEW_SHADOW_MARGIN, TAB_PREVIEW_SHADOW_MARGIN, TAB_PREVIEW_SHADOW_MARGIN, TAB_PREVIEW_SHADOW_MARGIN);
+        outer_layout->setSpacing(0);
+
+        m_card = new QFrame(this);
+        m_card->setObjectName("LadybirdTabPreviewCard");
+
+        auto* shadow = new QGraphicsDropShadowEffect(m_card);
+        shadow->setBlurRadius(28);
+        shadow->setOffset(0, 8);
+        shadow->setColor(QColor(0, 0, 0, 92));
+        m_card->setGraphicsEffect(shadow);
+
+        auto* card_layout = new QVBoxLayout(m_card);
+        card_layout->setContentsMargins(10, 10, 10, 10);
+        card_layout->setSpacing(8);
+
+        m_thumbnail = new TabPreviewThumbnail(m_card);
+
+        m_title_label = new QLabel(m_card);
+        m_title_label->setObjectName("LadybirdTabPreviewTitle");
+        m_title_label->setFixedWidth(TAB_PREVIEW_THUMBNAIL_WIDTH);
+        m_title_label->setTextFormat(Qt::PlainText);
+
+        m_url_label = new QLabel(m_card);
+        m_url_label->setObjectName("LadybirdTabPreviewURL");
+        m_url_label->setFixedWidth(TAB_PREVIEW_THUMBNAIL_WIDTH);
+        m_url_label->setTextFormat(Qt::PlainText);
+
+        card_layout->addWidget(m_thumbnail);
+        card_layout->addWidget(m_title_label);
+        card_layout->addWidget(m_url_label);
+        outer_layout->addWidget(m_card);
+    }
+
+    void set_preview(QPalette const& palette, QString title, QString url, QPixmap const& thumbnail)
+    {
+        update_chrome_style(palette);
+
+        if (title.trimmed().isEmpty())
+            title = "Untitled";
+
+        QFontMetrics title_metrics(m_title_label->font());
+        QFontMetrics url_metrics(m_url_label->font());
+
+        m_thumbnail->set_pixmap(thumbnail);
+        m_title_label->setText(title_metrics.elidedText(title, Qt::ElideRight, TAB_PREVIEW_THUMBNAIL_WIDTH));
+        m_url_label->setText(url_metrics.elidedText(url, Qt::ElideMiddle, TAB_PREVIEW_THUMBNAIL_WIDTH));
+        adjustSize();
+    }
+
+private:
+    void update_chrome_style(QPalette const& palette)
+    {
+        auto card_background = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(palette));
+        auto thumbnail_background = ChromeStyle::chrome_surface_recessed(palette);
+        auto border_color = ChromeStyle::chrome_control_border(palette);
+        auto border = ChromeStyle::style_sheet_color(border_color);
+        auto text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette));
+        auto muted_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_muted_text(palette));
+
+        m_thumbnail->set_colors(thumbnail_background, border_color);
+
+        setStyleSheet(qformatted(R"(
+QFrame#LadybirdTabPreviewCard {{
+    background: {};
+    border: 1px solid {};
+    border-radius: 10px;
+}}
+
+QLabel#LadybirdTabPreviewTitle {{
+    color: {};
+    font-weight: 600;
+}}
+
+QLabel#LadybirdTabPreviewURL {{
+    color: {};
+}}
+)",
+            card_background, border, text, muted_text));
+    }
+
+    QFrame* m_card { nullptr };
+    TabPreviewThumbnail* m_thumbnail { nullptr };
+    QLabel* m_title_label { nullptr };
+    QLabel* m_url_label { nullptr };
+};
+
 TabBar::TabBar(TabWidget* tab_widget)
     : QTabBar(tab_widget)
     , m_tab_widget(tab_widget)
@@ -315,6 +480,13 @@ TabBar::TabBar(TabWidget* tab_widget)
     setIconSize({ 16, 16 });
     setMinimumHeight(39);
     recreate_icons();
+
+    m_tab_preview_timer = new QTimer(this);
+    m_tab_preview_timer->setInterval(TAB_PREVIEW_HOVER_DELAY_MS);
+    m_tab_preview_timer->setSingleShot(true);
+    connect(m_tab_preview_timer, &QTimer::timeout, this, &TabBar::show_tab_preview);
+
+    m_tab_preview_popup = new TabPreviewPopup(this);
 
     m_hover_animation = new QVariantAnimation(this);
     m_hover_animation->setDuration(120);
@@ -328,6 +500,7 @@ TabBar::TabBar(TabWidget* tab_widget)
             m_hover_animation_tab_index = -1;
     });
     connect(this, &QTabBar::currentChanged, this, [this](int index) {
+        hide_tab_preview();
         ensure_tab_visible(index);
         update_tab_button_geometry();
     });
@@ -418,6 +591,7 @@ QSize TabBar::tabSizeHint(int index) const
 
 void TabBar::resizeEvent(QResizeEvent* event)
 {
+    hide_tab_preview();
     QTabBar::resizeEvent(event);
     set_vertical_scroll_offset(m_vertical_scroll_offset);
     ensure_tab_visible(currentIndex());
@@ -426,9 +600,28 @@ void TabBar::resizeEvent(QResizeEvent* event)
 
 void TabBar::tabLayoutChange()
 {
+    hide_tab_preview();
     QTabBar::tabLayoutChange();
     set_vertical_scroll_offset(m_vertical_scroll_offset);
     update_tab_button_geometry();
+}
+
+bool TabBar::event(QEvent* event)
+{
+    if (event->type() == QEvent::ToolTip) {
+        auto* help_event = static_cast<QHelpEvent*>(event);
+        auto hovered_tab = tab_index_at(help_event->pos());
+        if (hovered_tab >= 0 && hovered_tab != currentIndex()) {
+            if (auto* tab = m_tab_widget ? m_tab_widget->tab(hovered_tab) : nullptr) {
+                if (tab->view().tab_preview_pixmap({ TAB_PREVIEW_THUMBNAIL_WIDTH, TAB_PREVIEW_THUMBNAIL_HEIGHT }).has_value()) {
+                    event->accept();
+                    return true;
+                }
+            }
+        }
+    }
+
+    return QTabBar::event(event);
 }
 
 void TabBar::paintEvent(QPaintEvent*)
@@ -594,6 +787,7 @@ void TabBar::dragEnterEvent(QDragEnterEvent* event)
 
 void TabBar::dragLeaveEvent(QDragLeaveEvent* event)
 {
+    hide_tab_preview();
     m_drop_indicator_index = -1;
     update();
     QTabBar::dragLeaveEvent(event);
@@ -618,6 +812,7 @@ void TabBar::dragMoveEvent(QDragMoveEvent* event)
 
 void TabBar::dropEvent(QDropEvent* event)
 {
+    hide_tab_preview();
     if (!m_tab_widget || !s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
         event->ignore();
         return;
@@ -655,6 +850,7 @@ bool TabBar::eventFilter(QObject* watched, QEvent* event)
 
 void TabBar::mousePressEvent(QMouseEvent* event)
 {
+    hide_tab_preview();
     auto pressed_tab = tab_index_at(event->pos());
     m_pressed_tab = (m_tab_widget && pressed_tab >= 0) ? m_tab_widget->tab(pressed_tab) : nullptr;
 
@@ -714,6 +910,7 @@ void TabBar::mouseMoveEvent(QMouseEvent* event)
 
 void TabBar::leaveEvent(QEvent* event)
 {
+    hide_tab_preview();
     set_hovered_tab_index(-1);
     QTabBar::leaveEvent(event);
 }
@@ -828,6 +1025,8 @@ QPixmap TabBar::render_tab_drag_pixmap(int index) const
 
 void TabBar::start_tab_drag(int index)
 {
+    hide_tab_preview();
+
     if (!m_tab_widget)
         return;
 
@@ -890,6 +1089,107 @@ void TabBar::start_hover_animation(int tab_index, qreal target_progress)
     m_hover_animation->setStartValue(start_progress);
     m_hover_animation->setEndValue(target_progress);
     m_hover_animation->start();
+}
+
+void TabBar::schedule_tab_preview(int index)
+{
+    if (!m_tab_preview_timer || !m_tab_preview_popup)
+        return;
+
+    if (!m_tab_widget || index < 0 || index == currentIndex() || index >= count() || m_pressed_tab) {
+        hide_tab_preview();
+        return;
+    }
+
+    if (m_tab_preview_index == index && m_tab_preview_popup->isVisible())
+        return;
+
+    m_tab_preview_index = index;
+    m_tab_preview_popup->hide();
+    QToolTip::hideText();
+    m_tab_preview_timer->start();
+}
+
+void TabBar::show_tab_preview()
+{
+    if (!m_tab_widget || !m_tab_preview_popup)
+        return;
+
+    auto index = m_tab_preview_index;
+    if (index < 0 || index != m_hovered_tab_index || index == currentIndex() || index >= count()) {
+        hide_tab_preview();
+        return;
+    }
+
+    auto* tab = m_tab_widget->tab(index);
+    if (!tab) {
+        hide_tab_preview();
+        return;
+    }
+
+    auto thumbnail = tab->view().tab_preview_pixmap({ TAB_PREVIEW_THUMBNAIL_WIDTH, TAB_PREVIEW_THUMBNAIL_HEIGHT });
+    if (!thumbnail.has_value()) {
+        hide_tab_preview();
+        return;
+    }
+
+    m_tab_preview_popup->set_preview(palette(), tab->title(), qstring_from_ak_string(tab->view().url().serialize()), *thumbnail);
+    m_tab_preview_popup->move(tab_preview_position_for(index, m_tab_preview_popup->sizeHint()));
+    m_tab_preview_popup->show();
+    m_tab_preview_popup->raise();
+}
+
+void TabBar::hide_tab_preview()
+{
+    if (m_tab_preview_timer)
+        m_tab_preview_timer->stop();
+
+    m_tab_preview_index = -1;
+
+    if (m_tab_preview_popup)
+        m_tab_preview_popup->hide();
+}
+
+QPoint TabBar::tab_preview_position_for(int index, QSize const& popup_size) const
+{
+    auto tab_rect = visual_tab_rect(index);
+    auto screen = QGuiApplication::screenAt(mapToGlobal(tab_rect.center()));
+    if (!screen)
+        screen = window()->screen();
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    auto available_geometry = screen ? screen->availableGeometry() : QRect {};
+
+    QPoint position;
+    if (tab_layout() == TabLayout::Horizontal) {
+        position = mapToGlobal(QPoint {
+            tab_rect.center().x() - popup_size.width() / 2,
+            tab_rect.bottom() + TAB_PREVIEW_CARD_GAP - TAB_PREVIEW_SHADOW_MARGIN,
+        });
+
+        if (position.y() + popup_size.height() > available_geometry.bottom())
+            position.setY(mapToGlobal(QPoint { 0, tab_rect.top() }).y() - popup_size.height() - TAB_PREVIEW_CARD_GAP + TAB_PREVIEW_SHADOW_MARGIN);
+    } else {
+        position = mapToGlobal(QPoint {
+            tab_rect.right() + TAB_PREVIEW_CARD_GAP - TAB_PREVIEW_SHADOW_MARGIN,
+            tab_rect.center().y() - popup_size.height() / 2,
+        });
+
+        if (position.x() + popup_size.width() > available_geometry.right())
+            position.setX(mapToGlobal(QPoint { tab_rect.left(), 0 }).x() - popup_size.width() - TAB_PREVIEW_CARD_GAP + TAB_PREVIEW_SHADOW_MARGIN);
+    }
+
+    auto minimum_x = available_geometry.left() + TAB_PREVIEW_CARD_GAP - TAB_PREVIEW_SHADOW_MARGIN;
+    auto maximum_x = available_geometry.right() - popup_size.width() - TAB_PREVIEW_CARD_GAP + TAB_PREVIEW_SHADOW_MARGIN;
+    if (minimum_x <= maximum_x)
+        position.setX(clamp(position.x(), minimum_x, maximum_x));
+
+    auto minimum_y = available_geometry.top() + TAB_PREVIEW_CARD_GAP - TAB_PREVIEW_SHADOW_MARGIN;
+    auto maximum_y = available_geometry.bottom() - popup_size.height() - TAB_PREVIEW_CARD_GAP + TAB_PREVIEW_SHADOW_MARGIN;
+    if (minimum_y <= maximum_y)
+        position.setY(clamp(position.y(), minimum_y, maximum_y));
+
+    return position;
 }
 
 QRect TabBar::visual_tab_rect(int index) const
@@ -971,6 +1271,7 @@ void TabBar::set_hovered_tab_index(int index)
     m_hovered_tab_index = index;
     update_tab_button_geometry();
     start_hover_animation(index >= 0 ? index : previous_hovered_tab, index >= 0 ? 1.0 : 0.0);
+    schedule_tab_preview(index);
     update();
 }
 
