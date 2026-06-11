@@ -322,4 +322,17 @@ WebIDL::ExceptionOr<void> HTMLIFrameElement::set_srcdoc(TrustedTypes::TrustedHTM
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/browsers.html#determining-the-iframe-element-referrer-policy
+ReferrerPolicy::ReferrerPolicy determine_iframe_element_referrer_policy(GC::Ptr<DOM::Element> embedder)
+{
+    // 1. If embedder is an iframe element, then return embedder's referrerpolicy attribute's state's corresponding
+    //    keyword.
+    if (auto* iframe = as_if<HTMLIFrameElement>(embedder.ptr())) {
+        return ReferrerPolicy::from_string(iframe->get_attribute_value(HTML::AttributeNames::referrerpolicy)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+    }
+
+    // 2. Return the empty string.
+    return ReferrerPolicy::ReferrerPolicy::EmptyString;
+}
+
 }

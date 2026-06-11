@@ -1081,6 +1081,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     //    origin: responseOrigin
     //    policy container: policyContainer
     //    final sandboxing flag set: targetSnapshotParams's sandboxing flags
+    //    iframe element referrer policy: targetSnapshotParams's iframe element referrer policy
     //    opener policy: coop
     //    FIXME: navigation timing type: navTimingType
     //    about base URL: entry's document state's about base URL
@@ -1097,6 +1098,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
         move(response_origin),
         *policy_container,
         target_snapshot_params.sandboxing_flags,
+        target_snapshot_params.iframe_element_referrer_policy,
         move(coop),
         about_base_url,
         user_involvement);
@@ -1572,6 +1574,8 @@ static void create_navigation_params_by_fetching(
         //     FIXME: navigation timing type: navTimingType
         //     about base URL: entry's document state's about base URL
         //     user involvement: userInvolvement
+        // FIXME: Value for iframe element referrer policy is missing in the spec. https://github.com/whatwg/html/issues/12567
+        //        So, we default to the empty string.
         result->navigation_params = realm.heap().allocate<NavigationParams>(
             state_holder->navigation_id,
             state_holder->navigable,
@@ -1584,6 +1588,7 @@ static void create_navigation_params_by_fetching(
             *state_holder->response_origin,
             result_policy_container,
             state_holder->final_sandbox_flags,
+            ReferrerPolicy::ReferrerPolicy::EmptyString,
             state_holder->response_coop,
             state_holder->about_base_url,
             user_involvement);
@@ -2029,7 +2034,7 @@ void Navigable::begin_navigation(NavigateParams params)
         set_delaying_load_events(true);
 
     // 16. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
-    [[maybe_unused]] auto target_snapshot_params = snapshot_target_snapshot_params();
+    auto target_snapshot_params = snapshot_target_snapshot_params();
 
     // FIXME: 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id
     //     is navigationId, status is "pending", and url is url.
@@ -2236,6 +2241,7 @@ void Navigable::begin_navigation(NavigateParams params)
                     //    origin: responseOrigin
                     //    policy container: policyContainer
                     //    final sandboxing flag set: finalSandboxFlags
+                    //    iframe element referrer policy: targetSnapshotParams's iframe element referrer policy
                     //    opener policy: coop
                     //    FIXME: navigation timing type: "navigate"
                     //    about base URL: documentState's about base URL
@@ -2252,6 +2258,7 @@ void Navigable::begin_navigation(NavigateParams params)
                         move(response_origin),
                         policy_container,
                         final_sandbox_flags,
+                        target_snapshot_params.iframe_element_referrer_policy,
                         response_coop,
                         document_state->about_base_url(),
                         user_involvement);
@@ -2454,6 +2461,9 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
         .opener_policy = coop,
     };
 
+    // AD-HOC: Get the target snapshot params. This is missing from the spec, see https://github.com/whatwg/html/issues/12563
+    auto target_snapshot_params = snapshot_target_snapshot_params();
+
     // 16. Let navigationParams be a new navigation params, with
     //     id: navigationId
     //     navigable: targetNavigable
@@ -2466,6 +2476,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
     //     origin: newDocumentOrigin
     //     policy container: policyContainer
     //     final sandboxing flag set: finalSandboxFlags
+    //     iframe element referrer policy: targetSnapshotParams's iframe element referrer policy
     //     opener policy: coop
     //     FIXME: navigation timing type: "navigate"
     //     about base URL: targetNavigable's active document's about base URL
@@ -2482,6 +2493,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
         new_document_origin,
         policy_container,
         final_sandbox_flags,
+        target_snapshot_params.iframe_element_referrer_policy,
         coop,
         active_document()->about_base_url(),
         user_involvement);
@@ -2709,11 +2721,15 @@ bool Navigable::allowed_by_sandboxing_to_navigate(Navigable const& target, Sourc
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-target-snapshot-params
 TargetSnapshotParams Navigable::snapshot_target_snapshot_params()
 {
-    // To snapshot target snapshot params given a navigable targetNavigable, return a new target snapshot params
-    // with sandboxing flags set to the result of determining the creation sandboxing flags given targetNavigable's
-    // active browsing context and targetNavigable's container.
-
-    return { determine_the_creation_sandboxing_flags(*active_browsing_context(), container()) };
+    // To snapshot target snapshot params given a navigable targetNavigable, return a new target snapshot params with:
+    // - sandboxing flags: the result of determining the creation sandboxing flags given targetNavigable's active
+    //   browsing context and targetNavigable's container
+    // - iframe element referrer policy: the result of determining the iframe element referrer policy given
+    //   targetNavigable's container
+    return {
+        .sandboxing_flags = determine_the_creation_sandboxing_flags(*active_browsing_context(), container()),
+        .iframe_element_referrer_policy = determine_iframe_element_referrer_policy(container()),
+    };
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
