@@ -60,6 +60,16 @@ constexpr static Matrix4x4<T> scale_matrix(Vector3<T> const& s)
 }
 
 template<typename T>
+constexpr static Matrix4x4<T> perspective_matrix(T distance)
+{
+    return Matrix4x4<T>(
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, -1 / distance, 1);
+}
+
+template<typename T>
 constexpr static Matrix4x4<T> rotation_matrix(Vector3<T> const& axis, T angle)
 {
     T c, s;
