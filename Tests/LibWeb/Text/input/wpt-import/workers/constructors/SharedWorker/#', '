@@ -1,0 +1,44 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width">
+<title>Directory listing for /workers/constructors/SharedWorker/</title>
+<h1>Directory listing for /workers/constructors/SharedWorker/</h1>
+<ul>
+<li class="dir"><a href="/workers/constructors/">..</a></li>
+<li class="file"><a href="1">1</a> (<a href="1.headers">.headers</a>)</li>
+<li class="file"><a href="Infinity">Infinity</a> (<a href="Infinity.headers">.headers</a>)</li>
+<li class="file"><a href="Infinity-arguments.html">Infinity-arguments.html</a></li>
+<li class="file"><a href="NaN">NaN</a> (<a href="NaN.headers">.headers</a>)</li>
+<li class="file"><a href="NaN-arguments.html">NaN-arguments.html</a></li>
+<li class="file"><a href="SharedWorker-constructor.html">SharedWorker-constructor.html</a></li>
+<li class="file"><a href="URLMismatchError.htm">URLMismatchError.htm</a></li>
+<li class="file"><a href="WEB_FEATURES.yml">WEB_FEATURES.yml</a></li>
+<li class="file"><a href="connect-event.html">connect-event.html</a></li>
+<li class="file"><a href="connect-event.js">connect-event.js</a></li>
+<li class="file"><a href="dummy-name.html">dummy-name.html</a></li>
+<li class="file"><a href="dummy-shared-worker.html">dummy-shared-worker.html</a></li>
+<li class="file"><a href="dummy-shared-worker.js">dummy-shared-worker.js</a></li>
+<li class="file"><a href="empty-name.html">empty-name.html</a></li>
+<li class="file"><a href="empty.js">empty.js</a></li>
+<li class="file"><a href="global-members.html">global-members.html</a></li>
+<li class="file"><a href="global-members.js">global-members.js</a></li>
+<li class="file"><a href="interface-objects.html">interface-objects.html</a></li>
+<li class="file"><a href="interface-objects.js">interface-objects.js</a></li>
+<li class="file"><a href="name.html">name.html</a></li>
+<li class="file"><a href="name.js">name.js</a></li>
+<li class="file"><a href="no-arguments-ctor.html">no-arguments-ctor.html</a></li>
+<li class="file"><a href="null">null</a> (<a href="null.headers">.headers</a>)</li>
+<li class="file"><a href="null-arguments.html">null-arguments.html</a></li>
+<li class="file"><a href="number-arguments.html">number-arguments.html</a></li>
+<li class="file"><a href="port-onmessage.html">port-onmessage.html</a></li>
+<li class="file"><a href="port-onmessage.js">port-onmessage.js</a></li>
+<li class="file"><a href="port-properties.html">port-properties.html</a></li>
+<li class="file"><a href="port-readonly.html">port-readonly.html</a></li>
+<li class="file"><a href="same-origin.html">same-origin.html</a></li>
+<li class="file"><a href="setting-port-members.html">setting-port-members.html</a></li>
+<li class="file"><a href="shared-worker.js">shared-worker.js</a></li>
+<li class="file"><a href="undefined">undefined</a> (<a href="undefined.headers">.headers</a>)</li>
+<li class="file"><a href="undefined-arguments.html">undefined-arguments.html</a></li>
+<li class="file"><a href="unexpected-global-properties.html">unexpected-global-properties.html</a></li>
+<li class="file"><a href="unexpected-global-properties.js">unexpected-global-properties.js</a></li>
+<li class="file"><a href="unresolvable-url.html">unresolvable-url.html</a></li>
+</ul>
