@@ -429,10 +429,10 @@ Optional<TagAddress> Store::allocate(FunctionType const& type, DefinedType const
     return address;
 }
 
-Optional<ExceptionAddress> Store::allocate(TagInstance const& tag_instance, Vector<Value> params)
+Optional<ExceptionAddress> Store::allocate(TagAddress tag_address, Vector<Value> params)
 {
     ExceptionAddress address { m_exceptions.size() };
-    m_exceptions.append(ExceptionInstance { tag_instance, move(params) });
+    m_exceptions.append(ExceptionInstance { tag_address, move(params) });
     return address;
 }
 

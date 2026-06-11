@@ -38,7 +38,7 @@ namespace Instructions {
     M(drop, 0x1a, 1, 0)                       \
     M(select, 0x1b, 3, 1)                     \
     M(select_typed, 0x1c, 3, 1)               \
-    M(try_table, 0x1f, 0, 0)                  \
+    M(try_table, 0x1f, 0, -1)                 \
     M(local_get, 0x20, 0, 1)                  \
     M(local_set, 0x21, 1, 0)                  \
     M(local_tee, 0x22, 1, 1)                  \

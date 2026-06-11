@@ -307,13 +307,20 @@ struct ExternallyManagedTrap {
     }
 };
 
+// https://webassembly.github.io/spec/core/exec/runtime.html#results
+struct UncaughtException {
+    ExceptionAddress address;
+};
+
 struct Trap {
-    Variant<ByteString, ExternallyManagedTrap> data;
+    Variant<ByteString, ExternallyManagedTrap, UncaughtException> data;
 
     ByteString format() const
     {
         if (auto const* ptr = data.get_pointer<ByteString>())
             return *ptr;
+        if (data.has<UncaughtException>())
+            return "uncaught exception";
         return "<Externally managed Trap Data>";
     }
 
@@ -733,19 +740,20 @@ private:
     TagType::Flags m_flags;
 };
 
+// https://webassembly.github.io/spec/core/exec/runtime.html#exception-instances
 class ExceptionInstance {
 public:
-    explicit ExceptionInstance(TagInstance const& type, Vector<Value> params)
-        : m_type(type)
+    explicit ExceptionInstance(TagAddress tag, Vector<Value> params)
+        : m_tag(tag)
         , m_params(move(params))
     {
     }
 
-    auto& type() const { return m_type; }
+    auto tag() const { return m_tag; }
     auto& params() const { return m_params; }
 
 private:
-    TagInstance m_type;
+    TagAddress m_tag;
     Vector<Value> m_params;
 };
 
@@ -806,7 +814,7 @@ public:
     Optional<GlobalAddress> allocate(GlobalType const&, Value);
     Optional<ElementAddress> allocate(ValueType const&, Vector<Reference>);
     Optional<TagAddress> allocate(FunctionType const&, DefinedType const*, TagType::Flags);
-    Optional<ExceptionAddress> allocate(TagInstance const&, Vector<Value>);
+    Optional<ExceptionAddress> allocate(TagAddress, Vector<Value>);
 
     Module const* get_module_for(FunctionAddress);
     RefPtr<ModuleInstance const> get_module_instance_for(FunctionAddress); // Obtains strong ref for module.
@@ -850,21 +858,25 @@ private:
 
 class Label {
 public:
-    explicit Label(size_t arity, InstructionPointer continuation, size_t stack_height)
+    explicit Label(size_t arity, InstructionPointer continuation, size_t stack_height, Instruction const* try_table_instruction = nullptr)
         : m_arity(arity)
         , m_stack_height(stack_height)
         , m_continuation(continuation)
+        , m_try_table_instruction(try_table_instruction)
     {
     }
 
     auto continuation() const { return m_continuation; }
     auto arity() const { return m_arity; }
     auto stack_height() const { return m_stack_height; }
+    // https://webassembly.github.io/spec/core/exec/instructions.html#exec-try-table
+    Instruction const* try_table_instruction() const { return m_try_table_instruction; }
 
 private:
     size_t m_arity { 0 };
     size_t m_stack_height { 0 };
     InstructionPointer m_continuation { 0 };
+    Instruction const* m_try_table_instruction { nullptr };
 };
 
 class Frame {
