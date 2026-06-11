@@ -620,4 +620,10 @@ ErrorOr<void> encode(Encoder&, Gfx::IntRect const&);
 template<>
 ErrorOr<Gfx::IntRect> decode(Decoder&);
 
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::FloatRect const&);
+
+template<>
+ErrorOr<Gfx::FloatRect> decode(Decoder&);
+
 }

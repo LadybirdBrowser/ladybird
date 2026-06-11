@@ -43,6 +43,26 @@ ErrorOr<Gfx::IntRect> decode(Decoder& decoder)
     return Gfx::IntRect { point, size };
 }
 
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::FloatRect const& rect)
+{
+    TRY(encoder.encode(rect.x()));
+    TRY(encoder.encode(rect.y()));
+    TRY(encoder.encode(rect.width()));
+    TRY(encoder.encode(rect.height()));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::FloatRect> decode(Decoder& decoder)
+{
+    auto x = TRY(decoder.decode<float>());
+    auto y = TRY(decoder.decode<float>());
+    auto width = TRY(decoder.decode<float>());
+    auto height = TRY(decoder.decode<float>());
+    return Gfx::FloatRect { x, y, width, height };
+}
+
 }
 
 template class Gfx::Rect<int>;

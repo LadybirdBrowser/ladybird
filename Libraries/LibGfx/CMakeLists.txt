@@ -4,6 +4,7 @@ set(SOURCES
     BitmapExport.cpp
     BitmapSequence.cpp
     CMYKBitmap.cpp
+    CanvasCommandList.cpp
     Color.cpp
     ColorConversion.cpp
     ColorSpace.cpp
@@ -21,7 +22,9 @@ set(SOURCES
     Font/WOFF2/Loader.cpp
     FontCascadeList.cpp
     GradientPainting.cpp
+    Gradients.cpp
     Matrix4x4.cpp
+    DecodedImageFrame.cpp
     ImageFormats/BMPWriter.cpp
     ImageFormats/JPEGWriter.cpp
     ImageFormats/PNGWriter.cpp

@@ -13,6 +13,7 @@
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
+#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -65,5 +66,15 @@ private:
     NonnullRefPtr<Bitmap const> m_bitmap;
     ColorSpace m_color_space;
 };
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::DecodedImageFrame const&);
+
+template<>
+ErrorOr<Gfx::DecodedImageFrame> decode(Decoder&);
 
 }
