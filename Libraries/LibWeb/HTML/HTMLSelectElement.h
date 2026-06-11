@@ -167,6 +167,9 @@ private:
     bool m_user_validity { false };
 };
 
+GC::Ptr<HTMLSelectElement> get_nearest_ancestor_select(DOM::Element&);
+GC::Ptr<HTMLSelectElement const> get_nearest_ancestor_select(DOM::Element const&);
+
 }
 
 namespace Web::DOM {

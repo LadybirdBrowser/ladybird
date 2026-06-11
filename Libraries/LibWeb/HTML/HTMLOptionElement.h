@@ -73,8 +73,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#update-an-option's-nearest-ancestor-select
     void update_nearest_select_element();
-    // https://html.spec.whatwg.org/multipage/form-elements.html#option-element-nearest-ancestor-select
-    GC::Ptr<HTMLSelectElement> compute_nearest_select_element();
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-selectedness
     bool m_selected { false };
