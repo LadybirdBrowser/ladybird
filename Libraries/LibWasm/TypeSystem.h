@@ -67,6 +67,7 @@ WASM_API DefinedType const* canonicalize_type(TypeSection::Type const&, TypeCont
 WASM_API ValueType canonicalized(ValueType, TypeContext const&);
 
 // https://webassembly.github.io/spec/core/valid/matching.html
+WASM_API ValueType::Kind top_of_heap_type(ValueType const&, TypeContext const&);
 WASM_API bool matches_heap_type(ValueType const& heap_type1, ValueType const& heap_type2, TypeContext const&);
 WASM_API bool matches_reference_type(ValueType const& reference_type1, ValueType const& reference_type2, TypeContext const&);
 WASM_API bool matches_value_type(ValueType const& value_type1, ValueType const& value_type2, TypeContext const&);

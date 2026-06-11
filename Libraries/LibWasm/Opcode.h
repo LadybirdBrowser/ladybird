@@ -205,7 +205,11 @@ namespace Instructions {
     M(i64_extend32_s, 0xc4, 1, 1)             \
     M(ref_null, 0xd0, 0, 1)                   \
     M(ref_is_null, 0xd1, 1, 1)                \
-    M(ref_func, 0xd2, 0, 1)
+    M(ref_func, 0xd2, 0, 1)                   \
+    M(ref_eq, 0xd3, 2, 1)                     \
+    M(ref_as_non_null, 0xd4, 1, 1)            \
+    M(br_on_null, 0xd5, 1, -1)                \
+    M(br_on_non_null, 0xd6, 1, -1)
 
 // These are synthetic opcodes, they are _not_ seen in wasm with these values.
 #define ENUMERATE_MULTI_BYTE_WASM_OPCODES(M)                  \
@@ -483,6 +487,37 @@ namespace Instructions {
     M(i16x8_relaxed_q15mulr_s, 0xfd000111u, 2, 1)             \
     M(i16x8_relaxed_dot_i8x16_i7x16_s, 0xfd000112u, 2, 1)     \
     M(i32x4_relaxed_dot_i8x16_i7x16_add_s, 0xfd000113u, 3, 1) \
+    M(struct_new, 0xfb000000u, -1, 1)                         \
+    M(struct_new_default, 0xfb000001u, 0, 1)                  \
+    M(struct_get, 0xfb000002u, 1, 1)                          \
+    M(struct_get_s, 0xfb000003u, 1, 1)                        \
+    M(struct_get_u, 0xfb000004u, 1, 1)                        \
+    M(struct_set, 0xfb000005u, 2, 0)                          \
+    M(array_new, 0xfb000006u, 2, 1)                           \
+    M(array_new_default, 0xfb000007u, 1, 1)                   \
+    M(array_new_fixed, 0xfb000008u, -1, 1)                    \
+    M(array_new_data, 0xfb000009u, 2, 1)                      \
+    M(array_new_elem, 0xfb00000au, 2, 1)                      \
+    M(array_get, 0xfb00000bu, 2, 1)                           \
+    M(array_get_s, 0xfb00000cu, 2, 1)                         \
+    M(array_get_u, 0xfb00000du, 2, 1)                         \
+    M(array_set, 0xfb00000eu, 3, 0)                           \
+    M(array_len, 0xfb00000fu, 1, 1)                           \
+    M(array_fill, 0xfb000010u, -1, 0)                         \
+    M(array_copy, 0xfb000011u, -1, 0)                         \
+    M(array_init_data, 0xfb000012u, -1, 0)                    \
+    M(array_init_elem, 0xfb000013u, -1, 0)                    \
+    M(ref_test, 0xfb000014u, 1, 1)                            \
+    M(ref_test_null, 0xfb000015u, 1, 1)                       \
+    M(ref_cast, 0xfb000016u, 1, 1)                            \
+    M(ref_cast_null, 0xfb000017u, 1, 1)                       \
+    M(br_on_cast, 0xfb000018u, 1, -1)                         \
+    M(br_on_cast_fail, 0xfb000019u, 1, -1)                    \
+    M(any_convert_extern, 0xfb00001au, 1, 1)                  \
+    M(extern_convert_any, 0xfb00001bu, 1, 1)                  \
+    M(ref_i31, 0xfb00001cu, 1, 1)                             \
+    M(i31_get_s, 0xfb00001du, 1, 1)                           \
+    M(i31_get_u, 0xfb00001eu, 1, 1)                           \
     /* Synthetic fused insns */                               \
     ENUMERATE_SYNTHETIC_INSTRUCTION_OPCODES(M)
 

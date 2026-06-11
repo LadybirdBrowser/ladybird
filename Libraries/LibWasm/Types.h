@@ -717,6 +717,38 @@ public:
         MemoryIndex memory_index;
     };
 
+    // Proposal "gc"
+    struct StructFieldArgs {
+        TypeIndex type_index;
+        u32 field_index;
+    };
+
+    struct ArrayNewFixedArgs {
+        TypeIndex type_index;
+        u32 count;
+    };
+
+    struct ArrayDataArgs {
+        TypeIndex type_index;
+        DataIndex data_index;
+    };
+
+    struct ArrayElemArgs {
+        TypeIndex type_index;
+        ElementIndex element_index;
+    };
+
+    struct ArrayCopyArgs {
+        TypeIndex destination_type_index;
+        TypeIndex source_type_index;
+    };
+
+    struct BranchOnCastArgs {
+        BranchArgs branch;
+        ValueType source_type; // Nullability carries the castop null_1? flag.
+        ValueType target_type; // Nullability carries the castop null_2? flag.
+    };
+
     // Proposal "exception-handling"
     struct TryTableArgs : StructuredInstructionArgsBase<OwnPtr<FixedArray<Catch>>> {
         using Base = StructuredInstructionArgsBase<OwnPtr<FixedArray<Catch>>>;
@@ -818,8 +850,13 @@ private:
     LocalIndex m_local_index;
 
     Variant<
+        ArrayCopyArgs,
+        ArrayDataArgs,
+        ArrayElemArgs,
+        ArrayNewFixedArgs,
         BlockType,
         BranchArgs,
+        BranchOnCastArgs,
         DataIndex,
         ElementIndex,
         FunctionIndex,
@@ -834,6 +871,7 @@ private:
         MemoryCopyArgs,
         MemoryIndexArgument,
         MemoryInitArgs,
+        StructFieldArgs,
         StructuredInstructionArgs,
         ShuffleArgument,
         TableBranchArgs,
@@ -1212,21 +1250,48 @@ private:
     Vector<TypeIndex> m_types;
 };
 
+class Expression {
+public:
+    explicit Expression(Vector<Instruction> instructions)
+        : m_instructions(move(instructions))
+    {
+    }
+
+    auto& instructions() const { return m_instructions; }
+
+    static ParseResult<Expression> parse(ConstrainedStream& stream, Optional<size_t> size_hint = {});
+
+    void set_stack_usage_hint(size_t value) const { m_stack_usage_hint = value; }
+    auto stack_usage_hint() const { return m_stack_usage_hint; }
+    void set_frame_usage_hint(size_t value) const { m_frame_usage_hint = value; }
+    auto frame_usage_hint() const { return m_frame_usage_hint; }
+
+    mutable CompiledInstructions compiled_instructions;
+
+private:
+    Vector<Instruction> m_instructions;
+    mutable Optional<size_t> m_stack_usage_hint;
+    mutable Optional<size_t> m_frame_usage_hint;
+};
+
 class TableSection {
 public:
     class Table {
     public:
-        explicit Table(TableType type)
+        explicit Table(TableType type, Expression initializer)
             : m_type(move(type))
+            , m_initializer(move(initializer))
         {
         }
 
         auto& type() const { return m_type; }
+        auto& initializer() const { return m_initializer; }
 
         static ParseResult<Table> parse(ConstrainedStream& stream);
 
     private:
         TableType m_type;
+        Expression m_initializer;
     };
 
 public:
@@ -1276,30 +1341,6 @@ public:
 
 private:
     Vector<Memory> m_memories;
-};
-
-class Expression {
-public:
-    explicit Expression(Vector<Instruction> instructions)
-        : m_instructions(move(instructions))
-    {
-    }
-
-    auto& instructions() const { return m_instructions; }
-
-    static ParseResult<Expression> parse(ConstrainedStream& stream, Optional<size_t> size_hint = {});
-
-    void set_stack_usage_hint(size_t value) const { m_stack_usage_hint = value; }
-    auto stack_usage_hint() const { return m_stack_usage_hint; }
-    void set_frame_usage_hint(size_t value) const { m_frame_usage_hint = value; }
-    auto frame_usage_hint() const { return m_frame_usage_hint; }
-
-    mutable CompiledInstructions compiled_instructions;
-
-private:
-    Vector<Instruction> m_instructions;
-    mutable Optional<size_t> m_stack_usage_hint;
-    mutable Optional<size_t> m_frame_usage_hint;
 };
 
 class GlobalSection {

@@ -320,7 +320,7 @@ bool matches_defined_type(DefinedType const& defined_type1, DefinedType const& d
 }
 
 // https://webassembly.github.io/spec/core/syntax/types.html#heap-types
-static ValueType::Kind top_of_heap_type(ValueType const& type, TypeContext const& context)
+ValueType::Kind top_of_heap_type(ValueType const& type, TypeContext const& context)
 {
     switch (type.kind()) {
     case ValueType::AnyReference:
