@@ -420,25 +420,27 @@ void HTMLImageElement::set_height(WebIDL::UnsignedLong height)
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-naturalwidth
 unsigned HTMLImageElement::natural_width() const
 {
-    // Return the density-corrected intrinsic width of the image, in CSS pixels,
-    // if the image has intrinsic dimensions and is available.
-    if (auto bitmap = current_image_frame(); bitmap.has_value())
-        return bitmap->width();
+    // 1. If the image is not available, then return 0.
+    auto bitmap = current_image_frame();
+    if (!bitmap.has_value())
+        return 0;
 
-    // ...or else 0.
-    return 0;
+    // 2. Return the respective component of the image's density-corrected natural width and height, in CSS pixels. [CSS]
+    // FIXME: Implement density-corrected algorithm.
+    return bitmap->width();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-naturalheight
 unsigned HTMLImageElement::natural_height() const
 {
-    // Return the density-corrected intrinsic height of the image, in CSS pixels,
-    // if the image has intrinsic dimensions and is available.
-    if (auto bitmap = current_image_frame(); bitmap.has_value())
-        return bitmap->height();
+    // 1. If the image is not available, then return 0.
+    auto bitmap = current_image_frame();
+    if (!bitmap.has_value())
+        return 0;
 
-    // ...or else 0.
-    return 0;
+    // 2. Return the respective component of the image's density-corrected natural width and height, in CSS pixels. [CSS]
+    // FIXME: Implement density-corrected algorithm.
+    return bitmap->height();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlimageelement-x
