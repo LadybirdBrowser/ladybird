@@ -17,6 +17,11 @@ enum class SimpleSelectorGroupPosition {
     NonRightmost,
 };
 
+enum class InvalidationSetPurpose {
+    TriggerProperties,
+    SubjectMatchSet,
+};
+
 static void append_or_merge_descendant_rule(Vector<DescendantInvalidationRule>& rules, DescendantInvalidationRule const& rule)
 {
     for (auto& existing_rule : rules) {
@@ -392,7 +397,7 @@ static bool selector_contains_sibling_combinator(Selector const& selector)
     return false;
 }
 
-static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidationData& style_invalidation_data, Selector const& selector, InsideNthChildPseudoClass inside_nth_child_pseudo_class, InvalidationPlan const& root_invalidation_plan);
+static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidationData& style_invalidation_data, Selector const& selector, InsideNthChildPseudoClass inside_nth_child_pseudo_class, InvalidationPlan const& root_invalidation_plan, InvalidationSetPurpose purpose = InvalidationSetPurpose::SubjectMatchSet);
 
 static void add_invalidation_sets_to_cover_scope_leakage_of_relative_selector_in_has_pseudo_class(Selector const& selector, StyleInvalidationData& style_invalidation_data);
 
@@ -402,7 +407,7 @@ static bool should_register_invalidation_property(InvalidationSet::Property cons
 }
 
 static void collect_guard_properties_for_simple_selector(Selector::SimpleSelector const&, InvalidationSet&);
-static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSelector const&, InvalidationSet&, ExcludePropertiesNestedInNotPseudoClass, StyleInvalidationData&, InsideNthChildPseudoClass, SimpleSelectorGroupPosition, InvalidationPlan const&);
+static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSelector const&, InvalidationSet&, ExcludePropertiesNestedInNotPseudoClass, StyleInvalidationData&, InsideNthChildPseudoClass, SimpleSelectorGroupPosition, InvalidationPlan const&, InvalidationSetPurpose);
 
 static Optional<InvalidationSet> build_invalidation_guard_property_set_for_selector_subject(Selector const& selector)
 {
@@ -463,11 +468,11 @@ static InvalidationGuard build_invalidation_guard_for_simple_selectors(Vector<Se
     return guard;
 }
 
-static InvalidationSet build_invalidation_set_for_simple_selectors(Vector<Selector::SimpleSelector const&> const& simple_selectors, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_pseudo_class, SimpleSelectorGroupPosition simple_selector_group_position, InvalidationPlan const& root_invalidation_plan)
+static InvalidationSet build_invalidation_set_for_simple_selectors(Vector<Selector::SimpleSelector const&> const& simple_selectors, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_pseudo_class, SimpleSelectorGroupPosition simple_selector_group_position, InvalidationPlan const& root_invalidation_plan, InvalidationSetPurpose purpose)
 {
     InvalidationSet invalidation_set;
     for (auto const& simple_selector : simple_selectors)
-        build_invalidation_sets_for_simple_selector_impl(simple_selector, invalidation_set, exclude_properties_nested_in_not_pseudo_class, style_invalidation_data, inside_nth_child_pseudo_class, simple_selector_group_position, root_invalidation_plan);
+        build_invalidation_sets_for_simple_selector_impl(simple_selector, invalidation_set, exclude_properties_nested_in_not_pseudo_class, style_invalidation_data, inside_nth_child_pseudo_class, simple_selector_group_position, root_invalidation_plan, purpose);
     return invalidation_set;
 }
 
@@ -552,7 +557,7 @@ static NonnullRefPtr<InvalidationPlan> build_invalidation_for_combinator(Selecto
     return invalidation;
 }
 
-static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSelector const& selector, InvalidationSet& invalidation_set, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_selector, SimpleSelectorGroupPosition simple_selector_group_position, InvalidationPlan const& root_invalidation_plan)
+static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSelector const& selector, InvalidationSet& invalidation_set, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_selector, SimpleSelectorGroupPosition simple_selector_group_position, InvalidationPlan const& root_invalidation_plan, InvalidationSetPurpose purpose)
 {
     switch (selector.type) {
     case Selector::SimpleSelector::Type::Class:
@@ -609,6 +614,18 @@ static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSel
         case PseudoClass::Root:
             invalidation_set.set_needs_invalidate_pseudo_class(pseudo_class.type);
             break;
+        // OPTIMIZATION: Structural-position pseudo-classes are usable as subject match filters
+        //               because the matcher can test them against each element. This lets selectors
+        //               like `.foo:has(.bar) > :first-child` invalidate only candidate boundary
+        //               children instead of broadening the :has() invalidation plan to the whole
+        //               subtree. Do not register them as trigger properties here since topology
+        //               mutations are invalidated separately.
+        case PseudoClass::FirstChild:
+        case PseudoClass::LastChild:
+        case PseudoClass::OnlyChild:
+            if (purpose == InvalidationSetPurpose::SubjectMatchSet)
+                invalidation_set.set_needs_invalidate_pseudo_class(pseudo_class.type);
+            break;
         default:
             break;
         }
@@ -620,7 +637,7 @@ static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSel
         if (AK::first_is_one_of(pseudo_class.type, PseudoClass::NthChild, PseudoClass::NthLastChild, PseudoClass::NthOfType, PseudoClass::NthLastOfType))
             inside_nth_child_pseudo_class_for_nested = InsideNthChildPseudoClass::Yes;
         for (auto const& nested_selector : pseudo_class.argument_selector_list) {
-            auto rightmost_invalidation_set_for_selector = build_invalidation_sets_for_selector_impl(style_invalidation_data, *nested_selector, inside_nth_child_pseudo_class_for_nested, root_invalidation_plan);
+            auto rightmost_invalidation_set_for_selector = build_invalidation_sets_for_selector_impl(style_invalidation_data, *nested_selector, inside_nth_child_pseudo_class_for_nested, root_invalidation_plan, purpose);
             invalidation_set.include_all_from(rightmost_invalidation_set_for_selector);
 
             // Propagate :has() from inner selectors where it appears in non-rightmost compounds.
@@ -652,7 +669,7 @@ static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSel
         if (pseudo_element.type() == PseudoElement::Slotted) {
             for (auto const& compound_selector : pseudo_element.compound_selector().compound_selectors()) {
                 for (auto const& nested_simple : compound_selector.simple_selectors)
-                    build_invalidation_sets_for_simple_selector_impl(nested_simple, invalidation_set, exclude_properties_nested_in_not_pseudo_class, style_invalidation_data, inside_nth_child_selector, simple_selector_group_position, root_invalidation_plan);
+                    build_invalidation_sets_for_simple_selector_impl(nested_simple, invalidation_set, exclude_properties_nested_in_not_pseudo_class, style_invalidation_data, inside_nth_child_selector, simple_selector_group_position, root_invalidation_plan, purpose);
             }
         }
         break;
@@ -664,7 +681,7 @@ static void build_invalidation_sets_for_simple_selector_impl(Selector::SimpleSel
 
 void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const& selector, InvalidationSet& invalidation_set, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_selector)
 {
-    build_invalidation_sets_for_simple_selector_impl(selector, invalidation_set, exclude_properties_nested_in_not_pseudo_class, style_invalidation_data, inside_nth_child_selector, SimpleSelectorGroupPosition::Rightmost, *make_invalidate_self_invalidation());
+    build_invalidation_sets_for_simple_selector_impl(selector, invalidation_set, exclude_properties_nested_in_not_pseudo_class, style_invalidation_data, inside_nth_child_selector, SimpleSelectorGroupPosition::Rightmost, *make_invalidate_self_invalidation(), InvalidationSetPurpose::TriggerProperties);
 }
 
 static void add_invalidation_sets_to_cover_scope_leakage_of_relative_selector_in_has_pseudo_class(Selector const& selector, StyleInvalidationData& style_invalidation_data)
@@ -680,7 +697,7 @@ static void add_invalidation_sets_to_cover_scope_leakage_of_relative_selector_in
             if (rightmost)
                 return;
 
-            auto invalidation_set = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::No, style_invalidation_data, InsideNthChildPseudoClass::No, SimpleSelectorGroupPosition::Rightmost, *make_invalidate_self_invalidation());
+            auto invalidation_set = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::No, style_invalidation_data, InsideNthChildPseudoClass::No, SimpleSelectorGroupPosition::Rightmost, *make_invalidate_self_invalidation(), InvalidationSetPurpose::TriggerProperties);
             add_invalidation_plan_for_properties(style_invalidation_data, invalidation_set, *make_invalidate_whole_subtree_invalidation());
         });
     };
@@ -698,7 +715,7 @@ static void add_invalidation_sets_to_cover_scope_leakage_of_relative_selector_in
     });
 }
 
-static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidationData& style_invalidation_data, Selector const& selector, InsideNthChildPseudoClass inside_nth_child_pseudo_class, InvalidationPlan const& root_invalidation_plan)
+static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidationData& style_invalidation_data, Selector const& selector, InsideNthChildPseudoClass inside_nth_child_pseudo_class, InvalidationPlan const& root_invalidation_plan, InvalidationSetPurpose purpose)
 {
     auto const& compound_selectors = selector.compound_selectors();
     int compound_selector_index = compound_selectors.size() - 1;
@@ -715,8 +732,8 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
         }
 
         auto simple_selector_group_position = is_rightmost ? SimpleSelectorGroupPosition::Rightmost : SimpleSelectorGroupPosition::NonRightmost;
-        auto invalidation_properties = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::No, style_invalidation_data, inside_nth_child_pseudo_class, simple_selector_group_position, root_invalidation_plan);
-        auto subject_match_set = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::Yes, style_invalidation_data, inside_nth_child_pseudo_class, simple_selector_group_position, root_invalidation_plan);
+        auto invalidation_properties = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::No, style_invalidation_data, inside_nth_child_pseudo_class, simple_selector_group_position, root_invalidation_plan, InvalidationSetPurpose::TriggerProperties);
+        auto subject_match_set = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::Yes, style_invalidation_data, inside_nth_child_pseudo_class, simple_selector_group_position, root_invalidation_plan, purpose);
         auto subject_guard = build_invalidation_guard_for_simple_selectors(simple_selectors);
         bool subject_matches_any = subject_match_set.is_empty() && simple_selector_group_matches_any(simple_selectors);
 
