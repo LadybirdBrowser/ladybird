@@ -81,26 +81,6 @@ static bool cookie_matches_requested_domain(HTTP::Cookie::Cookie const& cookie, 
     return cookie.domain == *domain;
 }
 
-static JsonObject cookie_operation_result(Optional<String> error_string)
-{
-    JsonObject response;
-    if (error_string.has_value())
-        response.set("errorString"sv, *error_string);
-    else
-        response.set("errorString"sv, JsonValue {});
-    return response;
-}
-
-static JsonObject cookie_operation_result(ErrorOr<void> result)
-{
-    JsonObject response;
-    if (result.is_error())
-        response.set("errorString"sv, result.error().string_literal());
-    else
-        response.set("errorString"sv, JsonValue {});
-    return response;
-}
-
 static String same_site_for_devtools(HTTP::Cookie::SameSite same_site)
 {
     if (same_site == HTTP::Cookie::SameSite::Default)
@@ -420,7 +400,7 @@ void CookiesActor::edit_item(Message const& message)
 
     auto new_value = string_from_devtools_value(*new_value_json);
     if (!new_value.has_value()) {
-        send_response(message, cookie_operation_result("Missing cookie value"_string));
+        send_response(message, to_storage_operation_result("Missing cookie value"_string));
         return;
     }
 
@@ -477,7 +457,7 @@ void CookiesActor::edit_item(Message const& message)
     }
 
     if (!old_cookie.has_value()) {
-        send_response(message, cookie_operation_result(Optional<String> {}));
+        send_response(message, to_storage_operation_result(Optional<String> {}));
         return;
     }
 
@@ -493,32 +473,32 @@ void CookiesActor::edit_item(Message const& message)
         edited_cookie.path = new_value.release_value();
     } else if (*field == "expires"sv) {
         if (auto error_string = set_cookie_expiry_from_devtools(edited_cookie, *new_value_json, new_value->bytes_as_string_view()); error_string.has_value()) {
-            send_response(message, cookie_operation_result(move(error_string)));
+            send_response(message, to_storage_operation_result(move(error_string)));
             return;
         }
     } else if (*field == "isSecure"sv) {
         auto value = bool_from_devtools_value(*new_value_json);
         if (!value.has_value()) {
-            send_response(message, cookie_operation_result("Cookie secure flag must be true or false"_string));
+            send_response(message, to_storage_operation_result("Cookie secure flag must be true or false"_string));
             return;
         }
         edited_cookie.secure = *value;
     } else if (*field == "isHttpOnly"sv) {
         auto value = bool_from_devtools_value(*new_value_json);
         if (!value.has_value()) {
-            send_response(message, cookie_operation_result("Cookie HTTP-only flag must be true or false"_string));
+            send_response(message, to_storage_operation_result("Cookie HTTP-only flag must be true or false"_string));
             return;
         }
         edited_cookie.http_only = *value;
     } else if (*field == "sameSite"sv) {
         edited_cookie.same_site = HTTP::Cookie::same_site_from_string(new_value->bytes_as_string_view());
     } else {
-        send_response(message, cookie_operation_result(Optional<String> {}));
+        send_response(message, to_storage_operation_result(Optional<String> {}));
         return;
     }
 
     auto result = devtools().delegate().set_cookie(tab->description(), old_cookie, move(edited_cookie));
-    send_response(message, cookie_operation_result(move(result)));
+    send_response(message, to_storage_operation_result(move(result)));
 }
 
 void CookiesActor::add_item(Message const& message)
@@ -530,14 +510,14 @@ void CookiesActor::add_item(Message const& message)
     auto storage_host = message.data.get_string("host"sv)
                             .value_or_lazy_evaluated_optional([this] { return host(); });
     if (!storage_host.has_value()) {
-        send_response(message, cookie_operation_result("No storage host is available for this page"_string));
+        send_response(message, to_storage_operation_result("No storage host is available for this page"_string));
         return;
     }
 
     auto storage_url = URL::Parser::basic_parse(*storage_host);
     auto host_name = storage_host_name(*storage_host);
     if (!storage_url.has_value() || !host_name.has_value()) {
-        send_response(message, cookie_operation_result("Cannot add a cookie for this storage host"_string));
+        send_response(message, to_storage_operation_result("Cannot add a cookie for this storage host"_string));
         return;
     }
 
@@ -560,7 +540,7 @@ void CookiesActor::add_item(Message const& message)
     cookie.host_only = true;
 
     auto result = devtools().delegate().set_cookie(tab->description(), {}, move(cookie));
-    send_response(message, cookie_operation_result(move(result)));
+    send_response(message, to_storage_operation_result(result));
 }
 
 void CookiesActor::remove_item(Message const& message)
