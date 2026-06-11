@@ -264,7 +264,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         // 8. Otherwise, if command is in the Toggle Popover state:
         else if (command == "toggle-popover") {
             // 1. If the result of running check popover validity given target, false, false, and null is true,
-            //    then run the show popover algorithm given target, false, and this.
+            //    then run the show popover algorithm given target, false, and element.
             if (MUST(target_element->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
                 MUST(target_element->show_popover(ThrowExceptions::No, this));
             }
@@ -279,7 +279,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         // 9. Otherwise, if command is in the Show Popover state:
         else if (command == "show-popover") {
             // 1. If the result of running check popover validity given target, false, false, and null is true,
-            //    then run the show popover algorithm given target, false, and this.
+            //    then run the show popover algorithm given target, false, and element.
             if (MUST(target_element->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
                 MUST(target_element->show_popover(ThrowExceptions::No, this));
             }
