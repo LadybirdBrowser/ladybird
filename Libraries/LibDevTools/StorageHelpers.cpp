@@ -1,0 +1,37 @@
+/*
+ * Copyright (c) 2026, Ladybird contributors
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <AK/StringBuilder.h>
+#include <LibDevTools/StorageHelpers.h>
+#include <LibURL/Parser.h>
+#include <LibURL/URL.h>
+
+namespace DevTools {
+
+Optional<String> storage_host_for_url(String const& url_string)
+{
+    auto url = URL::Parser::basic_parse(url_string);
+    if (!url.has_value())
+        return {};
+
+    auto const& scheme = url->scheme();
+    if (scheme == "http"sv || scheme == "https"sv) {
+        StringBuilder builder;
+        builder.append(scheme);
+        builder.append("://"sv);
+        builder.append(url->serialized_host());
+        if (auto port = url->port(); port.has_value())
+            builder.appendff(":{}", *port);
+        return builder.to_string_without_validation();
+    }
+
+    if (scheme == "about"sv || scheme == "file"sv || scheme == "javascript"sv || scheme == "resource"sv)
+        return url->serialize();
+
+    return {};
+}
+
+}

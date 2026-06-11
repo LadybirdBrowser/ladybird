@@ -10,6 +10,7 @@
 #include <LibDevTools/Actors/AccessibilityActor.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
 #include <LibDevTools/Actors/ConsoleActor.h>
+#include <LibDevTools/Actors/CookiesActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/NetworkParentActor.h>
@@ -89,16 +90,27 @@ void WatcherActor::handle_message(Message const& message)
         if (!resource_types.has_value())
             return;
 
+        bool should_send_cookie_resources = false;
         if constexpr (DEVTOOLS_DEBUG) {
             for (auto const& resource_type : resource_types->values()) {
                 if (!resource_type.is_string())
                     continue;
-                if (resource_type.as_string() != "console-message"sv)
+                if (resource_type.as_string() != "console-message"sv && resource_type.as_string() != "cookies"sv)
                     dbgln("Unrecognized `watchResources` resource type: '{}'", resource_type.as_string());
+            }
+        }
+        for (auto const& resource_type : resource_types->values()) {
+            if (!resource_type.is_string())
+                continue;
+            if (resource_type.as_string() == "cookies"sv) {
+                m_is_watching_cookie_resources = true;
+                should_send_cookie_resources = true;
             }
         }
 
         send_response(message, move(response));
+        if (should_send_cookie_resources)
+            send_cookies_resource_available_message();
         return;
     }
 
@@ -132,7 +144,7 @@ JsonObject WatcherActor::serialize_description() const
     JsonObject resources;
     resources.set("Cache"sv, false);
     resources.set("console-message"sv, true);
-    resources.set("cookies"sv, false);
+    resources.set("cookies"sv, true);
     resources.set("css-change"sv, false);
     resources.set("css-message"sv, false);
     resources.set("css-registered-properties"sv, false);
@@ -200,6 +212,8 @@ void WatcherActor::switch_frame_target(FrameActor& previous_target, String const
     send_frame_target_available_message(target);
     target.send_frame_update_message();
     target.set_pending_navigation_document_events_after_target_switch(url, title);
+    if (m_is_watching_cookie_resources)
+        send_cookies_resource_available_message();
 }
 
 void WatcherActor::send_frame_target_available_message(FrameActor& target)
@@ -220,6 +234,33 @@ void WatcherActor::send_frame_target_destroyed_message(FrameActor& target)
     message.set("type"sv, "target-destroyed-form"sv);
     message.set("target"sv, target.serialize_target());
     message.set("options"sv, move(options));
+    send_message(move(message));
+}
+
+CookiesActor& WatcherActor::cookies_actor()
+{
+    if (auto cookies = m_cookies.strong_ref())
+        return *cookies;
+
+    m_cookies = devtools().register_actor<CookiesActor>(m_tab);
+    return *m_cookies.strong_ref();
+}
+
+void WatcherActor::send_cookies_resource_available_message()
+{
+    JsonArray cookies;
+    cookies.must_append(cookies_actor().serialize_storage());
+
+    JsonArray cookie_resources;
+    cookie_resources.must_append("cookies"sv);
+    cookie_resources.must_append(move(cookies));
+
+    JsonArray array;
+    array.must_append(move(cookie_resources));
+
+    JsonObject message;
+    message.set("type"sv, "resources-available-array"sv);
+    message.set("array"sv, move(array));
     send_message(move(message));
 }
 

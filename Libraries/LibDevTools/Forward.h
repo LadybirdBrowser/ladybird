@@ -16,6 +16,7 @@ class AccessibilityNodeActor;
 class AccessibilityWalkerActor;
 class Connection;
 class ConsoleActor;
+class CookiesActor;
 class CSSPropertiesActor;
 class DeviceActor;
 class DevToolsDelegate;
