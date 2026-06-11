@@ -1,0 +1,30 @@
+<!doctype html>
+<body></body>
+<script>
+    (async () => {
+        for (let i = 0; i < 30; ++i) {
+            (() => {
+                // Block in inline - the span should be split into two layout nodes.
+                let host = document.createElement("div");
+                let span = document.createElement("span");
+                span.style.background = "red";
+                span.appendChild(document.createElement("div")).textContent = "x";
+                host.appendChild(span);
+                document.body.appendChild(host);
+
+                // Force layout + paint - fill paintable caches
+                internals.dumpDisplayList();
+
+                // Remove the span element - should clear paintable caches for all layout nodes, not just the last one.
+                span.remove();
+            })();
+
+            // Collect the removed element, nulling the layout nodes' weak DOM-node pointers.
+            for (let j = 0; j < 10000; ++j) ({ junk: j });
+            internals.gc();
+
+            // Yield, so the event loop's rendering step rebuilds the layout tree and detaches the lingering cached copy.
+            await new Promise(resolve => setTimeout(resolve));
+        }
+    })();
+</script>
