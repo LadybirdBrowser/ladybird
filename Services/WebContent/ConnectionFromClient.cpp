@@ -508,6 +508,17 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
     }
 
+    if (request == "dump-session-storage") {
+        if (auto* document = page->page().top_level_browsing_context().active_document()) {
+            auto storage_or_error = document->window()->session_storage();
+            if (storage_or_error.is_error())
+                dbgln("Failed to retrieve session storage: {}", storage_or_error.release_error());
+            else
+                storage_or_error.release_value()->dump();
+        }
+        return;
+    }
+
     if (request == "navigator-compatibility-mode") {
         Web::NavigatorCompatibilityMode compatibility_mode;
         if (argument == "chrome") {
