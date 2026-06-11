@@ -115,6 +115,10 @@ private:
         auto table_address = m_machine.store().allocate(table_type);
         s_spec_test_namespace.set({ "spectest", "table", table_type }, Wasm::ExternValue { *table_address });
 
+        Wasm::TableType table64_type { Wasm::ValueType(Wasm::ValueType::FunctionReference), Wasm::Limits(Wasm::AddressType::I64, 10, 20) };
+        auto table64_address = m_machine.store().allocate(table64_type);
+        s_spec_test_namespace.set({ "spectest", "table64", table64_type }, Wasm::ExternValue { *table64_address });
+
         Wasm::MemoryType memory_type { Wasm::Limits(Wasm::AddressType::I32, 1, 2) };
         auto memory_address = m_machine.store().allocate(memory_type);
         s_spec_test_namespace.set({ "spectest", "memory", memory_type }, Wasm::ExternValue { *memory_address });
