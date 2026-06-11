@@ -6,6 +6,18 @@
         <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
         <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
         <style>
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --history-entry-hover-color: #e8e8e8;
+                }
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --history-entry-hover-color: #2d2d2d;
+                }
+            }
+
             .history-status {
                 color: var(--secondary-text-color);
                 font-size: 13px;
@@ -61,7 +73,7 @@
             }
 
             .history-entry:hover {
-                background-color: var(--item-hover-color);
+                background-color: var(--history-entry-hover-color);
             }
 
             .history-entry + .history-entry {
