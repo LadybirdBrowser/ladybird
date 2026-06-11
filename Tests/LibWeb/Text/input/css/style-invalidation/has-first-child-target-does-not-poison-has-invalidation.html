@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    .menu:has(> .flag) > :first-child {
+        color: rgb(1, 2, 3);
+    }
+
+    .menu > :first-child {
+        color: rgb(4, 5, 6);
+    }
+</style>
+<section id="fixture">
+    <div class="menu"><div id="target"></div><div id="flag"></div></div>
+</section>
+<script>
+    test(() => {
+        const menu = document.querySelector(".menu");
+        for (let i = 0; i < 80; ++i)
+            menu.appendChild(makeElement("span", { className: "filler" }));
+
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        assertEqual("target initially has base color", getComputedStyle(target).color, "rgb(4, 5, 6)");
+
+        resetStyleCounters();
+        document.getElementById("flag").classList.add("flag");
+        internals.updateStyle();
+
+        assertEqual("target matches after child class mutation", getComputedStyle(target).color, "rgb(1, 2, 3)");
+        const counters = styleCounters();
+        assertEqual(":first-child target inside :has() does not force whole-subtree no-op recomputes", counters.elementStyleNoopRecomputations < 10, true);
+        printPassWithCounters(":has() with a :first-child target stays targeted");
+    });
+</script>
