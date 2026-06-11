@@ -235,7 +235,7 @@ void SVGElement::update_use_elements_that_reference_this()
     if (is<SVGUseElement>(this)
         // If this element is in a shadow root, it already represents a clone and is not itself referenced.
         || is<DOM::ShadowRoot>(this->root())
-        // If this does not have an id it cannot be referenced, no point in searching the entire DOM tree.
+        // If this does not have an id it cannot be referenced, no point in notifying use elements.
         || !id().has_value()
         // An unconnected node cannot have valid references.
         // This also prevents searches for elements that are in the process of being constructed - as clones.
@@ -244,13 +244,12 @@ void SVGElement::update_use_elements_that_reference_this()
         return;
     }
 
-    document().for_each_in_subtree_of_type<SVGUseElement>([this](SVGUseElement& use_element) {
+    for (auto& use_element : document().svg_use_elements()) {
         if (document().is_completely_loaded())
             use_element.svg_element_changed(*this);
         else
             use_element.svg_element_changed_before_document_complete(*this);
-        return TraversalDecision::Continue;
-    });
+    }
 }
 
 void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
@@ -278,10 +277,15 @@ void SVGElement::remove_from_use_element_that_reference_this()
         return;
     }
 
-    document().for_each_in_subtree_of_type<SVGUseElement>([this](SVGUseElement& use_element) {
+    for (auto& use_element : document().svg_use_elements()) {
+        // Use elements that are part of the same subtree removal may still be registered, since removal hooks run
+        // after the subtree has been detached. They are no longer reachable from the document and should not be
+        // notified. NB: This must check the tree structure, not Node::is_connected(), because the connected flag of
+        // nodes later in tree order has not been updated yet when we get here.
+        if (!use_element.root().is_document())
+            continue;
         use_element.svg_element_removed(*this);
-        return TraversalDecision::Continue;
-    });
+    }
 }
 
 void SVGElement::adjust_computed_style(CSS::ComputedProperties& computed_properties)
