@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    :is(:where(.group):has(.flag) *) {
+        --poison-probe: match;
+    }
+
+    html:has(.toggle) .target {
+        color: rgb(1, 2, 3);
+    }
+
+    .target {
+        color: rgb(4, 5, 6);
+    }
+</style>
+<section id="fixture">
+    <div id="toggle"></div>
+    <div class="target"></div>
+</section>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        for (let i = 0; i < 80; ++i)
+            fixture.appendChild(makeElement("span", { className: "filler" }));
+
+        const target = document.querySelector(".target");
+        internals.updateStyle();
+        assertEqual("target initially has base color", getComputedStyle(target).color, "rgb(4, 5, 6)");
+
+        resetStyleCounters();
+        document.getElementById("toggle").classList.add("toggle");
+        internals.updateStyle();
+
+        assertEqual("target matches after :has() mutation", getComputedStyle(target).color, "rgb(1, 2, 3)");
+        const counters = styleCounters();
+        assertEqual("descendant-only complex :has() does not force whole-subtree no-op recomputes", counters.elementStyleNoopRecomputations < 10, true);
+        printPassWithCounters("descendant-only complex :has() keeps later :has() invalidation targeted");
+    });
+</script>
