@@ -13,7 +13,6 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FlexLayoutData.h>
 #include <LibWeb/Layout/GridLayoutData.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
