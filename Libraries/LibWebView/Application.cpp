@@ -47,6 +47,7 @@
 #endif
 
 #if !defined(AK_OS_WINDOWS)
+#    include <signal.h>
 #    include <sys/wait.h>
 #endif
 
@@ -122,6 +123,10 @@ Application::~Application()
     // Explicitly delete the observers first, as the observer destructors will refer to Application::the().
     m_settings_observer.clear();
     m_bookmark_store_observer.clear();
+#if !defined(AK_OS_WINDOWS)
+    if (m_termination_signal_handler.has_value())
+        Core::EventLoop::unregister_signal(*m_termination_signal_handler);
+#endif
     shutdown_request_server();
     if (m_compositor_client)
         m_compositor_client->on_death = nullptr;
@@ -461,6 +466,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     initialize_actions();
 
     m_event_loop = &create_platform_event_loop();
+#if !defined(AK_OS_WINDOWS)
+    m_termination_signal_handler = Core::EventLoop::register_signal(SIGTERM, [this](int) {
+        m_event_loop->quit(0);
+    });
+#endif
     TRY(launch_services());
 
     return {};

@@ -354,6 +354,9 @@ private:
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
     Core::EventLoop* m_event_loop { nullptr };
+#if !defined(AK_OS_WINDOWS)
+    Optional<int> m_termination_signal_handler;
+#endif
     OwnPtr<ProcessManager> m_process_manager;
 
     RefPtr<Action> m_reload_action;
