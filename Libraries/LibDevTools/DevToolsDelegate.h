@@ -78,6 +78,9 @@ public:
     using OnIndexedDBInspectionComplete = Function<void(ErrorOr<JsonObject>)>;
     virtual void inspect_indexed_database_storage(TabDescription const&, OnIndexedDBInspectionComplete) const { }
     virtual void inspect_indexed_database_objects(TabDescription const&, String const&, Optional<JsonArray>, JsonObject, OnIndexedDBInspectionComplete) const { }
+    virtual void delete_indexed_database(TabDescription const&, String const&, String const&, OnIndexedDBInspectionComplete) const { }
+    virtual void clear_indexed_database_object_store(TabDescription const&, String const&, String const&, OnIndexedDBInspectionComplete) const { }
+    virtual void delete_indexed_database_record(TabDescription const&, String const&, String const&, OnIndexedDBInspectionComplete) const { }
     using OnIndexedDatabaseChange = Function<void(JsonObject)>;
     virtual u64 add_indexed_database_change_listener(TabDescription const&, OnIndexedDatabaseChange) const { return 0; }
     virtual void remove_indexed_database_change_listener(TabDescription const&, u64) const { }
