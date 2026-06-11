@@ -138,6 +138,22 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
         };
 
         for (auto const& compound_selector : selector.compound_selectors()) {
+            bool compound_has_positive_concrete_feature = false;
+            for (auto const& simple_selector : compound_selector.simple_selectors) {
+                switch (simple_selector.type) {
+                case Selector::SimpleSelector::Type::TagName:
+                case Selector::SimpleSelector::Type::Id:
+                case Selector::SimpleSelector::Type::Class:
+                case Selector::SimpleSelector::Type::Attribute:
+                    compound_has_positive_concrete_feature = true;
+                    break;
+                default:
+                    break;
+                }
+                if (compound_has_positive_concrete_feature)
+                    break;
+            }
+
             if ((compound_selector.combinator == Selector::Combinator::NextSibling
                     || compound_selector.combinator == Selector::Combinator::SubsequentSibling)
                 && mutation_features.may_affect_sibling_relationships)
@@ -228,6 +244,15 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
                             || mutation_features.pseudo_classes.contains(pseudo_class.type);
                         break;
                     case PseudoClass::Not:
+                        // A bare negation can match because any unrelated node exists, but a negation
+                        // attached to a positive concrete feature only changes when either side changes.
+                        if (!compound_has_positive_concrete_feature) {
+                            must_be_conservative = true;
+                            break;
+                        }
+                        saw_concrete_feature = true;
+                        concrete_feature_found_in_mutation_subtree |= visit_selector_list(pseudo_class.argument_selector_list);
+                        break;
                     case PseudoClass::Has:
                     default:
                         must_be_conservative = true;

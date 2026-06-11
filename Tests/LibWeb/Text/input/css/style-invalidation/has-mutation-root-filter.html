@@ -58,6 +58,12 @@
             ({ subgrid }) => subgrid.appendChild(makeElement("em"))
         );
         runMutationRootCase(
+            "negation argument with positive tag",
+            `div:not([role="group"])`,
+            ({ subgrid }) => subgrid.classList.add("unrelated"),
+            ({ subgrid }) => subgrid.appendChild(makeElement("div"))
+        );
+        runMutationRootCase(
             "child combinator argument",
             `> .needle`,
             ({ fixture }) => fixture.appendChild(makeElement("span", { className: "needle" })),
