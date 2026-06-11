@@ -539,6 +539,7 @@ private:
     void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
+    void clear_layout_node_paintables();
 
     static Optional<StringView> first_valid_id(StringView, Document const&);
 
