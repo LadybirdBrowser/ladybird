@@ -2478,13 +2478,19 @@ bool Element::is_actually_disabled() const
         return !form_associated_element.enabled();
     }
 
-    // - an optgroup element that has a disabled attribute
-    if (is<HTML::HTMLOptGroupElement>(this))
-        return has_attribute(HTML::AttributeNames::disabled);
+    auto nearest_ancestor_select_is_disabled = [this] {
+        if (auto select = HTML::get_nearest_ancestor_select(*this))
+            return select->has_attribute(HTML::AttributeNames::disabled);
+        return false;
+    };
 
-    // - an option element that is disabled
-    if (is<HTML::HTMLOptionElement>(this))
-        return static_cast<HTML::HTMLOptionElement const&>(*this).disabled();
+    // - an optgroup element that has a disabled attribute or whose nearest ancestor select is disabled
+    if (is<HTML::HTMLOptGroupElement>(this))
+        return has_attribute(HTML::AttributeNames::disabled) || nearest_ancestor_select_is_disabled();
+
+    // - an option element that is disabled or whose nearest ancestor select is disabled
+    if (auto* option = as_if<HTML::HTMLOptionElement>(this))
+        return option->disabled() || nearest_ancestor_select_is_disabled();
 
     // - a fieldset element that is a disabled fieldset
     if (is<HTML::HTMLFieldSetElement>(this))
