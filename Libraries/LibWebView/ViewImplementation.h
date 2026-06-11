@@ -111,6 +111,10 @@ public:
     ErrorOr<Core::SharedVersionIndex> ensure_document_cookie_version_index(Badge<WebContentClient>, String const&);
     Optional<Core::SharedVersion> document_cookie_version(URL::URL const&) const;
 
+    void notify_storage_changed(DevTools::DevToolsDelegate::StorageChange);
+    u64 add_storage_change_listener(DevTools::DevToolsDelegate::OnStorageChange);
+    void remove_storage_change_listener(u64 listener_id);
+
     ByteString selected_text();
     ByteString cut_selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
@@ -463,6 +467,9 @@ protected:
     Core::AnonymousBuffer m_document_cookie_version_buffer;
     HashMap<String, Core::SharedVersionIndex> m_document_cookie_version_indices;
     DevTools::DevToolsDelegate::OnHostCookieChange m_on_host_cookie_change;
+
+    HashMap<u64, DevTools::DevToolsDelegate::OnStorageChange> m_storage_change_listeners;
+    u64 m_next_storage_change_listener_id { 1 };
 
     // FIXME: Reconcile this ID with `page_id`. The latter is only unique per WebContent connection, whereas the view ID
     //        is required to be globally unique for Firefox DevTools.

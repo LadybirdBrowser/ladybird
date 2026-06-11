@@ -547,7 +547,7 @@ class TestDevToolsDelegate final : public DevTools::DevToolsDelegate {
 public:
     virtual Vector<DevTools::TabDescription> tab_list() const override
     {
-        return { { .id = 1, .title = "Fixture page"_string, .url = "https://example.test/"_string } };
+        return { { .id = 1, .title = "Fixture page"_string, .url = tab_url } };
     }
 
     virtual Vector<DevTools::CSSProperty> css_property_list() const override
@@ -663,6 +663,20 @@ public:
 
         VERIFY(storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage);
         callback(fixture_session_storage_items);
+    }
+
+    virtual u64 add_storage_change_listener(DevTools::TabDescription const&, OnStorageChange callback) const override
+    {
+        auto listener_id = next_storage_change_listener_id++;
+        storage_change_listeners.set(listener_id, move(callback));
+        ++add_storage_change_listener_call_count;
+        return listener_id;
+    }
+
+    virtual void remove_storage_change_listener(DevTools::TabDescription const&, u64 listener_id) const override
+    {
+        storage_change_listeners.remove(listener_id);
+        ++remove_storage_change_listener_call_count;
     }
 
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete callback) const override
@@ -1064,6 +1078,12 @@ public:
         on_host_cookie_change(move(cookies));
     }
 
+    void emit_storage_change(DevToolsDelegate::StorageChange change) const
+    {
+        for (auto& listener : storage_change_listeners)
+            listener.value(change);
+    }
+
     mutable Function<void(WebView::DOMNodeProperties)> on_dom_node_properties;
     mutable Function<void(WebView::Mutation)> on_dom_mutation;
     mutable Function<void(Web::CSS::StyleSheetIdentifier const&, String)> on_style_sheet_source;
@@ -1074,6 +1094,8 @@ public:
     mutable Function<void(DevToolsDelegate::NetworkRequestCompleteData)> on_network_request_finished;
     mutable Function<void(DevToolsDelegate::NodePickerEvent)> on_node_picker_event;
     mutable Function<void(Vector<HTTP::Cookie::Cookie>)> on_host_cookie_change;
+    mutable HashMap<u64, Function<void(DevToolsDelegate::StorageChange)>> storage_change_listeners;
+    String tab_url { "https://example.test/"_string };
 
     struct NavigationListener {
         Function<void(String)> on_navigation_started;
@@ -1093,6 +1115,9 @@ public:
     mutable size_t listen_for_cookie_changes_call_count { 0 };
     mutable size_t stop_listening_for_cookie_changes_call_count { 0 };
     mutable size_t inspect_storage_call_count { 0 };
+    mutable size_t add_storage_change_listener_call_count { 0 };
+    mutable size_t remove_storage_change_listener_call_count { 0 };
+    mutable u64 next_storage_change_listener_id { 1 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
     mutable size_t listen_for_dom_properties_call_count { 0 };
     mutable size_t stop_listening_for_dom_properties_call_count { 0 };
@@ -1302,9 +1327,10 @@ struct TestSession {
     OwnPtr<ProtocolClient> client;
 };
 
-static NonnullOwnPtr<TestSession> create_session()
+static NonnullOwnPtr<TestSession> create_session(StringView tab_url = "https://example.test/"sv)
 {
     auto session = make<TestSession>();
+    session->delegate.tab_url = MUST(String::from_utf8(tab_url));
     session->server = MUST(DevTools::DevToolsServer::create(session->delegate, 0));
     session->client = ProtocolClient::connect(session->loop, *session->server);
     return session;
@@ -1462,6 +1488,15 @@ static JsonArray get_cookie_update_keys(JsonObject const& stores_update, StringV
     return stores_update.get_object("data"sv)
         ->get_object(update_type)
         ->get_object("cookies"sv)
+        ->get_array(host)
+        .release_value();
+}
+
+static JsonArray get_storage_update_keys(JsonObject const& stores_update, StringView update_type, StringView resource_key, StringView host = "https://example.test"sv)
+{
+    return stores_update.get_object("data"sv)
+        ->get_object(update_type)
+        ->get_object(resource_key)
         ->get_array(host)
         .release_value();
 }
@@ -1852,6 +1887,104 @@ TEST_CASE(storage_web_storage_store_objects)
     objects = get_storage_store_objects(client, session_storage_actor, "https://other.test"sv);
     EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 0u);
     EXPECT(objects.get_array("data"sv)->is_empty());
+}
+
+TEST_CASE(storage_web_storage_change_events)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto local_storage_actor = get_storage_actor(client, "local-storage"sv);
+    EXPECT_EQ(session->delegate.add_storage_change_listener_call_count, 1u);
+
+    session->delegate.emit_storage_change({
+        .storage_endpoint = Web::StorageAPI::StorageEndpointType::LocalStorage,
+        .host = "https://example.test"_string,
+        .type = DevTools::DevToolsDelegate::StorageChange::Type::Added,
+        .key = "alpha"_string,
+    });
+    auto stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    EXPECT_EQ(stores_update.get_string("from"sv).value(), local_storage_actor);
+    auto added_keys = get_storage_update_keys(stores_update, "added"sv, "localStorage"sv);
+    EXPECT_EQ(added_keys.size(), 1u);
+    EXPECT_EQ(added_keys.at(0).as_string(), "alpha"sv);
+
+    session->delegate.emit_storage_change({
+        .storage_endpoint = Web::StorageAPI::StorageEndpointType::LocalStorage,
+        .host = "https://example.test"_string,
+        .type = DevTools::DevToolsDelegate::StorageChange::Type::Changed,
+        .key = "alpha"_string,
+    });
+    stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    auto changed_keys = get_storage_update_keys(stores_update, "changed"sv, "localStorage"sv);
+    EXPECT_EQ(changed_keys.size(), 1u);
+    EXPECT_EQ(changed_keys.at(0).as_string(), "alpha"sv);
+
+    session->delegate.emit_storage_change({
+        .storage_endpoint = Web::StorageAPI::StorageEndpointType::LocalStorage,
+        .host = "https://example.test"_string,
+        .type = DevTools::DevToolsDelegate::StorageChange::Type::Deleted,
+        .key = "alpha"_string,
+    });
+    stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    auto deleted_keys = get_storage_update_keys(stores_update, "deleted"sv, "localStorage"sv);
+    EXPECT_EQ(deleted_keys.size(), 1u);
+    EXPECT_EQ(deleted_keys.at(0).as_string(), "alpha"sv);
+
+    session->delegate.emit_storage_change({
+        .storage_endpoint = Web::StorageAPI::StorageEndpointType::LocalStorage,
+        .host = "https://example.test"_string,
+        .type = DevTools::DevToolsDelegate::StorageChange::Type::Cleared,
+        .key = {},
+    });
+    auto stores_cleared = read_packet_with_type(client, "storesCleared"sv);
+    EXPECT_EQ(stores_cleared.get_string("from"sv).value(), local_storage_actor);
+    auto cleared_hosts = stores_cleared.get_object("data"sv)->get_array("clearedHostsOrPaths"sv).release_value();
+    EXPECT_EQ(cleared_hosts.size(), 1u);
+    EXPECT_EQ(cleared_hosts.at(0).as_string(), "https://example.test"sv);
+
+    auto session_storage_actor = get_storage_actor(client, "session-storage"sv);
+    EXPECT_EQ(session->delegate.add_storage_change_listener_call_count, 2u);
+    session->delegate.emit_storage_change({
+        .storage_endpoint = Web::StorageAPI::StorageEndpointType::SessionStorage,
+        .host = "https://example.test"_string,
+        .type = DevTools::DevToolsDelegate::StorageChange::Type::Added,
+        .key = "session-key"_string,
+    });
+    stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    EXPECT_EQ(stores_update.get_string("from"sv).value(), session_storage_actor);
+    added_keys = get_storage_update_keys(stores_update, "added"sv, "sessionStorage"sv);
+    EXPECT_EQ(added_keys.size(), 1u);
+    EXPECT_EQ(added_keys.at(0).as_string(), "session-key"sv);
+}
+
+TEST_CASE(storage_web_storage_change_events_for_file_urls)
+{
+    auto session = create_session("file:///tmp/devtools-storage.html"sv);
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto local_storage_actor = get_storage_actor(client, "local-storage"sv);
+
+    session->delegate.emit_storage_change({
+        .storage_endpoint = Web::StorageAPI::StorageEndpointType::LocalStorage,
+        .host = "file:///tmp/other.html"_string,
+        .type = DevTools::DevToolsDelegate::StorageChange::Type::Added,
+        .key = "other"_string,
+    });
+    session->delegate.emit_storage_change({
+        .storage_endpoint = Web::StorageAPI::StorageEndpointType::LocalStorage,
+        .host = "file:///tmp/devtools-storage.html"_string,
+        .type = DevTools::DevToolsDelegate::StorageChange::Type::Added,
+        .key = "alpha"_string,
+    });
+
+    auto stores_update = read_packet_with_type(client, "storesUpdate"sv);
+    EXPECT_EQ(stores_update.get_string("from"sv).value(), local_storage_actor);
+    auto added_keys = get_storage_update_keys(stores_update, "added"sv, "localStorage"sv, "file:///tmp/devtools-storage.html"sv);
+    EXPECT_EQ(added_keys.size(), 1u);
+    EXPECT_EQ(added_keys.at(0).as_string(), "alpha"sv);
 }
 
 TEST_CASE(storage_cookie_store_objects)

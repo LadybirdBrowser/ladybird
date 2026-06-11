@@ -11,6 +11,7 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Timer.h>
+#include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
@@ -1014,6 +1015,32 @@ Messages::WebContentClient::DidRequestStorageKeysResponse WebContentClient::did_
 void WebContentClient::did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
 {
     Application::storage_jar().clear_storage_key(storage_endpoint, storage_key);
+}
+
+void WebContentClient::did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<String> key, Optional<String> old_value, Optional<String> new_value)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto host = DevTools::storage_host_for_url(url);
+        if (!host.has_value())
+            return;
+
+        DevTools::DevToolsDelegate::StorageChange::Type type;
+        if (!key.has_value())
+            type = DevTools::DevToolsDelegate::StorageChange::Type::Cleared;
+        else if (!old_value.has_value())
+            type = DevTools::DevToolsDelegate::StorageChange::Type::Added;
+        else if (!new_value.has_value())
+            type = DevTools::DevToolsDelegate::StorageChange::Type::Deleted;
+        else
+            type = DevTools::DevToolsDelegate::StorageChange::Type::Changed;
+
+        view->notify_storage_changed({
+            .storage_endpoint = storage_endpoint,
+            .host = host.release_value(),
+            .type = type,
+            .key = move(key),
+        });
+    }
 }
 
 void WebContentClient::did_post_broadcast_channel_message(u64, Web::HTML::BroadcastChannelMessage message)
