@@ -646,9 +646,11 @@ i32 wasm_cl_call_indirect(void* interp_ptr, void* config_ptr, i32 table_idx, i32
     auto* function = config.store().get(address);
     if (!function)
         return interpreter.set_trap(Trap::from_string("Indirect call to freed function"));
-    auto const& type_actual = function->visit([](auto& f) -> decltype(auto) { return f.type(); });
-    auto const& type_expected = module.types()[type_idx].unsafe_function();
-    if (type_actual.parameters() != type_expected.parameters() || type_actual.results() != type_expected.results())
+    // https://webassembly.github.io/spec/core/exec/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-call-indirect-x-y
+    // call_indirect's runtime check is a defined-type match (a downcast), not structural equality.
+    auto const* type_actual = function->visit([](auto& f) { return f.defined_type(); });
+    auto const* type_expected = module.canonical_types()[type_idx];
+    if (!type_actual || !matches_defined_type(*type_actual, *type_expected))
         return interpreter.set_trap(Trap::from_string("Indirect call type mismatch"));
 
     SourcesAndDestination addrs {};

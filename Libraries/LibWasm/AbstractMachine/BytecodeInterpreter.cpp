@@ -2403,10 +2403,10 @@ HANDLE_INSTRUCTION(call_indirect)
     auto& element = table_instance->elements()[index];
     TRAP_IN_LOOP_IF_NOT(element.ref().template has<Reference::Func>());
     auto address = element.ref().template get<Reference::Func>().address;
-    auto const& type_actual = configuration.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
-    auto const& type_expected = configuration.frame().module().types()[args.type.value()].unsafe_function();
-    TRAP_IN_LOOP_IF_NOT(type_actual.parameters() == type_expected.parameters());
-    TRAP_IN_LOOP_IF_NOT(type_actual.results() == type_expected.results());
+    // https://webassembly.github.io/spec/core/exec/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-call-indirect-x-y
+    auto const* type_actual = configuration.store().get(address)->visit([](auto& f) { return f.defined_type(); });
+    auto const* type_expected = configuration.frame().module().canonical_types()[args.type.value()];
+    TRAP_IN_LOOP_IF_NOT(type_actual && matches_defined_type(*type_actual, *type_expected));
 
     dbgln_if(WASM_TRACE_DEBUG, "call_indirect({} -> {})", index, address.value());
     if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::IndirectCall) == Outcome::Return)
@@ -2428,10 +2428,10 @@ HANDLE_INSTRUCTION(return_call_indirect)
     auto& element = table_instance->elements()[index];
     TRAP_IN_LOOP_IF_NOT(element.ref().template has<Reference::Func>());
     auto address = element.ref().template get<Reference::Func>().address;
-    auto const& type_actual = configuration.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
-    auto const& type_expected = configuration.frame().module().types()[args.type.value()].unsafe_function();
-    TRAP_IN_LOOP_IF_NOT(type_actual.parameters() == type_expected.parameters());
-    TRAP_IN_LOOP_IF_NOT(type_actual.results() == type_expected.results());
+    // https://webassembly.github.io/spec/core/exec/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-call-indirect-x-y
+    auto const* type_actual = configuration.store().get(address)->visit([](auto& f) { return f.defined_type(); });
+    auto const* type_expected = configuration.frame().module().canonical_types()[args.type.value()];
+    TRAP_IN_LOOP_IF_NOT(type_actual && matches_defined_type(*type_actual, *type_expected));
 
     configuration.label_stack().shrink(configuration.frame().label_index(), true);
     dbgln_if(WASM_TRACE_DEBUG, "tail call_indirect({} -> {})", index, address.value());
@@ -2462,10 +2462,10 @@ HANDLE_INSTRUCTION(call_ref)
         TRAP_IN_LOOP_IF_NOT(!reference.ref().template has<Reference::Null>());
         address = reference.ref().template get<Reference::Func>().address;
     }
-    auto const& type_actual = configuration.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
-    auto const& type_expected = configuration.frame().module().types()[type_index.value()].unsafe_function();
-    TRAP_IN_LOOP_IF_NOT(type_actual.parameters() == type_expected.parameters());
-    TRAP_IN_LOOP_IF_NOT(type_actual.results() == type_expected.results());
+    // https://webassembly.github.io/spec/core/exec/instructions.html#xref-syntax-instructions-syntax-instr-control-mathsf-call-ref-x
+    auto const* type_actual = configuration.store().get(address)->visit([](auto& f) { return f.defined_type(); });
+    auto const* type_expected = configuration.frame().module().canonical_types()[type_index.value()];
+    TRAP_IN_LOOP_IF_NOT(type_actual && matches_defined_type(*type_actual, *type_expected));
 
     dbgln_if(WASM_TRACE_DEBUG, "call_ref({})", address.value());
     if (interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::IndirectCall) == Outcome::Return)
@@ -2485,10 +2485,9 @@ HANDLE_INSTRUCTION(return_call_ref)
         TRAP_IN_LOOP_IF_NOT(!reference.ref().template has<Reference::Null>());
         address = reference.ref().template get<Reference::Func>().address;
     }
-    auto const& type_actual = configuration.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
-    auto const& type_expected = configuration.frame().module().types()[type_index.value()].unsafe_function();
-    TRAP_IN_LOOP_IF_NOT(type_actual.parameters() == type_expected.parameters());
-    TRAP_IN_LOOP_IF_NOT(type_actual.results() == type_expected.results());
+    auto const* type_actual = configuration.store().get(address)->visit([](auto& f) { return f.defined_type(); });
+    auto const* type_expected = configuration.frame().module().canonical_types()[type_index.value()];
+    TRAP_IN_LOOP_IF_NOT(type_actual && matches_defined_type(*type_actual, *type_expected));
 
     configuration.label_stack().shrink(configuration.frame().label_index(), true);
     dbgln_if(WASM_TRACE_DEBUG, "tail call_ref({})", address.value());

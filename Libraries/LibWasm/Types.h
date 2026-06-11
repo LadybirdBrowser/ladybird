@@ -31,6 +31,7 @@
 
 namespace Wasm {
 
+class DefinedType;
 class Module;
 
 template<size_t M>
@@ -1081,10 +1082,9 @@ public:
     // https://webassembly.github.io/spec/core/syntax/types.html#recursive-types
     // https://webassembly.github.io/spec/core/syntax/types.html#composite-types
     class Type {
-    private:
+    public:
         using CompositeType = Variant<FunctionType, StructType, ArrayType>;
 
-    public:
         struct RecGroupSpan {
             u32 first_type_index { 0 };
             u32 size { 1 };
@@ -1709,6 +1709,11 @@ public:
     size_t minimum_call_record_allocation_size() const { return m_minimum_call_record_allocation_size; }
     void set_minimum_call_record_allocation_size(size_t size) { m_minimum_call_record_allocation_size = size; }
 
+    // The defined type of each (flattened) type-section entry; filled in during validation.
+    // https://webassembly.github.io/spec/core/valid/conventions.html#defined-types
+    auto& canonical_types() const { return m_canonical_types; }
+    void set_canonical_types(Vector<DefinedType const*> types) { m_canonical_types = move(types); }
+
 private:
     void set_validation_status(ValidationStatus status) { m_validation_status = status; }
     void preprocess();
@@ -1735,6 +1740,8 @@ private:
     mutable Sync::ConditionVariable m_cranelift_compilation_state_changed { m_cranelift_compilation_mutex };
     Optional<CompileCacheConfig> m_cranelift_cache_config;
     Optional<ModuleStats> m_compile_stats;
+
+    Vector<DefinedType const*> m_canonical_types;
 
     size_t m_minimum_call_record_allocation_size { 0 };
 };

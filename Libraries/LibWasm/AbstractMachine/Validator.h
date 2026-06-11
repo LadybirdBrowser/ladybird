@@ -13,6 +13,7 @@
 #include <AK/Tuple.h>
 #include <AK/Vector.h>
 #include <LibWasm/Forward.h>
+#include <LibWasm/TypeSystem.h>
 #include <LibWasm/Types.h>
 
 namespace Wasm {
@@ -23,6 +24,7 @@ struct Context {
     };
 
     COWVector<TypeSection::Type> types;
+    COWVector<DefinedType const*> canonical_types;
     COWVector<FunctionType> functions;
     COWVector<Optional<TypeIndex>> function_type_indices;
     COWVector<StructType> structs;
@@ -38,6 +40,8 @@ struct Context {
     RefPtr<RefRBTree> references { make_ref_counted<RefRBTree>() };
     size_t imported_function_count { 0 };
     size_t current_function_parameter_count { 0 };
+
+    TypeContext type_context() const { return TypeContext { canonical_types.span() }; }
 };
 
 struct ValidationError : public Error {
