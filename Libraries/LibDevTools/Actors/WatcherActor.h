@@ -31,13 +31,17 @@ private:
     FrameActor& create_frame_target();
     void send_frame_target_available_message(FrameActor&);
     void send_frame_target_destroyed_message(FrameActor&);
+    CookiesActor& cookies_actor();
+    void send_cookies_resource_available_message();
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<FrameActor> m_target;
+    WeakPtr<CookiesActor> m_cookies;
     WeakPtr<TargetConfigurationActor> m_target_configuration;
     WeakPtr<ThreadConfigurationActor> m_thread_configuration;
     WeakPtr<NetworkParentActor> m_network_parent;
     bool m_is_watching_frame_targets { false };
+    bool m_is_watching_cookie_resources { false };
 };
 
 }

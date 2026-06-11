@@ -1410,6 +1410,61 @@ TEST_CASE(target_bootstrap_and_lifetime)
     EXPECT_EQ(session->delegate.clear_inspected_dom_node_call_count, 1u);
 }
 
+TEST_CASE(storage_cookie_resource)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_response = client.request(tab_actor, "getWatcher"sv);
+    auto watcher_actor = actor_from(watcher_response, "actor"sv);
+    auto resources = watcher_response.get_object("traits"sv)->get_object("resources"sv).release_value();
+    EXPECT(resources.get_bool("cookies"sv).value());
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("cookies"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+
+    auto cookie_resource = read_resource(client, "cookies"sv);
+    EXPECT_EQ(cookie_resource.get_string("resourceKey"sv).value(), "cookies"sv);
+    EXPECT_EQ(cookie_resource.get_integer<u64>("browsingContextID"sv).value(), 1u);
+    EXPECT_EQ(cookie_resource.get_integer<u64>("innerWindowId"sv).value(), 1u);
+    EXPECT_EQ(cookie_resource.get_string("resourceId"sv).value(), "cookies-1"sv);
+
+    auto hosts = cookie_resource.get_object("hosts"sv).release_value();
+    EXPECT(hosts.has_array("https://example.test"sv));
+    auto traits = cookie_resource.get_object("traits"sv).release_value();
+    EXPECT(!traits.get_bool("supportsAddItem"sv).value());
+    EXPECT(!traits.get_bool("supportsRemoveAll"sv).value());
+    EXPECT(!traits.get_bool("supportsRemoveAllSessionCookies"sv).value());
+    EXPECT(!traits.get_bool("supportsRemoveItem"sv).value());
+
+    auto cookies_actor = actor_from(cookie_resource, "actor"sv);
+    auto fields = client.request(cookies_actor, "getFields"sv).get_array("value"sv).release_value();
+    EXPECT_EQ(fields.at(0).as_object().get_string("name"sv).value(), "uniqueKey"sv);
+    EXPECT(fields.at(0).as_object().get_bool("private"sv).value());
+    EXPECT_EQ(fields.at(1).as_object().get_string("name"sv).value(), "name"sv);
+    EXPECT(fields.at(1).as_object().get_bool("editable"sv).value());
+
+    JsonObject get_store_objects;
+    get_store_objects.set("to"sv, cookies_actor);
+    get_store_objects.set("type"sv, "getStoreObjects"sv);
+    get_store_objects.set("host"sv, "https://example.test"sv);
+    get_store_objects.set("names"sv, JsonValue {});
+    JsonObject options;
+    options.set("sessionString"sv, "Session"sv);
+    get_store_objects.set("options"sv, move(options));
+    auto objects = client.request(move(get_store_objects));
+    EXPECT_EQ(objects.get_integer<size_t>("offset"sv).value(), 0u);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 0u);
+    EXPECT(objects.get_array("data"sv)->is_empty());
+}
+
 TEST_CASE(walker_node_picker)
 {
     auto session = create_session();
