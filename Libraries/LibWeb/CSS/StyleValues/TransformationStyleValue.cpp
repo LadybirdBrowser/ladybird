@@ -11,6 +11,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <LibGfx/Matrix4x4.h>
 #include <LibWeb/CSS/CSSMatrixComponent.h>
 #include <LibWeb/CSS/CSSPerspective.h>
 #include <LibWeb/CSS/CSSRotate.h>
@@ -177,12 +178,7 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::PaintableB
             // computing the resolved value of 'transform', and when used as the endpoint of interpolation.
             // Note: The intent of the above rules on values less than '1px' is that they cover the cases where
             // the 'perspective()' function needs to be converted into a matrix.
-            if (distance < 1)
-                distance = 1;
-            return FloatMatrix4x4(1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, -1 / distance, 1);
+            return Gfx::perspective_matrix(max(distance, 1));
         }
         break;
     case TransformFunction::Matrix:
@@ -201,82 +197,47 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::PaintableB
         break;
     case TransformFunction::Translate:
         if (count == 1)
-            return FloatMatrix4x4(1, 0, 0, get_value(0, width),
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
+            return Gfx::translation_matrix(Vector3 { get_value(0, width), 0.f, 0.f });
         if (count == 2)
-            return FloatMatrix4x4(1, 0, 0, get_value(0, width),
-                0, 1, 0, get_value(1, height),
-                0, 0, 1, 0,
-                0, 0, 0, 1);
+            return Gfx::translation_matrix(Vector3 { get_value(0, width), get_value(1, height), 0.f });
         break;
     case TransformFunction::Translate3d:
-        return FloatMatrix4x4(1, 0, 0, get_value(0, width),
-            0, 1, 0, get_value(1, height),
-            0, 0, 1, get_value(2),
-            0, 0, 0, 1);
-        break;
+        return Gfx::translation_matrix(Vector3 { get_value(0, width), get_value(1, height), get_value(2) });
     case TransformFunction::TranslateX:
         if (count == 1)
-            return FloatMatrix4x4(1, 0, 0, get_value(0, width),
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
+            return Gfx::translation_matrix(Vector3 { get_value(0, width), 0.f, 0.f });
         break;
     case TransformFunction::TranslateY:
         if (count == 1)
-            return FloatMatrix4x4(1, 0, 0, 0,
-                0, 1, 0, get_value(0, height),
-                0, 0, 1, 0,
-                0, 0, 0, 1);
+            return Gfx::translation_matrix(Vector3 { 0.f, get_value(0, height), 0.f });
         break;
     case TransformFunction::TranslateZ:
         if (count == 1)
-            return FloatMatrix4x4(1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, get_value(0),
-                0, 0, 0, 1);
+            return Gfx::translation_matrix(Vector3 { 0.f, 0.f, get_value(0) });
         break;
     case TransformFunction::Scale:
-        if (count == 1)
-            return FloatMatrix4x4(get_value(0), 0, 0, 0,
-                0, get_value(0), 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
+        if (count == 1) {
+            auto scale = get_value(0);
+            return Gfx::scale_matrix(Vector3 { scale, scale, 1.f });
+        }
         if (count == 2)
-            return FloatMatrix4x4(get_value(0), 0, 0, 0,
-                0, get_value(1), 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
+            return Gfx::scale_matrix(Vector3 { get_value(0), get_value(1), 1.f });
         break;
     case TransformFunction::Scale3d:
         if (count == 3)
-            return FloatMatrix4x4(get_value(0), 0, 0, 0,
-                0, get_value(1), 0, 0,
-                0, 0, get_value(2), 0,
-                0, 0, 0, 1);
+            return Gfx::scale_matrix(Vector3 { get_value(0), get_value(1), get_value(2) });
         break;
     case TransformFunction::ScaleX:
         if (count == 1)
-            return FloatMatrix4x4(get_value(0), 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
+            return Gfx::scale_matrix(Vector3 { get_value(0), 1.f, 1.f });
         break;
     case TransformFunction::ScaleY:
         if (count == 1)
-            return FloatMatrix4x4(1, 0, 0, 0,
-                0, get_value(0), 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1);
+            return Gfx::scale_matrix(Vector3 { 1.f, get_value(0), 1.f });
         break;
     case TransformFunction::ScaleZ:
         if (count == 1)
-            return FloatMatrix4x4(1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, get_value(0), 0,
-                0, 0, 0, 1);
+            return Gfx::scale_matrix(Vector3 { 1.f, 1.f, get_value(0) });
         break;
     case TransformFunction::Rotate3d:
         if (count == 4) {
@@ -289,16 +250,16 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::PaintableB
         break;
     case TransformFunction::RotateX:
         if (count == 1)
-            return Gfx::rotation_matrix({ 1.0f, 0.0f, 0.0f }, get_value(0));
+            return Gfx::rotation_matrix({ 1.f, 0.f, 0.f }, get_value(0));
         break;
     case TransformFunction::RotateY:
         if (count == 1)
-            return Gfx::rotation_matrix({ 0.0f, 1.0f, 0.0f }, get_value(0));
+            return Gfx::rotation_matrix({ 0.f, 1.f, 0.f }, get_value(0));
         break;
     case TransformFunction::Rotate:
     case TransformFunction::RotateZ:
         if (count == 1)
-            return Gfx::rotation_matrix({ 0.0f, 0.0f, 1.0f }, get_value(0));
+            return Gfx::rotation_matrix({ 0.f, 0.f, 1.f }, get_value(0));
         break;
     case TransformFunction::Skew:
         if (count == 1)

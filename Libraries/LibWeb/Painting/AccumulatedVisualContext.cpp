@@ -11,8 +11,6 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
@@ -138,9 +136,10 @@ static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox con
 
     // 3. Multiply by the matrix that would be obtained from the 'perspective()' transform function, where the
     //    length is provided by the value of the perspective property
-    // NB: Length values less than 1px being clamped to 1px is handled by the perspective() function already.
-    // FIXME: Create the matrix directly.
-    perspective_matrix = perspective_matrix * CSS::TransformationStyleValue::create(CSS::PropertyID::Transform, CSS::TransformFunction::Perspective, CSS::StyleValueVector { CSS::LengthStyleValue::create(CSS::Length::make_px(perspective.value())) })->to_matrix({});
+    // https://drafts.csswg.org/css-transforms-2/#funcdef-perspective
+    // If the depth value is less than '1px', it must be treated as '1px' for the purpose of rendering, [..]
+    auto distance = max(perspective->to_float(), 1.f);
+    perspective_matrix = perspective_matrix * Gfx::perspective_matrix(distance);
 
     // 4. Translate by the negated computed X and Y values of 'perspective-origin'
     perspective_matrix = perspective_matrix * Gfx::translation_matrix(Vector3<float>(-computed_x, -computed_y, 0));
