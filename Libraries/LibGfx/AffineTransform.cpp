@@ -9,6 +9,8 @@
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/Rect.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 
 namespace Gfx {
 
@@ -256,6 +258,34 @@ Matrix<4, float> AffineTransform::to_matrix() const
         0.f, 0.f, 1.f, 0.f,
         0.f, 0.f, 0.f, 1.f
     };
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::AffineTransform const& transform)
+{
+    TRY(encoder.encode(transform.a()));
+    TRY(encoder.encode(transform.b()));
+    TRY(encoder.encode(transform.c()));
+    TRY(encoder.encode(transform.d()));
+    TRY(encoder.encode(transform.e()));
+    TRY(encoder.encode(transform.f()));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::AffineTransform> decode(Decoder& decoder)
+{
+    auto a = TRY(decoder.decode<float>());
+    auto b = TRY(decoder.decode<float>());
+    auto c = TRY(decoder.decode<float>());
+    auto d = TRY(decoder.decode<float>());
+    auto e = TRY(decoder.decode<float>());
+    auto f = TRY(decoder.decode<float>());
+    return Gfx::AffineTransform { a, b, c, d, e, f };
 }
 
 }

@@ -10,6 +10,7 @@ namespace Gfx {
 
 class Bitmap;
 class CMYKBitmap;
+class CanvasCommandList;
 class ColorSpace;
 class DecodedImageFrame;
 class Color;

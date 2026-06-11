@@ -9,6 +9,7 @@
 #include <AK/Math.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Size.h>
+#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -43,5 +44,15 @@ inline float calculate_gradient_length(Size<T> gradient_size, float gradient_ang
     AK::sincos(angle, sin_angle, cos_angle);
     return calculate_gradient_length(gradient_size, sin_angle, cos_angle);
 }
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::ColorStop const&);
+
+template<>
+ErrorOr<Gfx::ColorStop> decode(Decoder&);
 
 }
