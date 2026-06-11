@@ -110,17 +110,6 @@ void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_cl
         };
         options.invalidate_self_from_property_plan = options.invalidate_self;
         element.invalidate_style(reason, properties, options);
-
-        // The interaction-state pseudo classes (Hover/Focus/etc.) aren't tracked in
-        // pseudo_classes_used_in_has_selectors, so invalidate_node_style_for_properties
-        // doesn't schedule :has() ancestor invalidation for them. Schedule it directly so
-        // rules like .a:has(:focus) ... re-evaluate when the state flips.
-        element.for_each_style_scope_which_may_observe_the_node([&](CSS::StyleScope& scope) {
-            if (!scope.may_have_has_selectors())
-                return;
-            scope.record_pending_has_invalidation_mutation_features(element, properties);
-            scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(element);
-        });
     };
 
     auto build_chain = [&](GC::Ptr<DOM::Node> start) {

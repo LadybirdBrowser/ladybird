@@ -19,6 +19,10 @@
         --style-invalidation-probe: match;
     }
 
+    .focus-wrapper:has(:focus) * {
+        --style-invalidation-probe: match;
+    }
+
     /* Keep .unrelated in :has() invalidation metadata without matching .wrapper. */
     .decoy:has(.unrelated) {
         color: rgb(7, 8, 9);
@@ -87,6 +91,25 @@
             const counters = styleCounters();
             assertEqual("batched mutation applies descendant :has() fanout", counters.elementStyleRecomputations >= 3, true);
             printPassWithCounters("batched subject-only :has() invalidation upgrades to descendant fanout");
+        }
+
+        {
+            const wrapper = makeElement("section", { className: "focus-wrapper" });
+            const input = makeElement("input");
+            const target = makeElement("span");
+            wrapper.append(input, target);
+            document.getElementById("fixture").appendChild(wrapper);
+
+            internals.updateStyle();
+            assertEqual("descendant :has(:focus) rule does not match before focus", readProbe(target), BASE);
+
+            resetStyleCounters();
+            input.focus();
+            internals.updateStyle();
+
+            assertEqual("descendant :has(:focus) rule matches after focus", readProbe(target), MATCH);
+            printPassWithCounters("descendant :has(:focus) fanout uses pseudo-class metadata");
+            input.blur();
         }
     });
 </script>
