@@ -41,6 +41,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPalette>
+#include <QPixmap>
 #include <QScrollBar>
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #    include <QStyleHints>
@@ -706,6 +707,37 @@ void WebContentView::paintEvent(QPaintEvent*)
     painter.fillRect(QRect(0, 0, m_viewport_size.width(), m_viewport_size.height()), QColor(background_color.red(), background_color.green(), background_color.blue()));
 }
 #endif
+
+Optional<QPixmap> WebContentView::tab_preview_pixmap(QSize const& maximum_size) const
+{
+    auto paintable = current_paintable();
+    if (!paintable.has_value())
+        return {};
+
+    auto const* bitmap = paintable->shared_image_buffer->bitmap().ptr();
+    if (!bitmap)
+        return {};
+
+    auto width = min(bitmap->width(), paintable->bitmap_size.width());
+    auto height = min(bitmap->height(), paintable->bitmap_size.height());
+    if (width <= 0 || height <= 0 || maximum_size.isEmpty())
+        return {};
+
+    QImage image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
+    auto snapshot = image.copy(0, 0, width, height);
+    if (snapshot.isNull())
+        return {};
+
+    auto preview_size = snapshot.size().scaled(maximum_size, Qt::KeepAspectRatio);
+    if (preview_size.isEmpty())
+        return {};
+
+    auto preview = QPixmap::fromImage(snapshot).scaled(preview_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    if (preview.isNull())
+        return {};
+
+    return preview;
+}
 
 void WebContentView::resizeEvent(QResizeEvent* event)
 {
