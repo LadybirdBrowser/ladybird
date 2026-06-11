@@ -356,7 +356,8 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                 case Wasm::ValueType::I31Reference:
                 case Wasm::ValueType::StructReference:
                 case Wasm::ValueType::ArrayReference:
-                case Wasm::ValueType::NoneReference: {
+                case Wasm::ValueType::NoneReference:
+                case Wasm::ValueType::TypeUseReference: {
                     auto ref = global->value().to<Wasm::Reference>();
                     return ref.ref().visit(
                         [&](Wasm::Reference::Null const&) -> JS::Value { return JS::js_null(); },
@@ -367,7 +368,6 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                 }
                 case Wasm::ValueType::I8:
                 case Wasm::ValueType::I16:
-                case Wasm::ValueType::TypeUseReference:
                     return vm.throw_completion<JS::TypeError>("Unsupported heap reference"sv);
                 }
             }
@@ -461,9 +461,16 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             else
                 return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"sv);
             break;
+        case Wasm::ValueType::Kind::AnyReference:
+            if (argument.is_null()) {
+                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(param.kind()) } }));
+                break;
+            }
+            // A host reference passed by address (e.g. a `(ref.host n)` spec-test argument); it enters the any hierarchy as an internalized extern reference.
+            arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Extern { static_cast<u64>(double_value) } }));
+            break;
         case Wasm::ValueType::Kind::NoFunctionReference:
         case Wasm::ValueType::Kind::NoExternReference:
-        case Wasm::ValueType::Kind::AnyReference:
         case Wasm::ValueType::Kind::EqReference:
         case Wasm::ValueType::Kind::I31Reference:
         case Wasm::ValueType::Kind::StructReference:
@@ -519,11 +526,10 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         case Wasm::ValueType::StructReference:
         case Wasm::ValueType::ArrayReference:
         case Wasm::ValueType::NoneReference:
-            return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](Wasm::Reference::Exception) { return JS::Value(); }, [&](Wasm::Reference::I31 const& ref) { return JS::Value(static_cast<double>(ref.value)); }, [&](Wasm::Reference::GcObject const&) { return JS::Value(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
+        case Wasm::ValueType::TypeUseReference:
+            return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](Wasm::Reference::Exception) { return JS::js_undefined(); }, [&](Wasm::Reference::I31 const& ref) { return JS::Value(static_cast<double>(ref.value)); }, [&](Wasm::Reference::GcObject const&) { return JS::js_undefined(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
         case Wasm::ValueType::ExceptionReference:
         case Wasm::ValueType::NoExceptionReference:
-            return JS::js_null();
-        case Wasm::ValueType::TypeUseReference:
             return JS::js_null();
         case Wasm::ValueType::I8:
         case Wasm::ValueType::I16:

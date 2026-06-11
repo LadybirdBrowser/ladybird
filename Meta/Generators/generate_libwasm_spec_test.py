@@ -171,6 +171,13 @@ class GeneratedAnyExternRef:
     pass
 
 
+# A gc reference expectation with no concrete index, e.g. `(ref.struct)`: any non-null
+# reference. The harness cannot inspect the heap type, so only non-nullness is checked.
+@dataclass
+class GeneratedAnyGCRef:
+    kind: str
+
+
 GeneratedValue = Union[
     str,
     ArithmeticNan,
@@ -179,6 +186,7 @@ GeneratedValue = Union[
     GeneratedEitherOf,
     GeneratedAnyFuncRef,
     GeneratedAnyExternRef,
+    GeneratedAnyGCRef,
 ]
 
 
@@ -327,7 +335,11 @@ def gen_vector(vec: WasmVector, *, array=False) -> str:
 
 def gen_value_arg(value: WasmValue) -> str:
     if isinstance(value, WasmGCValue):
-        return "null"
+        if value.value is None or value.value == "null":
+            return "null"
+        # A host reference (e.g. `(ref.host 2)` passed as anyref); the harness passes host
+        # references by their address.
+        return value.value
 
     if isinstance(value, WasmVector):
         return gen_vector(value)
@@ -388,6 +400,17 @@ def gen_value_result(value: WasmValue) -> GeneratedValue:
 
     if isinstance(value, EitherOf):
         return GeneratedEitherOf([gen_value_result(option) for option in value.options])
+
+    if isinstance(value, WasmGCValue):
+        if value.value == "null":
+            return "null"
+        # A bottom-type reference (e.g. `(ref.null none)`) can only ever be null.
+        if value.kind in ("nullref", "nullexnref", "nullexternref"):
+            return "null"
+        if value.value is None:
+            return GeneratedAnyGCRef(value.kind)
+        # A host reference result, surfaced by its address (e.g. `(ref.host 1)` as anyref).
+        return value.value
 
     if value.kind == "funcref" and value.value is None:
         return GeneratedAnyFuncRef()
@@ -486,7 +509,7 @@ expect(() => parseWebAssemblyModule(content, globalImportObject)).toThrow(Error,
 
 
 def gen_pretty_expect(expr: str, got: str, expect: str):
-    print(f"if (!{expr}) {{ expect().fail(`Failed with ${{{got}}}, expected {expect}`); }}")
+    print(f"if (!({expr})) {{ expect().fail(`Failed with ${{{got}}}, expected {expect}`); }}")
 
 
 def gen_expectation(gen_result: GeneratedValue, module: str):
@@ -508,6 +531,16 @@ def gen_expectation(gen_result: GeneratedValue, module: str):
             "_result !== null",
             "_result",
             "(ref.extern)",
+        )
+        return
+    if isinstance(gen_result, GeneratedAnyGCRef):
+        # Null gc references surface as JS null; the harness cannot check the heap type of a
+        # live one, only that it is not null.
+        print(f"/* {gen_result} */ ", end="")
+        gen_pretty_expect(
+            "_result !== null",
+            "_result",
+            f"(ref.{gen_result.kind})",
         )
         return
     if isinstance(gen_result, ArithmeticNan):
