@@ -940,7 +940,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAOAEP
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& realm = *m_realm;
 
@@ -1523,7 +1523,7 @@ WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(AlgorithmParams const& params, GC:
 }
 
 // https://w3c.github.io/webcrypto/#rsa-pss-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& realm = *m_realm;
 
@@ -2100,7 +2100,7 @@ WebIDL::ExceptionOr<JS::Value> RSASSAPKCS1::verify(AlgorithmParams const&, GC::R
 }
 
 // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& realm = *m_realm;
 
@@ -2573,7 +2573,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::decrypt(AlgorithmParams co
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto& usage : key_usages) {
@@ -2820,7 +2820,7 @@ WebIDL::ExceptionOr<JS::Value> AesCbc::get_key_length(AlgorithmParams const& par
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto& usage : key_usages) {
@@ -3142,7 +3142,7 @@ WebIDL::ExceptionOr<JS::Value> AesGcm::get_key_length(AlgorithmParams const& par
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto& usage : key_usages) {
@@ -3494,7 +3494,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm:
 }
 
 // https://w3c.github.io/webcrypto/#aes-kw-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
     for (auto& usage : key_usages) {
@@ -3782,7 +3782,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesKw::unwrap_key(AlgorithmParams 
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. Let keyData be the key data to be imported.
 
@@ -3808,7 +3808,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(AlgorithmParams const&,
         return WebIDL::SyntaxError::create(m_realm, "extractable must be false"_utf16);
 
     //        3. Let key be a new CryptoKey representing the key data provided in keyData.
-    auto key = CryptoKey::create(m_realm, move(key_data));
+    auto key = CryptoKey::create(m_realm, move(key_data.get<ByteBuffer>()));
 
     //        4. Set the [[type]] internal slot of key to "secret".
     key->set_type(Bindings::KeyType::Secret);
@@ -4141,7 +4141,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // NOTE: This is a parameter to the function
     // 1. Let keyData be the key data to be imported.
@@ -5134,7 +5134,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
 }
 
 // https://w3c.github.io/webcrypto/#ecdh-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // NOTE: This is a parameter to the function
     // 1. Let keyData be the key data to be imported.
@@ -5946,7 +5946,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
     [[maybe_unused]] Web::Crypto::AlgorithmParams const& params,
     Bindings::KeyFormat format,
-    CryptoKey::InternalKeyData key_data,
+    CryptoKey::ImportKeyData key_data,
     bool extractable,
     Vector<Bindings::KeyUsage> const& usages)
 {
@@ -6460,7 +6460,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED448::
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
     [[maybe_unused]] Web::Crypto::AlgorithmParams const& params,
     Bindings::KeyFormat format,
-    CryptoKey::InternalKeyData key_data,
+    CryptoKey::ImportKeyData key_data,
     bool extractable,
     Vector<Bindings::KeyUsage> const& usages)
 {
@@ -7029,7 +7029,7 @@ WebIDL::ExceptionOr<JS::Value> PBKDF2::get_key_length(AlgorithmParams const&)
 }
 
 // https://w3c.github.io/webcrypto/#pbkdf2-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If format is not "raw", throw a NotSupportedError
     // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
@@ -7048,7 +7048,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(AlgorithmParams const
         return WebIDL::SyntaxError::create(m_realm, "extractable must be false"_utf16);
 
     // 4. Let key be a new CryptoKey representing keyData.
-    auto key = CryptoKey::create(m_realm, move(key_data));
+    auto key = CryptoKey::create(m_realm, move(key_data.get<ByteBuffer>()));
 
     // 5. Set the [[type]] internal slot of key to "secret".
     key->set_type(Bindings::KeyType::Secret);
@@ -7207,7 +7207,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519:
 }
 
 // https://w3c.github.io/webcrypto/#x25519-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // NOTE: This is a parameter to the function
     // 1. Let keyData be the key data to be imported.
@@ -7825,7 +7825,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
     AlgorithmParams const&,
     Bindings::KeyFormat format,
-    CryptoKey::InternalKeyData key_data,
+    CryptoKey::ImportKeyData key_data,
     bool extractable,
     Vector<Bindings::KeyUsage> const& usages)
 {
@@ -8219,7 +8219,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::g
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& vm = m_realm->vm();
     auto const& normalized_algorithm = static_cast<HmacImportParams const&>(params);
@@ -8644,7 +8644,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLDSA::
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     GC::Ptr<CryptoKey> key = nullptr;
 
@@ -9212,7 +9212,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     GC::Ptr<CryptoKey> key = nullptr;
 
@@ -9662,7 +9662,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> MLKEM::decapsulate(AlgorithmParams
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
     // 2. If format is not "raw-secret", throw a NotSupportedError
@@ -9681,7 +9681,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(AlgorithmParams const
     }
 
     // 5. Let key be a new CryptoKey representing keyData.
-    auto key = CryptoKey::create(m_realm, key_data);
+    auto key = CryptoKey::create(m_realm, move(key_data.get<ByteBuffer>()));
 
     // 6. Set the [[type]] internal slot of key to "secret".
     key->set_type(Bindings::KeyType::Secret);
@@ -9971,7 +9971,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ChaCha2
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
 
@@ -10275,7 +10275,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesOcb:
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesOcb::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesOcb::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     // 1. Let keyData be the key data to be imported.
 
@@ -10617,7 +10617,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> KMAC::g
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto const& normalized_algorithm = static_cast<KmacImportParams const&>(params);
 

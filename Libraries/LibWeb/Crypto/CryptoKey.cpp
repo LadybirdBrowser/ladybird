@@ -22,15 +22,14 @@ namespace {
 
 enum class HandleTag : u8 {
     ByteBuffer = 0,
-    JsonWebKey = 1,
-    RSAPublicKey = 2,
-    RSAPrivateKey = 3,
-    ECPublicKey = 4,
-    ECPrivateKey = 5,
-    MLDSAPublicKey = 6,
-    MLDSAPrivateKey = 7,
-    MLKEMPublicKey = 8,
-    MLKEMPrivateKey = 9,
+    RSAPublicKey = 1,
+    RSAPrivateKey = 2,
+    ECPublicKey = 3,
+    ECPrivateKey = 4,
+    MLDSAPublicKey = 5,
+    MLDSAPrivateKey = 6,
+    MLKEMPublicKey = 7,
+    MLKEMPrivateKey = 8,
 };
 
 enum class KeyAlgorithmTag : u8 {
@@ -163,85 +162,6 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ByteBuffer const& buff
 {
     encoder.encode(HandleTag::ByteBuffer);
     encoder.encode(buffer);
-}
-
-void serialize_handle(HTML::TransferDataEncoder& encoder, RsaOtherPrimesInfo const& info)
-{
-    encoder.encode(info.r);
-    encoder.encode(info.d);
-    encoder.encode(info.t);
-}
-
-RsaOtherPrimesInfo deserialize_rsa_other_primes_info(HTML::TransferDataDecoder& decoder)
-{
-    return RsaOtherPrimesInfo {
-        .r = decoder.decode<Optional<Utf16String>>(),
-        .d = decoder.decode<Optional<Utf16String>>(),
-        .t = decoder.decode<Optional<Utf16String>>(),
-    };
-}
-
-void serialize_handle(HTML::TransferDataEncoder& encoder, JsonWebKey const& jwk)
-{
-    encoder.encode(HandleTag::JsonWebKey);
-    encoder.encode(jwk.kty);
-    encoder.encode(jwk.use);
-    encoder.encode(jwk.key_ops);
-    encoder.encode(jwk.alg);
-    encoder.encode(jwk.ext);
-    encoder.encode(jwk.crv);
-    encoder.encode(jwk.x);
-    encoder.encode(jwk.y);
-    encoder.encode(jwk.d);
-    encoder.encode(jwk.n);
-    encoder.encode(jwk.e);
-    encoder.encode(jwk.p);
-    encoder.encode(jwk.q);
-    encoder.encode(jwk.dp);
-    encoder.encode(jwk.dq);
-    encoder.encode(jwk.qi);
-    encoder.encode(jwk.oth.has_value());
-    if (jwk.oth.has_value()) {
-        encoder.encode(static_cast<u64>(jwk.oth->size()));
-        for (auto const& info : *jwk.oth)
-            serialize_handle(encoder, info);
-    }
-    encoder.encode(jwk.k);
-    encoder.encode(jwk.pub);
-    encoder.encode(jwk.priv);
-}
-
-JsonWebKey deserialize_json_web_key(HTML::TransferDataDecoder& decoder)
-{
-    JsonWebKey jwk;
-    jwk.kty = decoder.decode<Optional<Utf16String>>();
-    jwk.use = decoder.decode<Optional<Utf16String>>();
-    jwk.key_ops = decoder.decode<Optional<Vector<Utf16String>>>();
-    jwk.alg = decoder.decode<Optional<Utf16String>>();
-    jwk.ext = decoder.decode<Optional<bool>>();
-    jwk.crv = decoder.decode<Optional<Utf16String>>();
-    jwk.x = decoder.decode<Optional<Utf16String>>();
-    jwk.y = decoder.decode<Optional<Utf16String>>();
-    jwk.d = decoder.decode<Optional<Utf16String>>();
-    jwk.n = decoder.decode<Optional<Utf16String>>();
-    jwk.e = decoder.decode<Optional<Utf16String>>();
-    jwk.p = decoder.decode<Optional<Utf16String>>();
-    jwk.q = decoder.decode<Optional<Utf16String>>();
-    jwk.dp = decoder.decode<Optional<Utf16String>>();
-    jwk.dq = decoder.decode<Optional<Utf16String>>();
-    jwk.qi = decoder.decode<Optional<Utf16String>>();
-    if (decoder.decode<bool>()) {
-        auto size = decoder.decode<u64>();
-        Vector<RsaOtherPrimesInfo> oth;
-        oth.ensure_capacity(size);
-        for (u64 i = 0; i < size; ++i)
-            oth.unchecked_append(deserialize_rsa_other_primes_info(decoder));
-        jwk.oth = move(oth);
-    }
-    jwk.k = decoder.decode<Optional<Utf16String>>();
-    jwk.pub = decoder.decode<Optional<Utf16String>>();
-    jwk.priv = decoder.decode<Optional<Utf16String>>();
-    return jwk;
 }
 
 void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::RSAPublicKey const& key)
@@ -548,9 +468,6 @@ WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(HTML::TransferDataDec
     switch (tag) {
     case HandleTag::ByteBuffer:
         m_key_data = TRY(serialized.decode_buffer(realm));
-        break;
-    case HandleTag::JsonWebKey:
-        m_key_data = deserialize_json_web_key(serialized);
         break;
     case HandleTag::RSAPublicKey:
         m_key_data = TRY(deserialize_rsa_public_key(serialized, realm));

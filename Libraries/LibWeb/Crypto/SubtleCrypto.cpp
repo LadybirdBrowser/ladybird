@@ -512,7 +512,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
 
         // 10. Let result be the CryptoKey object that results from performing the import key operation
         // specified by normalizedAlgorithm using keyData, algorithm, format, extractable and usages.
-        auto maybe_result = normalized_algorithm.methods->import_key(*normalized_algorithm.parameter, format, real_key_data.downcast<CryptoKey::InternalKeyData>(), extractable, key_usages);
+        auto maybe_result = normalized_algorithm.methods->import_key(*normalized_algorithm.parameter, format, real_key_data.downcast<CryptoKey::ImportKeyData>(), extractable, key_usages);
         if (maybe_result.is_error()) {
             WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), maybe_result.release_error()).release_value());
             return;
@@ -1173,7 +1173,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, We
 
         // 16. Let result be the result of performing the import key operation specified by normalizedKeyAlgorithm
         //    using unwrappedKeyAlgorithm as algorithm, format, usages and extractable and with key as keyData.
-        auto result_or_error = normalized_key_algorithm.methods->import_key(*normalized_key_algorithm.parameter, format, key.downcast<CryptoKey::InternalKeyData>(), extractable, key_usages);
+        auto result_or_error = normalized_key_algorithm.methods->import_key(*normalized_key_algorithm.parameter, format, key.downcast<CryptoKey::ImportKeyData>(), extractable, key_usages);
         if (result_or_error.is_error()) {
             WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value());
             return;
