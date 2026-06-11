@@ -1144,6 +1144,14 @@ public:
 
     void upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry>, GC::Ref<HTML::CustomElementDefinition>, String local_name, Optional<String> name = {});
 
+    Vector<URL::Origin> internal_ancestor_origin_objects_list_creation_steps(ReferrerPolicy::ReferrerPolicy) const;
+    Optional<Vector<URL::Origin>>& internal_ancestor_origin_objects_list() { return m_internal_ancestor_origin_objects_list; }
+    void set_internal_ancestor_origin_objects_list(Optional<Vector<URL::Origin>>&& list) { m_internal_ancestor_origin_objects_list = move(list); }
+
+    GC::Ref<HTML::DOMStringList> ancestor_origins_list_creation_steps() const;
+    GC::Ptr<HTML::DOMStringList> ancestor_origins_list() { return m_ancestor_origins_list; }
+    void set_ancestor_origins_list(GC::Ptr<HTML::DOMStringList> list) { m_ancestor_origins_list = move(list); }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1623,6 +1631,12 @@ private:
 
     // https://dom.spec.whatwg.org/#document-custom-element-registry
     GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
+
+    // https://html.spec.whatwg.org/multipage/dom.html#concept-document-internal-ancestor-origin-objects-list
+    Optional<Vector<URL::Origin>> m_internal_ancestor_origin_objects_list;
+
+    // https://html.spec.whatwg.org/multipage/dom.html#concept-document-ancestor-origins-list
+    GC::Ptr<HTML::DOMStringList> m_ancestor_origins_list;
 };
 
 template<>
