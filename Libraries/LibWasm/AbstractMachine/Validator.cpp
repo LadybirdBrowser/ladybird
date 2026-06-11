@@ -147,6 +147,8 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     }
     for (auto& segment : module.global_section().entries())
         scan_expression_for_function_indices(segment.expression());
+    for (auto& table : module.table_section().tables())
+        scan_expression_for_function_indices(table.initializer());
 
     TRY(validate(module.import_section()));
     TRY(validate(module.export_section()));
@@ -328,6 +330,9 @@ ErrorOr<void, ValidationError> Validator::validate(DataSection const& section)
 ErrorOr<void, ValidationError> Validator::validate(ElementSection const& section)
 {
     for (auto& segment : section.segments()) {
+        // https://webassembly.github.io/spec/core/valid/modules.html#element-segments
+        // - The reference type elemtype is valid.
+        TRY(validate(segment.type));
         TRY(segment.mode.visit(
             [](ElementSection::Declarative const&) -> ErrorOr<void, ValidationError> { return {}; },
             [](ElementSection::Passive const&) -> ErrorOr<void, ValidationError> { return {}; },
@@ -419,6 +424,9 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
         function_validator.m_context.locals.extend(function_type.parameters());
         function_validator.m_context.current_function_parameter_count = function_type.parameters().size();
         for (auto& local : function.locals()) {
+            // https://webassembly.github.io/spec/core/valid/modules.html#functions
+            // The locals' value types must be valid (in particular, type uses must exist).
+            TRY(function_validator.validate(local.type()));
             for (size_t i = 0; i < local.n(); ++i)
                 function_validator.m_context.locals.append(local.type());
         }
@@ -1629,14 +1637,15 @@ VALIDATE_INSTRUCTION(select_typed)
     if (required_types.size() != 1)
         return Errors::invalid("select types"sv, "exactly one type"sv, required_types);
 
+    // https://webassembly.github.io/spec/core/valid/instructions.html#parametric-instructions
+    // select t: valid with [t t i32] -> [t] if the value type t is valid; both operands must
+    // match the annotated type.
+    TRY(validate(required_types.first()));
     TRY(stack.take<ValueType::I32>());
-    auto arg0_type = TRY(stack.take_last());
-    auto arg1_type = TRY(stack.take_last());
+    TRY(stack.take(required_types.first()));
+    TRY(stack.take(required_types.first()));
 
-    if (arg0_type != arg1_type || arg0_type != required_types.first())
-        return Errors::invalid("select argument types"sv, Vector { required_types.first(), required_types.first() }, Vector { arg0_type, arg1_type });
-
-    stack.append(arg0_type.is_known ? arg0_type : arg1_type);
+    stack.append(required_types.first());
 
     return {};
 }
@@ -1772,11 +1781,10 @@ VALIDATE_INSTRUCTION(table_copy)
     auto lhs_table = TRY(validate(args.lhs));
     auto rhs_table = TRY(validate(args.rhs));
 
-    if (lhs_table.element_type() != rhs_table.element_type())
+    // https://webassembly.github.io/spec/core/valid/instructions.html#table-instructions
+    // table.copy x y: the source table's reference type rt2 must match the destination's rt1.
+    if (!matches_reference_type(rhs_table.element_type(), lhs_table.element_type(), m_context.type_context()))
         return Errors::non_conforming_types("table.copy"sv, lhs_table.element_type(), rhs_table.element_type());
-
-    if (!lhs_table.element_type().is_reference())
-        return Errors::invalid("table.copy element type"sv, "a reference type"sv, lhs_table.element_type());
 
     auto const lhs_at = lhs_table.limits().address_value_type();
     auto const rhs_at = rhs_table.limits().address_value_type();
@@ -1798,7 +1806,10 @@ VALIDATE_INSTRUCTION(table_init)
 
     auto& element_type = m_context.elements[args.element_index.value()];
 
-    if (table.element_type() != element_type)
+    // https://webassembly.github.io/spec/core/valid/instructions.html#table-instructions
+    // table.init x y: "The element segment C.elems[y] must match the reference type rt" of the
+    // table C.tables[x].
+    if (!matches_reference_type(element_type, table.element_type(), m_context.type_context()))
         return Errors::non_conforming_types("table.init"sv, table.element_type(), element_type);
 
     TRY((stack.take<ValueType::I32, ValueType::I32>()));
@@ -2662,7 +2673,10 @@ VALIDATE_INSTRUCTION(call_indirect)
     auto table = TRY(validate(args.table));
     TRY(validate(args.type));
 
-    if (table.element_type().kind() != ValueType::FunctionReference)
+    // https://webassembly.github.io/spec/core/valid/instructions.html#control-instructions
+    // call_indirect x y: "The table C.tables[x] must be of the form (at lim rt), and rt must
+    // match (ref null func)."
+    if (!matches_reference_type(table.element_type(), ValueType(ValueType::FunctionReference), m_context.type_context()))
         return Errors::invalid("table element type for call.indirect"sv, "a function reference"sv, table.element_type());
 
     auto& type = m_context.types[args.type.value()];
@@ -2708,7 +2722,8 @@ VALIDATE_INSTRUCTION(return_call_indirect)
     TRY(validate(args.type));
 
     auto& table = m_context.tables[args.table.value()];
-    if (table.element_type().kind() != ValueType::FunctionReference)
+    // See call_indirect: rt must match (ref null func).
+    if (!matches_reference_type(table.element_type(), ValueType(ValueType::FunctionReference), m_context.type_context()))
         return Errors::invalid("table element type for call.indirect"sv, "a function reference"sv, table.element_type());
 
     auto& type = m_context.types[args.type.value()];
