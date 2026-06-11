@@ -42,7 +42,6 @@ void DisplayingVideoSink::consume_moved_position_signals(PipelineStatus& status)
     while ((status = m_input->status()) == PipelineStatus::MovedPosition) {
         m_input->pull(m_next_frame);
         VERIFY(m_next_frame == nullptr);
-        m_current_frame.clear();
         m_seek_status = SeekStatus::FrameInvalidated;
     }
     VERIFY(status != PipelineStatus::MovedPosition);
