@@ -82,6 +82,7 @@ struct InvalidationPlan final : RefCounted<InvalidationPlan> {
 
     bool invalidate_self { false };
     bool invalidate_whole_subtree { false };
+    bool invalidate_self_and_structurally_affected_siblings { false };
     Vector<DescendantInvalidationRule> descendant_rules;
     Vector<SiblingInvalidationRule> sibling_rules;
     Vector<GuardedInvalidationRule> guarded_rules;

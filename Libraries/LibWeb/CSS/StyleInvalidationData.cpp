@@ -72,7 +72,7 @@ static void append_or_merge_guarded_rule(Vector<GuardedInvalidationRule>& rules,
 
 bool InvalidationPlan::is_empty() const
 {
-    return !invalidate_self && !invalidate_whole_subtree && descendant_rules.is_empty() && sibling_rules.is_empty() && guarded_rules.is_empty();
+    return !invalidate_self && !invalidate_whole_subtree && !invalidate_self_and_structurally_affected_siblings && descendant_rules.is_empty() && sibling_rules.is_empty() && guarded_rules.is_empty();
 }
 
 bool InvalidationGuard::operator==(InvalidationGuard const& other) const
@@ -134,6 +134,8 @@ bool InvalidationPlan::operator==(InvalidationPlan const& other) const
         return false;
     if (invalidate_whole_subtree != other.invalidate_whole_subtree)
         return false;
+    if (invalidate_self_and_structurally_affected_siblings != other.invalidate_self_and_structurally_affected_siblings)
+        return false;
 
     return rule_lists_are_equal_ignoring_order(descendant_rules, other.descendant_rules)
         && rule_lists_are_equal_ignoring_order(sibling_rules, other.sibling_rules)
@@ -143,12 +145,16 @@ bool InvalidationPlan::operator==(InvalidationPlan const& other) const
 void InvalidationPlan::include_all_from(InvalidationPlan const& other)
 {
     invalidate_self |= other.invalidate_self;
+    invalidate_self_and_structurally_affected_siblings |= other.invalidate_self_and_structurally_affected_siblings;
 
-    if (invalidate_whole_subtree)
+    if (invalidate_whole_subtree) {
+        invalidate_self_and_structurally_affected_siblings = false;
         return;
+    }
 
     if (other.invalidate_whole_subtree) {
         invalidate_whole_subtree = true;
+        invalidate_self_and_structurally_affected_siblings = false;
         descendant_rules.clear();
         sibling_rules.clear();
         guarded_rules.clear();
@@ -748,9 +754,12 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
             //                      which means invalidation_set_for_rightmost_selector should be empty
             auto root_plan = copy_invalidation_plan(root_invalidation_plan);
             if (inside_nth_child_pseudo_class == InsideNthChildPseudoClass::Yes) {
-                // When invalidation property is nested in nth-child selector like p:nth-child(even of #t1, #t2, #t3)
-                // we need to make sure all affected siblings are invalidated.
-                root_plan->invalidate_whole_subtree = true;
+                // When an invalidation property is nested in an nth-child selector like
+                // p:nth-child(even of #t1, #t2, #t3), a property change can alter the filtered
+                // sibling index of this element and its siblings. This does not require dirtying
+                // the element's descendants unless they depend on that structural match.
+                if (!root_plan->invalidate_whole_subtree)
+                    root_plan->invalidate_self_and_structurally_affected_siblings = true;
             }
             add_invalidation_plan_for_properties(style_invalidation_data, invalidation_properties, *root_plan);
 
