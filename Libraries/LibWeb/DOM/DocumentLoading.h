@@ -52,6 +52,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     //    reserved environment: null
     //    policy container: a new policy container
     //    final sandboxing flag set: an empty set
+    //    iframe element referrer policy: the empty string
     //    opener policy: coop
     //    FIXME: navigation timing type: navTimingType
     //    about base URL: null
@@ -70,6 +71,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
         move(origin),
         vm.heap().allocate<HTML::PolicyContainer>(vm.heap()),
         HTML::SandboxingFlagSet {},
+        ReferrerPolicy::ReferrerPolicy::EmptyString,
         move(coop),
         OptionalNone {},
         user_involvement);

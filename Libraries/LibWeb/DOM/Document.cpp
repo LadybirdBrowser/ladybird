@@ -472,10 +472,18 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 10. Set window's associated Document to document.
     window->set_associated_document(*document);
 
-    // 11. Run CSP initialization for a Document given document.
+    // 11. Set document's internal ancestor origin objects list to the result of running the internal ancestor origin
+    //     objects list creation steps given document and navigationParams's iframe element referrer policy.
+    document->set_internal_ancestor_origin_objects_list(document->internal_ancestor_origin_objects_list_creation_steps(navigation_params.iframe_element_referrer_policy));
+
+    // 12. Set document's ancestor origins list to the result of running the ancestor origins list creation steps given
+    //     document.
+    document->set_ancestor_origins_list(document->ancestor_origins_list_creation_steps());
+
+    // 13. Run CSP initialization for a Document given document.
     document->run_csp_initialization();
 
-    // 12. If navigationParams's request is non-null, then:
+    // 14. If navigationParams's request is non-null, then:
     if (navigation_params.request) {
         // 1. Set document's referrer to the empty string.
         document->m_referrer = String {};
@@ -489,12 +497,13 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         }
     }
 
-    // FIXME: 13: If navigationParams's fetch controller is not null, then:
+    // FIXME: 15: If navigationParams's fetch controller is not null, then:
 
-    // FIXME: 14. Create the navigation timing entry for document, with navigationParams's response's timing info, redirectCount, navigationParams's navigation timing type, and
-    //            navigationParams's response's service worker timing info.
+    // FIXME: 16. Create the navigation timing entry for document, with navigationParams's response's timing info,
+    //        redirectCount, navigationParams's navigation timing type, and navigationParams's response's service
+    //        worker timing info.
 
-    // 15. If navigationParams's response has a `Refresh` header, then:
+    // 17. If navigationParams's response has a `Refresh` header, then:
     if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv); maybe_refresh.has_value()) {
         // 1. Let value be the isomorphic decoding of the value of the header.
         auto value = TextCodec::isomorphic_decode(maybe_refresh.value());
@@ -503,13 +512,17 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         document->shared_declarative_refresh_steps(value, nullptr);
     }
 
-    // FIXME: 16. If navigationParams's commit early hints is not null, then call navigationParams's commit early hints with document.
+    // FIXME: 18. If navigationParams's commit early hints is not null, then call navigationParams's commit early hints
+    //        with document.
 
-    // FIXME: 17. Process link headers given document, navigationParams's response, and "pre-media".
+    // FIXME: 19. Process link headers given document, navigationParams's response, and "pre-media".
 
-    // FIXME: 18. Potentially free deferred fetch quota for document.
+    // FIXME: 20. If navigationParams's navigable is a top-level traversable, then process the `Speculation-Rules`
+    //        header given document and navigationParams's response .
 
-    // 19. Return document.
+    // FIXME: 21. Potentially free deferred fetch quota for document.
+
+    // 22. Return document.
     return document;
 }
 

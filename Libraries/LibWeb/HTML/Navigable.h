@@ -52,7 +52,11 @@ using OnApplyHistoryStepComplete = GC::Function<void(HistoryStepResult)>;
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#target-snapshot-params
 struct TargetSnapshotParams {
+    // sandboxing flags: a sandboxing flag set
     SandboxingFlagSet sandboxing_flags {};
+
+    // iframe element referrer policy: a referrer policy
+    ReferrerPolicy::ReferrerPolicy iframe_element_referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#navigable

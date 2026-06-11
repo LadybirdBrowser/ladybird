@@ -252,7 +252,17 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     // custom element registry: A new CustomElementRegistry object.
     document->set_custom_element_registry(realm.create<CustomElementRegistry>(realm));
 
-    // 16. If creator is non-null, then:
+    // 16. Let iframeReferrerPolicy be the result of determining the iframe element referrer policy given embedder.
+    auto iframe_referrer_policy = determine_iframe_element_referrer_policy(embedder);
+
+    // 17. Set document's internal ancestor origin objects list to the result of running the internal ancestor origin
+    //     objects list creation steps given document and iframeReferrerPolicy.
+    document->set_internal_ancestor_origin_objects_list(document->internal_ancestor_origin_objects_list_creation_steps(iframe_referrer_policy));
+
+    // 18. Set document's ancestor origins list to the result of running the ancestor origins list creation steps given document.
+    document->set_ancestor_origins_list(document->ancestor_origins_list_creation_steps());
+
+    // 19. If creator is non-null:
     if (creator) {
         // 1. Set document's referrer to the serialization of creator's URL.
         document->set_referrer(creator->url().serialize());
@@ -269,25 +279,25 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
         }
     }
 
-    // 17. Assert: document's URL and document's relevant settings object's creation URL are about:blank.
+    // 20. Assert: document's URL and document's relevant settings object's creation URL are about:blank.
     VERIFY(document->url() == URL::about_blank());
     VERIFY(document->relevant_settings_object().creation_url == URL::about_blank());
 
-    // 18. Mark document as ready for post-load tasks.
+    // 21. Mark document as ready for post-load tasks.
     document->set_ready_for_post_load_tasks(true);
 
-    // 19. Populate with html/head/body given document.
+    // 22. Populate with html/head/body given document.
     populate_with_html_head_body(*document);
     if (!embedder)
         document->set_supported_color_schemes({ "light"_string, "dark"_string });
 
-    // 20. Make active document.
+    // 23. Make active document.
     document->make_active();
 
-    // 21. Completely finish loading document.
+    // 24. Completely finish loading document.
     document->completely_finish_loading();
 
-    // 22. Return browsingContext and document.
+    // 25. Return browsingContext and document.
     return BrowsingContext::BrowsingContextAndDocument { browsing_context, document };
 }
 

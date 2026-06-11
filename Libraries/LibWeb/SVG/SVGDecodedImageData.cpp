@@ -59,6 +59,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
         origin,
         navigable->heap().allocate<HTML::PolicyContainer>(realm.heap()),
         HTML::SandboxingFlagSet {},
+        ReferrerPolicy::ReferrerPolicy::EmptyString,
         HTML::OpenerPolicy {},
         OptionalNone {},
         HTML::UserNavigationInvolvement::None);

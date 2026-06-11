@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
+#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 
@@ -59,6 +60,9 @@ struct NavigationParams : GC::Cell {
     // a sandboxing flag set to impose on the new Document
     SandboxingFlagSet final_sandboxing_flag_set = {};
 
+    // a referrer policy, used in the internal ancestor origin objects list creation steps
+    ReferrerPolicy::ReferrerPolicy iframe_element_referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
+
     // an opener policy to use for the new Document
     OpenerPolicy opener_policy;
 
@@ -85,6 +89,7 @@ protected:
         URL::Origin origin,
         GC::Ptr<PolicyContainer> policy_container,
         SandboxingFlagSet final_sandboxing_flag_set,
+        ReferrerPolicy::ReferrerPolicy iframe_element_referrer_policy,
         OpenerPolicy opener_policy,
         Optional<URL::URL> about_base_url,
         UserNavigationInvolvement user_involvement)
@@ -99,6 +104,7 @@ protected:
         , origin(move(origin))
         , policy_container(policy_container)
         , final_sandboxing_flag_set(final_sandboxing_flag_set)
+        , iframe_element_referrer_policy(iframe_element_referrer_policy)
         , opener_policy(opener_policy)
         , about_base_url(move(about_base_url))
         , user_involvement(user_involvement)
