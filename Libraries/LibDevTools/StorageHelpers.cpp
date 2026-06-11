@@ -42,4 +42,24 @@ Optional<String> storage_host_name(String const& storage_host)
     return url->serialized_host();
 }
 
+JsonObject to_storage_operation_result(Optional<String> const& error_string)
+{
+    JsonObject response;
+    if (error_string.has_value())
+        response.set("errorString"sv, *error_string);
+    else
+        response.set("errorString"sv, JsonValue {});
+    return response;
+}
+
+JsonObject to_storage_operation_result(ErrorOr<void> const& result)
+{
+    JsonObject response;
+    if (result.is_error())
+        response.set("errorString"sv, result.error().string_literal());
+    else
+        response.set("errorString"sv, JsonValue {});
+    return response;
+}
+
 }
