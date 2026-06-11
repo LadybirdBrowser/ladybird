@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-6 Pass
-1 Fail
+7 Pass
 Pass	postMessage
 Pass	start
 Pass	close
-Fail	onmessage
+Pass	onmessage
 Pass	addEventListener
 Pass	removeEventListener
 Pass	despatchEvent

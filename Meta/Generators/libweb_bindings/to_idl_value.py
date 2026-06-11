@@ -19,7 +19,6 @@ from Generators.libweb_bindings.cpp_types import add_include_for_string_cpp_type
 from Generators.libweb_bindings.cpp_types import converter_function_name
 from Generators.libweb_bindings.cpp_types import cpp_empty_value
 from Generators.libweb_bindings.cpp_types import cpp_name
-from Generators.libweb_bindings.cpp_types import cpp_null_value
 from Generators.libweb_bindings.cpp_types import cpp_type
 from Generators.libweb_bindings.cpp_types import cpp_type_for_idl_type
 from Generators.libweb_bindings.cpp_types import cpp_type_for_idl_type_details
@@ -676,9 +675,6 @@ def callback_function_to_idl_value(
     includes.add("LibWeb/HTML/Scripting/Environments.h")
     includes.add("LibWeb/WebIDL/CallbackType.h")
 
-    # https://webidl.spec.whatwg.org/#js-callback-function
-    # 1. If the result of calling IsCallable(V) is false and the conversion to an IDL value is not being performed due to V being assigned to an attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull], then throw a TypeError.
-    # 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent settings object as the callback context.
     operation_returns_promise = (
         "WebIDL::OperationReturnsPromise::Yes"
         if callback_function.return_type.name.split("<", 1)[0] == "Promise"
@@ -687,23 +683,25 @@ def callback_function_to_idl_value(
 
     legacy_treat_non_object_as_null = "LegacyTreatNonObjectAsNull" in callback_function.extended_attributes
     return_cpp_type = "GC::Ptr<WebIDL::CallbackType>" if legacy_treat_non_object_as_null else return_cpp_type
-    if legacy_treat_non_object_as_null:
-        callable_check = f"""                    if (!{value_name}.is_function())
-                        return nullptr;
-"""
-    else:
-        callable_check = f"""                    // 1. If the result of calling IsCallable(V) is false and the conversion to an IDL value is not being performed due to V being assigned to an attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull], then throw a TypeError.
-                    if (!{value_name}.is_function())
-                        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, {value_name});
+
+    conversion = f"""[&]() -> JS::ThrowCompletionOr<{return_cpp_type}> {{
 """
 
-    return f"""[&]() -> JS::ThrowCompletionOr<{return_cpp_type}> {{
-{callable_check}
-                    return vm.heap().allocate<WebIDL::CallbackType>(
-                        {value_name}.as_object(),
-                        HTML::incumbent_realm(),
-                        {operation_returns_promise});
-                    }}()"""
+    # 1. If the result of calling IsCallable(V) is false and the conversion to an IDL value is not being
+    #    performed due to V being assigned to an attribute whose type is a nullable callback function that
+    #    is annotated with [LegacyTreatNonObjectAsNull], then throw a TypeError.
+    if not legacy_treat_non_object_as_null:
+        conversion += f"""
+        if (!{value_name}.is_function())
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, {value_name});
+"""
+
+    # 2. Return the IDL callback function type value that represents a reference to the same object that V
+    #    represents, with the incumbent settings object as the callback context.
+    conversion += f"""
+        return vm.heap().allocate<WebIDL::CallbackType>({value_name}.as_object(),  HTML::incumbent_realm(), {operation_returns_promise});
+    }}()"""
+    return conversion
 
 
 # 3.2.20. Nullable types — T?, https://webidl.spec.whatwg.org/#js-nullable-type
@@ -716,23 +714,63 @@ def nullable_to_idl_value(
     includes: GeneratedIncludes,
     context: GenerationContext,
 ) -> str:
-    # 1. If V is not an Object, and the conversion to an IDL value is being performed due to V being assigned to an attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull], then return the IDL nullable type T? value null.
-    # 2. Otherwise, if V is undefined, and T includes undefined, return the unique undefined value.
-    # 3. Otherwise, if V is null or undefined, then return the IDL nullable type T? value null.
-    # 4. Otherwise, return the result of converting V using the rules for the inner IDL type T.
     inner_type = idl_type.clone_with_nullable(False)
+    cpp_type = cpp_type_for_idl_type_details(
+        idl_type,
+        context,
+        extended_attributes=extended_attributes,
+    )
+    conversion = f"""[&]() -> JS::ThrowCompletionOr<{return_cpp_type}> {{
+        {cpp_type.name} value;
+"""
+
+    # 1. If V is not an Object, and the conversion to an IDL value is being performed due to V being assigned to an
+    #    attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull],
+    #    then return the IDL nullable type T? value null.
+    callback_function = context.callback_function(inner_type)
+    legacy_treat_non_object_as_null = (
+        callback_function is not None and "LegacyTreatNonObjectAsNull" in callback_function.extended_attributes
+    )
+    if legacy_treat_non_object_as_null:
+        conversion += f"        if ({value_name}.is_object()) {{\n"
+
     inner_conversion = to_idl_value_from_type(
         inner_type, identifier, extended_attributes, value_name, includes, context
     )
-    null_value = cpp_null_value(idl_type, context)
     inner_return = (
         f"TRY({inner_conversion})" if idl_value_conversion_is_throwing(inner_type, context) else inner_conversion
     )
-    return f"""[&]() -> JS::ThrowCompletionOr<{return_cpp_type}> {{
-        if ({value_name}.is_nullish())
-            return {null_value};
-        return {inner_return};
-    }}()"""
+    inner_type_includes_undefined = inner_type.includes_undefined()
+
+    # 2. Otherwise, if V is undefined, and T includes undefined, return the unique undefined value.
+    if inner_type_includes_undefined:
+        conversion += f"""
+        if ({value_name}.is_undefined()) {{
+            value = Empty {{}};
+        }}
+"""
+        # 3. Otherwise, if V is null or undefined, then return the IDL nullable type T? value null.
+        conversion += f"""
+        else if (!{value_name}.is_nullish()) {{
+"""
+    else:
+        # 3. Otherwise, if V is null or undefined, then return the IDL nullable type T? value null.
+        conversion += f"""
+        if (!{value_name}.is_nullish()) {{
+"""
+
+    # 4. Otherwise, return the result of converting V using the rules for the inner IDL type T.
+    conversion += f"""
+            value = {inner_return};
+        }}
+"""
+
+    if legacy_treat_non_object_as_null:
+        conversion += "        }\n"
+
+    conversion += """        return value;
+    }()"""
+    return conversion
 
 
 # 3.2.21. Sequences — sequence<T>, https://webidl.spec.whatwg.org/#js-sequence
