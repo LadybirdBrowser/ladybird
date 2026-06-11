@@ -606,7 +606,23 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         auxiliary_instance.globals().append(addr);
     }
 
-    if (auto result = allocate_all_initial_phase(module, main_module_instance, externs, global_values, module_functions); result.has_value())
+    Vector<Value> table_initial_values;
+    for (auto& table : module.table_section().tables()) {
+        Configuration config { m_store };
+        if (m_should_limit_instruction_count)
+            config.enable_instruction_count_limit();
+        config.set_frame(IsTailcall::No,
+            auxiliary_instance,
+            Vector<Value, ArgumentsStaticSize> {},
+            table.initializer(),
+            1uz);
+        auto result = config.execute(interpreter);
+        if (result.is_trap())
+            return InstantiationError { "Table initializer trapped", move(result.trap()) };
+        table_initial_values.append(result.values().first());
+    }
+
+    if (auto result = allocate_all_initial_phase(module, main_module_instance, externs, global_values, table_initial_values, module_functions); result.has_value())
         return result.release_value();
 
     for (auto& segment : module.element_section().segments()) {
@@ -753,7 +769,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     return InstantiationResult { move(main_module_instance_pointer) };
 }
 
-Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module const& module, ModuleInstance& module_instance, Vector<ExternValue>& externs, Vector<Value>& global_values, Vector<FunctionAddress>& own_functions)
+Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module const& module, ModuleInstance& module_instance, Vector<ExternValue>& externs, Vector<Value>& global_values, Vector<Value>& table_initial_values, Vector<FunctionAddress>& own_functions)
 {
     Optional<InstantiationError> result;
 
@@ -771,11 +787,21 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
     // https://webassembly.github.io/spec/core/valid/conventions.html#aux-clostype
     TypeContext const module_type_context { module.canonical_types().span() };
 
-    for (auto& table : module.table_section().tables()) {
+    for (auto [table_index, table] : enumerate(module.table_section().tables())) {
         auto table_address = m_store.allocate(TableType { canonicalized(table.type().element_type(), module_type_context), table.type().limits() });
         if (!table_address.has_value())
             return InstantiationError { "Failed to allocate a table instance" };
         module_instance.tables().append(*table_address);
+
+        auto reference = table_initial_values[table_index].to<Reference>();
+        if (!reference.ref().has<Reference::Null>()) {
+            auto* table_instance = m_store.get(*table_address);
+            RefPtr<ModuleInstance const> anchor;
+            if (reference.ref().has<Reference::Func>())
+                anchor = &module_instance;
+            for (size_t i = 0; i < table_instance->elements().size(); ++i)
+                table_instance->set_element(i, reference, anchor);
+        }
     }
 
     for (auto& memory : module.memory_section().memories()) {

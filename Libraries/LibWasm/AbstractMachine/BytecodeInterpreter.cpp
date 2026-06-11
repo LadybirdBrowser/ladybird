@@ -5515,6 +5515,53 @@ HANDLE_INSTRUCTION(try_table)
     return Outcome::Return;
 }
 
+// Proposal "GC"; FIXME: Actually implement these :)
+#define HANDLE_WASM_GC_STUB(name)                           \
+    HANDLE_INSTRUCTION(name)                                \
+    {                                                       \
+        LOG_INSN;                                           \
+        interpreter.set_trap("Not Implemented: wasm-gc"sv); \
+        return Outcome::Return;                             \
+    }
+
+HANDLE_WASM_GC_STUB(ref_eq)
+HANDLE_WASM_GC_STUB(ref_as_non_null)
+HANDLE_WASM_GC_STUB(br_on_null)
+HANDLE_WASM_GC_STUB(br_on_non_null)
+HANDLE_WASM_GC_STUB(struct_new)
+HANDLE_WASM_GC_STUB(struct_new_default)
+HANDLE_WASM_GC_STUB(struct_get)
+HANDLE_WASM_GC_STUB(struct_get_s)
+HANDLE_WASM_GC_STUB(struct_get_u)
+HANDLE_WASM_GC_STUB(struct_set)
+HANDLE_WASM_GC_STUB(array_new)
+HANDLE_WASM_GC_STUB(array_new_default)
+HANDLE_WASM_GC_STUB(array_new_fixed)
+HANDLE_WASM_GC_STUB(array_new_data)
+HANDLE_WASM_GC_STUB(array_new_elem)
+HANDLE_WASM_GC_STUB(array_get)
+HANDLE_WASM_GC_STUB(array_get_s)
+HANDLE_WASM_GC_STUB(array_get_u)
+HANDLE_WASM_GC_STUB(array_set)
+HANDLE_WASM_GC_STUB(array_len)
+HANDLE_WASM_GC_STUB(array_fill)
+HANDLE_WASM_GC_STUB(array_copy)
+HANDLE_WASM_GC_STUB(array_init_data)
+HANDLE_WASM_GC_STUB(array_init_elem)
+HANDLE_WASM_GC_STUB(ref_test)
+HANDLE_WASM_GC_STUB(ref_test_null)
+HANDLE_WASM_GC_STUB(ref_cast)
+HANDLE_WASM_GC_STUB(ref_cast_null)
+HANDLE_WASM_GC_STUB(br_on_cast)
+HANDLE_WASM_GC_STUB(br_on_cast_fail)
+HANDLE_WASM_GC_STUB(any_convert_extern)
+HANDLE_WASM_GC_STUB(extern_convert_any)
+HANDLE_WASM_GC_STUB(ref_i31)
+HANDLE_WASM_GC_STUB(i31_get_s)
+HANDLE_WASM_GC_STUB(i31_get_u)
+
+#undef HANDLE_WASM_GC_STUB
+
 bool BytecodeInterpreter::trap_if_insufficient_native_stack_space(size_t minimum_native_stack_space_to_keep_free)
 {
     return trap_if_not(m_stack_info.size_free() >= minimum_native_stack_space_to_keep_free, Constants::stack_exhaustion_message);

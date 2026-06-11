@@ -168,6 +168,9 @@ public:
         size_t initial_size;
         // Stack polymorphism is handled with this field
         bool unreachable { false };
+        // Height of the local-initialization undo log when this frame was entered.
+        // https://webassembly.github.io/spec/core/appendix/algorithm.html
+        size_t local_init_log_height { 0 };
 
         Vector<ValueType> const& labels() const
         {
@@ -241,12 +244,15 @@ public:
         friend struct AK::Formatter;
 
     public:
-        explicit Stack(Vector<Frame, 16>&&) = delete;
+        explicit Stack(Vector<Frame, 16>&&, TypeContext const&) = delete;
 
-        explicit Stack(Vector<Frame, 16> const& frames)
+        explicit Stack(Vector<Frame, 16> const& frames, TypeContext const& type_context)
             : m_frames(frames)
+            , m_type_context(type_context)
         {
         }
+
+        TypeContext const& type_context() const { return m_type_context; }
 
         bool is_empty() const { return m_entries.is_empty(); }
         auto& last() const { return m_entries.last(); }
@@ -277,7 +283,7 @@ public:
         ErrorOr<StackEntry, ValidationError> take(ValueType type, SourceLocation location = SourceLocation::current())
         {
             auto type_on_stack = TRY(take_last());
-            if (type_on_stack != type)
+            if (type_on_stack.is_known && !matches_value_type(type_on_stack.concrete_type, type, m_type_context))
                 return Errors::invalid("stack state"sv, type, type_on_stack, location);
 
             return type_on_stack;
@@ -309,6 +315,7 @@ public:
     private:
         Vector<StackEntry, 8> m_entries;
         Vector<Frame, 16> const& m_frames;
+        TypeContext m_type_context;
         size_t m_max_known_size { 0 };
     };
 
@@ -352,6 +359,12 @@ private:
         : m_context(move(context))
     {
     }
+
+    ErrorOr<void, ValidationError> validate_struct_get(Stack&, Instruction const&, bool requires_packed);
+    ErrorOr<FieldType, ValidationError> array_field_type(TypeIndex, StringView instruction_name, bool requires_mutable);
+    ErrorOr<void, ValidationError> validate_array_get(Stack&, Instruction const&, bool requires_packed);
+    ErrorOr<void, ValidationError> validate_ref_test_or_cast(Stack&, Instruction const&);
+    ErrorOr<void, ValidationError> validate_br_on_cast(Stack&, Instruction const&, bool branch_on_failure);
 
     struct Errors {
         static ValidationError invalid(StringView name, SourceLocation location = SourceLocation::current())
@@ -420,8 +433,30 @@ private:
         static ByteString find_instruction_name(SourceLocation const&);
     };
 
+    // https://webassembly.github.io/spec/core/valid/conventions.html#local-types
+    void push_frame(Frame frame)
+    {
+        frame.local_init_log_height = m_local_init_log.size();
+        m_frames.append(move(frame));
+        m_max_frame_size = max(m_max_frame_size, m_frames.size());
+    }
+    void mark_local_initialized(u32 local_index)
+    {
+        if (m_local_initialized[local_index])
+            return;
+        m_local_initialized[local_index] = true;
+        m_local_init_log.append(local_index);
+    }
+    void roll_back_local_initializations(size_t log_height)
+    {
+        while (m_local_init_log.size() > log_height)
+            m_local_initialized[m_local_init_log.take_last()] = false;
+    }
+
     Context m_context;
     Vector<Frame, 16> m_frames;
+    Vector<bool> m_local_initialized;
+    Vector<u32> m_local_init_log;
     size_t m_max_frame_size { 0 };
     COWVector<GlobalType> m_globals_without_internal_globals;
 };

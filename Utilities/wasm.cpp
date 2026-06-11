@@ -740,7 +740,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                             dbgln("[wasm runtime] Cannot stub tag import {}::{}: type is not a function", entry.module, entry.name);
                             return;
                         }
-                        address = *machine.store().allocate(type.function(), tag_type.flags());
+                        // The module is not yet validated here, so its canonical types may not be known.
+                        address = *machine.store().allocate(type.function(), nullptr, tag_type.flags());
                     });
 
                 if (address.has_value())
