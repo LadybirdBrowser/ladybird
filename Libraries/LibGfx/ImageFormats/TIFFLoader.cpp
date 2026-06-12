@@ -799,12 +799,4 @@ ErrorOr<Optional<ReadonlyBytes>> TIFFImageDecoderPlugin::icc_data()
     return m_context->metadata().icc_profile().map([](auto const& buffer) -> ReadonlyBytes { return buffer.bytes(); });
 }
 
-ErrorOr<NonnullOwnPtr<ExifMetadata>> TIFFImageDecoderPlugin::read_exif_metadata(ReadonlyBytes data)
-{
-    auto stream = TRY(try_make<FixedMemoryStream>(data));
-    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TIFFImageDecoderPlugin(move(stream))));
-    TRY(plugin->m_context->decode_image_header());
-    return try_make<ExifMetadata>(plugin->m_context->metadata());
-}
-
 }

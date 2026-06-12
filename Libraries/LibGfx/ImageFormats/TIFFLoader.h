@@ -12,8 +12,6 @@
 
 namespace Gfx {
 
-class ExifMetadata;
-
 // This is a link to the main TIFF specification from 1992
 // https://www.itu.int/itudoc/itu-t/com16/tiff-fx/docs/tiff6.pdf
 
@@ -38,7 +36,6 @@ class TIFFImageDecoderPlugin : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
-    static ErrorOr<NonnullOwnPtr<ExifMetadata>> read_exif_metadata(ReadonlyBytes);
 
     virtual ~TIFFImageDecoderPlugin() override;
 
