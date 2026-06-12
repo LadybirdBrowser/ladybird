@@ -15,6 +15,7 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
+#include <LibMedia/VideoFrame.h>
 #include <LibTest/TestCase.h>
 
 #include "TestMediaCommon.h"
@@ -66,4 +67,53 @@ TEST_CASE(audio_producer_underspecified_5_1_channel_map)
     }
 
     FAIL("Decoding timed out.");
+}
+
+TEST_CASE(video_producer_seeks_while_frames_are_held)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto stream = load_test_file("vp9_oob_blocks.webm"sv);
+    auto demuxer = create_demuxer(stream);
+    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Video));
+    VERIFY(!tracks.is_empty());
+
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, tracks[0]));
+    producer->start();
+
+    auto pull_next_frame = [&]() -> RefPtr<Media::VideoFrame> {
+        auto time_limit = AK::Duration::from_seconds(10);
+        auto start_time = MonotonicTime::now_coarse();
+        while (MonotonicTime::now_coarse() - start_time < time_limit) {
+            auto status = producer->status();
+            if (status == Media::PipelineStatus::MovedPosition || status == Media::PipelineStatus::HaveData) {
+                RefPtr<Media::VideoFrame> frame;
+                producer->pull(frame);
+                if (frame != nullptr)
+                    return frame;
+            }
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        }
+        return nullptr;
+    };
+
+    // Hold a displaying sink's worth of frames plus a lagging media element reference, so the
+    // seek below must decode towards its target while these frame pool slots stay occupied.
+    Vector<NonnullRefPtr<Media::VideoFrame>> held_frames;
+    for (int i = 0; i < 3; i++) {
+        auto frame = pull_next_frame();
+        if (frame == nullptr)
+            FAIL("Timed out pulling the initial frames");
+        held_frames.append(frame.release_nonnull());
+    }
+
+    // Give the producer time to fill its decode-ahead queue behind the held frames.
+    auto fill_until = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(250);
+    while (MonotonicTime::now_coarse() < fill_until)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    producer->seek(AK::Duration::from_seconds(2));
+
+    if (pull_next_frame() == nullptr)
+        FAIL("The seek did not resolve; the producer is likely starved of frame pool slots");
 }
