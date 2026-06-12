@@ -33,14 +33,11 @@ public:
     virtual Optional<Gfx::DecodedImageFrame> current_image_frame() const;
     virtual Optional<Gfx::DecodedImageFrame> current_image_frame_sized(Gfx::IntSize) const = 0;
 
-    virtual Optional<Gfx::DecodedImageFrame> default_image_frame() const;
     virtual Optional<Gfx::DecodedImageFrame> default_image_frame_sized(Gfx::IntSize) const;
 
-    virtual void set_visible_in_viewport(bool) = 0;
     virtual void layout_node_was_detached() const { }
 
 protected:
-    virtual GC::Ptr<DOM::Element const> to_html_element() const = 0;
     static void did_update_alt_text(ImageBox&);
 };
 

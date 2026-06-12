@@ -41,8 +41,6 @@ public:
     virtual Optional<CSSPixels> intrinsic_height() const override;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
     virtual Optional<Gfx::DecodedImageFrame> current_image_frame_sized(Gfx::IntSize) const override;
-    virtual void set_visible_in_viewport(bool) override { }
-    virtual GC::Ptr<DOM::Element const> to_html_element() const override { return *this; }
     virtual size_t current_frame_index() const override { return m_current_frame_index; }
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
 

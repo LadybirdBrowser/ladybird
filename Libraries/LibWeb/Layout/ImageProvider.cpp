@@ -30,11 +30,6 @@ Optional<Gfx::DecodedImageFrame> ImageProvider::current_image_frame() const
     return current_image_frame_sized(intrinsic_size().value_or({}).to_type<int>());
 }
 
-Optional<Gfx::DecodedImageFrame> ImageProvider::default_image_frame() const
-{
-    return default_image_frame_sized(intrinsic_size().value_or({}).to_type<int>());
-}
-
 Optional<Gfx::DecodedImageFrame> ImageProvider::default_image_frame_sized(Gfx::IntSize size) const
 {
     // Defer to the current image by default.

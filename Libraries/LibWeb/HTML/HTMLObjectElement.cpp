@@ -627,9 +627,4 @@ Optional<Gfx::DecodedImageFrame> HTMLObjectElement::current_image_frame_sized(Gf
     return {};
 }
 
-void HTMLObjectElement::set_visible_in_viewport(bool)
-{
-    // FIXME: Loosen grip on image data when it's not visible, e.g via volatile memory.
-}
-
 }

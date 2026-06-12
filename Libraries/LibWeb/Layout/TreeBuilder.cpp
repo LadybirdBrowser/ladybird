@@ -240,14 +240,11 @@ public:
         return m_image->current_frame(*document, rect);
     }
 
-    virtual void set_visible_in_viewport(bool) override { }
     virtual void layout_node_was_detached() const override
     {
         unregister_image_style_value_client();
         m_layout_node = nullptr;
     }
-
-    virtual GC::Ptr<DOM::Element const> to_html_element() const override { return nullptr; }
 
     static NonnullOwnPtr<GeneratedContentImageProvider> create(DOM::Document& document, NonnullRefPtr<CSS::ImageStyleValue> image)
     {
