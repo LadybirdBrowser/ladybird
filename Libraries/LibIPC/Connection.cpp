@@ -64,6 +64,7 @@ void ConnectionBase::shutdown_with_error(Error const& error)
 
 void ConnectionBase::handle_messages()
 {
+    VERIFY(m_owner_thread_id.is_current_thread());
     auto messages = move(m_unprocessed_messages);
     for (auto& message : messages) {
         if (message->endpoint_magic() != m_local_endpoint_magic)
@@ -95,6 +96,7 @@ void ConnectionBase::wait_for_transport_to_become_readable()
 
 ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
 {
+    VERIFY(m_owner_thread_id.is_current_thread());
     bool parse_error = false;
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
         auto bytes = raw_message.bytes.bytes();
@@ -129,6 +131,7 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
 
 OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id)
 {
+    VERIFY(m_owner_thread_id.is_current_thread());
     bool peer_disconnected_during_wait = false;
 
     for (;;) {
