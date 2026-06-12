@@ -12,7 +12,6 @@ set(FUZZER_TARGETS
     RegexECMA262
     RSAKeyParsing
     TextDecoder
-    TIFFLoader
     URL
     WasmParser
     WOFF
@@ -37,7 +36,6 @@ set(FUZZER_DEPENDENCIES_Poly1305 LibCrypto)
 set(FUZZER_DEPENDENCIES_RegexECMA262 LibRegex)
 set(FUZZER_DEPENDENCIES_RSAKeyParsing LibCrypto)
 set(FUZZER_DEPENDENCIES_TextDecoder LibTextCodec)
-set(FUZZER_DEPENDENCIES_TIFFLoader LibGfx LibImageDecoders)
 set(FUZZER_DEPENDENCIES_TTF LibGfx)
 set(FUZZER_DEPENDENCIES_URL LibURL)
 set(FUZZER_DEPENDENCIES_WasmParser LibWasm)
