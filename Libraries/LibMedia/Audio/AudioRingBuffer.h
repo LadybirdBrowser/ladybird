@@ -12,9 +12,9 @@
 
 namespace Audio {
 
-class AudioBuffer {
+class AudioRingBuffer {
 public:
-    explicit AudioBuffer(SampleSpecification);
+    explicit AudioRingBuffer(SampleSpecification);
 
     size_t frame_count() const { return m_frame_count; }
 

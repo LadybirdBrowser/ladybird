@@ -1,8 +1,8 @@
 include(audio)
 
 set(SOURCES
-    Audio/AudioBuffer.cpp
     Audio/AudioDevices.cpp
+    Audio/AudioRingBuffer.cpp
     Audio/NullPlaybackStream.cpp
     Audio/PlaybackStream.cpp
     Audio/WSOLAAlgorithm.cpp
