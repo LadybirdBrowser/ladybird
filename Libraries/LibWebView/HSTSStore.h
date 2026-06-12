@@ -18,6 +18,8 @@ namespace WebView {
 
 class WEBVIEW_API HSTSStore {
 public:
+    static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
+
     static ErrorOr<NonnullOwnPtr<HSTSStore>> create(Database::Database&);
     static NonnullOwnPtr<HSTSStore> create();
 
