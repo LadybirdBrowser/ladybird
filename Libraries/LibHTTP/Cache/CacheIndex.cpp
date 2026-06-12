@@ -155,7 +155,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
 #endif
 
     Statements statements {};
-    statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
+    statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex (cache_key, vary_key, url, request_headers, response_headers, data_size, associated_data_size, request_time, response_time, last_access_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
     statements.remove_entry = TRY(database.prepare_statement(R"#(
         DELETE FROM CacheIndex
         WHERE cache_key = ? AND vary_key = ?
@@ -166,7 +166,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
         WHERE last_access_time >= ?
         RETURNING cache_key, vary_key, data_size + associated_data_size + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers);
     )#"sv));
-    statements.select_entries = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
+    statements.select_entries = TRY(database.prepare_statement("SELECT vary_key, url, request_headers, response_headers, data_size, associated_data_size, request_time, response_time, last_access_time FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ? WHERE cache_key = ? AND vary_key = ?;"sv));
     statements.update_associated_data_size = TRY(database.prepare_statement("UPDATE CacheIndex SET associated_data_size = ? WHERE cache_key = ? AND vary_key = ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
@@ -387,7 +387,7 @@ Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderL
         m_database->execute_statement(
             m_statements.select_entries,
             [&](auto statement_id) {
-                int column = 1; // Skip the cache_key column.
+                int column = 0;
 
                 auto vary_key = m_database->result_column<u64>(statement_id, column++);
                 auto url = m_database->result_column<String>(statement_id, column++);
