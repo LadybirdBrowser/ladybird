@@ -33,6 +33,7 @@ class GuardedSubstitutionContexts {
 public:
     void guard(SubstitutionContext&);
     void unguard(SubstitutionContext const&);
+    bool mark_existing_as_cyclic(SubstitutionContext const&);
 
 private:
     Vector<SubstitutionContext&> m_contexts;
