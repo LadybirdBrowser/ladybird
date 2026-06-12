@@ -11,6 +11,7 @@
 #include <AK/FixedArray.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
+#include <AK/Variant.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/YUVData.h>
@@ -19,9 +20,13 @@
 
 namespace Media {
 
+class PooledVideoFrameSlot;
+
 class MEDIA_API VideoFrame final : public AtomicRefCounted<VideoFrame> {
 
 public:
+    using BackingStorage = Variant<FixedArray<u8>, NonnullRefPtr<PooledVideoFrameSlot>>;
+
     VideoFrame(
         AK::Duration timestamp,
         AK::Duration duration,
@@ -29,7 +34,7 @@ public:
         u8 bit_depth,
         Gfx::ColorSpace color_space,
         Gfx::YUVData yuv_data,
-        FixedArray<u8> plane_storage);
+        BackingStorage backing_storage);
     ~VideoFrame();
 
     AK::Duration timestamp() const { return m_timestamp; }
@@ -44,6 +49,8 @@ public:
     Gfx::ColorSpace const& color_space() const { return m_color_space; }
     Gfx::YUVData const& yuv_data() const { return m_yuv_data; }
 
+    PooledVideoFrameSlot const* pool_slot() const;
+
 private:
     AK::Duration m_timestamp;
     AK::Duration m_duration;
@@ -51,7 +58,7 @@ private:
     u8 m_bit_depth;
     Gfx::ColorSpace m_color_space;
     Gfx::YUVData m_yuv_data;
-    FixedArray<u8> m_plane_storage;
+    BackingStorage m_backing_storage;
 };
 
 }

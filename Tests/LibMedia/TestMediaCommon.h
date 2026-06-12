@@ -6,11 +6,13 @@
 
 #pragma once
 
+#include <AK/FixedArray.h>
 #include <AK/Function.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Optional.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibGfx/YUVData.h>
 #include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
@@ -60,14 +62,24 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
         for (auto const& frame : frames) {
             MUST(decoder->receive_coded_data(block.timestamp().value(), block.duration().value_or(AK::Duration::zero()), frame));
             while (true) {
-                auto frame_result = decoder->get_decoded_frame({});
-                if (frame_result.is_error()) {
-                    if (frame_result.error().category() == Media::DecoderErrorCategory::NeedsMoreInput)
+                auto metadata_result = decoder->peek_next_output({});
+                if (metadata_result.is_error()) {
+                    if (metadata_result.error().category() == Media::DecoderErrorCategory::NeedsMoreInput)
                         break;
                     VERIFY_NOT_REACHED();
                 }
-                EXPECT(last_timestamp <= frame_result.value()->timestamp());
-                last_timestamp = frame_result.value()->timestamp();
+                auto metadata = metadata_result.release_value();
+
+                auto plane_sizes = MUST(Gfx::YUVData::plane_sizes(metadata.size, metadata.bit_depth, metadata.subsampling));
+                auto storage = MUST(FixedArray<u8>::create(plane_sizes.total));
+                auto yuv_data = MUST(Gfx::YUVData::create(metadata.size, metadata.bit_depth, metadata.subsampling, metadata.cicp,
+                    storage.span().slice(0, plane_sizes.y),
+                    storage.span().slice(plane_sizes.y, plane_sizes.u),
+                    storage.span().slice(plane_sizes.y + plane_sizes.u, plane_sizes.v)));
+                MUST(decoder->take_next_output_into(yuv_data));
+
+                EXPECT(last_timestamp <= metadata.timestamp);
+                last_timestamp = metadata.timestamp;
             }
             frame_count++;
         }

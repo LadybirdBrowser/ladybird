@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/FixedArray.h>
+#include <LibGfx/YUVData.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -37,21 +39,22 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
     size_t frame_count = 0;
     auto last_timestamp = AK::Duration::min();
 
-    auto process_decoded_frames = [&] {
-        while (true) {
-            auto frame_result = decoder->get_decoded_frame(track.video_data().cicp);
-            if (frame_result.is_error()) {
-                if (frame_result.error().category() == Media::DecoderErrorCategory::NeedsMoreInput)
-                    return;
-                VERIFY_NOT_REACHED();
-            }
+    auto take_decoded_frame = [&]() -> Media::DecoderErrorOr<void> {
+        auto metadata = TRY(decoder->peek_next_output(track.video_data().cicp));
 
-            auto frame = frame_result.release_value();
-            EXPECT(last_timestamp <= frame->timestamp());
-            EXPECT(!frame->duration().is_zero());
-            last_timestamp = frame->timestamp();
-            ++frame_count;
-        }
+        auto plane_sizes = MUST(Gfx::YUVData::plane_sizes(metadata.size, metadata.bit_depth, metadata.subsampling));
+        auto storage = MUST(FixedArray<u8>::create(plane_sizes.total));
+        auto yuv_data = MUST(Gfx::YUVData::create(metadata.size, metadata.bit_depth, metadata.subsampling, metadata.cicp,
+            storage.span().slice(0, plane_sizes.y),
+            storage.span().slice(plane_sizes.y, plane_sizes.u),
+            storage.span().slice(plane_sizes.y + plane_sizes.u, plane_sizes.v)));
+        MUST(decoder->take_next_output_into(yuv_data));
+
+        EXPECT(last_timestamp <= metadata.timestamp);
+        EXPECT(!metadata.duration.is_zero());
+        last_timestamp = metadata.timestamp;
+        ++frame_count;
+        return {};
     };
 
     while (true) {
@@ -65,22 +68,22 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
         EXPECT(!sample.duration().is_zero());
 
         MUST(decoder->receive_coded_data(sample.timestamp(), sample.duration(), sample.data()));
-        process_decoded_frames();
+        while (true) {
+            auto frame_result = take_decoded_frame();
+            if (frame_result.is_error()) {
+                EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::NeedsMoreInput);
+                break;
+            }
+        }
     }
 
     decoder->signal_end_of_stream();
     while (true) {
-        auto frame_result = decoder->get_decoded_frame(track.video_data().cicp);
+        auto frame_result = take_decoded_frame();
         if (frame_result.is_error()) {
             EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
             break;
         }
-
-        auto frame = frame_result.release_value();
-        EXPECT(last_timestamp <= frame->timestamp());
-        EXPECT(!frame->duration().is_zero());
-        last_timestamp = frame->timestamp();
-        ++frame_count;
     }
 
     EXPECT_EQ(frame_count, 50u);

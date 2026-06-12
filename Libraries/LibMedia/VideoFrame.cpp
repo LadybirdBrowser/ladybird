@@ -9,6 +9,7 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
+#include <LibMedia/VideoFramePool.h>
 
 #include "VideoFrame.h"
 
@@ -21,18 +22,25 @@ VideoFrame::VideoFrame(
     u8 bit_depth,
     Gfx::ColorSpace color_space,
     Gfx::YUVData yuv_data,
-    FixedArray<u8> plane_storage)
+    BackingStorage backing_storage)
     : m_timestamp(timestamp)
     , m_duration(duration)
     , m_size(size)
     , m_bit_depth(bit_depth)
     , m_color_space(move(color_space))
     , m_yuv_data(yuv_data)
-    , m_plane_storage(move(plane_storage))
+    , m_backing_storage(move(backing_storage))
 {
 }
 
 VideoFrame::~VideoFrame() = default;
+
+PooledVideoFrameSlot const* VideoFrame::pool_slot() const
+{
+    if (!m_backing_storage.has<NonnullRefPtr<PooledVideoFrameSlot>>())
+        return nullptr;
+    return m_backing_storage.get<NonnullRefPtr<PooledVideoFrameSlot>>().ptr();
+}
 
 }
 
