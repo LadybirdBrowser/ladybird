@@ -122,6 +122,9 @@ void HTMLMetaElement::inserted()
     // When a meta element is inserted into the document, if its http-equiv attribute is present and represents one of
     // the above states, then the user agent must run the algorithm appropriate for that state, as described in the
     // following list:
+    if (!in_a_document_tree())
+        return;
+
     auto http_equiv = http_equiv_state();
     if (http_equiv.has_value()) {
         switch (http_equiv.value()) {

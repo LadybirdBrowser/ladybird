@@ -1,0 +1,13 @@
+<!doctype html>
+<script>
+const documentElement = document.documentElement;
+documentElement.remove();
+
+const head = document.createElement("head");
+const meta = document.createElement("meta");
+meta.setAttribute("http-equiv", "content-language");
+meta.setAttribute("content", "en");
+head.append(meta);
+
+document.append(documentElement);
+</script>
