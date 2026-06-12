@@ -5,11 +5,33 @@
  */
 
 #include <AK/Array.h>
+#include <AK/FixedArray.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/YUVData.h>
 #include <LibTest/TestCase.h>
 
 #include <core/SkYUVAPixmaps.h>
+
+struct AllocatedPlanes {
+    FixedArray<u8> storage;
+    Gfx::YUVData data;
+};
+
+static ErrorOr<AllocatedPlanes> allocate_yuv_data(Gfx::IntSize size, u8 bit_depth, Media::Subsampling subsampling, Media::CodingIndependentCodePoints cicp)
+{
+    auto sizes = TRY(Gfx::YUVData::plane_sizes(size, bit_depth, subsampling));
+    auto storage = TRY(FixedArray<u8>::create(sizes.total));
+
+    auto y_data = storage.span().slice(0, sizes.y);
+    auto u_data = storage.span().slice(sizes.y, sizes.u);
+    auto v_data = storage.span().slice(sizes.y + sizes.u, sizes.v);
+    auto data = TRY(Gfx::YUVData::create(size, bit_depth, subsampling, cicp, y_data, u_data, v_data));
+
+    return AllocatedPlanes {
+        .storage = move(storage),
+        .data = data,
+    };
+}
 
 static u16 expand_10_bit_sample_to_full_16_bit_range(u16 sample)
 {
@@ -50,7 +72,7 @@ TEST_CASE(high_bit_depth_pixmaps_expand_without_mutating_native_samples)
         Media::MatrixCoefficients::BT709,
         Media::VideoFullRangeFlag::Full,
     };
-    auto allocated_planes = TRY_OR_FAIL(Gfx::YUVData::allocate({ 2, 2 }, 10, Media::Subsampling { false, false }, cicp));
+    auto allocated_planes = TRY_OR_FAIL(allocate_yuv_data({ 2, 2 }, 10, Media::Subsampling { false, false }, cicp));
     auto& yuv_data = allocated_planes.data;
 
     Array<u16, 4> const y_samples { 0, 341, 682, 1023 };

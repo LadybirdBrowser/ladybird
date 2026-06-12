@@ -65,22 +65,6 @@ ErrorOr<YUVData> YUVData::create(IntSize size, u8 bit_depth, Media::Subsampling 
     return YUVData { size, bit_depth, subsampling, cicp, y_data, u_data, v_data };
 }
 
-ErrorOr<YUVData::AllocatedPlanes> YUVData::allocate(IntSize size, u8 bit_depth, Media::Subsampling subsampling, Media::CodingIndependentCodePoints cicp)
-{
-    auto sizes = TRY(plane_sizes(size, bit_depth, subsampling));
-    auto storage = TRY(FixedArray<u8>::create(sizes.total));
-
-    auto y_data = storage.span().slice(0, sizes.y);
-    auto u_data = storage.span().slice(sizes.y, sizes.u);
-    auto v_data = storage.span().slice(sizes.y + sizes.u, sizes.v);
-    YUVData data { size, bit_depth, subsampling, cicp, y_data, u_data, v_data };
-
-    return AllocatedPlanes {
-        .storage = move(storage),
-        .data = data,
-    };
-}
-
 YUVData::YUVData(IntSize size, u8 bit_depth, Media::Subsampling subsampling, Media::CodingIndependentCodePoints cicp, Bytes y_data, Bytes u_data, Bytes v_data)
     : m_size(size)
     , m_bit_depth(bit_depth)
