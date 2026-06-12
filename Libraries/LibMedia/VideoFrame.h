@@ -8,12 +8,12 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Error.h>
-#include <AK/NonnullOwnPtr.h>
+#include <AK/FixedArray.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <LibGfx/ColorSpace.h>
-#include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
+#include <LibGfx/YUVData.h>
 #include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 
@@ -28,7 +28,8 @@ public:
         Gfx::Size<u32> size,
         u8 bit_depth,
         Gfx::ColorSpace color_space,
-        NonnullOwnPtr<Gfx::YUVData> yuv_data);
+        Gfx::YUVData yuv_data,
+        FixedArray<u8> plane_storage);
     ~VideoFrame();
 
     AK::Duration timestamp() const { return m_timestamp; }
@@ -41,7 +42,7 @@ public:
     u8 bit_depth() const { return m_bit_depth; }
 
     Gfx::ColorSpace const& color_space() const { return m_color_space; }
-    Gfx::YUVData const& yuv_data() const { return *m_yuv_data; }
+    Gfx::YUVData const& yuv_data() const { return m_yuv_data; }
 
 private:
     AK::Duration m_timestamp;
@@ -49,7 +50,8 @@ private:
     Gfx::Size<u32> m_size;
     u8 m_bit_depth;
     Gfx::ColorSpace m_color_space;
-    NonnullOwnPtr<Gfx::YUVData> m_yuv_data;
+    Gfx::YUVData m_yuv_data;
+    FixedArray<u8> m_plane_storage;
 };
 
 }

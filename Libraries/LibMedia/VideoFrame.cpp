@@ -21,13 +21,15 @@ VideoFrame::VideoFrame(
     Gfx::Size<u32> size,
     u8 bit_depth,
     Gfx::ColorSpace color_space,
-    NonnullOwnPtr<Gfx::YUVData> yuv_data)
+    Gfx::YUVData yuv_data,
+    FixedArray<u8> plane_storage)
     : m_timestamp(timestamp)
     , m_duration(duration)
     , m_size(size)
     , m_bit_depth(bit_depth)
     , m_color_space(move(color_space))
-    , m_yuv_data(move(yuv_data))
+    , m_yuv_data(yuv_data)
+    , m_plane_storage(move(plane_storage))
 {
 }
 
@@ -137,8 +139,12 @@ ErrorOr<NonnullRefPtr<Media::VideoFrame const>> decode(Decoder& decoder)
     auto u_data = bytes.slice(sizes.y, sizes.u);
     auto v_data = bytes.slice(sizes.y + sizes.u, sizes.v);
 
-    auto yuv_data = TRY(Gfx::YUVData::create_from_data(size, bit_depth, subsampling, cicp, y_data, u_data, v_data));
-    auto frame = TRY(try_make_ref_counted<Media::VideoFrame>(timestamp, duration, size.to_type<u32>(), bit_depth, move(color_space), move(yuv_data)));
+    auto allocated_planes = TRY(Gfx::YUVData::allocate(size, bit_depth, subsampling, cicp));
+    y_data.copy_to(allocated_planes.data.y_data());
+    u_data.copy_to(allocated_planes.data.u_data());
+    v_data.copy_to(allocated_planes.data.v_data());
+
+    auto frame = TRY(try_make_ref_counted<Media::VideoFrame>(timestamp, duration, size.to_type<u32>(), bit_depth, move(color_space), allocated_planes.data, move(allocated_planes.storage)));
     return NonnullRefPtr<Media::VideoFrame const> { *frame };
 }
 

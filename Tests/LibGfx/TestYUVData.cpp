@@ -50,19 +50,20 @@ TEST_CASE(high_bit_depth_pixmaps_expand_without_mutating_native_samples)
         Media::MatrixCoefficients::BT709,
         Media::VideoFullRangeFlag::Full,
     };
-    auto yuv_data = TRY_OR_FAIL(Gfx::YUVData::create({ 2, 2 }, 10, Media::Subsampling { false, false }, cicp));
+    auto allocated_planes = TRY_OR_FAIL(Gfx::YUVData::allocate({ 2, 2 }, 10, Media::Subsampling { false, false }, cicp));
+    auto& yuv_data = allocated_planes.data;
 
     Array<u16, 4> const y_samples { 0, 341, 682, 1023 };
     Array<u16, 4> const u_samples { 512, 513, 514, 515 };
     Array<u16, 4> const v_samples { 508, 509, 510, 511 };
 
-    write_samples(yuv_data->y_data(), y_samples);
-    write_samples(yuv_data->u_data(), u_samples);
-    write_samples(yuv_data->v_data(), v_samples);
+    write_samples(yuv_data.y_data(), y_samples);
+    write_samples(yuv_data.u_data(), u_samples);
+    write_samples(yuv_data.v_data(), v_samples);
 
-    auto bitmap_before = TRY_OR_FAIL(yuv_data->to_bitmap());
+    auto bitmap_before = TRY_OR_FAIL(yuv_data.to_bitmap());
 
-    auto pixmaps = yuv_data->make_pixmaps();
+    auto pixmaps = yuv_data.make_pixmaps();
     EXPECT(pixmaps.isValid());
     EXPECT(pixmaps.ownsStorage());
     EXPECT(pixmaps.dataType() == SkYUVAPixmapInfo::DataType::kUnorm16);
@@ -72,14 +73,14 @@ TEST_CASE(high_bit_depth_pixmaps_expand_without_mutating_native_samples)
     expect_expanded_pixmap_samples(pixmaps.plane(1), u_samples, 2);
     expect_expanded_pixmap_samples(pixmaps.plane(2), v_samples, 2);
 
-    EXPECT_EQ(yuv_data->bit_depth(), 10);
-    expect_samples(yuv_data->y_data(), y_samples);
-    expect_samples(yuv_data->u_data(), u_samples);
-    expect_samples(yuv_data->v_data(), v_samples);
+    EXPECT_EQ(yuv_data.bit_depth(), 10);
+    expect_samples(yuv_data.y_data(), y_samples);
+    expect_samples(yuv_data.u_data(), u_samples);
+    expect_samples(yuv_data.v_data(), v_samples);
 
-    auto bitmap_after = TRY_OR_FAIL(yuv_data->to_bitmap());
-    for (int y = 0; y < yuv_data->size().height(); y++) {
-        for (int x = 0; x < yuv_data->size().width(); x++)
+    auto bitmap_after = TRY_OR_FAIL(yuv_data.to_bitmap());
+    for (int y = 0; y < yuv_data.size().height(); y++) {
+        for (int x = 0; x < yuv_data.size().width(); x++)
             EXPECT_EQ(bitmap_after->get_pixel(x, y), bitmap_before->get_pixel(x, y));
     }
 }
