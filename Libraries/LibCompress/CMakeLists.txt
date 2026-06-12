@@ -2,7 +2,6 @@ set(SOURCES
     Deflate.cpp
     GenericZlib.cpp
     Gzip.cpp
-    PackBitsDecoder.cpp
     Zlib.cpp
 )
 
