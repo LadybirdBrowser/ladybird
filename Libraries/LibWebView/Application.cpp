@@ -782,9 +782,19 @@ ErrorOr<void> Application::launch_services()
         if (auto history_database_path = m_history_database->database_path(); history_database_path.has_value())
             dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is enabled, using {}", history_database_path->string());
 
-        m_cookie_jar = TRY(CookieJar::create(*m_database));
-        m_hsts_store = TRY(HSTSStore::create(*m_database));
-        m_storage_jar = TRY(StorageJar::create(*m_database));
+        // The browsing database is shared by several stores, so the decision to fall back is
+        // made for the file as a whole: if any store's schema is too new, none of them may
+        // modify the file.
+        if (TRY(CookieJar::migrate_schema(*m_database)) == Database::MigrationOutcome::Success) {
+            m_cookie_jar = TRY(CookieJar::create(*m_database));
+            m_hsts_store = TRY(HSTSStore::create(*m_database));
+            m_storage_jar = TRY(StorageJar::create(*m_database));
+        } else {
+            warnln("Browsing database was created by a newer Ladybird version; cookies, web storage and HSTS policies will not be persisted this session");
+            m_cookie_jar = CookieJar::create();
+            m_hsts_store = HSTSStore::create();
+            m_storage_jar = StorageJar::create();
+        }
 
         if (TRY(HistoryStore::migrate_schema(*m_history_database)) == Database::MigrationOutcome::Success) {
             m_history_store = TRY(HistoryStore::create(*m_history_database));
