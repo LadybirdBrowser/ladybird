@@ -28,6 +28,7 @@ set(SOURCES
     StringConversions.cpp
     StringUtils.cpp
     StringView.cpp
+    ThreadID.cpp
     Time.cpp
     Utf16FlyString.cpp
     Utf16String.cpp
