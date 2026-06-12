@@ -33,6 +33,8 @@ class WEBVIEW_API StorageJar {
     AK_MAKE_NONMOVABLE(StorageJar);
 
 public:
+    static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
+
     static ErrorOr<NonnullOwnPtr<StorageJar>> create(Database::Database&);
     static NonnullOwnPtr<StorageJar> create();
 
@@ -92,8 +94,6 @@ private:
     };
 
     explicit StorageJar(Optional<PersistedStorage>);
-
-    static ErrorOr<void> upgrade_database(Database::Database&, u32 current_version);
 
     Optional<PersistedStorage> m_persisted_storage;
     TransientStorage m_transient_storage;
