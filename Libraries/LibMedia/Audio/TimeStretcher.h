@@ -24,7 +24,7 @@ public:
     virtual void set_rate(float) = 0;
 
     virtual void push_block(Media::AudioBlock const&) = 0;
-    virtual Media::DecoderErrorOr<Media::AudioBlock> retrieve_block() = 0;
+    virtual Media::DecoderErrorOr<void> retrieve_block(Media::AudioBlock& into) = 0;
     virtual void signal_end_of_stream() = 0;
 };
 

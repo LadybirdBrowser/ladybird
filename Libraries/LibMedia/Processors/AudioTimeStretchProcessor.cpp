@@ -214,22 +214,19 @@ PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock&
     maybe_recover_from_stale_upstream_eos_while_locked();
 
     while (true) {
-        auto result = m_stretcher->retrieve_block();
+        auto result = m_stretcher->retrieve_block(into);
         if (!result.is_error()) {
-            into = result.release_value();
             m_next_output_frame = into.end_frame_index();
             m_next_emit_media_time = into.media_time_end();
             return PipelineStatus::HaveData;
         }
+        VERIFY(into.is_empty());
         if (result.error().category() == DecoderErrorCategory::EndOfStream) {
-            into.clear();
             m_stretcher_reached_eos = true;
             return PipelineStatus::EndOfStream;
         }
-        if (result.error().category() != DecoderErrorCategory::NeedsMoreInput) {
-            into.clear();
+        if (result.error().category() != DecoderErrorCategory::NeedsMoreInput)
             return PipelineStatus::Error;
-        }
 
         auto status = pull_input(m_input_block);
         if (status == PipelineStatus::EndOfStream) {
@@ -238,10 +235,8 @@ PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock&
             m_stretcher_reached_eos = false;
             continue;
         }
-        if (m_input_block.is_empty()) {
-            into.clear();
+        if (m_input_block.is_empty())
             return status;
-        }
         VERIFY(status == PipelineStatus::HaveData);
         VERIFY(m_input_block.sample_specification() == m_sample_specification);
         m_stretcher->push_block(m_input_block);

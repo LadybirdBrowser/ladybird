@@ -21,7 +21,7 @@ public:
     virtual void flush(AK::Duration media_start_timestamp, i64 output_start_frame_index) override;
     virtual void set_rate(float) override;
     virtual void push_block(Media::AudioBlock const&) override;
-    virtual Media::DecoderErrorOr<Media::AudioBlock> retrieve_block() override;
+    virtual Media::DecoderErrorOr<void> retrieve_block(Media::AudioBlock& into) override;
     virtual void signal_end_of_stream() override;
 
 private:
