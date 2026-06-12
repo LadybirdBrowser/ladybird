@@ -20,6 +20,7 @@
 #include <LibCore/Notifier.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/AutoCloseFileDescriptor.h>
+#include <LibIPC/Forward.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
@@ -49,7 +50,7 @@ public:
 
     void wait_until_readable();
 
-    void post_message(Vector<u8> const&, Vector<Attachment>& attachments);
+    void post_message(MessageDataType, Vector<Attachment>& attachments);
 
     enum class ShouldShutdown {
         No,
@@ -68,7 +69,7 @@ private:
     static constexpr unsigned int IPC_WAKEUP_MESSAGE_ID = 0x4950C003;
 
     struct PendingMessage {
-        Vector<u8> bytes;
+        MessageDataType bytes;
         Vector<Attachment> attachments;
     };
 
