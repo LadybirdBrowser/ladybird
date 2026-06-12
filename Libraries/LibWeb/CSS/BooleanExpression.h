@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -79,6 +80,9 @@ constexpr StringView to_string(MatchResult result)
 struct BooleanExpressionEvaluationContext {
     GC::Ptr<DOM::Document const> document { nullptr };
     GC::Ptr<DOM::Element const> query_container { nullptr };
+    Optional<DOM::AbstractElement> style_query_element {};
+    Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts {};
+    bool* did_evaluate_attr_tainted_style_query { nullptr };
 };
 
 struct ContainerQueryFeatureRequirements {

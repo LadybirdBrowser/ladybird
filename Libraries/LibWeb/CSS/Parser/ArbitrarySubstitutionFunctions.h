@@ -53,6 +53,7 @@ enum class ArbitrarySubstitutionFunction : u8 {
 [[nodiscard]] Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlyString const& name);
 
 bool contains_guaranteed_invalid_value(ReadonlySpan<ComponentValue>);
+bool contains_attr_tainted_value(ReadonlySpan<ComponentValue>);
 
 [[nodiscard]] Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::AbstractElement&, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, ReadonlySpan<ComponentValue>, Optional<SubstitutionContext> = {});
 

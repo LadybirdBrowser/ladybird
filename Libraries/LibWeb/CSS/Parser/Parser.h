@@ -616,6 +616,8 @@ private:
     Optional<FeatureValue> parse_media_feature_value(MediaFeatureID, TokenStream<ComponentValue>&);
     OwnPtr<SizeFeature> parse_size_feature(TokenStream<ComponentValue>&);
     Optional<FeatureValue> parse_size_feature_value(SizeFeatureID, TokenStream<ComponentValue>&);
+    OwnPtr<BooleanExpression> parse_style_query(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed);
+    OwnPtr<BooleanExpression> parse_style_feature(TokenStream<ComponentValue>&);
 
     template<typename FeatureID, typename FeatureAcceptsKeyword, typename FeatureAcceptsType>
     Optional<FeatureValue> parse_feature_value(FeatureID, TokenStream<ComponentValue>&, FeatureAcceptsKeyword, FeatureAcceptsType);

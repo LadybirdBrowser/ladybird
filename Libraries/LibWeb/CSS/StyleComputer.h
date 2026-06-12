@@ -139,6 +139,7 @@ public:
 
     static NonnullRefPtr<StyleValue const> compute_value_of_custom_property(DOM::AbstractElement, Utf16FlyString const& custom_property, Optional<Parser::GuardedSubstitutionContexts&> = {});
     NonnullRefPtr<StyleValue const> compute_value_of_custom_property(ComputedProperties const&, DOM::AbstractElement, Utf16FlyString const& custom_property, Optional<Parser::GuardedSubstitutionContexts&> = {}) const;
+    ComputationContext fallback_computation_context_for_custom_property(DOM::AbstractElement const&) const;
 
     static NonnullRefPtr<StyleValue const> compute_value_of_property(PropertyID, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, ComputationContext const&, double device_pixels_per_css_pixel);
     static NonnullRefPtr<StyleValue const> compute_animation_name(NonnullRefPtr<StyleValue const> const& absolutized_value);
@@ -232,7 +233,6 @@ private:
     mutable Optional<ComputationContext> m_cached_generic_computation_context;
     ComputationContext make_computation_context_for_property(PropertyID, ComputedProperties const&, Optional<DOM::AbstractElement>) const;
     ComputationContext const& get_computation_context_for_property(PropertyID, ComputedProperties const&, Optional<DOM::AbstractElement>) const;
-    ComputationContext fallback_computation_context_for_custom_property(DOM::AbstractElement const&) const;
     void clear_computation_context_caches() const
     {
         const_cast<StyleComputer*>(this)->m_cached_font_computation_context = {};

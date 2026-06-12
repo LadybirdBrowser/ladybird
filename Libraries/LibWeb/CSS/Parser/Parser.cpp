@@ -504,6 +504,62 @@ OwnPtr<BooleanExpression> Parser::parse_container_query_condition(TokenStream<Co
     });
 }
 
+OwnPtr<BooleanExpression> Parser::parse_style_query(TokenStream<ComponentValue>& tokens, MatchResult result_for_general_enclosed)
+{
+    return parse_boolean_expression(tokens, result_for_general_enclosed, [this](auto& tokens) {
+        return parse_style_feature(tokens);
+    });
+}
+
+// https://drafts.csswg.org/css-conditional-5/#typedef-style-feature
+OwnPtr<BooleanExpression> Parser::parse_style_feature(TokenStream<ComponentValue>& tokens)
+{
+    // <style-feature> = <style-feature-plain> | <style-feature-boolean> | <style-range>
+    // FIXME: <style-range>
+
+    auto parse_style_feature_name = [](FlyString const& name) -> Optional<PropertyNameAndID> {
+        // The <style-feature-name> can be either a supported CSS property or a valid <custom-property-name>.
+        // NB: This is the same as what's allowed by PropertyNameAndID.
+        return PropertyNameAndID::from_name(Utf16FlyString::from_utf8(name));
+    };
+
+    // <style-feature-plain> = <style-feature-name> : <style-feature-value>
+    {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+        m_rule_context.append(RuleContext::Style);
+        auto declaration = consume_a_declaration(tokens, Nested::No, SaveOriginalText::Yes);
+        m_rule_context.take_last();
+        if (declaration.has_value()) {
+            tokens.discard_whitespace();
+            if (tokens.has_next_token() || declaration->important == Important::Yes)
+                return nullptr;
+
+            auto style_feature_name = parse_style_feature_name(declaration->name);
+            if (!style_feature_name.has_value())
+                return nullptr;
+
+            transaction.commit();
+            return StyleFeature::create_plain(style_feature_name.release_value(), move(declaration->value));
+        }
+    }
+
+    // <style-feature-boolean> = <style-feature-name>
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    auto const& token = tokens.consume_a_token();
+    tokens.discard_whitespace();
+    if (tokens.has_next_token() || !token.is(Token::Type::Ident))
+        return nullptr;
+
+    auto style_feature_name = parse_style_feature_name(token.token().ident());
+    if (!style_feature_name.has_value())
+        return nullptr;
+
+    transaction.commit();
+    return StyleFeature::create_boolean(style_feature_name.release_value());
+}
+
 OwnPtr<BooleanExpression> Parser::parse_container_query_feature(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-conditional-5/#typedef-query-in-parens

@@ -96,7 +96,7 @@ bool contains_guaranteed_invalid_value(ReadonlySpan<ComponentValue> values)
     return false;
 }
 
-static bool contains_attr_tainted_value(ReadonlySpan<ComponentValue> values)
+bool contains_attr_tainted_value(ReadonlySpan<ComponentValue> values)
 {
     for (auto const& value : values) {
         if (value.contains_attr_tainted_value())
