@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Transformed Inline</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-property">
+    <meta name="assert" content='The definition of "transformable element"
+    includes atomic inline-level elements, such as images, but not regular
+    inline-level elements, such as spans.  The &apos;transform&apos; property
+    only applies to transformable elements, so it should have no effect on a
+    span.'>
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-inline-ref.html">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-transforms/transform-inline-notref.html">
+    <link rel="stylesheet" type="text/css" href="../..../../fonts/ahem.css" />
+    <style>
+      body {
+        font: 25px/1 Ahem;
+      }
+      span, p + p {
+        transform: rotate(180deg);
+      }
+    </style>
+  </head>
+  <body>
+    <p>This is some <span>text<br>that is</span> not transformed</p>
+    <p>This is some text that is transformed</p>
+  </body>
+</html>
