@@ -227,15 +227,10 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
                 move(result.all_durations),
                 move(initial_bitmaps));
         } else {
-            // Single-shot decode: create BitmapDecodedImageData as before.
-            Vector<BitmapDecodedImageData::Frame> frames;
-            for (auto& frame : result.frames) {
-                frames.append(BitmapDecodedImageData::Frame {
-                    .frame = Gfx::DecodedImageFrame { *frame.bitmap, result.color_space },
-                    .duration = static_cast<int>(frame.duration),
-                });
-            }
-            strong_this->m_image_data = BitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
+            // Non animated decode: create a single framed BitmapDecodedImageData.
+            VERIFY(result.frames.size() == 1);
+
+            strong_this->m_image_data = BitmapDecodedImageData::create(strong_this->m_document->realm(), { *result.frames[0].bitmap, result.color_space });
         }
         strong_this->m_image_data->set_is_cors_cross_origin(image_data_is_cors_cross_origin);
         strong_this->handle_successful_resource_load();
