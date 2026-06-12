@@ -428,7 +428,6 @@ void DecodedAudioProducer::ThreadData::resolve_seek(u32 seek_id, bool moved_posi
     if (moved_position) {
         m_current_halting_status = PipelineStatus::Pending;
         m_moved_position_pending = true;
-        m_queue.clear();
     }
 }
 
@@ -445,7 +444,6 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
 
     auto handle_error = [&](DecoderError&& error) {
         auto locker = take_lock();
-        m_queue.clear();
         if (moved_position) {
             m_current_halting_status = PipelineStatus::Pending;
             m_moved_position_pending = true;
@@ -460,6 +458,7 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
             seek_id = m_seek_id;
             timestamp = m_seek_timestamp;
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
+            m_queue.clear();
         }
 
         auto seek_options = DemuxerSeekOptions::None;
