@@ -6,22 +6,22 @@
 
 #include <AK/Math.h>
 #include <AK/TypedTransfer.h>
-#include <LibMedia/Audio/AudioBuffer.h>
+#include <LibMedia/Audio/AudioRingBuffer.h>
 
 namespace Audio {
 
-AudioBuffer::AudioBuffer(SampleSpecification sample_specification)
+AudioRingBuffer::AudioRingBuffer(SampleSpecification sample_specification)
     : m_sample_specification(sample_specification)
 {
 }
 
-void AudioBuffer::clear()
+void AudioRingBuffer::clear()
 {
     m_frame_count = 0;
     m_start_offset = 0;
 }
 
-void AudioBuffer::ensure_capacity(size_t required_frame_capacity)
+void AudioRingBuffer::ensure_capacity(size_t required_frame_capacity)
 {
     if (m_frame_capacity >= required_frame_capacity)
         return;
@@ -38,7 +38,7 @@ void AudioBuffer::ensure_capacity(size_t required_frame_capacity)
     m_start_offset = 0;
 }
 
-void AudioBuffer::copy_channel_to_buffer(ReadonlySpan<float> source, size_t channel, size_t destination_offset)
+void AudioRingBuffer::copy_channel_to_buffer(ReadonlySpan<float> source, size_t channel, size_t destination_offset)
 {
     VERIFY(channel < m_sample_specification.channel_count());
     VERIFY(destination_offset <= m_frame_capacity);
@@ -54,7 +54,7 @@ void AudioBuffer::copy_channel_to_buffer(ReadonlySpan<float> source, size_t chan
         AK::TypedTransfer<float>::copy(channel_data.data(), source.slice(first_chunk_size).data(), second_chunk_size);
 }
 
-void AudioBuffer::copy_channel_from_buffer(size_t channel, size_t source_offset, Span<float> destination) const
+void AudioRingBuffer::copy_channel_from_buffer(size_t channel, size_t source_offset, Span<float> destination) const
 {
     VERIFY(channel < m_sample_specification.channel_count());
     VERIFY(source_offset <= m_frame_count);
@@ -73,7 +73,7 @@ void AudioBuffer::copy_channel_from_buffer(size_t channel, size_t source_offset,
         AK::TypedTransfer<float>::copy(destination.slice(first_chunk_size).data(), channel_data.data(), second_chunk_size);
 }
 
-void AudioBuffer::zero_channel(size_t channel, size_t destination_offset, size_t frame_count)
+void AudioRingBuffer::zero_channel(size_t channel, size_t destination_offset, size_t frame_count)
 {
     VERIFY(channel < m_sample_specification.channel_count());
     VERIFY(destination_offset <= m_frame_capacity);
@@ -92,7 +92,7 @@ void AudioBuffer::zero_channel(size_t channel, size_t destination_offset, size_t
     }
 }
 
-void AudioBuffer::append(Media::AudioBlock const& block)
+void AudioRingBuffer::append(Media::AudioBlock const& block)
 {
     VERIFY(block.sample_specification() == m_sample_specification);
     if (block.frame_count() == 0)
@@ -105,7 +105,7 @@ void AudioBuffer::append(Media::AudioBlock const& block)
     m_frame_count += block.frame_count();
 }
 
-void AudioBuffer::append_silence(size_t frame_count)
+void AudioRingBuffer::append_silence(size_t frame_count)
 {
     if (frame_count == 0)
         return;
@@ -117,7 +117,7 @@ void AudioBuffer::append_silence(size_t frame_count)
     m_frame_count += frame_count;
 }
 
-void AudioBuffer::drop_front(size_t frame_count)
+void AudioRingBuffer::drop_front(size_t frame_count)
 {
     VERIFY(frame_count <= m_frame_count);
     if (frame_count == 0)
@@ -132,7 +132,7 @@ void AudioBuffer::drop_front(size_t frame_count)
     m_start_offset = (m_start_offset + frame_count) % m_frame_capacity;
 }
 
-void AudioBuffer::copy_frames_to(size_t source_offset, size_t frame_count, size_t destination_offset, Media::AudioBlock& destination) const
+void AudioRingBuffer::copy_frames_to(size_t source_offset, size_t frame_count, size_t destination_offset, Media::AudioBlock& destination) const
 {
     VERIFY(destination.sample_specification() == m_sample_specification);
     VERIFY(source_offset <= m_frame_count);

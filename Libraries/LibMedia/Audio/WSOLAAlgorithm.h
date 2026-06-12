@@ -9,7 +9,7 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibMedia/Audio/AudioBuffer.h>
+#include <LibMedia/Audio/AudioRingBuffer.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/AudioBlock.h>
 
@@ -58,7 +58,7 @@ private:
 
     SampleSpecification const m_sample_specification;
 
-    AudioBuffer m_audio_buffer;
+    AudioRingBuffer m_audio_buffer;
 
     size_t const m_ola_window_size;
     size_t const m_ola_hop_size;
