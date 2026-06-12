@@ -17,14 +17,6 @@ namespace DevTools {
 
 static constexpr auto max_store_object_count = 50uz;
 
-static JsonObject storage_field(StringView name)
-{
-    JsonObject field;
-    field.set("name"sv, name);
-    field.set("editable"sv, true);
-    return field;
-}
-
 static JsonObject serialize_storage_item(DevToolsDelegate::StorageItem const& item)
 {
     JsonObject object;
@@ -161,8 +153,8 @@ void StorageActor::handle_message(Message const& message)
 void StorageActor::get_fields(Message const& message)
 {
     JsonArray fields;
-    fields.must_append(storage_field("name"sv));
-    fields.must_append(storage_field("value"sv));
+    fields.must_append(define_storage_field("name"sv, StorageFieldType::Mutable));
+    fields.must_append(define_storage_field("value"sv, StorageFieldType::Mutable));
 
     JsonObject response;
     response.set("value"sv, move(fields));

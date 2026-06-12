@@ -17,6 +17,14 @@ namespace DevTools {
 DEVTOOLS_API Optional<String> storage_host_for_url(String const&);
 DEVTOOLS_API Optional<String> storage_host_name(String const&);
 
+enum class StorageFieldType : u8 {
+    Immutable,
+    Mutable,
+    Hidden,
+    Private,
+};
+JsonObject define_storage_field(StringView name, StorageFieldType);
+
 JsonObject to_storage_operation_result(Optional<String> const& error_string);
 JsonObject to_storage_operation_result(ErrorOr<void> const& result);
 
