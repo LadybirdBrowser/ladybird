@@ -151,6 +151,14 @@ Optional<Gfx::DecodedImageFrame> AnimatedDecodedImageData::frame(size_t frame_in
     return m_last_displayed_frame;
 }
 
+Optional<Gfx::DecodedImageFrame> AnimatedDecodedImageData::default_frame(Gfx::IntSize size) const
+{
+    // FIXME: This should account for if the file specifies a default frame other than the first frame e.g. the
+    //        "static image" in APNG or the "primary image item" in AVIF.
+    // FIXME: This should bypass the "m_last_displayed_frame" fallback logic and always return the correct default frame
+    return frame(0, size);
+}
+
 int AnimatedDecodedImageData::frame_duration(size_t frame_index) const
 {
     if (frame_index >= m_durations.size())

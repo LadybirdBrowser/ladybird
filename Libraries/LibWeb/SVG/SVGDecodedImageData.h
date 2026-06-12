@@ -24,6 +24,7 @@ public:
     static ErrorOr<GC::Ref<SVGDecodedImageData>> create(JS::Realm&, GC::Ref<Page>, URL::URL const&, ReadonlyBytes encoded_svg);
     virtual ~SVGDecodedImageData() override;
 
+    virtual Optional<Gfx::DecodedImageFrame> default_frame(Gfx::IntSize = {}) const override;
     virtual Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize) const override;
 
     virtual Optional<CSSPixels> intrinsic_width() const override;

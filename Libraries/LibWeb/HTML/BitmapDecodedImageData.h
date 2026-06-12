@@ -20,6 +20,7 @@ public:
     static GC::Ref<BitmapDecodedImageData> create(JS::Realm&, Gfx::DecodedImageFrame&& frame);
     virtual ~BitmapDecodedImageData() override;
 
+    virtual Optional<Gfx::DecodedImageFrame> default_frame(Gfx::IntSize = {}) const override;
     virtual Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const override;
 
     virtual int frame_duration(size_t) const override { return 0; }
