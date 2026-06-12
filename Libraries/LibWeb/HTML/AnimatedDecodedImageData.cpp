@@ -9,6 +9,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/HTML/AnimatedDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
@@ -174,16 +175,14 @@ Optional<CSSPixelFraction> AnimatedDecodedImageData::intrinsic_aspect_ratio() co
     return CSSPixels(m_size.width()) / CSSPixels(m_size.height());
 }
 
-Optional<Gfx::IntRect> AnimatedDecodedImageData::frame_rect(size_t) const
-{
-    return Gfx::IntRect { {}, m_size };
-}
-
-void AnimatedDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, Gfx::ScalingMode scaling_mode) const
+void AnimatedDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, CSS::ImageRendering image_rendering) const
 {
     auto decoded_frame = frame(frame_index);
     if (!decoded_frame.has_value())
         return;
+
+    auto scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, m_size, dst_rect.size());
+
     context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, *decoded_frame, scaling_mode);
 }
 

@@ -31,8 +31,7 @@ public:
     virtual Optional<CSSPixels> intrinsic_height() const override;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
 
-    virtual Optional<Gfx::IntRect> frame_rect(size_t frame_index) const override;
-    virtual void paint(DisplayListRecordingContext&, size_t frame_index, Gfx::IntRect dst_rect, Gfx::ScalingMode scaling_mode) const override;
+    virtual void paint(DisplayListRecordingContext&, size_t frame_index, Gfx::IntRect dst_rect, CSS::ImageRendering) const override;
 
 private:
     BitmapDecodedImageData(Gfx::DecodedImageFrame&& frame);

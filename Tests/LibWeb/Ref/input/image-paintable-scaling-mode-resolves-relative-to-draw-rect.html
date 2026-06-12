@@ -1,0 +1,18 @@
+<!doctype html>
+<link rel="match" href="../expected/image-paintable-scaling-mode-resolves-relative-to-draw-rect-ref.html" />
+<style>
+    img {
+        width: 200px;
+        height: 50px;
+        object-fit: contain;
+        image-rendering: auto;
+    }
+</style>
+<!--
+    image-rendering:auto should compute the scaling mode for the 120x120px image based on the the object-fit derived
+    destination rect (i.e. 50x50px), not the element's clipping rect (i.e. 200x50px) and thus use a scaling mode of
+    Bilinear rather than BilinearMipmap (since the image is larger, not smaller, than the destination rect)
+-->
+<img
+    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAYAAAA5ZDbSAAAA7ElEQVR42u3TsQ0AMAzDMP3/dJo7UnrRboDNrhq92ZxwvE4gWAlWgpVgJVgJVoIJVoKVYCVYCVaClWCClWAlWAlWgpVgJVgJJlgJVoKVYCVYCVaCCVaClWAlWAlWgpVggp1BsBKsBCvBSrASrAQTrAQrwUqwEqwEK8EEK8FKsBKsBCvBSjDBTiBYCVaClWAlWAlWgglWgpVgJVgJVoKVYIKVYCVYCVaClWAlWAkmWAlWgpVgJVgJVoIJVoKVYCVYCVaClWCCnUGwEqwEK8FKsBKsBBOsBCvBSrASrAQrwQQrwUqwEqwEK8FK8Od9kBwblVLiB2wAAAAASUVORK5CYII="
+/>
