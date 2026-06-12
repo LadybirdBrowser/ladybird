@@ -310,46 +310,6 @@ void HTMLImageElement::adjust_computed_style(CSS::ComputedProperties& style)
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
-Optional<Gfx::DecodedImageFrame> HTMLImageElement::default_image_frame_sized(Gfx::IntSize size) const
-{
-    if (auto data = m_current_request->image_data())
-        return data->frame(0, size);
-    return {};
-}
-
-bool HTMLImageElement::is_image_available() const
-{
-    return m_current_request && m_current_request->is_available();
-}
-
-Optional<CSSPixels> HTMLImageElement::intrinsic_width() const
-{
-    if (auto image_data = m_current_request->image_data())
-        return image_data->intrinsic_width();
-    return {};
-}
-
-Optional<CSSPixels> HTMLImageElement::intrinsic_height() const
-{
-    if (auto image_data = m_current_request->image_data())
-        return image_data->intrinsic_height();
-    return {};
-}
-
-Optional<CSSPixelFraction> HTMLImageElement::intrinsic_aspect_ratio() const
-{
-    if (auto image_data = m_current_request->image_data())
-        return image_data->intrinsic_aspect_ratio();
-    return {};
-}
-
-Optional<Gfx::DecodedImageFrame> HTMLImageElement::current_image_frame_sized(Gfx::IntSize size) const
-{
-    if (auto data = m_current_request->image_data())
-        return data->frame(m_current_frame_index, size);
-    return {};
-}
-
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-width
 WebIDL::UnsignedLong HTMLImageElement::width() const
 {

@@ -2314,39 +2314,6 @@ GC::Ptr<DecodedImageData> HTMLInputElement::image_data() const
     return nullptr;
 }
 
-bool HTMLInputElement::is_image_available() const
-{
-    return image_data() != nullptr;
-}
-
-Optional<CSSPixels> HTMLInputElement::intrinsic_width() const
-{
-    if (auto image_data = this->image_data())
-        return image_data->intrinsic_width();
-    return {};
-}
-
-Optional<CSSPixels> HTMLInputElement::intrinsic_height() const
-{
-    if (auto image_data = this->image_data())
-        return image_data->intrinsic_height();
-    return {};
-}
-
-Optional<CSSPixelFraction> HTMLInputElement::intrinsic_aspect_ratio() const
-{
-    if (auto image_data = this->image_data())
-        return image_data->intrinsic_aspect_ratio();
-    return {};
-}
-
-Optional<Gfx::DecodedImageFrame> HTMLInputElement::current_image_frame_sized(Gfx::IntSize size) const
-{
-    if (auto image_data = this->image_data())
-        return image_data->frame(0, size);
-    return {};
-}
-
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 i32 HTMLInputElement::default_tab_index_value() const
 {
