@@ -81,7 +81,7 @@ private:
         template<typename Invokee>
         void invoke_on_main_thread(Invokee);
         void dispatch_block_end_time(AudioBlock const&);
-        void queue_block(AudioBlock&&);
+        void queue_block(AudioBlock const&);
         void dispatch_error(DecoderError&&);
         void flush_decoder();
         DecoderErrorOr<void> retrieve_next_block(AudioBlock&);

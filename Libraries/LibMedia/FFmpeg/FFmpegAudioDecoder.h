@@ -21,7 +21,7 @@ public:
 
     virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) override;
     virtual void signal_end_of_stream() override;
-    // Writes all buffered audio samples to the provided block.
+    // Writes buffered audio samples to the provided block, up to its capacity.
     virtual DecoderErrorOr<void> write_next_block(AudioBlock&) override;
 
     virtual void flush() override;
@@ -30,6 +30,7 @@ private:
     AVCodecContext* m_codec_context;
     AVPacket* m_packet;
     AVFrame* m_frame;
+    size_t m_frame_read_offset { 0 };
 };
 
 }

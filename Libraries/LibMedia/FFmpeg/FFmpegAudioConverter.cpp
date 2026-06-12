@@ -95,24 +95,47 @@ ErrorOr<int> FFmpegAudioConverter::get_maximum_output_frames(size_t input_size) 
     return static_cast<int>(rescaled);
 }
 
+ErrorOr<void> FFmpegAudioConverter::ensure_buffer_capacity(size_t frame_count, size_t channel_count)
+{
+    Checked<size_t> sample_count = frame_count;
+    sample_count *= channel_count;
+    if (sample_count.has_overflow())
+        return Error::from_string_literal("Audio conversion buffer is too large");
+    if (m_buffered_samples.size() < sample_count.value())
+        TRY(m_buffered_samples.try_resize(sample_count.value()));
+    m_buffered_frame_capacity = frame_count;
+    return {};
+}
+
+Span<float> FFmpegAudioConverter::buffered_plane(size_t channel)
+{
+    return m_buffered_samples.span().slice(channel * m_buffered_frame_capacity, m_buffered_frame_capacity);
+}
+
 ErrorOr<void> FFmpegAudioConverter::push_block(AudioBlock const& input)
 {
-    VERIFY(m_buffered_block.is_empty());
+    VERIFY(m_buffered_frame_offset == m_buffered_frame_count);
     VERIFY(!m_end_of_stream);
     TRY(set_input_sample_specification(input.sample_specification()));
 
     if (m_context == nullptr) {
-        m_buffered_block.initialize(input.sample_specification(), input.media_time_start(), input.frame_count());
+        TRY(ensure_buffer_capacity(input.frame_count(), input.channel_count()));
         for (size_t channel = 0; channel < input.channel_count(); channel++)
-            AK::TypedTransfer<float>::copy(m_buffered_block.channel_data(channel).data(), input.channel_data(channel).data(), input.frame_count());
+            AK::TypedTransfer<float>::copy(buffered_plane(channel).data(), input.channel_data(channel).data(), input.frame_count());
+        m_buffered_sample_specification = input.sample_specification();
+        m_buffered_media_time_start = input.media_time_start();
+        m_buffered_frame_count = input.frame_count();
+        m_buffered_frame_offset = 0;
+        m_converted_media_time_end = input.media_time_end();
         return {};
     }
 
     VERIFY(m_input_sample_specification.is_valid());
     VERIFY(m_output_sample_specification.is_valid());
 
+    auto output_channel_count = m_output_sample_specification.channel_count();
     auto maximum_output_frames = TRY(get_maximum_output_frames(input.sample_count()));
-    m_buffered_block.initialize(m_output_sample_specification, input.media_time_start(), static_cast<size_t>(maximum_output_frames));
+    TRY(ensure_buffer_capacity(static_cast<size_t>(maximum_output_frames), output_channel_count));
 
     // The input buffer size should already be safe to cast to int here.
     auto input_frame_count = static_cast<int>(input.frame_count());
@@ -123,29 +146,37 @@ ErrorOr<void> FFmpegAudioConverter::push_block(AudioBlock const& input)
         input_buffers[channel] = input.channel_data(channel).reinterpret<u8 const>().data();
 
     Array<u8*, Audio::ChannelMap::capacity()> output_buffers;
-    for (size_t channel = 0; channel < m_buffered_block.channel_count(); channel++)
-        output_buffers[channel] = m_buffered_block.channel_data(channel).reinterpret<u8>().data();
+    for (size_t channel = 0; channel < output_channel_count; channel++)
+        output_buffers[channel] = buffered_plane(channel).reinterpret<u8>().data();
 
     auto converted_frames_result = swr_convert(m_context, output_buffers.data(), maximum_output_frames, input_buffers.data(), input_frame_count);
-    if (converted_frames_result < 0) {
-        m_buffered_block.clear();
+    if (converted_frames_result < 0)
         return Error::from_string_view(av_error_code_to_string(converted_frames_result));
-    }
     VERIFY(converted_frames_result <= maximum_output_frames);
-    m_buffered_block.trim(static_cast<size_t>(converted_frames_result));
-    m_converted_media_time_end = m_buffered_block.media_time_end();
+
+    m_buffered_sample_specification = m_output_sample_specification;
+    m_buffered_media_time_start = input.media_time_start();
+    m_buffered_frame_count = static_cast<size_t>(converted_frames_result);
+    m_buffered_frame_offset = 0;
+    m_converted_media_time_end = m_buffered_media_time_start + AK::Duration::from_time_units(AK::clamp_to<i64>(m_buffered_frame_count), 1, m_buffered_sample_specification.sample_rate());
     return {};
 }
 
 DecoderErrorOr<void> FFmpegAudioConverter::retrieve_block(AudioBlock& into)
 {
-    if (m_buffered_block.is_empty()) {
+    auto remaining_frames = m_buffered_frame_count - m_buffered_frame_offset;
+    if (remaining_frames == 0) {
         if (m_end_of_stream)
             return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of stream"sv);
         return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "Need more input"sv);
     }
-    swap(into, m_buffered_block);
-    m_buffered_block.clear();
+
+    auto chunk_frames = min(remaining_frames, AudioBlock::max_frame_count(m_buffered_sample_specification.channel_count()));
+    auto chunk_media_time_start = m_buffered_media_time_start + AK::Duration::from_time_units(AK::clamp_to<i64>(m_buffered_frame_offset), 1, m_buffered_sample_specification.sample_rate());
+    into.initialize(m_buffered_sample_specification, chunk_media_time_start, chunk_frames);
+    for (size_t channel = 0; channel < m_buffered_sample_specification.channel_count(); channel++)
+        AK::TypedTransfer<float>::copy(into.channel_data(channel).data(), buffered_plane(channel).data() + m_buffered_frame_offset, chunk_frames);
+    m_buffered_frame_offset += chunk_frames;
     return {};
 }
 
@@ -156,35 +187,41 @@ void FFmpegAudioConverter::signal_end_of_stream()
     m_end_of_stream = true;
     if (m_context == nullptr)
         return;
-    VERIFY(m_buffered_block.is_empty());
+    VERIFY(m_buffered_frame_offset == m_buffered_frame_count);
 
     // swr_get_out_samples() returns an upper bound on the output of the next swr_convert() call, which FFmpeg itself
     // asserts against, so a single flush with this capacity fully drains the resampler.
     auto flush_capacity = swr_get_out_samples(m_context, 0);
     if (flush_capacity <= 0)
         return;
-
-    m_buffered_block.initialize(m_output_sample_specification, m_converted_media_time_end, static_cast<size_t>(flush_capacity));
+    if (ensure_buffer_capacity(static_cast<size_t>(flush_capacity), m_output_sample_specification.channel_count()).is_error()) {
+        dbgln("FFmpegAudioConverter: Failed to allocate the flush buffer at the end of the stream");
+        return;
+    }
 
     Array<u8*, Audio::ChannelMap::capacity()> output_buffers;
-    for (size_t channel = 0; channel < m_buffered_block.channel_count(); channel++)
-        output_buffers[channel] = m_buffered_block.channel_data(channel).reinterpret<u8>().data();
+    for (size_t channel = 0; channel < m_output_sample_specification.channel_count(); channel++)
+        output_buffers[channel] = buffered_plane(channel).reinterpret<u8>().data();
 
     auto flushed_frames_result = swr_convert(m_context, output_buffers.data(), flush_capacity, nullptr, 0);
     if (flushed_frames_result <= 0) {
         if (flushed_frames_result < 0)
             dbgln("FFmpegAudioConverter: Failed to flush the resampler at the end of the stream: {}", av_error_code_to_string(flushed_frames_result));
-        m_buffered_block.clear();
         return;
     }
     VERIFY(flushed_frames_result <= flush_capacity);
-    m_buffered_block.trim(static_cast<size_t>(flushed_frames_result));
-    m_converted_media_time_end = m_buffered_block.media_time_end();
+
+    m_buffered_sample_specification = m_output_sample_specification;
+    m_buffered_media_time_start = m_converted_media_time_end;
+    m_buffered_frame_count = static_cast<size_t>(flushed_frames_result);
+    m_buffered_frame_offset = 0;
+    m_converted_media_time_end = m_buffered_media_time_start + AK::Duration::from_time_units(AK::clamp_to<i64>(m_buffered_frame_count), 1, m_buffered_sample_specification.sample_rate());
 }
 
 void FFmpegAudioConverter::flush()
 {
-    m_buffered_block.clear();
+    m_buffered_frame_count = 0;
+    m_buffered_frame_offset = 0;
     m_end_of_stream = false;
     if (m_context != nullptr) {
         auto result = swr_init(m_context);
