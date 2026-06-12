@@ -6,13 +6,15 @@
 
 #pragma once
 
+#include <LibMedia/MediaTime.h>
+
 #include "MediaTimeProvider.h"
 
 namespace Media {
 
 class GenericTimeProvider final : public MediaTimeProvider {
 public:
-    GenericTimeProvider();
+    static ErrorOr<NonnullRefPtr<GenericTimeProvider>> try_create();
     virtual ~GenericTimeProvider() override;
 
     virtual AK::Duration current_time() const override;
@@ -22,8 +24,11 @@ public:
     virtual void set_playback_rate(float) override;
 
 private:
-    Optional<MonotonicTime> m_monotonic_time_on_resume;
-    AK::Duration m_media_time;
+    GenericTimeProvider(MediaTimeWriter, MediaTimeReader);
+
+    MediaTimeWriter m_time_writer;
+    MediaTimeReader m_time_reader;
+    bool m_playing { false };
     float m_playback_rate { 1.0f };
 };
 

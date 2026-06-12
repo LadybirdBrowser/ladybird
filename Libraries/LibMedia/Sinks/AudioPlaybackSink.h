@@ -13,6 +13,7 @@
 #include <LibMedia/Audio/Forward.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaTime.h>
 #include <LibMedia/MediaTimeProvider.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/AudioProducer.h>
@@ -27,7 +28,7 @@ private:
 
 public:
     static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create(PipelineStateChangeHandler on_state_changed);
-    AudioPlaybackSink(NonnullRefPtr<OutputThreadData>);
+    AudioPlaybackSink(NonnullRefPtr<OutputThreadData>, MediaTimeReader);
     virtual ~AudioPlaybackSink() override;
 
     virtual ErrorOr<void> connect_input(NonnullRefPtr<AudioProducer> const&) override;
@@ -52,6 +53,7 @@ private:
     };
 
     void create_playback_stream();
+    void publish_clock_anchor(MonotonicTime now) const;
     bool effectively_paused() const;
     void update_playback_stream_state();
     void resume_playback_stream();
@@ -66,10 +68,10 @@ private:
 
     AK::Duration m_anchor_stream_time;
     i64 m_anchor_output_frame_index { 0 };
-    Optional<AK::Duration> m_temporary_time;
-    mutable AK::Duration m_minimum_media_time;
+    Optional<AK::Duration> m_seek_target_awaiting_drain;
 
     NonnullRefPtr<OutputThreadData> m_output_thread_data;
+    MediaTimeReader m_time_reader;
 };
 
 }

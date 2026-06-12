@@ -159,7 +159,7 @@ NonnullOwnPtr<PlaybackManager> PlaybackManager::create()
 
 PlaybackManager::PlaybackManager()
     : m_weak_link(make_ref_counted<WeakPlaybackManagerLink>(*this))
-    , m_time_provider(make_ref_counted<GenericTimeProvider>())
+    , m_time_provider(MUST(GenericTimeProvider::try_create()))
 {
 }
 
@@ -333,7 +333,7 @@ void PlaybackManager::disable_audio()
     m_audio_mixer = nullptr;
     m_audio_time_stretch_processor = nullptr;
     m_audio_sink = nullptr;
-    set_time_provider(make_ref_counted<GenericTimeProvider>());
+    set_time_provider(MUST(GenericTimeProvider::try_create()));
     on_audio_sink_state_changed(PipelineStatus::EndOfStream);
 }
 
