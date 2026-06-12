@@ -126,7 +126,7 @@ add_subdirectory(AK)
 add_subdirectory(Libraries)
 
 if (ENABLE_FUZZERS)
-    add_subdirectory(Meta/Lagom/Fuzzers)
+    add_subdirectory(Meta/Fuzzers)
 endif()
 
 # No utilities or tests in these configs

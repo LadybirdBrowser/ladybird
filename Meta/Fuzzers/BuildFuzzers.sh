@@ -2,13 +2,14 @@
 
 set -e
 
-LADYBIRD_SOURCE_DIR="$(dirname "${0}")"/../..
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+LADYBIRD_SOURCE_DIR="${DIR}/../.."
 cd "${LADYBIRD_SOURCE_DIR}"
 
 . "Meta/Utils/find_compiler.sh"
 pick_host_compiler --clang-only
 
-echo "Building Lagom Fuzzers..."
+echo "Building Fuzzers..."
 
 if [ "$#" -gt "0" ] && [ "--oss-fuzz" = "$1" ] ; then
     echo "Building for oss-fuzz configuration..."

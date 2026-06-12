@@ -24,7 +24,7 @@ WORKDIR /home
 RUN dnf install -y clang cmake git-core ninja-build
 RUN git clone --depth=1 https://github.com/LadybirdBrowser/ladybird
 
-RUN cd ladybird/Meta/Lagom && ./BuildFuzzers.sh
+RUN cd ladybird/Meta/Fuzzers && ./BuildFuzzers.sh
 
 FROM fedora:39 AS fuzzilli-build
 
@@ -42,8 +42,8 @@ WORKDIR /home
 # This is unfortunate, but we need libswiftCore.so (and possibly other files) from the
 # Swift runtime. The "swift-lang-runtime" package doesn't seem to exist in Fedora :/
 RUN dnf install -y swift-lang procps-ng
-COPY --from=serenity-build /home/serenity/Meta/Lagom/Build/lagom-fuzzers/bin ./bin
-COPY --from=serenity-build /home/serenity/Meta/Lagom/Build/lagom-fuzzers/lib64 ./lib64
+COPY --from=serenity-build /home/serenity/Meta/Fuzzers/Build/lagom-fuzzers/bin ./bin
+COPY --from=serenity-build /home/serenity/Meta/Fuzzers/Build/lagom-fuzzers/lib64 ./lib64
 COPY --from=fuzzilli-build /home/fuzzilli/.build/x86_64-unknown-linux-gnu/release/FuzzilliCli .
 RUN mkdir fuzzilli-storage
 ENV FUZZILLI_CLI_OPTIONS ""
