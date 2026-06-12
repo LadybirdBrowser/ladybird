@@ -14,6 +14,7 @@ set(TEST_SOURCES
     TestParseMatroska.cpp
     TestMediaTime.cpp
     TestPlaybackStream.cpp
+    TestVideoFramePool.cpp
     TestVorbisDecode.cpp
     TestTimeRanges.cpp
     TestVP9Decode.cpp
@@ -27,6 +28,7 @@ endforeach()
 target_link_libraries(TestAudioBlockTimingRing PRIVATE LibThreading)
 target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)
 target_link_libraries(TestMediaTime PRIVATE LibThreading)
+target_link_libraries(TestVideoFramePool PRIVATE LibThreading)
 target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")

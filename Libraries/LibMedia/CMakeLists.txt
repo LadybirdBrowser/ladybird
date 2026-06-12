@@ -39,6 +39,7 @@ set(SOURCES
     Sinks/DisplayingVideoSink.cpp
     TimeRanges.cpp
     VideoFrame.cpp
+    VideoFramePool.cpp
 )
 
 ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
