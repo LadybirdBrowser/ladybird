@@ -33,7 +33,6 @@ public:
         AK::Duration duration,
         Gfx::Size<u32> size,
         u8 bit_depth,
-        Gfx::ColorSpace color_space,
         Gfx::YUVData yuv_data,
         BackingStorage backing_storage);
     ~VideoFrame();
@@ -47,7 +46,6 @@ public:
 
     u8 bit_depth() const { return m_bit_depth; }
 
-    Gfx::ColorSpace const& color_space() const { return m_color_space; }
     Gfx::YUVData const& yuv_data() const { return m_yuv_data; }
 
     PooledVideoFrameSlot const* pool_slot() const;
@@ -61,7 +59,6 @@ private:
     AK::Duration m_duration;
     Gfx::Size<u32> m_size;
     u8 m_bit_depth;
-    Gfx::ColorSpace m_color_space;
     Gfx::YUVData m_yuv_data;
     BackingStorage m_backing_storage;
 };

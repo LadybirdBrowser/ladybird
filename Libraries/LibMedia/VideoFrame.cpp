@@ -20,14 +20,12 @@ VideoFrame::VideoFrame(
     AK::Duration duration,
     Gfx::Size<u32> size,
     u8 bit_depth,
-    Gfx::ColorSpace color_space,
     Gfx::YUVData yuv_data,
     BackingStorage backing_storage)
     : m_timestamp(timestamp)
     , m_duration(duration)
     , m_size(size)
     , m_bit_depth(bit_depth)
-    , m_color_space(move(color_space))
     , m_yuv_data(yuv_data)
     , m_backing_storage(move(backing_storage))
 {
@@ -95,7 +93,6 @@ ErrorOr<void> encode(Encoder& encoder, Media::VideoFrame const& frame)
     auto const& yuv_data = frame.yuv_data();
     auto yuv_data_buffer = TRY(encode_yuv_data(yuv_data));
     TRY(encoder.encode(yuv_data_buffer));
-    TRY(encoder.encode(frame.color_space()));
     TRY(encoder.encode(frame.timestamp()));
     TRY(encoder.encode(frame.duration()));
     TRY(encoder.encode(yuv_data.size()));
@@ -122,7 +119,6 @@ ErrorOr<NonnullRefPtr<Media::VideoFrame const>> decode(Decoder& decoder)
     if (!yuv_data_buffer.is_valid())
         return Error::from_string_literal("IPC: VideoFrame contained invalid YUV data");
 
-    auto color_space = TRY(decoder.decode<Gfx::ColorSpace>());
     auto timestamp = TRY(decoder.decode<AK::Duration>());
     auto duration = TRY(decoder.decode<AK::Duration>());
     auto size = TRY(decoder.decode<Gfx::IntSize>());
@@ -158,7 +154,7 @@ ErrorOr<NonnullRefPtr<Media::VideoFrame const>> decode(Decoder& decoder)
     u_data.copy_to(allocated_planes.data.u_data());
     v_data.copy_to(allocated_planes.data.v_data());
 
-    auto frame = TRY(try_make_ref_counted<Media::VideoFrame>(timestamp, duration, size.to_type<u32>(), bit_depth, move(color_space), allocated_planes.data, move(allocated_planes.storage)));
+    auto frame = TRY(try_make_ref_counted<Media::VideoFrame>(timestamp, duration, size.to_type<u32>(), bit_depth, allocated_planes.data, move(allocated_planes.storage)));
     return NonnullRefPtr<Media::VideoFrame const> { *frame };
 }
 

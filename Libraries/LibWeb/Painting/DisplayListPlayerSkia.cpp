@@ -284,6 +284,10 @@ void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
     if (!frame)
         return;
 
+    auto color_space = Gfx::ColorSpace {};
+    if (auto color_space_result = Gfx::ColorSpace::from_cicp(frame->yuv_data().cicp()); !color_space_result.is_error())
+        color_space = color_space_result.release_value();
+
     sk_sp<SkImage> image;
     auto* gr_context = m_skia_backend_context ? m_skia_backend_context->sk_context() : nullptr;
     if (gr_context) {
@@ -292,7 +296,7 @@ void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
             frame->yuv_data().make_pixmaps(),
             skgpu::Mipmapped::kNo,
             false,
-            frame->color_space().color_space<sk_sp<SkColorSpace>>());
+            color_space.color_space<sk_sp<SkColorSpace>>());
     }
 
     RefPtr<Gfx::Bitmap> converted_bitmap;
@@ -303,7 +307,7 @@ void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
             return;
         }
         converted_bitmap = bitmap_or_error.release_value();
-        auto raster_image = Gfx::sk_image_from_bitmap(*converted_bitmap, frame->color_space());
+        auto raster_image = Gfx::sk_image_from_bitmap(*converted_bitmap, color_space);
         if (gr_context) {
             image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
             if (!image)

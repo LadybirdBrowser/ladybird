@@ -7,7 +7,6 @@
 #include <AK/Atomic.h>
 #include <AK/Checked.h>
 #include <AK/Debug.h>
-#include <LibGfx/ColorSpace.h>
 #include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
 
@@ -235,9 +234,8 @@ static ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot_buffer(Core::A
     auto v_data = bytes.slice(layout.v_offset, layout.v_size);
     auto yuv_data = TRY(Gfx::YUVData::create(handle.size, handle.bit_depth, handle.subsampling, handle.cicp, y_data, u_data, v_data));
 
-    auto color_space = TRY(Gfx::ColorSpace::from_cicp(handle.cicp));
     auto resolved_slot = TRY(try_make_ref_counted<ResolvedVideoFrameSlot>(slot_buffer, handle.pool_id, handle.slot_index, handle.slot_acquisition_id, move(on_release)));
-    return try_make_ref_counted<VideoFrame>(handle.timestamp, handle.duration, handle.size.to_type<u32>(), handle.bit_depth, move(color_space), yuv_data, move(resolved_slot));
+    return try_make_ref_counted<VideoFrame>(handle.timestamp, handle.duration, handle.size.to_type<u32>(), handle.bit_depth, yuv_data, move(resolved_slot));
 }
 
 NonnullRefPtr<VideoFrameSlotDirectory> VideoFrameSlotDirectory::create()
