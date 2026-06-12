@@ -97,10 +97,11 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
 {
     bool parse_error = false;
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
-        if (auto message = try_parse_message(raw_message.bytes, raw_message.attachments)) {
+        auto bytes = raw_message.bytes.bytes();
+        if (auto message = try_parse_message(bytes, raw_message.attachments)) {
             m_unprocessed_messages.append(message.release_nonnull());
         } else {
-            dbgln("Failed to parse IPC message {:hex-dump}", raw_message.bytes);
+            dbgln("Failed to parse IPC message {:hex-dump}", bytes);
             parse_error = true;
         }
     });

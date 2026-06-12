@@ -351,7 +351,7 @@ void MessagePort::drain_transport()
         return;
 
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([this](auto&& raw_message) {
-        FixedMemoryStream stream { raw_message.bytes.span(), FixedMemoryStream::Mode::ReadOnly };
+        FixedMemoryStream stream { raw_message.bytes.bytes() };
         IPC::Decoder decoder { stream, raw_message.attachments };
 
         m_pending_incoming_messages.append(MUST(decoder.decode<SerializedTransferRecord>()));

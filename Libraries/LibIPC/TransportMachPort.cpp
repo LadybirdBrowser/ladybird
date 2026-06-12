@@ -297,27 +297,22 @@ void TransportMachPort::process_received_message(u8* buffer)
     auto* descriptors = reinterpret_cast<mach_msg_port_descriptor_t*>(body + 1);
     auto const* payload = reinterpret_cast<mach_msg_ool_descriptor_t const*>(&descriptors[attachment_count]);
 
+    VERIFY(payload->type == MACH_MSG_OOL_DESCRIPTOR);
+    auto payload_bytes = ReceivedMessageBytes::adopt_vm_region(payload->address, payload->size);
+
     auto message = make<Message>();
     for (unsigned int i = 0; i < attachment_count; ++i) {
         auto attachment = attachment_from_descriptor(descriptors[i]);
         if (attachment.is_error()) {
             dbgln("TransportMachPort: dropping message with invalid port descriptor {} of {}: {} (name={:x}, disposition={}, type={})",
                 i + 1, attachment_count, attachment.error(), descriptors[i].name, descriptors[i].disposition, descriptors[i].type);
-            if (payload->type == MACH_MSG_OOL_DESCRIPTOR && payload->size > 0)
-                vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(payload->address), payload->size);
             mark_peer_eof();
             return;
         }
         message->attachments.enqueue(attachment.release_value());
     }
 
-    VERIFY(payload->type == MACH_MSG_OOL_DESCRIPTOR);
-    if (payload->size > 0) {
-        message->bytes.append(static_cast<u8 const*>(payload->address), payload->size);
-        // The out-of-line payload arrives as a temporary mapping in this task. After copying it into our queue,
-        // unmap that region so each receive does not leak virtual memory.
-        vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(payload->address), payload->size);
-    }
+    message->bytes = move(payload_bytes);
 
     if (message->bytes.is_empty() && message->attachments.is_empty())
         return;

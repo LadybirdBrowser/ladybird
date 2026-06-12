@@ -448,11 +448,13 @@ void TransportSocket::read_incoming_messages()
             }
             for (size_t i = 0; i < header.fd_count; ++i)
                 message->attachments.enqueue(m_unprocessed_attachments.dequeue());
-            if (message->bytes.try_append(m_unprocessed_bytes.data() + index + sizeof(SocketMessageHeader), header.payload_size).is_error()) {
+            Vector<u8> payload_bytes;
+            if (payload_bytes.try_append(m_unprocessed_bytes.data() + index + sizeof(SocketMessageHeader), header.payload_size).is_error()) {
                 dbgln("TransportSocket: Failed to allocate message buffer for payload_size {}", header.payload_size);
                 m_peer_eof = true;
                 break;
             }
+            message->bytes = ReceivedMessageBytes::from_vector(move(payload_bytes));
             batch.append(move(message));
         } else if (header.type == SocketMessageHeader::Type::FileDescriptorAcknowledgement) {
             if (header.payload_size != 0) {

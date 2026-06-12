@@ -5,6 +5,7 @@ set(SOURCES
     Encoder.cpp
     File.cpp
     Message.cpp
+    ReceivedMessageBytes.cpp
     TransportHandle.cpp
 )
 
