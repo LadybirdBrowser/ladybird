@@ -25,9 +25,9 @@ ErrorOr<NonnullOwnPtr<HSTSStore>> HSTSStore::create(Database::Database& database
                                                        ");"sv));
     database.execute_statement(create_table, {});
 
-    statements.insert_policy = TRY(database.prepare_statement("INSERT OR REPLACE INTO HSTSPolicies VALUES (?, ?, ?, ?);"sv));
+    statements.insert_policy = TRY(database.prepare_statement("INSERT OR REPLACE INTO HSTSPolicies (domain, expiry_time, include_sub_domains, last_observed_time) VALUES (?, ?, ?, ?);"sv));
     statements.delete_expired = TRY(database.prepare_statement("DELETE FROM HSTSPolicies WHERE (expiry_time < ?);"sv));
-    statements.select_all_policies = TRY(database.prepare_statement("SELECT * FROM HSTSPolicies;"sv));
+    statements.select_all_policies = TRY(database.prepare_statement("SELECT domain, expiry_time, include_sub_domains, last_observed_time FROM HSTSPolicies;"sv));
 
     return adopt_own(*new HSTSStore { PersistedStorage { database, statements } });
 }
