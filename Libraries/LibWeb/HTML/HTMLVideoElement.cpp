@@ -357,7 +357,10 @@ Optional<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame()
         return {};
     }
     auto bitmap = bitmap_or_error.release_value();
-    return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, current_frame->color_space() };
+    auto color_space = Gfx::ColorSpace {};
+    if (auto color_space_result = Gfx::ColorSpace::from_cicp(current_frame->yuv_data().cicp()); !color_space_result.is_error())
+        color_space = color_space_result.release_value();
+    return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { *bitmap }, move(color_space) };
 }
 
 }
