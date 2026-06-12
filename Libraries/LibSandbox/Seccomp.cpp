@@ -84,6 +84,8 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_epoll_pwait(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_epoll_wait(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_eventfd2(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_faccessat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_faccessat2(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_execve(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_execveat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_exit(if_defined, if_not_defined) if_defined
@@ -93,6 +95,7 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_fdatasync(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_flock(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fstat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_fstatfs(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fsync(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_ftruncate(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_futex(if_defined, if_not_defined) if_defined
@@ -238,6 +241,14 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #    undef IF_DEFINED_eventfd2
 #    define IF_DEFINED_eventfd2(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_faccessat
+#    undef IF_DEFINED_faccessat
+#    define IF_DEFINED_faccessat(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_faccessat2
+#    undef IF_DEFINED_faccessat2
+#    define IF_DEFINED_faccessat2(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_execve
 #    undef IF_DEFINED_execve
 #    define IF_DEFINED_execve(if_defined, if_not_defined) if_not_defined
@@ -261,6 +272,10 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #ifndef __NR_fstat
 #    undef IF_DEFINED_fstat
 #    define IF_DEFINED_fstat(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_fstatfs
+#    undef IF_DEFINED_fstatfs
+#    define IF_DEFINED_fstatfs(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_fsync
 #    undef IF_DEFINED_fsync
@@ -521,6 +536,12 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_execveat
         CASE_SYSCALL_NAME(execveat);
 #endif
+#ifdef __NR_faccessat
+        CASE_SYSCALL_NAME(faccessat);
+#endif
+#ifdef __NR_faccessat2
+        CASE_SYSCALL_NAME(faccessat2);
+#endif
 #ifdef __NR_fcntl
         CASE_SYSCALL_NAME(fcntl);
 #endif
@@ -529,6 +550,9 @@ static char const* syscall_name(long syscall_number)
 #endif
 #ifdef __NR_fstat
         CASE_SYSCALL_NAME(fstat);
+#endif
+#ifdef __NR_fstatfs
+        CASE_SYSCALL_NAME(fstatfs);
 #endif
 #ifdef __NR_futex
         CASE_SYSCALL_NAME(futex);
@@ -756,6 +780,9 @@ void SeccompPolicy::allow_readonly_file_opens()
 void SeccompPolicy::allow_filesystem_metadata_queries()
 {
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, access);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, faccessat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, faccessat2);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fstatfs);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getdents64);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, newfstatat);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, readlink);
