@@ -33,14 +33,7 @@ public:
 
     Gfx::FloatRect bounding_box() const;
 
-    virtual Optional<Gfx::DecodedImageFrame> default_image_frame_sized(Gfx::IntSize) const override;
-
     // ^Layout::ImageProvider
-    virtual bool is_image_available() const override;
-    virtual Optional<CSSPixels> intrinsic_width() const override;
-    virtual Optional<CSSPixels> intrinsic_height() const override;
-    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
-    virtual Optional<Gfx::DecodedImageFrame> current_image_frame_sized(Gfx::IntSize) const override;
     virtual size_t current_frame_index() const override { return m_current_frame_index; }
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
 

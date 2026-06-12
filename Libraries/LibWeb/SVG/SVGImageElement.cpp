@@ -218,56 +218,6 @@ RefPtr<Layout::Node> SVGImageElement::create_layout_node(CSS::ComputedProperties
     return make_ref_counted<Layout::SVGImageBox>(document(), *this, style);
 }
 
-bool SVGImageElement::is_image_available() const
-{
-    return m_resource_request && m_resource_request->image_data();
-}
-
-Optional<CSSPixels> SVGImageElement::intrinsic_width() const
-{
-    if (!m_resource_request)
-        return {};
-    if (auto image_data = m_resource_request->image_data())
-        return image_data->intrinsic_width();
-    return {};
-}
-
-Optional<CSSPixels> SVGImageElement::intrinsic_height() const
-{
-    if (!m_resource_request)
-        return {};
-    if (auto image_data = m_resource_request->image_data())
-        return image_data->intrinsic_height();
-    return {};
-}
-
-Optional<CSSPixelFraction> SVGImageElement::intrinsic_aspect_ratio() const
-{
-    if (!m_resource_request)
-        return {};
-    if (auto image_data = m_resource_request->image_data())
-        return image_data->intrinsic_aspect_ratio();
-    return {};
-}
-
-Optional<Gfx::DecodedImageFrame> SVGImageElement::default_image_frame_sized(Gfx::IntSize size) const
-{
-    if (!m_resource_request)
-        return {};
-    if (auto data = m_resource_request->image_data())
-        return data->frame(0, size);
-    return {};
-}
-
-Optional<Gfx::DecodedImageFrame> SVGImageElement::current_image_frame_sized(Gfx::IntSize size) const
-{
-    if (!m_resource_request)
-        return {};
-    if (auto data = m_resource_request->image_data())
-        return data->frame(m_current_frame_index, size);
-    return {};
-}
-
 void SVGImageElement::animate()
 {
     auto image_data = m_resource_request->image_data();

@@ -203,43 +203,6 @@ public:
         unregister_image_style_value_client();
     }
 
-    virtual bool is_image_available() const override
-    {
-        if (auto document = this->document())
-            return m_image->is_paintable(*document);
-        return false;
-    }
-
-    virtual Optional<CSSPixels> intrinsic_width() const override
-    {
-        if (auto document = this->document())
-            return m_image->natural_width(*document);
-        return {};
-    }
-
-    virtual Optional<CSSPixels> intrinsic_height() const override
-    {
-        if (auto document = this->document())
-            return m_image->natural_height(*document);
-        return {};
-    }
-
-    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override
-    {
-        if (auto document = this->document())
-            return m_image->natural_aspect_ratio(*document);
-        return {};
-    }
-
-    virtual Optional<Gfx::DecodedImageFrame> current_image_frame_sized(Gfx::IntSize size) const override
-    {
-        auto document = this->document();
-        if (!document)
-            return {};
-        auto rect = DevicePixelRect { DevicePixelPoint {}, size.to_type<DevicePixels>() };
-        return m_image->current_frame(*document, rect);
-    }
-
     virtual void layout_node_was_detached() const override
     {
         unregister_image_style_value_client();
