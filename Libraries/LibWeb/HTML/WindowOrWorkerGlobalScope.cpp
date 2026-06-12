@@ -461,15 +461,24 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                 // -> img
                 // -> SVG image
                 [&](auto const& image_element) {
-                    // 1. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size) and options's resizeWidth or options's resizeHeight is not present, then return a promise rejected with an "InvalidStateError" DOMException.
+                    // 1. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified
+                    //    content size) and options's resizeWidth or options's resizeHeight is not present, then return
+                    //    a promise rejected with an "InvalidStateError" DOMException.
                     auto const has_natural_dimensions = image_element->intrinsic_width().has_value() && image_element->intrinsic_height().has_value();
                     if (!has_natural_dimensions && (!options.has_value() || !options->resize_width.has_value() || !options->resize_height.has_value())) {
                         WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_utf16));
                         return;
                     }
 
-                    // 2. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size), it should be rendered to a bitmap of the size specified by the resizeWidth and the resizeHeight options.
-                    // 3. Set imageBitmap's bitmap data to a copy of image's media data, cropped to the source rectangle with formatting. If this is an animated image, imageBitmap's bitmap data must only be taken from the default image of the animation (the one that the format defines is to be used when animation is not supported or is disabled), or, if there is no such image, the first frame of the animation.
+                    // 2. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified
+                    //    content size), it should be rendered to a bitmap of the size specified by the resizeWidth and
+                    //    the resizeHeight options.
+
+                    // 3. Set imageBitmap's bitmap data to a copy of image's media data, cropped to the source rectangle
+                    //    with formatting. If this is an animated image, imageBitmap's bitmap data must only be taken
+                    //    from the default image of the animation (the one that the format defines is to be used when
+                    //    animation is not supported or is disabled), or, if there is no such image, the first frame of
+                    //    the animation.
                     Optional<Gfx::DecodedImageFrame> decoded_frame;
                     if (has_natural_dimensions) {
                         decoded_frame = image_element->default_image_frame_sized(Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() });
