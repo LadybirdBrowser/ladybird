@@ -1,6 +1,7 @@
 include(audio)
 
 set(TEST_SOURCES
+    TestAudioBlockTimingRing.cpp
     TestCICP.cpp
     TestBufferedRanges.cpp
     TestDataProducers.cpp
@@ -22,6 +23,7 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem LibSync)
 endforeach()
 
+target_link_libraries(TestAudioBlockTimingRing PRIVATE LibThreading)
 target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)
 target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
 
