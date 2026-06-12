@@ -270,37 +270,22 @@ void CookiesActor::handle_message(Message const& message)
 
 void CookiesActor::get_fields(Message const& message)
 {
-    enum class FieldState : u8 {
-        Immutable,
-        Editable,
-        Hidden,
-        Private,
-    };
-    auto make_field = [](StringView name, FieldState state) {
-        JsonObject field;
-        field.set("name"sv, name);
-        field.set("editable"sv, state == FieldState::Editable);
-        field.set("hidden"sv, state == FieldState::Hidden);
-        field.set("private"sv, state == FieldState::Private);
-        return field;
-    };
-
     JsonArray fields;
-    fields.must_append(make_field("uniqueKey"sv, FieldState::Private));
-    fields.must_append(make_field("name"sv, FieldState::Editable));
-    fields.must_append(make_field("value"sv, FieldState::Editable));
-    fields.must_append(make_field("host"sv, FieldState::Editable));
-    fields.must_append(make_field("path"sv, FieldState::Editable));
-    fields.must_append(make_field("expires"sv, FieldState::Editable));
-    fields.must_append(make_field("size"sv, FieldState::Immutable));
-    fields.must_append(make_field("isHttpOnly"sv, FieldState::Editable));
-    fields.must_append(make_field("isSecure"sv, FieldState::Editable));
-    fields.must_append(make_field("sameSite"sv, FieldState::Immutable));
-    fields.must_append(make_field("lastAccessed"sv, FieldState::Immutable));
-    fields.must_append(make_field("creationTime"sv, FieldState::Hidden));
-    fields.must_append(make_field("updateTime"sv, FieldState::Hidden));
-    fields.must_append(make_field("hostOnly"sv, FieldState::Hidden));
-    fields.must_append(make_field("partitionKey"sv, FieldState::Immutable));
+    fields.must_append(define_storage_field("uniqueKey"sv, StorageFieldType::Private));
+    fields.must_append(define_storage_field("name"sv, StorageFieldType::Mutable));
+    fields.must_append(define_storage_field("value"sv, StorageFieldType::Mutable));
+    fields.must_append(define_storage_field("host"sv, StorageFieldType::Mutable));
+    fields.must_append(define_storage_field("path"sv, StorageFieldType::Mutable));
+    fields.must_append(define_storage_field("expires"sv, StorageFieldType::Mutable));
+    fields.must_append(define_storage_field("size"sv, StorageFieldType::Immutable));
+    fields.must_append(define_storage_field("isHttpOnly"sv, StorageFieldType::Mutable));
+    fields.must_append(define_storage_field("isSecure"sv, StorageFieldType::Mutable));
+    fields.must_append(define_storage_field("sameSite"sv, StorageFieldType::Immutable));
+    fields.must_append(define_storage_field("lastAccessed"sv, StorageFieldType::Immutable));
+    fields.must_append(define_storage_field("creationTime"sv, StorageFieldType::Hidden));
+    fields.must_append(define_storage_field("updateTime"sv, StorageFieldType::Hidden));
+    fields.must_append(define_storage_field("hostOnly"sv, StorageFieldType::Hidden));
+    fields.must_append(define_storage_field("partitionKey"sv, StorageFieldType::Immutable));
 
     JsonObject response;
     response.set("value"sv, move(fields));
