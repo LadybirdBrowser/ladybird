@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../Ref/data/fonts/Ahem.ttf");
+}
+
+.row {
+    align-items: baseline;
+    display: flex;
+    font: 16px Ahem;
+}
+
+.icon {
+    background: black;
+    height: 16px;
+    width: 16px;
+}
+
+.text {
+    line-height: 24px;
+    overflow: hidden;
+}
+
+p {
+    margin: 0;
+}
+</style>
+<div class="row">
+    <span class="icon"></span>
+    <span class="text">Text</span>
+</div>
+<div class="row">
+    <span class="icon"></span>
+    <span class="text" style="width: 64px">Text Text</span>
+</div>
+<div class="row">
+    <span class="icon"></span>
+    <div class="text"><p>Text</p><p>Text</p></div>
+</div>
