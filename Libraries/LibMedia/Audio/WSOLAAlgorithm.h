@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibMedia/Audio/AudioBuffer.h>
 #include <LibMedia/Audio/AudioRingBuffer.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/AudioBlock.h>
@@ -44,7 +45,7 @@ private:
 
     size_t write_completed_frames_to(size_t requested_frames, size_t destination_offset, Media::AudioBlock&);
 
-    void peek_audio_with_zero_prepend(i64 read_offset_frames, Media::AudioBlock& destination);
+    void peek_audio_with_zero_prepend(i64 read_offset_frames, AudioBuffer& destination);
 
     void get_optimal_block();
 
@@ -54,7 +55,7 @@ private:
 
     void remove_old_input_frames();
 
-    Media::AudioBlock create_block(size_t frame_count) const;
+    AudioBuffer create_buffer(size_t frame_count) const;
 
     SampleSpecification const m_sample_specification;
 
@@ -72,14 +73,14 @@ private:
 
     size_t m_num_complete_frames { 0 };
 
-    Media::AudioBlock m_wsola_output;
+    AudioBuffer m_wsola_output;
 
     Vector<float> m_ola_window;
     Vector<float> m_transition_window;
 
-    Media::AudioBlock m_optimal_block;
-    Media::AudioBlock m_search_block;
-    Media::AudioBlock m_target_block;
+    AudioBuffer m_optimal_block;
+    AudioBuffer m_search_block;
+    AudioBuffer m_target_block;
 };
 
 }

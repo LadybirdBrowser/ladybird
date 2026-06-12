@@ -8,8 +8,8 @@
 
 #include <AK/Math.h>
 #include <AK/Vector.h>
+#include <LibMedia/Audio/AudioBuffer.h>
 #include <LibMedia/Audio/WSOLAInternals.h>
-#include <LibMedia/AudioBlock.h>
 
 namespace Audio::WSOLAInternals {
 
@@ -34,8 +34,8 @@ float multi_channel_similarity_measure(ReadonlySpan<float> dot_prod_a_b,
 
 }
 
-void multi_channel_dot_product(Media::AudioBlock const& a, size_t frame_offset_a,
-    Media::AudioBlock const& b, size_t frame_offset_b,
+void multi_channel_dot_product(AudioBuffer const& a, size_t frame_offset_a,
+    AudioBuffer const& b, size_t frame_offset_b,
     size_t num_frames, Span<float> dot_product)
 {
     VERIFY(a.channel_count() == b.channel_count());
@@ -55,7 +55,7 @@ void multi_channel_dot_product(Media::AudioBlock const& a, size_t frame_offset_a
     }
 }
 
-void multi_channel_moving_block_energies(Media::AudioBlock const& input,
+void multi_channel_moving_block_energies(AudioBuffer const& input,
     size_t frames_per_window, Span<float> energy)
 {
     auto num_blocks = input.frame_count() - (frames_per_window - 1);
@@ -98,7 +98,7 @@ void quadratic_interpolation(ReadonlySpan<float> y_values, float& extremum, floa
 }
 
 size_t decimated_search(size_t decimation, Interval exclude_interval,
-    Media::AudioBlock const& target_block, Media::AudioBlock const& search_segment,
+    AudioBuffer const& target_block, AudioBuffer const& search_segment,
     ReadonlySpan<float> energy_target_block,
     ReadonlySpan<float> energy_candidate_blocks)
 {
@@ -167,7 +167,7 @@ size_t decimated_search(size_t decimation, Interval exclude_interval,
 }
 
 size_t full_search(size_t low_limit, size_t high_limit, Interval exclude_interval,
-    Media::AudioBlock const& target_block, Media::AudioBlock const& search_block,
+    AudioBuffer const& target_block, AudioBuffer const& search_block,
     ReadonlySpan<float> energy_target_block,
     ReadonlySpan<float> energy_candidate_blocks)
 {
@@ -194,7 +194,7 @@ size_t full_search(size_t low_limit, size_t high_limit, Interval exclude_interva
     return optimal_block_index;
 }
 
-size_t optimal_index(Media::AudioBlock const& search_block, Media::AudioBlock const& target_block,
+size_t optimal_index(AudioBuffer const& search_block, AudioBuffer const& target_block,
     Interval exclude_interval)
 {
     VERIFY(search_block.channel_count() == target_block.channel_count());
