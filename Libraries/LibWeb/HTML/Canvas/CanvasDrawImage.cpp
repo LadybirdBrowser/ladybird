@@ -62,7 +62,7 @@ Optional<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource con
             if (intrinsic_width.has_value() && intrinsic_height.has_value())
                 size = { intrinsic_width->to_int(), intrinsic_height->to_int() };
 
-            return image_data->frame(0, size);
+            return image_data->default_frame(size);
         },
         [](GC::Ref<HTMLCanvasElement> const& canvas) -> Optional<Gfx::DecodedImageFrame> {
             canvas->prepare_for_compositing();

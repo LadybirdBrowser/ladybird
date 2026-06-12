@@ -29,6 +29,7 @@ public:
 
     virtual void paint([[maybe_unused]] DisplayListRecordingContext&, [[maybe_unused]] size_t frame_index, [[maybe_unused]] Gfx::IntRect dst_rect, CSS::ImageRendering) const = 0;
 
+    virtual Optional<Gfx::DecodedImageFrame> default_frame(Gfx::IntSize = {}) const = 0;
     virtual Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const = 0;
     virtual int frame_duration(size_t frame_index) const = 0;
 

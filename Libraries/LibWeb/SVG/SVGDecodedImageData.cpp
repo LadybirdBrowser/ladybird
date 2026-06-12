@@ -239,6 +239,13 @@ Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize
     return decoded_frame;
 }
 
+Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::default_frame(Gfx::IntSize size) const
+{
+    // FIXME: Implement this properly once we support animated SVGs, potentially by creating a temporary internal
+    //        document which has animations disabled.
+    return frame(0, size);
+}
+
 Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS

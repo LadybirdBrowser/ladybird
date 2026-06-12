@@ -265,7 +265,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
             if (!image_data)
                 return IterationDecision::Continue;
 
-            auto frame = image_data->frame(0, {});
+            // FIXME: Should we use the dest rect as the size here?
+            auto frame = image_data->default_frame({});
             if (!frame.has_value())
                 return IterationDecision::Continue;
 

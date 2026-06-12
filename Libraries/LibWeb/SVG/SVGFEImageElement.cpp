@@ -90,7 +90,7 @@ GC::Ptr<HTML::DecodedImageData> SVGFEImageElement::image_data() const
 Optional<Gfx::DecodedImageFrame> SVGFEImageElement::current_image_frame(Gfx::IntSize size) const
 {
     if (auto data = image_data())
-        return data->frame(0, size);
+        return data->default_frame(size);
     return {};
 }
 

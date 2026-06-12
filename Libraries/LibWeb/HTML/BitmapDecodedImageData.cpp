@@ -39,6 +39,11 @@ Optional<Gfx::DecodedImageFrame> BitmapDecodedImageData::frame(size_t, Gfx::IntS
     return m_frame;
 }
 
+Optional<Gfx::DecodedImageFrame> BitmapDecodedImageData::default_frame(Gfx::IntSize) const
+{
+    return m_frame;
+}
+
 Optional<CSSPixels> BitmapDecodedImageData::intrinsic_width() const
 {
     return m_frame.width();
