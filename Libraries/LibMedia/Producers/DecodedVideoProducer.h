@@ -23,6 +23,8 @@
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
+#include <LibMedia/VideoDecoder.h>
+#include <LibMedia/VideoFramePool.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
 
@@ -33,8 +35,7 @@ class MEDIA_API DecodedVideoProducer : public VideoProducer {
     class ThreadData;
 
 public:
-    static constexpr size_t QUEUE_CAPACITY = 8;
-    using FrameQueue = Queue<NonnullRefPtr<VideoFrame>, QUEUE_CAPACITY>;
+    using FrameQueue = Queue<NonnullRefPtr<VideoFrame>>;
 
     using ErrorHandler = Function<void(DecoderError&&)>;
     using FrameEndTimeHandler = Function<void(AK::Duration)>;
@@ -96,6 +97,8 @@ private:
         void dispatch_error(DecoderError&&);
         bool handle_seek();
         void resolve_seek(u32 seek_id, bool moved_position);
+        DecoderErrorOr<void> ensure_frame_pool();
+        DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_frame_into_acquired_slot(VideoFrameMetadata const&, VideoFramePool::AcquiredSlot const&);
         void push_data_and_decode_some_frames();
 
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
@@ -104,8 +107,8 @@ private:
 
         TimeRanges buffered_time_ranges() const;
 
-        [[nodiscard]] Sync::MutexLocker<Sync::Mutex> take_lock() const { return Sync::MutexLocker(m_mutex); }
-        void wake() const { m_wait_condition.broadcast(); }
+        [[nodiscard]] Sync::MutexLocker<Sync::Mutex> take_lock() const { return Sync::MutexLocker(m_wait_state->mutex); }
+        void wake() const { m_wait_state->condition.broadcast(); }
 
     private:
         enum class RequestedState : u8 {
@@ -115,12 +118,17 @@ private:
         };
 
         void note_consumer_activity_while_locked() const;
-        void wait_for_queue_space_or_auto_suspend_while_locked();
+        void wait_to_decode_or_auto_suspend_while_locked();
 
         Core::EventLoop& m_main_thread_event_loop;
 
-        mutable Sync::Mutex m_mutex;
-        mutable Sync::ConditionVariable m_wait_condition { m_mutex };
+        // Shared with the frame pools' slot-freed callbacks, which can outlive this ThreadData
+        // through frames still held downstream.
+        struct WaitState : public AtomicRefCounted<WaitState> {
+            Sync::Mutex mutex;
+            Sync::ConditionVariable condition { mutex };
+        };
+        NonnullRefPtr<WaitState> m_wait_state { make_ref_counted<WaitState>() };
         RequestedState m_requested_state { RequestedState::None };
 
         AK::ThreadID m_decode_thread_id;
@@ -128,9 +136,9 @@ private:
         Track m_track;
         AK::Duration m_duration;
         OwnPtr<VideoDecoder> m_decoder;
+        RefPtr<VideoFramePool> m_frame_pool;
         bool m_decoder_needs_keyframe_next_seek { false };
 
-        size_t m_queue_max_size { 4 };
         FrameQueue m_queue;
         AK::Duration m_earliest_available_timestamp;
         AK::Duration m_latest_available_timestamp;
