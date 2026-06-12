@@ -8,8 +8,8 @@
 
 #include <AK/Error.h>
 #include <AK/FixedArray.h>
-#include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Span.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
@@ -19,15 +19,9 @@ class SkYUVAPixmaps;
 
 namespace Gfx {
 
-namespace Details {
-
-struct YUVDataImpl;
-
-}
-
-// Holds planar YUV data with metadata needed for GPU conversion.
-// Uses FixedArray for deterministic buffer sizing.
-// Not ref-counted - owned directly by decoded video frame objects via NonnullOwnPtr.
+// A non-owning view of planar YUV data with the metadata needed for conversion to RGB.
+// The plane memory's lifetime is guaranteed by the object handing out the view
+// (e.g. Media::VideoFrame).
 class YUVData final {
 public:
     struct PlaneSizes {
@@ -38,32 +32,44 @@ public:
     };
 
     static ErrorOr<PlaneSizes> plane_sizes(IntSize size, u8 bit_depth, Media::Subsampling);
-    static ErrorOr<NonnullOwnPtr<YUVData>> create(IntSize size, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints);
-    static ErrorOr<NonnullOwnPtr<YUVData>> create_from_data(IntSize size, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints, ReadonlyBytes y_data, ReadonlyBytes u_data, ReadonlyBytes v_data);
+    static ErrorOr<YUVData> create(IntSize size, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints, Bytes y_data, Bytes u_data, Bytes v_data);
 
-    ~YUVData();
+    struct AllocatedPlanes;
+    static ErrorOr<AllocatedPlanes> allocate(IntSize size, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints);
 
-    IntSize size() const;
-    u8 bit_depth() const;
-    Media::Subsampling subsampling() const;
-    Media::CodingIndependentCodePoints const& cicp() const;
+    IntSize size() const { return m_size; }
+    u8 bit_depth() const { return m_bit_depth; }
+    Media::Subsampling subsampling() const { return m_subsampling; }
+    Media::CodingIndependentCodePoints const& cicp() const { return m_cicp; }
 
-    // Writable access for decoder to fill buffers after creation
-    Bytes y_data();
-    Bytes u_data();
-    Bytes v_data();
-    ReadonlyBytes y_data() const;
-    ReadonlyBytes u_data() const;
-    ReadonlyBytes v_data() const;
+    // Writable access for decoder to fill the planes after creation
+    Bytes y_data() { return m_y_data; }
+    Bytes u_data() { return m_u_data; }
+    Bytes v_data() { return m_v_data; }
+    ReadonlyBytes y_data() const { return m_y_data; }
+    ReadonlyBytes u_data() const { return m_u_data; }
+    ReadonlyBytes v_data() const { return m_v_data; }
 
     ErrorOr<NonnullRefPtr<Bitmap>> to_bitmap() const;
 
     SkYUVAPixmaps make_pixmaps() const;
 
 private:
-    explicit YUVData(NonnullOwnPtr<Details::YUVDataImpl>);
+    YUVData(IntSize size, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints, Bytes y_data, Bytes u_data, Bytes v_data);
 
-    NonnullOwnPtr<Details::YUVDataImpl> m_impl;
+    IntSize m_size;
+    u8 m_bit_depth { 0 };
+    Media::Subsampling m_subsampling;
+    Media::CodingIndependentCodePoints m_cicp;
+
+    Bytes m_y_data;
+    Bytes m_u_data;
+    Bytes m_v_data;
+};
+
+struct YUVData::AllocatedPlanes {
+    FixedArray<u8> storage;
+    YUVData data;
 };
 
 }

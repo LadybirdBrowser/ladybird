@@ -227,12 +227,13 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
             m_frame_durations.remove(m_frame->pts);
         }
 
-        auto yuv_data = DECODER_TRY_ALLOC(Gfx::YUVData::create(gfx_size, bit_depth, subsampling, cicp));
+        auto allocated_planes = DECODER_TRY_ALLOC(Gfx::YUVData::allocate(gfx_size, bit_depth, subsampling, cicp));
+        auto& yuv_data = allocated_planes.data;
 
         auto y_plane_size = size.to_type<size_t>();
         auto uv_plane_size = subsampling.subsampled_size(size).to_type<size_t>();
 
-        Bytes buffers[] = { yuv_data->y_data(), yuv_data->u_data(), yuv_data->v_data() };
+        Bytes buffers[] = { yuv_data.y_data(), yuv_data.u_data(), yuv_data.v_data() };
         Gfx::Size<size_t> plane_sizes[] = { y_plane_size, uv_plane_size, uv_plane_size };
 
         auto component_size = bit_depth <= 8 ? 1 : 2;
@@ -260,7 +261,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
 
         auto color_space = DECODER_TRY_ALLOC(Gfx::ColorSpace::from_cicp(cicp));
 
-        return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(timestamp, duration, size, bit_depth, move(color_space), move(yuv_data)));
+        return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(timestamp, duration, size, bit_depth, move(color_space), yuv_data, move(allocated_planes.storage)));
     }
     case AVERROR(EAGAIN):
         return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder has no frames available, send more input"sv);
