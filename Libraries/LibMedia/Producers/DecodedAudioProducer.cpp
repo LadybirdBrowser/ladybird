@@ -31,6 +31,7 @@ DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> DecodedAudioProducer::try_cr
     auto producer = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedAudioProducer>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create("Audio Decoder"sv, [thread_data]() -> int {
+        thread_data->register_decode_thread();
         thread_data->wait_for_start();
         while (!thread_data->should_thread_exit()) {
             if (thread_data->handle_auto_suspension())
@@ -195,6 +196,7 @@ DecoderErrorOr<void> DecodedAudioProducer::ThreadData::create_decoder()
 
 void DecodedAudioProducer::ThreadData::release_decoder()
 {
+    VERIFY(m_decode_thread_id.is_current_thread());
     auto locker = take_lock();
     m_decoder.clear();
 }
@@ -214,6 +216,7 @@ void DecodedAudioProducer::pull(AudioBlock& into)
 PipelineStatus DecodedAudioProducer::ThreadData::status() const
 {
     auto locker = take_lock();
+    VERIFY(!m_decode_thread_id.is_current_thread());
     note_consumer_activity_while_locked();
     auto status = status_while_locked();
     m_downstream_needs_wake = is_waiting_for_data(status);
@@ -238,6 +241,7 @@ PipelineStatus DecodedAudioProducer::ThreadData::status_while_locked() const
 void DecodedAudioProducer::ThreadData::pull(AudioBlock& into)
 {
     auto locker = take_lock();
+    VERIFY(!m_decode_thread_id.is_current_thread());
     note_consumer_activity_while_locked();
     if (m_moved_position_pending) {
         m_moved_position_pending = false;
@@ -271,12 +275,20 @@ void DecodedAudioProducer::ThreadData::enter_halting_state(PipelineStatus status
 void DecodedAudioProducer::ThreadData::seek(AK::Duration timestamp)
 {
     auto locker = take_lock();
+    VERIFY(!m_decode_thread_id.is_current_thread());
     note_consumer_activity_while_locked();
     m_seek_id++;
     m_seek_timestamp = timestamp;
     m_downstream_needs_wake = true;
     m_demuxer->set_blocking_reads_aborted_for_track(m_track);
     wake();
+}
+
+void DecodedAudioProducer::ThreadData::register_decode_thread()
+{
+    auto locker = take_lock();
+    VERIFY(!m_decode_thread_id.is_valid());
+    m_decode_thread_id = AK::ThreadID::current();
 }
 
 void DecodedAudioProducer::ThreadData::wait_for_start()
@@ -299,6 +311,7 @@ bool DecodedAudioProducer::ThreadData::should_thread_exit() const
 
 bool DecodedAudioProducer::ThreadData::handle_auto_suspension()
 {
+    VERIFY(m_decode_thread_id.is_current_thread());
     auto locker = take_lock();
     if (!m_auto_suspend_requested)
         return false;
@@ -433,6 +446,7 @@ void DecodedAudioProducer::ThreadData::resolve_seek(u32 seek_id, bool moved_posi
 
 bool DecodedAudioProducer::ThreadData::handle_seek()
 {
+    VERIFY(m_decode_thread_id.is_current_thread());
     VERIFY(m_decoder);
 
     auto seek_id = m_seek_id.load();
@@ -537,6 +551,7 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
 
 void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
 {
+    VERIFY(m_decode_thread_id.is_current_thread());
     VERIFY(m_decoder);
 
     auto set_halting_status_and_wait_for_seek = [this](PipelineStatus status, Optional<DecoderError> error) {

@@ -28,6 +28,7 @@ DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> DecodedVideoProducer::try_cr
     auto producer = DECODER_TRY_ALLOC(try_make_ref_counted<DecodedVideoProducer>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create("Video Decoder"sv, [thread_data]() -> int {
+        thread_data->register_decode_thread();
         thread_data->wait_for_start();
         while (!thread_data->should_thread_exit()) {
             if (thread_data->handle_auto_suspension())
@@ -87,6 +88,7 @@ void DecodedVideoProducer::set_wake_handler(PipelineWakeHandler handler)
 PipelineStatus DecodedVideoProducer::ThreadData::status() const
 {
     auto locker = take_lock();
+    VERIFY(!m_decode_thread_id.is_current_thread());
     note_consumer_activity_while_locked();
     auto status = status_while_locked();
     m_downstream_needs_wake = is_waiting_for_data(status);
@@ -111,6 +113,7 @@ PipelineStatus DecodedVideoProducer::ThreadData::status_while_locked() const
 void DecodedVideoProducer::ThreadData::pull(RefPtr<VideoFrame>& into)
 {
     auto locker = take_lock();
+    VERIFY(!m_decode_thread_id.is_current_thread());
     note_consumer_activity_while_locked();
     if (m_moved_position_pending) {
         m_moved_position_pending = false;
@@ -189,6 +192,7 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder()
 
 void DecodedVideoProducer::ThreadData::release_decoder()
 {
+    VERIFY(m_decode_thread_id.is_current_thread());
     auto locker = take_lock();
     m_decoder.clear();
 }
@@ -265,6 +269,7 @@ DecodedVideoProducer::FrameQueue& DecodedVideoProducer::ThreadData::queue()
 void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
 {
     auto locker = take_lock();
+    VERIFY(!m_decode_thread_id.is_current_thread());
     note_consumer_activity_while_locked();
     m_downstream_needs_wake = true;
 
@@ -284,6 +289,13 @@ void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
 AK::Duration DecodedVideoProducer::ThreadData::select_fast_seek_target(AK::Duration target, SeekMode mode) const
 {
     return m_demuxer->select_fast_seek_target_for_track(m_track, target, mode);
+}
+
+void DecodedVideoProducer::ThreadData::register_decode_thread()
+{
+    auto locker = take_lock();
+    VERIFY(!m_decode_thread_id.is_valid());
+    m_decode_thread_id = AK::ThreadID::current();
 }
 
 void DecodedVideoProducer::ThreadData::wait_for_start()
@@ -316,6 +328,7 @@ void DecodedVideoProducer::ThreadData::invoke_on_main_thread_while_locked(Invoke
 
 bool DecodedVideoProducer::ThreadData::handle_auto_suspension()
 {
+    VERIFY(m_decode_thread_id.is_current_thread());
     auto locker = take_lock();
     if (!m_auto_suspend_requested)
         return false;
@@ -406,6 +419,7 @@ void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id, bool moved_posi
 
 bool DecodedVideoProducer::ThreadData::handle_seek()
 {
+    VERIFY(m_decode_thread_id.is_current_thread());
     VERIFY(m_decoder);
 
     auto seek_id = m_seek_id.load();
@@ -515,6 +529,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
 
 void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
 {
+    VERIFY(m_decode_thread_id.is_current_thread());
     VERIFY(m_decoder);
 
     // FIXME: Check if the PlaybackManager's current time is ahead of the next keyframe, and seek to it if so.
