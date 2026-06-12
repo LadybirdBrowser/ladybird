@@ -8,41 +8,49 @@
 
 namespace Media {
 
-GenericTimeProvider::GenericTimeProvider() = default;
+ErrorOr<NonnullRefPtr<GenericTimeProvider>> GenericTimeProvider::try_create()
+{
+    auto time_writer = TRY(MediaTimeWriter::create());
+    auto time_reader = TRY(MediaTimeReader::create(time_writer.buffer()));
+    return adopt_nonnull_ref_or_enomem(new (nothrow) GenericTimeProvider(move(time_writer), move(time_reader)));
+}
+
+GenericTimeProvider::GenericTimeProvider(MediaTimeWriter time_writer, MediaTimeReader time_reader)
+    : m_time_writer(move(time_writer))
+    , m_time_reader(move(time_reader))
+{
+}
 
 GenericTimeProvider::~GenericTimeProvider() = default;
 
 AK::Duration GenericTimeProvider::current_time() const
 {
-    auto time = m_media_time;
-    if (m_monotonic_time_on_resume.has_value()) {
-        auto elapsed = MonotonicTime::now() - m_monotonic_time_on_resume.value();
-        if (m_playback_rate != 1.0f)
-            elapsed = AK::Duration::from_seconds_f64(elapsed.to_seconds_f64() * m_playback_rate);
-        time += elapsed;
-    }
-    return time;
+    return m_time_reader.current_time();
 }
 
 void GenericTimeProvider::resume()
 {
-    m_monotonic_time_on_resume.emplace(MonotonicTime::now());
+    auto now = MonotonicTime::now();
+    auto time = m_time_reader.current_time(now);
+    m_time_writer.publish_monotonic_anchor(now, time, m_playback_rate, true);
+    m_playing = true;
 }
 
 void GenericTimeProvider::pause()
 {
-    if (!m_monotonic_time_on_resume.has_value())
+    if (!m_playing)
         return;
-    m_media_time = current_time();
-    m_monotonic_time_on_resume = {};
+    auto now = MonotonicTime::now();
+    auto time = m_time_reader.current_time(now);
+    m_time_writer.publish_monotonic_anchor(now, time, m_playback_rate, false);
+    m_playing = false;
 }
 
 void GenericTimeProvider::seek(AK::Duration time)
 {
-    if (m_monotonic_time_on_resume.has_value())
-        m_monotonic_time_on_resume.emplace(MonotonicTime::now());
-
-    m_media_time = time;
+    m_time_writer.seek(time);
+    if (m_playing)
+        m_time_writer.publish_monotonic_anchor(MonotonicTime::now(), time, m_playback_rate, true);
 }
 
 void GenericTimeProvider::set_playback_rate(float rate)
@@ -50,11 +58,12 @@ void GenericTimeProvider::set_playback_rate(float rate)
     VERIFY(rate >= 0);
     if (m_playback_rate == rate)
         return;
-    if (m_monotonic_time_on_resume.has_value()) {
-        m_media_time = current_time();
-        m_monotonic_time_on_resume.emplace(MonotonicTime::now());
-    }
     m_playback_rate = rate;
+    if (m_playing) {
+        auto now = MonotonicTime::now();
+        auto time = m_time_reader.current_time(now);
+        m_time_writer.publish_monotonic_anchor(now, time, rate, true);
+    }
 }
 
 }

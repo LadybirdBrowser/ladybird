@@ -23,6 +23,7 @@ set(SOURCES
     DecodeAudioStream.cpp
     GenericTimeProvider.cpp
     IncrementallyPopulatedStream.cpp
+    MediaTime.cpp
     PlaybackManager.cpp
     PlaybackStates/BufferingStateHandler.cpp
     PlaybackStates/PlayingStateHandler.cpp
