@@ -61,6 +61,17 @@ void GuardedSubstitutionContexts::unguard(SubstitutionContext const& context)
     VERIFY(was_removed);
 }
 
+bool GuardedSubstitutionContexts::mark_existing_as_cyclic(SubstitutionContext const& context)
+{
+    for (auto& existing_context : m_contexts) {
+        if (existing_context == context) {
+            existing_context.is_cyclic = true;
+            return true;
+        }
+    }
+    return false;
+}
+
 Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlyString const& name)
 {
     if (name.equals_ignoring_ascii_case("attr"sv))
