@@ -237,7 +237,7 @@ static Optional<u64> s_style_invalidation_counter_dump_interval;
 static void dump_style_invalidation_counters(Document const& document)
 {
     auto const& counters = document.style_invalidation_counters();
-    dbgln("Style invalidation counters for {}: styleInvalidations={}, fullStyleInvalidations={}, elementStyleRecomputations={}, elementStyleNoopRecomputations={}, elementInheritedStyleRecomputations={}, elementInheritedStyleNoopRecomputations={}, previousSiblingInvalidationWalkVisits={}, hasAncestorWalkInvocations={}, hasAncestorWalkVisits={}, hasAncestorSiblingElementChecks={}, hasInvalidationMetadataCandidates={}, hasMatchInvocations={}, hasResultCacheHits={}, hasResultCacheMisses={}",
+    dbgln("Style invalidation counters for {}: styleInvalidations={}, fullStyleInvalidations={}, elementStyleRecomputations={}, elementStyleNoopRecomputations={}, elementInheritedStyleRecomputations={}, elementInheritedStyleNoopRecomputations={}, previousSiblingInvalidationWalkVisits={}, mediaRuleEvaluations={}, hasAncestorWalkInvocations={}, hasAncestorWalkVisits={}, hasAncestorSiblingElementChecks={}, hasInvalidationMetadataCandidates={}, hasMatchInvocations={}, hasResultCacheHits={}, hasResultCacheMisses={}",
         document.url_string(),
         counters.style_invalidations,
         counters.full_style_invalidations,
@@ -246,6 +246,7 @@ static void dump_style_invalidation_counters(Document const& document)
         counters.element_inherited_style_recomputations,
         counters.element_inherited_style_noop_recomputations,
         counters.previous_sibling_invalidation_walk_visits,
+        counters.media_rule_evaluations,
         counters.has_ancestor_walk_invocations,
         counters.has_ancestor_walk_visits,
         counters.has_ancestor_sibling_element_checks,
@@ -2201,14 +2202,14 @@ void Document::update_style()
         CSS::Invalidation::invalidate_style_for_pending_has_mutations(*this);
     }
 
-    if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update() && !m_needs_media_query_evaluation)
+    if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update() && !m_needs_media_rule_evaluation)
         return;
 
     // NOTE: If this is a document hosting <template> contents, style update is unnecessary.
     if (m_created_for_appropriate_template_contents)
         return;
 
-    if (m_needs_media_query_evaluation)
+    if (m_needs_media_rule_evaluation)
         evaluate_media_rules();
 
     if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
@@ -2327,7 +2328,7 @@ CSS::ComputedProperties const* Document::update_style_for_element(AbstractElemen
 
         // Media query evaluation can enqueue normal style invalidations, so do it before deciding whether the full
         // style traversal needs to run.
-        if (m_needs_media_query_evaluation)
+        if (m_needs_media_rule_evaluation)
             evaluate_media_rules();
 
         if (!m_is_running_update_layout
@@ -2451,7 +2452,7 @@ bool Document::element_needs_style_update(AbstractElement const& abstract_elemen
         return true;
     if (m_needs_invalidation_of_elements_affected_by_has)
         return true;
-    if (m_needs_media_query_evaluation)
+    if (m_needs_media_rule_evaluation)
         return true;
     if (m_style_invalidator->has_pending_invalidations())
         return true;
@@ -4671,55 +4672,61 @@ void Document::run_the_scroll_steps()
 
 void Document::add_media_query_list(GC::Ref<CSS::MediaQueryList> media_query_list)
 {
-    m_needs_media_query_evaluation = true;
     m_media_query_lists.append(media_query_list);
+    m_needs_media_query_list_evaluation = true;
 }
 
 // https://drafts.csswg.org/cssom-view/#evaluate-media-queries-and-report-changes
 void Document::evaluate_media_queries_and_report_changes()
 {
-    if (!m_needs_media_query_evaluation)
+    if (!m_needs_media_query_list_evaluation && !m_needs_media_rule_evaluation)
         return;
-    m_needs_media_query_evaluation = false;
 
-    // NOTE: Not in the spec, but we take this opportunity to prune null WeakPtrs.
-    m_media_query_lists.remove_all_matching([](auto& it) {
-        return !it;
-    });
+    bool evaluate_media_query_lists = m_needs_media_query_list_evaluation;
+    m_needs_media_query_list_evaluation = false;
 
-    // 1. For each MediaQueryList object target that has doc as its document,
-    //    in the order they were created, oldest first, run these substeps:
-    for (auto& media_query_list_ptr : m_media_query_lists) {
-        // 1. If target’s matches state has changed since the last time these steps
-        //    were run, fire an event at target using the MediaQueryListEvent constructor,
-        //    with its type attribute initialized to change, its isTrusted attribute
-        //    initialized to true, its media attribute initialized to target’s media,
-        //    and its matches attribute initialized to target’s matches state.
-        if (!media_query_list_ptr)
-            continue;
-        GC::Ptr<CSS::MediaQueryList> media_query_list = media_query_list_ptr.ptr();
-        bool did_match = media_query_list->matches();
-        bool now_matches = media_query_list->evaluate();
+    if (evaluate_media_query_lists) {
+        // NOTE: Not in the spec, but we take this opportunity to prune null WeakPtrs.
+        m_media_query_lists.remove_all_matching([](auto& it) {
+            return !it;
+        });
 
-        auto did_change_internally = media_query_list->has_changed_state();
-        media_query_list->set_has_changed_state(false);
+        // 1. For each MediaQueryList object target that has doc as its document,
+        //    in the order they were created, oldest first, run these substeps:
+        for (auto& media_query_list_ptr : m_media_query_lists) {
+            // 1. If target’s matches state has changed since the last time these steps
+            //    were run, fire an event at target using the MediaQueryListEvent constructor,
+            //    with its type attribute initialized to change, its isTrusted attribute
+            //    initialized to true, its media attribute initialized to target’s media,
+            //    and its matches attribute initialized to target’s matches state.
+            if (!media_query_list_ptr)
+                continue;
+            GC::Ptr<CSS::MediaQueryList> media_query_list = media_query_list_ptr.ptr();
+            bool did_match = media_query_list->matches();
+            bool now_matches = media_query_list->evaluate();
 
-        if (did_change_internally == true || did_match != now_matches) {
-            Bindings::MediaQueryListEventInit init;
-            init.media = media_query_list->media();
-            init.matches = now_matches;
-            auto event = CSS::MediaQueryListEvent::create(realm(), HTML::EventNames::change, init);
-            event->set_is_trusted(true);
-            media_query_list->dispatch_event(*event);
+            auto did_change_internally = media_query_list->has_changed_state();
+            media_query_list->set_has_changed_state(false);
+
+            if (did_change_internally == true || did_match != now_matches) {
+                Bindings::MediaQueryListEventInit init;
+                init.media = media_query_list->media();
+                init.matches = now_matches;
+                auto event = CSS::MediaQueryListEvent::create(realm(), HTML::EventNames::change, init);
+                event->set_is_trusted(true);
+                media_query_list->dispatch_event(*event);
+            }
         }
     }
 
     // Also not in the spec, but this is as good a place as any to evaluate @media rules!
-    evaluate_media_rules();
+    if (m_needs_media_rule_evaluation)
+        evaluate_media_rules();
 }
 
 void Document::evaluate_media_rules()
 {
+    m_needs_media_rule_evaluation = false;
     CSS::Invalidation::evaluate_media_rules_and_invalidate_style(*this);
 }
 
