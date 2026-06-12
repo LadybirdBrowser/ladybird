@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const style = document.createElement("style");
+        style.textContent = `
+            @media (min-width: 1px) {
+                body { color: rgb(1, 2, 3); }
+            }
+        `;
+        document.head.appendChild(style);
+        document.body.offsetWidth;
+
+        internals.resetStyleInvalidationCounters();
+
+        for (let i = 0; i < 100; ++i) {
+            const mediaQueryList = matchMedia("(min-width: 1px)");
+            if (!mediaQueryList.matches)
+                throw new Error("MediaQueryList should match current viewport");
+            internals.updateStyle();
+        }
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`media rule evaluations after matchMedia: ${counters.mediaRuleEvaluations}`);
+    });
+</script>

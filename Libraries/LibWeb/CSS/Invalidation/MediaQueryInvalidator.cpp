@@ -44,6 +44,8 @@ static void invalidate_style_after_media_rule_changes(DOM::Node& root, MediaQuer
 
 void evaluate_media_rules_and_invalidate_style(DOM::Document& document)
 {
+    ++document.style_invalidation_counters().media_rule_evaluations;
+
     bool document_media_queries_changed_match_state = false;
     MediaQueryRuleInvalidation document_invalidation;
     document.style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {

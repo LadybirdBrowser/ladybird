@@ -629,7 +629,11 @@ public:
     void run_the_scroll_steps();
 
     void evaluate_media_queries_and_report_changes();
-    void set_needs_media_query_evaluation() { m_needs_media_query_evaluation = true; }
+    void set_needs_media_query_evaluation()
+    {
+        m_needs_media_query_list_evaluation = true;
+        m_needs_media_rule_evaluation = true;
+    }
     void add_media_query_list(GC::Ref<CSS::MediaQueryList>);
 
     GC::Ref<CSS::VisualViewport> visual_viewport();
@@ -907,6 +911,7 @@ public:
         u64 element_inherited_style_noop_recomputations { 0 };
         u64 previous_sibling_invalidation_walk_visits { 0 };
         u64 descendant_slot_invalidation_subtree_scans { 0 };
+        u64 media_rule_evaluations { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
     void reset_style_invalidation_counters() const;
@@ -1364,7 +1369,8 @@ private:
     Vector<PendingScrollEvent> m_pending_scroll_events;
 
     // Used by evaluate_media_queries_and_report_changes().
-    bool m_needs_media_query_evaluation { false };
+    bool m_needs_media_query_list_evaluation { false };
+    bool m_needs_media_rule_evaluation { false };
     Vector<GC::Weak<CSS::MediaQueryList>> m_media_query_lists;
 
     bool m_needs_full_style_update { false };
