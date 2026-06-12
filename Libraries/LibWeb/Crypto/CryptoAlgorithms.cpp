@@ -5905,7 +5905,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519
 
     // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
     // and representing the public key of the generated key pair.
-    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key_data });
+    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key_data } });
 
     // 6. Set the [[type]] internal slot of publicKey to "public"
     public_key->set_type(Bindings::KeyType::Public);
@@ -5921,7 +5921,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519
 
     // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
     // and representing the private key of the generated key pair.
-    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key_data });
+    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { private_key_data } });
 
     // 11. Set the [[type]] internal slot of privateKey to "private"
     private_key->set_type(Bindings::KeyType::Private);
@@ -5981,7 +5981,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
 
         // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
         //    and that represents publicKey.
-        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key } });
 
         // 8. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -6028,7 +6028,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
 
         // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
         //    and that represents the Ed25519 private key identified by curvePrivateKey.
-        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { curve_private_key_bytes });
+        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { curve_private_key_bytes } });
 
         // 9. Set the [[type]] internal slot of key to "private"
         key->set_type(Bindings::KeyType::Private);
@@ -6125,7 +6125,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
                 return WebIDL::DataError::create(m_realm, "Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the Ed25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
-            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { private_key } });
 
             // 3. Set the [[type]] internal slot of Key to "private".
             key->set_type(Bindings::KeyType::Private);
@@ -6155,7 +6155,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
                 return WebIDL::DataError::create(m_realm, "Present d field"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the Ed25519 public key identified by interpreting jwk according to Section 2 of [RFC8037].
-            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key } });
 
             // 3. Set the [[type]] internal slot of Key to "public".
             key->set_type(Bindings::KeyType::Public);
@@ -6196,7 +6196,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
         algorithm->set_name("Ed25519"_string);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-        key = CryptoKey::create(m_realm, move(data));
+        key = CryptoKey::create(m_realm, OKPPublicKey { move(data) });
 
         // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -6223,7 +6223,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
 
     // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
-    auto const& key_data = key->handle().get<ByteBuffer>();
+    auto const& handle = key->handle();
 
     // 3. If format is "spki":
     if (format == Bindings::KeyFormat::Spki) {
@@ -6236,7 +6236,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
         //    * Set the subjectPublicKey field to keyData.
         auto ed25519_oid = ::Crypto::ASN1::ed25519_oid;
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(key_data, ed25519_oid));
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(handle.get<OKPPublicKey>().bytes, ed25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         return JS::ArrayBuffer::create(m_realm, move(data));
@@ -6256,7 +6256,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         //      as defined in Section 7 of [RFC8410], that represents the Ed25519 private key
         //      represented by the [[handle]] internal slot of key
         ::Crypto::ASN1::Encoder encoder;
-        TRY_OR_THROW_OOM(vm, encoder.write(key_data.bytes()));
+        TRY_OR_THROW_OOM(vm, encoder.write(handle.get<OKPPrivateKey>().bytes.bytes()));
 
         auto ed25519_oid = ::Crypto::ASN1::ed25519_oid;
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), ed25519_oid));
@@ -6281,21 +6281,21 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
 
         // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
         if (key->type() == Bindings::KeyType::Public) {
-            jwk.x = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(key_data));
+            jwk.x = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(handle.get<OKPPublicKey>().bytes));
         } else {
             // The "x" parameter of the "epk" field is set as follows:
             // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
             // and the standard base point (as u-coordinate input).
             // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
             ::Crypto::Curves::Ed25519 curve;
-            auto public_key = TRY_OR_THROW_OOM(vm, curve.generate_public_key(key_data));
+            auto public_key = TRY_OR_THROW_OOM(vm, curve.generate_public_key(handle.get<OKPPrivateKey>().bytes));
             jwk.x = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(public_key));
         }
 
         // 6. If the [[type]] internal slot of key is "private"
         if (key->type() == Bindings::KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-            jwk.d = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(key_data));
+            jwk.d = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(handle.get<OKPPrivateKey>().bytes));
         }
 
         // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -6321,7 +6321,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
 
         // 2. Let data be an octet string representing the Ed25519 public key represented by the [[handle]] internal slot of key.
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(m_realm, key_data);
+        return JS::ArrayBuffer::create(m_realm, handle.get<OKPPublicKey>().bytes);
     }
 
     // 2. Otherwise:
@@ -6341,7 +6341,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED25519::sign([[maybe_unused]] Alg
 
     // 2. Perform the Ed25519 signing process, as specified in [RFC8032], Section 5.1.6,
     // with message as M, using the Ed25519 private key associated with key.
-    auto private_key = key->handle().get<ByteBuffer>();
+    auto const& private_key = key->handle().get<OKPPrivateKey>().bytes;
 
     ::Crypto::Curves::Ed25519 curve;
     auto maybe_public_key = curve.generate_public_key(private_key);
@@ -6377,11 +6377,9 @@ WebIDL::ExceptionOr<JS::Value> ED25519::verify([[maybe_unused]] AlgorithmParams 
     // using the cofactorless (unbatched) equation, [S]B = R + [k]A', on the signature,
     // with message as M, using the Ed25519 public key associated with key.
 
-    auto public_key = key->handle().get<ByteBuffer>();
-
     // 9. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
     ::Crypto::Curves::Ed25519 curve;
-    auto maybe_verified = curve.verify(key->handle().get<ByteBuffer>(), signature, message);
+    auto maybe_verified = curve.verify(key->handle().get<OKPPublicKey>().bytes, signature, message);
     if (maybe_verified.is_error())
         return WebIDL::OperationError::create(realm, Utf16String::from_utf8(maybe_verified.error().string_literal()));
 
@@ -6419,7 +6417,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED448::
 
     // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
     // and representing the public key of the generated key pair.
-    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key_data });
+    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key_data } });
 
     // 6. Set the [[type]] internal slot of publicKey to "public"
     public_key->set_type(Bindings::KeyType::Public);
@@ -6435,7 +6433,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED448::
 
     // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
     // and representing the private key of the generated key pair.
-    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key_data });
+    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { private_key_data } });
 
     // 11. Set the [[type]] internal slot of privateKey to "private"
     private_key->set_type(Bindings::KeyType::Private);
@@ -6495,7 +6493,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
 
         // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
         //    and that represents publicKey.
-        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key } });
 
         // 8. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -6542,7 +6540,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
 
         // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
         //    and that represents the Ed448 private key identified by curvePrivateKey.
-        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { curve_private_key_bytes });
+        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { curve_private_key_bytes } });
 
         // 9. Set the [[type]] internal slot of key to "private"
         key->set_type(Bindings::KeyType::Private);
@@ -6639,7 +6637,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
                 return WebIDL::DataError::create(m_realm, "Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the Ed448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
-            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { private_key } });
 
             // 3. Set the [[type]] internal slot of Key to "private".
             key->set_type(Bindings::KeyType::Private);
@@ -6669,7 +6667,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
                 return WebIDL::DataError::create(m_realm, "Present d field"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the Ed448 public key identified by interpreting jwk according to Section 2 of [RFC8037].
-            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key } });
 
             // 3. Set the [[type]] internal slot of Key to "public".
             key->set_type(Bindings::KeyType::Public);
@@ -6710,7 +6708,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
         algorithm->set_name("Ed448"_string);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-        key = CryptoKey::create(m_realm, move(data));
+        key = CryptoKey::create(m_realm, OKPPublicKey { move(data) });
 
         // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -6737,7 +6735,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(Bindings::KeyFormat f
 
     // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
-    auto const& key_data = key->handle().get<ByteBuffer>();
+    auto const& handle = key->handle();
 
     // 3. If format is "spki":
     if (format == Bindings::KeyFormat::Spki) {
@@ -6749,7 +6747,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(Bindings::KeyFormat f
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
         //      * Set the algorithm object identifier to the id-Ed448 OID defined in [RFC8410].
         //    * Set the subjectPublicKey field to keyData.
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(key_data, ::Crypto::ASN1::ed448_oid));
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(handle.get<OKPPublicKey>().bytes, ::Crypto::ASN1::ed448_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         return JS::ArrayBuffer::create(m_realm, move(data));
@@ -6769,7 +6767,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(Bindings::KeyFormat f
         //      as defined in Section 7 of [RFC8410], that represents the Ed448 private key
         //      represented by the [[handle]] internal slot of key
         ::Crypto::ASN1::Encoder encoder;
-        TRY_OR_THROW_OOM(vm, encoder.write(key_data.bytes()));
+        TRY_OR_THROW_OOM(vm, encoder.write(handle.get<OKPPrivateKey>().bytes.bytes()));
 
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), ::Crypto::ASN1::ed448_oid));
 
@@ -6793,21 +6791,21 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(Bindings::KeyFormat f
 
         // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
         if (key->type() == Bindings::KeyType::Public) {
-            jwk.x = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(key_data));
+            jwk.x = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(handle.get<OKPPublicKey>().bytes));
         } else {
             // The "x" parameter of the "epk" field is set as follows:
             // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
             // and the standard base point (as u-coordinate input).
             // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
             ::Crypto::Curves::Ed448 curve;
-            auto public_key = TRY_OR_THROW_OOM(vm, curve.generate_public_key(key_data));
+            auto public_key = TRY_OR_THROW_OOM(vm, curve.generate_public_key(handle.get<OKPPrivateKey>().bytes));
             jwk.x = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(public_key));
         }
 
         // 6. If the [[type]] internal slot of key is "private"
         if (key->type() == Bindings::KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-            jwk.d = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(key_data));
+            jwk.d = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(handle.get<OKPPrivateKey>().bytes));
         }
 
         // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -6831,7 +6829,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(Bindings::KeyFormat f
 
         // 2. Let data be an octet string representing the Ed448 public key represented by the [[handle]] internal slot of key.
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(m_realm, key_data);
+        return JS::ArrayBuffer::create(m_realm, handle.get<OKPPublicKey>().bytes);
     }
 
     // 2. Otherwise:
@@ -6860,7 +6858,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED448::sign(AlgorithmParams const&
     // 4. Perform the Ed448 signing process, as specified in [RFC8032], Section 5.2.6,
     //    with message as M and context as C, using the Ed448 private key associated with key.
     ::Crypto::Curves::Ed448 curve;
-    auto maybe_signature = curve.sign(key->handle().get<ByteBuffer>(), message, context);
+    auto maybe_signature = curve.sign(key->handle().get<OKPPrivateKey>().bytes, message, context);
     if (maybe_signature.is_error()) {
         return WebIDL::OperationError::create(realm, "Failed to sign message"_utf16);
     }
@@ -6900,7 +6898,7 @@ WebIDL::ExceptionOr<JS::Value> ED448::verify(AlgorithmParams const& params, GC::
     //    the cofactorless (unbatched) equation, [S]B = R + [k]A', on the signature,
     //    with message as M and context as C, using the Ed448 public key associated with key.
     ::Crypto::Curves::Ed448 curve;
-    auto maybe_verified = curve.verify(key->handle().get<ByteBuffer>(), signature, message, context);
+    auto maybe_verified = curve.verify(key->handle().get<OKPPublicKey>().bytes, signature, message, context);
     if (maybe_verified.is_error())
         return WebIDL::OperationError::create(realm, Utf16String::from_utf8(maybe_verified.error().string_literal()));
 
@@ -7093,8 +7091,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(AlgorithmParam
     // 5. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
     //    key as the X25519 private key k and
     //    the X25519 public key represented by the [[handle]] internal slot of publicKey as the X25519 public key u.
-    auto private_key = key->handle().get<ByteBuffer>();
-    auto public_key_data = public_key->handle().get<ByteBuffer>();
+    auto const& private_key = key->handle().get<OKPPrivateKey>().bytes;
+    auto const& public_key_data = public_key->handle().get<OKPPublicKey>().bytes;
 
     ::Crypto::Curves::X25519 curve;
     auto maybe_secret = curve.compute_coordinate(private_key, public_key_data);
@@ -7169,7 +7167,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519:
 
     // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
     //    and representing the public key of the generated key pair.
-    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key_data });
+    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key_data } });
 
     // 6. Set the [[type]] internal slot of publicKey to "public"
     public_key->set_type(Bindings::KeyType::Public);
@@ -7185,7 +7183,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X25519:
 
     // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
     //     and representing the private key of the generated key pair.
-    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key_data });
+    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { private_key_data } });
 
     // 11. Set the [[type]] internal slot of privateKey to "private"
     private_key->set_type(Bindings::KeyType::Private);
@@ -7238,7 +7236,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
         auto public_key = spki.raw_key;
 
         // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents publicKey.
-        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key } });
 
         // 8. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -7285,7 +7283,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
 
         // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
         //    and that represents the X25519 private key identified by curvePrivateKey.
-        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { curve_private_key_bytes });
+        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { curve_private_key_bytes } });
 
         // 9. Set the [[type]] internal slot of key to "private"
         key->set_type(Bindings::KeyType::Private);
@@ -7374,7 +7372,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
                 return WebIDL::DataError::create(m_realm, "Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the X25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
-            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { private_key } });
 
             // 3. Set the [[type]] internal slot of Key to "private".
             key->set_type(Bindings::KeyType::Private);
@@ -7403,7 +7401,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
             if (jwk.d.has_value())
                 return WebIDL::DataError::create(m_realm, "Present d field"_utf16);
 
-            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key } });
 
             // 3. Set the [[type]] internal slot of Key to "public".
             key->set_type(Bindings::KeyType::Public);
@@ -7441,7 +7439,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
         algorithm->set_name("X25519"_string);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-        key = CryptoKey::create(m_realm, move(data));
+        key = CryptoKey::create(m_realm, OKPPublicKey { move(data) });
 
         // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -7483,7 +7481,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
         //    Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
         //    Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
         //    Set the subjectPublicKey field to keyData.
-        auto public_key = handle.get<ByteBuffer>();
+        auto public_key = handle.get<OKPPublicKey>().bytes;
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::x25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
@@ -7502,7 +7500,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
         //    Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
         //    Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410],
         //    that represents the X25519 private key represented by the [[handle]] internal slot of key
-        auto private_key = handle.get<ByteBuffer>();
+        auto private_key = handle.get<OKPPrivateKey>().bytes;
 
         ::Crypto::ASN1::Encoder encoder;
         TRY_OR_THROW_OOM(vm, encoder.write(private_key));
@@ -7525,7 +7523,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
 
         // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
         if (key->type() == Bindings::KeyType::Public) {
-            auto public_key = handle.get<ByteBuffer>();
+            auto public_key = handle.get<OKPPublicKey>().bytes;
             jwk.x = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(public_key));
         } else {
             // The "x" parameter of the "epk" field is set as follows:
@@ -7533,14 +7531,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
             // and the standard base point (as u-coordinate input).
             // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
             ::Crypto::Curves::X25519 curve;
-            auto public_key = TRY_OR_THROW_OOM(vm, curve.generate_public_key(handle.get<ByteBuffer>()));
+            auto public_key = TRY_OR_THROW_OOM(vm, curve.generate_public_key(handle.get<OKPPrivateKey>().bytes));
             jwk.x = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(public_key));
         }
 
         // 5. If the [[type]] internal slot of key is "private"
         if (key->type() == Bindings::KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-            auto private_key = handle.get<ByteBuffer>();
+            auto private_key = handle.get<OKPPrivateKey>().bytes;
             jwk.d = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(private_key));
         }
 
@@ -7566,7 +7564,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
             return WebIDL::InvalidAccessError::create(m_realm, "Key is not a public key"_utf16);
 
         // 2. Let data be an octet string representing the X25519 public key represented by the [[handle]] internal slot of key.
-        auto public_key = handle.get<ByteBuffer>();
+        auto public_key = handle.get<OKPPublicKey>().bytes;
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         result = JS::ArrayBuffer::create(m_realm, public_key);
@@ -7608,8 +7606,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X448::derive_bits(
     // 5. Let secret be the result of performing the X448 function specified in [RFC7748] Section 5
     //    with key as the X448 private key k and the X448 public key represented by the [[handle]]
     //    internal slot of publicKey as the X448 public key u.
-    auto private_key = key->handle().get<ByteBuffer>();
-    auto public_key_data = public_key->handle().get<ByteBuffer>();
+    auto const& private_key = key->handle().get<OKPPrivateKey>().bytes;
+    auto const& public_key_data = public_key->handle().get<OKPPublicKey>().bytes;
 
     ::Crypto::Curves::X448 curve;
     auto maybe_secret = curve.compute_coordinate(private_key, public_key_data);
@@ -7680,7 +7678,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X448::g
     algorithm->set_name("X448"_string);
 
     // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML], and representing the public key of the generated key pair.
-    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key_data });
+    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key_data } });
 
     // 6. Set the [[type]] internal slot of publicKey to "public"
     public_key->set_type(Bindings::KeyType::Public);
@@ -7695,7 +7693,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X448::g
     public_key->set_usages({});
 
     // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML], and representing the private key of the generated key pair.
-    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key_data });
+    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { private_key_data } });
 
     // 11. Set the [[type]] internal slot of privateKey to "private"
     private_key->set_type(Bindings::KeyType::Private);
@@ -7725,7 +7723,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
 
     // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
     // Note: In our impl this is always accessible
-    auto const& key_data = key->handle().get<ByteBuffer>();
+    auto const& handle = key->handle();
 
     // 3. If format is "spki":
     if (format == Bindings::KeyFormat::Spki) {
@@ -7738,7 +7736,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
         //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
         //    * Set the subjectPublicKey field to keyData.
         auto x448_oid = ::Crypto::ASN1::x448_oid;
-        auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_subject_public_key_info(key_data, x448_oid));
+        auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_subject_public_key_info(handle.get<OKPPublicKey>().bytes, x448_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         return JS::ArrayBuffer::create(m_realm, data);
@@ -7756,7 +7754,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
         //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
         //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410], that represents the X448 private key represented by the [[handle]] internal slot of key
         ::Crypto::ASN1::Encoder encoder;
-        TRY_OR_THROW_OOM(m_realm->vm(), encoder.write(key_data.bytes()));
+        TRY_OR_THROW_OOM(m_realm->vm(), encoder.write(handle.get<OKPPrivateKey>().bytes.bytes()));
 
         auto x448_oid = ::Crypto::ASN1::x448_oid;
         auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), x448_oid));
@@ -7778,17 +7776,17 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
 
         // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
         if (key->type() == Bindings::KeyType::Public) {
-            jwk.x = TRY_OR_THROW_OOM(m_realm->vm(), base64_url_bytes_encode(key_data));
+            jwk.x = TRY_OR_THROW_OOM(m_realm->vm(), base64_url_bytes_encode(handle.get<OKPPublicKey>().bytes));
         } else {
             ::Crypto::Curves::X448 curve;
-            auto public_key = TRY_OR_THROW_OOM(m_realm->vm(), curve.generate_public_key(key_data));
+            auto public_key = TRY_OR_THROW_OOM(m_realm->vm(), curve.generate_public_key(handle.get<OKPPrivateKey>().bytes));
             jwk.x = TRY_OR_THROW_OOM(m_realm->vm(), base64_url_bytes_encode(public_key));
         }
 
         // 5. If the [[type]] internal slot of key is "private"
         if (key->type() == Bindings::KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-            jwk.d = TRY_OR_THROW_OOM(m_realm->vm(), base64_url_bytes_encode(key_data));
+            jwk.d = TRY_OR_THROW_OOM(m_realm->vm(), base64_url_bytes_encode(handle.get<OKPPrivateKey>().bytes));
         }
 
         // 6. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -7813,7 +7811,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
 
         // 2. Let data be an octet string representing the X448 public key represented by the [[handle]] internal slot of key.
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
-        return JS::ArrayBuffer::create(m_realm, key_data);
+        return JS::ArrayBuffer::create(m_realm, handle.get<OKPPublicKey>().bytes);
     }
 
     // 3. Otherwise:
@@ -7853,7 +7851,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
         auto const& public_key = spki.raw_key;
 
         // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents publicKey.
-        auto key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+        auto key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key } });
 
         // 8. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);
@@ -7900,7 +7898,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
         auto curve_private_key_bytes = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::copy(curve_private_key.bytes()));
 
         // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents the X448 private key identified by curvePrivateKey.
-        auto key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { curve_private_key_bytes });
+        auto key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { curve_private_key_bytes } });
 
         // 9. Set the [[type]] internal slot of key to "private"
         key->set_type(Bindings::KeyType::Private);
@@ -7996,7 +7994,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
                 return WebIDL::DataError::create(m_realm, "Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the X448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
-            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPrivateKey { private_key } });
 
             // 3. Set the [[type]] internal slot of Key to "private".
             key->set_type(Bindings::KeyType::Private);
@@ -8026,7 +8024,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
                 return WebIDL::DataError::create(m_realm, "Present d field"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the X448 public key identified by interpreting jwk according to Section 2 of [RFC8037].
-            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { OKPPublicKey { public_key } });
 
             // 3. Set the [[type]] internal slot of Key to "public".
             key->set_type(Bindings::KeyType::Public);
@@ -8064,7 +8062,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
         algorithm->set_name("X448"_string);
 
         // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
-        auto key = CryptoKey::create(m_realm, move(data));
+        auto key = CryptoKey::create(m_realm, OKPPublicKey { move(data) });
 
         // 7. Set the [[type]] internal slot of key to "public"
         key->set_type(Bindings::KeyType::Public);

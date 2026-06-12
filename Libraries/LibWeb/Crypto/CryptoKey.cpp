@@ -30,6 +30,8 @@ enum class HandleTag : u8 {
     MLDSAPrivateKey = 6,
     MLKEMPublicKey = 7,
     MLKEMPrivateKey = 8,
+    OKPPublicKey = 9,
+    OKPPrivateKey = 10,
 };
 
 enum class KeyAlgorithmTag : u8 {
@@ -302,6 +304,28 @@ WebIDL::ExceptionOr<::Crypto::PK::MLKEMPrivateKey> deserialize_mlkem_private_key
     return ::Crypto::PK::MLKEMPrivateKey { move(seed), move(public_key), move(private_key) };
 }
 
+void serialize_handle(HTML::TransferDataEncoder& encoder, OKPPublicKey const& key)
+{
+    encoder.encode(HandleTag::OKPPublicKey);
+    encoder.encode(key.bytes);
+}
+
+WebIDL::ExceptionOr<OKPPublicKey> deserialize_okp_public_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+{
+    return OKPPublicKey { TRY(decoder.decode_buffer(realm)) };
+}
+
+void serialize_handle(HTML::TransferDataEncoder& encoder, OKPPrivateKey const& key)
+{
+    encoder.encode(HandleTag::OKPPrivateKey);
+    encoder.encode(key.bytes);
+}
+
+WebIDL::ExceptionOr<OKPPrivateKey> deserialize_okp_private_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+{
+    return OKPPrivateKey { TRY(decoder.decode_buffer(realm)) };
+}
+
 }
 
 GC_DEFINE_ALLOCATOR(CryptoKey);
@@ -338,6 +362,8 @@ void CryptoKey::finalize()
     Base::finalize();
     m_key_data.visit(
         [](ByteBuffer& data) { secure_zero(data.data(), data.size()); },
+        [](OKPPublicKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
+        [](OKPPrivateKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
         [](auto& data) { secure_zero(reinterpret_cast<u8*>(&data), sizeof(data)); });
 }
 
@@ -492,6 +518,12 @@ WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(HTML::TransferDataDec
         break;
     case HandleTag::MLKEMPrivateKey:
         m_key_data = TRY(deserialize_mlkem_private_key(serialized, realm));
+        break;
+    case HandleTag::OKPPublicKey:
+        m_key_data = TRY(deserialize_okp_public_key(serialized, realm));
+        break;
+    case HandleTag::OKPPrivateKey:
+        m_key_data = TRY(deserialize_okp_private_key(serialized, realm));
         break;
     }
 

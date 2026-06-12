@@ -20,6 +20,15 @@
 
 namespace Web::Crypto {
 
+// The raw key octets of an Ed25519, Ed448, X25519, or X448 ("OKP") key.
+struct OKPPublicKey {
+    ByteBuffer bytes;
+};
+
+struct OKPPrivateKey {
+    ByteBuffer bytes;
+};
+
 class CryptoKey final
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
@@ -28,7 +37,7 @@ class CryptoKey final
 
 public:
     using ImportKeyData = Variant<ByteBuffer, JsonWebKey>;
-    using InternalKeyData = Variant<ByteBuffer, ::Crypto::PK::RSAPublicKey, ::Crypto::PK::RSAPrivateKey, ::Crypto::PK::ECPublicKey, ::Crypto::PK::ECPrivateKey, ::Crypto::PK::MLDSAPublicKey, ::Crypto::PK::MLDSAPrivateKey, ::Crypto::PK::MLKEMPublicKey, ::Crypto::PK::MLKEMPrivateKey>;
+    using InternalKeyData = Variant<ByteBuffer, ::Crypto::PK::RSAPublicKey, ::Crypto::PK::RSAPrivateKey, ::Crypto::PK::ECPublicKey, ::Crypto::PK::ECPrivateKey, ::Crypto::PK::MLDSAPublicKey, ::Crypto::PK::MLDSAPrivateKey, ::Crypto::PK::MLKEMPublicKey, ::Crypto::PK::MLKEMPrivateKey, OKPPublicKey, OKPPrivateKey>;
 
     static constexpr bool OVERRIDES_FINALIZE = true;
 
