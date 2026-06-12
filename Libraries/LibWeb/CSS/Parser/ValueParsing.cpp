@@ -5411,7 +5411,13 @@ OwnPtr<BooleanExpression> Parser::parse_if_condition(TokenStream<ComponentValue>
             return nullptr;
         }
 
-        // FIXME: Support style()
+        // style( <style-query> )
+        if (function.name.equals_ignoring_ascii_case("style"sv)) {
+            return parse_entirely([&](auto& tokens) {
+                return parse_style_query(tokens, MatchResult::False);
+            });
+        }
+
         return nullptr;
     });
 
