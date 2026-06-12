@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    const video = document.getElementById("video");
+
+    function logState(label) {
+        println(`${label}: screenWakeLockActive=${internals.screenWakeLockActive}`);
+    }
+
+    function waitForEvent(target, name) {
+        return new Promise(resolve => target.addEventListener(name, resolve, { once: true }));
+    }
+
+    asyncTest(async done => {
+        logState("initial");
+
+        video.src = "../../../Assets/test-webm.webm";
+        await waitForEvent(video, "loadedmetadata");
+        logState("loaded metadata");
+
+        const sawPlaying = waitForEvent(video, "playing");
+        await video.play();
+        await sawPlaying;
+        logState("playing");
+
+        video.pause();
+        logState("paused");
+
+        const sawPlayingAgain = waitForEvent(video, "playing");
+        await video.play();
+        await sawPlayingAgain;
+        logState("playing again");
+
+        video.audioTracks[0].enabled = false;
+        logState("audio track disabled");
+
+        video.audioTracks[0].enabled = true;
+        logState("audio track re-enabled");
+
+        video.videoTracks[0].selected = false;
+        logState("video track disabled");
+
+        video.videoTracks[0].selected = true;
+        logState("video track re-enabled");
+
+        video.removeAttribute("src");
+        video.load();
+        logState("src cleared and loaded");
+
+        done();
+    });
+</script>

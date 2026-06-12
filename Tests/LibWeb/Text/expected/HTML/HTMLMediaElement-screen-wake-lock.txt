@@ -1,0 +1,10 @@
+initial: screenWakeLockActive=false
+loaded metadata: screenWakeLockActive=false
+playing: screenWakeLockActive=true
+paused: screenWakeLockActive=false
+playing again: screenWakeLockActive=true
+audio track disabled: screenWakeLockActive=false
+audio track re-enabled: screenWakeLockActive=true
+video track disabled: screenWakeLockActive=false
+video track re-enabled: screenWakeLockActive=true
+src cleared and loaded: screenWakeLockActive=false

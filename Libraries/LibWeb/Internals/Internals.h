@@ -106,6 +106,7 @@ public:
     void set_device_pixel_ratio(double ratio);
 
     bool headless();
+    bool screen_wake_lock_active();
 
     bool needs_repaint();
 

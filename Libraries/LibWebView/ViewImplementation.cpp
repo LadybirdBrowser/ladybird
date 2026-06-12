@@ -1159,6 +1159,22 @@ void ViewImplementation::reset_page_media_state()
 
     if (should_notify_audio_play_state_changed && on_audio_play_state_changed)
         on_audio_play_state_changed(m_audio_play_state);
+
+    if (m_screen_wake_lock_state != Web::ScreenWakeLockState::Released) {
+        m_screen_wake_lock_state = Web::ScreenWakeLockState::Released;
+        if (on_screen_wake_lock_state_changed)
+            on_screen_wake_lock_state_changed(m_screen_wake_lock_state);
+    }
+}
+
+void ViewImplementation::did_change_screen_wake_lock_state(Badge<WebContentClient>, Web::ScreenWakeLockState wake_lock_state)
+{
+    if (m_screen_wake_lock_state == wake_lock_state)
+        return;
+
+    m_screen_wake_lock_state = wake_lock_state;
+    if (on_screen_wake_lock_state_changed)
+        on_screen_wake_lock_state_changed(m_screen_wake_lock_state);
 }
 
 static Optional<size_t> current_top_level_history_entry_index_for_step(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Optional<i32> current_step);

@@ -53,6 +53,7 @@
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -126,6 +127,8 @@ void HTMLMediaElement::finalize()
 {
     Base::finalize();
 
+    m_screen_wake_lock.clear();
+
     // Tear down the controls eagerly so the Core::Timer they own (and the
     // closures it captures) cannot fire during the window between this GC
     // and our sweep, when our GC::Weak references to shadow tree nodes are
@@ -182,6 +185,8 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
         });
     if (m_controls.has_value())
         m_controls->visit_edges(visitor);
+    if (m_screen_wake_lock.has_value())
+        m_screen_wake_lock->visit_edges(visitor);
 }
 
 void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -264,6 +269,11 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
 
     if (m_delaying_the_load_event.has_value())
         m_delaying_the_load_event.emplace(document());
+
+    if (m_screen_wake_lock.has_value()) {
+        m_screen_wake_lock.clear();
+        update_screen_wake_lock();
+    }
 }
 
 void HTMLMediaElement::cancel_the_fetching_process()
@@ -1521,6 +1531,29 @@ Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref
     return {};
 }
 
+bool HTMLMediaElement::should_hold_screen_wake_lock() const
+{
+    if (!is<HTMLVideoElement>(*this))
+        return false;
+    if (m_video_tracks->selected_index() < 0)
+        return false;
+    if (!m_audio_tracks->has_enabled_track())
+        return false;
+
+    return potentially_playing();
+}
+
+void HTMLMediaElement::update_screen_wake_lock()
+{
+    if (should_hold_screen_wake_lock()) {
+        if (!m_screen_wake_lock.has_value())
+            m_screen_wake_lock.emplace(document().page());
+        return;
+    }
+
+    m_screen_wake_lock.clear();
+}
+
 void HTMLMediaElement::restart_fetch_at_offset(u64 offset)
 {
     VERIFY(m_remote_fetch_data);
@@ -1550,6 +1583,8 @@ void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::
         m_playback_manager->enable_an_audio_track(audio_track->track_in_playback_manager());
     else
         m_playback_manager->disable_an_audio_track(audio_track->track_in_playback_manager());
+
+    update_screen_wake_lock();
 }
 
 Painting::VideoFrameResourceId HTMLMediaElement::ensure_video_frame_resource_id()
@@ -1612,6 +1647,8 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
 
     if (previous_track)
         m_playback_manager->remove_the_displaying_video_sink_for_track(previous_track->track_in_playback_manager());
+
+    update_screen_wake_lock();
 }
 
 void HTMLMediaElement::update_video_frame_and_timeline()
@@ -2052,6 +2089,7 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     m_video_tracks->remove_all_tracks();
     m_playback_manager.clear();
     clear_compositor_video_frame();
+    update_screen_wake_lock();
 
     // NB: At this point, we no longer have any selected tracks to derive the video dimensions from.
     update_intrinsic_video_dimensions();
@@ -2068,6 +2106,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
 
     ScopeGuard guard { [&] {
         upon_has_ended_playback_possibly_changed();
+        update_screen_wake_lock();
         update_natural_dimensions();
         set_needs_style_update(true);
     } };
@@ -2557,6 +2596,8 @@ void HTMLMediaElement::notify_about_playing()
 
     if (m_audio_tracks->has_enabled_track())
         document().page().client().page_did_change_audio_play_state(AudioPlayState::Playing);
+
+    update_screen_wake_lock();
 }
 
 void HTMLMediaElement::set_show_poster(bool show_poster)
@@ -2585,6 +2626,8 @@ void HTMLMediaElement::set_paused(bool paused)
             document().page().client().page_did_change_audio_play_state(AudioPlayState::Paused);
     }
 
+    update_screen_wake_lock();
+
     update_natural_dimensions();
     set_needs_repaint();
     set_needs_style_update(true);
@@ -2592,7 +2635,12 @@ void HTMLMediaElement::set_paused(bool paused)
 
 void HTMLMediaElement::set_ended(bool ended)
 {
+    if (m_ended == ended)
+        return;
+
     m_ended = ended;
+
+    update_screen_wake_lock();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-defaultplaybackrate
