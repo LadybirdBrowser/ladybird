@@ -20,6 +20,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <LibCore/Forward.h>
+#include <LibCore/SharedCircularQueue.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Concepts.h>
 #include <LibIPC/File.h>
@@ -208,6 +209,13 @@ ErrorOr<T> decode(Decoder& decoder)
     }
 
     return hashmap;
+}
+
+template<Concepts::SharedSingleProducerCircularQueue T>
+ErrorOr<T> decode(Decoder& decoder)
+{
+    auto anon_file = TRY(decoder.decode<IPC::File>());
+    return T::create(anon_file.take_fd());
 }
 
 template<Concepts::Optional T>
