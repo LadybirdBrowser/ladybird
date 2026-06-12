@@ -21,11 +21,12 @@
 namespace Media {
 
 class PooledVideoFrameSlot;
+class ResolvedVideoFrameSlot;
 
 class MEDIA_API VideoFrame final : public AtomicRefCounted<VideoFrame> {
 
 public:
-    using BackingStorage = Variant<FixedArray<u8>, NonnullRefPtr<PooledVideoFrameSlot>>;
+    using BackingStorage = Variant<FixedArray<u8>, NonnullRefPtr<PooledVideoFrameSlot>, NonnullRefPtr<ResolvedVideoFrameSlot>>;
 
     VideoFrame(
         AK::Duration timestamp,
@@ -50,6 +51,10 @@ public:
     Gfx::YUVData const& yuv_data() const { return m_yuv_data; }
 
     PooledVideoFrameSlot const* pool_slot() const;
+
+    // Confirms the viewed pixels were not recycled while being consumed. Only frames resolved
+    // from a VideoFrameHandle can fail this.
+    bool revalidate_backing() const;
 
 private:
     AK::Duration m_timestamp;

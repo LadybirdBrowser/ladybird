@@ -9,10 +9,12 @@
 #include <AK/Array.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibMedia/Export.h>
+#include <LibMedia/VideoFrameHandle.h>
 #include <LibSync/Mutex.h>
 
 namespace Media {
@@ -32,6 +34,8 @@ public:
     // several threads at once.
     static ErrorOr<NonnullRefPtr<VideoFramePool>> create(Function<void()> slot_freed_callback = nullptr, size_t byte_budget = DEFAULT_BYTE_BUDGET);
 
+    VideoFramePoolID id() const { return m_id; }
+
     struct AcquiredSlot {
         u32 index { 0 };
         u64 slot_acquisition_id { 0 };
@@ -46,6 +50,9 @@ public:
 
     // Marks the buffers for freeing when their hold count drops to zero. This marker is cleared upon the next acquire.
     void shed_buffers();
+
+    // The buffer backing a held slot, for lending to consumer processes.
+    Core::AnonymousBuffer slot_buffer(u32 slot_index) const;
 
     size_t allocated_byte_count() const;
 
@@ -62,6 +69,7 @@ private:
     void drop_slot_buffer_while_locked(Slot&);
     void free_excess_buffers_while_locked();
 
+    VideoFramePoolID const m_id;
     Function<void()> const m_slot_freed_callback;
     size_t const m_byte_budget { 0 };
 
@@ -86,7 +94,7 @@ public:
         m_pool->release_hold(m_slot_index);
     }
 
-    VideoFramePool& pool() { return m_pool; }
+    VideoFramePool& pool() const { return m_pool; }
     u32 slot_index() const { return m_slot_index; }
     u64 slot_acquisition_id() const { return m_slot_acquisition_id; }
 
@@ -96,5 +104,56 @@ private:
     u64 m_slot_acquisition_id { 0 };
 };
 
+// A strong reference to a slot in a frame pool resolved on the remote side.
+class ResolvedVideoFrameSlot : public AtomicRefCounted<ResolvedVideoFrameSlot> {
+public:
+    ResolvedVideoFrameSlot(Core::AnonymousBuffer slot_buffer, VideoFramePoolID pool_id, u32 slot_index, u64 slot_acquisition_id, Function<void()> on_release)
+        : m_slot_buffer(move(slot_buffer))
+        , m_pool_id(pool_id)
+        , m_slot_index(slot_index)
+        , m_slot_acquisition_id(slot_acquisition_id)
+        , m_on_release(move(on_release))
+    {
+    }
+
+    ~ResolvedVideoFrameSlot()
+    {
+        if (m_on_release)
+            m_on_release();
+    }
+
+    bool revalidate() const;
+
+    VideoFramePoolID pool_id() const { return m_pool_id; }
+    u32 slot_index() const { return m_slot_index; }
+    u64 slot_acquisition_id() const { return m_slot_acquisition_id; }
+
+private:
+    Core::AnonymousBuffer m_slot_buffer;
+    VideoFramePoolID m_pool_id { 0 };
+    u32 m_slot_index { 0 };
+    u64 m_slot_acquisition_id { 0 };
+    Function<void()> m_on_release;
+};
+
+// Tracks all the active slot framebuffers from a VideoFramePool via announcement and retirement notifications. Used to
+// resolve frames on a remote process. Resolved frames' lifetimes are guaranteed until they are released.
+class MEDIA_API VideoFrameSlotDirectory : public AtomicRefCounted<VideoFrameSlotDirectory> {
+public:
+    static NonnullRefPtr<VideoFrameSlotDirectory> create();
+
+    void set_on_slots_changed(Function<void()>);
+
+    void notify_slot_announced(VideoFramePoolID, u32 slot_index, Core::AnonymousBuffer slot_buffer);
+    void notify_pool_retired(VideoFramePoolID);
+
+    RefPtr<VideoFrame> resolve_frame(VideoFrameHandle const&, Function<void()> on_release) const;
+
+private:
+    VideoFrameSlotDirectory() = default;
+
+    HashMap<VideoFramePoolID, HashMap<u32, Core::AnonymousBuffer>> m_slot_buffers_by_pool_id;
+    Function<void()> m_on_slots_changed;
+};
 
 }

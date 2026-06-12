@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Time.h>
 #include <LibCore/System.h>
+#include <LibMedia/VideoFrame.h>
+#include <LibMedia/VideoFrameHandle.h>
 #include <LibMedia/VideoFramePool.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
@@ -25,6 +28,56 @@ static size_t measured_slot_buffer_size(size_t byte_count)
     auto pool = make_pool();
     (void)pool->try_acquire(byte_count).release_value();
     return pool->allocated_byte_count();
+}
+
+static constexpr Gfx::IntSize RESOLVED_FRAME_SIZE { 64, 64 };
+static constexpr u8 RESOLVED_FRAME_BIT_DEPTH = 8;
+static Media::Subsampling const RESOLVED_FRAME_SUBSAMPLING { true, true };
+
+static size_t resolved_frame_byte_count()
+{
+    return MUST(Media::frame_plane_layout(RESOLVED_FRAME_SIZE, RESOLVED_FRAME_BIT_DEPTH, RESOLVED_FRAME_SUBSAMPLING)).total_byte_count;
+}
+
+static Media::VideoFrameHandle make_handle(Media::VideoFramePool const& pool, Media::VideoFramePool::AcquiredSlot const& slot)
+{
+    return Media::VideoFrameHandle {
+        .pool_id = pool.id(),
+        .slot_index = slot.index,
+        .slot_acquisition_id = slot.slot_acquisition_id,
+        .timestamp = AK::Duration::from_milliseconds(40),
+        .duration = AK::Duration::from_milliseconds(20),
+        .size = RESOLVED_FRAME_SIZE,
+        .bit_depth = RESOLVED_FRAME_BIT_DEPTH,
+        .subsampling = RESOLVED_FRAME_SUBSAMPLING,
+        .cicp = {
+            Media::ColorPrimaries::BT709,
+            Media::TransferCharacteristics::BT709,
+            Media::MatrixCoefficients::BT709,
+            Media::VideoFullRangeFlag::Full,
+        },
+    };
+}
+
+static Media::VideoFrameHandle make_stress_handle(Media::VideoFramePoolID pool_id, u32 slot_index, u64 slot_acquisition_id)
+{
+    auto handle = Media::VideoFrameHandle {
+        .pool_id = pool_id,
+        .slot_index = slot_index,
+        .slot_acquisition_id = slot_acquisition_id,
+        .timestamp = AK::Duration::zero(),
+        .duration = AK::Duration::zero(),
+        .size = RESOLVED_FRAME_SIZE,
+        .bit_depth = RESOLVED_FRAME_BIT_DEPTH,
+        .subsampling = RESOLVED_FRAME_SUBSAMPLING,
+        .cicp = {
+            Media::ColorPrimaries::BT709,
+            Media::TransferCharacteristics::BT709,
+            Media::MatrixCoefficients::BT709,
+            Media::VideoFullRangeFlag::Full,
+        },
+    };
+    return handle;
 }
 
 TEST_CASE(acquire_exhaustion_and_release)
@@ -145,19 +198,28 @@ TEST_CASE(excess_free_buffers_are_dropped_to_fit_the_budget)
 TEST_CASE(shed_buffers_frees_all_but_held_slots)
 {
     auto pool = make_pool();
-    auto held = pool->try_acquire(FRAME_BYTE_COUNT).release_value();
+    auto held = pool->try_acquire(resolved_frame_byte_count()).release_value();
+    held.bytes.fill(0x42);
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    directory->notify_slot_announced(pool->id(), held.index, pool->slot_buffer(held.index));
 
     auto released = pool->try_acquire(FRAME_BYTE_COUNT).release_value();
     pool->release_hold(released.index);
 
     pool->shed_buffers();
 
-    // Only the held slot's buffer remains.
-    EXPECT_EQ(pool->allocated_byte_count(), measured_slot_buffer_size(FRAME_BYTE_COUNT));
+    // Only the held slot's buffer remains, and it still resolves.
+    EXPECT_EQ(pool->allocated_byte_count(), measured_slot_buffer_size(resolved_frame_byte_count()));
+    auto frame = directory->resolve_frame(make_handle(pool, held), [] { });
+    EXPECT(frame != nullptr);
+    EXPECT_EQ(frame->yuv_data().y_data()[0], 0x42);
+    EXPECT(frame->revalidate_backing());
 
-    // The held buffer is freed once its last hold releases.
+    // The held buffer is freed once its last hold releases, and the directory's mapping
+    // remains readable.
     pool->release_hold(held.index);
     EXPECT_EQ(pool->allocated_byte_count(), 0u);
+    EXPECT(directory->resolve_frame(make_handle(pool, held), [] { }) != nullptr);
 
     // Acquiring again allocates fresh with a monotonic acquisition ID.
     auto fresh = pool->try_acquire(FRAME_BYTE_COUNT).release_value();
@@ -257,4 +319,248 @@ TEST_CASE(slot_freed_callback_wakes_a_waiting_acquirer)
     // If the release fails to wake the waiter, this join hangs the test.
     (void)acquirer_thread->join();
     EXPECT_EQ(acquired_index.load(), released_index);
+}
+
+TEST_CASE(directory_resolves_the_current_slot_acquisition_only)
+{
+    auto pool = make_pool();
+    auto slot = pool->try_acquire(resolved_frame_byte_count()).release_value();
+    slot.bytes.fill(0x42);
+
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+
+    auto frame = directory->resolve_frame(make_handle(pool, slot), [] { });
+    EXPECT(frame != nullptr);
+    EXPECT_EQ(frame->yuv_data().y_data()[0], 0x42);
+    EXPECT(frame->revalidate_backing());
+
+    // Recycling the slot into the same buffer invalidates the old acquisition ID, and the new
+    // acquisition resolves without a fresh announcement.
+    pool->release_hold(slot.index);
+    Optional<Media::VideoFramePool::AcquiredSlot> reacquired;
+    while (true) {
+        reacquired = pool->try_acquire(resolved_frame_byte_count());
+        if (reacquired->index == slot.index)
+            break;
+        pool->release_hold(reacquired->index);
+    }
+    EXPECT(!frame->revalidate_backing());
+    EXPECT(directory->resolve_frame(make_handle(pool, slot), [] { }) == nullptr);
+    EXPECT(directory->resolve_frame(make_handle(pool, *reacquired), [] { }) != nullptr);
+}
+
+TEST_CASE(replaced_buffers_stay_resolvable_through_old_mappings)
+{
+    auto pool = make_pool();
+
+    // Give every slot a buffer so that a larger frame must replace one.
+    Vector<Media::VideoFramePool::AcquiredSlot> slots;
+    for (u32 i = 0; i < Media::VideoFramePool::MAX_SLOT_COUNT; i++)
+        slots.append(pool->try_acquire(resolved_frame_byte_count()).release_value());
+    auto slot = slots.first();
+    slot.bytes.fill(0x17);
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+    for (auto const& acquired : slots)
+        pool->release_hold(acquired.index);
+
+    // A larger acquisition replaces the slot's buffer. The old buffer is never written again, so
+    // the directory's mapping still resolves the old acquisition ID.
+    auto replaced = pool->try_acquire(resolved_frame_byte_count() * 4).release_value();
+    EXPECT_EQ(replaced.index, slot.index);
+    auto old_frame = directory->resolve_frame(make_handle(pool, slot), [] { });
+    EXPECT(old_frame != nullptr);
+    EXPECT_EQ(old_frame->yuv_data().y_data()[0], 0x17);
+    EXPECT(old_frame->revalidate_backing());
+
+    // The new acquisition resolves only once its buffer is announced.
+    EXPECT(directory->resolve_frame(make_handle(pool, replaced), [] { }) == nullptr);
+    directory->notify_slot_announced(pool->id(), replaced.index, pool->slot_buffer(replaced.index));
+    EXPECT(directory->resolve_frame(make_handle(pool, replaced), [] { }) != nullptr);
+    EXPECT(directory->resolve_frame(make_handle(pool, slot), [] { }) == nullptr);
+}
+
+TEST_CASE(directory_resolves_through_a_second_mapping)
+{
+    auto pool = make_pool();
+    auto slot = pool->try_acquire(resolved_frame_byte_count()).release_value();
+    slot.bytes.fill(0x7f);
+
+    auto slot_buffer = pool->slot_buffer(slot.index);
+    auto transferred_fd = MUST(Core::System::dup(slot_buffer.fd()));
+    auto transferred_buffer = MUST(Core::AnonymousBuffer::create_from_anon_fd(transferred_fd, slot_buffer.size()));
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    directory->notify_slot_announced(pool->id(), slot.index, transferred_buffer);
+
+    auto frame = directory->resolve_frame(make_handle(pool, slot), [] { });
+    EXPECT(frame != nullptr);
+    EXPECT_NE(frame->yuv_data().y_data().data(), static_cast<u8 const*>(slot.bytes.data()));
+    EXPECT_EQ(frame->yuv_data().y_data()[0], 0x7f);
+}
+
+TEST_CASE(directory_ignores_invalid_slot_buffers)
+{
+    auto pool = make_pool();
+    auto slot = pool->try_acquire(resolved_frame_byte_count()).release_value();
+
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    size_t slots_changed_count = 0;
+    directory->set_on_slots_changed([&] { slots_changed_count++; });
+
+    directory->notify_slot_announced(pool->id(), slot.index, {});
+    auto too_small = MUST(Core::AnonymousBuffer::create_with_size(16));
+    directory->notify_slot_announced(pool->id(), slot.index, too_small);
+
+    EXPECT_EQ(slots_changed_count, 0u);
+    EXPECT(directory->resolve_frame(make_handle(pool, slot), [] { }) == nullptr);
+}
+
+TEST_CASE(pool_ids_are_unique)
+{
+    EXPECT_NE(make_pool()->id(), make_pool()->id());
+}
+
+TEST_CASE(resolved_frames_read_slots_and_release_on_destruction)
+{
+    auto pool = make_pool();
+    auto slot = pool->try_acquire(resolved_frame_byte_count()).release_value();
+    slot.bytes.fill(0x33);
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+
+    bool released = false;
+    {
+        auto frame = directory->resolve_frame(make_handle(pool, slot), [&] { released = true; });
+        EXPECT(frame != nullptr);
+        EXPECT_EQ(frame->yuv_data().y_data()[0], 0x33);
+        EXPECT_EQ(frame->timestamp(), AK::Duration::from_milliseconds(40));
+        EXPECT(frame->revalidate_backing());
+        EXPECT(frame->pool_slot() == nullptr);
+        EXPECT(!released);
+    }
+    EXPECT(released);
+}
+
+TEST_CASE(resolve_frame_rejects_stale_and_oversized_handles)
+{
+    auto pool = make_pool();
+    auto slot = pool->try_acquire(resolved_frame_byte_count()).release_value();
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+
+    // A format too large for the slot's buffer must not resolve.
+    auto oversized = make_handle(pool, slot);
+    oversized.bit_depth = 10;
+    EXPECT(directory->resolve_frame(oversized, [] { }) == nullptr);
+
+    auto handle = make_handle(pool, slot);
+    auto frame = directory->resolve_frame(handle, [] { });
+    EXPECT(frame != nullptr);
+
+    // Recycle the slot; the resolved frame must fail revalidation, and the stale handle must
+    // no longer resolve.
+    pool->release_hold(slot.index);
+    while (true) {
+        auto reacquired = pool->try_acquire(resolved_frame_byte_count()).release_value();
+        if (reacquired.index == slot.index)
+            break;
+        pool->release_hold(reacquired.index);
+    }
+    EXPECT(!frame->revalidate_backing());
+    EXPECT(directory->resolve_frame(handle, [] { }) == nullptr);
+}
+
+TEST_CASE(directory_resolves_announced_slots)
+{
+    auto pool = make_pool();
+    auto slot = pool->try_acquire(resolved_frame_byte_count()).release_value();
+    slot.bytes.fill(0x66);
+
+    auto directory = Media::VideoFrameSlotDirectory::create();
+    size_t slots_changed_count = 0;
+    directory->set_on_slots_changed([&] { slots_changed_count++; });
+
+    // A handle resolves to nothing until its slot has been announced.
+    auto handle = make_handle(pool, slot);
+    EXPECT(directory->resolve_frame(handle, [] { }) == nullptr);
+
+    directory->notify_slot_announced(pool->id(), slot.index, pool->slot_buffer(slot.index));
+    EXPECT_EQ(slots_changed_count, 1u);
+
+    bool released = false;
+    {
+        auto frame = directory->resolve_frame(handle, [&] { released = true; });
+        EXPECT(frame != nullptr);
+        EXPECT_EQ(frame->yuv_data().y_data()[0], 0x66);
+        EXPECT(!released);
+    }
+    EXPECT(released);
+
+    directory->notify_pool_retired(pool->id());
+    EXPECT(directory->resolve_frame(handle, [] { }) == nullptr);
+}
+
+TEST_CASE(recycle_versus_hold_stress)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto pool = make_pool();
+    auto const frame_count = 50'000;
+
+    // Allocate every slot's buffer up front so the consumer's mappings stay valid while the
+    // producer recycles same-sized frames through them.
+    Vector<Media::VideoFramePool::AcquiredSlot> slots;
+    for (u32 i = 0; i < Media::VideoFramePool::MAX_SLOT_COUNT; i++)
+        slots.append(pool->try_acquire(resolved_frame_byte_count()).release_value());
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto directory = Media::VideoFrameSlotDirectory::create();
+    for (u32 i = 0; i < Media::VideoFramePool::MAX_SLOT_COUNT; i++)
+        directory->notify_slot_announced(pool->id(), i, pool->slot_buffer(i));
+    for (auto const& slot : slots)
+        pool->release_hold(slot.index);
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<u64> published_packed { 0 };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> producer_done { false };
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto pool_id = pool->id();
+    auto consumer_thread = Threading::Thread::construct("PoolConsumer"sv, [&directory, &pool_id, &published_packed, &producer_done]() {
+        size_t verified_count = 0;
+        auto deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(30);
+        while ((!producer_done.load() || verified_count == 0) && MonotonicTime::now_coarse() < deadline) {
+            auto packed = published_packed.load();
+            if (packed == 0)
+                continue;
+            // The producer packs (slot << 32) | (slot_acquisition_id & 0xffffffff), with slot_acquisition_id
+            // also determining the fill byte, so any undetected recycle shows up as a
+            // mismatched pattern below.
+            auto slot_index = static_cast<u32>(packed >> 32);
+            auto slot_acquisition_id = packed & 0xffffffffu;
+
+            auto handle = make_stress_handle(pool_id, slot_index, slot_acquisition_id);
+            auto frame = directory->resolve_frame(handle, [] { });
+            if (frame == nullptr)
+                continue;
+            auto first = frame->yuv_data().y_data()[0];
+            auto last = frame->yuv_data().v_data()[frame->yuv_data().v_data().size() - 1];
+            if (!frame->revalidate_backing())
+                continue;
+            // Revalidation passed, so the bytes we read must match this slot_acquisition_id's pattern.
+            EXPECT_EQ(first, static_cast<u8>(slot_acquisition_id));
+            EXPECT_EQ(last, static_cast<u8>(slot_acquisition_id));
+            verified_count++;
+        }
+        EXPECT(verified_count > 0);
+        return 0;
+    });
+    consumer_thread->start();
+
+    for (int i = 0; i < frame_count; i++) {
+        auto slot = pool->try_acquire(resolved_frame_byte_count());
+        if (!slot.has_value())
+            continue;
+        VERIFY(slot->slot_acquisition_id <= 0xffffffffu);
+        slot->bytes.fill(static_cast<u8>(slot->slot_acquisition_id));
+        published_packed.store((static_cast<u64>(slot->index) << 32) | slot->slot_acquisition_id);
+        pool->release_hold(slot->index);
+    }
+    producer_done.store(true);
+    (void)consumer_thread->join();
 }
