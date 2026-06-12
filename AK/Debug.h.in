@@ -262,6 +262,10 @@
 #    cmakedefine01 UTF8_DEBUG
 #endif
 
+#ifndef VIDEO_FRAME_POOL_DEBUG
+#    cmakedefine01 VIDEO_FRAME_POOL_DEBUG
+#endif
+
 #ifndef VULKAN_VALIDATION_LAYERS_DEBUG
 #    cmakedefine01 VULKAN_VALIDATION_LAYERS_DEBUG
 #endif
