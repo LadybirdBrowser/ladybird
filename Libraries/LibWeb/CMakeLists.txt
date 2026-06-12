@@ -731,6 +731,7 @@ set(SOURCES
     HTML/WorkerNavigator.cpp
     HTML/WorkletGlobalScope.cpp
     HTML/XMLSerializer.cpp
+    IndexedDB/Inspection.cpp
     IndexedDB/IDBCursor.cpp
     IndexedDB/IDBDatabase.cpp
     IndexedDB/IDBFactory.cpp
