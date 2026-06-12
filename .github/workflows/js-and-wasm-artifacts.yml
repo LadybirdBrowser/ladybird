@@ -37,7 +37,7 @@ jobs:
             arch: 'arm64'
             toolchain: 'Clang'
             package_type: 'macOS-arm64'
-            runner_labels: '["macos-15", "self-hosted"]'
+            runner_labels: '["macos-26", "self-hosted"]'
             container: 'null'
 
           - os_name: 'Linux'

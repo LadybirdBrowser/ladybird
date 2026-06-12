@@ -27,7 +27,7 @@ jobs:
         include:
           - os_name: 'macOS'
             arch: 'arm64'
-            runner_labels: '["macos-15", "web-benchmarks", "self-hosted"]'
+            runner_labels: '["macos-26", "web-benchmarks", "self-hosted"]'
             container: 'null'
 
     permissions:

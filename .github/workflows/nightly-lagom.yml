@@ -40,7 +40,7 @@ jobs:
             build_preset: 'Distribution'
             toolchain: 'Clang'
             clang_plugins: false
-            runner_labels: '["macos-15", "self-hosted"]'
+            runner_labels: '["macos-26", "self-hosted"]'
             container: 'null'
 
           - os_name: 'Linux'
