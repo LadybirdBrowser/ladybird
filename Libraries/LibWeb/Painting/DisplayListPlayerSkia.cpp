@@ -317,6 +317,10 @@ void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
         }
     }
 
+    // A failed revalidation means the data acquired above was recycled by the pool's owner mid-read.
+    if (!frame->revalidate_backing())
+        return;
+
     auto dst_rect = to_skia_rect(command.dst_rect);
     SkRect src_rect = SkRect::MakeIWH(image->width(), image->height());
     auto& canvas = surface().canvas();

@@ -114,11 +114,26 @@ void ConnectionFromWebContent::update_scroll_state(Web::Compositor::CompositorCo
     m_compositor_state->update_scroll_state(context_id, move(scroll_state_snapshot));
 }
 
-void ConnectionFromWebContent::update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)
+void ConnectionFromWebContent::announce_video_frame_slot(Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer)
+{
+    m_compositor_state->announce_video_frame_slot(*this, pool_id, slot_index, move(slot_buffer));
+}
+
+void ConnectionFromWebContent::retire_video_frame_pool(Media::VideoFramePoolID pool_id)
+{
+    m_compositor_state->retire_video_frame_pool(*this, pool_id);
+}
+
+void ConnectionFromWebContent::release_video_frame(Media::VideoFramePoolID pool_id, u32 slot_index)
+{
+    async_release_video_frame(pool_id, slot_index);
+}
+
+void ConnectionFromWebContent::update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, Media::VideoFrameHandle frame_handle)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
-    m_compositor_state->update_video_frame(context_id, frame_id, move(frame));
+    m_compositor_state->update_video_frame(context_id, frame_id, frame_handle);
 }
 
 void ConnectionFromWebContent::clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id)

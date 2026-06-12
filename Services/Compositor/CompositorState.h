@@ -22,6 +22,7 @@
 #include <LibGfx/Size.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/VideoFramePool.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -54,6 +55,7 @@ public:
 
     virtual void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&) = 0;
     virtual void request_rendering_update() = 0;
+    virtual void release_video_frame(Media::VideoFramePoolID, u32 slot_index) = 0;
 };
 
 class CompositorState final : public RefCounted<CompositorState> {
@@ -84,7 +86,9 @@ public:
     void update_image_frame_resources(Web::Compositor::CompositorContextId, Vector<Web::Painting::DisplayListImageFrameResource>);
     void update_visual_context_tree(Web::Compositor::CompositorContextId, Web::Painting::AccumulatedVisualContextTree);
     void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot&&);
-    void update_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
+    void announce_video_frame_slot(CompositorStateWebContentClient&, Media::VideoFramePoolID, u32 slot_index, Core::AnonymousBuffer);
+    void retire_video_frame_pool(CompositorStateWebContentClient&, Media::VideoFramePoolID);
+    void update_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId, Media::VideoFrameHandle const&);
     void clear_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId);
     void invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId, u64 generation);
     bool handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
@@ -150,7 +154,17 @@ private:
     void schedule_gpu_completion_check();
     void check_gpu_completions();
 
+    // Retained by resolved frames' release callbacks, which may outlive the client;
+    // the client pointer is nulled when it dies to make those callbacks inert.
+    struct ClientVideoFramePools : public RefCounted<ClientVideoFramePools> {
+        NonnullRefPtr<Media::VideoFrameSlotDirectory> directory { Media::VideoFrameSlotDirectory::create() };
+        CompositorStateWebContentClient* client { nullptr };
+    };
+    RefPtr<Media::VideoFrame const> resolve_video_frame(CompositorStateWebContentClient&, Media::VideoFrameHandle const&);
+
     HashMap<Web::Compositor::CompositorContextId, OwnPtr<ContextState>> m_contexts;
+    // Pool IDs are only unique within the announcing client's process.
+    HashMap<CompositorStateWebContentClient*, NonnullRefPtr<ClientVideoFramePools>> m_video_frame_pools_by_client;
     DoublyLinkedList<PendingAsyncPresent> m_pending_async_presents;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Web::Painting::CanvasSurfaceRegistry m_canvas_surface_registry;

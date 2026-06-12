@@ -84,6 +84,7 @@ public:
     ~ContextState();
 
     bool is_owned_by(CompositorStateWebContentClient const&) const;
+    CompositorStateWebContentClient& web_content_client() const { return m_web_content_client; }
     void request_rendering_update();
     void dispatch_mouse_event_to_web_content(Web::MouseEvent const&);
 
