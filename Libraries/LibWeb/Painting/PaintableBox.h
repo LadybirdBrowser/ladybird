@@ -151,11 +151,7 @@ public:
 
     [[nodiscard]] bool has_css_transform() const
     {
-        auto const& computed_values = this->computed_values();
-        return !computed_values.transformations().is_empty()
-            || computed_values.rotate()
-            || computed_values.translate()
-            || computed_values.scale();
+        return layout_node().has_css_transform();
     }
 
     [[nodiscard]] bool has_non_invertible_css_transform() const { return m_has_non_invertible_css_transform; }

@@ -124,6 +124,7 @@ public:
     bool is_inline_table() const;
 
     bool is_atomic_inline() const;
+    bool is_transformable() const;
 
     bool is_out_of_flow(FormattingContext const&) const;
 
@@ -242,6 +243,9 @@ public:
 
     [[nodiscard]] bool has_css_transform() const
     {
+        if (!is_transformable())
+            return false;
+
         auto const& computed_values = this->computed_values();
         return !computed_values.transformations().is_empty()
             || computed_values.rotate()

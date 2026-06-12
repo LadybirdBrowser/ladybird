@@ -135,6 +135,9 @@ static Optional<TransformData> compute_transform(PaintableBox const& paintable_b
 // https://drafts.csswg.org/css-transforms-2/#perspective-matrix
 static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values)
 {
+    if (!paintable_box.layout_node().is_transformable())
+        return {};
+
     auto perspective = computed_values.perspective();
     if (!perspective.has_value())
         return {};
