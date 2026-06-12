@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf8View.h>
@@ -17,6 +18,8 @@ namespace WebView {
 
 static constexpr auto DEFAULT_AUTOCOMPLETE_SUGGESTION_LIMIT = 8uz;
 static constexpr size_t MINIMUM_TITLE_AUTOCOMPLETE_QUERY_LENGTH = 3;
+
+static constexpr u32 HISTORY_SCHEMA_BASELINE_VERSION = 1u;
 
 static Optional<StringView> url_without_scheme(StringView url)
 {
@@ -122,6 +125,26 @@ static void sort_matching_entries(Vector<HistoryEntry const*>& matches, StringVi
     return history_log_suggestions(suggestions);
 }
 
+ErrorOr<Database::MigrationOutcome> HistoryStore::migrate_schema(Database::Database& database, Database::MigrationMode mode)
+{
+    Array<Database::Migration, 1> migrations { {
+        { .version = HISTORY_SCHEMA_BASELINE_VERSION, .sql = R"#(
+            CREATE TABLE IF NOT EXISTS History (
+                url TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                favicon TEXT,
+                visit_count INTEGER NOT NULL,
+                last_visited_time INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS HistoryLastVisitedTimeIndex
+            ON History(last_visited_time DESC);
+        )#"sv },
+    } };
+
+    return database.migrate("History"sv, migrations, mode);
+}
+
 ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& database)
 {
     if (auto database_path = database.database_path(); database_path.has_value())
@@ -130,23 +153,6 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Opening memory-backed persisted history store");
 
     Statements statements {};
-
-    auto create_history_table = TRY(database.prepare_statement(R"#(
-        CREATE TABLE IF NOT EXISTS History (
-            url TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            favicon TEXT,
-            visit_count INTEGER NOT NULL,
-            last_visited_time INTEGER NOT NULL
-        );
-    )#"sv));
-    database.execute_statement(create_history_table, {});
-
-    auto create_last_visited_index = TRY(database.prepare_statement(R"#(
-        CREATE INDEX IF NOT EXISTS HistoryLastVisitedTimeIndex
-        ON History(last_visited_time DESC);
-    )#"sv));
-    database.execute_statement(create_last_visited_index, {});
 
     statements.upsert_entry = TRY(database.prepare_statement(R"#(
         INSERT INTO History (url, title, visit_count, last_visited_time)

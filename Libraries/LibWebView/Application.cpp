@@ -783,9 +783,15 @@ ErrorOr<void> Application::launch_services()
             dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is enabled, using {}", history_database_path->string());
 
         m_cookie_jar = TRY(CookieJar::create(*m_database));
-        m_history_store = TRY(HistoryStore::create(*m_history_database));
         m_hsts_store = TRY(HSTSStore::create(*m_database));
         m_storage_jar = TRY(StorageJar::create(*m_database));
+
+        if (TRY(HistoryStore::migrate_schema(*m_history_database)) == Database::MigrationOutcome::Success) {
+            m_history_store = TRY(HistoryStore::create(*m_history_database));
+        } else {
+            dbgln("History database was created by a newer Ladybird version; history will not be persisted this session");
+            m_history_store = HistoryStore::create();
+        }
     } else {
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is disabled, disabling browsing history");
 
