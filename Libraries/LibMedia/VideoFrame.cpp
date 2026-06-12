@@ -42,6 +42,13 @@ PooledVideoFrameSlot const* VideoFrame::pool_slot() const
     return m_backing_storage.get<NonnullRefPtr<PooledVideoFrameSlot>>().ptr();
 }
 
+bool VideoFrame::revalidate_backing() const
+{
+    if (auto const* resolved_slot = m_backing_storage.get_pointer<NonnullRefPtr<ResolvedVideoFrameSlot>>())
+        return (*resolved_slot)->revalidate();
+    return true;
+}
+
 }
 
 namespace IPC {

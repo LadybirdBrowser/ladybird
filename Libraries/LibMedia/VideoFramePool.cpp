@@ -7,6 +7,9 @@
 #include <AK/Atomic.h>
 #include <AK/Checked.h>
 #include <AK/Debug.h>
+#include <LibGfx/ColorSpace.h>
+#include <LibGfx/YUVData.h>
+#include <LibMedia/VideoFrame.h>
 
 #include "VideoFramePool.h"
 
@@ -15,6 +18,12 @@ namespace Media {
 namespace {
 
 constexpr size_t SLOT_DATA_ALIGNMENT = 64;
+
+VideoFramePoolID allocate_pool_id()
+{
+    static Atomic<u64> s_next_id { 1 };
+    return VideoFramePoolID { s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed) };
+}
 
 struct SlotHeader {
     Atomic<u64, AK::MemoryOrder::memory_order_relaxed> slot_acquisition_id { 0 };
@@ -30,6 +39,11 @@ SlotHeader& slot_header(Core::AnonymousBuffer& buffer)
     return *reinterpret_cast<SlotHeader*>(buffer.data<u8>());
 }
 
+SlotHeader const& slot_header(Core::AnonymousBuffer const& buffer)
+{
+    return *reinterpret_cast<SlotHeader const*>(buffer.data<u8 const>());
+}
+
 }
 
 ErrorOr<NonnullRefPtr<VideoFramePool>> VideoFramePool::create(Function<void()> slot_freed_callback, size_t byte_budget)
@@ -38,7 +52,8 @@ ErrorOr<NonnullRefPtr<VideoFramePool>> VideoFramePool::create(Function<void()> s
 }
 
 VideoFramePool::VideoFramePool(Function<void()> slot_freed_callback, size_t byte_budget)
-    : m_slot_freed_callback(move(slot_freed_callback))
+    : m_id(allocate_pool_id())
+    , m_slot_freed_callback(move(slot_freed_callback))
     , m_byte_budget(byte_budget)
 {
 }
@@ -185,10 +200,83 @@ void VideoFramePool::shed_buffers()
     }
 }
 
+Core::AnonymousBuffer VideoFramePool::slot_buffer(u32 slot_index) const
+{
+    Sync::MutexLocker locker { m_mutex };
+    VERIFY(m_slots[slot_index].hold_count > 0);
+    return m_slots[slot_index].buffer;
+}
+
 size_t VideoFramePool::allocated_byte_count() const
 {
     Sync::MutexLocker locker { m_mutex };
     return m_allocated_bytes;
+}
+
+bool ResolvedVideoFrameSlot::revalidate() const
+{
+    AK::atomic_thread_fence(AK::MemoryOrder::memory_order_acquire);
+    return slot_header(m_slot_buffer).slot_acquisition_id.load() == m_slot_acquisition_id;
+}
+
+static ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot_buffer(Core::AnonymousBuffer const& slot_buffer, VideoFrameHandle const& handle, Function<void()> on_release)
+{
+    auto layout = TRY(frame_plane_layout(handle.size, handle.bit_depth, handle.subsampling));
+    auto capacity = slot_buffer.size() - slot_data_offset();
+    if (layout.total_byte_count > capacity)
+        return Error::from_string_literal("VideoFrameHandle format does not fit its slot");
+
+    if (slot_header(slot_buffer).slot_acquisition_id.load(AK::MemoryOrder::memory_order_acquire) != handle.slot_acquisition_id)
+        return Error::from_string_literal("VideoFrameHandle refers to a recycled slot");
+
+    auto bytes = Bytes { const_cast<u8*>(slot_buffer.data<u8 const>()) + slot_data_offset(), capacity };
+    auto y_data = bytes.slice(0, layout.y_size);
+    auto u_data = bytes.slice(layout.u_offset, layout.u_size);
+    auto v_data = bytes.slice(layout.v_offset, layout.v_size);
+    auto yuv_data = TRY(Gfx::YUVData::create(handle.size, handle.bit_depth, handle.subsampling, handle.cicp, y_data, u_data, v_data));
+
+    auto color_space = TRY(Gfx::ColorSpace::from_cicp(handle.cicp));
+    auto resolved_slot = TRY(try_make_ref_counted<ResolvedVideoFrameSlot>(slot_buffer, handle.pool_id, handle.slot_index, handle.slot_acquisition_id, move(on_release)));
+    return try_make_ref_counted<VideoFrame>(handle.timestamp, handle.duration, handle.size.to_type<u32>(), handle.bit_depth, move(color_space), yuv_data, move(resolved_slot));
+}
+
+NonnullRefPtr<VideoFrameSlotDirectory> VideoFrameSlotDirectory::create()
+{
+    return adopt_ref(*new VideoFrameSlotDirectory());
+}
+
+void VideoFrameSlotDirectory::set_on_slots_changed(Function<void()> on_slots_changed)
+{
+    m_on_slots_changed = move(on_slots_changed);
+}
+
+void VideoFrameSlotDirectory::notify_slot_announced(VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer)
+{
+    if (!slot_buffer.is_valid() || slot_buffer.size() <= slot_data_offset())
+        return;
+    m_slot_buffers_by_pool_id.ensure(pool_id).set(slot_index, move(slot_buffer));
+    if (m_on_slots_changed)
+        m_on_slots_changed();
+}
+
+void VideoFrameSlotDirectory::notify_pool_retired(VideoFramePoolID pool_id)
+{
+    m_slot_buffers_by_pool_id.remove(pool_id);
+}
+
+RefPtr<VideoFrame> VideoFrameSlotDirectory::resolve_frame(VideoFrameHandle const& handle, Function<void()> on_release) const
+{
+    auto slot_buffers = m_slot_buffers_by_pool_id.get(handle.pool_id);
+    if (!slot_buffers.has_value())
+        return nullptr;
+    auto slot_buffer = slot_buffers->get(handle.slot_index);
+    if (!slot_buffer.has_value())
+        return nullptr;
+
+    auto frame_or_error = resolve_frame_from_slot_buffer(*slot_buffer, handle, move(on_release));
+    if (frame_or_error.is_error())
+        return nullptr;
+    return frame_or_error.release_value();
 }
 
 }

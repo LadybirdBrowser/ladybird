@@ -39,6 +39,7 @@ set(SOURCES
     Sinks/DisplayingVideoSink.cpp
     TimeRanges.cpp
     VideoFrame.cpp
+    VideoFrameHandle.cpp
     VideoFramePool.cpp
 )
 

@@ -1,0 +1,106 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <AK/Checked.h>
+#include <LibGfx/YUVData.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
+#include <LibMedia/VideoFrame.h>
+#include <LibMedia/VideoFramePool.h>
+
+#include "VideoFrameHandle.h"
+
+namespace Media {
+
+ErrorOr<FramePlaneLayout> frame_plane_layout(Gfx::IntSize size, u8 bit_depth, Subsampling subsampling)
+{
+    constexpr size_t PLANE_ALIGNMENT = 64;
+
+    auto plane_sizes = TRY(Gfx::YUVData::plane_sizes(size, bit_depth, subsampling));
+
+    auto u_offset = align_up_to(plane_sizes.y, PLANE_ALIGNMENT);
+    auto v_offset = align_up_to(u_offset + plane_sizes.u, PLANE_ALIGNMENT);
+    Checked<size_t> checked_total_byte_count = v_offset;
+    checked_total_byte_count += plane_sizes.v;
+    if (checked_total_byte_count.has_overflow())
+        return Error::from_string_literal("Video frame plane layout overflows");
+
+    return FramePlaneLayout {
+        .y_size = plane_sizes.y,
+        .u_offset = u_offset,
+        .u_size = plane_sizes.u,
+        .v_offset = v_offset,
+        .v_size = plane_sizes.v,
+        .total_byte_count = checked_total_byte_count.value(),
+    };
+}
+
+VideoFrameHandle VideoFrameHandle::for_frame(VideoFrame const& frame)
+{
+    auto const* pool_slot = frame.pool_slot();
+    VERIFY(pool_slot != nullptr);
+    auto const& yuv_data = frame.yuv_data();
+    return VideoFrameHandle {
+        .pool_id = pool_slot->pool().id(),
+        .slot_index = pool_slot->slot_index(),
+        .slot_acquisition_id = pool_slot->slot_acquisition_id(),
+        .timestamp = frame.timestamp(),
+        .duration = frame.duration(),
+        .size = yuv_data.size(),
+        .bit_depth = yuv_data.bit_depth(),
+        .subsampling = yuv_data.subsampling(),
+        .cicp = yuv_data.cicp(),
+    };
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Media::VideoFrameHandle const& handle)
+{
+    TRY(encoder.encode(handle.pool_id));
+    TRY(encoder.encode(handle.slot_index));
+    TRY(encoder.encode(handle.slot_acquisition_id));
+    TRY(encoder.encode(handle.timestamp));
+    TRY(encoder.encode(handle.duration));
+    TRY(encoder.encode(handle.size));
+    TRY(encoder.encode(handle.bit_depth));
+    TRY(encoder.encode(handle.subsampling.x()));
+    TRY(encoder.encode(handle.subsampling.y()));
+    TRY(encoder.encode(handle.cicp.color_primaries()));
+    TRY(encoder.encode(handle.cicp.transfer_characteristics()));
+    TRY(encoder.encode(handle.cicp.matrix_coefficients()));
+    TRY(encoder.encode(handle.cicp.video_full_range_flag()));
+    return {};
+}
+
+template<>
+ErrorOr<Media::VideoFrameHandle> decode(Decoder& decoder)
+{
+    Media::VideoFrameHandle handle;
+    handle.pool_id = TRY(decoder.decode<Media::VideoFramePoolID>());
+    handle.slot_index = TRY(decoder.decode<u32>());
+    handle.slot_acquisition_id = TRY(decoder.decode<u64>());
+    handle.timestamp = TRY(decoder.decode<AK::Duration>());
+    handle.duration = TRY(decoder.decode<AK::Duration>());
+    handle.size = TRY(decoder.decode<Gfx::IntSize>());
+    handle.bit_depth = TRY(decoder.decode<u8>());
+    handle.subsampling = Media::Subsampling {
+        TRY(decoder.decode<bool>()),
+        TRY(decoder.decode<bool>()),
+    };
+    handle.cicp = Media::CodingIndependentCodePoints {
+        TRY(decoder.decode<Media::ColorPrimaries>()),
+        TRY(decoder.decode<Media::TransferCharacteristics>()),
+        TRY(decoder.decode<Media::MatrixCoefficients>()),
+        TRY(decoder.decode<Media::VideoFullRangeFlag>()),
+    };
+    return handle;
+}
+
+}

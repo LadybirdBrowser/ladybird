@@ -24,36 +24,12 @@ static constexpr int AUTO_SUSPEND_IDLE_TIMEOUT_MS = 10000;
 
 namespace {
 
-struct FramePlaneLayout {
-    Gfx::YUVData::PlaneSizes plane_sizes;
-    size_t u_offset { 0 };
-    size_t v_offset { 0 };
-    size_t total_byte_count { 0 };
-};
-
 DecoderErrorOr<FramePlaneLayout> plane_layout_for_frame(VideoFrameMetadata const& metadata)
 {
-    // Frame planes are aligned within their pool slot for cache- and SIMD-friendly bases.
-    constexpr size_t PLANE_ALIGNMENT = 64;
-
-    auto plane_sizes_result = Gfx::YUVData::plane_sizes(metadata.size, metadata.bit_depth, metadata.subsampling);
-    if (plane_sizes_result.is_error())
-        return DecoderError::format(DecoderErrorCategory::Invalid, "Failed to compute video frame plane sizes: {}", plane_sizes_result.release_error());
-    auto plane_sizes = plane_sizes_result.release_value();
-
-    auto u_offset = align_up_to(plane_sizes.y, PLANE_ALIGNMENT);
-    auto v_offset = align_up_to(u_offset + plane_sizes.u, PLANE_ALIGNMENT);
-    Checked<size_t> checked_total_byte_count = v_offset;
-    checked_total_byte_count += plane_sizes.v;
-    if (checked_total_byte_count.has_overflow())
-        return DecoderError::with_description(DecoderErrorCategory::Invalid, "Video frame plane layout overflows"sv);
-
-    return FramePlaneLayout {
-        .plane_sizes = plane_sizes,
-        .u_offset = u_offset,
-        .v_offset = v_offset,
-        .total_byte_count = checked_total_byte_count.value(),
-    };
+    auto layout_result = frame_plane_layout(metadata.size, metadata.bit_depth, metadata.subsampling);
+    if (layout_result.is_error())
+        return DecoderError::format(DecoderErrorCategory::Invalid, "Failed to compute video frame plane layout: {}", layout_result.release_error());
+    return layout_result.release_value();
 }
 
 }
@@ -630,9 +606,9 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> DecodedVideoProducer::ThreadData::take
     auto pool_slot = pool_slot_result.release_value();
 
     auto layout = TRY(plane_layout_for_frame(metadata));
-    auto y_data = acquired_slot.bytes.slice(0, layout.plane_sizes.y);
-    auto u_data = acquired_slot.bytes.slice(layout.u_offset, layout.plane_sizes.u);
-    auto v_data = acquired_slot.bytes.slice(layout.v_offset, layout.plane_sizes.v);
+    auto y_data = acquired_slot.bytes.slice(0, layout.y_size);
+    auto u_data = acquired_slot.bytes.slice(layout.u_offset, layout.u_size);
+    auto v_data = acquired_slot.bytes.slice(layout.v_offset, layout.v_size);
 
     auto yuv_data = DECODER_TRY_ALLOC(Gfx::YUVData::create(metadata.size, metadata.bit_depth, metadata.subsampling, metadata.cicp, y_data, u_data, v_data));
     TRY(m_decoder->take_next_output_into(yuv_data));
