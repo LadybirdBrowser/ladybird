@@ -296,11 +296,13 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
         VERIFY(attachment_bytes.is_empty());
 
         auto const* payload = m_unprocessed_bytes.data() + index + sizeof(MessageHeader) + header.attachment_data_size;
-        if (message.bytes.try_append(payload, header.payload_size).is_error()) {
+        Vector<u8> payload_bytes;
+        if (payload_bytes.try_append(payload, header.payload_size).is_error()) {
             dbgln("TransportSocketWindows: Failed to allocate message buffer for payload_size {}", header.payload_size);
             should_shutdown = ShouldShutdown::Yes;
             break;
         }
+        message.bytes = ReceivedMessageBytes::from_vector(move(payload_bytes));
         callback(move(message));
         Checked<size_t> new_index = index;
         new_index += header.payload_size;

@@ -14,6 +14,7 @@
 #include <LibIPC/Attachment.h>
 #include <LibIPC/AutoCloseFileDescriptor.h>
 #include <LibIPC/Forward.h>
+#include <LibIPC/ReceivedMessageBytes.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
@@ -88,7 +89,7 @@ public:
         Yes,
     };
     struct Message {
-        Vector<u8> bytes;
+        ReceivedMessageBytes bytes;
         Queue<Attachment> attachments;
     };
     ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
