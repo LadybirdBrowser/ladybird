@@ -872,7 +872,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
             if (&target_element == context.subject) {
                 target_element.set_affected_by_has_pseudo_class_in_subject_position(true);
             } else {
-                target_element.set_affected_by_has_pseudo_class_in_non_subject_position(true);
+                target_element.set_affected_by_has_pseudo_class_in_non_subject_position();
             }
         }
         // These selectors should be relative selectors (https://drafts.csswg.org/selectors-4/#relative-selector)

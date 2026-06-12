@@ -262,7 +262,7 @@ static bool scope_selector_matches(Selector const& selector, DOM::Element const&
 {
     // A scope boundary match can activate or deactivate rules for descendants of the scope root.
     if (&element == &subject && selector.contains_pseudo_class(PseudoClass::Has))
-        const_cast<DOM::Element&>(element).set_affected_by_has_pseudo_class_in_non_subject_position(true);
+        const_cast<DOM::Element&>(element).set_affected_by_has_pseudo_class_in_non_subject_position();
 
     SelectorEngine::MatchContext context {
         .style_sheet_for_rule = scope_style_sheet,
