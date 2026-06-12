@@ -109,6 +109,14 @@ ErrorOr<StatementID> Database::prepare_statement(StringView statement)
 
 void Database::execute_statement_internal(StatementID statement_id, OnResult on_result)
 {
+    if (auto result = try_execute_statement_internal(statement_id, move(on_result)); result.is_error()) [[unlikely]] {
+        warnln("\033[31;1mDatabase error\033[0m: {}: {}", result.error(), sqlite3_errmsg(m_database));
+        VERIFY_NOT_REACHED();
+    }
+}
+
+ErrorOr<void> Database::try_execute_statement_internal(StatementID statement_id, OnResult on_result)
+{
     auto* statement = prepared_statement(statement_id);
 
     while (true) {
@@ -116,8 +124,8 @@ void Database::execute_statement_internal(StatementID statement_id, OnResult on_
 
         switch (result) {
         case SQLITE_DONE:
-            SQL_MUST(sqlite3_reset(statement));
-            return;
+            SQL_TRY(sqlite3_reset(statement));
+            return {};
 
         case SQLITE_ROW:
             if (on_result)
@@ -125,8 +133,9 @@ void Database::execute_statement_internal(StatementID statement_id, OnResult on_
             continue;
 
         default:
-            SQL_MUST(result);
-            return;
+            // Reset so the failed statement does not stay active and block a later COMMIT or ROLLBACK.
+            sqlite3_reset(statement);
+            return Error::from_string_view(sql_error(result));
         }
     }
 }
@@ -140,27 +149,43 @@ int Database::bound_parameter_count(StatementID statement_id)
 template<typename ValueType>
 void Database::apply_placeholder(StatementID statement_id, int index, ValueType const& value)
 {
-    auto* statement = prepared_statement(statement_id);
-
-    if constexpr (IsSame<ValueType, String>) {
-        StringView string { value };
-        SQL_MUST(sqlite3_bind_text(statement, index, string.characters_without_null_termination(), static_cast<int>(string.length()), SQLITE_TRANSIENT));
-    } else if constexpr (IsSame<ValueType, ByteString>) {
-        SQL_MUST(sqlite3_bind_blob(statement, index, value.characters(), static_cast<int>(value.length()), SQLITE_TRANSIENT));
-    } else if constexpr (IsSame<ValueType, UnixDateTime>) {
-        apply_placeholder(statement_id, index, value.offset_to_epoch().to_milliseconds());
-    } else if constexpr (IsIntegral<ValueType>) {
-        if constexpr (sizeof(ValueType) <= sizeof(int))
-            SQL_MUST(sqlite3_bind_int(statement, index, static_cast<int>(value)));
-        else
-            SQL_MUST(sqlite3_bind_int64(statement, index, static_cast<sqlite3_int64>(value)));
-    } else {
-        static_assert(DependentFalse<ValueType>);
+    if (auto result = try_apply_placeholder(statement_id, index, value); result.is_error()) [[unlikely]] {
+        warnln("\033[31;1mDatabase error\033[0m: {}: {}", result.error(), sqlite3_errmsg(m_database));
+        VERIFY_NOT_REACHED();
     }
 }
 
 #define __ENUMERATE_TYPE(type) \
     template DATABASE_API void Database::apply_placeholder(StatementID, int, type const&);
+ENUMERATE_SQL_TYPES
+#undef __ENUMERATE_TYPE
+
+template<typename ValueType>
+ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int index, ValueType const& value)
+{
+    auto* statement = prepared_statement(statement_id);
+
+    if constexpr (IsSame<ValueType, String>) {
+        StringView string { value };
+        SQL_TRY(sqlite3_bind_text(statement, index, string.characters_without_null_termination(), static_cast<int>(string.length()), SQLITE_TRANSIENT));
+    } else if constexpr (IsSame<ValueType, ByteString>) {
+        SQL_TRY(sqlite3_bind_blob(statement, index, value.characters(), static_cast<int>(value.length()), SQLITE_TRANSIENT));
+    } else if constexpr (IsSame<ValueType, UnixDateTime>) {
+        TRY(try_apply_placeholder(statement_id, index, value.offset_to_epoch().to_milliseconds()));
+    } else if constexpr (IsIntegral<ValueType>) {
+        if constexpr (sizeof(ValueType) <= sizeof(int))
+            SQL_TRY(sqlite3_bind_int(statement, index, static_cast<int>(value)));
+        else
+            SQL_TRY(sqlite3_bind_int64(statement, index, static_cast<sqlite3_int64>(value)));
+    } else {
+        static_assert(DependentFalse<ValueType>);
+    }
+
+    return {};
+}
+
+#define __ENUMERATE_TYPE(type) \
+    template DATABASE_API ErrorOr<void> Database::try_apply_placeholder(StatementID, int, type const&);
 ENUMERATE_SQL_TYPES
 #undef __ENUMERATE_TYPE
 
@@ -195,6 +220,119 @@ ValueType Database::result_column(StatementID statement_id, int column)
 ENUMERATE_SQL_TYPES
 #undef __ENUMERATE_TYPE
 
+ErrorOr<void> Database::execute_raw(ByteString const& sql)
+{
+    SQL_TRY(sqlite3_exec(m_database, sql.characters(), nullptr, nullptr, nullptr));
+    return {};
+}
+
+ErrorOr<void> Database::Transaction::begin()
+{
+    TRY(m_database.execute_raw("BEGIN IMMEDIATE;"));
+    m_active = true;
+    return {};
+}
+
+Database::Transaction::~Transaction()
+{
+    if (!m_active)
+        return;
+    if (auto result = m_database.execute_raw("ROLLBACK;"); result.is_error())
+        warnln("\033[31;1mDatabase error\033[0m: Unable to roll back transaction: {}", result.error());
+}
+
+ErrorOr<void> Database::Transaction::commit()
+{
+    VERIFY(m_active);
+    TRY(m_database.execute_raw("COMMIT;"));
+    m_active = false;
+    return {};
+}
+
+ErrorOr<MigrationOutcome> Database::migrate(StringView store_name, ReadonlySpan<Migration> migrations, MigrationMode mode)
+{
+    VERIFY(!migrations.is_empty());
+    VERIFY(migrations.first().version >= 1);
+    for (size_t i = 1; i < migrations.size(); ++i)
+        VERIFY(migrations[i].version > migrations[i - 1].version);
+
+    auto store = TRY(String::from_utf8(store_name));
+    auto latest_version = migrations.last().version;
+
+    // Fast path: only reads, so a database from a newer version of Ladybird is left untouched.
+    if (auto recorded = TRY(schema_version(store_name)); recorded.has_value()) {
+        if (*recorded > latest_version)
+            return MigrationOutcome::DatabaseTooNew;
+        if (*recorded == latest_version)
+            return MigrationOutcome::Success;
+    }
+
+    Transaction transaction { *this };
+    TRY(transaction.begin());
+
+    TRY(execute_raw("CREATE TABLE IF NOT EXISTS SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);"));
+
+    // Re-read under the write lock; a concurrent process may have migrated since the fast path.
+    auto recorded = TRY(schema_version(store_name));
+    if (recorded.has_value()) {
+        if (*recorded > latest_version)
+            return MigrationOutcome::DatabaseTooNew;
+
+        if (*recorded == latest_version) {
+            if (mode == MigrationMode::CheckOnly)
+                return MigrationOutcome::Success;
+
+            TRY(transaction.commit());
+            return MigrationOutcome::Success;
+        }
+    }
+
+    auto current_version = recorded.value_or(0);
+
+    if (mode == MigrationMode::CheckOnly)
+        return MigrationOutcome::Success;
+
+    for (auto const& migration : migrations) {
+        if (migration.version <= current_version)
+            continue;
+
+        if (!migration.sql.is_empty())
+            TRY(execute_raw(migration.sql));
+
+        if (migration.backfill)
+            TRY(migration.backfill(*this));
+    }
+
+    auto update_version = TRY(prepare_statement("INSERT INTO SchemaVersions (store, version) VALUES (?, ?) ON CONFLICT(store) DO UPDATE SET version = excluded.version;"sv));
+    TRY(try_execute_statement(update_version, {}, store, latest_version));
+
+    TRY(transaction.commit());
+    return MigrationOutcome::Success;
+}
+
+ErrorOr<bool> Database::table_exists(StringView table)
+{
+    if (!m_table_exists_statement.has_value())
+        m_table_exists_statement = TRY(prepare_statement("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?;"sv));
+
+    bool exists = false;
+    TRY(try_execute_statement(*m_table_exists_statement, [&](auto) { exists = true; }, TRY(String::from_utf8(table))));
+    return exists;
+}
+
+ErrorOr<Optional<u32>> Database::schema_version(StringView store)
+{
+    if (!TRY(table_exists("SchemaVersions"sv)))
+        return OptionalNone {};
+
+    if (!m_schema_version_statement.has_value())
+        m_schema_version_statement = TRY(prepare_statement("SELECT version FROM SchemaVersions WHERE store = ?;"sv));
+
+    Optional<u32> version;
+    TRY(try_execute_statement(*m_schema_version_statement, [&](auto statement_id) { version = result_column<u32>(statement_id, 0); }, TRY(String::from_utf8(store))));
+    return version;
+}
+
 ErrorOr<void> Database::set_journal_mode_pragma(JournalMode journal_mode)
 {
     auto journal_mode_string = [&]() {
@@ -216,7 +354,7 @@ ErrorOr<void> Database::set_journal_mode_pragma(JournalMode journal_mode)
     }();
 
     auto pragma = ByteString::formatted("PRAGMA journal_mode={};", journal_mode_string);
-    SQL_TRY(sqlite3_exec(m_database, pragma.characters(), nullptr, nullptr, nullptr));
+    TRY(execute_raw(pragma));
 
     return {};
 }
@@ -238,7 +376,7 @@ ErrorOr<void> Database::set_synchronous_pragma(Synchronous synchronous)
     }();
 
     auto pragma = ByteString::formatted("PRAGMA synchronous={};", synchronous_string);
-    SQL_TRY(sqlite3_exec(m_database, pragma.characters(), nullptr, nullptr, nullptr));
+    TRY(execute_raw(pragma));
 
     return {};
 }
