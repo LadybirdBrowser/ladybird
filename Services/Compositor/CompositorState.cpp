@@ -61,6 +61,9 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
     for (auto context_id : context_ids) {
         destroy_context(context_id);
     }
+
+    if (auto pools = m_video_frame_pools_by_client.take(&client); pools.has_value())
+        (*pools)->client = nullptr;
 }
 
 void CompositorState::create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client)
@@ -142,6 +145,16 @@ void CompositorState::update_display_list(Web::Compositor::CompositorContextId c
         return;
     }
 
+    for (auto& video_frame_resource : resource_transaction.video_frames) {
+        auto const* frame_handle = video_frame_resource.frame.get_pointer<Media::VideoFrameHandle>();
+        if (frame_handle == nullptr)
+            continue;
+        if (auto frame = resolve_video_frame(context->web_content_client(), *frame_handle))
+            video_frame_resource.frame = frame.release_nonnull();
+        else
+            video_frame_resource.frame = Empty {};
+    }
+
     context->apply_display_list_resource_transaction(move(resource_transaction));
     context->install_display_list_update(move(display_list), move(visual_context_tree), move(scroll_state_snapshot));
 }
@@ -169,11 +182,45 @@ void CompositorState::update_scroll_state(Web::Compositor::CompositorContextId c
     context->update_scroll_state(move(scroll_state_snapshot));
 }
 
-void CompositorState::update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)
+void CompositorState::announce_video_frame_slot(CompositorStateWebContentClient& client, Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer)
+{
+    auto& pools = m_video_frame_pools_by_client.ensure(&client, [&] {
+        auto pools = make_ref_counted<ClientVideoFramePools>();
+        pools->client = &client;
+        return pools;
+    });
+    pools->directory->notify_slot_announced(pool_id, slot_index, move(slot_buffer));
+}
+
+void CompositorState::retire_video_frame_pool(CompositorStateWebContentClient& client, Media::VideoFramePoolID pool_id)
+{
+    auto pools_it = m_video_frame_pools_by_client.find(&client);
+    if (pools_it == m_video_frame_pools_by_client.end())
+        return;
+    pools_it->value->directory->notify_pool_retired(pool_id);
+}
+
+RefPtr<Media::VideoFrame const> CompositorState::resolve_video_frame(CompositorStateWebContentClient& client, Media::VideoFrameHandle const& handle)
+{
+    auto pools_it = m_video_frame_pools_by_client.find(&client);
+    if (pools_it == m_video_frame_pools_by_client.end())
+        return nullptr;
+
+    // A recycled slot resolves to nothing, meaning a newer frame has already superseded this handle.
+    return pools_it->value->directory->resolve_frame(handle, [pools = pools_it->value, pool_id = handle.pool_id, slot_index = handle.slot_index] {
+        if (pools->client != nullptr)
+            pools->client->release_video_frame(pool_id, slot_index);
+    });
+}
+
+void CompositorState::update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, Media::VideoFrameHandle const& frame_handle)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
-    context->update_video_frame(frame_id, move(frame));
+    auto frame = resolve_video_frame(context->web_content_client(), frame_handle);
+    if (frame == nullptr)
+        return;
+    context->update_video_frame(frame_id, frame.release_nonnull());
     present_current_frame(context_id, *context);
 }
 

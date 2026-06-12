@@ -15,11 +15,13 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
+#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibMedia/VideoFrame.h>
+#include <LibMedia/VideoFrameHandle.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
@@ -53,7 +55,8 @@ struct DisplayListImageFrameResource {
 
 struct DisplayListVideoFrameResource {
     VideoFrameResourceId id;
-    RefPtr<Media::VideoFrame const> frame;
+    // Handles only exist in transit; the receiver resolves them back to frames before applying the transaction.
+    Variant<Empty, NonnullRefPtr<Media::VideoFrame const>, Media::VideoFrameHandle> frame;
 };
 
 struct DisplayListStoredImageFrameResource;

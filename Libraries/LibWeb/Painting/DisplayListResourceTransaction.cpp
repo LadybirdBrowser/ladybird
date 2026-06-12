@@ -86,12 +86,13 @@ ErrorOr<Web::Painting::DisplayListImageFrameResource> decode(Decoder& decoder)
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayListVideoFrameResource const& resource)
 {
-    Optional<NonnullRefPtr<Media::VideoFrame const>> frame;
-    if (resource.frame)
-        frame = NonnullRefPtr<Media::VideoFrame const> { *resource.frame };
+    auto frame_handle = resource.frame.visit(
+        [](Empty) -> Optional<Media::VideoFrameHandle> { return {}; },
+        [](NonnullRefPtr<Media::VideoFrame const> const& frame) -> Optional<Media::VideoFrameHandle> { return Media::VideoFrameHandle::for_frame(*frame); },
+        [](Media::VideoFrameHandle const& handle) -> Optional<Media::VideoFrameHandle> { return handle; });
 
     TRY(encoder.encode(resource.id));
-    TRY(encoder.encode(frame));
+    TRY(encoder.encode(frame_handle));
     return {};
 }
 
@@ -99,16 +100,12 @@ template<>
 ErrorOr<Web::Painting::DisplayListVideoFrameResource> decode(Decoder& decoder)
 {
     auto id = TRY(decoder.decode<Web::Painting::VideoFrameResourceId>());
-    auto frame = TRY(decoder.decode<Optional<NonnullRefPtr<Media::VideoFrame const>>>());
+    auto frame_handle = TRY(decoder.decode<Optional<Media::VideoFrameHandle>>());
 
-    RefPtr<Media::VideoFrame const> decoded_frame;
-    if (frame.has_value())
-        decoded_frame = frame.release_value();
-
-    return Web::Painting::DisplayListVideoFrameResource {
-        .id = id,
-        .frame = move(decoded_frame),
-    };
+    Web::Painting::DisplayListVideoFrameResource resource { .id = id, .frame = Empty {} };
+    if (frame_handle.has_value())
+        resource.frame = frame_handle.release_value();
+    return resource;
 }
 
 template<>

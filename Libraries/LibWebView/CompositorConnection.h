@@ -19,6 +19,7 @@
 #include <LibGfx/Size.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/VideoFramePool.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -81,20 +82,30 @@ private:
         Function<void()> callback;
     };
 
+    struct LentVideoFramePool {
+        NonnullRefPtr<Media::VideoFramePool> pool;
+        HashMap<u32, u32> lend_counts_by_slot_index;
+        HashMap<u32, u64> announced_allocated_buffer_ids_by_slot_index;
+        size_t outstanding_lend_count { 0 };
+    };
+
     virtual void die() override;
 
     virtual void mouse_event(u64 page_id, Web::MouseEvent) override;
     virtual void request_rendering_update() override;
     virtual void did_complete_screenshot(Web::Compositor::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Web::Compositor::ScreenshotRequestId) override;
+    virtual void release_video_frame(Media::VideoFramePoolID, u32 slot_index) override;
     virtual void did_lose_compositor() override;
 
     bool can_send_message_to_compositor() const;
     Optional<PendingScreenshot> take_screenshot(Web::Compositor::ScreenshotRequestId);
+    void lend_video_frame_to_compositor(Media::VideoFrame const&);
 
     HashMap<Web::Compositor::ScreenshotRequestId, PendingScreenshot> m_screenshots;
     u64 m_next_screenshot_request_id { 1 };
     bool m_has_lost_compositor { false };
+    HashMap<u64, LentVideoFramePool> m_lent_video_frame_pools;
 };
 
 }

@@ -39,6 +39,7 @@ public:
     struct AcquiredSlot {
         u32 index { 0 };
         u64 slot_acquisition_id { 0 };
+        u64 allocated_buffer_id { 0 };
         Bytes bytes;
     };
     // Gets a free slot with the requested capacity if it is available, reallocating the buffer if needed.
@@ -62,6 +63,7 @@ private:
     struct Slot {
         Core::AnonymousBuffer buffer;
         u64 last_slot_acquisition_id { 0 };
+        u64 allocated_buffer_id { 0 };
         u32 hold_count { 0 };
     };
 
@@ -82,10 +84,11 @@ private:
 // A strong reference to a slot in a frame pool to be used within a single process.
 class PooledVideoFrameSlot : public AtomicRefCounted<PooledVideoFrameSlot> {
 public:
-    PooledVideoFrameSlot(NonnullRefPtr<VideoFramePool> pool, u32 slot_index, u64 slot_acquisition_id)
+    PooledVideoFrameSlot(NonnullRefPtr<VideoFramePool> pool, u32 slot_index, u64 slot_acquisition_id, u64 allocated_buffer_id)
         : m_pool(move(pool))
         , m_slot_index(slot_index)
         , m_slot_acquisition_id(slot_acquisition_id)
+        , m_allocated_buffer_id(allocated_buffer_id)
     {
     }
 
@@ -97,11 +100,13 @@ public:
     VideoFramePool& pool() const { return m_pool; }
     u32 slot_index() const { return m_slot_index; }
     u64 slot_acquisition_id() const { return m_slot_acquisition_id; }
+    u64 allocated_buffer_id() const { return m_allocated_buffer_id; }
 
 private:
     NonnullRefPtr<VideoFramePool> m_pool;
     u32 m_slot_index { 0 };
     u64 m_slot_acquisition_id { 0 };
+    u64 m_allocated_buffer_id { 0 };
 };
 
 // A strong reference to a slot in a frame pool resolved on the remote side.

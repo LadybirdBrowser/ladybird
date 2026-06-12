@@ -466,8 +466,12 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
             transaction.image_frames.append({ id, image_frame(id) });
     }
     for (auto id : current.video_frames) {
-        if (!previous.video_frames.contains(id))
-            transaction.video_frames.append({ id, video_frame(id) });
+        if (previous.video_frames.contains(id))
+            continue;
+        if (auto frame = video_frame(id))
+            transaction.video_frames.append({ id, frame.release_nonnull() });
+        else
+            transaction.video_frames.append({ id, Empty {} });
     }
     for (auto id : current.display_lists) {
         if (!previous.display_lists.contains(id))
@@ -499,8 +503,12 @@ void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransactio
         set_font(font.id, move(font.font));
     for (auto& frame : transaction.image_frames)
         set_image_frame(frame.id, move(frame.frame));
-    for (auto& video_frame : transaction.video_frames)
-        add_video_frame(video_frame.id, move(video_frame.frame));
+    for (auto& video_frame : transaction.video_frames) {
+        RefPtr<Media::VideoFrame const> frame;
+        if (auto* resolved_frame = video_frame.frame.get_pointer<NonnullRefPtr<Media::VideoFrame const>>())
+            frame = move(*resolved_frame);
+        add_video_frame(video_frame.id, move(frame));
+    }
     for (auto& display_list : transaction.display_lists)
         add_display_list(move(display_list));
 

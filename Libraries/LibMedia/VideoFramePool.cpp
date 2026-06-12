@@ -107,6 +107,7 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
             return {};
         drop_slot_buffer_while_locked(*chosen_slot);
         chosen_slot->buffer = buffer_result.release_value();
+        chosen_slot->allocated_buffer_id++;
         new (chosen_slot->buffer.data<void>()) SlotHeader;
         m_allocated_bytes += chosen_slot->buffer.size();
     }
@@ -122,13 +123,14 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
     return AcquiredSlot {
         .index = slot_index,
         .slot_acquisition_id = chosen_slot->last_slot_acquisition_id,
+        .allocated_buffer_id = chosen_slot->allocated_buffer_id,
         .bytes = { chosen_slot->buffer.data<u8>() + slot_data_offset(), byte_count },
     };
 }
 
 ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFramePool::try_adopt_acquired_slot(AcquiredSlot const& acquired_slot)
 {
-    auto slot_result = try_make_ref_counted<PooledVideoFrameSlot>(*this, acquired_slot.index, acquired_slot.slot_acquisition_id);
+    auto slot_result = try_make_ref_counted<PooledVideoFrameSlot>(*this, acquired_slot.index, acquired_slot.slot_acquisition_id, acquired_slot.allocated_buffer_id);
     if (slot_result.is_error())
         release_hold(acquired_slot.index);
     return slot_result;

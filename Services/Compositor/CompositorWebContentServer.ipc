@@ -7,7 +7,8 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
-#include <LibMedia/VideoFrame.h>
+#include <LibMedia/VideoFrameHandle.h>
+#include <LibMedia/VideoFramePool.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -30,7 +31,9 @@ endpoint CompositorWebContentServer
     update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree) =|
     update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot scroll_state_snapshot) =|
 
-    update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame) =|
+    announce_video_frame_slot(Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer) =|
+    retire_video_frame_pool(Media::VideoFramePoolID pool_id) =|
+    update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, Media::VideoFrameHandle frame_handle) =|
     clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id) =|
 
     create_canvas_2d_context(Gfx::IntSize size, bool alpha) => (bool success, Web::Painting::CanvasId canvas_id)
