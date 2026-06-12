@@ -65,6 +65,15 @@ ErrorOr<DiskCache> DiskCache::create(Mode mode)
         ? TRY(Database::Database::create(cache_directory.string(), INDEX_DATABASE))
         : TRY(Database::Database::create_memory_backed());
 
+    if (TRY(CacheIndex::migrate_schema(*database)) == Database::MigrationOutcome::DatabaseTooNew) {
+        // Entry file names are derived from the cache key, so writing into the existing cache
+        // directory without its index would corrupt entries the newer build's index refers to.
+        // Partitioned mode is already a per-process transient cache in its own directory.
+        // (A fresh memory-backed database always migrates, so this is necessarily Mode::Normal.)
+        dbgln("Disk cache index was created by a newer Ladybird version; using a transient cache this session");
+        return create(Mode::Partitioned);
+    }
+
     auto index = TRY(CacheIndex::create(database, cache_directory));
 
     return DiskCache { mode, move(database), move(cache_directory), move(index) };
