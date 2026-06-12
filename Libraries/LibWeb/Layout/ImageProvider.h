@@ -30,10 +30,8 @@ public:
     Optional<CSSPixelSize> intrinsic_size() const;
     Optional<CSSPixelFraction> intrinsic_aspect_ratio() const;
 
-    Optional<Gfx::DecodedImageFrame> current_image_frame() const;
-    Optional<Gfx::DecodedImageFrame> current_image_frame_sized(Gfx::IntSize) const;
-
-    Optional<Gfx::DecodedImageFrame> default_image_frame_sized(Gfx::IntSize) const;
+    Optional<Gfx::DecodedImageFrame> current_image_frame(Optional<Gfx::IntSize> size = {}) const;
+    Optional<Gfx::DecodedImageFrame> default_image_frame(Optional<Gfx::IntSize> size = {}) const;
 
     virtual void layout_node_was_detached() const { }
 

@@ -47,22 +47,17 @@ Optional<CSSPixelSize> ImageProvider::intrinsic_size() const
     return CSSPixelSize { *width, *height };
 }
 
-Optional<Gfx::DecodedImageFrame> ImageProvider::current_image_frame() const
-{
-    return current_image_frame_sized(intrinsic_size().value_or({}).to_type<int>());
-}
-
-Optional<Gfx::DecodedImageFrame> ImageProvider::current_image_frame_sized(Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> ImageProvider::current_image_frame(Optional<Gfx::IntSize> size) const
 {
     if (auto const& data = decoded_image_data())
-        return data->frame(current_frame_index(), size);
+        return data->frame(current_frame_index(), size.value_or(intrinsic_size().value_or({}).to_type<int>()));
     return {};
 }
 
-Optional<Gfx::DecodedImageFrame> ImageProvider::default_image_frame_sized(Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> ImageProvider::default_image_frame(Optional<Gfx::IntSize> size) const
 {
     if (auto const& data = decoded_image_data())
-        return data->frame(0, size);
+        return data->frame(0, size.value_or(intrinsic_size().value_or({}).to_type<int>()));
     return {};
 }
 
