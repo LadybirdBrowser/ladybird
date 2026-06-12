@@ -12,6 +12,8 @@
 
 namespace Audio {
 
+class AudioBuffer;
+
 class AudioRingBuffer {
 public:
     explicit AudioRingBuffer(SampleSpecification);
@@ -23,8 +25,12 @@ public:
     void append_silence(size_t frame_count);
     void drop_front(size_t frame_count);
     void copy_frames_to(size_t source_offset, size_t frame_count, size_t destination_offset, Media::AudioBlock&) const;
+    void copy_frames_to(size_t source_offset, size_t frame_count, size_t destination_offset, AudioBuffer&) const;
 
 private:
+    template<typename Destination>
+    void copy_frames_to_impl(size_t source_offset, size_t frame_count, size_t destination_offset, Destination&) const;
+
     void ensure_capacity(size_t required_frame_capacity);
     void copy_channel_to_buffer(ReadonlySpan<float>, size_t channel, size_t destination_offset);
     void copy_channel_from_buffer(size_t channel, size_t source_offset, Span<float>) const;

@@ -6,6 +6,7 @@
 
 #include <AK/Math.h>
 #include <AK/TypedTransfer.h>
+#include <LibMedia/Audio/AudioBuffer.h>
 #include <LibMedia/Audio/AudioRingBuffer.h>
 
 namespace Audio {
@@ -132,7 +133,8 @@ void AudioRingBuffer::drop_front(size_t frame_count)
     m_start_offset = (m_start_offset + frame_count) % m_frame_capacity;
 }
 
-void AudioRingBuffer::copy_frames_to(size_t source_offset, size_t frame_count, size_t destination_offset, Media::AudioBlock& destination) const
+template<typename Destination>
+void AudioRingBuffer::copy_frames_to_impl(size_t source_offset, size_t frame_count, size_t destination_offset, Destination& destination) const
 {
     VERIFY(destination.sample_specification() == m_sample_specification);
     VERIFY(source_offset <= m_frame_count);
@@ -144,6 +146,16 @@ void AudioRingBuffer::copy_frames_to(size_t source_offset, size_t frame_count, s
         auto destination_channel = destination.channel_data(channel).slice(destination_offset, frame_count);
         copy_channel_from_buffer(channel, source_offset, destination_channel);
     }
+}
+
+void AudioRingBuffer::copy_frames_to(size_t source_offset, size_t frame_count, size_t destination_offset, Media::AudioBlock& destination) const
+{
+    copy_frames_to_impl(source_offset, frame_count, destination_offset, destination);
+}
+
+void AudioRingBuffer::copy_frames_to(size_t source_offset, size_t frame_count, size_t destination_offset, AudioBuffer& destination) const
+{
+    copy_frames_to_impl(source_offset, frame_count, destination_offset, destination);
 }
 
 }
