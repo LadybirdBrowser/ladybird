@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Vector.h>
 #include <LibMedia/Audio/AudioConverter.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/Export.h>
@@ -33,11 +34,21 @@ private:
     ErrorOr<void> set_input_sample_specification(Audio::SampleSpecification);
     ErrorOr<void> set_sample_specifications(Audio::SampleSpecification input, Audio::SampleSpecification output);
     ErrorOr<int> get_maximum_output_frames(size_t input_size) const;
+    ErrorOr<void> ensure_buffer_capacity(size_t frame_count, size_t channel_count);
+    Span<float> buffered_plane(size_t channel);
 
     Audio::SampleSpecification m_input_sample_specification;
     Audio::SampleSpecification m_output_sample_specification;
     SwrContext* m_context { nullptr };
-    AudioBlock m_buffered_block;
+
+    // A conversion's output can exceed a single block's frame capacity, so converted samples are buffered
+    // planar with a stride of the frame capacity and retrieved in block-sized chunks.
+    Vector<float> m_buffered_samples;
+    Audio::SampleSpecification m_buffered_sample_specification;
+    AK::Duration m_buffered_media_time_start;
+    size_t m_buffered_frame_capacity { 0 };
+    size_t m_buffered_frame_count { 0 };
+    size_t m_buffered_frame_offset { 0 };
     AK::Duration m_converted_media_time_end;
     bool m_end_of_stream { false };
 };

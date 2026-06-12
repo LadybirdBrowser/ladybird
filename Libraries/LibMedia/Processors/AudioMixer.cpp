@@ -11,8 +11,6 @@
 
 namespace Media {
 
-static constexpr size_t MAX_SAMPLES_PER_OUTPUT_BLOCK = 1024;
-
 ErrorOr<NonnullRefPtr<AudioMixer>> AudioMixer::try_create()
 {
     return adopt_nonnull_ref_or_enomem(new (nothrow) AudioMixer);
@@ -219,7 +217,7 @@ void AudioMixer::pull(AudioBlock& into)
     VERIFY(m_sample_specification.is_valid());
 
     auto channel_count = m_sample_specification.channel_count();
-    auto max_frame_count = MAX_SAMPLES_PER_OUTPUT_BLOCK / channel_count;
+    auto max_frame_count = AudioBlock::max_frame_count(channel_count);
 
     Sync::MutexLocker locker { m_mutex };
     if (m_moved_position_pending) {

@@ -366,7 +366,7 @@ void DecodedAudioProducer::ThreadData::dispatch_block_end_time(AudioBlock const&
     });
 }
 
-void DecodedAudioProducer::ThreadData::queue_block(AudioBlock&& block)
+void DecodedAudioProducer::ThreadData::queue_block(AudioBlock const& block)
 {
     // FIXME: Specify trailing samples in the demuxer, and drop them here or in the audio decoder implementation.
 
@@ -522,13 +522,13 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
                     resolve_seek(seek_id, moved_position);
 
                     if (!last_block.is_empty())
-                        queue_block(move(last_block));
+                        queue_block(last_block);
 
-                    queue_block(move(current_block));
+                    queue_block(current_block);
                     return true;
                 }
 
-                last_block = move(current_block);
+                last_block = current_block;
 
                 new_seek_id = m_seek_id;
             }
@@ -615,7 +615,7 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
         }
 
         auto locker = take_lock();
-        queue_block(move(block));
+        queue_block(block);
     }
 }
 

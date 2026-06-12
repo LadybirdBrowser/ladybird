@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include <AK/Checked.h>
-#include <AK/FixedArray.h>
+#include <AK/Array.h>
 #include <AK/Math.h>
 #include <AK/NumericLimits.h>
 #include <LibMedia/Audio/SampleSpecification.h>
@@ -17,6 +16,14 @@ namespace Media {
 
 class AudioBlock {
 public:
+    static constexpr size_t SAMPLE_CAPACITY = 4096;
+
+    static constexpr size_t max_frame_count(size_t channel_count)
+    {
+        VERIFY(channel_count > 0);
+        return SAMPLE_CAPACITY / channel_count;
+    }
+
     Audio::SampleSpecification const& sample_specification() const { return m_sample_specification; }
     AudioBlockTiming const& timing() const { return m_timing; }
     AudioBlockTiming& timing() { return m_timing; }
@@ -53,22 +60,18 @@ public:
     void initialize(Audio::SampleSpecification sample_specification, AK::Duration media_time_start, size_t frame_count)
     {
         VERIFY(sample_specification.is_valid());
-        VERIFY(frame_count <= NumericLimits<i64>::max());
-        VERIFY(!Checked<size_t>::multiplication_would_overflow(frame_count, sample_specification.channel_count()));
+        VERIFY(frame_count <= max_frame_count(sample_specification.channel_count()));
         m_sample_specification = sample_specification;
         m_frame_count = frame_count;
         m_timing.initialize(media_time_start, sample_rate(), AK::clamp_to<i64>(frame_count));
-        ensure_frame_capacity(frame_count);
     }
     void initialize(Audio::SampleSpecification sample_specification, i64 first_frame_index, size_t frame_count)
     {
         VERIFY(sample_specification.is_valid());
-        VERIFY(frame_count <= NumericLimits<i64>::max());
-        VERIFY(!Checked<size_t>::multiplication_would_overflow(frame_count, sample_specification.channel_count()));
+        VERIFY(frame_count <= max_frame_count(sample_specification.channel_count()));
         m_sample_specification = sample_specification;
         m_frame_count = frame_count;
         m_timing.initialize(first_frame_index, sample_rate(), AK::clamp_to<i64>(frame_count));
-        ensure_frame_capacity(frame_count);
     }
     void trim(size_t frame_count)
     {
@@ -134,22 +137,16 @@ private:
     size_t frame_capacity() const
     {
         if (!is_empty())
-            return m_data.size() / channel_count();
+            return max_frame_count(channel_count());
         return 0;
-    }
-
-    void ensure_frame_capacity(size_t frame_count)
-    {
-        if (frame_capacity() >= frame_count)
-            return;
-        VERIFY(!Checked<size_t>::multiplication_would_overflow(frame_count, channel_count()));
-        m_data = MUST(FixedArray<float>::create(frame_count * channel_count()));
     }
 
     Audio::SampleSpecification m_sample_specification;
     AudioBlockTiming m_timing;
     size_t m_frame_count { 0 };
-    FixedArray<float> m_data;
+    Array<float, SAMPLE_CAPACITY> m_data;
 };
+
+static_assert(IsTriviallyCopyable<AudioBlock>);
 
 }

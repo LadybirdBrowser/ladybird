@@ -30,7 +30,8 @@ struct WSOLATimeStretcher::Impl {
 
     size_t output_chunk_frames() const
     {
-        return max<size_t>(1, AK::round_to<size_t>(sample_specification.sample_rate() * 0.03));
+        auto frames_for_30ms = static_cast<size_t>(((static_cast<u64>(sample_specification.sample_rate()) * 30) + 500) / 1000);
+        return clamp<size_t>(frames_for_30ms, 1, Media::AudioBlock::max_frame_count(sample_specification.channel_count()));
     }
 
     Impl(SampleSpecification sample_specification)
@@ -95,7 +96,7 @@ void WSOLATimeStretcher::push_block(Media::AudioBlock const& input)
 
     auto gap = saturating_sub(block_start, impl.expected_next_input_media_frame);
     if (gap > 0) {
-        constexpr i64 max_silence_chunk = 4096;
+        auto const max_silence_chunk = static_cast<i64>(Media::AudioBlock::max_frame_count(impl.sample_specification.channel_count()));
         while (gap > 0) {
             auto chunk_frame_count = static_cast<size_t>(min<i64>(gap, max_silence_chunk));
             Media::AudioBlock silence;
