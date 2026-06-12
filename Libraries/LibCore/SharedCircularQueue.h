@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, kleines Filmröllchen <filmroellchen@serenityos.org>
  * Copyright (c) 2024, stasoid <stasoid@yahoo.com>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,17 +13,19 @@
 #include <AK/ByteString.h>
 #include <AK/Debug.h>
 #include <AK/Function.h>
+#include <AK/Optional.h>
 #include <LibCore/AnonymousBuffer.h>
 
 namespace Core {
 
-// A circular lock-free queue (or a buffer) with a single producer,
+// A circular lock-free queue (or a buffer) with a single producer and a single consumer,
 // residing in shared memory and designed to be accessible to multiple processes.
-// This implementation makes use of the fact that any producer-related code can be sure that
-// it's the only producer-related code that is running, which simplifies a bunch of the synchronization code.
-// The exclusivity and liveliness for critical sections in this class is proven to be correct
-// under the assumption of correct synchronization primitives, i.e. atomics.
-// In many circumstances, this is enough for cross-process queues.
+//
+// This implementation makes use of the fact that the producer and the consumer are each a
+// single thread of execution, so head is only ever advanced by the consumer and tail only
+// ever advanced by the producer, which simplifies the synchronization down to a pair of
+// monotonically increasing atomic counters.
+//
 // This class is designed to be transferred over IPC and mmap()ed into multiple processes' memory.
 // It is a synthetic pointer to the actual shared memory, which is abstracted away from the user.
 // FIXME: Make this independent of shared memory, so that we can move it to AK.
@@ -67,9 +70,9 @@ public:
     ALWAYS_INLINE size_t weak_remaining_capacity() const { return Size - weak_used(); }
     ALWAYS_INLINE size_t weak_used() const
     {
-        auto volatile head = m_queue->m_queue->m_tail.load(AK::MemoryOrder::memory_order_relaxed);
-        auto volatile tail = m_queue->m_queue->m_head.load(AK::MemoryOrder::memory_order_relaxed);
-        return head - tail;
+        auto volatile tail = m_queue->m_queue->m_tail.load(AK::MemoryOrder::memory_order_relaxed);
+        auto volatile head = m_queue->m_queue->m_head.load(AK::MemoryOrder::memory_order_relaxed);
+        return tail - head;
     }
 
     ALWAYS_INLINE constexpr int fd() const { return m_queue->fd(); }
@@ -78,21 +81,29 @@ public:
     ALWAYS_INLINE constexpr size_t weak_head() const { return m_queue->m_queue->m_head.load(AK::MemoryOrder::memory_order_relaxed); }
     ALWAYS_INLINE constexpr size_t weak_tail() const { return m_queue->m_queue->m_tail.load(AK::MemoryOrder::memory_order_relaxed); }
 
-    ErrorOr<void, QueueStatus> enqueue(ValueType to_insert)
+    template<typename WriteToSlot>
+    ErrorOr<void, QueueStatus> enqueue_in_place(WriteToSlot write_to_slot)
     {
         VERIFY(!m_queue.is_null());
-        if (!can_enqueue())
+        auto tail = m_queue->m_queue->m_tail.load();
+        if (tail - m_queue->m_queue->m_head.load() == Size)
             return QueueStatus::Full;
-        auto our_tail = m_queue->m_queue->m_tail.load() % Size;
-        m_queue->m_queue->m_data[our_tail] = to_insert;
-        m_queue->m_queue->m_tail.fetch_add(1);
+        write_to_slot(m_queue->m_queue->m_data[tail % Size]);
+        m_queue->m_queue->m_tail.store(tail + 1);
 
         return {};
     }
 
+    ErrorOr<void, QueueStatus> enqueue(ValueType to_insert)
+    {
+        return enqueue_in_place([&](ValueType& slot) {
+            slot = move(to_insert);
+        });
+    }
+
     ALWAYS_INLINE bool can_enqueue() const
     {
-        return ((head() - 1) % Size) != (m_queue->m_queue->m_tail.load() % Size);
+        return m_queue->m_queue->m_tail.load() - m_queue->m_queue->m_head.load() < Size;
     }
 
     // Repeatedly try to enqueue, using the wait_function to wait if it's not possible
@@ -114,28 +125,27 @@ public:
     ErrorOr<ValueType, QueueStatus> dequeue()
     {
         VERIFY(!m_queue.is_null());
-        while (true) {
-            // This CAS only succeeds if nobody is currently dequeuing.
-            auto size_max = NumericLimits<size_t>::max();
-            if (m_queue->m_queue->m_head_protector.compare_exchange_strong(size_max, m_queue->m_queue->m_head.load())) {
-                auto old_head = m_queue->m_queue->m_head.load();
-                // This check looks like it's in a weird place (especially since we have to roll back the protector), but it's actually protecting against a race between multiple dequeuers.
-                if (old_head >= m_queue->m_queue->m_tail.load()) {
-                    m_queue->m_queue->m_head_protector.store(NumericLimits<size_t>::max(), AK::MemoryOrder::memory_order_release);
-                    return QueueStatus::Empty;
-                }
-                auto data = move(m_queue->m_queue->m_data[old_head % Size]);
-                m_queue->m_queue->m_head.fetch_add(1);
-                m_queue->m_queue->m_head_protector.store(NumericLimits<size_t>::max(), AK::MemoryOrder::memory_order_release);
-                return { move(data) };
-            }
-        }
+        auto head = m_queue->m_queue->m_head.load();
+        if (head == m_queue->m_queue->m_tail.load())
+            return QueueStatus::Empty;
+        auto data = move(m_queue->m_queue->m_data[head % Size]);
+        m_queue->m_queue->m_head.store(head + 1);
+        return { move(data) };
     }
 
-    // The "real" head as seen by the outside world. Don't use m_head directly unless you know what you're doing.
+    // Reads the head without consuming it. Like dequeue(), valid only on the single consumer thread.
+    Optional<ValueType> peek() const
+    {
+        VERIFY(!m_queue.is_null());
+        auto head = m_queue->m_queue->m_head.load();
+        if (head == m_queue->m_queue->m_tail.load())
+            return {};
+        return m_queue->m_queue->m_data[head % Size];
+    }
+
     size_t head() const
     {
-        return min(m_queue->m_queue->m_head.load(), m_queue->m_queue->m_head_protector.load());
+        return m_queue->m_queue->m_head.load();
     }
 
 private:
@@ -152,12 +162,9 @@ private:
         // Invariant: tail is only modified by enqueue functions.
         // Invariant: head is only modified by dequeue functions.
         // An empty queue is signalled with:  tail = head
-        // A full queue is signalled with:  head - 1 mod size = tail mod size  (i.e. head and tail point to the same index in the data array)
-        // FIXME: These invariants aren't proven to be correct after each successful completion of each operation where it is relevant.
-        //        The work could be put in but for now I think the algorithmic correctness proofs of the functions are enough.
+        // A full queue is signalled with:  tail - head = size
         AK_CACHE_ALIGNED Atomic<size_t, AK::MemoryOrder::memory_order_seq_cst> m_tail { 0 };
         AK_CACHE_ALIGNED Atomic<size_t, AK::MemoryOrder::memory_order_seq_cst> m_head { 0 };
-        AK_CACHE_ALIGNED Atomic<size_t, AK::MemoryOrder::memory_order_seq_cst> m_head_protector { NumericLimits<size_t>::max() };
 
         alignas(ValueType) Array<ValueType, Size> m_data;
     };
