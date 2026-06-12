@@ -169,20 +169,8 @@ public:
     constexpr Duration() = default;
     constexpr Duration(Duration const&) = default;
     constexpr Duration& operator=(Duration const&) = default;
-
-    constexpr Duration(Duration&& other)
-        : m_seconds(exchange(other.m_seconds, 0))
-        , m_nanoseconds(exchange(other.m_nanoseconds, 0))
-    {
-    }
-    constexpr Duration& operator=(Duration&& other)
-    {
-        if (this != &other) {
-            m_seconds = exchange(other.m_seconds, 0);
-            m_nanoseconds = exchange(other.m_nanoseconds, 0);
-        }
-        return *this;
-    }
+    constexpr Duration(Duration&&) = default;
+    constexpr Duration& operator=(Duration&&) = default;
 
 private:
     // This must be part of the header in order to make the various 'from_*' functions constexpr.
@@ -370,6 +358,8 @@ private:
     i64 m_seconds { 0 };
     u32 m_nanoseconds { 0 }; // Always less than 1'000'000'000
 };
+
+static_assert(IsTriviallyCopyable<Duration>);
 
 template<>
 struct Formatter<Duration> : StandardFormatter {
