@@ -100,4 +100,6 @@ private:
     i64 m_frame_count { 0 };
 };
 
+static_assert(IsTriviallyCopyable<AudioBlockTiming>);
+
 }

@@ -8,13 +8,21 @@
 
 #include <AK/Array.h>
 #include <AK/Atomic.h>
+#include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <LibMedia/AudioBlockTiming.h>
 
 namespace Media {
 
+// Written by a single writer; readers are lock-free and may access the ring in place from
+// other threads or, through shared memory, other processes.
 class AudioBlockTimingRing {
+    AK_MAKE_NONCOPYABLE(AudioBlockTimingRing);
+    AK_MAKE_NONMOVABLE(AudioBlockTimingRing);
+
 public:
+    AudioBlockTimingRing() = default;
+
     static constexpr size_t capacity = 32;
 
     void clear()
