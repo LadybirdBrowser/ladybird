@@ -32,6 +32,8 @@ struct CookieStorageKey {
 
 class WEBVIEW_API CookieJar {
 public:
+    static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
+
     static ErrorOr<NonnullOwnPtr<CookieJar>> create(Database::Database&);
     static NonnullOwnPtr<CookieJar> create();
 

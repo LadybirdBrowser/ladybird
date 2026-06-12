@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/IPv4Address.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
@@ -25,33 +26,45 @@ namespace WebView {
 
 static constexpr auto DATABASE_SYNCHRONIZATION_TIMER = AK::Duration::from_seconds(30);
 
+static constexpr u32 COOKIES_SCHEMA_BASELINE_VERSION = 1u;
+
 static CookieStorageKey storage_key_for_cookie(HTTP::Cookie::Cookie const& cookie)
 {
     return { cookie.name, cookie.domain, cookie.path };
 }
 
+ErrorOr<Database::MigrationOutcome> CookieJar::migrate_schema(Database::Database& database, Database::MigrationMode mode)
+{
+    // Shipped migration text is immutable, so the CHECK constraint hardcodes the largest
+    // SameSite value instead of deriving it from the enum.
+    static_assert(to_underlying(HTTP::Cookie::SameSite::Lax) == 3);
+
+    Array<Database::Migration, 1> migrations { {
+        { .version = COOKIES_SCHEMA_BASELINE_VERSION, .sql = R"#(
+            CREATE TABLE IF NOT EXISTS Cookies (
+                name TEXT,
+                value TEXT,
+                same_site INTEGER CHECK (same_site >= 0 AND same_site <= 3),
+                creation_time INTEGER,
+                last_access_time INTEGER,
+                expiry_time INTEGER,
+                domain TEXT,
+                path TEXT,
+                secure BOOLEAN,
+                http_only BOOLEAN,
+                host_only BOOLEAN,
+                persistent BOOLEAN,
+                PRIMARY KEY(name, domain, path)
+            );
+        )#"sv },
+    } };
+
+    return database.migrate("Cookies"sv, migrations, mode);
+}
+
 ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database::Database& database)
 {
     Statements statements {};
-
-    auto create_table = TRY(database.prepare_statement(MUST(String::formatted(R"#(
-        CREATE TABLE IF NOT EXISTS Cookies (
-            name TEXT,
-            value TEXT,
-            same_site INTEGER CHECK (same_site >= 0 AND same_site <= {}),
-            creation_time INTEGER,
-            last_access_time INTEGER,
-            expiry_time INTEGER,
-            domain TEXT,
-            path TEXT,
-            secure BOOLEAN,
-            http_only BOOLEAN,
-            host_only BOOLEAN,
-            persistent BOOLEAN,
-            PRIMARY KEY(name, domain, path)
-        );)#",
-        to_underlying(HTTP::Cookie::SameSite::Lax)))));
-    database.execute_statement(create_table, {});
 
     statements.insert_cookie = TRY(database.prepare_statement("INSERT OR REPLACE INTO Cookies (name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
     statements.expire_cookie = TRY(database.prepare_statement("DELETE FROM Cookies WHERE (expiry_time < ?);"sv));
