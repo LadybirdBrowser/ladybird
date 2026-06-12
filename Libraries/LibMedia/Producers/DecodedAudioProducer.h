@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Queue.h>
+#include <AK/ThreadID.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
 #include <LibMedia/Audio/AudioConverter.h>
@@ -72,6 +73,7 @@ private:
         void release_decoder();
         void exit();
 
+        void register_decode_thread();
         void wait_for_start();
         bool should_thread_exit_while_locked() const;
         bool should_thread_exit() const;
@@ -122,6 +124,7 @@ private:
         mutable Sync::ConditionVariable m_wait_condition { m_mutex };
         RequestedState m_requested_state { RequestedState::None };
 
+        AK::ThreadID m_decode_thread_id;
         NonnullRefPtr<Demuxer> m_demuxer;
         Track m_track;
         AK::Duration m_duration;
