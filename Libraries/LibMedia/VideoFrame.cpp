@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/YUVData.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibMedia/Color/CodingIndependentCodePoints.h>
 
 #include "VideoFrame.h"
-
-#include <LibCore/AnonymousBuffer.h>
-#include <LibMedia/Color/CodingIndependentCodePoints.h>
 
 namespace Media {
 
