@@ -27,6 +27,7 @@ static LexicalPath cache_directory()
 static CacheIndexTestState create_cache_index()
 {
     auto database = MUST(Database::Database::create_memory_backed());
+    VERIFY(MUST(HTTP::CacheIndex::migrate_schema(*database)) == Database::MigrationOutcome::Success);
     auto index = MUST(HTTP::CacheIndex::create(*database, cache_directory()));
     return { move(database), move(index) };
 }
@@ -137,4 +138,15 @@ TEST_CASE(associated_data_counts_toward_cache_size)
 
     EXPECT(removed_entries.size() > 0);
     EXPECT(state.index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total <= 80u);
+}
+
+TEST_CASE(newer_cache_index_schema_reports_database_too_new)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);"sv));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO SchemaVersions (store, version) VALUES ('CacheIndex', 99);"sv));
+
+    EXPECT_EQ(TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
+    EXPECT_EQ(TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
 }

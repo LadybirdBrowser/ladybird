@@ -42,6 +42,8 @@ class CacheIndex {
     };
 
 public:
+    static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
+
     static ErrorOr<CacheIndex> create(Database::Database&, LexicalPath const& cache_directory);
 
     ErrorOr<void> create_entry(u64 cache_key, u64 vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
