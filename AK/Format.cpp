@@ -16,6 +16,7 @@
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
+#include <AK/ThreadID.h>
 #include <AK/Time.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
@@ -1355,24 +1356,7 @@ static auto current_process_id()
 #endif
 }
 
-static auto current_thread_id()
-{
-#if defined(AK_OS_LINUX)
-    return gettid();
-#elif defined(AK_OS_WINDOWS)
-    return GetCurrentThreadId();
-#elif defined(AK_OS_MACOS)
-    u64 thread_id { 0 };
-    pthread_threadid_np(nullptr, &thread_id);
-    return thread_id;
-#elif defined(AK_OS_FREEBSD)
-    return pthread_getthreadid_np();
-#else
-    return Empty();
-#endif
-}
-
-static auto s_main_thread_id = current_thread_id();
+static auto s_main_thread_id = ThreadID::current();
 
 #ifdef AK_OS_WINDOWS
 
@@ -1426,18 +1410,16 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
             builder.appendff("{}.{:03} " BOLD_YELLOW_FORMAT "{}", time.truncated_seconds(), time.nanoseconds_within_second() / 1000000, process_name);
             auto process_id = current_process_id();
             builder.appendff("({})", process_id);
-            auto thread_id = current_thread_id();
+            auto thread_id = ThreadID::current();
 
-            if constexpr (!IsSame<decltype(thread_id), Empty>) {
-                if (thread_id != s_main_thread_id) {
-                    char thread_name[16];
-                    auto thread_name_result = pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
-                    if (thread_name_result == 0 && strlen(thread_name) > 0)
-                        builder.appendff(" {}", thread_name);
-                    else
-                        builder.append(" Thread"sv);
-                    builder.appendff("({})", thread_id);
-                }
+            if (thread_id.is_valid() && thread_id != s_main_thread_id) {
+                char thread_name[16];
+                auto thread_name_result = pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
+                if (thread_name_result == 0 && strlen(thread_name) > 0)
+                    builder.appendff(" {}", thread_name);
+                else
+                    builder.append(" Thread"sv);
+                builder.appendff("({})", thread_id);
             }
             builder.append(DEFAULT_FORMAT ": "sv);
         }
