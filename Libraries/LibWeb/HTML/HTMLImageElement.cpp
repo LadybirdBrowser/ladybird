@@ -350,11 +350,6 @@ Optional<Gfx::DecodedImageFrame> HTMLImageElement::current_image_frame_sized(Gfx
     return {};
 }
 
-void HTMLImageElement::set_visible_in_viewport(bool)
-{
-    // FIXME: Loosen grip on image data when it's not visible, e.g via volatile memory.
-}
-
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-width
 WebIDL::UnsignedLong HTMLImageElement::width() const
 {

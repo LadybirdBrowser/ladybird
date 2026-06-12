@@ -2347,11 +2347,6 @@ Optional<Gfx::DecodedImageFrame> HTMLInputElement::current_image_frame_sized(Gfx
     return {};
 }
 
-void HTMLInputElement::set_visible_in_viewport(bool)
-{
-    // FIXME: Loosen grip on image data when it's not visible, e.g via volatile memory.
-}
-
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 i32 HTMLInputElement::default_tab_index_value() const
 {
