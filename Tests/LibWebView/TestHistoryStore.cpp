@@ -21,6 +21,12 @@ static URL::URL parse_url(StringView url)
     return parsed_url.release_value();
 }
 
+static NonnullOwnPtr<WebView::HistoryStore> create_persisted_store(Database::Database& database)
+{
+    VERIFY(MUST(WebView::HistoryStore::migrate_schema(database)) == Database::MigrationOutcome::Success);
+    return MUST(WebView::HistoryStore::create(database));
+}
+
 static void populate_history_for_url_autocomplete_tests(WebView::HistoryStore& store)
 {
     store.record_visit(parse_url("https://www.google.com/"sv), {}, UnixDateTime::from_seconds_since_epoch(30));
@@ -403,14 +409,14 @@ TEST_CASE(persisted_history_survives_reopen)
 
     {
         auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-        auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+        auto store = create_persisted_store(*database);
         store->record_visit(parse_url("https://persist.example.com/"sv), "Persisted title"_string, UnixDateTime::from_seconds_since_epoch(77));
         store->update_favicon(parse_url("https://persist.example.com/"sv), "Zm9v"_string);
     }
 
     {
         auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-        auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+        auto store = create_persisted_store(*database);
 
         auto entry = store->entry_for_url(parse_url("https://persist.example.com/"sv));
         VERIFY(entry.has_value());
@@ -439,7 +445,7 @@ TEST_CASE(persisted_history_entries_accessed_since_can_be_removed)
 
     {
         auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-        auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+        auto store = create_persisted_store(*database);
         store->record_visit(older_url, "Older"_string, UnixDateTime::from_seconds_since_epoch(10));
         store->record_visit(newer_url, "Newer"_string, UnixDateTime::from_seconds_since_epoch(20));
         store->remove_entries_accessed_since(UnixDateTime::from_seconds_since_epoch(15));
@@ -447,7 +453,7 @@ TEST_CASE(persisted_history_entries_accessed_since_can_be_removed)
 
     {
         auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-        auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+        auto store = create_persisted_store(*database);
 
         EXPECT(store->entry_for_url(older_url).has_value());
         EXPECT(!store->entry_for_url(newer_url).has_value());
@@ -467,7 +473,7 @@ TEST_CASE(persisted_history_autocomplete_ignores_scheme_and_www_boilerplate_pref
     });
 
     auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+    auto store = create_persisted_store(*database);
 
     expect_history_autocomplete_ignores_url_boilerplate(*store);
 }
@@ -485,7 +491,7 @@ TEST_CASE(persisted_history_autocomplete_requires_three_characters_for_title_mat
     });
 
     auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+    auto store = create_persisted_store(*database);
 
     expect_history_autocomplete_requires_three_characters_for_title_matches(*store);
 }
@@ -503,7 +509,7 @@ TEST_CASE(persisted_history_autocomplete_requires_three_characters_for_non_prefi
     });
 
     auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+    auto store = create_persisted_store(*database);
 
     expect_history_autocomplete_requires_three_characters_for_non_prefix_url_matches(*store);
 }
@@ -521,7 +527,7 @@ TEST_CASE(persisted_history_autocomplete_entries_include_metadata)
     });
 
     auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+    auto store = create_persisted_store(*database);
 
     expect_history_autocomplete_entries_include_metadata(*store);
 }
@@ -539,7 +545,7 @@ TEST_CASE(persisted_history_page_entries_are_paginated_and_searchable)
     });
 
     auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+    auto store = create_persisted_store(*database);
 
     expect_history_page_entries_are_paginated_and_searchable(*store);
 }
@@ -557,7 +563,7 @@ TEST_CASE(persisted_history_entries_can_be_removed)
     });
 
     auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+    auto store = create_persisted_store(*database);
 
     expect_history_entries_can_be_removed(*store);
 }
@@ -575,7 +581,18 @@ TEST_CASE(persisted_history_entries_for_same_site_can_be_removed)
     });
 
     auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
-    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+    auto store = create_persisted_store(*database);
 
     expect_history_entries_for_same_site_can_be_removed(*store);
+}
+
+TEST_CASE(newer_history_schema_reports_database_too_new)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);"sv));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO SchemaVersions (store, version) VALUES ('History', 99);"sv));
+
+    EXPECT_EQ(TRY_OR_FAIL(WebView::HistoryStore::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
+    EXPECT_EQ(TRY_OR_FAIL(WebView::HistoryStore::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
 }

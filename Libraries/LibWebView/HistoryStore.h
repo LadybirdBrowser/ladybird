@@ -38,6 +38,8 @@ class WEBVIEW_API HistoryStore {
     AK_MAKE_NONMOVABLE(HistoryStore);
 
 public:
+    static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
+
     static ErrorOr<NonnullOwnPtr<HistoryStore>> create(Database::Database&);
     static NonnullOwnPtr<HistoryStore> create();
     static NonnullOwnPtr<HistoryStore> create_disabled();
