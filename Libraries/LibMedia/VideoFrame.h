@@ -7,15 +7,11 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
-#include <AK/Error.h>
-#include <AK/FixedArray.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <AK/Variant.h>
-#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/YUVData.h>
-#include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 
 namespace Media {
@@ -26,7 +22,7 @@ class ResolvedVideoFrameSlot;
 class MEDIA_API VideoFrame final : public AtomicRefCounted<VideoFrame> {
 
 public:
-    using BackingStorage = Variant<FixedArray<u8>, NonnullRefPtr<PooledVideoFrameSlot>, NonnullRefPtr<ResolvedVideoFrameSlot>>;
+    using BackingStorage = Variant<NonnullRefPtr<PooledVideoFrameSlot>, NonnullRefPtr<ResolvedVideoFrameSlot>>;
 
     VideoFrame(
         AK::Duration timestamp,
@@ -62,17 +58,5 @@ private:
     Gfx::YUVData m_yuv_data;
     BackingStorage m_backing_storage;
 };
-
-}
-
-namespace IPC {
-
-template<>
-MEDIA_API ErrorOr<void> encode(Encoder&, Media::VideoFrame const&);
-template<>
-MEDIA_API ErrorOr<void> encode(Encoder&, NonnullRefPtr<Media::VideoFrame const> const&);
-
-template<>
-MEDIA_API ErrorOr<NonnullRefPtr<Media::VideoFrame const>> decode(Decoder&);
 
 }

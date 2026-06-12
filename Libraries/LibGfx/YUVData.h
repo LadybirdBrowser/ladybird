@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/FixedArray.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Span.h>
 #include <LibGfx/Forward.h>
@@ -33,9 +32,6 @@ public:
 
     static ErrorOr<PlaneSizes> plane_sizes(IntSize size, u8 bit_depth, Media::Subsampling);
     static ErrorOr<YUVData> create(IntSize size, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints, Bytes y_data, Bytes u_data, Bytes v_data);
-
-    struct AllocatedPlanes;
-    static ErrorOr<AllocatedPlanes> allocate(IntSize size, u8 bit_depth, Media::Subsampling, Media::CodingIndependentCodePoints);
 
     IntSize size() const { return m_size; }
     u8 bit_depth() const { return m_bit_depth; }
@@ -65,11 +61,6 @@ private:
     Bytes m_y_data;
     Bytes m_u_data;
     Bytes m_v_data;
-};
-
-struct YUVData::AllocatedPlanes {
-    FixedArray<u8> storage;
-    YUVData data;
 };
 
 }

@@ -60,6 +60,30 @@ VideoFrameHandle VideoFrameHandle::for_frame(VideoFrame const& frame)
 
 namespace IPC {
 
+static bool color_primaries_ipc_value_valid(Media::ColorPrimaries color_primaries)
+{
+    return color_primaries == Media::ColorPrimaries::Unspecified
+        || Media::color_primaries_valid(color_primaries);
+}
+
+static bool transfer_characteristics_ipc_value_valid(Media::TransferCharacteristics transfer_characteristics)
+{
+    return transfer_characteristics == Media::TransferCharacteristics::Unspecified
+        || Media::transfer_characteristics_valid(transfer_characteristics);
+}
+
+static bool matrix_coefficients_ipc_value_valid(Media::MatrixCoefficients matrix_coefficients)
+{
+    return matrix_coefficients == Media::MatrixCoefficients::Unspecified
+        || Media::matrix_coefficients_valid(matrix_coefficients);
+}
+
+static bool video_full_range_flag_ipc_value_valid(Media::VideoFullRangeFlag video_full_range_flag)
+{
+    return video_full_range_flag == Media::VideoFullRangeFlag::Unspecified
+        || Media::video_full_range_flag_valid(video_full_range_flag);
+}
+
 template<>
 ErrorOr<void> encode(Encoder& encoder, Media::VideoFrameHandle const& handle)
 {
@@ -100,6 +124,13 @@ ErrorOr<Media::VideoFrameHandle> decode(Decoder& decoder)
         TRY(decoder.decode<Media::MatrixCoefficients>()),
         TRY(decoder.decode<Media::VideoFullRangeFlag>()),
     };
+
+    if (!color_primaries_ipc_value_valid(handle.cicp.color_primaries())
+        || !transfer_characteristics_ipc_value_valid(handle.cicp.transfer_characteristics())
+        || !matrix_coefficients_ipc_value_valid(handle.cicp.matrix_coefficients())
+        || !video_full_range_flag_ipc_value_valid(handle.cicp.video_full_range_flag()))
+        return Error::from_string_literal("IPC: VideoFrameHandle contained invalid CICP metadata");
+
     return handle;
 }
 
