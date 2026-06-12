@@ -49,7 +49,7 @@ ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
     VERIFY(m_data.size() <= MAX_MESSAGE_PAYLOAD_SIZE);
     VERIFY(m_attachments.size() <= MAX_MESSAGE_FD_COUNT);
 
-    transport.post_message(m_data, m_attachments);
+    transport.post_message(take_data(), m_attachments);
     return {};
 }
 

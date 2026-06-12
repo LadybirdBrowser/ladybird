@@ -7,11 +7,13 @@
 
 #pragma once
 
-#include <AK/MemoryStream.h>
 #include <AK/Queue.h>
+#include <AK/SinglyLinkedList.h>
+#include <AK/SinglyLinkedListSizePolicy.h>
 #include <LibCore/Socket.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/AutoCloseFileDescriptor.h>
+#include <LibIPC/Forward.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
@@ -19,9 +21,19 @@
 
 namespace IPC {
 
+struct SocketMessageHeader {
+    enum class Type : u8 {
+        Payload = 0,
+        FileDescriptorAcknowledgement = 1,
+    };
+    Type type { Type::Payload };
+    u32 payload_size { 0 };
+    u32 fd_count { 0 };
+};
+
 class SendQueue : public AtomicRefCounted<SendQueue> {
 public:
-    void enqueue_message(ReadonlyBytes header, ReadonlyBytes payload, Vector<int>&& fds);
+    void enqueue_message(SocketMessageHeader, MessageDataType payload, Vector<int>&& fds);
     struct BytesAndFds {
         Vector<u8> bytes;
         Vector<int> fds;
@@ -30,7 +42,16 @@ public:
     void discard(size_t bytes_count, size_t fds_count);
 
 private:
-    AllocatingMemoryStream m_stream;
+    struct QueuedMessage {
+        SocketMessageHeader header;
+        MessageDataType payload;
+        size_t start_offset { 0 };
+
+        size_t size() const { return sizeof(SocketMessageHeader) + payload.size(); }
+    };
+
+    SinglyLinkedList<QueuedMessage, AK::DefaultSizeCalculationPolicy> m_queued_messages;
+    size_t m_queued_byte_count { 0 };
     Vector<int> m_fds;
     Sync::Mutex m_mutex;
 };
@@ -60,7 +81,7 @@ public:
 
     void wait_until_readable();
 
-    void post_message(Vector<u8> const&, Vector<Attachment>& attachments);
+    void post_message(MessageDataType, Vector<Attachment>& attachments);
 
     enum class ShouldShutdown {
         No,

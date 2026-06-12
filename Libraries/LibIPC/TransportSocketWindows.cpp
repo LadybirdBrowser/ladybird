@@ -175,7 +175,7 @@ Attachment TransportSocketWindows::deserialize_attachment(ReadonlyBytes& seriali
     VERIFY_NOT_REACHED();
 }
 
-void TransportSocketWindows::post_message(Vector<u8> const& bytes, Vector<Attachment>& attachments)
+void TransportSocketWindows::post_message(MessageDataType bytes, Vector<Attachment>& attachments)
 {
     VERIFY(bytes.size() <= MAX_MESSAGE_PAYLOAD_SIZE);
     VERIFY(attachments.size() <= MAX_MESSAGE_FD_COUNT);
