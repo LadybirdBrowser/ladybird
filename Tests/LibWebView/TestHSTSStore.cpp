@@ -6,6 +6,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Time.h>
+#include <LibDatabase/Database.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibTest/TestCase.h>
 #include <LibWebView/HSTSStore.h>
@@ -57,4 +58,31 @@ TEST_CASE(remove_policies_observed_since_clears_dynamic_data)
     store->store_policy("example.test"_string, HTTP::HSTS::ParsedHSTSPolicy { AK::Duration::from_seconds(3600), false });
     store->remove_policies_observed_since(UnixDateTime::earliest());
     EXPECT(!store->is_known_hsts_host("example.test"sv));
+}
+
+TEST_CASE(persisted_policies_round_trip_on_fresh_database)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    EXPECT_EQ(TRY_OR_FAIL(WebView::HSTSStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
+
+    {
+        auto store = TRY_OR_FAIL(WebView::HSTSStore::create(*database));
+        store->store_policy("example.test"_string, HTTP::HSTS::ParsedHSTSPolicy { AK::Duration::from_seconds(3600), false });
+
+        // The store flushes dirty policies to the database on destruction.
+    }
+
+    auto store = TRY_OR_FAIL(WebView::HSTSStore::create(*database));
+    EXPECT(store->is_known_hsts_host("example.test"sv));
+}
+
+TEST_CASE(newer_hsts_schema_reports_database_too_new)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+
+    TRY_OR_FAIL(database->execute_raw("CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);"));
+    TRY_OR_FAIL(database->execute_raw("INSERT INTO SchemaVersions (store, version) VALUES ('HSTSPolicies', 99);"));
+
+    EXPECT_EQ(TRY_OR_FAIL(WebView::HSTSStore::migrate_schema(*database)), Database::MigrationOutcome::DatabaseTooNew);
+    EXPECT_EQ(TRY_OR_FAIL(WebView::HSTSStore::migrate_schema(*database, Database::MigrationMode::CheckOnly)), Database::MigrationOutcome::DatabaseTooNew);
 }

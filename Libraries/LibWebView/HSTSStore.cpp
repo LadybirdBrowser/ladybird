@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Time.h>
 #include <LibDatabase/Database.h>
@@ -13,17 +14,25 @@ namespace WebView {
 
 static constexpr auto DATABASE_SYNCHRONIZATION_TIMER = AK::Duration::from_seconds(30);
 
+static constexpr u32 HSTS_SCHEMA_BASELINE_VERSION = 1u;
+
+ErrorOr<Database::MigrationOutcome> HSTSStore::migrate_schema(Database::Database& database, Database::MigrationMode mode)
+{
+    Array<Database::Migration, 1> migrations { {
+        { .version = HSTS_SCHEMA_BASELINE_VERSION, .sql = "CREATE TABLE IF NOT EXISTS HSTSPolicies ("
+                                                          "    domain TEXT PRIMARY KEY,"
+                                                          "    expiry_time INTEGER NOT NULL,"
+                                                          "    include_sub_domains BOOLEAN NOT NULL,"
+                                                          "    last_observed_time INTEGER NOT NULL"
+                                                          ");"sv },
+    } };
+
+    return database.migrate("HSTSPolicies"sv, migrations, mode);
+}
+
 ErrorOr<NonnullOwnPtr<HSTSStore>> HSTSStore::create(Database::Database& database)
 {
     Statements statements {};
-
-    auto create_table = TRY(database.prepare_statement("CREATE TABLE IF NOT EXISTS HSTSPolicies ("
-                                                       "    domain TEXT PRIMARY KEY,"
-                                                       "    expiry_time INTEGER NOT NULL,"
-                                                       "    include_sub_domains BOOLEAN NOT NULL,"
-                                                       "    last_observed_time INTEGER NOT NULL"
-                                                       ");"sv));
-    database.execute_statement(create_table, {});
 
     statements.insert_policy = TRY(database.prepare_statement("INSERT OR REPLACE INTO HSTSPolicies (domain, expiry_time, include_sub_domains, last_observed_time) VALUES (?, ?, ?, ?);"sv));
     statements.delete_expired = TRY(database.prepare_statement("DELETE FROM HSTSPolicies WHERE (expiry_time < ?);"sv));
