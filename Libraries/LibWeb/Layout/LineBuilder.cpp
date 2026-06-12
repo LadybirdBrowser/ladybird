@@ -301,7 +301,7 @@ void LineBuilder::update_last_line()
                 fragment_baseline = CSSPixels::nearest_value_for(font_metrics.ascent) + half_leading;
             } else {
                 auto const& box = as<Layout::Box>(fragment.layout_node());
-                fragment_baseline = m_context.box_baseline(box);
+                fragment_baseline = m_context.box_baseline(box, FormattingContext::BaselineSet::Last);
             }
 
             // Remember the baseline used for this fragment. This will be used when painting the fragment.

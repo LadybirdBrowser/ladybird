@@ -105,6 +105,12 @@ public:
         VERIFY_NOT_REACHED();
     }
 
+    // https://drafts.csswg.org/css-align-3/#baseline-export
+    enum class BaselineSet : u8 {
+        First,
+        Last,
+    };
+
     virtual void run(AvailableSpace const&) = 0;
 
     // These functions return the automatic content dimensions of the context's root box.
@@ -156,7 +162,7 @@ public:
     [[nodiscard]] CSSPixelRect content_box_rect(Box const&) const;
     [[nodiscard]] CSSPixelRect content_box_rect(LayoutState::UsedValues const&) const;
     [[nodiscard]] CSSPixelRect content_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const&, Box const& ancestor_box) const;
-    [[nodiscard]] CSSPixels box_baseline(Box const&) const;
+    [[nodiscard]] CSSPixels box_baseline(Box const&, BaselineSet) const;
     [[nodiscard]] CSSPixels containing_block_width_for(NodeWithStyleAndBoxModelMetrics const&) const;
 
     [[nodiscard]] CSSPixels calculate_stretch_fit_width(Box const&, AvailableSize const&) const;
@@ -233,7 +239,7 @@ protected:
 
     [[nodiscard]] Optional<CSSPixels> compute_auto_height_for_absolutely_positioned_element(Box const&, AvailableSpace const&, BeforeOrAfterInsideLayout) const;
 
-    [[nodiscard]] Box const* box_child_to_derive_baseline_from(Box const&) const;
+    [[nodiscard]] Box const* box_child_to_derive_baseline_from(Box const&, BaselineSet) const;
 
     Type m_type {};
     LayoutMode m_layout_mode;

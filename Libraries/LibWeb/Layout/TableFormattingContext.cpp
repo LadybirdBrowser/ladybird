@@ -1037,7 +1037,10 @@ void TableFormattingContext::compute_table_height()
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
 
-        cell.baseline = box_baseline(cell.box);
+        // https://drafts.csswg.org/css2/#height-layout
+        // The baseline of a cell is the baseline of the first in-flow line box in the cell, or the first in-flow
+        // table-row in the cell, whichever comes first.
+        cell.baseline = box_baseline(cell.box, BaselineSet::First);
 
         // Implements https://www.w3.org/TR/css-tables-3/#computing-the-table-height
 
@@ -1129,7 +1132,7 @@ void TableFormattingContext::compute_table_height()
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
 
-        cell.baseline = box_baseline(cell.box);
+        cell.baseline = box_baseline(cell.box, BaselineSet::First);
 
         if (!row.is_collapsed) {
             row.reference_height = max(row.reference_height, cell_state.border_box_height());

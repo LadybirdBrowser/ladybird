@@ -1702,17 +1702,24 @@ void FlexFormattingContext::resolve_baseline_aligned_items()
         if (!flex_line.has_baseline_aligned_items)
             continue;
 
+        // FIXME: box_baseline() only understands horizontal-tb line box geometry, so baseline-aligning items with
+        //        other writing modes would shift them by physically meaningless amounts. Skip them for now.
+        auto participates_in_baseline_alignment = [&](FlexItem const& item) {
+            return alignment_for_item(item.box) == CSS::AlignItems::Baseline
+                && item.box.computed_values().writing_mode() == CSS::WritingMode::HorizontalTb;
+        };
+
         CSSPixels max_baseline = 0;
         for (auto& item : flex_line.items) {
-            if (alignment_for_item(item.box) == CSS::AlignItems::Baseline)
-                max_baseline = max(max_baseline, box_baseline(item.box));
+            if (participates_in_baseline_alignment(item))
+                max_baseline = max(max_baseline, box_baseline(item.box, BaselineSet::First));
         }
 
         for (auto& item : flex_line.items) {
-            if (alignment_for_item(item.box) != CSS::AlignItems::Baseline)
+            if (!participates_in_baseline_alignment(item))
                 continue;
 
-            auto adjustment = max_baseline - box_baseline(item.box);
+            auto adjustment = max_baseline - box_baseline(item.box, BaselineSet::First);
             if (main_axis_is_horizontal())
                 item.used_values.set_content_y(item.used_values.offset.y() + adjustment);
             else
