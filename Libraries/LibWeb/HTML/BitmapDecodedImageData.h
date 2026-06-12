@@ -17,20 +17,15 @@ class BitmapDecodedImageData final : public DecodedImageData {
     GC_DECLARE_ALLOCATOR(BitmapDecodedImageData);
 
 public:
-    struct Frame {
-        Gfx::DecodedImageFrame frame;
-        int duration { 0 };
-    };
-
-    static ErrorOr<GC::Ref<BitmapDecodedImageData>> create(JS::Realm&, Vector<Frame>&&, size_t loop_count, bool animated);
+    static GC::Ref<BitmapDecodedImageData> create(JS::Realm&, Gfx::DecodedImageFrame&& frame);
     virtual ~BitmapDecodedImageData() override;
 
     virtual Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const override;
-    virtual int frame_duration(size_t frame_index) const override;
 
-    virtual size_t frame_count() const override { return m_frames.size(); }
-    virtual size_t loop_count() const override { return m_loop_count; }
-    virtual bool is_animated() const override { return m_animated; }
+    virtual int frame_duration(size_t) const override { return 0; }
+    virtual size_t frame_count() const override { return 1; }
+    virtual size_t loop_count() const override { return 0; }
+    virtual bool is_animated() const override { return false; }
 
     virtual Optional<CSSPixels> intrinsic_width() const override;
     virtual Optional<CSSPixels> intrinsic_height() const override;
@@ -40,13 +35,11 @@ public:
     virtual void paint(DisplayListRecordingContext&, size_t frame_index, Gfx::IntRect dst_rect, Gfx::ScalingMode scaling_mode) const override;
 
 private:
-    BitmapDecodedImageData(Vector<Frame>&&, size_t loop_count, bool animated);
+    BitmapDecodedImageData(Gfx::DecodedImageFrame&& frame);
 
     virtual size_t external_memory_size() const override;
 
-    Vector<Frame> m_frames;
-    size_t m_loop_count { 0 };
-    bool m_animated { false };
+    Gfx::DecodedImageFrame m_frame;
 };
 
 }
