@@ -8,8 +8,8 @@
 #include <AK/Vector.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
+#include <LibGfx/ImageFormats/ExifReader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
-#include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <LibGfx/Painter.h>
 #include <png.h>
@@ -242,7 +242,7 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
     u32 exif_length = 0;
     int const num_exif_chunks = png_get_eXIf_1(m_context->png_ptr, m_context->info_ptr, &exif_length, &exif_data);
     if (num_exif_chunks > 0)
-        m_context->exif_metadata = TRY(TIFFImageDecoderPlugin::read_exif_metadata({ exif_data, exif_length }));
+        m_context->exif_metadata = TRY(TIFF::read_exif_metadata({ exif_data, exif_length }));
 
     return {};
 }
