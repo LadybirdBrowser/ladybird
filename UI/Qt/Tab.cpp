@@ -8,6 +8,7 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibURL/URL.h>
+#include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Utilities.h>
@@ -498,6 +499,10 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         emit audio_play_state_changed(tab_index(), play_state);
     };
 
+    view().on_screen_wake_lock_state_changed = [this](auto wake_lock_state) {
+        set_screen_wake_lock_state(wake_lock_state);
+    };
+
     auto* duplicate_tab_action = new QAction("&Duplicate Tab", this);
     QObject::connect(duplicate_tab_action, &QAction::triggered, this, [this]() {
         m_window->new_tab_from_url(view().url(), Web::HTML::ActivateTab::Yes);
@@ -736,6 +741,21 @@ void Tab::open_file()
 int Tab::tab_index()
 {
     return m_window->tab_index(this);
+}
+
+void Tab::set_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)
+{
+    switch (wake_lock_state) {
+    case Web::ScreenWakeLockState::Released:
+        m_screen_display_sleep_inhibitor.clear();
+        break;
+    case Web::ScreenWakeLockState::Acquired:
+        if (m_screen_display_sleep_inhibitor.has_value())
+            break;
+        if (auto inhibitor = WakeLock::DisplaySleepInhibitor::create("Ladybird video playback"sv); !inhibitor.is_error())
+            m_screen_display_sleep_inhibitor = inhibitor.release_value();
+        break;
+    }
 }
 
 void Tab::resizeEvent(QResizeEvent* event)

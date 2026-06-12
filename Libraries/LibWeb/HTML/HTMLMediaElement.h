@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/MediaControls.h>
+#include <LibWeb/Page/ScreenWakeLock.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -195,7 +196,6 @@ private:
     friend SourceElementSelector;
 
     struct RemoteFetchData;
-
     virtual bool is_html_media_element() const final { return true; }
 
     struct EntireResource { };
@@ -218,6 +218,8 @@ private:
     void load_local_resource(MediaProviderObject const&, ESCAPING Function<void(String)> failure_callback);
 
     Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
+    bool should_acquire_media_wake_lock() const;
+    void update_screen_wake_lock();
 
     void restart_fetch_at_offset(u64 offset);
 
@@ -382,6 +384,7 @@ private:
     OwnPtr<Media::PlaybackManager> m_playback_manager;
     GC::Ptr<VideoTrack> m_selected_video_track;
     RefPtr<Media::DisplayingVideoSink> m_selected_video_track_sink;
+    Optional<ScreenWakeLock> m_screen_wake_lock;
 
     bool m_loop_was_specified_when_reaching_end_of_media_resource { false };
 

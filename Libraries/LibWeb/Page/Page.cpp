@@ -51,6 +51,19 @@ Page::Page(GC::Ref<PageClient> client)
 
 Page::~Page() = default;
 
+void Page::acquire_screen_wake_lock()
+{
+    if (m_active_screen_wake_lock_count++ == 0)
+        client().page_did_change_screen_wake_lock_state(ScreenWakeLockState::Acquired);
+}
+
+void Page::release_screen_wake_lock()
+{
+    VERIFY(m_active_screen_wake_lock_count > 0);
+    if (--m_active_screen_wake_lock_count == 0)
+        client().page_did_change_screen_wake_lock_state(ScreenWakeLockState::Released);
+}
+
 bool Page::has_compositor_host() const
 {
     return m_client->compositor_host();

@@ -49,6 +49,7 @@
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Page/ScreenWakeLock.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/PixelUnits.h>
@@ -76,6 +77,9 @@ public:
 
     PageClient& client() { return m_client; }
     PageClient const& client() const { return m_client; }
+    void acquire_screen_wake_lock();
+    void release_screen_wake_lock();
+    bool is_screen_wake_lock_active() const { return m_active_screen_wake_lock_count > 0; }
     bool has_compositor_host() const;
     void ensure_compositor_host();
     Compositor::CompositorHost& compositor_host();
@@ -359,6 +363,7 @@ private:
     Optional<UniqueNodeID> m_media_context_menu_element_id;
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
+    size_t m_active_screen_wake_lock_count { 0 };
 
     Optional<String> m_user_style_sheet_source;
 
@@ -523,6 +528,7 @@ public:
     virtual void page_did_update_primary_selection(String const&) { }
 
     virtual void page_did_change_audio_play_state(HTML::AudioPlayState) { }
+    virtual void page_did_change_screen_wake_lock_state(ScreenWakeLockState) { }
 
     virtual void page_did_start_network_request([[maybe_unused]] u64 request_id, [[maybe_unused]] URL::URL const& url, [[maybe_unused]] ByteString const& method, [[maybe_unused]] Vector<HTTP::Header> const& request_headers, [[maybe_unused]] ReadonlyBytes request_body, [[maybe_unused]] Optional<String> initiator_type) { }
     virtual void page_did_receive_network_response_headers([[maybe_unused]] u64 request_id, [[maybe_unused]] u32 status_code, [[maybe_unused]] Optional<String> reason_phrase, [[maybe_unused]] Vector<HTTP::Header> const& response_headers) { }

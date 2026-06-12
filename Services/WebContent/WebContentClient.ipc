@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/ScreenWakeLock.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ConsoleOutput.h>
 #include <LibWebView/DOMNodeProperties.h>
@@ -137,6 +138,7 @@ endpoint WebContentClient
     did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) =|
 
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|
+    did_change_screen_wake_lock_state(u64 page_id, Web::ScreenWakeLockState wake_lock_state) =|
 
     did_execute_js_console_input(u64 page_id, JsonValue result) =|
     did_output_js_console_message(u64 page_id, WebView::ConsoleOutput console_output) =|
