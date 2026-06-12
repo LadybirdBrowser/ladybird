@@ -70,8 +70,6 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         } else if (auto decoded_image_data = m_image_provider.decoded_image_data()) {
             ScopedCornerRadiusClip corner_clip { context, image_rect_device_pixels, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
             auto image_int_rect_device_pixels = image_rect_device_pixels.to_type<int>();
-            auto bitmap_rect = decoded_image_data->frame_rect(m_image_provider.current_frame_index()).value_or(image_int_rect_device_pixels);
-            auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), bitmap_rect.size(), image_int_rect_device_pixels.size());
 
             // https://drafts.csswg.org/css-images/#the-object-fit
             auto object_fit = m_is_svg_image ? CSS::ObjectFit::Contain : computed_values().object_fit();
@@ -87,7 +85,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                     context.display_list_recorder().save();
                     context.display_list_recorder().add_clip_rect(image_int_rect_device_pixels);
                 }
-                decoded_image_data->paint(context, m_image_provider.current_frame_index(), draw_rect, scaling_mode);
+                decoded_image_data->paint(context, m_image_provider.current_frame_index(), draw_rect, computed_values().image_rendering());
                 if (draw_rect_needs_clip)
                     context.display_list_recorder().restore();
             }

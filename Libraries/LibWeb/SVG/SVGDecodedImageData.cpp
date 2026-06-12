@@ -293,12 +293,7 @@ void SVGDecodedImageData::SVGPageClient::visit_edges(Visitor& visitor)
     visitor.visit(m_svg_page);
 }
 
-Optional<Gfx::IntRect> SVGDecodedImageData::frame_rect(size_t) const
-{
-    return {};
-}
-
-void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::ScalingMode) const
+void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, CSS::ImageRendering) const
 {
     auto display_list = record_display_list(dst_rect.size(), context.display_list_recorder().resource_storage());
     if (!display_list.has_value())

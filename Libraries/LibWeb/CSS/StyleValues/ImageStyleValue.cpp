@@ -12,7 +12,6 @@
 #include <LibGC/Weak.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
-#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -280,9 +279,7 @@ void ImageStyleValue::paint(DisplayListRecordingContext& context, DOM::Document 
 
     auto current_frame_index = this->current_frame_index(document);
     auto dest_int_rect = dest_rect.to_type<int>();
-    auto rect = image_data->frame_rect(current_frame_index).value_or(dest_int_rect);
-    auto scaling_mode = to_gfx_scaling_mode(image_rendering, rect.size(), dest_int_rect.size());
-    image_data->paint(context, current_frame_index, dest_int_rect, scaling_mode);
+    image_data->paint(context, current_frame_index, dest_int_rect, image_rendering);
 }
 
 Optional<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DOM::Document const& document, DevicePixelRect const& dest_rect) const
