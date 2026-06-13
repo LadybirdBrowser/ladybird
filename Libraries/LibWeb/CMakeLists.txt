@@ -656,6 +656,7 @@ set(SOURCES
     HTML/Plugin.cpp
     HTML/PluginArray.cpp
     HTML/PolicyContainers.cpp
+    HTML/POSTResource.cpp
     HTML/PopoverTargetAttributes.cpp
     HTML/PopStateEvent.cpp
     HTML/PotentialCORSRequest.cpp
