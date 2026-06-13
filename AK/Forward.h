@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/DefaultDelete.h>
 #include <AK/SinglyLinkedListSizePolicy.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
@@ -148,7 +147,7 @@ class Optional<FlyString>;
 template<typename T>
 class RefPtr;
 
-template<typename T, typename TDeleter = DefaultDelete<T>>
+template<typename T>
 class OwnPtr;
 
 template<typename T>

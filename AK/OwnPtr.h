@@ -15,7 +15,7 @@
 
 namespace AK {
 
-template<typename T, typename TDeleter>
+template<typename T>
 class [[nodiscard]] OwnPtr {
 public:
     OwnPtr() = default;
@@ -107,7 +107,7 @@ public:
     void clear()
     {
         auto* ptr = exchange(m_ptr, nullptr);
-        TDeleter {}(ptr);
+        delete ptr;
     }
 
     bool operator!() const { return !m_ptr; }
