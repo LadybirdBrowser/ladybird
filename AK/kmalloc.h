@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
 #include <AK/Checked.h>
 #include <new>
 #include <stdlib.h>
@@ -15,6 +16,8 @@ enum class HeapPartition {
     General,
     ArrayBuffer,
     JSObjectStorage,
+    Layout,
+    Painting,
     String,
 };
 
@@ -76,3 +79,29 @@ inline void* kmalloc_array(AK::Checked<size_t> a, AK::Checked<size_t> b, AK::Che
     VERIFY(!size.has_overflow());
     return kmalloc(size.value());
 }
+
+#define AK_ALLOC_WITH_KMALLOC_PARTITION(partition)                         \
+public:                                                                    \
+    static void* operator new(size_t size)                                 \
+    {                                                                      \
+        auto* ptr = ak_kmalloc(partition, size);                           \
+        VERIFY(ptr);                                                       \
+        return ptr;                                                        \
+    }                                                                      \
+                                                                           \
+    static void* operator new(size_t size, std::nothrow_t const&) noexcept \
+    {                                                                      \
+        return ak_kmalloc(partition, size);                                \
+    }                                                                      \
+                                                                           \
+    static void operator delete(void* ptr) noexcept                        \
+    {                                                                      \
+        ak_kfree(ptr);                                                     \
+    }                                                                      \
+                                                                           \
+    static void operator delete(void* ptr, std::nothrow_t const&) noexcept \
+    {                                                                      \
+        ak_kfree(ptr);                                                     \
+    }
+
+#define AK_ALLOC_WITH_KMALLOC AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::General)

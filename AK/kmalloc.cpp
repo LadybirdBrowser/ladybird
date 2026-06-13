@@ -134,6 +134,12 @@ static mi_heap_t* heap_for_partition(HeapPartition partition)
     case HeapPartition::JSObjectStorage:
         static mi_heap_t* js_object_storage_heap = mi_heap_new();
         return js_object_storage_heap;
+    case HeapPartition::Layout:
+        static mi_heap_t* layout_heap = mi_heap_new();
+        return layout_heap;
+    case HeapPartition::Painting:
+        static mi_heap_t* painting_heap = mi_heap_new();
+        return painting_heap;
     case HeapPartition::String:
         static thread_local mi_heap_t* string_heap = mi_heap_new();
         return string_heap;

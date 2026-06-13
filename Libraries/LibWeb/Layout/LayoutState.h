@@ -8,6 +8,7 @@
 
 #include <AK/HashTable.h>
 #include <AK/OwnPtr.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
 #include <LibWeb/Layout/Box.h>
@@ -67,6 +68,8 @@ class PagedStore {
     static constexpr u32 PageMask = PageSize - 1;
 
     struct Page {
+        AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
+
         Optional<T> entries[PageSize] {};
     };
 
@@ -121,6 +124,8 @@ private:
 };
 
 struct LayoutState {
+    AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
+
     struct UsedValues {
         UsedValues() = default;
         UsedValues(UsedValues&&) = default;
@@ -331,6 +336,8 @@ struct LayoutState {
         CSSPixels border_bottom_collapsed() const { return use_collapsing_borders_model() ? round(border_bottom / 2) : border_bottom; }
 
         struct RareData {
+            AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
+
             RareData() = default;
             RareData(RareData const& other)
                 : floating_descendants(other.floating_descendants)
