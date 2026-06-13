@@ -20,6 +20,16 @@ CellAllocator::CellAllocator(size_t cell_size, Optional<StringView> class_name, 
 {
 }
 
+CellAllocator& CellAllocatorDescriptorBase::for_heap(Heap& heap)
+{
+    if (m_last_heap == &heap) [[likely]]
+        return *m_last_allocator;
+    auto& allocator = heap.cell_allocator_for({}, *this);
+    m_last_heap = &heap;
+    m_last_allocator = &allocator;
+    return allocator;
+}
+
 Cell* CellAllocator::allocate_cell(Heap& heap)
 {
     if (!m_list_node.is_in_list())

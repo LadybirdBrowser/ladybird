@@ -21,7 +21,9 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/ConservativeHashMap.h>
 #include <LibGC/ConservativeHashTable.h>
+#include <LibGC/ConservativeRangeProvider.h>
 #include <LibGC/ConservativeVector.h>
+#include <LibGC/CrossHeapMember.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapRoot.h>
 #include <LibGC/IdleCollectionPolicy.h>
@@ -43,8 +45,15 @@ class GC_API Heap {
     AK_MAKE_NONCOPYABLE(Heap);
     AK_MAKE_NONMOVABLE(Heap);
 
+    friend class HeapGroup;
+
 public:
-    explicit Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots);
+    enum class BecomeProcessDefault {
+        No,
+        Yes,
+    };
+
+    explicit Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots, BecomeProcessDefault = BecomeProcessDefault::Yes);
     ~Heap();
 
     static Heap& the();
@@ -77,6 +86,8 @@ public:
     AK::JsonObject dump_graph();
 
     bool should_collect_on_every_allocation() const { return m_should_collect_on_every_allocation; }
+
+    void set_incremental_sweep_enabled(bool enabled) { m_incremental_sweep_enabled = enabled; }
     void set_should_collect_on_every_allocation(bool b) { m_should_collect_on_every_allocation = b; }
 
     void did_create_root(Badge<RootImpl>, RootImpl&);
@@ -96,6 +107,10 @@ public:
     void did_destroy_conservative_hash_table(Badge<ConservativeHashTableBase>, ConservativeHashTableBase&);
     void did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
     void did_destroy_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
+    void did_create_conservative_range_provider(Badge<ConservativeRangeProvider>, ConservativeRangeProvider&);
+    void did_destroy_conservative_range_provider(Badge<ConservativeRangeProvider>, ConservativeRangeProvider&);
+    void did_create_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase&);
+    void did_destroy_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase&);
 
     void did_create_weak_container(Badge<WeakContainer>, WeakContainer&);
     void did_destroy_weak_container(Badge<WeakContainer>, WeakContainer&);
@@ -103,6 +118,7 @@ public:
     void register_sweep_callback(AK::Function<void()>);
 
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);
+    CellAllocator& cell_allocator_for(Badge<CellAllocatorDescriptorBase>, CellAllocatorDescriptorBase&);
 
     void uproot_cell(Cell* cell);
 
@@ -135,19 +151,25 @@ private:
     template<typename T>
     Cell* allocate_cell()
     {
-        static_assert(requires { T::cell_allocator.allocator.get().allocate_cell(*this); }, "GC cell type must declare its own allocator using GC_DECLARE_ALLOCATOR(ClassName)");
+        static_assert(requires { T::cell_allocator.for_heap(*this).allocate_cell(*this); }, "GC cell type must declare its own allocator using GC_DECLARE_ALLOCATOR(ClassName)");
         static_assert(IsSame<T, typename decltype(T::cell_allocator)::CellType>,
             "GC cell allocator type mismatch");
 
         will_allocate(sizeof(T));
-        return T::cell_allocator.allocator.get().allocate_cell(*this);
+        return T::cell_allocator.for_heap(*this).allocate_cell(*this);
     }
 
     void will_allocate(size_t);
     void update_gc_bytes_threshold(size_t live_cell_bytes, size_t live_external_bytes);
 
     void find_min_and_max_block_addresses(FlatPtr& min_address, FlatPtr& max_address);
-    void gather_roots(HashMap<Cell*, HeapRoot>&, Vector<StackFrameInfo>* out_stack_frames = nullptr);
+    enum class IncludeIncomingCrossHeapMembers {
+        No,
+        Yes,
+    };
+    void gather_roots(HashMap<Cell*, HeapRoot>&, Vector<StackFrameInfo>* out_stack_frames = nullptr, IncludeIncomingCrossHeapMembers = IncludeIncomingCrossHeapMembers::Yes);
+    static void mark_live_cells_across(ReadonlySpan<Heap* const>, HashMap<Cell*, HeapRoot> const& roots);
+    void run_post_mark_phases(bool report);
     void gather_conservative_roots(HashMap<Cell*, HeapRoot>&, Vector<StackFrameInfo>* out_stack_frames = nullptr);
     void gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr min_block_address, FlatPtr max_block_address, FlatPtr stack_reference, FlatPtr stack_top);
     void mark_live_cells(HashMap<Cell*, HeapRoot> const& live_cells);
@@ -182,6 +204,7 @@ private:
     bool m_should_collect_on_every_allocation { false };
 
     CellAllocator::List m_all_cell_allocators;
+    HashMap<CellAllocatorDescriptorBase*, NonnullOwnPtr<CellAllocator>> m_cell_allocators_by_type;
 
     RootImpl::List m_roots;
     RootVectorBase::List m_root_vectors;
@@ -190,6 +213,10 @@ private:
     ConservativeHashMapBase::List m_conservative_hash_maps;
     ConservativeHashTableBase::List m_conservative_hash_tables;
     ConservativeVectorBase::List m_conservative_vectors;
+    ConservativeRangeProvider::List m_conservative_range_providers;
+    HashTable<CrossHeapMemberBase*> m_incoming_cross_heap_members;
+    HeapGroup* m_group { nullptr };
+    bool m_incremental_sweep_enabled { true };
     WeakContainer::List m_weak_containers;
 
     Vector<Ptr<Cell>> m_uprooted_cells;
@@ -303,6 +330,30 @@ inline void Heap::did_destroy_conservative_vector(Badge<ConservativeVectorBase>,
 {
     VERIFY(m_conservative_vectors.contains(vector));
     m_conservative_vectors.remove(vector);
+}
+
+inline void Heap::did_create_conservative_range_provider(Badge<ConservativeRangeProvider>, ConservativeRangeProvider& provider)
+{
+    VERIFY(!m_conservative_range_providers.contains(provider));
+    m_conservative_range_providers.append(provider);
+}
+
+inline void Heap::did_destroy_conservative_range_provider(Badge<ConservativeRangeProvider>, ConservativeRangeProvider& provider)
+{
+    VERIFY(m_conservative_range_providers.contains(provider));
+    m_conservative_range_providers.remove(provider);
+}
+
+inline void Heap::did_create_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase& member)
+{
+    VERIFY(!m_incoming_cross_heap_members.contains(&member));
+    m_incoming_cross_heap_members.set(&member);
+}
+
+inline void Heap::did_destroy_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase& member)
+{
+    VERIFY(m_incoming_cross_heap_members.contains(&member));
+    m_incoming_cross_heap_members.remove(&member);
 }
 
 inline void Heap::did_create_weak_container(Badge<WeakContainer>, WeakContainer& set)
