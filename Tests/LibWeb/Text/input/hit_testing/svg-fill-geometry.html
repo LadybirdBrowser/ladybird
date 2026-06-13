@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<svg id="svg" width="300" height="120">
+    <path id="triangle" d="M 220 10 L 290 110 L 150 110 Z" fill="blue"></path>
+      <rect id="hollow" x="10" y="10" width="60" height="60" fill="none" stroke="black"></rect>
+</svg>
+<script>
+    test(() => {
+        function idAt(x, y) {
+            const element = document.elementFromPoint(x, y);
+            return element ? (element.id || element.tagName.toLowerCase()) : "null";
+        }
+        println("inside triangle fill: " + idAt(220, 95));
+        println("triangle bounding box corner outside fill: " + idAt(160, 20));
+        println("inside unfilled rect: " + idAt(40, 40));
+    });
+</script>

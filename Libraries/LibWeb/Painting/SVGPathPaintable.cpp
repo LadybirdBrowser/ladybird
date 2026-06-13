@@ -228,12 +228,19 @@ void SVGPathPaintable::record_hit_test_items(DisplayListRecordingContext& contex
     if (computed_values().visibility() != CSS::Visibility::Visible || !visible_for_hit_testing())
         return;
 
+    auto& graphics_element = dom_node();
+
+    // FIXME: Hit test the stroked region of paths without a fill, rather than treating them as non-hittable.
+    if (!graphics_element.fill_color().has_value())
+        return;
+
     auto transformed_path = computed_path()->copy_transformed(computed_transforms().svg_to_css_pixels_transform());
     auto bounding_box = transformed_path.bounding_box().to_type<CSSPixels>();
     if (bounding_box.is_empty())
         return;
 
-    hit_test_display_list->append_box(*this, const_cast<SVGPathPaintable&>(*this), bounding_box, accumulated_visual_context_index(), {});
+    auto winding_rule = to_gfx_winding_rule(graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero));
+    hit_test_display_list->append_svg_path(const_cast<SVGPathPaintable&>(*this), move(transformed_path), winding_rule, bounding_box, accumulated_visual_context_index());
 }
 
 }

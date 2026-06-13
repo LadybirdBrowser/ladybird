@@ -10,6 +10,8 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
+#include <LibGfx/Path.h>
+#include <LibGfx/WindingRule.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -35,6 +37,7 @@ public:
     static NonnullRefPtr<HitTestDisplayList> create(u64 visual_context_tree_version);
 
     void append_box(PaintableBox const&, Paintable& target, CSSPixelRect, VisualContextIndex, BorderRadiiData);
+    void append_svg_path(Paintable& target, Gfx::Path, Gfx::WindingRule, CSSPixelRect bounding_box, VisualContextIndex);
     void append_text_fragment(PaintableFragment const&, VisualContextIndex);
     void append_empty_editable(PaintableWithLines const&, CSSPixelRect, VisualContextIndex);
     void append_chrome_widget(PaintableBox const&, ChromeWidget&, VisualContextIndex);
@@ -49,6 +52,7 @@ private:
 
     enum class ItemKind : u8 {
         Box,
+        SvgPath,
         TextFragment,
         EmptyEditable,
         ChromeWidget,
@@ -66,6 +70,8 @@ private:
         Optional<CSSPixelRect> block_container_margin_rect;
         VisualContextIndex visual_context_index;
         BorderRadiiData border_radii;
+        Optional<Gfx::Path> path {};
+        Gfx::WindingRule winding_rule { Gfx::WindingRule::Nonzero };
     };
 
     struct SpatialIndex {
