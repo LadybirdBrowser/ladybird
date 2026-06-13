@@ -14,6 +14,10 @@
 #include <AK/StackInfo.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/Weakable.h>
+#include <LibGC/Cell.h>
+#include <LibGC/CellAllocator.h>
+#include <LibGC/ConservativeRangeProvider.h>
+#include <LibGC/Heap.h>
 #include <LibWasm/Export.h>
 #include <LibWasm/TypeSystem.h>
 #include <LibWasm/Types.h>
@@ -62,8 +66,17 @@ public:
     struct Exception {
         ExceptionAddress address;
     };
+    // https://webassembly.github.io/spec/core/exec/runtime.html#values
+    // ref.i31 i31: an unboxed 31-bit scalar reference.
+    struct I31 {
+        u32 value; // using only low 31 bits
+    };
+    // A reference to a structure or array instance (a GC::Cell, see StructInstance and ArrayInstance below).
+    struct GcObject {
+        GC::Ptr<GC::Cell> ptr;
+    };
 
-    using RefType = Variant<Null, Func, Extern, Exception>;
+    using RefType = Variant<Null, Func, Extern, Exception, I31, GcObject>;
     explicit Reference(RefType ref)
         : m_ref(move(ref))
     {
@@ -117,7 +130,7 @@ public:
         case ValueType::ArrayReference:
         case ValueType::NoneReference:
         case ValueType::TypeUseReference:
-            m_value = u128(0, 5);
+            m_value = u128(0, 8);
             break;
         }
     }
@@ -158,21 +171,51 @@ public:
     {
     }
 
-    explicit Value(Reference ref)
+    explicit Value(Reference const& ref)
     {
         // Reference variant is encoded in the high storage of the u128:
-        // 0: funcref
         // 1: externref
         // 2: null funcref
         // 3: null externref
         // 4: null exnref
         // 5: exnref
+        // 6: a gc object
+        // 7: an i31 reference
+        // 8: a null reference in the any hierarchy
+        // anything else: funcref, where high is the defining Module* (null for host functions)
         ref.ref().visit(
             [&](Reference::Func const& func) { m_value = u128(bit_cast<u64>(func.address), bit_cast<u64>(func.source_module.ptr())); },
             [&](Reference::Extern const& func) { m_value = u128(bit_cast<u64>(func.address), 1); },
-            [&](Reference::Null const& null) { m_value = u128(0, null.type.kind() == ValueType::Kind::FunctionReference ? 2 : null.type.kind() == ValueType::Kind::ExceptionReference ? 4
-                                                                                                                                                                                      : 3); },
-            [&](Reference::Exception const& exn) { m_value = u128(bit_cast<u64>(exn.address), 5); });
+            [&](Reference::Null const& null) {
+                switch (null.type.kind()) {
+                case ValueType::Kind::FunctionReference:
+                case ValueType::Kind::NoFunctionReference:
+                    m_value = u128(0, 2);
+                    break;
+                case ValueType::Kind::ExternReference:
+                case ValueType::Kind::NoExternReference:
+                    m_value = u128(0, 3);
+                    break;
+                case ValueType::Kind::ExceptionReference:
+                case ValueType::Kind::NoExceptionReference:
+                    m_value = u128(0, 4);
+                    break;
+                default:
+                    m_value = u128(0, 8);
+                    break;
+                }
+            },
+            [&](Reference::Exception const& exn) { m_value = u128(bit_cast<u64>(exn.address), 5); },
+            [&](Reference::I31 const& i31) { m_value = u128(static_cast<u64>(i31.value & 0x7fffffff), 7); },
+            [&](Reference::GcObject const& object) { m_value = u128(bit_cast<u64>(object.ptr.ptr()), 6); });
+    }
+
+    // The gc cell behind this value if it holds a gc object reference, otherwise null.
+    GC::Cell* gc_cell() const
+    {
+        if (m_value.high() == 6)
+            return bit_cast<GC::Cell*>(m_value.low());
+        return nullptr;
     }
 
     template<SameAs<u128> T>
@@ -219,6 +262,12 @@ public:
                 return Reference { Reference::Null { ValueType(ValueType::Kind::ExceptionReference) } };
             case 5:
                 return Reference { Reference::Exception { bit_cast<ExceptionAddress>(m_value.low()) } };
+            case 6:
+                return Reference { Reference::GcObject { bit_cast<GC::Cell*>(m_value.low()) } };
+            case 7:
+                return Reference { Reference::I31 { static_cast<u32>(m_value.low()) } };
+            case 8:
+                return Reference { Reference::Null { ValueType(ValueType::Kind::AnyReference) } };
             default:
                 return Reference { Reference::Func { bit_cast<FunctionAddress>(m_value.low()), bit_cast<Wasm::Module*>(m_value.high()) } };
             }
@@ -687,6 +736,51 @@ private:
     Vector<Value> m_params;
 };
 
+// https://webassembly.github.io/spec/core/exec/runtime.html#aggregate-instances
+class WASM_API StructInstance final : public GC::Cell {
+    GC_CELL(StructInstance, GC::Cell);
+    GC_DECLARE_ALLOCATOR(StructInstance);
+
+public:
+    DefinedType const& type() const { return *m_type; }
+    ReadonlySpan<Value> fields() const { return m_fields; }
+    Span<Value> fields() { return m_fields; }
+
+private:
+    StructInstance(DefinedType const& type, Vector<Value> fields)
+        : m_type(&type)
+        , m_fields(move(fields))
+    {
+    }
+
+    virtual void visit_edges(Visitor&) override;
+
+    DefinedType const* m_type { nullptr };
+    Vector<Value> m_fields;
+};
+
+class WASM_API ArrayInstance final : public GC::Cell {
+    GC_CELL(ArrayInstance, GC::Cell);
+    GC_DECLARE_ALLOCATOR(ArrayInstance);
+
+public:
+    DefinedType const& type() const { return *m_type; }
+    ReadonlySpan<Value> elements() const { return m_elements; }
+    Span<Value> elements() { return m_elements; }
+
+private:
+    ArrayInstance(DefinedType const& type, Vector<Value> elements)
+        : m_type(&type)
+        , m_elements(move(elements))
+    {
+    }
+
+    virtual void visit_edges(Visitor&) override;
+
+    DefinedType const* m_type { nullptr };
+    Vector<Value> m_elements;
+};
+
 class WASM_API Store {
 public:
     Store() = default;
@@ -715,6 +809,17 @@ public:
     ALWAYS_INLINE FunctionInstance* unsafe_get(FunctionAddress address) { return &m_functions.data()[address.value()]; }
     ALWAYS_INLINE MemoryInstance* unsafe_get(MemoryAddress address) { return m_memories.data()[address.value()].ptr(); }
 
+    GC::Heap& heap() { return *m_heap; }
+    void set_heap(GC::Heap& heap) { m_heap = &heap; }
+
+    void register_configuration(Badge<Configuration>, Configuration& configuration) { m_active_configurations.set(&configuration); }
+    void unregister_configuration(Badge<Configuration>, Configuration& configuration) { m_active_configurations.remove(&configuration); }
+    auto& active_configurations() const { return m_active_configurations; }
+
+    auto& tables() const { return m_tables; }
+    auto& globals() const { return m_globals; }
+    auto& exceptions() const { return m_exceptions; }
+
 private:
     Vector<FunctionInstance> m_functions;
     Vector<TableInstance> m_tables;
@@ -724,6 +829,9 @@ private:
     Vector<DataInstance> m_datas;
     Vector<TagInstance> m_tags;
     Vector<ExceptionInstance> m_exceptions;
+
+    GC::Heap* m_heap { nullptr };
+    HashTable<Configuration*> m_active_configurations;
 };
 
 class Label {
@@ -815,7 +923,18 @@ struct HostVisitOps {
 
 class WASM_API AbstractMachine {
 public:
-    explicit AbstractMachine() = default;
+    explicit AbstractMachine(GC::Heap* heap = nullptr)
+    {
+        if (heap)
+            adopt_heap(*heap);
+    }
+
+    GC::Heap& heap()
+    {
+        if (!m_heap) [[unlikely]]
+            create_own_heap();
+        return *m_heap;
+    }
 
     // Validate a module; permanently sets the module's validity status.
     ErrorOr<void, ValidationError> validate(Module&, Optional<CompileCacheConfig> cache_config = {}, CompileToNative = CompileToNative::Yes);
@@ -858,7 +977,28 @@ private:
 
     Optional<InstantiationError> allocate_all_initial_phase(Module const&, ModuleInstance&, Vector<ExternValue>&, Vector<Value>& global_values, Vector<Value>& table_initial_values, Vector<FunctionAddress>& own_functions);
     Optional<InstantiationError> allocate_all_final_phase(Module const&, ModuleInstance&, Vector<Vector<Reference>>& elements);
+
+    void adopt_heap(GC::Heap&);
+    void create_own_heap();
+
+    class RootsProvider final : public GC::ConservativeRangeProvider {
+    public:
+        RootsProvider(GC::Heap& heap, Store& store)
+            : GC::ConservativeRangeProvider(heap)
+            , m_store(store)
+        {
+        }
+
+    private:
+        virtual void for_each_conservative_range(AK::Function<void(ReadonlySpan<FlatPtr>)> const&) const override;
+
+        Store& m_store;
+    };
+
     Store m_store;
+    OwnPtr<GC::Heap> m_owned_heap;
+    GC::Heap* m_heap { nullptr };
+    OwnPtr<RootsProvider> m_roots_provider;
     StackInfo m_stack_info;
     HashTable<Interpreter*> m_active_interpreters;
     bool m_should_limit_instruction_count { false };

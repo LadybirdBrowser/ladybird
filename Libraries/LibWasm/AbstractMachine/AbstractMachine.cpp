@@ -8,6 +8,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/SaturatingMath.h>
 #include <LibCore/System.h>
+#include <LibGC/Heap.h>
 #include <LibSync/MutexProtected.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
@@ -90,6 +91,76 @@ void dump_module_stats()
             total_tier_up_checkpoints,
             total_hits);
     });
+}
+
+GC_DEFINE_ALLOCATOR(StructInstance);
+GC_DEFINE_ALLOCATOR(ArrayInstance);
+
+void StructInstance::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    for (auto& field : m_fields) {
+        if (auto* cell = field.gc_cell())
+            visitor.visit(cell);
+    }
+}
+
+void ArrayInstance::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    for (auto& element : m_elements) {
+        if (auto* cell = element.gc_cell())
+            visitor.visit(cell);
+    }
+}
+
+void AbstractMachine::adopt_heap(GC::Heap& heap)
+{
+    VERIFY(!m_heap);
+    m_heap = &heap;
+    m_store.set_heap(heap);
+    m_roots_provider = make<RootsProvider>(heap, m_store);
+}
+
+void AbstractMachine::create_own_heap()
+{
+    m_owned_heap = make<GC::Heap>([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    adopt_heap(*m_owned_heap);
+}
+
+void AbstractMachine::RootsProvider::for_each_conservative_range(AK::Function<void(ReadonlySpan<FlatPtr>)> const& callback) const
+{
+    static_assert(sizeof(Value) % sizeof(FlatPtr) == 0);
+    auto report_values = [&](Value const* data, size_t count) {
+        if (count == 0)
+            return;
+        callback({ reinterpret_cast<FlatPtr const*>(data), count * (sizeof(Value) / sizeof(FlatPtr)) });
+    };
+    auto report_references = [&](ReadonlySpan<Reference> references) {
+        if (references.is_empty())
+            return;
+        callback({ reinterpret_cast<FlatPtr const*>(references.data()), references.size() * (sizeof(Reference) / sizeof(FlatPtr)) });
+    };
+
+    for (auto* configuration : m_store.active_configurations()) {
+        // Scan up to capacity, not just size.
+        report_values(configuration->value_stack().data(), configuration->value_stack().capacity());
+        report_values(configuration->regs.data(), configuration->regs.size());
+        report_values(configuration->m_current_call_record.data(), configuration->m_current_call_record.size());
+        for (auto& arguments : configuration->m_call_argument_freelist)
+            report_values(arguments.data(), arguments.capacity());
+        for (auto& frame : configuration->m_frame_stack) {
+            if (frame.owns_locals())
+                report_values(frame.locals_data(), frame.owned_locals().size());
+        }
+    }
+
+    for (auto& table : m_store.tables())
+        report_references(table.elements().span());
+    for (auto& global : m_store.globals())
+        report_values(&global.value(), 1);
+    for (auto& exception : m_store.exceptions())
+        report_values(exception.params().data(), exception.params().size());
 }
 
 MemoryBuffer::~MemoryBuffer()
@@ -475,6 +546,9 @@ ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module, Optiona
 }
 InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<ExternValue> externs)
 {
+    // FIXME: Only create a heap if we actually have GC used in the module.
+    heap();
+
     if (auto result = validate(const_cast<Module&>(module)); result.is_error())
         return InstantiationError { ByteString::formatted("Validation failed: {}", result.error()) };
 
