@@ -234,7 +234,12 @@ void SVGPathPaintable::record_hit_test_items(DisplayListRecordingContext& contex
     if (!graphics_element.fill_color().has_value())
         return;
 
+    auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
+    if (!svg_node || !svg_node->paintable_box())
+        return;
+
     auto transformed_path = computed_path()->copy_transformed(computed_transforms().svg_to_css_pixels_transform());
+    transformed_path.offset(svg_node->paintable_box()->absolute_rect().location().to_type<float>());
     auto bounding_box = transformed_path.bounding_box().to_type<CSSPixels>();
     if (bounding_box.is_empty())
         return;
