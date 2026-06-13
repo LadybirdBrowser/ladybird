@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/BumpAllocator.h>
 #include <AK/HashTable.h>
 #include <AK/OwnPtr.h>
 #include <AK/kmalloc.h>
@@ -70,10 +71,17 @@ class PagedStore {
     struct Page {
         AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
 
-        Optional<T> entries[PageSize] {};
+        T* entries[PageSize] {};
     };
 
 public:
+    PagedStore() = default;
+
+    PagedStore(PagedStore const&) = delete;
+    PagedStore& operator=(PagedStore const&) = delete;
+    PagedStore(PagedStore&&) = delete;
+    PagedStore& operator=(PagedStore&&) = delete;
+
     void ensure_capacity(u32 count)
     {
         m_pages.resize((count + PageSize - 1) >> PageBits);
@@ -87,10 +95,7 @@ public:
         auto const& page = m_pages[page_index];
         if (!page)
             return nullptr;
-        auto& entry = page->entries[index & PageMask];
-        if (!entry.has_value())
-            return nullptr;
-        return &entry.value();
+        return page->entries[index & PageMask];
     }
 
     T& allocate(u32 index)
@@ -102,8 +107,13 @@ public:
         if (!page)
             page = make<Page>();
         auto& entry = page->entries[index & PageMask];
-        entry = T {};
-        return entry.value();
+        if (entry) {
+            *entry = T {};
+            return *entry;
+        }
+        entry = m_allocator.allocate();
+        VERIFY(entry);
+        return *entry;
     }
 
     template<typename Callback>
@@ -113,14 +123,17 @@ public:
             if (!page)
                 continue;
             for (auto& entry : page->entries) {
-                if (entry.has_value())
-                    callback(entry.value());
+                if (entry)
+                    callback(*entry);
             }
         }
     }
 
 private:
+    static constexpr size_t BumpAllocatorChunkSize = 4 * KiB;
+
     Vector<OwnPtr<Page>> m_pages;
+    UniformBumpAllocator<T, false, BumpAllocatorChunkSize> m_allocator;
 };
 
 struct LayoutState {
