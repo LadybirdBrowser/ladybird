@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
+#include <LibCore/Timer.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/AudioBlockTiming.h>
@@ -24,6 +25,11 @@
 namespace Media {
 
 static constexpr size_t OUTPUT_BLOCK_QUEUE_CAPACITY = 4;
+
+// While playing, the audio-driven anchor's monotonic→frame extrapolation drifts against the
+// device clock; out-of-process readers can't trigger the read-path refresh, so the writer
+// re-syncs the anchor on this cadence. Coarse is fine: error is bounded by drift × interval.
+static constexpr int CLOCK_REFRESH_INTERVAL_MS = 500;
 
 static bool audio_processor_will_enqueue(PipelineStatus status)
 {
@@ -226,6 +232,10 @@ AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thre
     , m_output_thread_data(move(output_thread_data))
     , m_time_reader(move(time_reader))
 {
+    m_clock_refresh_timer = Core::Timer::create_repeating(CLOCK_REFRESH_INTERVAL_MS, [this] {
+        publish_clock_anchor(MonotonicTime::now());
+    });
+
     m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this)] {
         self->create_playback_stream();
     });
@@ -470,7 +480,9 @@ void AudioPlaybackSink::resume_playback_stream()
     if (!m_output_thread_data->m_playback_stream)
         return;
 
+    VERIFY(!m_clock_refresh_timer->is_active());
     m_stream_state = StreamState::Playing;
+    m_clock_refresh_timer->start();
     m_output_thread_data->m_playback_stream->resume()
         ->when_resolved([self = NonnullRefPtr(*this)](auto new_device_time) {
             self->m_main_thread_event_loop.deferred_invoke([self, new_device_time]() {
@@ -490,7 +502,9 @@ void AudioPlaybackSink::pause_playback_stream()
     if (!m_output_thread_data->m_playback_stream)
         return;
 
+    VERIFY(m_clock_refresh_timer->is_active());
     m_stream_state = StreamState::Suspended;
+    m_clock_refresh_timer->stop();
     m_output_thread_data->m_playback_stream->drain_buffer_and_suspend()
         ->when_resolved([self = NonnullRefPtr(*this)]() {
             auto new_stream_time = self->m_output_thread_data->m_playback_stream->total_time_played();
@@ -542,6 +556,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
         return;
 
     m_stream_state = StreamState::Suspended;
+    m_clock_refresh_timer->stop();
     m_output_thread_data->m_playback_stream->drain_buffer_and_suspend()
         ->when_resolved([self = NonnullRefPtr(*this)]() {
             auto new_stream_time = self->m_output_thread_data->m_playback_stream->total_time_played();

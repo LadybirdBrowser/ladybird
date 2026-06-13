@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Forward.h>
 #include <LibMedia/Audio/Forward.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -71,6 +72,7 @@ private:
     Optional<AK::Duration> m_seek_target_awaiting_drain;
 
     NonnullRefPtr<OutputThreadData> m_output_thread_data;
+    RefPtr<Core::Timer> m_clock_refresh_timer;
     MediaTimeReader m_time_reader;
 };
 
