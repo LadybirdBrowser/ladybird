@@ -182,48 +182,48 @@ void DisplayListPlayer::execute_impl(
         [&](VisualContextIndex, AccumulatedVisualContextNode const& node) {
             node.data.visit(
                 [&](EffectsData const& effects) {
-                    apply_effects({
-                                      .opacity = effects.opacity,
-                                      .compositing_and_blending_operator = effects.blend_mode,
-                                      .has_filter = effects.gfx_filter.has_value(),
-                                      .filter_data = {},
-                                  },
+                    play_command(ApplyEffects {
+                                     .opacity = effects.opacity,
+                                     .compositing_and_blending_operator = effects.blend_mode,
+                                     .has_filter = effects.gfx_filter.has_value(),
+                                     .filter_data = {},
+                                 },
                         effects.gfx_filter.has_value() ? &effects.gfx_filter.value() : nullptr);
                 },
                 [&](PerspectiveData const& perspective) {
-                    save({});
+                    play_command(Save {});
                     apply_transform({ 0, 0 }, perspective.matrix);
                 },
                 [&](ScrollData const& scroll) {
-                    save({});
+                    play_command(Save {});
                     auto offset = scroll_state.device_offset_for_index(scroll.scroll_frame_index);
                     if (!offset.is_zero())
-                        translate({ .delta = offset.to_type<int>() });
+                        play_command(Translate { .delta = offset.to_type<int>() });
                 },
                 [&](ScrollCompensation const& compensation) {
-                    save({});
+                    play_command(Save {});
                     auto offset = scroll_state.device_offset_for_index(compensation.scroll_frame_index);
                     if (!offset.is_zero())
-                        translate({ .delta = (-offset).to_type<int>() });
+                        play_command(Translate { .delta = (-offset).to_type<int>() });
                 },
                 [&](TransformData const& transform) {
-                    save({});
+                    play_command(Save {});
                     apply_transform(transform.origin, transform.matrix);
                 },
                 [&](ClipData const& clip) {
-                    save({});
+                    play_command(Save {});
                     if (clip.corner_radii.has_any_radius()) {
-                        add_rounded_rect_clip({
+                        play_command(AddRoundedRectClip {
                             .corner_radii = clip.corner_radii,
                             .border_rect = clip.rect.to_type<int>(),
                             .corner_clip = Gfx::CornerClip::Outside,
                         });
                     } else {
-                        add_clip_rect({ .rect = clip.rect.to_type<int>() });
+                        play_command(AddClipRect { .rect = clip.rect.to_type<int>() });
                     }
                 },
                 [&](ClipPathData const& clip_path) {
-                    save({});
+                    play_command(Save {});
                     add_clip_path(clip_path.path);
                 });
         };
@@ -266,7 +266,7 @@ void DisplayListPlayer::execute_impl(
 
         auto restore_to_depth = [&](size_t target_depth) {
             while (applied_depth > target_depth) {
-                restore({});
+                play_command(Restore {});
                 --applied_depth;
             }
         };
@@ -314,9 +314,9 @@ void DisplayListPlayer::execute_impl(
             // so replace it with one to avoid doing unnecessary work.
             if (header.is_clip) {
                 if (header.type == DisplayListCommandType::AddClipRect)
-                    add_clip_rect(read_display_list_command_payload<AddClipRect>(payload));
+                    play_command(read_display_list_command_payload<AddClipRect>(payload));
                 else
-                    add_clip_rect({ bounding_rect.release_value() });
+                    play_command(AddClipRect { bounding_rect.release_value() });
             }
             return;
         }
@@ -338,7 +338,7 @@ void DisplayListPlayer::execute_impl(
 #define DISPATCH_DISPLAY_LIST_COMMAND(command_type, player_method)                    \
     case DisplayListCommandType::command_type:                                        \
         dispatch_command.template operator()<command_type>([&](auto const& command) { \
-            player_method(command);                                                   \
+            play_command(command);                                                    \
         });                                                                           \
         break;
             ENUMERATE_DISPLAY_LIST_COMMANDS(DISPATCH_DISPLAY_LIST_COMMAND)
@@ -347,7 +347,7 @@ void DisplayListPlayer::execute_impl(
     });
 
     while (applied_depth > 0) {
-        restore({});
+        play_command(Restore {});
         applied_depth--;
     }
 }
