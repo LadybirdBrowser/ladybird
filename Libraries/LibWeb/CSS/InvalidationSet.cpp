@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/QuickSort.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 
 namespace Web::CSS {
@@ -62,18 +61,18 @@ u32 InvalidationSet::hash() const
     if (m_hash.has_value())
         return *m_hash;
 
-    u32 hash = 0;
-    hash = pair_int_hash(hash, m_needs_invalidate_self);
-    hash = pair_int_hash(hash, m_needs_invalidate_whole_subtree);
+    u32 property_hash_sum = 0;
+    u32 property_hash_xor = 0;
+    for (auto const& property : m_properties) {
+        auto property_hash = AK::Traits<Property>::hash(property);
+        property_hash_sum += property_hash;
+        property_hash_xor ^= pair_int_hash(property_hash, 0x9e3779b9);
+    }
 
-    Vector<u32> property_hashes;
-    property_hashes.ensure_capacity(m_properties.size());
-    for (auto const& property : m_properties)
-        property_hashes.unchecked_append(AK::Traits<Property>::hash(property));
-    quick_sort(property_hashes);
-
-    for (auto property_hash : property_hashes)
-        hash = pair_int_hash(hash, property_hash);
+    auto hash = pair_int_hash(m_needs_invalidate_self, m_needs_invalidate_whole_subtree);
+    hash = pair_int_hash(hash, m_properties.size());
+    hash = pair_int_hash(hash, property_hash_sum);
+    hash = pair_int_hash(hash, property_hash_xor);
 
     m_hash = hash;
     return hash;
