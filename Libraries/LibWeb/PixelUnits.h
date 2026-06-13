@@ -537,6 +537,11 @@ struct Formatter<Web::DevicePixels> : Formatter<Web::DevicePixels::Type> {
 namespace IPC {
 
 template<>
+WEB_API ErrorOr<void> encode(Encoder& encoder, Web::CSSPixelPoint const& value);
+template<>
+WEB_API ErrorOr<Web::CSSPixelPoint> decode(Decoder& decoder);
+
+template<>
 WEB_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelPoint const& value);
 template<>
 WEB_API ErrorOr<Web::DevicePixelPoint> decode(Decoder& decoder);
