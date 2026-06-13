@@ -44,7 +44,7 @@ private:
         if getter_callback not in declared_callbacks:
             declared_callbacks.add(getter_callback)
             out.write(f"    JS_DECLARE_NATIVE_FUNCTION({getter_callback});\n")
-        if attribute_has_setter(attribute, include_replaceable=True):
+        if attribute_has_setter(attribute):
             setter_callback = attribute_setter_callback_name(attribute)
             if setter_callback not in declared_callbacks:
                 declared_callbacks.add(setter_callback)
@@ -91,7 +91,7 @@ void {interface.name}GlobalMixin::initialize(JS::Realm& realm, [[maybe_unused]] 
     object.set_prototype(&ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.namespaced_name}"_fly_string));
 """
     )
-    define_the_regular_attributes(out, includes, interface, include_replaceable_setters=True)
+    define_the_regular_attributes(out, includes, interface)
     define_the_regular_operations(out, includes, interface)
     define_the_stringifier(out, includes, interface)
     define_the_constants(out, context, includes, interface)
@@ -104,7 +104,7 @@ void {interface.name}GlobalMixin::define_unforgeable_attributes(JS::Realm& realm
     [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable;
 """
     )
-    define_the_unforgeable_attributes(out, includes, interface, include_replaceable_setters=True)
+    define_the_unforgeable_attributes(out, includes, interface)
     define_the_regular_operations(out, includes, interface, unforgeable=True)
     define_the_stringifier(out, includes, interface, unforgeable=True)
     out.write(
@@ -121,7 +121,7 @@ void {interface.name}GlobalMixin::define_unforgeable_attributes(JS::Realm& realm
         if getter_callback not in defined_callbacks:
             defined_callbacks.add(getter_callback)
             write_attribute_getter(out, context, includes, interface, attribute, f"{interface.name}GlobalMixin")
-        if attribute_has_setter(attribute, include_replaceable=True):
+        if attribute_has_setter(attribute):
             setter_callback = attribute_setter_callback_name(attribute)
             if setter_callback not in defined_callbacks:
                 defined_callbacks.add(setter_callback)
