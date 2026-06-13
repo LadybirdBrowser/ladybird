@@ -6,8 +6,6 @@
 
 #pragma once
 
-#define REFPTR_SCRUB_BYTE 0xe0
-
 #include <AK/Assertions.h>
 #include <AK/Error.h>
 #include <AK/Format.h>
@@ -101,9 +99,6 @@ public:
     ALWAYS_INLINE ~RefPtr()
     {
         unref_if_not_null(m_ptr);
-#ifdef SANITIZE_PTRS
-        m_ptr = reinterpret_cast<T*>(explode_byte(REFPTR_SCRUB_BYTE));
-#endif
     }
 
     template<typename U>
