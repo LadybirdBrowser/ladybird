@@ -22,12 +22,12 @@ from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 
 
-def attribute_has_setter(attribute: Attribute, include_replaceable: bool = False) -> bool:
+def attribute_has_setter(attribute: Attribute) -> bool:
     return (
         not attribute.readonly
         or "LegacyLenientSetter" in attribute.extended_attributes
         or "PutForwards" in attribute.extended_attributes
-        or (include_replaceable and "Replaceable" in attribute.extended_attributes)
+        or "Replaceable" in attribute.extended_attributes
     )
 
 
@@ -73,7 +73,6 @@ def define_the_regular_attributes(
     out: TextIO,
     includes: GeneratedIncludes,
     interface: Interface,
-    include_replaceable_setters: bool = False,
 ) -> None:
     # 1. Let attributes be the list of regular attributes that are members of definition.
     attributes = [
@@ -84,21 +83,20 @@ def define_the_regular_attributes(
     attributes = [attribute for attribute in attributes if "LegacyUnforgeable" not in attribute.extended_attributes]
 
     # 3. Define the attributes attributes of definition on target given realm.
-    define_the_attributes(out, includes, attributes, interface, include_replaceable_setters)
+    define_the_attributes(out, includes, attributes, interface)
 
 
 def define_the_unforgeable_attributes(
     out: TextIO,
     includes: GeneratedIncludes,
     interface: Interface,
-    include_replaceable_setters: bool = False,
 ) -> None:
     attributes = [
         attribute
         for attribute in interface.regular_attributes
         if "FIXME" not in attribute.extended_attributes and "LegacyUnforgeable" in attribute.extended_attributes
     ]
-    define_the_attributes(out, includes, attributes, interface, include_replaceable_setters)
+    define_the_attributes(out, includes, attributes, interface)
 
 
 def define_the_attributes(
@@ -106,7 +104,6 @@ def define_the_attributes(
     includes: GeneratedIncludes,
     attributes: list[Attribute],
     interface: Interface,
-    include_replaceable_setters: bool = False,
 ) -> None:
     if not attributes:
         return
@@ -139,7 +136,7 @@ def define_the_attributes(
             )
 
         # 3. Let setter be the result of creating an attribute setter given attr, definition, and realm.
-        if not attribute_has_setter(attribute, include_replaceable=include_replaceable_setters):
+        if not attribute_has_setter(attribute):
             # NB: the algorithm to create an attribute setter returns undefined if attr is read only.
             definition.write(f"    GC::Ptr<JS::NativeFunction> {native_setter_name};\n")
         else:
