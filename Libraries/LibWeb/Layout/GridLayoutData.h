@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
@@ -62,6 +63,8 @@ struct GridLayoutFragment {
 };
 
 struct GridLayoutData {
+    AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
+
     CSS::Direction direction { CSS::Direction::Ltr };
     CSS::WritingMode writing_mode { CSS::WritingMode::HorizontalTb };
     bool is_subgrid { false };

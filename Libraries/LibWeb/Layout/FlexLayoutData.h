@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
@@ -54,6 +55,8 @@ struct FlexLayoutLine {
 };
 
 struct FlexLayoutData {
+    AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
+
     CSS::AlignContent align_content { CSS::AlignContent::Normal };
     CSS::AlignItems align_items { CSS::AlignItems::Normal };
     CSS::FlexDirection flex_direction { CSS::FlexDirection::Row };

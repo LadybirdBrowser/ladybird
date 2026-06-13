@@ -9,6 +9,7 @@
 #include <AK/RefCounted.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <AK/kmalloc.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
@@ -38,6 +39,8 @@ class WEB_API Paintable
     , public RefCountedTreeNode<Paintable> {
 
 public:
+    AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Painting);
+
     virtual ~Paintable();
 
     virtual StringView class_name() const { return "Paintable"sv; }

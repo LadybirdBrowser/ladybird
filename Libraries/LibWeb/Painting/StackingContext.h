@@ -12,6 +12,7 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <AK/kmalloc.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/Paintable.h>
 
@@ -23,6 +24,8 @@ class WEB_API StackingContext final
     friend class ViewportPaintable;
 
 public:
+    AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Painting);
+
     static NonnullRefPtr<StackingContext> create(PaintableBox&, RefPtr<StackingContext> parent, size_t index_in_tree_order);
 
     RefPtr<StackingContext> parent() { return m_parent.strong_ref(); }

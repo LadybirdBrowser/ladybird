@@ -19,6 +19,7 @@
 #include <AK/ValueComparingRefPtr.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/Color.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
@@ -117,6 +118,8 @@ struct ColorResolutionContext {
 
 class WEB_API StyleValue : public RefCounted<StyleValue> {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~StyleValue() = default;
 
     enum class Type {

@@ -14,6 +14,7 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <AK/kmalloc.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
@@ -53,6 +54,8 @@ class WEB_API Node
     , public RefCountedTreeNode<Node> {
 
 public:
+    AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
+
     using Base = RefCountedTreeNode<Node>;
 
     virtual ~Node();
