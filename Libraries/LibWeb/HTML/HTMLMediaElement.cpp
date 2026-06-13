@@ -1735,6 +1735,15 @@ void HTMLMediaElement::update_current_video_frame()
     set_needs_repaint(InvalidateDisplayList::No);
 }
 
+void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& track)
+{
+    auto previous_handle = m_video_sink_handle;
+    m_video_sink_handle = m_playback_manager->reserve_video_sink_handle(track);
+    m_selected_video_track_sink = Media::PlaybackManager::resolve_video_sink(*m_video_sink_handle);
+    if (previous_handle.has_value() && previous_handle != m_video_sink_handle)
+        m_playback_manager->disable_video_sink_by_handle(*previous_handle);
+}
+
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
 {
     VERIFY(m_playback_manager);
@@ -1744,11 +1753,9 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
 
     clear_compositor_video_frame();
 
-    auto previous_track = m_selected_video_track;
-
     m_selected_video_track = video_track;
     if (video_track) {
-        m_selected_video_track_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(video_track->track_in_playback_manager());
+        attach_selected_video_track_sink(video_track->track_in_playback_manager());
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
             update_current_video_frame();
@@ -1758,13 +1765,14 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
             video_element->set_intrinsic_video_dimensions(Gfx::Size<u32>(video_data.pixel_width, video_data.pixel_height));
         }
     } else {
+        if (m_video_sink_handle.has_value()) {
+            m_playback_manager->disable_video_sink_by_handle(m_video_sink_handle.value());
+            m_video_sink_handle.clear();
+        }
         m_selected_video_track_sink = nullptr;
         if (auto* video_element = as_if<HTMLVideoElement>(this))
             video_element->set_intrinsic_video_dimensions({});
     }
-
-    if (previous_track)
-        m_playback_manager->remove_the_displaying_video_sink_for_track(previous_track->track_in_playback_manager());
 
     update_screen_wake_lock();
 }
@@ -2118,7 +2126,7 @@ void HTMLMediaElement::set_up_playback_manager_for_local()
                     return IterationDecision::Continue;
                 if (element_track.track_in_playback_manager() == track) {
                     self.m_selected_video_track = element_track;
-                    self.m_selected_video_track_sink = self.m_playback_manager->get_or_create_the_displaying_video_sink_for_track(track);
+                    self.attach_selected_video_track_sink(track);
                     return IterationDecision::Break;
                 }
                 return IterationDecision::Continue;

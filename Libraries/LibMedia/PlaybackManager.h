@@ -25,6 +25,7 @@
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
+#include <LibMedia/VideoSinkHandle.h>
 #include <LibSync/Mutex.h>
 
 namespace Media {
@@ -68,14 +69,9 @@ public:
     Optional<Track> preferred_video_track() { return m_preferred_video_track; }
     Optional<Track> preferred_audio_track() { return m_preferred_audio_track; }
 
-    // Creates a DisplayingVideoSink for the specified track.
-    //
-    // Note that in order for the current frame to change based on the media time, users must call
-    // DisplayingVideoSink::update(). It is recommended to drive this off of vertical sync.
-    NonnullRefPtr<DisplayingVideoSink> get_or_create_the_displaying_video_sink_for_track(Track const&);
-    // Removes the DisplayingVideoSink for the specified track. This will prevent the sink from
-    // retrieving any subsequent frames from the decoder.
-    void remove_the_displaying_video_sink_for_track(Track const&);
+    VideoSinkHandle reserve_video_sink_handle(Track const&);
+    static RefPtr<DisplayingVideoSink> resolve_video_sink(VideoSinkHandle);
+    void disable_video_sink_by_handle(VideoSinkHandle);
 
     void enable_an_audio_track(Track const&);
     void disable_an_audio_track(Track const&);
@@ -109,8 +105,9 @@ private:
     struct VideoTrackData {
         Track track;
         NonnullRefPtr<DecodedVideoProducer> producer;
-        RefPtr<DisplayingVideoSink> display;
-        PipelineStatus sink_status { PipelineStatus::HaveData };
+        Optional<VideoSinkHandle> handle { OptionalNone() };
+        RefPtr<VideoSink> video_sink { nullptr };
+        PipelineStatus sink_status { PipelineStatus::Pending };
     };
     using VideoTrackDatas = Vector<VideoTrackData, EXPECTED_VIDEO_TRACK_COUNT>;
 
@@ -129,6 +126,7 @@ private:
     void disable_audio();
 
     void set_up_producers();
+    void attach_video_sink(VideoTrackData&, NonnullRefPtr<VideoSink>);
     void on_audio_sink_state_changed(PipelineStatus);
     void on_video_sink_state_changed(Track const&, PipelineStatus);
     void update_pipeline_state();
@@ -146,6 +144,23 @@ private:
         }
 
         VERIFY_NOT_REACHED();
+    }
+    // Handles are never reused, so a superseded or released handle simply finds no track data.
+    template<typename Self>
+    auto* find_video_data_for_handle(this Self&& self, VideoSinkHandle handle)
+    {
+        for (auto& track_data : self.m_video_track_datas) {
+            if (track_data.handle == handle)
+                return &track_data;
+        }
+        return static_cast<decltype(&self.m_video_track_datas[0])>(nullptr);
+    }
+    template<typename Self>
+    decltype(auto) get_video_data_for_handle(this Self&& self, VideoSinkHandle handle)
+    {
+        auto* track_data = self.find_video_data_for_handle(handle);
+        VERIFY(track_data != nullptr);
+        return *track_data;
     }
     template<typename Self>
     decltype(auto) get_audio_data_for_track(this Self&& self, Track const& track)

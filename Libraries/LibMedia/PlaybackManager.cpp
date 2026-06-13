@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
@@ -15,6 +17,7 @@
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
+#include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/Thread.h>
 #include <LibThreading/ThreadPool.h>
@@ -22,6 +25,16 @@
 #include "PlaybackManager.h"
 
 namespace Media {
+
+namespace {
+
+HashMap<VideoSinkHandle, PlaybackManager*>& video_sink_registrations()
+{
+    static NeverDestroyed<HashMap<VideoSinkHandle, PlaybackManager*>> registrations;
+    return *registrations;
+}
+
+}
 
 DecoderErrorOr<NonnullRefPtr<Demuxer>> PlaybackManager::create_demuxer_for_stream(NonnullRefPtr<MediaStream> const& stream)
 {
@@ -44,7 +57,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         if (video_producer_result.is_error())
             continue;
         supported_video_tracks.append(track);
-        supported_video_track_datas.empend(VideoTrackData(track, video_producer_result.release_value(), nullptr));
+        supported_video_track_datas.empend(VideoTrackData(track, video_producer_result.release_value()));
     }
     supported_video_tracks.shrink_to_fit();
     supported_video_track_datas.shrink_to_fit();
@@ -167,6 +180,10 @@ PlaybackManager::PlaybackManager()
 PlaybackManager::~PlaybackManager()
 {
     m_clock->pause();
+    for (auto& track_data : m_video_track_datas) {
+        if (track_data.handle.has_value())
+            video_sink_registrations().remove(*track_data.handle);
+    }
     m_weak_link->revoke({});
 }
 
@@ -271,7 +288,7 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
         status = select_combined_pipeline_status(status, m_audio_sink_status);
 
     for (auto const& track_data : m_video_track_datas) {
-        if (track_data.display == nullptr)
+        if (!track_data.handle.has_value())
             continue;
         status = select_combined_pipeline_status(status, track_data.sink_status);
     }
@@ -287,7 +304,7 @@ void PlaybackManager::update_pipeline_state()
 void PlaybackManager::reset_pipeline_state()
 {
     for (auto& track_data : m_video_track_datas) {
-        if (track_data.display == nullptr)
+        if (track_data.video_sink == nullptr)
             continue;
         track_data.sink_status = PipelineStatus::Pending;
     }
@@ -321,9 +338,9 @@ void PlaybackManager::set_clock(NonnullRefPtr<MediaClock> const& clock)
     m_clock = clock;
     m_time_reader = clock->time_reader();
     for (auto& track_data : m_video_track_datas) {
-        if (!track_data.display)
+        if (!track_data.video_sink)
             continue;
-        track_data.display->set_time_reader(m_time_reader);
+        track_data.video_sink->set_time_reader(m_time_reader);
     }
     clock->set_playback_rate(m_playback_rate);
     if (is_playing())
@@ -339,31 +356,57 @@ void PlaybackManager::disable_audio()
     on_audio_sink_state_changed(PipelineStatus::EndOfStream);
 }
 
-NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying_video_sink_for_track(Track const& track)
+void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPtr<VideoSink> video_sink)
 {
-    auto& track_data = get_video_data_for_track(track);
-    if (track_data.display == nullptr) {
-        track_data.sink_status = PipelineStatus::HaveData;
-        auto display = MUST(Media::DisplayingVideoSink::try_create(m_time_reader,
-            [self = weak(), track](PipelineStatus status) {
-                if (!self)
-                    return;
-                self->on_video_sink_state_changed(track, status);
-            }));
-        MUST(display->connect_input(track_data.producer));
-        track_data.display = move(display);
-        update_pipeline_state();
-    }
-    return *track_data.display;
+    VERIFY(track_data.video_sink == nullptr);
+    video_sink->set_time_reader(m_time_reader);
+    auto track = track_data.track;
+    video_sink->set_state_change_handler([self = weak(), track](PipelineStatus status) {
+        if (!self)
+            return;
+        self->on_video_sink_state_changed(track, status);
+    });
+    MUST(video_sink->connect_input(track_data.producer));
+    track_data.video_sink = move(video_sink);
+    update_pipeline_state();
 }
 
-void PlaybackManager::remove_the_displaying_video_sink_for_track(Track const& track)
+VideoSinkHandle PlaybackManager::reserve_video_sink_handle(Track const& track)
 {
     auto& track_data = get_video_data_for_track(track);
-    VERIFY(track_data.display);
-    track_data.display->disconnect_input(track_data.producer);
-    track_data.display = nullptr;
-    track_data.sink_status = PipelineStatus::HaveData;
+    if (track_data.handle.has_value())
+        disable_video_sink_by_handle(*track_data.handle);
+    track_data.handle = allocate_video_sink_handle();
+    video_sink_registrations().set(*track_data.handle, this);
+    update_pipeline_state();
+    return *track_data.handle;
+}
+
+RefPtr<DisplayingVideoSink> PlaybackManager::resolve_video_sink(VideoSinkHandle handle)
+{
+    auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
+    if (!manager)
+        return nullptr;
+    auto& track_data = manager->get_video_data_for_handle(handle);
+    if (track_data.video_sink)
+        return static_ptr_cast<DisplayingVideoSink>(track_data.video_sink);
+    auto video_sink = MUST(DisplayingVideoSink::try_create(manager->m_time_reader));
+    manager->attach_video_sink(track_data, video_sink);
+    return video_sink;
+}
+
+void PlaybackManager::disable_video_sink_by_handle(VideoSinkHandle handle)
+{
+    video_sink_registrations().remove(handle);
+    auto* track_data = find_video_data_for_handle(handle);
+    if (!track_data)
+        return;
+    if (track_data->video_sink) {
+        track_data->video_sink->disconnect_input(track_data->producer);
+        track_data->video_sink = nullptr;
+        track_data->sink_status = PipelineStatus::HaveData;
+    }
+    track_data->handle = {};
     update_pipeline_state();
 }
 
@@ -397,7 +440,7 @@ bool PlaybackManager::track_is_enabled(Track const& track) const
 {
     if (track.type() == TrackType::Video) {
         auto const& track_data = get_video_data_for_track(track);
-        return track_data.display != nullptr;
+        return track_data.video_sink != nullptr;
     }
 
     VERIFY(track.type() == TrackType::Audio);

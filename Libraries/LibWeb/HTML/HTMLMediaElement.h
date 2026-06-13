@@ -18,6 +18,7 @@
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/VideoSinkHandle.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
@@ -268,6 +269,7 @@ private:
     void update_compositor_video_frame(NonnullRefPtr<Media::VideoFrame const>);
     void clear_compositor_video_frame();
     void update_current_video_frame();
+    void attach_selected_video_track_sink(Media::Track const&);
 
     bool is_eligible_for_autoplay() const;
     bool is_allowed_to_play() const;
@@ -406,6 +408,7 @@ private:
     RefPtr<Core::Timer> m_playback_position_update_timer;
     GC::Ptr<VideoTrack> m_selected_video_track;
     RefPtr<Media::DisplayingVideoSink> m_selected_video_track_sink;
+    Optional<Media::VideoSinkHandle> m_video_sink_handle;
     Optional<ScreenWakeLockHandle> m_screen_wake_lock;
 
     bool m_loop_was_specified_when_reaching_end_of_media_resource { false };
