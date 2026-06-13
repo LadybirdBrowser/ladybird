@@ -16,6 +16,8 @@ class CellAllocator;
 class DeferGC;
 class RootImpl;
 class Heap;
+class HeapGroup;
+class CrossHeapMemberBase;
 class HeapBlock;
 class NanBoxedValue;
 class Timer;

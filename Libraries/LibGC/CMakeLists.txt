@@ -4,12 +4,15 @@ set(SOURCES
     CellAllocator.cpp
     ConservativeHashMap.cpp
     ConservativeHashTable.cpp
+    ConservativeRangeProvider.cpp
     ConservativeVector.cpp
+    CrossHeapMember.cpp
     Root.cpp
     RootHashMap.cpp
     RootHashTable.cpp
     RootVector.cpp
     Heap.cpp
+    HeapGroup.cpp
     HeapBlock.cpp
     Timer.cpp
     WeakBlock.cpp
