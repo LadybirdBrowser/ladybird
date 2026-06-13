@@ -49,10 +49,11 @@ private:
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    AbstractImageStyleValue const* select_image(double device_pixels_per_css_pixel) const;
+    Option const* select_option(double device_pixels_per_css_pixel) const;
 
     Vector<Option> m_options;
     mutable AbstractImageStyleValue const* m_selected_image { nullptr };
+    mutable double m_selected_resolution { 1 };
 };
 
 }
