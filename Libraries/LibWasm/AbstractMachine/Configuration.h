@@ -25,10 +25,19 @@ enum class IsTailcall {
 };
 
 class Configuration {
+    AK_MAKE_NONCOPYABLE(Configuration);
+    AK_MAKE_NONMOVABLE(Configuration);
+
 public:
     explicit Configuration(Store& store)
         : m_store(store)
     {
+        m_store.register_configuration({}, *this);
+    }
+
+    ~Configuration()
+    {
+        m_store.unregister_configuration({}, *this);
     }
 
     template<typename... Args>

@@ -839,6 +839,8 @@ void Printer::print(Wasm::Value const& value, Wasm::ValueType const& type)
             value.to<Reference>().ref().visit(
                 [](Wasm::Reference::Null const&) { return ByteString("null"); },
                 [](Wasm::Reference::Exception const&) { return ByteString("exception"); },
+                [](Wasm::Reference::I31 const& ref) { return ByteString::formatted("i31({})", ref.value); },
+                [](Wasm::Reference::GcObject const& ref) { return ByteString::formatted("gc-object({:p})", ref.ptr); },
                 [](auto const& ref) { return ByteString::number(ref.address.value()); }));
         break;
     case ValueType::TypeUseReference:
@@ -863,6 +865,8 @@ void Printer::print(Wasm::Reference const& value)
         value.ref().visit(
             [](Wasm::Reference::Null const&) { return ByteString("null"); },
             [](Wasm::Reference::Exception const&) { return ByteString("exception"); },
+            [](Wasm::Reference::I31 const& ref) { return ByteString::formatted("i31({})", ref.value); },
+            [](Wasm::Reference::GcObject const& ref) { return ByteString::formatted("gc-object({:p})", ref.ptr); },
             [](auto const& ref) { return ByteString::number(ref.address.value()); }));
 }
 

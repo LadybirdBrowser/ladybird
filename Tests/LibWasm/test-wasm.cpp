@@ -361,6 +361,8 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                     return ref.ref().visit(
                         [&](Wasm::Reference::Null const&) -> JS::Value { return JS::js_null(); },
                         [](Wasm::Reference::Exception const&) -> JS::Value { return JS::js_undefined(); },
+                        [](Wasm::Reference::I31 const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.value)); },
+                        [](Wasm::Reference::GcObject const&) -> JS::Value { return JS::js_undefined(); },
                         [&](auto const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.address.value())); });
                 }
                 case Wasm::ValueType::I8:
@@ -517,7 +519,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         case Wasm::ValueType::StructReference:
         case Wasm::ValueType::ArrayReference:
         case Wasm::ValueType::NoneReference:
-            return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](Wasm::Reference::Exception) { return JS::Value(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
+            return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](Wasm::Reference::Exception) { return JS::Value(); }, [&](Wasm::Reference::I31 const& ref) { return JS::Value(static_cast<double>(ref.value)); }, [&](Wasm::Reference::GcObject const&) { return JS::Value(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
         case Wasm::ValueType::ExceptionReference:
         case Wasm::ValueType::NoExceptionReference:
             return JS::js_null();
