@@ -12,6 +12,89 @@
 
 namespace Web::CSS::Parser {
 
+ComponentValueToken::ComponentValueToken(Token const& token)
+    : m_type(token.type())
+    , m_original_source_text(token.original_source_text())
+    , m_start_position(token.start_position())
+    , m_end_position(token.end_position())
+{
+}
+
+Token::Type ComponentValueToken::mirror_variant() const
+{
+    if (is(Token::Type::OpenCurly)) {
+        return Token::Type::CloseCurly;
+    }
+
+    if (is(Token::Type::OpenSquare)) {
+        return Token::Type::CloseSquare;
+    }
+
+    if (is(Token::Type::OpenParen)) {
+        return Token::Type::CloseParen;
+    }
+
+    return Token::Type::Invalid;
+}
+
+StringView ComponentValueToken::bracket_string() const
+{
+    if (is(Token::Type::OpenCurly)) {
+        return "{"sv;
+    }
+
+    if (is(Token::Type::CloseCurly)) {
+        return "}"sv;
+    }
+
+    if (is(Token::Type::OpenSquare)) {
+        return "["sv;
+    }
+
+    if (is(Token::Type::CloseSquare)) {
+        return "]"sv;
+    }
+
+    if (is(Token::Type::OpenParen)) {
+        return "("sv;
+    }
+
+    if (is(Token::Type::CloseParen)) {
+        return ")"sv;
+    }
+
+    return ""sv;
+}
+
+StringView ComponentValueToken::bracket_mirror_string() const
+{
+    if (is(Token::Type::OpenCurly)) {
+        return "}"sv;
+    }
+
+    if (is(Token::Type::CloseCurly)) {
+        return "{"sv;
+    }
+
+    if (is(Token::Type::OpenSquare)) {
+        return "]"sv;
+    }
+
+    if (is(Token::Type::CloseSquare)) {
+        return "["sv;
+    }
+
+    if (is(Token::Type::OpenParen)) {
+        return ")"sv;
+    }
+
+    if (is(Token::Type::CloseParen)) {
+        return "("sv;
+    }
+
+    return ""sv;
+}
+
 String SimpleBlock::to_string() const
 {
     StringBuilder builder;

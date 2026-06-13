@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Variant.h>
 #include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/Parser/SourcePosition.h>
 #include <LibWeb/Export.h>
@@ -87,89 +88,89 @@ public:
     FlyString const& ident() const
     {
         VERIFY(m_type == Type::Ident);
-        return m_value;
+        return string_value();
     }
 
     FlyString const& function() const
     {
         VERIFY(m_type == Type::Function);
-        return m_value;
+        return string_value();
     }
 
     u32 delim() const
     {
         VERIFY(m_type == Type::Delim);
-        return *m_value.code_points().begin();
+        return m_value.get<u32>();
     }
 
     FlyString const& string() const
     {
         VERIFY(m_type == Type::String);
-        return m_value;
+        return string_value();
     }
 
     FlyString const& url() const
     {
         VERIFY(m_type == Type::Url);
-        return m_value;
+        return string_value();
     }
 
     FlyString const& at_keyword() const
     {
         VERIFY(m_type == Type::AtKeyword);
-        return m_value;
+        return string_value();
     }
 
     HashType hash_type() const
     {
         VERIFY(m_type == Type::Hash);
-        return m_hash_type;
+        return m_value.get<HashValue>().type;
     }
     FlyString const& hash_value() const
     {
         VERIFY(m_type == Type::Hash);
-        return m_value;
+        return m_value.get<HashValue>().value;
     }
 
     bool is_integer() const
     {
         VERIFY(m_type == Type::Number || m_type == Type::Dimension || m_type == Type::Percentage);
-        return m_number_value.is_integer();
+        return number_value_for_type().is_integer();
     }
 
     bool is_integer_with_explicit_sign() const
     {
         VERIFY(m_type == Type::Number || m_type == Type::Dimension || m_type == Type::Percentage);
-        return m_number_value.is_integer_with_explicit_sign();
+        return number_value_for_type().is_integer_with_explicit_sign();
     }
 
     double number_value() const
     {
         VERIFY(m_type == Type::Number);
-        return clamp_to_single_precision(m_number_value.value());
+        return clamp_to_single_precision(m_value.get<Number>().value());
     }
     i32 to_integer() const
     {
-        VERIFY(m_type == Type::Number && m_number_value.is_integer());
-        return m_number_value.integer_value();
+        VERIFY(m_type == Type::Number && m_value.get<Number>().is_integer());
+        return m_value.get<Number>().integer_value();
     }
 
     FlyString const& dimension_unit() const
     {
         VERIFY(m_type == Type::Dimension);
-        return m_value;
+        return m_value.get<DimensionValue>().unit;
     }
     double dimension_value() const
     {
         VERIFY(m_type == Type::Dimension);
-        return clamp_to_single_precision(m_number_value.value());
+        return clamp_to_single_precision(m_value.get<DimensionValue>().number.value());
     }
-    i32 dimension_value_int() const { return m_number_value.integer_value(); }
+    i32 dimension_value_int() const { return m_value.get<DimensionValue>().number.integer_value(); }
 
     double percentage() const
     {
         VERIFY(m_type == Type::Percentage);
-        return clamp_to_single_precision(m_number_value.value());
+        return clamp_to_single_precision(m_value.get<Number>().value());
     }
 
     Type mirror_variant() const;
@@ -186,20 +187,37 @@ public:
 
     bool operator==(Token const& other) const
     {
-        return m_type == other.m_type && m_value == other.m_value && m_number_value == other.m_number_value && m_hash_type == other.m_hash_type;
+        return m_type == other.m_type && m_value == other.m_value;
     }
 
 private:
+    struct HashValue {
+        FlyString value;
+        HashType type { HashType::Unrestricted };
+
+        bool operator==(HashValue const&) const = default;
+    };
+
+    struct DimensionValue {
+        Number number;
+        FlyString unit;
+
+        bool operator==(DimensionValue const&) const = default;
+    };
+
+    FlyString const& string_value() const;
+    Number const& number_value_for_type() const;
+
     Type m_type { Type::Invalid };
 
-    FlyString m_value;
-    Number m_number_value;
-    HashType m_hash_type { HashType::Unrestricted };
+    Variant<Empty, FlyString, u32, Number, HashValue, DimensionValue> m_value;
 
     String m_original_source_text;
     SourcePosition m_start_position;
     SourcePosition m_end_position;
 };
+
+static_assert(sizeof(Token) <= 64, "Keep the size of CSS parser tokens down!");
 
 }
 

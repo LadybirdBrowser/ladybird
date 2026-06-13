@@ -176,17 +176,17 @@ private:
 
             if (component_value.is_function()) {
                 auto& function = component_value.function();
-                m_unserialized_values.append(function.name_token);
+                m_unserialized_values.append(Parser::Token::create_function(function.name, function.name_token.original_source_text()));
                 process_values(realm, function.value);
-                m_unserialized_values.append(function.end_token);
+                m_unserialized_values.append(Parser::Token::create(function.end_token.type(), function.end_token.original_source_text()));
                 continue;
             }
 
             if (component_value.is_block()) {
                 auto& block = component_value.block();
-                m_unserialized_values.append(block.token);
+                m_unserialized_values.append(Parser::Token::create(block.token.type(), block.token.original_source_text()));
                 process_values(realm, block.value);
-                m_unserialized_values.append(block.end_token);
+                m_unserialized_values.append(Parser::Token::create(block.end_token.type(), block.end_token.original_source_text()));
                 continue;
             }
 
