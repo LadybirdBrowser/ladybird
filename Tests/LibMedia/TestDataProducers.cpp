@@ -11,7 +11,7 @@
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
-#include <LibMedia/MediaTimeProvider.h>
+#include <LibMedia/MediaClock.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>

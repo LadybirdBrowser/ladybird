@@ -25,7 +25,7 @@ class FrameQueueItem;
 class IncrementallyPopulatedStream;
 class MediaStream;
 class MediaStreamCursor;
-class MediaTimeProvider;
+class MediaClock;
 class PlaybackManager;
 class ReadonlyBytesCursor;
 class AudioTimeStretchProcessor;

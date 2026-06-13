@@ -45,7 +45,7 @@ private:
 
     void dispatch_state_if_changed(PipelineStatus);
 
-    MediaTimeReader m_clock_reader;
+    MediaTimeReader m_time_reader;
     RefPtr<VideoProducer> m_input;
 
     RefPtr<VideoFrame> m_next_frame;

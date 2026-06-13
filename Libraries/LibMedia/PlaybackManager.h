@@ -18,8 +18,8 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaClock.h>
 #include <LibMedia/MediaTime.h>
-#include <LibMedia/MediaTimeProvider.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
@@ -125,7 +125,7 @@ private:
 
     WeakPlaybackManager weak();
 
-    void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
+    void set_clock(NonnullRefPtr<MediaClock> const&);
     void disable_audio();
 
     void set_up_producers();
@@ -168,8 +168,8 @@ private:
 
     NonnullRefPtr<WeakPlaybackManagerLink> m_weak_link;
 
-    NonnullRefPtr<MediaTimeProvider> m_time_provider;
-    MediaTimeReader m_clock_reader;
+    NonnullRefPtr<MediaClock> m_clock;
+    MediaTimeReader m_time_reader;
     float m_playback_rate { 1.0f };
 
     bool m_audio_output_disabled { false };

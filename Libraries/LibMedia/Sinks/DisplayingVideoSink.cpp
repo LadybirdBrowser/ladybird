@@ -20,7 +20,7 @@ ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(Medi
 }
 
 DisplayingVideoSink::DisplayingVideoSink(MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed)
-    : m_clock_reader(move(time_reader))
+    : m_time_reader(move(time_reader))
     , m_on_state_changed(move(on_state_changed))
 {
 }
@@ -33,7 +33,7 @@ DisplayingVideoSink::~DisplayingVideoSink()
 
 void DisplayingVideoSink::set_time_reader(MediaTimeReader time_reader)
 {
-    m_clock_reader = move(time_reader);
+    m_time_reader = move(time_reader);
 }
 
 void DisplayingVideoSink::consume_moved_position_signals(PipelineStatus& status)
@@ -59,7 +59,7 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
             status = PipelineStatus::HaveData;
         dispatch_state_if_changed(status);
     });
-    input->seek(m_clock_reader.current_time());
+    input->seek(m_time_reader.current_time());
     input->start();
     return {};
 }
@@ -130,7 +130,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
     if (m_input == nullptr)
         return DisplayingVideoSinkUpdateResult::NoChange;
 
-    auto current_time = m_clock_reader.current_time();
+    auto current_time = m_time_reader.current_time();
     auto result = DisplayingVideoSinkUpdateResult::NoChange;
 
     auto last_status = PipelineStatus::Pending;

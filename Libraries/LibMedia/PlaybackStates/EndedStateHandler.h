@@ -20,7 +20,7 @@ public:
 
     virtual void on_enter() override
     {
-        manager().m_time_provider->pause();
+        manager().m_clock->pause();
     }
     virtual void on_exit() override { }
 

@@ -97,7 +97,7 @@ private:
         if (manager().m_audio_sink)
             manager().m_audio_sink->seek(m_chosen_timestamp);
         else
-            manager().m_time_provider->seek(m_chosen_timestamp);
+            manager().m_clock->seek(m_chosen_timestamp);
     }
 
     AK::Duration m_target_timestamp;

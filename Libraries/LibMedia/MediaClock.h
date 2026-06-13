@@ -12,9 +12,9 @@
 
 namespace Media {
 
-class MediaTimeProvider : public virtual MediaPipelineNode {
+class MediaClock : public virtual MediaPipelineNode {
 public:
-    virtual ~MediaTimeProvider() = default;
+    virtual ~MediaClock() = default;
 
     virtual MediaTimeReader time_reader() const = 0;
     virtual void resume() = 0;

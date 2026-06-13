@@ -14,8 +14,8 @@
 #include <LibMedia/Audio/Forward.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaClock.h>
 #include <LibMedia/MediaTime.h>
-#include <LibMedia/MediaTimeProvider.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/AudioProducer.h>
 #include <LibMedia/Sinks/AudioSink.h>
@@ -23,7 +23,7 @@
 namespace Media {
 
 class MEDIA_API AudioPlaybackSink final : public AudioSink
-    , public MediaTimeProvider {
+    , public MediaClock {
 private:
     class OutputThreadData;
 

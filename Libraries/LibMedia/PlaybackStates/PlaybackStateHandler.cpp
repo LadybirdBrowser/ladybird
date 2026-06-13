@@ -14,7 +14,7 @@ namespace Media {
 
 AK::Duration PlaybackStateHandler::current_time() const
 {
-    return manager().m_clock_reader.current_time();
+    return manager().m_time_reader.current_time();
 }
 
 void PlaybackStateHandler::seek(AK::Duration timestamp, SeekMode mode)
