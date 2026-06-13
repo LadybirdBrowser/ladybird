@@ -97,18 +97,22 @@ void ImageStyleValueResource::add_callbacks_if_needed(DOM::Document& document)
         [weak_document = GC::Weak(document), url = m_url] {
             if (auto document = weak_document.ptr()) {
                 if (auto* resource = document->css_image_resource(url))
-                    resource->notify_image_style_values_did_update(*document);
+                    resource->on_decoded_image_data_loaded(*document);
             }
         },
         nullptr);
 }
 
-void ImageStyleValueResource::notify_image_style_values_did_update(DOM::Document& document)
+void ImageStyleValueResource::on_decoded_image_data_loaded(DOM::Document& document)
+{
+    notify_image_style_values_did_update();
+    start_animation_timer_if_needed(document);
+}
+
+void ImageStyleValueResource::notify_image_style_values_did_update()
 {
     for (auto const* image_style_value : m_image_style_values)
         image_style_value->notify_clients_did_update();
-
-    start_animation_timer_if_needed(document);
 }
 
 void ImageStyleValueResource::start_animation_timer_if_needed(DOM::Document& document)
@@ -183,8 +187,7 @@ void ImageStyleValueResource::animate(DOM::Document&)
             stop_animation_timer();
     }
 
-    for (auto const* image_style_value : m_image_style_values)
-        image_style_value->notify_did_animate();
+    notify_image_style_values_did_update();
 }
 
 ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(URL const& url)
@@ -437,12 +440,6 @@ void ImageStyleValue::notify_clients_did_update() const
 {
     for (auto* client : m_clients)
         client->image_style_value_did_update(const_cast<ImageStyleValue&>(*this));
-}
-
-void ImageStyleValue::notify_did_animate() const
-{
-    if (on_animate)
-        on_animate();
 }
 
 Optional<::URL::URL> ImageStyleValue::resolved_url(DOM::Document const& document) const

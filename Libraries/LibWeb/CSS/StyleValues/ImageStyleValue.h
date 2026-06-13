@@ -45,7 +45,8 @@ public:
 
 private:
     void add_callbacks_if_needed(DOM::Document&);
-    void notify_image_style_values_did_update(DOM::Document&);
+    void on_decoded_image_data_loaded(DOM::Document&);
+    void notify_image_style_values_did_update();
     void start_animation_timer_if_needed(DOM::Document&);
     void stop_animation_timer();
     bool is_animatable() const;
@@ -109,8 +110,6 @@ public:
     Optional<Gfx::DecodedImageFrame> current_frame(DOM::Document const&, DevicePixelRect const& dest_rect) const;
     size_t current_frame_index(DOM::Document const&) const;
 
-    mutable Function<void()> on_animate;
-
     GC::Ptr<HTML::DecodedImageData> image_data(DOM::Document const&) const;
 
 private:
@@ -122,7 +121,6 @@ private:
     void register_client(Client&) const;
     void unregister_client(Client&) const;
     void notify_clients_did_update() const;
-    void notify_did_animate() const;
     void update_style_sheet_resource_context(CSSStyleSheet const&);
     Optional<::URL::URL> resolved_url(DOM::Document const&) const;
     ::URL::URL style_resource_base_url(DOM::Document const&) const;
