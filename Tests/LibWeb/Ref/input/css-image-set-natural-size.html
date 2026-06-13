@@ -1,0 +1,17 @@
+<!doctype html>
+<link rel="match" href="../expected/css-image-set-natural-size-ref.html" />
+<style>
+    html,
+    body {
+        margin: 0;
+    }
+
+    .box {
+        width: 100px;
+        height: 100px;
+        /* smiley.png is 50x50 pixels. The 2x resolution descriptor halves its natural size to 25x25 CSS pixels. */
+        background-image: image-set(url("../data/smiley.png") 2x);
+        background-repeat: no-repeat;
+    }
+</style>
+<div class="box"></div>

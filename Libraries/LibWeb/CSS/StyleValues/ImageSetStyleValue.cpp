@@ -30,7 +30,7 @@ ImageSetStyleValue::ImageSetStyleValue(Vector<Option> options)
 {
 }
 
-AbstractImageStyleValue const* ImageSetStyleValue::select_image(double device_pixels_per_css_pixel) const
+ImageSetStyleValue::Option const* ImageSetStyleValue::select_option(double device_pixels_per_css_pixel) const
 {
     ImageSetStyleValue::Option const* best_below_or_equal = nullptr;
     Optional<double> best_below_or_equal_resolution;
@@ -58,10 +58,8 @@ AbstractImageStyleValue const* ImageSetStyleValue::select_image(double device_pi
     }
 
     if (best_above)
-        return best_above->image.ptr();
-    if (best_below_or_equal)
-        return best_below_or_equal->image.ptr();
-    return nullptr;
+        return best_above;
+    return best_below_or_equal;
 }
 
 void ImageSetStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
@@ -118,24 +116,32 @@ bool ImageSetStyleValue::is_computationally_independent() const
 void ImageSetStyleValue::load_any_resources(DOM::Document& document)
 {
     auto dpr = document.page().client().device_pixels_per_css_pixel();
-    if (auto const* image = select_image(dpr); image && image != m_selected_image)
-        m_selected_image = image;
+    if (auto const* option = select_option(dpr)) {
+        m_selected_image = option->image.ptr();
+        m_selected_resolution = Resolution::from_style_value(option->resolution).to_dots_per_pixel();
+    }
     if (m_selected_image)
         const_cast<AbstractImageStyleValue&>(*m_selected_image).load_any_resources(document);
 }
 
 Optional<CSSPixels> ImageSetStyleValue::natural_width(DOM::Document const& document) const
 {
-    if (m_selected_image)
-        return m_selected_image->natural_width(document);
-    return {};
+    if (!m_selected_image)
+        return {};
+    auto natural_width = m_selected_image->natural_width(document);
+    if (!natural_width.has_value())
+        return {};
+    return CSSPixels { natural_width->to_double() / m_selected_resolution };
 }
 
 Optional<CSSPixels> ImageSetStyleValue::natural_height(DOM::Document const& document) const
 {
-    if (m_selected_image)
-        return m_selected_image->natural_height(document);
-    return {};
+    if (!m_selected_image)
+        return {};
+    auto natural_height = m_selected_image->natural_height(document);
+    if (!natural_height.has_value())
+        return {};
+    return CSSPixels { natural_height->to_double() / m_selected_resolution };
 }
 
 Optional<CSSPixelFraction> ImageSetStyleValue::natural_aspect_ratio(DOM::Document const& document) const
