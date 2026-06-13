@@ -9,6 +9,7 @@ set(SOURCES
     DOMNodeProperties.cpp
     FileDownloader.cpp
     HeadlessWebView.cpp
+    HistoryDebug.cpp
     HistoryStore.cpp
     HelperProcess.cpp
     HSTSStore.cpp
@@ -20,6 +21,7 @@ set(SOURCES
     ProcessManager.cpp
     ProcessMonitor.cpp
     SearchEngine.cpp
+    SessionHistory.cpp
     Settings.cpp
     SiteIsolation.cpp
     SourceHighlighter.cpp
