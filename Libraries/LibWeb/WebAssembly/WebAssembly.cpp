@@ -55,15 +55,17 @@ static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM&, 
 
 namespace Detail {
 
-static GC::WeakHashMap<JS::Object, WebAssemblyCache>& caches()
+// The caches hold AbstractMachines whose gc-roots providers keep pointers into them, so they
+// live behind OwnPtrs and never move on rehash.
+static GC::WeakHashMap<JS::Object, NonnullOwnPtr<WebAssemblyCache>>& caches()
 {
-    static NeverDestroyed<GC::WeakHashMap<JS::Object, WebAssemblyCache>> caches;
+    static NeverDestroyed<GC::WeakHashMap<JS::Object, NonnullOwnPtr<WebAssemblyCache>>> caches;
     return *caches;
 }
 
 WebAssemblyCache& get_cache(JS::Realm& realm)
 {
-    return caches().ensure(realm.global_object());
+    return *caches().ensure(realm.global_object(), [] { return make<WebAssemblyCache>(); });
 }
 
 }
@@ -72,7 +74,7 @@ void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
 {
     auto& global_object = HTML::relevant_global_object(object);
     if (auto maybe_cache = Detail::caches().get(global_object); maybe_cache.has_value()) {
-        auto& cache = maybe_cache.value();
+        auto& cache = *maybe_cache.value();
         visitor.visit(cache.function_instances());
         visitor.visit(cache.imported_objects());
         visitor.visit(cache.extern_values());

@@ -1573,8 +1573,6 @@ ParseResult<ElementSection::Element> ElementSection::Element::parse(ConstrainedS
 
     // https://webassembly.github.io/spec/core/binary/modules.html#element-section
     // elemkind ::= 0x00 => (ref func)
-    // Segments listing function indices have the non-nullable type (ref func) (flags 0-3);
-    // the flag-4 expression shorthand has type funcref, i.e. (ref null func).
     auto type = has_exprs ? ValueType(ValueType::FunctionReference) : ValueType(ValueType::FunctionReference, false);
     if (has_passive || has_explicit_index) {
         if (has_exprs) {

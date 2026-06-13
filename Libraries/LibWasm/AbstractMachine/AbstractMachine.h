@@ -962,6 +962,11 @@ public:
         return *m_heap;
     }
 
+    // For embedders that decide on a (shared) heap after constructing the machine. Must
+    // happen before any code runs.
+    bool has_heap() const { return m_heap != nullptr; }
+    void adopt_heap(GC::Heap&);
+
     // Validate a module; permanently sets the module's validity status.
     ErrorOr<void, ValidationError> validate(Module&, Optional<CompileCacheConfig> cache_config = {}, CompileToNative = CompileToNative::Yes);
     // Load and instantiate a module, and link it into this interpreter.
@@ -1004,7 +1009,6 @@ private:
     Optional<InstantiationError> allocate_all_initial_phase(Module const&, ModuleInstance&, Vector<ExternValue>&, Vector<Value>& global_values, Vector<Value>& table_initial_values, Vector<FunctionAddress>& own_functions);
     Optional<InstantiationError> allocate_all_final_phase(Module const&, ModuleInstance&, Vector<Vector<Reference>>& elements);
 
-    void adopt_heap(GC::Heap&);
     void create_own_heap();
 
     class RootsProvider final : public GC::ConservativeRangeProvider {

@@ -1638,8 +1638,7 @@ VALIDATE_INSTRUCTION(select_typed)
         return Errors::invalid("select types"sv, "exactly one type"sv, required_types);
 
     // https://webassembly.github.io/spec/core/valid/instructions.html#parametric-instructions
-    // select t: valid with [t t i32] -> [t] if the value type t is valid; both operands must
-    // match the annotated type.
+    // select t: valid with [t t i32] -> [t] if the value type t is valid; both operands must match the annotated type.
     TRY(validate(required_types.first()));
     TRY(stack.take<ValueType::I32>());
     TRY(stack.take(required_types.first()));
@@ -1781,8 +1780,6 @@ VALIDATE_INSTRUCTION(table_copy)
     auto lhs_table = TRY(validate(args.lhs));
     auto rhs_table = TRY(validate(args.rhs));
 
-    // https://webassembly.github.io/spec/core/valid/instructions.html#table-instructions
-    // table.copy x y: the source table's reference type rt2 must match the destination's rt1.
     if (!matches_reference_type(rhs_table.element_type(), lhs_table.element_type(), m_context.type_context()))
         return Errors::non_conforming_types("table.copy"sv, lhs_table.element_type(), rhs_table.element_type());
 
@@ -1806,9 +1803,6 @@ VALIDATE_INSTRUCTION(table_init)
 
     auto& element_type = m_context.elements[args.element_index.value()];
 
-    // https://webassembly.github.io/spec/core/valid/instructions.html#table-instructions
-    // table.init x y: "The element segment C.elems[y] must match the reference type rt" of the
-    // table C.tables[x].
     if (!matches_reference_type(element_type, table.element_type(), m_context.type_context()))
         return Errors::non_conforming_types("table.init"sv, table.element_type(), element_type);
 
@@ -2673,9 +2667,6 @@ VALIDATE_INSTRUCTION(call_indirect)
     auto table = TRY(validate(args.table));
     TRY(validate(args.type));
 
-    // https://webassembly.github.io/spec/core/valid/instructions.html#control-instructions
-    // call_indirect x y: "The table C.tables[x] must be of the form (at lim rt), and rt must
-    // match (ref null func)."
     if (!matches_reference_type(table.element_type(), ValueType(ValueType::FunctionReference), m_context.type_context()))
         return Errors::invalid("table element type for call.indirect"sv, "a function reference"sv, table.element_type());
 
@@ -2722,7 +2713,6 @@ VALIDATE_INSTRUCTION(return_call_indirect)
     TRY(validate(args.type));
 
     auto& table = m_context.tables[args.table.value()];
-    // See call_indirect: rt must match (ref null func).
     if (!matches_reference_type(table.element_type(), ValueType(ValueType::FunctionReference), m_context.type_context()))
         return Errors::invalid("table element type for call.indirect"sv, "a function reference"sv, table.element_type());
 
