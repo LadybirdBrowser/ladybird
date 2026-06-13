@@ -1,6 +1,7 @@
 set(TEST_SOURCES
     TestHistoryStore.cpp
     TestHSTSStore.cpp
+    TestSessionHistory.cpp
     TestWebViewURL.cpp
 )
 
