@@ -11,8 +11,6 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 
-#define OWNPTR_SCRUB_BYTE 0xf0
-
 namespace AK {
 
 template<typename T>
@@ -43,9 +41,6 @@ public:
     ~OwnPtr()
     {
         delete m_ptr;
-#ifdef SANITIZE_PTRS
-        m_ptr = (T*)(explode_byte(OWNPTR_SCRUB_BYTE));
-#endif
     }
 
     OwnPtr(OwnPtr const&) = delete;

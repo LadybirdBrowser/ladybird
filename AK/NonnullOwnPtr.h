@@ -13,8 +13,6 @@
 #include <AK/Traits.h>
 #include <AK/Types.h>
 
-#define NONNULLOWNPTR_SCRUB_BYTE 0xf1
-
 namespace AK {
 
 template<typename T>
@@ -48,9 +46,6 @@ public:
     ~NonnullOwnPtr()
     {
         delete m_ptr;
-#ifdef SANITIZE_PTRS
-        m_ptr = (T*)(explode_byte(NONNULLOWNPTR_SCRUB_BYTE));
-#endif
     }
 
     NonnullOwnPtr(NonnullOwnPtr const&) = delete;
