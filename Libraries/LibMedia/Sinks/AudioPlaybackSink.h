@@ -36,7 +36,7 @@ public:
     void disconnect_input_while_locked(NonnullRefPtr<AudioProducer> const&);
     virtual void disconnect_input(NonnullRefPtr<AudioProducer> const&) override;
 
-    virtual AK::Duration current_time() const override;
+    virtual MediaTimeReader time_reader() const override;
     virtual void resume() override;
     virtual void pause() override;
     virtual void seek(AK::Duration) override;

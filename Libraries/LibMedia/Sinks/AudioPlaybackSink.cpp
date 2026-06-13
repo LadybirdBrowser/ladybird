@@ -272,7 +272,7 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
         }
         if (m_output_thread_data->m_playback_rate != 0.0f)
             input->set_playback_rate(m_output_thread_data->m_playback_rate);
-        input->seek(current_time());
+        input->seek(m_time_reader.current_time());
         input->start();
     }
     Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
@@ -331,7 +331,7 @@ void AudioPlaybackSink::create_playback_stream()
         }
 
         if (input != nullptr) {
-            input->seek(self->current_time());
+            input->seek(self->m_time_reader.current_time());
             input->start();
         }
 
@@ -417,11 +417,9 @@ void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStat
     });
 }
 
-AK::Duration AudioPlaybackSink::current_time() const
+MediaTimeReader AudioPlaybackSink::time_reader() const
 {
-    auto now = MonotonicTime::now();
-    publish_clock_anchor(now);
-    return m_time_reader.current_time(now);
+    return m_time_reader;
 }
 
 void AudioPlaybackSink::publish_clock_anchor(MonotonicTime now) const

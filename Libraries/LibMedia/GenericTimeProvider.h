@@ -17,7 +17,7 @@ public:
     static ErrorOr<NonnullRefPtr<GenericTimeProvider>> try_create();
     virtual ~GenericTimeProvider() override;
 
-    virtual AK::Duration current_time() const override;
+    virtual MediaTimeReader time_reader() const override;
     virtual void resume() override;
     virtual void pause() override;
     virtual void seek(AK::Duration) override;

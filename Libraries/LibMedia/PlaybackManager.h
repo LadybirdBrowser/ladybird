@@ -18,6 +18,7 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaTime.h>
 #include <LibMedia/MediaTimeProvider.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/PlaybackStates/Forward.h>
@@ -168,6 +169,7 @@ private:
     NonnullRefPtr<WeakPlaybackManagerLink> m_weak_link;
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
+    MediaTimeReader m_clock_reader;
     float m_playback_rate { 1.0f };
 
     bool m_audio_output_disabled { false };
