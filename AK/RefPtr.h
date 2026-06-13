@@ -100,7 +100,7 @@ public:
 
     ALWAYS_INLINE ~RefPtr()
     {
-        clear();
+        unref_if_not_null(m_ptr);
 #ifdef SANITIZE_PTRS
         m_ptr = reinterpret_cast<T*>(explode_byte(REFPTR_SCRUB_BYTE));
 #endif

@@ -47,7 +47,7 @@ public:
     }
     ~NonnullOwnPtr()
     {
-        clear();
+        delete m_ptr;
 #ifdef SANITIZE_PTRS
         m_ptr = (T*)(explode_byte(NONNULLOWNPTR_SCRUB_BYTE));
 #endif
