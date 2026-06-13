@@ -1,0 +1,6 @@
+after-back: location=?same-document-back-replaced
+after-back: ui-current=?same-document-back-replaced
+after-back: ui-relevant-entries=?same-document-back-replaced*,?same-document-back-pushed
+after-back: ui-webcontent-known-relevant-entries=?same-document-back-replaced*,?same-document-back-pushed
+after-back: ui-forward-button=true
+after-back: ui-uses-ui-step-coordinates=true

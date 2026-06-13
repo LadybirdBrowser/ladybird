@@ -1,0 +1,5 @@
+after-navigation: location=?second
+after-navigation: ui-current=?second
+after-navigation: ui-current-entry=?second*
+after-navigation: ui-webcontent-known-current-entry=?second*
+after-navigation: ui-forward-button=false

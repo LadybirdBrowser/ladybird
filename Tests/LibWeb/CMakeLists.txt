@@ -14,6 +14,7 @@ set(TEST_SOURCES
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
+    TestPage.cpp
     TestRefCountedTreeNode.cpp
     TestSecureContexts.cpp
     TestSourceHighlighter.cpp
@@ -30,6 +31,7 @@ target_link_libraries(TestContentBlocker PRIVATE LibURL)
 target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
 target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
+target_link_libraries(TestPage PRIVATE LibGC LibJS)
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
 

@@ -46,6 +46,8 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
     args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
     args_parser.add_option(shuffle, "Shuffle the order of tests before running them", "shuffle", 's');
+    args_parser.add_option(run_ui_process_session_history_tests, "Run tests that require UI-process session history seeding",
+        "run-ui-process-session-history-tests");
     args_parser.add_option(per_test_timeout_in_seconds, "Per-test timeout (default: 30)", "per-test-timeout", 't', "seconds");
 
     args_parser.add_option(Core::ArgsParser::Option {
@@ -84,6 +86,8 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
 
     // Ensure consistent time zone operations across different machine configurations.
     web_content_options.default_time_zone = "UTC"sv;
+
+    web_content_options.report_session_history_updates_in_test_mode = WebView::ReportSessionHistoryUpdatesInTestMode::Yes;
 
     if (dump_gc_graph) {
         // Force all tests to run in serial if we are interested in the GC graph.
