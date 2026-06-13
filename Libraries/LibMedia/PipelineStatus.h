@@ -99,7 +99,7 @@ constexpr StringView pipeline_status_to_string(PipelineStatus status)
 namespace AK {
 
 template<>
-struct Formatter<Media::PipelineStatus> final : Formatter<StringView> {
+struct Formatter<Media::PipelineStatus> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Media::PipelineStatus state)
     {
         return Formatter<StringView>::format(builder, Media::pipeline_status_to_string(state));
