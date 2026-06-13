@@ -67,8 +67,7 @@ Token Token::create_hash(FlyString value, HashType hash_type, String original_so
 {
     Token token;
     token.m_type = Type::Hash;
-    token.m_value = move(value);
-    token.m_hash_type = hash_type;
+    token.m_value = HashValue { move(value), hash_type };
     token.m_original_source_text = move(original_source_text);
     return token;
 }
@@ -95,7 +94,7 @@ Token Token::create_delim(u32 delim, String original_source_text)
 {
     Token token;
     token.m_type = Type::Delim;
-    token.m_value = String::from_code_point(delim);
+    token.m_value = delim;
     token.m_original_source_text = move(original_source_text);
     return token;
 }
@@ -104,7 +103,7 @@ Token Token::create_number(Number value, String original_source_text)
 {
     Token token;
     token.m_type = Type::Number;
-    token.m_number_value = value;
+    token.m_value = value;
     token.m_original_source_text = move(original_source_text);
     return token;
 }
@@ -113,7 +112,7 @@ Token Token::create_percentage(Number value, String original_source_text)
 {
     Token token;
     token.m_type = Type::Percentage;
-    token.m_number_value = value;
+    token.m_value = value;
     token.m_original_source_text = move(original_source_text);
     return token;
 }
@@ -122,8 +121,7 @@ Token Token::create_dimension(Number value, FlyString unit, String original_sour
 {
     Token token;
     token.m_type = Type::Dimension;
-    token.m_number_value = value;
-    token.m_value = move(unit);
+    token.m_value = DimensionValue { value, move(unit) };
     token.m_original_source_text = move(original_source_text);
     return token;
 }
@@ -150,7 +148,7 @@ String Token::to_string() const
     case Type::AtKeyword:
         return MUST(String::formatted("@{}", serialize_an_identifier(at_keyword())));
     case Type::Hash: {
-        switch (m_hash_type) {
+        switch (hash_type()) {
         case HashType::Id:
             return MUST(String::formatted("#{}", serialize_an_identifier(hash_value())));
         case HashType::Unrestricted:
@@ -167,13 +165,13 @@ String Token::to_string() const
     case Type::BadUrl:
         return "url()"_string;
     case Type::Delim:
-        return String { m_value };
+        return String::from_code_point(delim());
     case Type::Number:
-        return String::number(m_number_value.value());
+        return String::number(m_value.get<Number>().value());
     case Type::Percentage:
-        return MUST(String::formatted("{}%", m_number_value.value()));
+        return MUST(String::formatted("{}%", m_value.get<Number>().value()));
     case Type::Dimension:
-        return MUST(String::formatted("{}{}", m_number_value.value(), dimension_unit()));
+        return MUST(String::formatted("{}{}", m_value.get<DimensionValue>().number.value(), dimension_unit()));
     case Type::Whitespace:
         return " "_string;
     case Type::CDO:
@@ -261,7 +259,7 @@ String Token::to_debug_string() const
     case Type::Hash:
         builder.append("Hash(value="sv);
         append_quoted_string(builder, hash_value().bytes_as_string_view());
-        builder.appendff(", hash_type={}", hash_type_name(m_hash_type));
+        builder.appendff(", hash_type={}", hash_type_name(hash_type()));
         has_type_specific_fields = true;
         break;
     case Type::String:
@@ -282,20 +280,20 @@ String Token::to_debug_string() const
         break;
     case Type::Delim:
         builder.append("Delim(value="sv);
-        append_quoted_string(builder, m_value.bytes_as_string_view());
+        append_quoted_string(builder, String::from_code_point(delim()));
         builder.appendff(", code_point=U+{:04X}", delim());
         has_type_specific_fields = true;
         break;
     case Type::Number:
-        builder.appendff("Number(value={}, number_type={}", number_value(), number_type_name(m_number_value.type()));
+        builder.appendff("Number(value={}, number_type={}", number_value(), number_type_name(m_value.get<Number>().type()));
         has_type_specific_fields = true;
         break;
     case Type::Percentage:
-        builder.appendff("Percentage(value={}, number_type={}", percentage(), number_type_name(m_number_value.type()));
+        builder.appendff("Percentage(value={}, number_type={}", percentage(), number_type_name(m_value.get<Number>().type()));
         has_type_specific_fields = true;
         break;
     case Type::Dimension:
-        builder.appendff("Dimension(value={}, number_type={}, unit=", dimension_value(), number_type_name(m_number_value.type()));
+        builder.appendff("Dimension(value={}, number_type={}, unit=", dimension_value(), number_type_name(m_value.get<DimensionValue>().number.type()));
         append_quoted_string(builder, dimension_unit().bytes_as_string_view());
         has_type_specific_fields = true;
         break;
@@ -422,6 +420,18 @@ void Token::set_position_range(Badge<Tokenizer, RustTokenizer>, SourcePosition s
 {
     m_start_position = start;
     m_end_position = end;
+}
+
+FlyString const& Token::string_value() const
+{
+    return m_value.get<FlyString>();
+}
+
+Number const& Token::number_value_for_type() const
+{
+    if (m_type == Type::Dimension)
+        return m_value.get<DimensionValue>().number;
+    return m_value.get<Number>();
 }
 
 }

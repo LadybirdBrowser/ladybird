@@ -264,9 +264,11 @@ u32 Tokenizer::next_code_point()
 
     m_prev_position = m_position;
     if (is_newline(code_point)) {
+        VERIFY(m_position.line < NumericLimits<u32>::max());
         m_position.line++;
         m_position.column = 0;
     } else {
+        VERIFY(m_position.column < NumericLimits<u32>::max());
         m_position.column++;
     }
 

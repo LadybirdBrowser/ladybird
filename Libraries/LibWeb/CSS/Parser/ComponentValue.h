@@ -60,6 +60,8 @@ private:
     bool m_attr_tainted { false };
 };
 
+static_assert(sizeof(ComponentValue) <= 112, "Keep the size of CSS component values down!");
+
 }
 
 template<>

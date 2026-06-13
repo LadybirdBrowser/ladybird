@@ -9,6 +9,6 @@
 #include <AK/Types.h>
 
 struct SourcePosition {
-    size_t line { 0 };
-    size_t column { 0 };
+    u32 line { 0 };
+    u32 column { 0 };
 };
