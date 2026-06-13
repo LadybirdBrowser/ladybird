@@ -98,6 +98,7 @@ interface Internals {
     DOMString dumpGCGraph();
     DOMString dumpSessionHistory();
     DOMString dumpUIProcessSessionHistory();
+    Promise<undefined> flushSessionHistoryTraversalQueue();
 
     // Returns the shadow root of the element, if it has one, even if it's not normally accessible to JS.
     ShadowRoot? getShadowRoot(Element element);

@@ -1,0 +1,63 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function queryFromURL(url) {
+        return new URL(url).search || "(none)";
+    }
+
+    function currentUIHistory() {
+        return JSON.parse(internals.dumpUIProcessSessionHistory());
+    }
+
+    asyncTest(async done => {
+        history.replaceState({}, "", "?first");
+        history.pushState({}, "", "?second");
+        await internals.flushSessionHistoryTraversalQueue();
+
+        const initialUIHistory = currentUIHistory();
+        if (location.search !== "?second"
+            || queryFromURL(initialUIHistory.currentURL) !== "?second"
+            || !initialUIHistory.backButtonEnabled
+            || initialUIHistory.forwardButtonEnabled)
+            println(`FAIL: unexpected initial UI history ${JSON.stringify(initialUIHistory)}`);
+
+        let didTraverse = false;
+        window.addEventListener("popstate", () => {
+            didTraverse = true;
+        });
+
+        await new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.data === "sandboxed-history-back-attempted")
+                    resolve();
+            }, { once: true });
+
+            const iframe = document.createElement("iframe");
+            iframe.setAttribute("sandbox", "allow-scripts");
+            iframe.src = `data:text/html,${encodeURIComponent(`
+                <script>
+                    history.back();
+                    parent.postMessage("sandboxed-history-back-attempted", "*");
+                <\/script>
+            `)}`;
+            document.body.append(iframe);
+        });
+
+        if (didTraverse || location.search !== "?second") {
+            println(`unexpected traversal: location=${queryFromURL(location.href)}`);
+            done();
+            return;
+        }
+
+        const uiHistory = currentUIHistory();
+        if (queryFromURL(uiHistory.currentURL) !== "?second"
+            || !uiHistory.backButtonEnabled
+            || uiHistory.forwardButtonEnabled)
+            println(`FAIL: unexpected UI history ${JSON.stringify(uiHistory)}`);
+
+        println(`location=${queryFromURL(location.href)}`);
+        println(`ui-current=${queryFromURL(uiHistory.currentURL)}`);
+        println(`ui-buttons=${uiHistory.backButtonEnabled},${uiHistory.forwardButtonEnabled}`);
+        done();
+    });
+</script>

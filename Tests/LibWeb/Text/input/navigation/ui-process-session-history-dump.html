@@ -1,0 +1,60 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const testKey = "ui-process-session-history-dump-phase";
+
+    function queryFromURL(url) {
+        return new URL(url).search || "(none)";
+    }
+
+    function secondEntryQueries(entries) {
+        return entries
+            .filter(entry => queryFromURL(entry.url) === "?second")
+            .map(entry => `${queryFromURL(entry.url)}${entry.current ? "*" : ""}`)
+            .join(",");
+    }
+
+    function currentUIHistory() {
+        return JSON.parse(internals.dumpUIProcessSessionHistory());
+    }
+
+    function nextTask() {
+        return new Promise(resolve => {
+            const message = `ui-process-session-history-dump-${++nextTask.messageId}`;
+            addEventListener("message", event => {
+                if (event.source === window && event.data === message)
+                    resolve();
+            }, { once: true });
+            postMessage(message, "*");
+        });
+    }
+    nextTask.messageId = 0;
+
+    function dump(label, uiHistory) {
+        println(`${label}: location=${queryFromURL(location.href)}`);
+        println(`${label}: ui-current=${queryFromURL(uiHistory.currentURL)}`);
+        println(`${label}: ui-current-entry=${secondEntryQueries(uiHistory.entries)}`);
+        println(`${label}: ui-webcontent-known-current-entry=${secondEntryQueries(uiHistory.webContentKnownEntries)}`);
+        println(`${label}: ui-forward-button=${uiHistory.forwardButtonEnabled}`);
+    }
+
+    asyncTest(async done => {
+        if (location.search === "?second") {
+            await nextTask();
+            const uiHistory = currentUIHistory();
+            if (queryFromURL(uiHistory.currentURL) !== "?second"
+                || secondEntryQueries(uiHistory.entries) !== "?second*"
+                || secondEntryQueries(uiHistory.webContentKnownEntries) !== "?second*"
+                || uiHistory.forwardButtonEnabled
+                || uiHistory.webContentKnownEntries.length !== 1)
+                println(`FAIL: unexpected UI history ${JSON.stringify(uiHistory)}`);
+            dump("after-navigation", uiHistory);
+            sessionStorage.removeItem(testKey);
+            done();
+            return;
+        }
+
+        sessionStorage.setItem(testKey, "started");
+        location.href = "?second";
+    });
+</script>

@@ -35,7 +35,17 @@ if (BUILD_TESTING)
         COMMAND $<TARGET_FILE:test-web> --python-executable ${Python3_EXECUTABLE} --per-test-timeout 120 -v -v
     )
 
+    add_test(
+        NAME LibWebUIProcessSessionHistory
+        COMMAND $<TARGET_FILE:test-web> --python-executable ${Python3_EXECUTABLE} --per-test-timeout 120
+            --force-new-process --run-ui-process-session-history-tests -f "Text/input/navigation/*"
+            --results-dir test-dumps/ui-process-session-history-results
+    )
+
     set_tests_properties(LibWeb PROPERTIES
+        ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}
+        TIMEOUT_SIGNAL_NAME SIGTERM)
+    set_tests_properties(LibWebUIProcessSessionHistory PROPERTIES
         ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}
         TIMEOUT_SIGNAL_NAME SIGTERM)
 endif()

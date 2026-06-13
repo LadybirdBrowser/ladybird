@@ -23,6 +23,7 @@ public:
     static NonnullOwnPtr<TestWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
 
     void clear_content_blockers();
+    NonnullRefPtr<Core::Promise<Empty>> reset_session_history();
     pid_t web_content_pid() const;
 
     NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot();
@@ -35,7 +36,6 @@ private:
     TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
     virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override;
-
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> m_pending_screenshot;
 
     NonnullRefPtr<TestPromise> m_test_promise;

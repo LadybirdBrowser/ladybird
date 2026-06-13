@@ -158,6 +158,25 @@ static ErrorOr<void> skip_async_scrolling_tests_unless_enabled(Application const
     return enumerate_test_files_recursively(path, s_skipped_tests);
 }
 
+static ErrorOr<void> skip_ui_process_session_history_tests_unless_enabled(Application const& app)
+{
+    if (app.run_ui_process_session_history_tests)
+        return {};
+
+    static constexpr Array ui_process_session_history_tests {
+        "Text/input/navigation/ui-process-session-history-dump.html"sv,
+        "Text/input/navigation/ui-process-session-history-same-document-back.html"sv,
+        "Text/input/navigation/ui-process-session-history-same-document.html"sv,
+    };
+
+    for (auto const& test : ui_process_session_history_tests) {
+        auto path = LexicalPath::join(app.test_root_path, test).string();
+        s_skipped_tests.append(TRY(real_path_for_test_input(path)));
+    }
+
+    return {};
+}
+
 static void log_active_test_views(StringView reason)
 {
     outln();
@@ -872,7 +891,6 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     };
 
     // Clear the current document.
-    // FIXME: Implement a debug-request to do this more thoroughly.
     auto promise = Core::Promise<Empty>::construct();
 
     view.on_load_finish = [promise](auto const& url) {
@@ -887,44 +905,47 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     view.on_test_finish = {};
 
     promise->when_resolved([&view, test_index, &app, &context](auto) {
-        auto& test = context.tests[test_index];
-        test.did_start_test = true;
+        view.reset_session_history()->when_resolved([&view, test_index, &app, &context](auto) {
+            auto& test = context.tests[test_index];
+            test.did_start_test = true;
 
-        auto real_path = MUST(FileSystem::real_path(test.input_path));
-        auto headers_path = ByteString::formatted("{}.headers", real_path);
+            auto real_path = MUST(FileSystem::real_path(test.input_path));
+            auto headers_path = ByteString::formatted("{}.headers", real_path);
 
-        Optional<URL::URL> url;
-        if (FileSystem::exists(headers_path) || s_loaded_from_http_server.contains_slow(test.input_path)) {
-            // Some tests need to be served via the echo server so, for example, HTTP headers from .headers files are
-            // sent, or so that the resulting HTML document has a HTTP based origin (e.g for testing cookies).
-            auto echo_server_port = Application::web_content_options().echo_server_port;
-            VERIFY(echo_server_port.has_value());
-            auto relative_path = LexicalPath::relative_path(real_path, app.test_root_path);
-            VERIFY(relative_path.has_value());
-            url = URL::Parser::basic_parse(ByteString::formatted("http://{}:{}/static/{}", unique_localhost_hostname("test-web"sv), echo_server_port.value(), relative_path.value())).release_value();
-        } else {
-            url = URL::create_with_file_scheme(real_path).release_value();
-        }
+            Optional<URL::URL> url;
+            if (FileSystem::exists(headers_path) || s_loaded_from_http_server.contains_slow(test.input_path)) {
+                // Some tests need to be served via the echo server so, for example, HTTP headers from .headers
+                // files are sent, or so that the resulting HTML document has a HTTP based origin (e.g for testing
+                // cookies).
+                auto echo_server_port = Application::web_content_options().echo_server_port;
+                VERIFY(echo_server_port.has_value());
+                auto relative_path = LexicalPath::relative_path(real_path, app.test_root_path);
+                VERIFY(relative_path.has_value());
+                url = URL::Parser::basic_parse(ByteString::formatted("http://{}:{}/static/{}", unique_localhost_hostname("test-web"sv), echo_server_port.value(), relative_path.value())).release_value();
+            } else {
+                url = URL::create_with_file_scheme(real_path).release_value();
+            }
 
-        // Append variant query string if present (variant is "?foo=bar", set_query expects "foo=bar")
-        if (test.variant.has_value())
-            url->set_query(MUST(test.variant->substring_from_byte_offset_with_shared_superstring(1)));
+            // Append variant query string if present (variant is "?foo=bar", set_query expects "foo=bar")
+            if (test.variant.has_value())
+                url->set_query(MUST(test.variant->substring_from_byte_offset_with_shared_superstring(1)));
 
-        switch (test.mode) {
-        case TestMode::Crash:
-        case TestMode::Text:
-        case TestMode::Layout:
-            run_dump_test(view, context, test, *url);
-            return;
-        case TestMode::Ref:
-            run_ref_test(view, context, test, *url);
-            return;
-        case TestMode::Screenshot:
-            run_screenshot_test(view, context, test, *url);
-            return;
-        }
+            switch (test.mode) {
+            case TestMode::Crash:
+            case TestMode::Text:
+            case TestMode::Layout:
+                run_dump_test(view, context, test, *url);
+                return;
+            case TestMode::Ref:
+                run_ref_test(view, context, test, *url);
+                return;
+            case TestMode::Screenshot:
+                run_screenshot_test(view, context, test, *url);
+                return;
+            }
 
-        VERIFY_NOT_REACHED();
+            VERIFY_NOT_REACHED();
+        });
     });
 
     view.load(URL::about_blank());
@@ -998,6 +1019,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     TRY(load_test_config(app.test_root_path));
     TRY(skip_async_scrolling_tests_unless_enabled(app));
+    TRY(skip_ui_process_session_history_tests_unless_enabled(app));
 
     Vector<Test> tests;
 

@@ -1,0 +1,44 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function queryFromURL(url) {
+        return new URL(url).search || "(none)";
+    }
+
+    function relevantEntryQueries(entries, queries) {
+        return entries
+            .filter(entry => queries.includes(queryFromURL(entry.url)))
+            .map(entry => `${queryFromURL(entry.url)}${entry.current ? "*" : ""}`)
+            .join(",");
+    }
+
+    function currentUIHistory() {
+        return JSON.parse(internals.dumpUIProcessSessionHistory());
+    }
+
+    function dump(label, uiHistory) {
+        println(`${label}: location=${queryFromURL(location.href)}`);
+        println(`${label}: ui-current=${queryFromURL(uiHistory.currentURL)}`);
+        println(`${label}: ui-relevant-entries=${relevantEntryQueries(uiHistory.entries, ["?same-document-replaced", "?same-document-pushed"])}`);
+        println(`${label}: ui-webcontent-known-relevant-entries=${relevantEntryQueries(uiHistory.webContentKnownEntries, ["?same-document-replaced", "?same-document-pushed"])}`);
+        println(`${label}: ui-buttons=${uiHistory.backButtonEnabled},${uiHistory.forwardButtonEnabled}`);
+        println(`${label}: ui-uses-ui-step-coordinates=${uiHistory.webContentUsesUIStepCoordinates}`);
+    }
+
+    asyncTest(async done => {
+        history.replaceState({ replaced: true }, "", "?same-document-replaced");
+        history.pushState({ pushed: true }, "", "?same-document-pushed");
+        await internals.flushSessionHistoryTraversalQueue();
+
+        const uiHistory = currentUIHistory();
+        if (!internals.dumpSessionHistory().includes("ui-process-session-history-same-document.html?same-document-pushed (current)")
+            || queryFromURL(uiHistory.currentURL) !== "?same-document-pushed"
+            || relevantEntryQueries(uiHistory.entries, ["?same-document-replaced", "?same-document-pushed"]) !== "?same-document-replaced,?same-document-pushed*"
+            || !uiHistory.backButtonEnabled
+            || uiHistory.forwardButtonEnabled)
+            println(`FAIL: unexpected UI history ${JSON.stringify(uiHistory)}`);
+
+        dump("after-push-state", uiHistory);
+        done();
+    });
+</script>
