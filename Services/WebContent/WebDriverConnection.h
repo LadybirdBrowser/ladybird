@@ -40,6 +40,11 @@ public:
     void visit_edges(JS::Cell::Visitor&);
 
     void page_did_open_dialog(Badge<PageClient>);
+    void page_did_set_window_handle(Badge<PageClient>, String const& window_handle);
+    void page_did_start_window_replacement(Badge<PageClient>, String const& window_handle);
+    void page_did_start_loading(Badge<PageClient>, URL::URL const& url);
+    void page_did_cancel_loading(Badge<PageClient>, URL::URL const& url);
+    void page_did_close_window(Badge<PageClient>, String const& window_handle);
 
 private:
     WebDriverConnection(NonnullOwnPtr<IPC::Transport> transport, Web::PageClient& page_client);
@@ -58,6 +63,7 @@ private:
     virtual Messages::WebDriverClient::BackResponse back() override;
     virtual Messages::WebDriverClient::ForwardResponse forward() override;
     virtual Messages::WebDriverClient::RefreshResponse refresh() override;
+    virtual Messages::WebDriverClient::WaitForNavigationCompletionResponse wait_for_navigation_completion() override;
     virtual Messages::WebDriverClient::GetTitleResponse get_title() override;
     virtual Messages::WebDriverClient::CloseWindowResponse close_window() override;
     virtual Messages::WebDriverClient::SwitchToWindowResponse switch_to_window(String handle) override;
@@ -70,6 +76,11 @@ private:
     virtual Messages::WebDriverClient::MinimizeWindowResponse minimize_window() override;
     virtual Messages::WebDriverClient::FullscreenWindowResponse fullscreen_window() override;
     virtual Messages::WebDriverClient::ConsumeUserActivationResponse consume_user_activation() override;
+    virtual void crash_current_page() override;
+    virtual Messages::WebDriverClient::LoadUrlFromUiResponse load_url_from_ui(JsonValue payload) override;
+    virtual Messages::WebDriverClient::TraverseHistoryFromUiResponse traverse_history_from_ui(JsonValue payload) override;
+    virtual Messages::WebDriverClient::MarkWebContentSessionHistoryStaleResponse mark_web_content_session_history_stale() override;
+    virtual Messages::WebDriverClient::GetSessionHistoryResponse get_session_history() override;
     virtual Messages::WebDriverClient::FindElementResponse find_element(JsonValue payload) override;
     virtual Messages::WebDriverClient::FindElementsResponse find_elements(JsonValue payload) override;
     virtual Messages::WebDriverClient::FindElementFromElementResponse find_element_from_element(JsonValue payload, String element_id) override;
@@ -183,6 +194,8 @@ private:
     GC::Ptr<Web::DOM::DocumentObserver> m_document_observer;
     GC::Ptr<Web::HTML::NavigationObserver> m_navigation_observer;
     GC::Ptr<GC::Timer> m_navigation_timer;
+
+    bool m_should_complete_driver_execution_when_navigation_starts_or_is_canceled { false };
 };
 
 }

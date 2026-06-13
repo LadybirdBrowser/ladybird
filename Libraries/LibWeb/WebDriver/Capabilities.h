@@ -48,6 +48,7 @@ struct WEB_API LadybirdOptions {
     explicit LadybirdOptions(JsonObject const& capabilities);
 
     bool headless { false };
+    bool enable_test_hooks { false };
 };
 
 WEB_API Response process_capabilities(JsonValue const& parameters, SessionFlags flags);

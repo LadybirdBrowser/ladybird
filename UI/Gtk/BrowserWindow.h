@@ -37,7 +37,6 @@ public:
     void present();
     int tab_count() const;
 
-    void update_navigation_buttons(bool back_enabled, bool forward_enabled);
     void update_location_entry(StringView url);
     void update_location_favicon(GdkPaintable* favicon);
     void update_location_loading(bool is_loading);

@@ -46,6 +46,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -152,7 +153,7 @@ Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_wi
 void ConnectionFromClient::set_window_handle(u64 page_id, String handle)
 {
     if (auto page = this->page(page_id); page.has_value()) {
-        page->page().top_level_traversable()->set_window_handle(move(handle));
+        page->set_window_handle(move(handle));
         page->send_current_needs_beforeunload_check();
     }
 }
@@ -164,6 +165,18 @@ void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString webdrive
         if (auto result = page->connect_to_webdriver(webdriver_endpoint); result.is_error())
             dbgln("Unable to connect to the WebDriver process: {}", result.error());
     }
+}
+
+void ConnectionFromClient::complete_webdriver_navigation_completion(u64 page_id, u64 request_id, Web::WebDriver::Response response)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->did_complete_webdriver_navigation_completion(request_id, move(response));
+}
+
+void ConnectionFromClient::complete_webdriver_history_traversal(u64 page_id, u64 request_id, bool accepted, bool will_replace_web_content_process, bool will_change_top_level_entry)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->did_complete_webdriver_history_traversal(request_id, accepted, will_replace_web_content_process, will_change_top_level_entry);
 }
 
 void ConnectionFromClient::connect_to_web_ui(u64 page_id, IPC::TransportHandle handle)
@@ -218,13 +231,24 @@ void ConnectionFromClient::update_screen_rects(u64 page_id, Vector<Web::DevicePi
         page->set_screen_rects(rects, main_screen);
 }
 
-void ConnectionFromClient::load_url(u64 page_id, URL::URL url)
+void ConnectionFromClient::load_url(u64 page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
         return;
 
-    page->page().load(url);
+    page->page().load(url, history_handling);
+}
+
+void ConnectionFromClient::load_url_with_document_resource(u64 page_id, URL::URL url,
+    Variant<Empty, String, Web::HTML::POSTResource> document_resource,
+    Web::Bindings::NavigationHistoryBehavior history_handling)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    page->page().load(url, move(document_resource), history_handling);
 }
 
 void ConnectionFromClient::load_html(u64 page_id, ByteString html)
@@ -248,7 +272,65 @@ void ConnectionFromClient::reload(u64 page_id)
 void ConnectionFromClient::traverse_the_history_by_delta(u64 page_id, i32 delta)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().traverse_the_history_by_delta(delta);
+        page->page().traverse_the_history_by_delta_from_ui_process(delta);
+}
+
+void ConnectionFromClient::traverse_the_history_to_step(u64 page_id, i32 step)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_traverse_the_history_to_step(page_id, step, false, Web::HTML::HistoryStepResult::Applied);
+        return;
+    }
+
+    page->page().top_level_traversable()->traverse_the_history_to_step(step,
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, step](bool step_was_available, Web::HTML::HistoryStepResult result) {
+            async_did_traverse_the_history_to_step(page_id, step, step_was_available, result);
+        }));
+}
+
+void ConnectionFromClient::check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_check_if_traverse_history_step_is_canceled(page_id, request_id, step, true);
+        return;
+    }
+
+    auto& heap = Web::HTML::main_thread_event_loop().heap();
+    page->page().top_level_traversable()->check_if_traverse_history_step_is_canceled(step,
+        GC::create_function(heap, [this, page_id, request_id, step](Web::HTML::HistoryStepResult result) {
+            async_did_check_if_traverse_history_step_is_canceled(
+                page_id, request_id, step, result != Web::HTML::HistoryStepResult::Applied);
+        }));
+}
+
+void ConnectionFromClient::set_top_level_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, size_t current_top_level_entry_index)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        auto accepted = page->page().top_level_traversable()->replace_top_level_session_history_entries_from_ui_process(move(entries), current_top_level_entry_index);
+        if (accepted) {
+            auto session_history_snapshot = page->page().top_level_traversable()->create_session_history_snapshot();
+            async_did_set_top_level_session_history(page_id, accepted, move(session_history_snapshot.top_level_session_history_entries), move(session_history_snapshot.used_session_history_steps), session_history_snapshot.current_used_step_index);
+        } else {
+            async_did_set_top_level_session_history(page_id, accepted, {}, {}, 0);
+        }
+    } else {
+        async_did_set_top_level_session_history(page_id, false, {}, {}, 0);
+    }
+}
+
+void ConnectionFromClient::reset_session_history_for_testing(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        auto& event_loop = Web::HTML::main_thread_event_loop();
+        page->page().top_level_traversable()->reset_session_history_for_testing(
+            GC::create_function(event_loop.heap(), [this, page_id] {
+                async_did_reset_session_history_for_testing(page_id);
+            }));
+    } else {
+        async_did_reset_session_history_for_testing(page_id);
+    }
 }
 
 void ConnectionFromClient::set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen)

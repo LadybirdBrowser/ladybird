@@ -758,7 +758,7 @@ void Navigation::abort_the_ongoing_navigation(GC::Ptr<WebIDL::DOMException> erro
     m_focus_changed_during_ongoing_navigation = false;
 
     // 4. Set navigation's suppress normal scroll restoration during ongoing navigation to false.
-    m_suppress_scroll_restoration_during_ongoing_navigation = false;
+    m_suppress_normal_scroll_restoration_during_ongoing_navigation = false;
 
     // 5. If error was not given, then let error be a new "AbortError" DOMException created in navigation's relevant realm.
     if (!error)
@@ -1193,7 +1193,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     m_focus_changed_during_ongoing_navigation = false;
 
     // 28. Set navigation's suppress normal scroll restoration during ongoing navigation to false.
-    m_suppress_scroll_restoration_during_ongoing_navigation = false;
+    m_suppress_normal_scroll_restoration_during_ongoing_navigation = false;
 
     // 29. Let dispatchResult be the result of dispatching event at navigation.
     auto dispatch_result = dispatch_event(*event);
@@ -1254,7 +1254,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
             //       the relevant NavigateEvent. Otherwise, there will be no scroll restoration. That is, no navigation which is intercepted
             //       by intercept() goes through the normal scroll restoration process; scroll restoration for such navigations
             //       is either done manually, by the web developer, or is done after the transition.
-            m_suppress_scroll_restoration_during_ongoing_navigation = true;
+            m_suppress_normal_scroll_restoration_during_ongoing_navigation = true;
 
             // 2. Let userInvolvement be "none".
             auto user_involvement_for_resume = UserNavigationInvolvement::None;
@@ -1493,6 +1493,13 @@ void Navigation::initialize_the_navigation_api_entries_for_a_new_document(Vector
 
     // 5. Set navigation's current entry index to the result of getting the navigation API entry index of initialSHE within navigation.
     m_current_entry_index = get_the_navigation_api_entry_index(*initial_she);
+}
+
+void Navigation::initialize_the_navigation_api_entries_for_reconstructed_session_history(Vector<NonnullRefPtr<SessionHistoryEntry>> const& new_shes, NonnullRefPtr<SessionHistoryEntry> initial_she)
+{
+    m_entry_list.clear();
+    m_current_entry_index = -1;
+    initialize_the_navigation_api_entries_for_a_new_document(new_shes, move(initial_she));
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#update-the-navigation-api-entries-for-a-same-document-navigation

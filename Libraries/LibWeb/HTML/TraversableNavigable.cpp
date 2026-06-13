@@ -6,7 +6,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -195,6 +197,232 @@ bool TraversableNavigable::is_top_level_traversable() const
 {
     // A top-level traversable is a traversable navigable with a null parent.
     return parent() == nullptr;
+}
+
+static bool session_history_entry_descriptors_are_valid(Vector<SessionHistoryEntryDescriptor> const& entries)
+{
+    Optional<i32> previous_step;
+    for (auto const& entry : entries) {
+        if (entry.step < 0)
+            return false;
+        if (previous_step.has_value() && entry.step <= *previous_step)
+            return false;
+        for (auto const& nested_history : entry.document_state.nested_histories) {
+            if (!session_history_entry_descriptors_are_valid(nested_history.entries))
+                return false;
+        }
+        previous_step = entry.step;
+    }
+    return true;
+}
+
+struct SessionHistoryEntryReconstructionState {
+    HashMap<u64, RefPtr<DocumentState>> document_states;
+};
+
+static NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_process(SessionHistoryEntryDescriptor, SessionHistoryEntryReconstructionState&);
+
+static DocumentState::NestedHistory create_nested_history_from_ui_process(SessionHistoryNestedHistoryDescriptor nested_history_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
+{
+    Vector<NonnullRefPtr<SessionHistoryEntry>> entries;
+    entries.ensure_capacity(nested_history_descriptor.entries.size());
+    for (auto& entry_descriptor : nested_history_descriptor.entries)
+        entries.unchecked_append(create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state));
+
+    return {
+        .id = move(nested_history_descriptor.id),
+        .entries = move(entries),
+    };
+}
+
+static void populate_nested_histories_from_ui_process(DocumentState& document_state, Vector<SessionHistoryNestedHistoryDescriptor> nested_history_descriptors, SessionHistoryEntryReconstructionState& reconstruction_state)
+{
+    auto& nested_histories = document_state.nested_histories();
+    if (nested_histories.size() == nested_history_descriptors.size()) {
+        // NB: The UI process keeps session history across WebContent process
+        //     swaps, but nested history ids are process-local navigable ids. When
+        //     rebuilding history for an already-loaded document, preserve the live
+        //     ids created by the new WebContent process.
+        for (size_t i = 0; i < nested_history_descriptors.size(); ++i)
+            nested_history_descriptors[i].id = nested_histories[i].id;
+    }
+    nested_histories.clear();
+    nested_histories.ensure_capacity(nested_history_descriptors.size());
+    for (auto& nested_history_descriptor : nested_history_descriptors)
+        nested_histories.unchecked_append(create_nested_history_from_ui_process(move(nested_history_descriptor), reconstruction_state));
+}
+
+static void apply_session_history_entry_descriptor_from_ui_process(SessionHistoryEntry& entry, SessionHistoryEntryDescriptor& entry_descriptor)
+{
+    entry.set_url(move(entry_descriptor.url));
+    entry.set_step(static_cast<int>(entry_descriptor.step));
+    // NB: Older UI-process mirrors can carry an empty serialization record for
+    //     provisional entries. Do not preserve stale state from a reused entry, but
+    //     also do not install an invalid record that would crash when restored.
+    auto& vm = Bindings::main_thread_vm();
+    if (entry_descriptor.classic_history_api_state.is_empty())
+        entry.set_classic_history_api_state(MUST(structured_serialize_for_storage(vm, JS::js_null())));
+    else
+        entry.set_classic_history_api_state(move(entry_descriptor.classic_history_api_state));
+    if (entry_descriptor.navigation_api_state.is_empty())
+        entry.set_navigation_api_state(MUST(structured_serialize_for_storage(vm, JS::js_undefined())));
+    else
+        entry.set_navigation_api_state(move(entry_descriptor.navigation_api_state));
+    entry.set_navigation_api_key(move(entry_descriptor.navigation_api_key));
+    entry.set_navigation_api_id(move(entry_descriptor.navigation_api_id));
+    entry.set_scroll_restoration_mode(entry_descriptor.scroll_restoration_mode);
+    entry.set_scroll_position_data(move(entry_descriptor.scroll_position_data));
+}
+
+static void apply_session_history_document_state_descriptor_from_ui_process(DocumentState& document_state, SessionHistoryDocumentStateDescriptor const& document_state_descriptor)
+{
+    document_state.set_history_policy_container(document_state_descriptor.history_policy_container);
+    document_state.set_request_referrer(document_state_descriptor.request_referrer);
+    document_state.set_request_referrer_policy(document_state_descriptor.request_referrer_policy);
+    document_state.set_initiator_origin(document_state_descriptor.initiator_origin);
+    document_state.set_origin(document_state_descriptor.origin);
+    document_state.set_about_base_url(document_state_descriptor.about_base_url);
+    document_state.set_resource(document_state_descriptor.resource);
+    document_state.set_reload_pending(document_state_descriptor.reload_pending);
+    // AD-HOC: Descriptor ID 0 marks a provisional UI-created document state whose entry has not yet been populated
+    //         by WebContent. Treat it as already populated when reseeding the active entry, since a replacement
+    //         WebContent process already has the active document for that entry.
+    document_state.set_ever_populated(document_state_descriptor.id == 0 ? true : document_state_descriptor.ever_populated);
+    document_state.set_navigable_target_name(document_state_descriptor.navigable_target_name);
+}
+
+static RefPtr<DocumentState> get_or_create_document_state_from_ui_process(SessionHistoryDocumentStateDescriptor const& document_state_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
+{
+    RefPtr<DocumentState> document_state;
+    if (document_state_descriptor.id != 0) {
+        if (auto existing_document_state = reconstruction_state.document_states.get(document_state_descriptor.id); existing_document_state.has_value())
+            document_state = *existing_document_state;
+    }
+
+    if (!document_state) {
+        document_state = DocumentState::create();
+        if (document_state_descriptor.id != 0)
+            reconstruction_state.document_states.set(document_state_descriptor.id, document_state);
+    }
+
+    apply_session_history_document_state_descriptor_from_ui_process(*document_state, document_state_descriptor);
+    return document_state;
+}
+
+static NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_process(SessionHistoryEntryDescriptor entry_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
+{
+    auto entry = SessionHistoryEntry::create();
+    apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
+
+    auto document_state = get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state);
+    VERIFY(document_state);
+    populate_nested_histories_from_ui_process(*document_state, move(entry_descriptor.document_state.nested_histories), reconstruction_state);
+    entry->set_document_state(move(document_state));
+    return entry;
+}
+
+bool TraversableNavigable::replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index)
+{
+    if (entries_from_ui_process.is_empty() || current_top_level_entry_index >= entries_from_ui_process.size())
+        return false;
+
+    VERIFY(is_top_level_traversable());
+
+    if (!session_history_entry_descriptors_are_valid(entries_from_ui_process))
+        return false;
+
+    // NB: The UI process stores a traversable's top-level session history entries
+    //     across WebContent process swaps. When seeding a fresh WebContent process,
+    //     current_top_level_entry_index is an index into the traversable's session
+    //     history entries list, not an index into the result of getting all used
+    //     history steps.
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
+    auto active_entry = active_session_history_entry();
+    VERIFY(active_entry);
+
+    SessionHistoryEntryReconstructionState reconstruction_state;
+    if (entries_from_ui_process[current_top_level_entry_index].document_state.id != 0) {
+        auto active_document_state = active_entry->document_state();
+        VERIFY(active_document_state);
+        reconstruction_state.document_states.set(entries_from_ui_process[current_top_level_entry_index].document_state.id, active_document_state);
+    }
+
+    Vector<NonnullRefPtr<SessionHistoryEntry>> entries;
+    entries.ensure_capacity(entries_from_ui_process.size());
+    for (size_t i = 0; i < entries_from_ui_process.size(); ++i) {
+        auto entry_descriptor = move(entries_from_ui_process[i]);
+        NonnullRefPtr<SessionHistoryEntry> entry = *active_entry;
+        if (i == current_top_level_entry_index) {
+            VERIFY(entry->document_state());
+            apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
+            apply_session_history_document_state_descriptor_from_ui_process(*entry->document_state(), entry_descriptor.document_state);
+            populate_nested_histories_from_ui_process(*entry->document_state(), move(entry_descriptor.document_state.nested_histories), reconstruction_state);
+        } else {
+            entry = create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
+        }
+
+        entries.unchecked_append(move(entry));
+    }
+
+    m_session_history_entries = move(entries);
+    auto current_entry = m_session_history_entries[current_top_level_entry_index];
+    set_active_session_history_entry(current_entry);
+    set_current_session_history_entry(current_entry);
+    m_current_session_history_step = current_entry->step().get<int>();
+
+    auto document = active_document();
+    VERIFY(document);
+    auto history_object_length_and_index = get_the_history_object_length_and_index(m_current_session_history_step);
+    document->history()->m_index = history_object_length_and_index.script_history_index;
+    document->history()->m_length = history_object_length_and_index.script_history_length;
+
+    // NB: The UI process can seed a replacement WebContent process before the new document has loaded. Do not
+    //     restore the UI-owned entry's classic history API state or persisted state onto the initial about:blank
+    //     document; the navigation algorithm will restore them onto the document that is actually created for the
+    //     entry.
+    if (!document->is_initial_about_blank()) {
+        document->restore_the_history_object_state(current_entry);
+        restore_persisted_state_from_session_history_entry(*current_entry);
+    }
+
+    auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*this, m_current_session_history_step);
+    active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, current_entry);
+    return true;
+}
+
+void TraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete)
+{
+    append_session_history_traversal_steps(GC::create_function(heap(), [this, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        auto maybe_active_entry = active_session_history_entry();
+        VERIFY(maybe_active_entry);
+        auto active_entry = maybe_active_entry.release_nonnull();
+
+        active_entry->set_step(0);
+        m_session_history_entries.clear();
+        m_session_history_entries.append(active_entry);
+        set_active_session_history_entry(active_entry);
+        set_current_session_history_entry(active_entry);
+        m_current_session_history_step = 0;
+
+        auto document = active_document();
+        VERIFY(document);
+        auto history_object_length_and_index = get_the_history_object_length_and_index(m_current_session_history_step);
+        document->history()->m_index = history_object_length_and_index.script_history_index;
+        document->history()->m_length = history_object_length_and_index.script_history_length;
+
+        auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*this, m_current_session_history_step);
+        active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
+
+        if (page().client().should_report_session_history_updates()) {
+            auto session_history_snapshot = create_session_history_snapshot();
+            page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+        }
+
+        page().client().page_did_update_navigation_buttons_state(false, false);
+        signal->resolve({});
+        on_complete->function()();
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
@@ -787,7 +1015,7 @@ void ApplyHistoryStepState::start()
                     || target_entry->document_state()->reload_pending());
             if (needs_population) {
                 if (target_entry->document_state()->reload_pending() && navigable->is_top_level_traversable())
-                    navigable->page().client().page_did_start_loading(target_entry->url(), false);
+                    navigable->page().client().page_did_start_loading(target_entry->url(), Empty {}, false);
 
                 // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
 
@@ -1022,6 +1250,14 @@ void ApplyHistoryStepState::process_continuations()
             // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
             queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), after_potential_unload);
         }
+        // AD-HOC: During navigable creation, the initial about:blank document can be
+        //         replaced by the container's initial navigation while applying the
+        //         creation/destruction history step. That hook passes a null
+        //         navigationType per spec, and there is no outgoing document to unload.
+        else if (!m_navigation_type.has_value() && displayed_document->is_initial_about_blank()) {
+            navigable->set_ongoing_navigation({}, m_navigation_api_abort_behavior);
+            after_potential_unload->function()();
+        }
         // 11. Otherwise:
         else {
             // 1. Assert: navigationType is not null.
@@ -1078,6 +1314,106 @@ void ApplyHistoryStepState::enter_waiting_for_non_changing_jobs()
     try_advance();
 }
 
+struct SessionHistoryEntryDescriptorCreationState {
+    HashMap<DocumentState const*, u64> document_state_ids;
+    u64 next_document_state_id { 1 };
+};
+
+static u64 document_state_id_for_descriptor(DocumentState const& document_state, SessionHistoryEntryDescriptorCreationState& creation_state)
+{
+    if (auto id = creation_state.document_state_ids.get(&document_state); id.has_value())
+        return *id;
+
+    auto id = creation_state.next_document_state_id++;
+    VERIFY(id != 0);
+    creation_state.document_state_ids.set(&document_state, id);
+    return id;
+}
+
+static SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const&, SessionHistoryEntryDescriptorCreationState&);
+
+static SessionHistoryDocumentStateDescriptor create_session_history_document_state_descriptor(DocumentState const& document_state, SessionHistoryEntryDescriptorCreationState& creation_state)
+{
+    Vector<SessionHistoryNestedHistoryDescriptor> nested_history_descriptors;
+    nested_history_descriptors.ensure_capacity(document_state.nested_histories().size());
+    for (auto const& nested_history : document_state.nested_histories()) {
+        Vector<SessionHistoryEntryDescriptor> nested_entry_descriptors;
+        nested_entry_descriptors.ensure_capacity(nested_history.entries.size());
+        for (auto const& nested_entry : nested_history.entries)
+            nested_entry_descriptors.unchecked_append(create_session_history_entry_descriptor(nested_entry, creation_state));
+
+        nested_history_descriptors.unchecked_append({
+            .id = nested_history.id,
+            .entries = move(nested_entry_descriptors),
+        });
+    }
+
+    return {
+        .id = document_state_id_for_descriptor(document_state, creation_state),
+        .history_policy_container = document_state.history_policy_container(),
+        .request_referrer = document_state.request_referrer(),
+        .request_referrer_policy = document_state.request_referrer_policy(),
+        .initiator_origin = document_state.initiator_origin(),
+        .origin = document_state.origin(),
+        .about_base_url = document_state.about_base_url(),
+        .resource = document_state.resource(),
+        .reload_pending = document_state.reload_pending(),
+        .ever_populated = document_state.ever_populated(),
+        .navigable_target_name = document_state.navigable_target_name(),
+        .nested_histories = move(nested_history_descriptors),
+    };
+}
+
+static SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const& entry, SessionHistoryEntryDescriptorCreationState& creation_state)
+{
+    SessionHistoryDocumentStateDescriptor document_state_descriptor;
+    if (auto document_state = entry.document_state()) {
+        document_state_descriptor = create_session_history_document_state_descriptor(*document_state, creation_state);
+    }
+
+    return {
+        .step = static_cast<i32>(entry.step().get<int>()),
+        .url = entry.url(),
+        .document_state = move(document_state_descriptor),
+        .classic_history_api_state = entry.classic_history_api_state(),
+        .navigation_api_state = entry.navigation_api_state(),
+        .navigation_api_key = entry.navigation_api_key(),
+        .navigation_api_id = entry.navigation_api_id(),
+        .scroll_restoration_mode = entry.scroll_restoration_mode(),
+        .scroll_position_data = entry.scroll_position_data(),
+    };
+}
+
+TraversableNavigable::SessionHistorySnapshot TraversableNavigable::create_session_history_snapshot(SaveActiveEntryPersistedState save_active_entry_persisted_state)
+{
+    if (save_active_entry_persisted_state == SaveActiveEntryPersistedState::Yes)
+        save_persisted_state_to_active_session_history_entry();
+
+    Vector<SessionHistoryEntryDescriptor> top_level_session_history_entries;
+    top_level_session_history_entries.ensure_capacity(session_history_entries().size());
+    SessionHistoryEntryDescriptorCreationState creation_state;
+    for (auto const& entry : session_history_entries())
+        top_level_session_history_entries.unchecked_append(create_session_history_entry_descriptor(entry, creation_state));
+
+    auto used_history_steps = get_all_used_history_steps();
+    Vector<i32> used_session_history_steps;
+    used_session_history_steps.ensure_capacity(used_history_steps.size());
+    Optional<size_t> current_used_step_index;
+    for (size_t i = 0; i < used_history_steps.size(); ++i) {
+        auto step = used_history_steps[i];
+        used_session_history_steps.unchecked_append(static_cast<i32>(step));
+        if (step == current_session_history_step())
+            current_used_step_index = i;
+    }
+    VERIFY(current_used_step_index.has_value());
+
+    return {
+        .top_level_session_history_entries = move(top_level_session_history_entries),
+        .used_session_history_steps = move(used_session_history_steps),
+        .current_used_step_index = *current_used_step_index,
+    };
+}
+
 void ApplyHistoryStepState::complete()
 {
     if (m_phase == Phase::Completed)
@@ -1088,9 +1424,25 @@ void ApplyHistoryStepState::complete()
     // 20. Set traversable's current session history step to targetStep.
     m_traversable->m_current_session_history_step = m_target_step;
 
-    // Not in the spec:
-    auto back_enabled = m_traversable->m_current_session_history_step > 0;
+    // AD-HOC: Report the updated session history descriptors to the UI-process mirror.
+    if (m_traversable->page().client().should_report_session_history_updates()) {
+        auto save_active_entry_persisted_state = TraversableNavigable::SaveActiveEntryPersistedState::Yes;
+        // NB: During history traversal, the active entry can point at the target
+        //     entry before the active document's queued history-step update has
+        //     restored the target entry's persisted state. Do not overwrite that
+        //     target entry with the document's pre-restoration viewport offset.
+        if (m_navigation_type == Bindings::NavigationType::Traverse) {
+            auto document = m_traversable->active_document();
+            auto active_entry = m_traversable->active_session_history_entry();
+            if (document && active_entry && document->latest_entry() != active_entry)
+                save_active_entry_persisted_state = TraversableNavigable::SaveActiveEntryPersistedState::No;
+        }
+        auto session_history_snapshot = m_traversable->create_session_history_snapshot(save_active_entry_persisted_state);
+        m_traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+    }
+
     VERIFY(m_traversable->m_session_history_entries.size() > 0);
+    auto back_enabled = m_traversable->can_go_back();
     auto forward_enabled = m_traversable->can_go_forward();
     m_traversable->page().client().page_did_update_navigation_buttons_state(back_enabled, forward_enabled);
     m_traversable->page().client().page_did_change_url(m_traversable->current_session_history_entry()->url());
@@ -1123,6 +1475,29 @@ void TraversableNavigable::apply_the_history_step(
 
     VERIFY(!m_apply_history_step_state || m_paused_apply_history_step_state);
 
+    run_the_history_step_prechecks(step, check_for_cancelation, source_snapshot_params, initiator_to_check, user_involvement, navigation_type, navigation_api_abort_behavior,
+        GC::create_function(heap(), [this, step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, pending_document, on_complete](HistoryStepResult result, int target_step, Navigable::NavigationAPIAbortBehavior navigation_api_abort_behavior) {
+            if (result != HistoryStepResult::Applied) {
+                on_complete->function()(result);
+                return;
+            }
+
+            // 6. Let changingNavigables be the result of get all navigables whose current session history entry will
+            //    change or reload given traversable and targetStep.
+            apply_the_history_step_after_unload_check(step, target_step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, navigation_api_abort_behavior, pending_document, on_complete);
+        }));
+}
+
+void TraversableNavigable::run_the_history_step_prechecks(
+    int step,
+    bool check_for_cancelation,
+    GC::Ptr<SourceSnapshotParams> source_snapshot_params,
+    GC::Ptr<Navigable> initiator_to_check,
+    UserNavigationInvolvement user_involvement,
+    Optional<Bindings::NavigationType> navigation_type,
+    Navigable::NavigationAPIAbortBehavior navigation_api_abort_behavior,
+    GC::Ref<OnHistoryStepPrechecksComplete> on_complete)
+{
     // 2. Let targetStep be the result of getting the used step given traversable and step.
     auto target_step = get_the_used_step(step);
 
@@ -1131,11 +1506,18 @@ void TraversableNavigable::apply_the_history_step(
         // 1. Assert: sourceSnapshotParams is not null.
         VERIFY(source_snapshot_params);
 
+        auto target_top_level_entry = get_the_target_history_entry(target_step);
+        if (target_top_level_entry != current_session_history_entry()
+            && !initiator_to_check->allowed_by_sandboxing_to_navigate(*this, *source_snapshot_params)) {
+            on_complete->function()(HistoryStepResult::InitiatorDisallowed, target_step, navigation_api_abort_behavior);
+            return;
+        }
+
         // 2. For each navigable of get all navigables whose current session history entry will change or reload:
         //    if initiatorToCheck is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then return "initiator-disallowed".
         for (auto const& navigable : get_all_navigables_whose_current_session_history_entry_will_change_or_reload(target_step)) {
             if (!initiator_to_check->allowed_by_sandboxing_to_navigate(*navigable, *source_snapshot_params)) {
-                on_complete->function()(HistoryStepResult::InitiatorDisallowed);
+                on_complete->function()(HistoryStepResult::InitiatorDisallowed, target_step, navigation_api_abort_behavior);
                 return;
             }
         }
@@ -1153,22 +1535,21 @@ void TraversableNavigable::apply_the_history_step(
     //    and userInvolvement is not "continue", then return that result.
     if (check_for_cancelation) {
         check_if_unloading_is_canceled(navigables_crossing_documents, *this, target_step, user_involvement,
-            GC::create_function(heap(), [this, step, target_step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, navigation_api_abort_behavior, pending_document, on_complete](CheckIfUnloadingIsCanceledResult result) mutable {
+            GC::create_function(heap(), [target_step, navigation_api_abort_behavior, on_complete](CheckIfUnloadingIsCanceledResult result) mutable {
                 if (result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload) {
-                    on_complete->function()(HistoryStepResult::CanceledByBeforeUnload);
+                    on_complete->function()(HistoryStepResult::CanceledByBeforeUnload, target_step, navigation_api_abort_behavior);
                     return;
                 }
                 if (result == CheckIfUnloadingIsCanceledResult::CanceledByNavigate) {
-                    on_complete->function()(HistoryStepResult::CanceledByNavigate);
+                    on_complete->function()(HistoryStepResult::CanceledByNavigate, target_step, navigation_api_abort_behavior);
                     return;
                 }
-                apply_the_history_step_after_unload_check(step, target_step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, navigation_api_abort_behavior, pending_document, on_complete);
+                on_complete->function()(HistoryStepResult::Applied, target_step, navigation_api_abort_behavior);
             }));
         return;
     }
 
-    // 6. Let changingNavigables be the result of get all navigables whose current session history entry will change or reload given traversable and targetStep.
-    apply_the_history_step_after_unload_check(step, target_step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, navigation_api_abort_behavior, pending_document, on_complete);
+    on_complete->function()(HistoryStepResult::Applied, target_step, navigation_api_abort_behavior);
 }
 
 void TraversableNavigable::apply_the_history_step_after_unload_check(
@@ -1526,26 +1907,20 @@ void TraversableNavigable::clear_the_forward_session_history()
     }
 }
 
+bool TraversableNavigable::can_go_back() const
+{
+    auto all_steps = get_all_used_history_steps();
+    auto current_step_index = all_steps.find_first_index(current_session_history_step());
+    VERIFY(current_step_index.has_value());
+    return *current_step_index > 0;
+}
+
 bool TraversableNavigable::can_go_forward() const
 {
-    auto step = current_session_history_step();
-
-    Vector<Vector<NonnullRefPtr<SessionHistoryEntry>> const&> entry_lists;
-    entry_lists.append(session_history_entries());
-
-    while (!entry_lists.is_empty()) {
-        auto const& entry_list = entry_lists.take_first();
-
-        for (auto const& entry : entry_list) {
-            if (entry->step().template get<int>() > step)
-                return true;
-
-            for (auto& nested_history : entry->document_state()->nested_histories())
-                entry_lists.append(nested_history.entries);
-        }
-    }
-
-    return false;
+    auto all_steps = get_all_used_history_steps();
+    auto current_step_index = all_steps.find_first_index(current_session_history_step());
+    VERIFY(current_step_index.has_value());
+    return *current_step_index + 1 < all_steps.size();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
@@ -1558,7 +1933,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
     // 2. Let userInvolvement be "browser UI".
     UserNavigationInvolvement user_involvement = UserNavigationInvolvement::BrowserUI;
 
-    // 1. If sourceDocument is given, then:
+    // 3. If sourceDocument is given, then:
     if (source_document) {
         // 1. Set sourceSnapshotParams to the result of snapshotting source snapshot params given sourceDocument.
         source_snapshot_params = source_document->snapshot_source_snapshot_params();
@@ -1579,18 +1954,117 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
         auto current_step_index = *all_steps.find_first_index(current_session_history_step());
 
         // 3. Let targetStepIndex be currentStepIndex plus delta
-        auto target_step_index = current_step_index + delta;
+        size_t target_step_index = 0;
+        if (delta < 0) {
+            auto magnitude = static_cast<size_t>(-static_cast<i64>(delta));
+            if (magnitude > current_step_index) {
+                if (source_snapshot_params && page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed)) {
+                    signal->resolve({});
+                    return;
+                }
+                signal->resolve({});
+                return;
+            }
+            target_step_index = current_step_index - magnitude;
+        } else {
+            auto magnitude = static_cast<size_t>(delta);
+            if (magnitude >= all_steps.size() - current_step_index) {
+                if (source_snapshot_params && page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed)) {
+                    signal->resolve({});
+                    return;
+                }
+                signal->resolve({});
+                return;
+            }
+            target_step_index = current_step_index + magnitude;
+        }
 
         // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
         if (target_step_index >= all_steps.size()) {
+            if (source_snapshot_params && page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed)) {
+                signal->resolve({});
+                return;
+            }
             signal->resolve({});
             return;
         }
 
+        auto target_step = all_steps[target_step_index];
+
+        if (source_snapshot_params) {
+            RefPtr<SessionHistoryEntry> target_top_level_entry;
+            for (auto const& entry : session_history_entries()) {
+                if (entry->step().template get<int>() > target_step)
+                    break;
+                target_top_level_entry = entry;
+            }
+
+            if (target_top_level_entry && current_session_history_entry() && !page().client().is_url_suitable_for_same_process_navigation(current_session_history_entry()->url(), target_top_level_entry->url())) {
+                run_the_history_step_prechecks(target_step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, Navigable::NavigationAPIAbortBehavior::Abort,
+                    GC::create_function(heap(), [this, delta, signal](HistoryStepResult result, int, Navigable::NavigationAPIAbortBehavior) {
+                        if (result == HistoryStepResult::Applied)
+                            (void)page().client().page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::AlreadyDone);
+                        signal->resolve({});
+                    }));
+                return;
+            }
+        }
+
         // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
         //    initiatorToCheck, and userInvolvement.
-        apply_the_traverse_history_step(all_steps[target_step_index], source_snapshot_params, initiator_to_check, user_involvement,
+        apply_the_traverse_history_step(target_step, source_snapshot_params, initiator_to_check, user_involvement,
             GC::create_function(heap(), [signal](HistoryStepResult) {
+                signal->resolve({});
+            }));
+    }));
+}
+
+void TraversableNavigable::traverse_the_history_to_step(int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete)
+{
+    // NB: This is used when the UI process owns the top-level session
+    //     history and has already resolved the browser UI delta to a stable step.
+    append_session_history_traversal_steps(GC::create_function(heap(), [this, step, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        auto all_steps = get_all_used_history_steps();
+        if (!all_steps.contains_slow(step)) {
+            on_complete->function()(false, HistoryStepResult::Applied);
+            signal->resolve({});
+            return;
+        }
+
+        apply_the_traverse_history_step(step, nullptr, nullptr, UserNavigationInvolvement::BrowserUI,
+            GC::create_function(heap(), [signal, on_complete](HistoryStepResult result) {
+                on_complete->function()(true, result);
+                signal->resolve({});
+            }));
+    }));
+}
+
+void TraversableNavigable::check_if_traverse_history_step_is_canceled(int step, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+{
+    // NB: This is used when the UI process owns the top-level session history
+    //     and needs WebContent to run the cancelable part of the traverse algorithm
+    //     before the UI process applies its own history mirror update.
+    append_session_history_traversal_steps(GC::create_function(heap(), [this, step, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        auto all_steps = get_all_used_history_steps();
+        if (!all_steps.contains_slow(step)) {
+            // The UI process can ask about a step in its authoritative
+            // session history mirror that this WebContent process cannot
+            // address locally, for example after a process swap with a partial
+            // restored history. We cannot run the full traverse prechecks
+            // without the target entry, but the active document tree still must
+            // get a chance to cancel unloading before the UI process replaces
+            // this WebContent process or fallback-loads the target entry.
+            check_if_unloading_is_canceled(active_document()->inclusive_descendant_navigables(),
+                GC::create_function(heap(), [signal, on_complete](CheckIfUnloadingIsCanceledResult result) {
+                    on_complete->function()(result == CheckIfUnloadingIsCanceledResult::Continue ? HistoryStepResult::Applied : HistoryStepResult::CanceledByBeforeUnload);
+                    signal->resolve({});
+                }));
+            return;
+        }
+
+        run_the_history_step_prechecks(step, true, nullptr, nullptr, UserNavigationInvolvement::BrowserUI, Bindings::NavigationType::Traverse, Navigable::NavigationAPIAbortBehavior::Abort,
+            GC::create_function(heap(), [signal, on_complete](HistoryStepResult result, int, Navigable::NavigationAPIAbortBehavior) {
+                on_complete->function()(result);
                 signal->resolve({});
             }));
     }));
@@ -1613,7 +2087,22 @@ void TraversableNavigable::apply_the_reload_history_step(UserNavigationInvolveme
     auto step = current_session_history_step();
 
     // 2. Return the result of applying the history step step to traversable given true, null, null, null, and "reload".
-    apply_the_history_step(step, true, {}, {}, user_involvement, Bindings::NavigationType::Reload, SynchronousNavigation::No, Navigable::NavigationAPIAbortBehavior::Abort, nullptr, on_complete);
+    apply_the_history_step(step, true, {}, {}, user_involvement, Bindings::NavigationType::Reload, SynchronousNavigation::No, Navigable::NavigationAPIAbortBehavior::Abort, nullptr,
+        GC::create_function(heap(), [this, on_complete](HistoryStepResult result) {
+            if (result != HistoryStepResult::Applied) {
+                // NB: A canceled reload must not keep treating the active
+                //     session history entry as an in-flight reload.
+                if (auto current_entry = current_session_history_entry(); current_entry && current_entry->document_state()->reload_pending()) {
+                    current_entry->document_state()->set_reload_pending(false);
+
+                    if (page().client().should_report_session_history_updates()) {
+                        auto session_history_snapshot = create_session_history_snapshot();
+                        page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+                    }
+                }
+            }
+            on_complete->function()(result);
+        }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-push/replace-history-step

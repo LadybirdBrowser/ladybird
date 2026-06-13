@@ -8,13 +8,17 @@
 
 #pragma once
 
+#include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWeb/WebDriver/Response.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Mutation.h>
 #include <LibWebView/StorageSetResult.h>
@@ -43,6 +47,7 @@ public:
     static void set_is_headless(bool);
 
     static void set_async_scrolling_enabled(bool);
+    static void set_should_report_session_history_updates_in_test_mode(bool);
 
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
@@ -68,6 +73,19 @@ public:
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
     void set_has_focus(bool);
+    void set_window_handle(String);
+    void did_start_webdriver_navigation(URL::URL const&);
+    struct WebDriverHistoryTraversalResult {
+        bool accepted { false };
+        bool will_replace_web_content_process { false };
+        bool will_change_top_level_entry { false };
+    };
+    void request_webdriver_history_traversal(int delta, Function<void(WebDriverHistoryTraversalResult)>);
+    void did_complete_webdriver_history_traversal(u64 request_id, bool accepted, bool will_replace_web_content_process, bool will_change_top_level_entry);
+    Web::WebDriver::Response request_webdriver_load_url_from_ui(URL::URL const&);
+    Web::WebDriver::Response request_webdriver_traverse_history_from_ui(int delta);
+    Web::WebDriver::Response request_webdriver_mark_web_content_session_history_stale();
+    Web::WebDriver::Response request_webdriver_session_history();
     void set_is_scripting_enabled(bool);
     void set_window_position(Web::DevicePixelPoint);
     void set_window_size(Web::DevicePixelSize);
@@ -111,6 +129,8 @@ public:
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
     void send_current_needs_beforeunload_check();
+    void wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
+    void did_complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
     void clear_pending_dom_mutations();
     void did_delete_all_cookies(u64 request_id);
 
@@ -127,7 +147,7 @@ private:
     // ^PageClient
     virtual bool is_connection_open() const override;
     virtual bool is_url_suitable_for_same_process_navigation(URL::URL const& current_url, URL::URL const& target_url) const override;
-    virtual void request_new_process_for_navigation(URL::URL const&) override;
+    virtual void request_new_process_for_navigation(URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior) override;
     virtual Gfx::Palette palette() const override;
     virtual Web::DevicePixelRect screen_rect() const override { return m_all_screen_rects[m_main_screen_index]; }
     virtual size_t screen_count() const override { return m_all_screen_rects.size(); }
@@ -158,7 +178,8 @@ private:
     virtual void page_did_request_link_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_request_image_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>) override;
     virtual void page_did_request_media_context_menu(Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&) override;
-    virtual void page_did_start_loading(URL::URL const&, bool) override;
+    virtual void page_did_start_loading(URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, bool, Web::Bindings::NavigationHistoryBehavior) override;
+    virtual void page_did_cancel_loading(URL::URL const&) override;
     virtual void page_did_create_new_document(Web::DOM::Document&) override;
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
     virtual void page_did_finish_loading(URL::URL const&) override;
@@ -195,6 +216,10 @@ private:
     virtual void page_did_close_top_level_traversable() override;
     virtual void page_did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
     virtual void page_did_update_navigation_buttons_state(bool back_enabled, bool forward_enabled) override;
+    virtual bool should_report_session_history_updates() const override;
+    virtual void page_did_update_session_history(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Vector<i32> const& used_steps, size_t current_used_step_index) override;
+    virtual String page_did_request_ui_process_session_history_for_testing() override;
+    virtual bool page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck) override;
     virtual void request_file(Web::FileRequest) override;
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
@@ -246,6 +271,11 @@ private:
     Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::NoPreference };
 
     Core::AnonymousBuffer m_document_cookie_version_buffer;
+
+    u64 m_next_webdriver_navigation_completion_request_id { 0 };
+    HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_webdriver_navigation_completion_requests;
+    u64 m_next_webdriver_history_traversal_request_id { 0 };
+    HashMap<u64, Function<void(WebDriverHistoryTraversalResult)>> m_pending_webdriver_history_traversal_requests;
 
     RefPtr<WebDriverConnection> m_webdriver;
     RefPtr<WebUIConnection> m_web_ui;

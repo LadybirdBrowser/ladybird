@@ -46,6 +46,16 @@ public:
     int current_session_history_step() const { return m_current_session_history_step; }
     Vector<NonnullRefPtr<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
     Vector<NonnullRefPtr<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
+    struct SessionHistorySnapshot {
+        Vector<SessionHistoryEntryDescriptor> top_level_session_history_entries;
+        Vector<i32> used_session_history_steps;
+        size_t current_used_step_index { 0 };
+    };
+    enum class SaveActiveEntryPersistedState : bool {
+        No,
+        Yes,
+    };
+    SessionHistorySnapshot create_session_history_snapshot(SaveActiveEntryPersistedState = SaveActiveEntryPersistedState::Yes);
 
     VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(VisibilityState);
@@ -77,6 +87,10 @@ public:
     Vector<int> get_all_used_history_steps() const;
     void clear_the_forward_session_history();
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
+    void traverse_the_history_to_step(int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete);
+    void check_if_traverse_history_step_is_canceled(int step, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    bool replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor>, size_t current_top_level_entry_index);
+    void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
 
     void close_top_level_traversable();
     void definitely_close_top_level_traversable();
@@ -128,7 +142,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    // FIXME: Fix spec typo cancelation --> cancellation
+    // NB: The HTML Standard spells this algorithm argument "checkForCancelation".
     void apply_the_history_step(
         int step,
         bool check_for_cancelation,
@@ -152,10 +166,22 @@ private:
         GC::Ptr<DOM::Document> pending_document,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
+    using OnHistoryStepPrechecksComplete = GC::Function<void(HistoryStepResult, int target_step, Navigable::NavigationAPIAbortBehavior)>;
+    void run_the_history_step_prechecks(
+        int step,
+        bool check_for_cancelation,
+        GC::Ptr<SourceSnapshotParams>,
+        GC::Ptr<Navigable> initiator_to_check,
+        UserNavigationInvolvement user_involvement,
+        Optional<Bindings::NavigationType> navigation_type,
+        Navigable::NavigationAPIAbortBehavior,
+        GC::Ref<OnHistoryStepPrechecksComplete>);
+
     void check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable>, int);
 
+    [[nodiscard]] bool can_go_back() const;
     [[nodiscard]] bool can_go_forward() const;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step

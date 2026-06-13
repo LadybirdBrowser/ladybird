@@ -864,6 +864,7 @@ public:
     void set_deferred_parser_start(GC::Ref<GC::Function<void()>>);
     bool has_deferred_parser_start() const { return m_deferred_parser_start; }
 
+    RefPtr<HTML::SessionHistoryEntry> latest_entry() const { return m_latest_entry; }
     void set_latest_entry(RefPtr<HTML::SessionHistoryEntry>);
 
     void element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element, Optional<FlyString> old_id);

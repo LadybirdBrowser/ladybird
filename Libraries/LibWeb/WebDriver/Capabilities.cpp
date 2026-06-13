@@ -41,9 +41,10 @@ void set_default_interface_mode(InterfaceMode interface_mode)
 
 static Response deserialize_as_ladybird_capability(StringView name, JsonValue value)
 {
-    if (name == "ladybird:headless"sv) {
+    if (name.is_one_of("ladybird:headless"sv, "ladybird:enableTestHooks"sv)) {
         if (!value.is_bool())
-            return Error::from_code(ErrorCode::InvalidArgument, "Extension capability ladybird:headless must be a boolean"sv);
+            return Error::from_code(ErrorCode::InvalidArgument,
+                MUST(String::formatted("Extension capability {} must be a boolean", name)));
     }
 
     return value;
@@ -52,6 +53,7 @@ static Response deserialize_as_ladybird_capability(StringView name, JsonValue va
 static void set_default_ladybird_capabilities(JsonObject& options)
 {
     options.set("ladybird:headless"sv, default_interface_mode == InterfaceMode::Headless);
+    options.set("ladybird:enableTestHooks"sv, false);
 }
 
 // https://w3c.github.io/webdriver/#dfn-validate-capabilities
@@ -440,6 +442,8 @@ LadybirdOptions::LadybirdOptions(JsonObject const& capabilities)
 {
     if (auto headless = capabilities.get_bool("ladybird:headless"sv); headless.has_value())
         this->headless = *headless;
+    if (auto enable_test_hooks = capabilities.get_bool("ladybird:enableTestHooks"sv); enable_test_hooks.has_value())
+        this->enable_test_hooks = *enable_test_hooks;
 }
 
 }

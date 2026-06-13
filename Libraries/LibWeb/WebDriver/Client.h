@@ -65,6 +65,13 @@ public:
     // Extension: https://html.spec.whatwg.org/multipage/interaction.html#user-activation-user-agent-automation
     virtual Response consume_user_activation(Parameters parameters, JsonValue payload) = 0;
 
+    // Ladybird extension for browser integration tests.
+    virtual Response crash_current_page(Parameters parameters, JsonValue payload) = 0;
+    virtual Response load_url_from_ui(Parameters parameters, JsonValue payload) = 0;
+    virtual Response traverse_history_from_ui(Parameters parameters, JsonValue payload) = 0;
+    virtual Response mark_web_content_session_history_stale(Parameters parameters, JsonValue payload) = 0;
+    virtual Response get_session_history(Parameters parameters, JsonValue payload) = 0;
+
     // 12. Elements, https://w3c.github.io/webdriver/#elements
     virtual Response find_element(Parameters parameters, JsonValue payload) = 0;
     virtual Response find_elements(Parameters parameters, JsonValue payload) = 0;

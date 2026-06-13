@@ -180,6 +180,11 @@ enum class FileSchemeUrlsHaveTupleOrigins {
     Yes,
 };
 
+enum class ReportSessionHistoryUpdatesInTestMode {
+    No,
+    Yes,
+};
+
 struct WebContentOptions {
     Optional<ByteString> config_path {};
     Optional<StringView> user_agent_preset {};
@@ -198,6 +203,7 @@ struct WebContentOptions {
     PaintViewportScrollbars paint_viewport_scrollbars { PaintViewportScrollbars::Yes };
     EnableAsyncScrolling enable_async_scrolling { EnableAsyncScrolling::Yes };
     FileSchemeUrlsHaveTupleOrigins file_scheme_urls_have_tuple_origins { FileSchemeUrlsHaveTupleOrigins::No };
+    ReportSessionHistoryUpdatesInTestMode report_session_history_updates_in_test_mode { ReportSessionHistoryUpdatesInTestMode::No };
     Optional<StringView> default_time_zone {};
     Optional<u64> style_invalidation_counter_dump_interval {};
 };

@@ -89,11 +89,11 @@ void BrowserWindow::register_actions()
 
     add_action("go-back", [](BrowserWindow& self) {
         if (auto* tab = self.current_tab())
-            tab->view().traverse_the_history_by_delta(-1); }, false);
+            (void)tab->view().traverse_the_history_by_delta(-1); }, false);
 
     add_action("go-forward", [](BrowserWindow& self) {
         if (auto* tab = self.current_tab())
-            tab->view().traverse_the_history_by_delta(1); }, false);
+            (void)tab->view().traverse_the_history_by_delta(1); }, false);
 
     add_action("zoom-in", [](BrowserWindow& self) {
         if (auto* tab = self.current_tab())
@@ -398,17 +398,6 @@ void BrowserWindow::present()
 int BrowserWindow::tab_count() const
 {
     return adw_tab_view_get_n_pages(m_tab_view);
-}
-
-void BrowserWindow::update_navigation_buttons(bool back_enabled, bool forward_enabled)
-{
-    auto* back_action = G_SIMPLE_ACTION(g_action_map_lookup_action(G_ACTION_MAP(m_window), "go-back"));
-    if (back_action)
-        g_simple_action_set_enabled(back_action, back_enabled);
-
-    auto* forward_action = G_SIMPLE_ACTION(g_action_map_lookup_action(G_ACTION_MAP(m_window), "go-forward"));
-    if (forward_action)
-        g_simple_action_set_enabled(forward_action, forward_enabled);
 }
 
 void BrowserWindow::bind_navigation_actions(WebContentView& view)

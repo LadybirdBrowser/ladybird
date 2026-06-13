@@ -115,6 +115,10 @@ public:
 
     RefPtr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
 
+    void save_persisted_state_to_active_session_history_entry();
+    void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
+    void restore_scroll_position_data(SessionHistoryEntry const&);
+
     String target_name() const;
 
     GC::Ptr<NavigableContainer> container() const;

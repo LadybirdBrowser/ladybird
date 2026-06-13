@@ -4,6 +4,7 @@
 #include <LibIPC/File.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
@@ -13,12 +14,14 @@
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
+#include <LibWeb/WebDriver/Response.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/PageInfo.h>
@@ -35,6 +38,8 @@ endpoint WebContentServer
     set_window_handle(u64 page_id, String handle) =|
 
     connect_to_webdriver(u64 page_id, ByteString webdriver_endpoint) =|
+    complete_webdriver_history_traversal(u64 page_id, u64 request_id, bool accepted, bool will_replace_web_content_process, bool will_change_top_level_entry) =|
+    complete_webdriver_navigation_completion(u64 page_id, u64 request_id, Web::WebDriver::Response response) =|
     connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) =|
     connect_to_request_server(IPC::TransportHandle handle) =|
     connect_to_image_decoder(IPC::TransportHandle handle) =|
@@ -44,11 +49,18 @@ endpoint WebContentServer
     update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer) =|
     update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen_index) =|
 
-    load_url(u64 page_id, URL::URL url) =|
+    load_url(u64 page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling) =|
+    load_url_with_document_resource(u64 page_id, URL::URL url,
+        Variant<Empty, String, Web::HTML::POSTResource> document_resource,
+        Web::Bindings::NavigationHistoryBehavior history_handling) =|
     load_html(u64 page_id, ByteString html) =|
     load_html_with_url(u64 page_id, ByteString html, URL::URL url) =|
     reload(u64 page_id) =|
     traverse_the_history_by_delta(u64 page_id, i32 delta) =|
+    traverse_the_history_to_step(u64 page_id, i32 step) =|
+    check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step) =|
+    set_top_level_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, size_t current_top_level_entry_index) =|
+    reset_session_history_for_testing(u64 page_id) =|
 
     set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen) =|
 

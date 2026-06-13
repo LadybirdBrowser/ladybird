@@ -122,6 +122,8 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(u64
         arguments.append("--disable-async-scrolling"sv);
     if (web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         arguments.append("--tuple-file-origins"sv);
+    if (web_content_options.report_session_history_updates_in_test_mode == ReportSessionHistoryUpdatesInTestMode::Yes)
+        arguments.append("--report-session-history-updates-in-test-mode"sv);
     if (browser_options.enable_sandbox == EnableSandbox::Yes)
         arguments.append("--enable-sandbox"sv);
 

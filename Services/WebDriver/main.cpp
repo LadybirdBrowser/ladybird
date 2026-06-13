@@ -7,6 +7,7 @@
 #include <AK/Platform.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Directory.h>
+#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
@@ -68,7 +69,8 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
         arguments.append(ByteString::formatted("--default-time-zone={}", default_time_zone.value()));
 
     // FIXME: WebDriver does not yet handle the WebContent process switch brought by site isolation.
-    arguments.append("--disable-site-isolation"sv);
+    if (!Core::Environment::has("LADYBIRD_WEBDRIVER_ENABLE_SITE_ISOLATION"sv))
+        arguments.append("--disable-site-isolation"sv);
 
     arguments.append("about:blank"sv);
     return arguments;
