@@ -12,6 +12,7 @@
 #include <AK/Time.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Sinks/VideoSink.h>
 
@@ -24,12 +25,12 @@ enum class [[nodiscard]] DisplayingVideoSinkUpdateResult : u8 {
 
 class MEDIA_API DisplayingVideoSink final : public VideoSink {
 public:
-    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(NonnullRefPtr<MediaTimeProvider> const&, PipelineStateChangeHandler on_state_changed);
+    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(MediaTimeReader, PipelineStateChangeHandler on_state_changed);
 
-    DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&, PipelineStateChangeHandler);
+    DisplayingVideoSink(MediaTimeReader, PipelineStateChangeHandler);
     virtual ~DisplayingVideoSink() override;
 
-    void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
+    void set_time_reader(MediaTimeReader);
 
     virtual ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&) override;
     virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;
@@ -44,7 +45,7 @@ private:
 
     void dispatch_state_if_changed(PipelineStatus);
 
-    NonnullRefPtr<MediaTimeProvider> m_time_provider;
+    MediaTimeReader m_clock_reader;
     RefPtr<VideoProducer> m_input;
 
     RefPtr<VideoFrame> m_next_frame;

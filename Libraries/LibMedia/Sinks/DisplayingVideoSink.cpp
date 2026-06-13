@@ -6,7 +6,6 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Demuxer.h>
-#include <LibMedia/MediaTimeProvider.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/VideoProducer.h>
 #include <LibMedia/VideoFrame.h>
@@ -15,13 +14,13 @@
 
 namespace Media {
 
-ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(NonnullRefPtr<MediaTimeProvider> const& time_provider, PipelineStateChangeHandler on_state_changed)
+ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed)
 {
-    return TRY(try_make_ref_counted<DisplayingVideoSink>(time_provider, move(on_state_changed)));
+    return TRY(try_make_ref_counted<DisplayingVideoSink>(move(time_reader), move(on_state_changed)));
 }
 
-DisplayingVideoSink::DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const& time_provider, PipelineStateChangeHandler on_state_changed)
-    : m_time_provider(time_provider)
+DisplayingVideoSink::DisplayingVideoSink(MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed)
+    : m_clock_reader(move(time_reader))
     , m_on_state_changed(move(on_state_changed))
 {
 }
@@ -32,9 +31,9 @@ DisplayingVideoSink::~DisplayingVideoSink()
         m_input->set_wake_handler(nullptr);
 }
 
-void DisplayingVideoSink::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& provider)
+void DisplayingVideoSink::set_time_reader(MediaTimeReader time_reader)
 {
-    m_time_provider = provider;
+    m_clock_reader = move(time_reader);
 }
 
 void DisplayingVideoSink::consume_moved_position_signals(PipelineStatus& status)
@@ -60,7 +59,7 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
             status = PipelineStatus::HaveData;
         dispatch_state_if_changed(status);
     });
-    input->seek(m_time_provider->current_time());
+    input->seek(m_clock_reader.current_time());
     input->start();
     return {};
 }
@@ -131,7 +130,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
     if (m_input == nullptr)
         return DisplayingVideoSinkUpdateResult::NoChange;
 
-    auto current_time = m_time_provider->current_time();
+    auto current_time = m_clock_reader.current_time();
     auto result = DisplayingVideoSinkUpdateResult::NoChange;
 
     auto last_status = PipelineStatus::Pending;

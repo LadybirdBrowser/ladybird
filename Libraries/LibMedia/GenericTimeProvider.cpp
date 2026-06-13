@@ -23,9 +23,9 @@ GenericTimeProvider::GenericTimeProvider(MediaTimeWriter time_writer, MediaTimeR
 
 GenericTimeProvider::~GenericTimeProvider() = default;
 
-AK::Duration GenericTimeProvider::current_time() const
+MediaTimeReader GenericTimeProvider::time_reader() const
 {
-    return m_time_reader.current_time();
+    return m_time_reader;
 }
 
 void GenericTimeProvider::resume()

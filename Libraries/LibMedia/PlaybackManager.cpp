@@ -160,6 +160,7 @@ NonnullOwnPtr<PlaybackManager> PlaybackManager::create()
 PlaybackManager::PlaybackManager()
     : m_weak_link(make_ref_counted<WeakPlaybackManagerLink>(*this))
     , m_time_provider(MUST(GenericTimeProvider::try_create()))
+    , m_clock_reader(m_time_provider->time_reader())
 {
 }
 
@@ -318,10 +319,11 @@ void PlaybackManager::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& 
     auto time = current_time();
     provider->seek(time);
     m_time_provider = provider;
+    m_clock_reader = provider->time_reader();
     for (auto& track_data : m_video_track_datas) {
         if (!track_data.display)
             continue;
-        track_data.display->set_time_provider(provider);
+        track_data.display->set_time_reader(m_clock_reader);
     }
     provider->set_playback_rate(m_playback_rate);
     if (is_playing())
@@ -342,7 +344,7 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
     auto& track_data = get_video_data_for_track(track);
     if (track_data.display == nullptr) {
         track_data.sink_status = PipelineStatus::HaveData;
-        auto display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider,
+        auto display = MUST(Media::DisplayingVideoSink::try_create(m_clock_reader,
             [self = weak(), track](PipelineStatus status) {
                 if (!self)
                     return;
