@@ -8,6 +8,7 @@
 
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <LibMedia/Export.h>
@@ -25,12 +26,13 @@ enum class [[nodiscard]] DisplayingVideoSinkUpdateResult : u8 {
 
 class MEDIA_API DisplayingVideoSink final : public VideoSink {
 public:
-    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(MediaTimeReader, PipelineStateChangeHandler on_state_changed);
+    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(MediaTimeReader);
 
-    DisplayingVideoSink(MediaTimeReader, PipelineStateChangeHandler);
+    explicit DisplayingVideoSink(MediaTimeReader);
     virtual ~DisplayingVideoSink() override;
 
-    void set_time_reader(MediaTimeReader);
+    virtual void set_time_reader(MediaTimeReader) override;
+    virtual void set_state_change_handler(PipelineStateChangeHandler) override;
 
     virtual ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&) override;
     virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;

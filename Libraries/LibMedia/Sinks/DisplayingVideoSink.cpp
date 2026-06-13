@@ -14,14 +14,13 @@
 
 namespace Media {
 
-ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed)
+ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(MediaTimeReader time_reader)
 {
-    return TRY(try_make_ref_counted<DisplayingVideoSink>(move(time_reader), move(on_state_changed)));
+    return TRY(try_make_ref_counted<DisplayingVideoSink>(move(time_reader)));
 }
 
-DisplayingVideoSink::DisplayingVideoSink(MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed)
+DisplayingVideoSink::DisplayingVideoSink(MediaTimeReader time_reader)
     : m_time_reader(move(time_reader))
-    , m_on_state_changed(move(on_state_changed))
 {
 }
 
@@ -34,6 +33,11 @@ DisplayingVideoSink::~DisplayingVideoSink()
 void DisplayingVideoSink::set_time_reader(MediaTimeReader time_reader)
 {
     m_time_reader = move(time_reader);
+}
+
+void DisplayingVideoSink::set_state_change_handler(PipelineStateChangeHandler on_state_changed)
+{
+    m_on_state_changed = move(on_state_changed);
 }
 
 void DisplayingVideoSink::consume_moved_position_signals(PipelineStatus& status)
