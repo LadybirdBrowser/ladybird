@@ -204,6 +204,27 @@ void HitTestDisplayList::append_box(PaintableBox const& paintable_box, Paintable
     add_item_to_caret_items(item_index);
 }
 
+void HitTestDisplayList::append_svg_path(Paintable& target, Gfx::Path path, Gfx::WindingRule winding_rule, CSSPixelRect bounding_box, VisualContextIndex visual_context_index)
+{
+    auto item_index = m_items.size();
+    m_items.append({
+        .kind = ItemKind::SvgPath,
+        .paintable = target,
+        .chrome_widget = {},
+        .text_fragment = nullptr,
+        .rect = bounding_box,
+        .caret_rect = {},
+        .caret_line_index = {},
+        .caret_line_rect = {},
+        .block_container_margin_rect = {},
+        .visual_context_index = visual_context_index,
+        .border_radii = {},
+        .path = move(path),
+        .winding_rule = winding_rule,
+    });
+    add_item_to_spatial_index(item_index);
+}
+
 void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment, VisualContextIndex visual_context_index)
 {
     auto fragment_paintable = fragment.layout_node().first_paintable();
@@ -329,6 +350,7 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
             && item.paintable->dom_node()->parent()
             && (item.paintable->layout_node().is_atomic_inline() || item.paintable->layout_node().is_replaced_box());
     }
+    case ItemKind::SvgPath:
     case ItemKind::ChromeWidget:
         return false;
     }
@@ -400,6 +422,8 @@ bool HitTestDisplayList::item_contains(Item const& item, CSSPixelPoint local_poi
     switch (item.kind) {
     case ItemKind::Box:
         return item.rect.contains(local_point) && item.border_radii.contains(local_point, item.rect);
+    case ItemKind::SvgPath:
+        return item.rect.contains(local_point) && item.path->contains(local_point.to_type<float>(), item.winding_rule);
     case ItemKind::TextFragment:
         return item.rect.contains(local_point);
     case ItemKind::EmptyEditable:
@@ -414,6 +438,7 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
 {
     switch (item.kind) {
     case ItemKind::Box:
+    case ItemKind::SvgPath:
     case ItemKind::EmptyEditable:
     case ItemKind::ChromeWidget:
         return item.paintable->dom_node();
@@ -442,6 +467,7 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
 {
     switch (item.kind) {
     case ItemKind::Box:
+    case ItemKind::SvgPath:
         return HitTestResult { .paintable = item.paintable };
     case ItemKind::TextFragment:
         VERIFY(item.text_fragment);
@@ -523,6 +549,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
             .debug_rect = item.caret_rect,
         };
     }
+    case ItemKind::SvgPath:
     case ItemKind::ChromeWidget:
         return {};
     }
