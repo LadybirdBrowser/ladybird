@@ -1051,28 +1051,31 @@ static ErrorOr<void, WebDriver::Error> dispatch_key_up_action(ActionObject::KeyF
     //    guidelines in [UI-EVENTS].
 
     auto modifiers = global_key_state.modifiers();
+    auto clear_modifier = [](UIEvents::KeyModifier& modifiers, UIEvents::KeyModifier modifier) {
+        modifiers = static_cast<UIEvents::KeyModifier>(to_underlying(modifiers) & ~to_underlying(modifier));
+    };
 
     // 7. If key is "Alt", let source's alt property be false.
     if (key == "Alt"sv) {
-        modifiers &= ~UIEvents::KeyModifier::Mod_Alt;
+        clear_modifier(modifiers, UIEvents::KeyModifier::Mod_Alt);
         source.alt = false;
     }
 
     // 8. If key is "Shift", let source's shift property be false.
     else if (key == "Shift"sv) {
-        modifiers &= ~UIEvents::KeyModifier::Mod_Shift;
+        clear_modifier(modifiers, UIEvents::KeyModifier::Mod_Shift);
         source.shift = false;
     }
 
     // 9. If key is "Control", let source's ctrl property be false.
     else if (key == "Control"sv) {
-        modifiers &= ~UIEvents::KeyModifier::Mod_Ctrl;
+        clear_modifier(modifiers, UIEvents::KeyModifier::Mod_Ctrl);
         source.ctrl = false;
     }
 
     // 10. If key is "Meta", let source's meta property be false.
     else if (key == "Meta"sv) {
-        modifiers &= ~UIEvents::KeyModifier::Mod_Super;
+        clear_modifier(modifiers, UIEvents::KeyModifier::Mod_Super);
         source.meta = false;
     }
 
