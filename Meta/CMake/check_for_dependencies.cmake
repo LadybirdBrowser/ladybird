@@ -55,7 +55,7 @@ if (NOT APPLE)
         add_cxx_compile_definitions(USE_VULKAN=1)
 
         # Sharable Vulkan images are currently only implemented on Linux and BSDs
-        if (((LINUX AND NOT ANDROID) OR BSD) AND GLSLANG_VALIDATOR)
+        if (((LINUX AND NOT ANDROID) OR BSD) AND GLSLANG_VALIDATOR_FOUND)
             set(USE_VULKAN_DMABUF_IMAGES ON CACHE BOOL "" FORCE)
             add_cxx_compile_definitions(USE_VULKAN_DMABUF_IMAGES=1)
         endif()
