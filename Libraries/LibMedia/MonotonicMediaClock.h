@@ -8,14 +8,14 @@
 
 #include <LibMedia/MediaTime.h>
 
-#include "MediaTimeProvider.h"
+#include "MediaClock.h"
 
 namespace Media {
 
-class GenericTimeProvider final : public MediaTimeProvider {
+class MonotonicMediaClock final : public MediaClock {
 public:
-    static ErrorOr<NonnullRefPtr<GenericTimeProvider>> try_create();
-    virtual ~GenericTimeProvider() override;
+    static ErrorOr<NonnullRefPtr<MonotonicMediaClock>> try_create();
+    virtual ~MonotonicMediaClock() override;
 
     virtual MediaTimeReader time_reader() const override;
     virtual void resume() override;
@@ -24,7 +24,7 @@ public:
     virtual void set_playback_rate(float) override;
 
 private:
-    GenericTimeProvider(MediaTimeWriter, MediaTimeReader);
+    MonotonicMediaClock(MediaTimeWriter, MediaTimeReader);
 
     MediaTimeWriter m_time_writer;
     MediaTimeReader m_time_reader;

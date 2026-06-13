@@ -21,9 +21,9 @@ set(SOURCES
     Containers/Matroska/SampleIterator.cpp
     Containers/Matroska/Streamer.cpp
     DecodeAudioStream.cpp
-    GenericTimeProvider.cpp
     IncrementallyPopulatedStream.cpp
     MediaTime.cpp
+    MonotonicMediaClock.cpp
     PlaybackManager.cpp
     PlaybackStates/BufferingStateHandler.cpp
     PlaybackStates/PlayingStateHandler.cpp

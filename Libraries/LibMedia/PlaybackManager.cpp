@@ -7,7 +7,7 @@
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
-#include <LibMedia/GenericTimeProvider.h>
+#include <LibMedia/MonotonicMediaClock.h>
 #include <LibMedia/PlaybackStates/StartingStateHandler.h>
 #include <LibMedia/Processors/AudioMixer.h>
 #include <LibMedia/Processors/AudioTimeStretchProcessor.h>
@@ -126,7 +126,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
                 }));
             MUST(self->m_audio_time_stretch_processor->connect_input(*self->m_audio_mixer));
             MUST(self->m_audio_sink->connect_input(*self->m_audio_time_stretch_processor));
-            self->set_time_provider(*self->m_audio_sink);
+            self->set_clock(*self->m_audio_sink);
             self->m_audio_sink->on_audio_output_error = [self](Error&& error) {
                 if (!self)
                     return;
@@ -159,14 +159,14 @@ NonnullOwnPtr<PlaybackManager> PlaybackManager::create()
 
 PlaybackManager::PlaybackManager()
     : m_weak_link(make_ref_counted<WeakPlaybackManagerLink>(*this))
-    , m_time_provider(MUST(GenericTimeProvider::try_create()))
-    , m_clock_reader(m_time_provider->time_reader())
+    , m_clock(MUST(MonotonicMediaClock::try_create()))
+    , m_time_reader(m_clock->time_reader())
 {
 }
 
 PlaybackManager::~PlaybackManager()
 {
-    m_time_provider->pause();
+    m_clock->pause();
     m_weak_link->revoke({});
 }
 
@@ -314,20 +314,20 @@ void PlaybackManager::dispatch_error(DecoderError&& error)
         on_error(move(error));
 }
 
-void PlaybackManager::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& provider)
+void PlaybackManager::set_clock(NonnullRefPtr<MediaClock> const& clock)
 {
     auto time = current_time();
-    provider->seek(time);
-    m_time_provider = provider;
-    m_clock_reader = provider->time_reader();
+    clock->seek(time);
+    m_clock = clock;
+    m_time_reader = clock->time_reader();
     for (auto& track_data : m_video_track_datas) {
         if (!track_data.display)
             continue;
-        track_data.display->set_time_reader(m_clock_reader);
+        track_data.display->set_time_reader(m_time_reader);
     }
-    provider->set_playback_rate(m_playback_rate);
+    clock->set_playback_rate(m_playback_rate);
     if (is_playing())
-        provider->resume();
+        clock->resume();
 }
 
 void PlaybackManager::disable_audio()
@@ -335,7 +335,7 @@ void PlaybackManager::disable_audio()
     m_audio_mixer = nullptr;
     m_audio_time_stretch_processor = nullptr;
     m_audio_sink = nullptr;
-    set_time_provider(MUST(GenericTimeProvider::try_create()));
+    set_clock(MUST(MonotonicMediaClock::try_create()));
     on_audio_sink_state_changed(PipelineStatus::EndOfStream);
 }
 
@@ -344,7 +344,7 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
     auto& track_data = get_video_data_for_track(track);
     if (track_data.display == nullptr) {
         track_data.sink_status = PipelineStatus::HaveData;
-        auto display = MUST(Media::DisplayingVideoSink::try_create(m_clock_reader,
+        auto display = MUST(Media::DisplayingVideoSink::try_create(m_time_reader,
             [self = weak(), track](PipelineStatus status) {
                 if (!self)
                     return;
@@ -471,7 +471,7 @@ void PlaybackManager::set_volume(double volume)
 void PlaybackManager::set_playback_rate(float rate)
 {
     m_playback_rate = rate;
-    m_time_provider->set_playback_rate(rate);
+    m_clock->set_playback_rate(rate);
 }
 
 }
