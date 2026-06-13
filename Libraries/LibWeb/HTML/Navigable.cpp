@@ -473,7 +473,8 @@ RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_s
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
 void Navigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
 {
-    // FIXME: 1. Save persisted state to the navigable's active session history entry.
+    // 1. Save persisted state to the navigable's active session history entry.
+    save_persisted_state_to_active_session_history_entry();
 
     // 2. Let newDocument be entry's document.
     auto new_document = document;
@@ -521,6 +522,51 @@ void Navigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Re
                 navigation_observer.navigation_complete()->function()();
         }
     }
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#save-persisted-state
+void Navigable::save_persisted_state_to_active_session_history_entry()
+{
+    auto entry = active_session_history_entry();
+    if (!entry)
+        return;
+
+    // 1. Set the scroll position data of entry to contain the scroll positions for all of entry's document's
+    //    restorable scrollable regions.
+    auto scroll_position_data = entry->scroll_position_data();
+    scroll_position_data.viewport_scroll_position = viewport_scroll_offset();
+    entry->set_scroll_position_data(move(scroll_position_data));
+
+    // FIXME: 2. Optionally, update entry's persisted user state.
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-persisted-user-state
+void Navigable::restore_persisted_state_from_session_history_entry(SessionHistoryEntry const& entry)
+{
+    // 1. If entry's scroll restoration mode is "auto", and entry's document's relevant global object's navigation
+    //    API's suppress normal scroll restoration during ongoing navigation is false, then restore scroll position
+    //    data given entry.
+    if (entry.scroll_restoration_mode() == ScrollRestorationMode::Auto) {
+        if (auto window = active_window()) {
+            if (!window->navigation()->suppress_normal_scroll_restoration_during_ongoing_navigation())
+                restore_scroll_position_data(entry);
+        }
+    }
+
+    // FIXME: 2. Optionally, update other aspects of entry's document and its rendering, for instance values of form
+    //        fields, that the user agent had previously recorded in entry's persisted user state.
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-scroll-position-data
+void Navigable::restore_scroll_position_data(SessionHistoryEntry const& entry)
+{
+    auto const& scroll_position_data = entry.scroll_position_data();
+    if (!scroll_position_data.viewport_scroll_position.has_value())
+        return;
+
+    // FIXME: If the document has been scrolled by the user, return.
+    perform_scroll_of_viewport_scrolling_box(*scroll_position_data.viewport_scroll_position);
+    clamp_viewport_scroll_offset();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
@@ -1838,6 +1884,30 @@ void Navigable::populate_session_history_entry_document(
     }
 }
 
+static Bindings::NavigationHistoryBehavior determine_history_handling_for_navigation(Bindings::NavigationHistoryBehavior history_handling, URL::URL const& url, DOM::Document const& active_document, URL::Origin const& initiator_origin_snapshot)
+{
+    // 12. If historyHandling is "auto", then:
+    if (history_handling == Bindings::NavigationHistoryBehavior::Auto) {
+        // NB: The spec says "targetNavigable" here, but this algorithm has a "navigable".
+        // 1. If url equals navigable's active document's URL,
+        //     and initiatorOriginSnapshot is same origin with targetNavigable's active document's origin,
+        //     then set historyHandling to "replace".
+        if (url == active_document.url() && initiator_origin_snapshot.is_same_origin(active_document.origin()))
+            history_handling = Bindings::NavigationHistoryBehavior::Replace;
+
+        // 2. Otherwise, set historyHandling to "push".
+        else
+            history_handling = Bindings::NavigationHistoryBehavior::Push;
+    }
+
+    // 13. If the navigation must be a replace given url and navigable's active document, then set historyHandling to
+    //     "replace".
+    if (navigation_must_be_a_replace(url, active_document))
+        history_handling = Bindings::NavigationHistoryBehavior::Replace;
+
+    return history_handling;
+}
+
 WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 {
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
@@ -1849,13 +1919,6 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 
     auto& active_document = *this->active_document();
     auto& realm = active_document.realm();
-    auto& page_client = active_document.page().client();
-
-    // AD-HOC: If we are not able to continue in this process, request a new process from the UI.
-    if (is_top_level_traversable() && !page_client.is_url_suitable_for_same_process_navigation(active_document.url(), params.url)) {
-        page_client.request_new_process_for_navigation(params.url);
-        return {};
-    }
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
     auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
@@ -1994,23 +2057,8 @@ void Navigable::begin_navigation(NavigateParams params)
         }
     }
 
-    // 12. If historyHandling is "auto", then:
-    if (history_handling == Bindings::NavigationHistoryBehavior::Auto) {
-        // FIXME: Fix spec typo targetNavigable --> navigable
-        // 1. If url equals navigable's active document's URL,
-        //     and initiatorOriginSnapshot is same origin with targetNavigable's active document's origin,
-        //     then set historyHandling to "replace".
-        if (url == active_document.url() && initiator_origin_snapshot.is_same_origin(active_document.origin()))
-            history_handling = Bindings::NavigationHistoryBehavior::Replace;
-
-        // 2. Otherwise, set historyHandling to "push".
-        else
-            history_handling = Bindings::NavigationHistoryBehavior::Push;
-    }
-
-    // 13. If the navigation must be a replace given url and navigable's active document, then set historyHandling to "replace".
-    if (navigation_must_be_a_replace(url, active_document))
-        history_handling = Bindings::NavigationHistoryBehavior::Replace;
+    // 12-13. Determine historyHandling for this navigation.
+    history_handling = determine_history_handling_for_navigation(history_handling, url, active_document, initiator_origin_snapshot);
 
     // 14. If all of the following are true:
     //     - documentResource is null;
@@ -2113,11 +2161,6 @@ void Navigable::begin_navigation(NavigateParams params)
             return;
     }
 
-    // AD-HOC: Tell the UI that we started loading.
-    if (is_top_level_traversable()) {
-        active_browsing_context()->page().client().page_did_start_loading(url, false);
-    }
-
     // FIXME: 22. If sourceDocument is navigable's container document, then reserve deferred fetch quota for navigable's container given url's origin.
 
     // 23. In parallel, run these steps:
@@ -2132,15 +2175,34 @@ void Navigable::begin_navigation(NavigateParams params)
         traversable_navigable()->check_if_unloading_is_canceled(this->active_document()->inclusive_descendant_navigables(),
             GC::create_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot, user_involvement](TraversableNavigable::CheckIfUnloadingIsCanceledResult unload_prompt_canceled) {
                 // 2. If unloadPromptCanceled is not "continue", or navigable's ongoing navigation is no longer navigationId:
-                if (unload_prompt_canceled != TraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue || ongoing_navigation() != navigation_id) {
+                if (unload_prompt_canceled != TraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue) {
                     // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
+                    if (is_top_level_traversable())
+                        active_browsing_context()->page().client().page_did_cancel_loading(url);
 
                     // 2. Abort these steps.
                     set_delaying_load_events(false);
                     return;
                 }
 
-                // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+                if (ongoing_navigation() != navigation_id) {
+                    set_delaying_load_events(false);
+                    return;
+                }
+
+                // AD-HOC: If we are not able to continue in this process, request a new process from the UI.
+                if (is_top_level_traversable() && !active_browsing_context()->page().client().is_url_suitable_for_same_process_navigation(this->active_document()->url(), url)) {
+                    active_browsing_context()->page().client().request_new_process_for_navigation(url, document_resource, history_handling);
+                    set_delaying_load_events(false);
+                    return;
+                }
+
+                // AD-HOC: Tell the UI that we started loading.
+                if (is_top_level_traversable()) {
+                    active_browsing_context()->page().client().page_did_start_loading(url, document_resource, false, history_handling);
+                }
+
+                // AD-HOC: Subsequent steps will fail if the navigable doesn't have an active window.
                 if (!active_window()) {
                     set_delaying_load_events(false);
                     return;
@@ -2327,6 +2389,9 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
     if (!continue_)
         return;
 
+    save_persisted_state_to_active_session_history_entry();
+    auto active_entry = active_session_history_entry();
+
     // 6. Let historyEntry be a new session history entry, with
     //      URL: url
     //      document state: navigable's active session history entry's document state
@@ -2334,12 +2399,13 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
     //      scroll restoration mode: navigable's active session history entry's scroll restoration mode
     auto history_entry = SessionHistoryEntry::create();
     history_entry->set_url(url);
-    history_entry->set_document_state(active_session_history_entry()->document_state());
+    history_entry->set_document_state(active_entry->document_state());
     history_entry->set_navigation_api_state(destination_navigation_api_state);
-    history_entry->set_scroll_restoration_mode(active_session_history_entry()->scroll_restoration_mode());
+    history_entry->set_scroll_restoration_mode(active_entry->scroll_restoration_mode());
+    history_entry->set_scroll_position_data(active_entry->scroll_position_data());
 
     // 7. Let entryToReplace be navigable's active session history entry if historyHandling is "replace", otherwise null.
-    auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? active_session_history_entry() : nullptr;
+    auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? active_entry : nullptr;
 
     // 8. Let history be navigable's active document's history object.
     auto history = active_document()->history();
@@ -2641,6 +2707,13 @@ void Navigable::reload(Optional<SerializationRecord> navigation_api_state, UserN
     // 3. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
 
+    // AD-HOC: Report the reload-pending document state to the UI process before the reload history step finishes,
+    //         so the UI-owned session history mirror remains synchronized during an in-flight reload.
+    if (traversable->page().client().should_report_session_history_updates()) {
+        auto session_history_snapshot = traversable->create_session_history_snapshot();
+        traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+    }
+
     // 4. Append the following session history traversal steps to traversable:
     traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
         // 1. Apply the reload history step to traversable given userInvolvement.
@@ -2832,6 +2905,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
 
     // 2. Let activeEntry be navigable's active session history entry.
     auto active_entry = navigable->active_session_history_entry();
+    navigable->save_persisted_state_to_active_session_history_entry();
 
     // 3. Let newEntry be a new session history entry, with
     //      URL: newURL
@@ -2844,6 +2918,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     new_entry->set_classic_history_api_state(serialized_data.value_or(active_entry->classic_history_api_state()));
     new_entry->set_document_state(active_entry->document_state());
     new_entry->set_scroll_restoration_mode(active_entry->scroll_restoration_mode());
+    new_entry->set_scroll_position_data(active_entry->scroll_position_data());
 
     // 4. If document's is initial about:blank is true, then set historyHandling to "replace".
     if (document.is_initial_about_blank()) {

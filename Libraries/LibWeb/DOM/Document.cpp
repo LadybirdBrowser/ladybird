@@ -222,6 +222,7 @@
 #include <LibWeb/UIEvents/PointerTypes.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
+#include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -6652,7 +6653,9 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             auto pop_state_event = HTML::PopStateEvent::create(realm(), "popstate"_fly_string, popstate_event_init);
             relevant_global_object.dispatch_event(pop_state_event);
 
-            // FIXME: 4. Restore persisted state given entry.
+            // 4. Restore persisted state given entry.
+            if (auto navigable = this->navigable())
+                navigable->restore_persisted_state_from_session_history_entry(*entry);
 
             // 5. If oldURL's fragment is not equal to entry's URL's fragment, then queue a global task on the DOM manipulation task source
             //    given document's relevant global object to fire an event named hashchange at document's relevant global object,
@@ -6674,7 +6677,9 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             // 1. Assert: entriesForNavigationAPI is given.
             VERIFY(entries_for_navigation_api.has_value());
 
-            // FIXME: 2. Restore persisted state given entry.
+            // 2. Restore persisted state given entry.
+            if (auto navigable = this->navigable())
+                navigable->restore_persisted_state_from_session_history_entry(*entry);
 
             // 3. Initialize the navigation API entries for a new document given navigation, entriesForNavigationAPI, and entry.
             navigation->initialize_the_navigation_api_entries_for_a_new_document(*entries_for_navigation_api, entry);
@@ -8805,8 +8810,8 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
     // 5. Decrease document's relevant agent's event loop's termination nesting level by 1.
     event_loop.decrement_termination_nesting_level();
 
-    // FIXME: 6. If all of the following are true:
-    if (false &&
+    // 6. If all of the following are true:
+    if (
         //    - unloadPromptShown is false;
         !unload_prompt_shown
         //    - document's active sandboxing flag set does not have its sandboxed modals flag set;
@@ -8817,10 +8822,18 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
         && (!event_firing_result || !beforeunload_event->return_value().is_empty())
         //    - FIXME: showing an unload prompt is unlikely to be annoying, deceptive, or pointless
     ) {
-        // FIXME: 1. Set unloadPromptShown to true.
+        // 1. Set unloadPromptShown to true.
+        unload_prompt_shown = true;
+
         // FIXME: 2. Invoke WebDriver BiDi user prompt opened with document's relevant global object, "beforeunload", and "".
         // FIXME: 3. Ask the user to confirm that they wish to unload the document, and pause while waiting for the user's response.
-        // FIXME: 4. If the user did not confirm the page navigation, set unloadPromptCanceled to true.
+
+        auto user_prompt_handler = WebDriver::get_the_prompt_handler(WebDriver::PromptType::BeforeUnload);
+
+        // 4. If the user did not confirm the page navigation, set unloadPromptCanceled to true.
+        if (user_prompt_handler.handler == WebDriver::PromptHandler::Dismiss)
+            unload_prompt_canceled = true;
+
         // FIXME: 5. Invoke WebDriver BiDi user prompt closed with document's relevant global object and true if unloadPromptCanceled is false or false otherwise.
     }
 

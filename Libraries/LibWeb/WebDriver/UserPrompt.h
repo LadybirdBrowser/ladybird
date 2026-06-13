@@ -56,6 +56,7 @@ using UserPromptHandler = Optional<HashMap<PromptType, PromptHandlerConfiguratio
 WEB_API UserPromptHandler const& user_prompt_handler();
 WEB_API void set_user_prompt_handler(UserPromptHandler);
 
+WEB_API PromptHandlerConfiguration get_the_prompt_handler(PromptType);
 Response deserialize_as_an_unhandled_prompt_behavior(JsonValue);
 bool check_user_prompt_handler_matches(JsonObject const&);
 WEB_API void update_the_user_prompt_handler(JsonObject const&);

@@ -10,6 +10,7 @@
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Compositor/Types.h>
@@ -19,12 +20,15 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SelectItem.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/WebDriver/Response.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ConsoleOutput.h>
 #include <LibWebView/DOMNodeProperties.h>
@@ -39,8 +43,10 @@ endpoint WebContentClient
     allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) => (Web::Compositor::CompositorContextId context_id)
     did_destroy_compositor_context(Web::Compositor::CompositorContextId context_id) =|
 
-    did_request_new_process_for_navigation(u64 page_id, URL::URL url) =|
-    did_start_loading(u64 page_id, URL::URL url, bool is_redirect) =|
+    did_request_new_process_for_navigation(u64 page_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) =|
+    did_start_webdriver_navigation(u64 page_id, URL::URL url) =|
+    did_start_loading(u64 page_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling) =|
+    did_cancel_loading(u64 page_id, URL::URL url) =|
     did_finish_loading(u64 page_id, URL::URL url) =|
     did_request_refresh(u64 page_id) =|
     did_request_cursor_change(u64 page_id, Gfx::Cursor cursor) =|
@@ -114,6 +120,13 @@ endpoint WebContentClient
     did_request_activate_tab(u64 page_id) =|
     did_close_browsing_context(u64 page_id) =|
     did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) =|
+    did_request_traverse_the_history_by_delta(u64 page_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck) => (bool accepted)
+    did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta) =|
+    did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) => (Web::WebDriver::Response response)
+    did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta) => (Web::WebDriver::Response response)
+    did_request_webdriver_mark_web_content_session_history_stale(u64 page_id) => (Web::WebDriver::Response response)
+    did_request_webdriver_session_history(u64 page_id) => (Web::WebDriver::Response response)
+    did_request_webdriver_navigation_completion(u64 page_id, u64 request_id, Optional<u64> page_load_timeout) =|
     did_request_restore_window(u64 page_id) =|
     did_request_reposition_window(u64 page_id, Gfx::IntPoint position) =|
     did_request_resize_window(u64 page_id, Gfx::IntSize size) =|
@@ -136,6 +149,12 @@ endpoint WebContentClient
     did_update_primary_selection(u64 page_id, String text) =|
 
     did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) =|
+    did_update_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) =|
+    did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
+    did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) =|
+    did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult result) =|
+    did_check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step, bool canceled) =|
+    did_reset_session_history_for_testing(u64 page_id) =|
 
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|
 

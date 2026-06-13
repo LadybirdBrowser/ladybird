@@ -11,6 +11,7 @@
 #include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibWeb/WebDriver/Capabilities.h>
@@ -20,6 +21,41 @@
 #include <WebDriver/Session.h>
 
 namespace WebDriver {
+
+template<typename StartTraversal>
+static Web::WebDriver::Response perform_history_traversal(Session& session, StartTraversal start_traversal, bool& wait_for_navigation_completion)
+{
+    Optional<Web::WebDriver::Response> response;
+    RefPtr<WebContentConnection> connection { &session.web_content_connection() };
+
+    ScopeGuard guard { [&]() { connection->on_driver_execution_complete = nullptr; } };
+    connection->on_driver_execution_complete = [&](auto result) { response = move(result); };
+
+    auto traversal_response = start_traversal(*connection);
+    auto immediate_response = TRY(traversal_response.take_response());
+    wait_for_navigation_completion = traversal_response.wait_for_navigation_completion();
+    if (traversal_response.will_replace_web_content_process())
+        session.mark_current_window_as_awaiting_replacement(*connection);
+
+    if (!traversal_response.wait_for_driver_execution_complete())
+        return immediate_response;
+
+    Core::EventLoop::current().spin_until([&]() {
+        return response.has_value();
+    });
+
+    return TRY(response.release_value());
+}
+
+static ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error>
+find_session_with_ladybird_test_hooks(Web::WebDriver::Parameters const& parameters)
+{
+    auto session = TRY(Session::find_session(parameters[0]));
+    if (!session->test_hooks_enabled())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownCommand,
+            "Ladybird test hooks are not enabled for this session"sv);
+    return session;
+}
 
 ErrorOr<NonnullRefPtr<Client>> Client::try_create(NonnullOwnPtr<Core::BufferedTCPSocket> socket, LaunchBrowserCallback launch_browser_callback)
 {
@@ -162,9 +198,17 @@ Web::WebDriver::Response Client::navigate_to(Web::WebDriver::Parameters paramete
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/url");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    return session->perform_async_action([&](auto& connection) {
-        return connection.navigate_to(move(payload));
-    });
+    auto response = TRY(session->perform_async_action([&](auto& connection) {
+        auto navigate_response = connection.navigate_to(move(payload));
+        return navigate_response.response();
+    },
+        Session::WebContentReplacement::Allow));
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
+    response = TRY(session->perform_async_action([&](auto& connection) {
+        return connection.wait_for_navigation_completion();
+    }));
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
+    return response;
 }
 
 // 10.2 Get Current URL, https://w3c.github.io/webdriver/#dfn-get-current-url
@@ -186,9 +230,16 @@ Web::WebDriver::Response Client::back(Web::WebDriver::Parameters parameters, Jso
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/back");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    return session->perform_async_action([&](auto& connection) {
-        return connection.back();
-    });
+    bool wait_for_navigation_completion = true;
+    auto response = TRY(perform_history_traversal(*session, [&](auto& connection) { return connection.back(); }, wait_for_navigation_completion));
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
+    if (wait_for_navigation_completion) {
+        response = TRY(session->perform_async_action([&](auto& connection) {
+            return connection.wait_for_navigation_completion();
+        }));
+        TRY(session->wait_for_current_window_to_have_web_content_connection());
+    }
+    return response;
 }
 
 // 10.4 Forward, https://w3c.github.io/webdriver/#dfn-forward
@@ -198,9 +249,16 @@ Web::WebDriver::Response Client::forward(Web::WebDriver::Parameters parameters, 
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/forward");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    return session->perform_async_action([&](auto& connection) {
-        return connection.forward();
-    });
+    bool wait_for_navigation_completion = true;
+    auto response = TRY(perform_history_traversal(*session, [&](auto& connection) { return connection.forward(); }, wait_for_navigation_completion));
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
+    if (wait_for_navigation_completion) {
+        response = TRY(session->perform_async_action([&](auto& connection) {
+            return connection.wait_for_navigation_completion();
+        }));
+        TRY(session->wait_for_current_window_to_have_web_content_connection());
+    }
+    return response;
 }
 
 // 10.5 Refresh, https://w3c.github.io/webdriver/#dfn-refresh
@@ -210,9 +268,14 @@ Web::WebDriver::Response Client::refresh(Web::WebDriver::Parameters parameters, 
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/refresh");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    return session->perform_async_action([&](auto& connection) {
+    auto response = TRY(session->perform_async_action([&](auto& connection) {
         return connection.refresh();
-    });
+    }));
+    if (TRY(session->wait_for_current_window_to_have_web_content_connection()))
+        response = TRY(session->perform_async_action([&](auto& connection) {
+            return connection.wait_for_navigation_completion();
+        }));
+    return response;
 }
 
 // 10.6 Get Title, https://w3c.github.io/webdriver/#dfn-get-title
@@ -224,6 +287,92 @@ Web::WebDriver::Response Client::get_title(Web::WebDriver::Parameters parameters
 
     return session->perform_async_action([&](auto& connection) {
         return connection.get_title();
+    });
+}
+
+// Extension: POST /session/{session id}/ladybird/crash-current-page
+Web::WebDriver::Response Client::crash_current_page(Web::WebDriver::Parameters parameters, JsonValue)
+{
+    dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/ladybird/crash-current-page");
+    auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
+
+    RefPtr connection { &session->web_content_connection() };
+    session->mark_current_window_as_awaiting_replacement(*connection);
+    connection->async_crash_current_page();
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
+    return session->perform_async_action([&](auto& connection) {
+        return connection.wait_for_navigation_completion();
+    });
+}
+
+// Extension: POST /session/{session id}/ladybird/load-url-from-ui
+Web::WebDriver::Response Client::load_url_from_ui(Web::WebDriver::Parameters parameters, JsonValue payload)
+{
+    dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/ladybird/load-url-from-ui");
+    auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
+
+    RefPtr previous_connection { &session->web_content_connection() };
+    auto response = TRY(session->perform_async_action([&](auto& connection) {
+        return connection.load_url_from_ui(move(payload));
+    }));
+    if (response.is_object() && response.as_object().get_bool("willReplaceWebContentProcess"sv).value_or(false))
+        session->mark_current_window_as_awaiting_replacement(*previous_connection);
+
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
+    response = TRY(session->perform_async_action([&](auto& connection) {
+        return connection.wait_for_navigation_completion();
+    }));
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
+    return response;
+}
+
+// Extension: POST /session/{session id}/ladybird/traverse-history-from-ui
+Web::WebDriver::Response Client::traverse_history_from_ui(Web::WebDriver::Parameters parameters, JsonValue payload)
+{
+    dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/ladybird/traverse-history-from-ui");
+    auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
+
+    auto wait_for_navigation_completion = true;
+    if (payload.is_object())
+        wait_for_navigation_completion = payload.as_object().get_bool("waitForNavigationCompletion"sv).value_or(true);
+
+    RefPtr previous_connection { &session->web_content_connection() };
+    auto response = TRY(session->perform_async_action([&](auto& connection) {
+        return connection.traverse_history_from_ui(move(payload));
+    }));
+    if (response.is_object() && response.as_object().get_bool("willReplaceWebContentProcess"sv).value_or(false))
+        session->mark_current_window_as_awaiting_replacement(*previous_connection);
+
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
+    if (!wait_for_navigation_completion)
+        return JsonValue {};
+
+    response = TRY(session->perform_async_action([&](auto& connection) {
+        return connection.wait_for_navigation_completion();
+    }));
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
+    return response;
+}
+
+// Extension: POST /session/{session id}/ladybird/mark-web-content-session-history-stale
+Web::WebDriver::Response Client::mark_web_content_session_history_stale(Web::WebDriver::Parameters parameters, JsonValue)
+{
+    dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/ladybird/mark-web-content-session-history-stale");
+    auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.mark_web_content_session_history_stale();
+    });
+}
+
+// Extension: GET /session/{session id}/ladybird/session-history
+Web::WebDriver::Response Client::get_session_history(Web::WebDriver::Parameters parameters, JsonValue)
+{
+    dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/ladybird/session-history");
+    auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_session_history();
     });
 }
 
@@ -755,7 +904,8 @@ Web::WebDriver::Response Client::perform_actions(Web::WebDriver::Parameters para
 
     return session->perform_async_action([&](auto& connection) {
         return connection.perform_actions(move(payload));
-    });
+    },
+        Session::WebContentReplacement::Allow);
 }
 
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions

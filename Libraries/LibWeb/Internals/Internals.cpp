@@ -671,12 +671,23 @@ String Internals::dump_session_history()
         auto step = entry->step();
         auto const& url = entry->url();
         auto filename = url.basename();
-        auto display = url.fragment().has_value() ? MUST(String::formatted("{}#{}", filename, *url.fragment())) : MUST(String::from_byte_string(filename));
+        StringBuilder display_builder;
+        display_builder.append(filename);
+        if (url.query().has_value())
+            display_builder.appendff("?{}", *url.query());
+        if (url.fragment().has_value())
+            display_builder.appendff("#{}", *url.fragment());
+        auto display = display_builder.to_string_without_validation();
         auto is_current = step.has<int>() && step.get<int>() == current_step;
         auto relative_step = step.has<int>() && min_step.has_value() ? String::number(step.get<int>() - *min_step) : "pending"_string;
         builder.appendff("  step {} {}{}\n", relative_step, display, is_current ? " (current)"sv : ""sv);
     }
     return builder.to_string_without_validation();
+}
+
+String Internals::dump_ui_process_session_history()
+{
+    return window().associated_document().page().client().page_did_request_ui_process_session_history_for_testing();
 }
 
 GC::Ptr<DOM::ShadowRoot> Internals::get_shadow_root(GC::Ref<DOM::Element> element)

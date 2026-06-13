@@ -97,6 +97,7 @@ public:
     bool fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename);
 
     void initialize_the_navigation_api_entries_for_a_new_document(Vector<NonnullRefPtr<SessionHistoryEntry>> const& new_shes, NonnullRefPtr<SessionHistoryEntry> initial_she);
+    void initialize_the_navigation_api_entries_for_reconstructed_session_history(Vector<NonnullRefPtr<SessionHistoryEntry>> const& new_shes, NonnullRefPtr<SessionHistoryEntry> initial_she);
     void update_the_navigation_api_entries_for_a_same_document_navigation(NonnullRefPtr<SessionHistoryEntry> destination_she, Bindings::NavigationType);
 
     virtual ~Navigation() override;
@@ -106,6 +107,8 @@ public:
 
     bool focus_changed_during_ongoing_navigation() const { return m_focus_changed_during_ongoing_navigation; }
     void set_focus_changed_during_ongoing_navigation(bool b) { m_focus_changed_during_ongoing_navigation = b; }
+
+    bool suppress_normal_scroll_restoration_during_ongoing_navigation() const { return m_suppress_normal_scroll_restoration_during_ongoing_navigation; }
 
     void set_was_initial_about_blank_opened(bool b) { m_was_initial_about_blank_opened = b; }
 
@@ -156,7 +159,7 @@ private:
     bool m_focus_changed_during_ongoing_navigation { false };
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#suppress-normal-scroll-restoration-during-ongoing-navigation
-    bool m_suppress_scroll_restoration_during_ongoing_navigation { false };
+    bool m_suppress_normal_scroll_restoration_during_ongoing_navigation { false };
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#ongoing-api-method-tracker
     GC::Ptr<NavigationAPIMethodTracker> m_ongoing_api_method_tracker = nullptr;

@@ -116,9 +116,21 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::Navigable& n
         m_focused_navigable = nullptr;
 }
 
-void Page::load(URL::URL const& url)
+void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling)
 {
-    (void)top_level_traversable()->navigate({ .url = url, .source_document = *top_level_traversable()->active_document(), .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
+    (void)top_level_traversable()->navigate({ .url = url, .source_document = *top_level_traversable()->active_document(), .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
+}
+
+void Page::load(URL::URL const& url, Variant<Empty, String, HTML::POSTResource> document_resource,
+    Bindings::NavigationHistoryBehavior history_handling)
+{
+    (void)top_level_traversable()->navigate({
+        .url = url,
+        .source_document = *top_level_traversable()->active_document(),
+        .document_resource = move(document_resource),
+        .history_handling = history_handling,
+        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
+    });
 }
 
 void Page::load_html(StringView html)
@@ -163,6 +175,14 @@ void Page::reload()
 }
 
 void Page::traverse_the_history_by_delta(int delta)
+{
+    if (m_client->page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed))
+        return;
+
+    traverse_the_history_by_delta_from_ui_process(delta);
+}
+
+void Page::traverse_the_history_by_delta_from_ui_process(int delta)
 {
     top_level_traversable()->traverse_the_history_by_delta(delta);
 }

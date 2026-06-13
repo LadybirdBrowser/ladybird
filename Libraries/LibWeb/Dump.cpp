@@ -59,7 +59,12 @@ namespace Web {
 static void dump_session_history_entry(StringBuilder& builder, HTML::SessionHistoryEntry const& session_history_entry, int indent_levels)
 {
     dump_indent(builder, indent_levels);
-    builder.appendff("step=({}) url=({})\n", session_history_entry.step().get<int>(), session_history_entry.url());
+    builder.appendff("step=({}) url=({})", session_history_entry.step().get<int>(), session_history_entry.url());
+    if (session_history_entry.scroll_position_data().viewport_scroll_position.has_value()) {
+        auto const& viewport_scroll_position = *session_history_entry.scroll_position_data().viewport_scroll_position;
+        builder.appendff(" viewport-scroll=({}, {})", viewport_scroll_position.x(), viewport_scroll_position.y());
+    }
+    builder.append('\n');
     for (auto const& nested_history : session_history_entry.document_state()->nested_histories()) {
         for (auto const& nested_she : nested_history.entries) {
             dump_session_history_entry(builder, *nested_she, indent_levels + 1);
