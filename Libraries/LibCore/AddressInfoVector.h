@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
-#include <AK/OwnPtr.h>
+#include <AK/StdLibExtras.h>
 #include <AK/Vector.h>
 
 struct addrinfo;
@@ -16,21 +16,26 @@ namespace Core::System {
 
 class AddressInfoVector {
     AK_MAKE_NONCOPYABLE(AddressInfoVector);
-    AK_MAKE_DEFAULT_MOVABLE(AddressInfoVector);
 
 public:
     AddressInfoVector(Vector<struct addrinfo> addresses, struct addrinfo* ptr);
+    AddressInfoVector(AddressInfoVector&& other);
     ~AddressInfoVector();
+
+    AddressInfoVector& operator=(AddressInfoVector&& other)
+    {
+        AddressInfoVector temporary { move(other) };
+        swap(temporary);
+        return *this;
+    }
 
     ReadonlySpan<struct addrinfo> addresses() const { return m_addresses; }
 
 private:
-    struct AddrInfoDeleter {
-        void operator()(struct addrinfo*);
-    };
+    void swap(AddressInfoVector& other);
 
     Vector<struct addrinfo> m_addresses;
-    OwnPtr<struct addrinfo, AddrInfoDeleter> m_ptr;
+    struct addrinfo* m_ptr { nullptr };
 };
 
 }
