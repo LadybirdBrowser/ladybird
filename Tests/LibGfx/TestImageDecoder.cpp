@@ -99,6 +99,14 @@ TEST_CASE(test_bmp_negative_int_min_height)
     EXPECT(plugin_decoder->frame(0).is_error());
 }
 
+TEST_CASE(test_bmp_v5_icc_profile_out_of_bounds)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/v5-icc-profile-out-of-bounds.bmp"sv)));
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+    EXPECT(plugin_decoder->icc_data().is_error());
+}
+
 TEST_CASE(test_bmp_os2_3bit)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/os2_3bpc.bmp"sv)));

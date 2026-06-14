@@ -1571,7 +1571,7 @@ ErrorOr<Optional<ReadonlyBytes>> BMPImageDecoderPlugin::icc_data()
     // FIXME: Do something with v5.intent (which has a GamutMappingIntent value).
 
     u8 header_size = m_context->is_included_in_ico ? 0 : bmp_header_size;
-    if (v5.profile_data + header_size + v5.profile_size > m_context->file_size)
+    if (static_cast<u64>(v5.profile_data) + header_size + v5.profile_size > m_context->file_size)
         return Error::from_string_literal("BMPImageDecoderPlugin: ICC profile data out of bounds");
 
     return ReadonlyBytes { m_context->file_bytes + header_size + v5.profile_data, v5.profile_size };
