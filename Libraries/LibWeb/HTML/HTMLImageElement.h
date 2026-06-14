@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/LazyLoadingElement.h>
 #include <LibWeb/HTML/SourceSet.h>
@@ -25,7 +26,8 @@ class HTMLImageElement final
     : public HTMLElement
     , public LazyLoadingElement<HTMLImageElement>
     , public Layout::ImageProvider
-    , public DOM::ViewportClient {
+    , public DOM::ViewportClient
+    , public DecodedImageData::Client {
     WEB_PLATFORM_OBJECT(HTMLImageElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLImageElement);
     LAZY_LOADING_ELEMENT(HTMLImageElement);
@@ -135,6 +137,8 @@ private:
     void handle_successful_fetch(URL::URL const&, StringView mime_type, ImageRequest&, ByteBuffer, bool maybe_omit_events, URL::URL const& previous_url);
     void handle_failed_fetch();
     void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, String const& url_string, String const& previous_url, u64 update_the_image_data_count);
+
+    virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
 
     bool current_request_has_running_animation() const;
     void start_animation_timer_if_visible();

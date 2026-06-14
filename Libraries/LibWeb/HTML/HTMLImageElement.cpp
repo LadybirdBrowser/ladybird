@@ -159,6 +159,7 @@ HTMLImageElement::~HTMLImageElement() = default;
 void HTMLImageElement::finalize()
 {
     Base::finalize();
+    unregister_with_decoded_image_data_if_needed();
     document().unregister_viewport_client(*this);
 }
 
@@ -687,6 +688,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
             entry->ignore_higher_layer_caching = true;
 
             // 2. Abort the image request for the current request and the pending request.
+            unregister_with_decoded_image_data_if_needed();
             abort_the_image_request(realm(), m_current_request);
             abort_the_image_request(realm(), m_pending_request);
 
@@ -698,6 +700,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
             m_current_request->set_image_data(entry->image_data);
             m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
             m_current_frame_index = 0;
+            register_with_decoded_image_data_if_needed();
 
             // 5. Prepare the current request for presentation given the img element.
             m_current_request->prepare_for_presentation(*this);
@@ -765,6 +768,7 @@ after_step_7:
             //    abort the image request for the current request and the pending request,
             //    and set the pending request to null.
             m_current_request->set_state(ImageRequest::State::Broken);
+            unregister_with_decoded_image_data_if_needed();
             abort_the_image_request(realm(), m_current_request);
             abort_the_image_request(realm(), m_pending_request);
             m_pending_request = nullptr;
@@ -801,6 +805,7 @@ after_step_7:
         // 13. If urlString is failure, then:
         if (!url_string.has_value()) {
             // 1. Abort the image request for the current request and the pending request.
+            unregister_with_decoded_image_data_if_needed();
             abort_the_image_request(realm(), m_current_request);
             abort_the_image_request(realm(), m_pending_request);
 
@@ -865,10 +870,13 @@ after_step_7:
 
         // 18. If the current request's state is unavailable or broken, then set the current request to image request.
         //     Otherwise, set the pending request to image request.
-        if (m_current_request->state() == ImageRequest::State::Unavailable || m_current_request->state() == ImageRequest::State::Broken)
+        if (m_current_request->state() == ImageRequest::State::Unavailable || m_current_request->state() == ImageRequest::State::Broken) {
+            unregister_with_decoded_image_data_if_needed();
             m_current_request = image_request;
-        else
+            register_with_decoded_image_data_if_needed();
+        } else {
             m_pending_request = image_request;
+        }
 
         // 24. Let delay load event be true if the img's lazy loading attribute is in the Eager state, or if scripting is disabled for the img, and false otherwise.
         auto delay_load_event = lazy_loading_attribute() == LazyLoading::Eager;
@@ -955,10 +963,13 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 //    upgrade the pending request to the current request
                 //    and prepare image request for presentation given the img element.
                 if (image_request == m_pending_request) {
+                    unregister_with_decoded_image_data_if_needed();
                     abort_the_image_request(realm(), m_current_request);
                     upgrade_pending_request_to_current_request();
                     image_request->prepare_for_presentation(*this);
                 }
+
+                register_with_decoded_image_data_if_needed();
 
                 // 2. Set image request to the completely available state.
                 image_request->set_state(ImageRequest::State::CompletelyAvailable);
@@ -1005,6 +1016,7 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
             image_request->set_state(ImageRequest::State::Broken);
 
             // abort the image request for the current request and the pending request,
+            unregister_with_decoded_image_data_if_needed();
             abort_the_image_request(realm(), m_current_request);
             abort_the_image_request(realm(), m_pending_request);
 
@@ -1200,7 +1212,10 @@ void HTMLImageElement::upgrade_pending_request_to_current_request()
 {
     // 1. Set the img element's current request to the pending request.
     VERIFY(m_pending_request);
+
+    unregister_with_decoded_image_data_if_needed();
     m_current_request = m_pending_request;
+    register_with_decoded_image_data_if_needed();
 
     // 2. Set the img element's pending request to null.
     m_pending_request = nullptr;

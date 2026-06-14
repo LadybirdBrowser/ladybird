@@ -8,6 +8,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -17,12 +18,15 @@ namespace Web::SVG {
 class SVGImageElement final
     : public SVGGraphicsElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
-    , public Layout::ImageProvider {
+    , public Layout::ImageProvider
+    , public HTML::DecodedImageData::Client {
     WEB_PLATFORM_OBJECT(SVGImageElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGImageElement);
 
 public:
-    ~SVGImageElement();
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
+    virtual ~SVGImageElement() override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
@@ -48,7 +52,11 @@ protected:
     void fetch_the_document(URL::URL const& url);
 
 private:
+    virtual void finalize() override;
+
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
+    virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
+
     void animate();
 
     GC::Ptr<SVG::SVGAnimatedLength> m_x;

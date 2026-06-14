@@ -19,12 +19,13 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 
 namespace Web::CSS {
 
 class ImageStyleValue;
 
-class ImageStyleValueResource {
+class ImageStyleValueResource final : public HTML::DecodedImageData::Client {
 public:
     explicit ImageStyleValueResource(GC::Ref<HTML::SharedResourceRequest>, GC::Ref<DOM::Document> const&);
     ~ImageStyleValueResource();
@@ -35,7 +36,7 @@ public:
     void unregister_image_style_value(ImageStyleValue const&);
     bool can_be_removed() const { return m_image_style_values.is_empty(); }
 
-    [[nodiscard]] GC::Ptr<HTML::DecodedImageData> image_data() const;
+    [[nodiscard]] virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
     [[nodiscard]] Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const;
     [[nodiscard]] size_t current_frame_index() const { return m_current_frame_index; }
     [[nodiscard]] bool has_active_animation_timer() const;
@@ -43,6 +44,8 @@ public:
     void animate(DOM::Document&);
 
 private:
+    virtual void decoded_image_data_did_update() override { notify_image_style_values_did_update(); }
+
     void on_decoded_image_data_loaded(DOM::Document&);
     void notify_image_style_values_did_update();
     void start_animation_timer_if_needed(DOM::Document&);

@@ -43,6 +43,8 @@ ImageStyleValueResource::ImageStyleValueResource(GC::Ref<HTML::SharedResourceReq
 ImageStyleValueResource::~ImageStyleValueResource()
 {
     stop_animation_timer();
+    VERIFY(m_image_style_values.is_empty());
+    unregister_with_decoded_image_data_if_needed();
 }
 
 void ImageStyleValueResource::visit_edges(JS::Cell::Visitor& visitor)
@@ -55,23 +57,26 @@ void ImageStyleValueResource::register_image_style_value(DOM::Document& document
 {
     m_image_style_values.set(&image_style_value);
     start_animation_timer_if_needed(document);
+    register_with_decoded_image_data_if_needed();
 }
 
 void ImageStyleValueResource::unregister_image_style_value(ImageStyleValue const& image_style_value)
 {
     m_image_style_values.remove(&image_style_value);
-    if (m_image_style_values.is_empty())
+    if (m_image_style_values.is_empty()) {
         stop_animation_timer();
+        unregister_with_decoded_image_data_if_needed();
+    }
 }
 
-GC::Ptr<HTML::DecodedImageData> ImageStyleValueResource::image_data() const
+GC::Ptr<HTML::DecodedImageData> ImageStyleValueResource::decoded_image_data() const
 {
     return m_resource_request->image_data();
 }
 
 Optional<Gfx::DecodedImageFrame> ImageStyleValueResource::frame(size_t frame_index, Gfx::IntSize size) const
 {
-    if (auto image_data = this->image_data())
+    if (auto image_data = this->decoded_image_data())
         return image_data->frame(frame_index, size);
     return {};
 }
@@ -85,6 +90,8 @@ void ImageStyleValueResource::on_decoded_image_data_loaded(DOM::Document& docume
 {
     notify_image_style_values_did_update();
     start_animation_timer_if_needed(document);
+    if (!m_image_style_values.is_empty())
+        register_with_decoded_image_data_if_needed();
 }
 
 void ImageStyleValueResource::notify_image_style_values_did_update()
@@ -122,7 +129,7 @@ void ImageStyleValueResource::stop_animation_timer()
 
 bool ImageStyleValueResource::is_animatable() const
 {
-    auto image_data = this->image_data();
+    auto image_data = this->decoded_image_data();
     if (!image_data || !image_data->is_animated() || image_data->frame_count() <= 1)
         return false;
 
@@ -131,13 +138,13 @@ bool ImageStyleValueResource::is_animatable() const
 
 bool ImageStyleValueResource::animation_has_completed() const
 {
-    auto image_data = this->image_data();
+    auto image_data = this->decoded_image_data();
     return image_data && image_data->loop_count() > 0 && m_loops_completed == image_data->loop_count();
 }
 
 int ImageStyleValueResource::current_frame_duration() const
 {
-    auto image_data = this->image_data();
+    auto image_data = this->decoded_image_data();
     if (!image_data)
         return 0;
 
@@ -289,7 +296,7 @@ GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data(DOM::Document const&
     //     resolved URL.
     VERIFY(resource);
 
-    return resource->image_data();
+    return resource->decoded_image_data();
 }
 
 Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap(DOM::Document const& document) const

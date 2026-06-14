@@ -8,8 +8,34 @@
 
 namespace Web::HTML {
 
+void DecodedImageData::Client::register_with_decoded_image_data_if_needed()
+{
+    auto const& image_data = decoded_image_data();
+
+    if (!image_data)
+        return;
+
+    image_data->m_clients.set(this);
+}
+
+void DecodedImageData::Client::unregister_with_decoded_image_data_if_needed()
+{
+    auto const& image_data = decoded_image_data();
+
+    if (!image_data)
+        return;
+
+    image_data->m_clients.remove(this);
+}
+
 DecodedImageData::DecodedImageData() = default;
 
 DecodedImageData::~DecodedImageData() = default;
+
+void DecodedImageData::notify_clients_did_update()
+{
+    for (auto* client : m_clients)
+        client->decoded_image_data_did_update();
+}
 
 }
