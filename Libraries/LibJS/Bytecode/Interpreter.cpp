@@ -7,7 +7,6 @@
 
 #include <AK/TemporaryChange.h>
 #include <LibJS/Bytecode/Debug.h>
-#include <LibJS/Bytecode/FormatOperand.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Op.h>
@@ -311,21 +310,6 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
         return JS::throw_completion(exception);
 
     return reg(Register::return_value());
-}
-
-ByteString Instruction::to_byte_string(Bytecode::Executable const& executable) const
-{
-#define __BYTECODE_OP(op)       \
-    case Instruction::Type::op: \
-        return static_cast<Bytecode::Op::op const&>(*this).to_byte_string_impl(executable);
-
-    switch (type()) {
-        ENUMERATE_BYTECODE_OPS(__BYTECODE_OP)
-    default:
-        VERIFY_NOT_REACHED();
-    }
-
-#undef __BYTECODE_OP
 }
 
 }

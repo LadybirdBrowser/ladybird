@@ -6,6 +6,7 @@
 
 #include <LibJS/RustIntegration.h>
 
+#include <AK/BitCast.h>
 #include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Utf16String.h>
@@ -71,6 +72,16 @@ static Utf16String utf16_from_raw(uint16_t const* data, size_t len)
     return Utf16String::from_utf16(utf16_view_from_bytes(data, len));
 }
 
+static StringView string_view_from_rust_bytes(uint8_t const* data, size_t len)
+{
+    return { reinterpret_cast<char const*>(data), len };
+}
+
+struct BytecodeDumpBuilder {
+    StringBuilder& output;
+    GC::Ref<Bytecode::Executable const> executable;
+};
+
 // --- Error collection callbacks ---
 
 // Collects parse errors as a Vector<ParserError> (for Script/Module compilation).
@@ -105,6 +116,122 @@ struct ScriptGdiBuilder {
         });
     }
 };
+
+}
+
+namespace JS::FFI {
+
+static void bytecode_dump_append(void* ctx, uint8_t const* data, size_t len)
+{
+    auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
+    builder.output.append(JS::RustIntegration::string_view_from_rust_bytes(data, len));
+}
+
+static void bytecode_dump_append_local(void* ctx, uint32_t index)
+{
+    auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
+    builder.output.append(builder.executable->local_variable_names[index].name);
+}
+
+static void bytecode_dump_append_identifier(void* ctx, uint32_t index, bool quoted)
+{
+    auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
+    auto identifier = builder.executable->identifier_table->get(JS::Bytecode::IdentifierTableIndex { index });
+    if (quoted)
+        builder.output.appendff("\033[36m`{}`\033[0m", identifier);
+    else
+        builder.output.append(identifier);
+}
+
+static void bytecode_dump_append_property_key(void* ctx, uint32_t index, bool quoted)
+{
+    auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
+    auto const& property_key = builder.executable->property_key_table->get(JS::Bytecode::PropertyKeyTableIndex { index });
+    if (quoted)
+        builder.output.appendff("\033[36m`{}`\033[0m", property_key);
+    else
+        builder.output.appendff("{}", property_key);
+}
+
+static void bytecode_dump_append_string(void* ctx, uint32_t index)
+{
+    auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
+    builder.output.append(builder.executable->get_string(JS::Bytecode::StringTableIndex { index }));
+}
+
+static void bytecode_dump_append_value_double(void* ctx, double value)
+{
+    auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
+    builder.output.appendff("{}", value);
+}
+
+static void bytecode_dump_append_value_string(void* ctx, uint64_t encoded)
+{
+    auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
+    auto value = bit_cast<Value>(encoded);
+    builder.output.append(value.as_string().utf8_string_view());
+}
+
+static void bytecode_dump_append_value_bigint(void* ctx, uint64_t encoded)
+{
+    auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
+    auto value = bit_cast<Value>(encoded);
+    builder.output.append(MUST(value.as_bigint().to_string()));
+}
+
+static void bytecode_dump_append_value_fallback(void* ctx, uint64_t encoded)
+{
+    auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
+    auto value = bit_cast<Value>(encoded);
+    builder.output.appendff("{}", value);
+}
+
+}
+
+namespace JS::RustIntegration {
+
+void dump_bytecode(StringBuilder& output, Bytecode::Executable const& executable)
+{
+    Vector<FFI::FFIDumpExceptionHandler> exception_handlers;
+    exception_handlers.ensure_capacity(executable.exception_handlers.size());
+    for (auto const& handler : executable.exception_handlers) {
+        exception_handlers.append({
+            .start_offset = handler.start_offset,
+            .end_offset = handler.end_offset,
+            .handler_offset = handler.handler_offset,
+        });
+    }
+
+    BytecodeDumpBuilder builder { output, executable };
+    FFI::FFIBytecodeDumpCallbacks callbacks {
+        .append = FFI::bytecode_dump_append,
+        .append_local = FFI::bytecode_dump_append_local,
+        .append_identifier = FFI::bytecode_dump_append_identifier,
+        .append_property_key = FFI::bytecode_dump_append_property_key,
+        .append_string = FFI::bytecode_dump_append_string,
+        .append_value_double = FFI::bytecode_dump_append_value_double,
+        .append_value_string = FFI::bytecode_dump_append_value_string,
+        .append_value_bigint = FFI::bytecode_dump_append_value_bigint,
+        .append_value_fallback = FFI::bytecode_dump_append_value_fallback,
+    };
+    FFI::FFIBytecodeDumpMetadata metadata {
+        .number_of_registers = executable.number_of_registers,
+        .registers_and_locals_count = executable.registers_and_locals_count,
+        .local_index_base = executable.local_index_base,
+        .argument_index_base = executable.argument_index_base,
+        .constants = reinterpret_cast<uint64_t const*>(executable.constants.data()),
+        .constant_count = executable.constants.size(),
+    };
+
+    FFI::rust_dump_bytecode(
+        executable.bytecode.data(),
+        executable.bytecode.size(),
+        exception_handlers.data(),
+        exception_handlers.size(),
+        &metadata,
+        &builder,
+        &callbacks);
+}
 
 }
 

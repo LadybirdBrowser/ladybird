@@ -39,11 +39,6 @@ def is_optional_label_type(t: str) -> bool:
     return t.strip() == "Optional<Label>"
 
 
-def is_value_type(t: str) -> bool:
-    t = t.strip()
-    return t == "Value" or t == "Optional<Value>"
-
-
 def find_count_field_name(op: OpDef, array_field: Field) -> Optional[str]:
     """
     Heuristic: look for a u32/size_t field matching
@@ -283,8 +278,6 @@ def generate_class(op: OpDef) -> str:
     lines.append("    }")
     lines.append("")
 
-    lines.append("    ByteString to_byte_string_impl(Bytecode::Executable const&) const;")
-
     visit_operands = generate_visit_operands(op)
     if visit_operands:
         lines.append(visit_operands)
@@ -325,21 +318,6 @@ def generate_op_namespace_body(ops: List[OpDef]) -> str:
     return "\n".join(lines)
 
 
-NUMERIC_TYPES = {
-    "u8",
-    "u16",
-    "u32",
-    "u64",
-    "i8",
-    "i16",
-    "i32",
-    "i64",
-    "int",
-    "unsigned",
-    "unsigned int",
-    "size_t",
-}
-
 CACHE_INDEX_TYPES = {
     "PropertyLookupCacheIndex",
     "GlobalVariableCacheIndex",
@@ -361,247 +339,10 @@ def cpp_type_for_field(t: str) -> str:
     return t
 
 
-def generate_to_byte_string_impl(op: OpDef) -> str:
-    if op.name == "Instruction":
-        return ""
-
-    lines: List[str] = []
-    lines.append(
-        f"ByteString {op.name}::to_byte_string_impl([[maybe_unused]] Bytecode::Executable const& executable) const"
-    )
-    lines.append("{")
-    lines.append("    StringBuilder builder;")
-    lines.append(f'    builder.append("{op.name}"sv);')
-    lines.append("")
-    lines.append("    bool first = true;")
-    lines.append("    [[maybe_unused]] auto append_piece = [&](auto const& piece) {")
-    lines.append("        if (first) {")
-    lines.append("            builder.append(' ');")
-    lines.append("            first = false;")
-    lines.append("        } else {")
-    lines.append('            builder.append(", "sv);')
-    lines.append("        }")
-    lines.append("        builder.append(piece);")
-    lines.append("    };")
-    lines.append("")
-
-    arrays: List[Field] = [f for f in op.fields if f.is_array]
-    array_to_count = {af.name: get_count_field_name_or_die(op, af) for af in arrays}
-    count_fields = set(array_to_count.values())
-
-    for f in op.fields:
-        if f.name == "m_length" or f.name == "m_cache":
-            continue
-
-        t = f.type.strip()
-        label = getter_name_for_field(f.name)
-
-        if f.is_array:
-            count_name = array_to_count[f.name]
-
-            if t == "Operand":
-                lines.append(f"    if ({count_name} != 0)")
-                lines.append(
-                    f'        append_piece(format_operand_list("{label}"sv, {{ {f.name}, {count_name} }}, executable));'
-                )
-                lines.append("")
-                continue
-
-            if t == "Optional<Operand>":
-                lines.append(f"    if ({count_name} != 0) {{")
-                lines.append("        StringBuilder list_builder;")
-                lines.append(f'        list_builder.appendff("{{}}:[", "{label}"sv);')
-                lines.append("        bool first_elem = true;")
-                lines.append(f"        for (size_t i = 0; i < {count_name}; ++i) {{")
-                lines.append(f"            if (!{f.name}[i].has_value())")
-                lines.append("                continue;")
-                lines.append("            if (!first_elem)")
-                lines.append('                list_builder.append(", "sv);')
-                lines.append("            first_elem = false;")
-                lines.append(
-                    f'            list_builder.append(format_operand("{label}"sv, {f.name}[i].value(), executable));'
-                )
-                lines.append("        }")
-                lines.append("        list_builder.append(']');")
-                lines.append("        append_piece(list_builder.to_byte_string());")
-                lines.append("    }")
-                lines.append("")
-                continue
-
-            if t == "Value":
-                lines.append(f"    if ({count_name} != 0)")
-                lines.append(
-                    f'        append_piece(format_value_list("{label}"sv, ReadonlySpan<Value> {{ {f.name}, {count_name} }}));'
-                )
-                lines.append("")
-                continue
-
-            if t == "Label":
-                lines.append(f"    if ({count_name} != 0) {{")
-                lines.append("        StringBuilder list_builder;")
-                lines.append(f'        list_builder.appendff("{{}}:[", "{label}"sv);')
-                lines.append("        bool first_elem = true;")
-                lines.append(f"        for (size_t i = 0; i < {count_name}; ++i) {{")
-                lines.append("            if (!first_elem)")
-                lines.append('                list_builder.append(", "sv);')
-                lines.append("            first_elem = false;")
-                lines.append(f'            list_builder.append(format_label(""sv, {f.name}[i], executable));')
-                lines.append("        }")
-                lines.append("        list_builder.append(']');")
-                lines.append("        append_piece(list_builder.to_byte_string());")
-                lines.append("    }")
-                lines.append("")
-                continue
-
-            if t == "Optional<Label>":
-                lines.append(f"    if ({count_name} != 0) {{")
-                lines.append("        StringBuilder list_builder;")
-                lines.append(f'        list_builder.appendff("{{}}:[", "{label}"sv);')
-                lines.append("        bool first_elem = true;")
-                lines.append(f"        for (size_t i = 0; i < {count_name}; ++i) {{")
-                lines.append(f"            if (!{f.name}[i].has_value())")
-                lines.append("                continue;")
-                lines.append("            if (!first_elem)")
-                lines.append('                list_builder.append(", "sv);')
-                lines.append("            first_elem = false;")
-                lines.append(f'            list_builder.append(format_label(""sv, {f.name}[i].value(), executable));')
-                lines.append("        }")
-                lines.append("        list_builder.append(']');")
-                lines.append("        append_piece(list_builder.to_byte_string());")
-                lines.append("    }")
-                lines.append("")
-                continue
-
-            # other array types not printed
-            continue
-
-        if t == "Operand":
-            lines.append(f'    append_piece(format_operand("{label}"sv, {f.name}, executable));')
-            lines.append("")
-            continue
-
-        if t == "Optional<Operand>":
-            lines.append(f"    if ({f.name}.has_value())")
-            lines.append(f'        append_piece(format_operand("{label}"sv, {f.name}.value(), executable));')
-            lines.append("")
-            continue
-
-        if t == "Label":
-            lines.append(f'    append_piece(format_label("{label}"sv, {f.name}, executable));')
-            lines.append("")
-            continue
-
-        if t == "Optional<Label>":
-            lines.append(f"    if ({f.name}.has_value())")
-            lines.append(f'        append_piece(format_label("{label}"sv, {f.name}.value(), executable));')
-            lines.append("")
-            continue
-
-        if t == "PropertyKeyTableIndex":
-            lines.append(
-                f'    append_piece(ByteString::formatted("\\033[36m`{{}}`\\033[0m", executable.property_key_table->get({f.name})));'
-            )
-            lines.append("")
-            continue
-
-        if t == "IdentifierTableIndex":
-            lines.append(
-                f'    append_piece(ByteString::formatted("\\033[36m`{{}}`\\033[0m", executable.identifier_table->get({f.name})));'
-            )
-            lines.append("")
-            continue
-
-        if t == "Optional<IdentifierTableIndex>":
-            # Find a property field in the same op to join with.
-            property_key_field = None
-            property_operand_field = None
-            for other in op.fields:
-                if other.type.strip() == "PropertyKeyTableIndex":
-                    property_key_field = other
-                    break
-                if other.type.strip() == "Operand" and other.name == "m_property":
-                    property_operand_field = other
-                    break
-
-            lines.append(f"    if ({f.name}.has_value())")
-            if property_key_field:
-                lines.append(
-                    f'        builder.appendff(" \\033[37;1m({{}}.{{}})\\033[0m", executable.identifier_table->get({f.name}.value()), executable.property_key_table->get({property_key_field.name}));'
-                )
-            elif property_operand_field:
-                lines.append("    {")
-                lines.append(
-                    f'        auto property_hint = format_operand(""sv, {property_operand_field.name}, executable);'
-                )
-                lines.append(
-                    f'        builder.appendff(" \\033[37;1m({{}}[\\033[0m{{}}\\033[37;1m])\\033[0m", executable.identifier_table->get({f.name}.value()), property_hint);'
-                )
-                lines.append("    }")
-            elif op.name == "GetLength":
-                lines.append(
-                    f'        builder.appendff(" \\033[37;1m({{}}.length)\\033[0m", executable.identifier_table->get({f.name}.value()));'
-                )
-            else:
-                lines.append(
-                    f'        builder.appendff(" \\033[37;1m({{}})\\033[0m", executable.identifier_table->get({f.name}.value()));'
-                )
-            lines.append("")
-            continue
-
-        if t == "StringTableIndex":
-            lines.append(f"    append_piece(executable.get_string({f.name}));")
-            lines.append("")
-            continue
-
-        if t == "Optional<StringTableIndex>":
-            lines.append(f"    if ({f.name}.has_value())")
-            lines.append(f"        append_piece(executable.get_string({f.name}.value()));")
-            lines.append("")
-            continue
-
-        if is_value_type(t):
-            # not printed for now
-            continue
-
-        if t == "bool":
-            lines.append(f'    append_piece(ByteString::formatted("{label}:{{}}", {f.name}));')
-            lines.append("")
-            continue
-
-        if t in NUMERIC_TYPES and f.name not in count_fields:
-            lines.append(f'    append_piece(ByteString::formatted("{label}:{{}}", {f.name}));')
-            lines.append("")
-            continue
-
-        if t == "PutKind":
-            lines.append(f'    append_piece(ByteString::formatted("{label}:{{}}", put_kind_to_string({f.name})));')
-            lines.append("")
-            continue
-
-        # other types (enums, refs, etc.) skipped
-
-    lines.append("    return builder.to_byte_string();")
-    lines.append("}")
-    lines.append("")
-    return "\n".join(lines)
-
-
 def generate_op_cpp_body(ops: List[OpDef]) -> str:
     lines: List[str] = []
-    lines.append("#include <AK/StringBuilder.h>")
-    lines.append("#include <AK/StringView.h>")
-    lines.append("#include <LibJS/Bytecode/FormatOperand.h>")
     lines.append("#include <LibJS/Bytecode/Op.h>")
     lines.append("")
-    lines.append("namespace JS::Bytecode::Op {")
-    lines.append("")
-
-    for op in ops:
-        impl = generate_to_byte_string_impl(op)
-        if impl:
-            lines.append(impl)
-
-    lines.append("} // namespace JS::Bytecode::Op")
     return "\n".join(lines)
 
 

@@ -87,6 +87,7 @@ mod bytecode_cache;
 pub mod fast_hash;
 pub mod lexer;
 pub mod parser;
+pub mod runtime;
 pub mod scope_collector;
 pub mod token;
 
