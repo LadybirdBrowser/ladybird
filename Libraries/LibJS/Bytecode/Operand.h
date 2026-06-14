@@ -35,6 +35,13 @@ public:
 
     explicit Operand(Register);
 
+    static Operand from_raw(u32 raw)
+    {
+        Operand operand;
+        operand.m_raw = raw;
+        return operand;
+    }
+
     [[nodiscard]] bool is_invalid() const { return m_raw == 0xffffffffu; }
     [[nodiscard]] bool is_register() const { return type() == Type::Register; }
     [[nodiscard]] bool is_local() const { return type() == Type::Local; }
@@ -54,6 +61,8 @@ public:
     }
 
 private:
+    Operand() = default;
+
     u32 m_raw { 0 };
 };
 

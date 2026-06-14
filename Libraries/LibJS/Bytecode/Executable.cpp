@@ -20,6 +20,7 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibJS/RustIntegration.h>
 #include <LibJS/SourceCode.h>
 
 namespace JS::Bytecode {
@@ -490,31 +491,6 @@ static void dump_metadata(StringBuilder& output, Executable const& executable)
     }
 }
 
-static void dump_bytecode(StringBuilder& output, Executable const& executable)
-{
-    auto constexpr magenta = "\033[35;1m"sv;
-    auto constexpr reset = "\033[0m"sv;
-
-    InstructionStreamIterator it(executable.bytecode, &executable);
-    auto basic_block_start_offsets = collect_basic_block_start_offsets(executable);
-
-    size_t basic_block_offset_index = 0;
-
-    while (!it.at_end()) {
-        if (basic_block_offset_index < basic_block_start_offsets.size()
-            && it.offset() == basic_block_start_offsets[basic_block_offset_index]) {
-            if (basic_block_offset_index > 0)
-                output.append('\n');
-            output.appendff("{}block{}{}:\n", magenta, basic_block_offset_index, reset);
-            ++basic_block_offset_index;
-        }
-
-        output.appendff("  [{:4x}] {}\n", it.offset(), (*it).to_byte_string(executable));
-
-        ++it;
-    }
-}
-
 void Executable::dump() const
 {
     StringBuilder output;
@@ -522,7 +498,7 @@ void Executable::dump() const
     dump_header(output, *this);
     dump_metadata(output, *this);
     output.append('\n');
-    dump_bytecode(output, *this);
+    RustIntegration::dump_bytecode(output, *this);
 
     if (!exception_handlers.is_empty()) {
         output.append("\nException handlers:\n"sv);

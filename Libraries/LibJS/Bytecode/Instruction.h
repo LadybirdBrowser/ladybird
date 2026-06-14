@@ -80,7 +80,6 @@ public:
 
     Type type() const { return m_type; }
     size_t length() const;
-    ByteString to_byte_string(Bytecode::Executable const&) const;
     void visit_labels(Function<void(Label&)> visitor);
     void visit_operands(Function<void(Operand&)> visitor);
 

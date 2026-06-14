@@ -81,28 +81,4 @@ inline ByteString format_operand(StringView name, Operand encoded_operand, Bytec
     return builder.to_byte_string();
 }
 
-inline ByteString format_operand_list(StringView name, ReadonlySpan<Operand> operands, Bytecode::Executable const& executable)
-{
-    StringBuilder builder;
-    if (!name.is_empty())
-        builder.appendff("\033[32m{}\033[0m:[", name);
-    for (size_t i = 0; i < operands.size(); ++i) {
-        if (i != 0)
-            builder.append(", "sv);
-        builder.appendff("{}", format_operand(""sv, operands[i], executable));
-    }
-    builder.append("]"sv);
-    return builder.to_byte_string();
-}
-
-inline ByteString format_value_list(StringView name, ReadonlySpan<Value> values)
-{
-    StringBuilder builder;
-    if (!name.is_empty())
-        builder.appendff("\033[32m{}\033[0m:[", name);
-    builder.join(", "sv, values);
-    builder.append("]"sv);
-    return builder.to_byte_string();
-}
-
 }

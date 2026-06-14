@@ -21,6 +21,7 @@
 
 pub mod basic_block;
 pub mod codegen;
+pub mod dump;
 pub mod ffi;
 pub mod generator;
 pub mod instruction;
