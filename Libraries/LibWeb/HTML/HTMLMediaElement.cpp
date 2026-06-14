@@ -1756,7 +1756,7 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
     m_selected_video_track = video_track;
     if (video_track) {
         attach_selected_video_track_sink(video_track->track_in_playback_manager());
-        auto sink_update_result = m_selected_video_track_sink->update();
+        auto sink_update_result = m_selected_video_track_sink->update(MonotonicTime::now());
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
             update_current_video_frame();
             update_intrinsic_video_dimensions();
@@ -1783,7 +1783,7 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         return;
 
     if (m_selected_video_track_sink) {
-        auto sink_update_result = m_selected_video_track_sink->update();
+        auto sink_update_result = m_selected_video_track_sink->update(MonotonicTime::now());
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable) {
             update_current_video_frame();
             update_intrinsic_video_dimensions();
