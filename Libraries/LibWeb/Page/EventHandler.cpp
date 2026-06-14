@@ -1836,7 +1836,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
         //     focus node, as this means they are inside the same contain element, or not in a contain element at all.
         //     This takes care of the "selection trying to escape from a contain" case.
         while (
-            (!potential_contain_node->is_element() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+            (!potential_contain_node->is_element() || !potential_contain_node->layout_node() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
             potential_contain_node = potential_contain_node->parent();
         }
 
@@ -1861,7 +1861,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
             auto target_node = potential_contain_node;
             potential_contain_node = focus_node;
             while (
-                (!potential_contain_node->is_element() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && potential_contain_node != target_node) {
+                (!potential_contain_node->is_element() || !potential_contain_node->layout_node() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && potential_contain_node != target_node) {
                 potential_contain_node = potential_contain_node->parent();
             }
             if (
