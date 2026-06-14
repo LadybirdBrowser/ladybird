@@ -26,9 +26,18 @@
 
 namespace Web::CSS {
 
-ImageStyleValueResource::ImageStyleValueResource(::URL::URL url)
-    : m_url(move(url))
+ImageStyleValueResource::ImageStyleValueResource(GC::Ref<HTML::SharedResourceRequest> request, GC::Ref<DOM::Document> const& document)
+    : m_resource_request(move(request))
 {
+    m_resource_request->add_callbacks(
+        [weak_document = GC::Weak(document), url = m_resource_request->url()] {
+            // FIXME: Can we directly access the resource (i.e. this) here instead of looking it up in the document?
+            if (auto document = weak_document.ptr()) {
+                if (auto* resource = document->css_image_resource(url))
+                    resource->on_decoded_image_data_loaded(*document);
+            }
+        },
+        nullptr);
 }
 
 ImageStyleValueResource::~ImageStyleValueResource()
@@ -42,22 +51,9 @@ void ImageStyleValueResource::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_timer);
 }
 
-void ImageStyleValueResource::set_resource_request(DOM::Document& document, GC::Ref<HTML::SharedResourceRequest> resource_request)
-{
-    if (m_resource_request.ptr() != resource_request.ptr()) {
-        m_resource_request = resource_request;
-        m_has_resource_request_callbacks = false;
-        m_current_frame_index = 0;
-        m_loops_completed = 0;
-    }
-
-    add_callbacks_if_needed(document);
-}
-
 void ImageStyleValueResource::register_image_style_value(DOM::Document& document, ImageStyleValue const& image_style_value)
 {
     m_image_style_values.set(&image_style_value);
-    add_callbacks_if_needed(document);
     start_animation_timer_if_needed(document);
 }
 
@@ -70,8 +66,6 @@ void ImageStyleValueResource::unregister_image_style_value(ImageStyleValue const
 
 GC::Ptr<HTML::DecodedImageData> ImageStyleValueResource::image_data() const
 {
-    if (!m_resource_request)
-        return nullptr;
     return m_resource_request->image_data();
 }
 
@@ -85,22 +79,6 @@ Optional<Gfx::DecodedImageFrame> ImageStyleValueResource::frame(size_t frame_ind
 bool ImageStyleValueResource::has_active_animation_timer() const
 {
     return m_timer && m_timer->is_active();
-}
-
-void ImageStyleValueResource::add_callbacks_if_needed(DOM::Document& document)
-{
-    if (!m_resource_request || m_has_resource_request_callbacks)
-        return;
-
-    m_has_resource_request_callbacks = true;
-    m_resource_request->add_callbacks(
-        [weak_document = GC::Weak(document), url = m_url] {
-            if (auto document = weak_document.ptr()) {
-                if (auto* resource = document->css_image_resource(url))
-                    resource->on_decoded_image_data_loaded(*document);
-            }
-        },
-        nullptr);
 }
 
 void ImageStyleValueResource::on_decoded_image_data_loaded(DOM::Document& document)
@@ -126,7 +104,7 @@ void ImageStyleValueResource::start_animation_timer_if_needed(DOM::Document& doc
     if (!m_timer) {
         auto timer = Platform::Timer::create(document.heap());
         m_timer = timer;
-        timer->on_timeout = GC::create_function(document.heap(), [weak_document = GC::Weak(document), url = m_url] {
+        timer->on_timeout = GC::create_function(document.heap(), [weak_document = GC::Weak(document), url = m_resource_request->url()] {
             if (auto document = weak_document.ptr())
                 document->animate_css_image_resource(url);
         });
@@ -168,8 +146,6 @@ int ImageStyleValueResource::current_frame_duration() const
 
 void ImageStyleValueResource::animate(DOM::Document&)
 {
-    if (!m_resource_request)
-        return;
     auto image_data = m_resource_request->image_data();
     if (!image_data)
         return;
@@ -219,7 +195,7 @@ u64 ImageStyleValue::active_animation_timer_count(DOM::Document const& document)
     return document.active_css_image_animation_timer_count();
 }
 
-void ImageStyleValue::load_any_resources(DOM::Document& document)
+GC::Ptr<HTML::SharedResourceRequest> ImageStyleValue::fetch_image(DOM::Document& document) const
 {
     RuleOrDeclaration rule_or_declaration {
         .environment_settings_object = document.relevant_settings_object(),
@@ -228,12 +204,12 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
         .parent_style_sheet_origin_clean = m_parent_style_sheet_origin_clean,
     };
 
-    auto resource_request = fetch_an_external_image_for_a_stylesheet(m_url, rule_or_declaration, document);
-    if (!resource_request)
-        return;
+    return fetch_an_external_image_for_a_stylesheet(m_url, rule_or_declaration, document);
+}
 
-    if (auto* resource = document.css_image_resource(resource_request->url()))
-        resource->set_resource_request(document, *resource_request);
+void ImageStyleValue::load_any_resources(DOM::Document& document)
+{
+    fetch_image(document);
 }
 
 void ImageStyleValue::serialize(StringBuilder& builder, SerializationMode) const
@@ -307,16 +283,13 @@ GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data(DOM::Document const&
     if (!resolved_url.has_value())
         return nullptr;
 
-    if (auto const* resource = document.css_image_resource(*resolved_url)) {
-        if (auto image_data = resource->image_data())
-            return image_data;
-    }
+    auto const* resource = document.css_image_resource(*resolved_url);
 
-    auto const& shared_resource_requests = document.shared_resource_requests();
-    auto it = shared_resource_requests.find(*resolved_url);
-    if (it == shared_resource_requests.end())
-        return nullptr;
-    return it->value->image_data();
+    // NB: We should have registered a client for this before now which ensures a resource exists if we have a valid
+    //     resolved URL.
+    VERIFY(resource);
+
+    return resource->image_data();
 }
 
 Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap(DOM::Document const& document) const
@@ -403,13 +376,25 @@ void ImageStyleValue::register_client(Client& client) const
     if (!resolved_url.has_value())
         return;
 
+    // NB: Store the resolved URL so that we can unregister from the resource later even if the document's base URL
+    //     changes in the interim.
     client.m_registered_url = *resolved_url;
-    auto& resource = document->ensure_css_image_resource(*resolved_url);
-    auto& shared_resource_requests = document->shared_resource_requests();
-    auto it = shared_resource_requests.find(*resolved_url);
-    if (it != shared_resource_requests.end())
-        resource.set_resource_request(*document, *it->value);
-    resource.register_image_style_value(*document, *this);
+
+    GC::Ptr<CSS::ImageStyleValueResource> resource;
+
+    if (auto* existing_resource = document->css_image_resource(*resolved_url)) {
+        resource = existing_resource;
+    } else {
+        auto resource_request = fetch_image(*document);
+
+        // NB: This can only fail if the URL is invalid or ResourceLoader is not initialized, neither of which should be
+        //     the case here.
+        VERIFY(resource_request);
+
+        resource = document->create_css_image_resource(*resource_request);
+    }
+
+    resource->register_image_style_value(*document, *this);
 }
 
 void ImageStyleValue::unregister_client(Client& client) const

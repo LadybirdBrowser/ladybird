@@ -26,12 +26,11 @@ class ImageStyleValue;
 
 class ImageStyleValueResource {
 public:
-    explicit ImageStyleValueResource(::URL::URL);
+    explicit ImageStyleValueResource(GC::Ref<HTML::SharedResourceRequest>, GC::Ref<DOM::Document> const&);
     ~ImageStyleValueResource();
 
     void visit_edges(JS::Cell::Visitor&);
 
-    void set_resource_request(DOM::Document&, GC::Ref<HTML::SharedResourceRequest>);
     void register_image_style_value(DOM::Document&, ImageStyleValue const&);
     void unregister_image_style_value(ImageStyleValue const&);
     bool can_be_removed() const { return m_image_style_values.is_empty(); }
@@ -44,7 +43,6 @@ public:
     void animate(DOM::Document&);
 
 private:
-    void add_callbacks_if_needed(DOM::Document&);
     void on_decoded_image_data_loaded(DOM::Document&);
     void notify_image_style_values_did_update();
     void start_animation_timer_if_needed(DOM::Document&);
@@ -53,13 +51,11 @@ private:
     bool animation_has_completed() const;
     int current_frame_duration() const;
 
-    ::URL::URL m_url;
-    GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
+    GC::Ref<HTML::SharedResourceRequest> m_resource_request;
     GC::Ptr<Platform::Timer> m_timer;
     HashTable<ImageStyleValue const*> m_image_style_values;
     size_t m_current_frame_index { 0 };
     size_t m_loops_completed { 0 };
-    bool m_has_resource_request_callbacks { false };
 };
 
 class ImageStyleValue final
@@ -122,6 +118,7 @@ private:
     void unregister_client(Client&) const;
     void notify_clients_did_update() const;
     void update_style_sheet_resource_context(CSSStyleSheet const&);
+    GC::Ptr<HTML::SharedResourceRequest> fetch_image(DOM::Document&) const;
     Optional<::URL::URL> resolved_url(DOM::Document const&) const;
     ::URL::URL style_resource_base_url(DOM::Document const&) const;
 

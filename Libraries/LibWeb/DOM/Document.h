@@ -829,7 +829,7 @@ public:
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& shared_resource_requests() const;
     CSS::ImageStyleValueResource* css_image_resource(URL::URL const&);
     CSS::ImageStyleValueResource const* css_image_resource(URL::URL const&) const;
-    CSS::ImageStyleValueResource& ensure_css_image_resource(URL::URL const&);
+    CSS::ImageStyleValueResource& create_css_image_resource(GC::Ref<HTML::SharedResourceRequest>);
     void remove_css_image_resource_if_unused(URL::URL const&);
     void animate_css_image_resource(URL::URL const&);
     u64 active_css_image_animation_timer_count() const;
