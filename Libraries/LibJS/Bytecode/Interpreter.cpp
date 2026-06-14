@@ -6,53 +6,34 @@
  */
 
 #include <AK/Debug.h>
-#include <AK/HashTable.h>
-#include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
-#include <LibGC/ConservativeHashTable.h>
-#include <LibGC/RootHashMap.h>
-#include <LibGC/RootHashTable.h>
-#include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
-#include <LibJS/Bytecode/BasicBlock.h>
-#include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Debug.h>
 #include <LibJS/Bytecode/FormatOperand.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Op.h>
-#include <LibJS/Bytecode/PropertyAccess.h>
-#include <LibJS/Export.h>
 #include <LibJS/Runtime/AbstractOperations.h>
-#include <LibJS/Runtime/Accessor.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/AsyncFromSyncIterator.h>
-#include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
-#include <LibJS/Runtime/AsyncGenerator.h>
-#include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/ClassConstruction.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/FunctionEnvironment.h>
-#include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/GlobalObject.h>
-#include <LibJS/Runtime/Iterator.h>
-#include <LibJS/Runtime/ModuleEnvironment.h>
-#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/Reference.h>
-#include <LibJS/Runtime/RegExpObject.h>
-#include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/SourceTextModule.h>
-#include <math.h>
 
 namespace JS {
 
 using namespace Bytecode;
+
+extern "C" void asm_register_slow_path_stats();
+
+// Defined in generated assembly (asmint_x86_64.S or asmint_aarch64.S)
+extern "C" void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, VM* vm);
 
 bool Bytecode::g_dump_bytecode = false;
 
@@ -279,16 +260,6 @@ NEVER_INLINE void VM::unwind_inline_frame_for_exception()
     m_running_execution_context = caller_frame;
 }
 
-void VM::run_bytecode(size_t entry_point)
-{
-    if (vm().interpreter_stack().is_exhausted() || vm().did_reach_stack_space_limit()) [[unlikely]] {
-        reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).value();
-        return;
-    }
-
-    AsmInterpreter::run(*this, entry_point);
-}
-
 Utf16FlyString const& VM::get_identifier(IdentifierTableIndex index) const
 {
     return m_running_execution_context->executable->get_identifier(index);
@@ -327,7 +298,16 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
     if (reg(Register::this_value()).is_special_empty_value())
         reg(Register::this_value()) = context.this_value.value_or(js_special_empty_value());
 
-    run_bytecode(entry_point);
+    if (vm().interpreter_stack().is_exhausted() || vm().did_reach_stack_space_limit()) [[unlikely]] {
+        reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).value();
+    } else {
+        asm_register_slow_path_stats();
+
+        auto* bytecode = executable.bytecode.data();
+        auto* values = context.registers_and_constants_and_locals_and_arguments_span().data();
+
+        asm_interpreter_entry(bytecode, entry_point, values, this);
+    }
 
     dbgln_if(JS_BYTECODE_DEBUG, "VM did run bytecode unit {}", context.executable);
 

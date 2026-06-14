@@ -2738,7 +2738,7 @@ handler Call
     # The native threw. Hand the thrown Value off to a C++ helper, which
     # unwinds the callee frame off the interpreter stack and calls through
     # to VM::handle_exception. Return value follows the standard asm
-    # slow-path convention (see AsmInterpreter.cpp:127):
+    # slow-path convention:
     #   >= 0 : an enclosing handler was found; the result is the new
     #          program counter to resume at inside the (post-unwind)
     #          running execution context.
