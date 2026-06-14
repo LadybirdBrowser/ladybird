@@ -129,12 +129,12 @@ void DisplayingVideoSink::dispatch_state_if_changed(PipelineStatus status)
         m_on_state_changed(status);
 }
 
-DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
+DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 {
     if (m_input == nullptr)
         return DisplayingVideoSinkUpdateResult::NoChange;
 
-    auto current_time = m_time_reader.current_time();
+    auto current_time = m_time_reader.current_time(now);
     auto result = DisplayingVideoSinkUpdateResult::NoChange;
 
     auto last_status = PipelineStatus::Pending;

@@ -39,7 +39,7 @@ public:
 
     virtual void seek(AK::Duration timestamp) override;
 
-    [[nodiscard]] DisplayingVideoSinkUpdateResult update();
+    [[nodiscard]] DisplayingVideoSinkUpdateResult update(MonotonicTime now);
     RefPtr<VideoFrame> current_frame();
 
 private:
