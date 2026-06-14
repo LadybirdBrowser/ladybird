@@ -607,32 +607,34 @@ Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(VisualCont
     return point;
 }
 
-Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualContextIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state) const
+Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualContextIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
     auto rect = source_rect;
     for (size_t i = index.value();; i = m_nodes[i].parent_index.value()) {
         auto const& node = m_nodes[i];
-        node.data.visit(
-            [&](TransformData const& transform) {
-                auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
-                rect.translate_by(-transform.origin);
-                rect = affine.map(rect);
-                rect.translate_by(transform.origin);
-            },
-            [&](PerspectiveData const& perspective) {
-                auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
-                rect = affine.map(rect);
-            },
-            [&](ScrollData const& scroll) {
-                rect.translate_by(scroll_state.device_offset_for_index(scroll.scroll_frame_index));
-            },
-            [&](ScrollCompensation const& compensation) {
-                auto offset = scroll_state.device_offset_for_index(compensation.scroll_frame_index);
-                rect.translate_by(-offset);
-            },
-            [&](ClipData const&) { /* clips don't affect rect coordinates */ },
-            [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
-            [&](EffectsData const&) { /* effects don't affect rect coordinates */ });
+        if (i != VISUAL_VIEWPORT_NODE_INDEX.value() || include_visual_viewport_transform == IncludeVisualViewportTransform::Yes) {
+            node.data.visit(
+                [&](TransformData const& transform) {
+                    auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
+                    rect.translate_by(-transform.origin);
+                    rect = affine.map(rect);
+                    rect.translate_by(transform.origin);
+                },
+                [&](PerspectiveData const& perspective) {
+                    auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
+                    rect = affine.map(rect);
+                },
+                [&](ScrollData const& scroll) {
+                    rect.translate_by(scroll_state.device_offset_for_index(scroll.scroll_frame_index));
+                },
+                [&](ScrollCompensation const& compensation) {
+                    auto offset = scroll_state.device_offset_for_index(compensation.scroll_frame_index);
+                    rect.translate_by(-offset);
+                },
+                [&](ClipData const&) { /* clips don't affect rect coordinates */ },
+                [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
+                [&](EffectsData const&) { /* effects don't affect rect coordinates */ });
+        }
         if (i == VISUAL_VIEWPORT_NODE_INDEX.value())
             break;
     }

@@ -1,0 +1,11 @@
+visualViewport: 533.333x400.000 scale=1.500
+visualViewport offset: 33.328,33.328
+top-left target origin: 0.000,0.000
+top-left target size: 100.000x100.000
+top-left rootBounds origin: 0.000,0.000
+top-left rootBounds size: 800.000x600.000
+top-left intersectionRect origin: 0.000,0.000
+top-left intersectionRect size: 100.000x100.000
+top-left intersectionRatio: 1.000
+right target isIntersecting: PASS
+right target intersectionRatio: 1.000

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #target {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="target"></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        await animationFrame();
+
+        await new Promise(resolve => {
+            visualViewport.addEventListener("resize", resolve, { once: true });
+            internals.pinch(100, 100, 0.5);
+        });
+
+        const observer = new IntersectionObserver(entries => {
+            const rootBounds = entries[0].rootBounds;
+            const expectedWidth = innerWidth;
+            const expectedHeight = innerHeight;
+            const rootBoundsMatch = Math.abs(rootBounds.width - expectedWidth) < 0.01
+                && Math.abs(rootBounds.height - expectedHeight) < 0.01;
+            println(`visualViewport: ${visualViewport.width.toFixed(3)}x${visualViewport.height.toFixed(3)}`);
+            println(`rootBounds: ${rootBounds.width.toFixed(3)}x${rootBounds.height.toFixed(3)}`);
+            println(`rootBounds match layout viewport: ${rootBoundsMatch ? "PASS" : "FAIL"}`);
+            observer.disconnect();
+            done();
+        });
+        observer.observe(document.getElementById("target"));
+    });
+</script>

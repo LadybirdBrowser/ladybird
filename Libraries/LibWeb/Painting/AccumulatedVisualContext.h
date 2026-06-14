@@ -93,6 +93,11 @@ struct AccumulatedVisualContextNode {
 
 class AccumulatedVisualContextTree {
 public:
+    enum class IncludeVisualViewportTransform {
+        No,
+        Yes,
+    };
+
     static AccumulatedVisualContextTree create();
     static AccumulatedVisualContextTree create(TransformData visual_viewport_transform);
 
@@ -113,7 +118,7 @@ public:
     VisualContextIndex find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const;
     Optional<Gfx::FloatPoint> transform_point_for_hit_test(VisualContextIndex, Gfx::FloatPoint, ScrollStateSnapshot const&) const;
     Gfx::FloatPoint inverse_transform_point(VisualContextIndex, Gfx::FloatPoint) const;
-    Gfx::FloatRect transform_rect_to_viewport(VisualContextIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&) const;
+    Gfx::FloatRect transform_rect_to_viewport(VisualContextIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&, IncludeVisualViewportTransform = IncludeVisualViewportTransform::Yes) const;
     void dump(VisualContextIndex, StringBuilder&) const;
 
     bool has_empty_effective_clip(VisualContextIndex i) const { return m_nodes[i.value()].has_empty_effective_clip; }
