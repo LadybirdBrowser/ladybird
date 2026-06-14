@@ -9,12 +9,20 @@
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/PropertyAccess.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
+#include <LibJS/Runtime/AsyncGenerator.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
+#include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/PrivateEnvironment.h>
 #include <LibJS/Runtime/Reference.h>
+#include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
@@ -219,6 +227,9 @@ i64 asm_slow_path_get_by_id(VM*, u32 pc);
 i64 asm_slow_path_put_by_id(VM*, u32 pc);
 i64 asm_slow_path_get_by_value(VM*, u32 pc);
 i64 asm_slow_path_get_length(VM*, u32 pc);
+i64 asm_slow_path_get_import_meta(VM*, u32 pc);
+i64 asm_slow_path_get_new_target(VM*, u32 pc);
+i64 asm_slow_path_get_super_constructor(VM*, u32 pc);
 i64 asm_try_get_global_env_binding(VM*, u32 pc);
 i64 asm_try_set_global_env_binding(VM*, u32 pc);
 i64 asm_slow_path_get_global(VM*, u32 pc);
@@ -232,9 +243,14 @@ i64 asm_slow_path_get_object_property_iterator(VM*, u32 pc);
 i64 asm_slow_path_object_property_iterator_next(VM*, u32 pc);
 i64 asm_slow_path_call_construct(VM*, u32 pc);
 i64 asm_slow_path_new_object(VM*, u32 pc);
+i64 asm_slow_path_new_object_with_no_prototype(VM*, u32 pc);
 i64 asm_slow_path_cache_object_shape(VM*, u32 pc);
 i64 asm_slow_path_init_object_literal_property(VM*, u32 pc);
 i64 asm_slow_path_new_array(VM*, u32 pc);
+i64 asm_slow_path_new_primitive_array(VM*, u32 pc);
+i64 asm_slow_path_new_regexp(VM*, u32 pc);
+i64 asm_slow_path_new_reference_error(VM*, u32 pc);
+i64 asm_slow_path_new_type_error(VM*, u32 pc);
 i64 asm_slow_path_bitwise_xor(VM*, u32 pc);
 i64 asm_slow_path_bitwise_and(VM*, u32 pc);
 i64 asm_slow_path_bitwise_or(VM*, u32 pc);
@@ -245,6 +261,7 @@ i64 asm_slow_path_mod(VM*, u32 pc);
 i64 asm_slow_path_strictly_equals(VM*, u32 pc);
 i64 asm_slow_path_strictly_inequals(VM*, u32 pc);
 i64 asm_slow_path_unary_minus(VM*, u32 pc);
+i64 asm_slow_path_typeof(VM*, u32 pc);
 i64 asm_slow_path_postfix_decrement(VM*, u32 pc);
 i64 asm_slow_path_to_int32(VM*, u32 pc);
 i64 asm_slow_path_put_by_value(VM*, u32 pc);
@@ -272,6 +289,20 @@ i64 asm_slow_path_dynamic_set_lexical_binding(VM*, u32 pc);
 i64 asm_slow_path_dynamic_set_variable_binding(VM*, u32 pc);
 i64 asm_slow_path_bitwise_not(VM*, u32 pc);
 i64 asm_slow_path_unary_plus(VM*, u32 pc);
+i64 asm_slow_path_is_callable(VM*, u32 pc);
+i64 asm_slow_path_is_constructor(VM*, u32 pc);
+i64 asm_slow_path_add_private_name(VM*, u32 pc);
+i64 asm_slow_path_create_async_from_sync_iterator(VM*, u32 pc);
+i64 asm_slow_path_create_rest_params(VM*, u32 pc);
+i64 asm_slow_path_create_arguments(VM*, u32 pc);
+i64 asm_slow_path_create_lexical_environment(VM*, u32 pc);
+i64 asm_slow_path_create_private_environment(VM*, u32 pc);
+i64 asm_slow_path_create_variable_environment(VM*, u32 pc);
+i64 asm_slow_path_get_completion_fields(VM*, u32 pc);
+i64 asm_slow_path_set_completion_type(VM*, u32 pc);
+i64 asm_slow_path_get_template_object(VM*, u32 pc);
+i64 asm_slow_path_new_function(VM*, u32 pc);
+i64 asm_slow_path_leave_private_environment(VM*, u32 pc);
 i64 asm_slow_path_throw_if_tdz(VM*, u32 pc);
 i64 asm_slow_path_throw_if_not_object(VM*, u32 pc);
 i64 asm_slow_path_throw_if_nullish(VM*, u32 pc);
@@ -319,58 +350,6 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
         typed.execute_impl(*vm);
         return -1;
     }
-
-    // Non-throwing instructions
-    case Instruction::Type::AddPrivateName:
-        return execute_nonthrowing<Op::AddPrivateName>(*vm, pc);
-    case Instruction::Type::Catch:
-        return execute_nonthrowing<Op::Catch>(*vm, pc);
-    case Instruction::Type::CreateAsyncFromSyncIterator:
-        return execute_nonthrowing<Op::CreateAsyncFromSyncIterator>(*vm, pc);
-    case Instruction::Type::CreateLexicalEnvironment:
-        return execute_nonthrowing<Op::CreateLexicalEnvironment>(*vm, pc);
-    case Instruction::Type::CreateVariableEnvironment:
-        return execute_nonthrowing<Op::CreateVariableEnvironment>(*vm, pc);
-    case Instruction::Type::CreatePrivateEnvironment:
-        return execute_nonthrowing<Op::CreatePrivateEnvironment>(*vm, pc);
-    case Instruction::Type::CreateRestParams:
-        return execute_nonthrowing<Op::CreateRestParams>(*vm, pc);
-    case Instruction::Type::CreateArguments:
-        return execute_nonthrowing<Op::CreateArguments>(*vm, pc);
-    case Instruction::Type::GetCompletionFields:
-        return execute_nonthrowing<Op::GetCompletionFields>(*vm, pc);
-    case Instruction::Type::GetImportMeta:
-        return execute_nonthrowing<Op::GetImportMeta>(*vm, pc);
-    case Instruction::Type::GetNewTarget:
-        return execute_nonthrowing<Op::GetNewTarget>(*vm, pc);
-    case Instruction::Type::GetSuperConstructor:
-        return execute_nonthrowing<Op::GetSuperConstructor>(*vm, pc);
-    case Instruction::Type::GetTemplateObject:
-        return execute_nonthrowing<Op::GetTemplateObject>(*vm, pc);
-    case Instruction::Type::IsCallable:
-        return execute_nonthrowing<Op::IsCallable>(*vm, pc);
-    case Instruction::Type::IsConstructor:
-        return execute_nonthrowing<Op::IsConstructor>(*vm, pc);
-    case Instruction::Type::LeavePrivateEnvironment:
-        return execute_nonthrowing<Op::LeavePrivateEnvironment>(*vm, pc);
-    case Instruction::Type::NewFunction:
-        return execute_nonthrowing<Op::NewFunction>(*vm, pc);
-    case Instruction::Type::NewObjectWithNoPrototype:
-        return execute_nonthrowing<Op::NewObjectWithNoPrototype>(*vm, pc);
-    case Instruction::Type::NewPrimitiveArray:
-        return execute_nonthrowing<Op::NewPrimitiveArray>(*vm, pc);
-    case Instruction::Type::NewRegExp:
-        return execute_nonthrowing<Op::NewRegExp>(*vm, pc);
-    case Instruction::Type::NewReferenceError:
-        return execute_nonthrowing<Op::NewReferenceError>(*vm, pc);
-    case Instruction::Type::NewTypeError:
-        return execute_nonthrowing<Op::NewTypeError>(*vm, pc);
-    case Instruction::Type::SetCompletionType:
-        return execute_nonthrowing<Op::SetCompletionType>(*vm, pc);
-    case Instruction::Type::ToBoolean:
-        return execute_nonthrowing<Op::ToBoolean>(*vm, pc);
-    case Instruction::Type::Typeof:
-        return execute_nonthrowing<Op::Typeof>(*vm, pc);
 
     // Throwing instructions
     case Instruction::Type::ArrayAppend:
@@ -667,6 +646,34 @@ i64 asm_slow_path_get_length(VM* vm, u32 pc)
     return slow_path_throwing<Op::GetLength>(*vm, pc);
 }
 
+i64 asm_slow_path_get_import_meta(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetImportMeta const*>(&bytecode[pc]);
+    vm->set(insn.dst(), vm->get_import_meta());
+    return static_cast<i64>(pc + sizeof(Op::GetImportMeta));
+}
+
+i64 asm_slow_path_get_new_target(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetNewTarget const*>(&bytecode[pc]);
+    vm->set(insn.dst(), vm->get_new_target());
+    return static_cast<i64>(pc + sizeof(Op::GetNewTarget));
+}
+
+i64 asm_slow_path_get_super_constructor(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetSuperConstructor const*>(&bytecode[pc]);
+    auto* super_constructor = get_super_constructor(*vm);
+    vm->set(insn.dst(), super_constructor ? Value(super_constructor) : js_null());
+    return static_cast<i64>(pc + sizeof(Op::GetSuperConstructor));
+}
+
 i64 asm_try_get_global_env_binding(VM* vm, u32 pc)
 {
     auto* bytecode = vm->current_executable().bytecode.data();
@@ -760,6 +767,16 @@ i64 asm_slow_path_new_object(VM* vm, u32 pc)
     return slow_path_nonthrowing<Op::NewObject>(*vm, pc);
 }
 
+i64 asm_slow_path_new_object_with_no_prototype(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::NewObjectWithNoPrototype const*>(&bytecode[pc]);
+    auto& realm = *vm->current_realm();
+    vm->set(insn.dst(), Object::create(realm, nullptr));
+    return static_cast<i64>(pc + sizeof(Op::NewObjectWithNoPrototype));
+}
+
 i64 asm_slow_path_cache_object_shape(VM* vm, u32 pc)
 {
     return slow_path_nonthrowing<Op::CacheObjectShape>(*vm, pc);
@@ -777,6 +794,54 @@ i64 asm_slow_path_new_array(VM* vm, u32 pc)
     auto& typed = *reinterpret_cast<Op::NewArray const*>(&bytecode[pc]);
     typed.execute_impl(*vm);
     return static_cast<i64>(pc + typed.length());
+}
+
+i64 asm_slow_path_new_primitive_array(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::NewPrimitiveArray const*>(&bytecode[pc]);
+    auto array = MUST(JS::Array::create(vm->realm(), insn.element_count()));
+    for (size_t i = 0; i < insn.element_count(); ++i)
+        array->indexed_put(i, insn.elements()[i]);
+    vm->set(insn.dst(), array);
+    return static_cast<i64>(pc + insn.length());
+}
+
+i64 asm_slow_path_new_regexp(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::NewRegExp const*>(&bytecode[pc]);
+    auto& realm = *vm->current_realm();
+    auto regexp_object = RegExpObject::create(
+        realm,
+        vm->current_executable().get_string(insn.source_index()),
+        vm->current_executable().get_string(insn.flags_index()));
+    regexp_object->set_realm(realm);
+    regexp_object->set_legacy_features_enabled(true);
+    vm->set(insn.dst(), regexp_object);
+    return static_cast<i64>(pc + sizeof(Op::NewRegExp));
+}
+
+i64 asm_slow_path_new_reference_error(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::NewReferenceError const*>(&bytecode[pc]);
+    auto& realm = *vm->current_realm();
+    vm->set(insn.dst(), ReferenceError::create(realm, vm->current_executable().get_string(insn.error_string())));
+    return static_cast<i64>(pc + sizeof(Op::NewReferenceError));
+}
+
+i64 asm_slow_path_new_type_error(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::NewTypeError const*>(&bytecode[pc]);
+    auto& realm = *vm->current_realm();
+    vm->set(insn.dst(), TypeError::create(realm, vm->current_executable().get_string(insn.error_string())));
+    return static_cast<i64>(pc + sizeof(Op::NewTypeError));
 }
 
 i64 asm_slow_path_bitwise_xor(VM* vm, u32 pc)
@@ -827,6 +892,15 @@ i64 asm_slow_path_strictly_inequals(VM* vm, u32 pc)
 i64 asm_slow_path_unary_minus(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::UnaryMinus>(*vm, pc);
+}
+
+i64 asm_slow_path_typeof(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Typeof const*>(&bytecode[pc]);
+    vm->set(insn.dst(), vm->get(insn.src()).typeof_(*vm));
+    return static_cast<i64>(pc + sizeof(Op::Typeof));
 }
 
 i64 asm_slow_path_postfix_decrement(VM* vm, u32 pc)
@@ -1060,6 +1134,253 @@ i64 asm_slow_path_bitwise_not(VM* vm, u32 pc)
 i64 asm_slow_path_unary_plus(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::UnaryPlus>(*vm, pc);
+}
+
+i64 asm_slow_path_is_callable(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::IsCallable const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value(vm->get(insn.value()).is_function()));
+    return static_cast<i64>(pc + sizeof(Op::IsCallable));
+}
+
+i64 asm_slow_path_is_constructor(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::IsConstructor const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value(vm->get(insn.value()).is_constructor()));
+    return static_cast<i64>(pc + sizeof(Op::IsConstructor));
+}
+
+i64 asm_slow_path_add_private_name(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::AddPrivateName const*>(&bytecode[pc]);
+    auto const& name = vm->get_identifier(insn.name());
+    vm->running_execution_context().private_environment->add_private_name(name);
+    return static_cast<i64>(pc + sizeof(Op::AddPrivateName));
+}
+
+i64 asm_slow_path_create_async_from_sync_iterator(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CreateAsyncFromSyncIterator const*>(&bytecode[pc]);
+    auto& realm = vm->realm();
+
+    auto& iterator = vm->get(insn.iterator()).as_object();
+    auto next_method = vm->get(insn.next_method());
+    auto done = vm->get(insn.done()).as_bool();
+
+    auto iterator_record = realm.create<IteratorRecord>(iterator, next_method, done);
+    auto async_from_sync_iterator = create_async_from_sync_iterator(*vm, iterator_record);
+
+    auto iterator_object = Object::create(realm, nullptr);
+    iterator_object->define_direct_property(vm->names.iterator, async_from_sync_iterator.iterator, default_attributes);
+    iterator_object->define_direct_property(vm->names.nextMethod, async_from_sync_iterator.next_method, default_attributes);
+    iterator_object->define_direct_property(vm->names.done, Value { async_from_sync_iterator.done }, default_attributes);
+
+    vm->set(insn.dst(), iterator_object);
+    return static_cast<i64>(pc + sizeof(Op::CreateAsyncFromSyncIterator));
+}
+
+i64 asm_slow_path_create_rest_params(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CreateRestParams const*>(&bytecode[pc]);
+    auto const arguments = vm->running_execution_context().arguments_span();
+    auto arguments_count = vm->running_execution_context().passed_argument_count;
+    auto array = MUST(JS::Array::create(vm->realm(), 0));
+    for (size_t rest_index = insn.rest_index(); rest_index < arguments_count; ++rest_index)
+        array->indexed_append(arguments[rest_index]);
+    vm->set(insn.dst(), array);
+    return static_cast<i64>(pc + sizeof(Op::CreateRestParams));
+}
+
+i64 asm_slow_path_create_arguments(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CreateArguments const*>(&bytecode[pc]);
+    auto const& function = vm->running_execution_context().function;
+    auto const arguments = vm->running_execution_context().arguments_span();
+    auto const& environment = vm->running_execution_context().lexical_environment;
+
+    auto passed_arguments = ReadonlySpan<Value> { arguments.data(), vm->running_execution_context().passed_argument_count };
+    Object* arguments_object;
+    if (insn.kind() == Op::ArgumentsKind::Mapped) {
+        auto const& ecma_function = static_cast<ECMAScriptFunctionObject const&>(*function);
+        arguments_object = create_mapped_arguments_object(*vm, *function, ecma_function.parameter_names_for_mapped_arguments(), passed_arguments, *environment);
+    } else {
+        arguments_object = create_unmapped_arguments_object(*vm, passed_arguments);
+    }
+
+    if (insn.dst().has_value()) {
+        vm->set(*insn.dst(), arguments_object);
+        return static_cast<i64>(pc + sizeof(Op::CreateArguments));
+    }
+
+    if (insn.is_immutable()) {
+        MUST(environment->create_immutable_binding(*vm, vm->names.arguments.as_string(), false));
+    } else {
+        MUST(environment->create_mutable_binding(*vm, vm->names.arguments.as_string(), false));
+    }
+    MUST(environment->initialize_binding(*vm, vm->names.arguments.as_string(), arguments_object, Environment::InitializeBindingHint::Normal));
+    return static_cast<i64>(pc + sizeof(Op::CreateArguments));
+}
+
+i64 asm_slow_path_create_lexical_environment(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CreateLexicalEnvironment const*>(&bytecode[pc]);
+    auto& parent = as<Environment>(vm->get(insn.parent()).as_cell());
+    auto environment = new_declarative_environment(parent);
+    environment->ensure_capacity(insn.capacity());
+    environment->set_is_catch_environment(insn.is_catch_environment());
+    vm->set(insn.dst(), environment);
+    vm->running_execution_context().lexical_environment = environment;
+    return static_cast<i64>(pc + sizeof(Op::CreateLexicalEnvironment));
+}
+
+i64 asm_slow_path_create_private_environment(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto& running_execution_context = vm->running_execution_context();
+    auto outer_private_environment = running_execution_context.private_environment;
+    running_execution_context.private_environment = new_private_environment(*vm, outer_private_environment);
+    return static_cast<i64>(pc + sizeof(Op::CreatePrivateEnvironment));
+}
+
+i64 asm_slow_path_create_variable_environment(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CreateVariableEnvironment const*>(&bytecode[pc]);
+    auto& running_execution_context = vm->running_execution_context();
+    auto var_environment = new_declarative_environment(*running_execution_context.lexical_environment);
+    if (auto* shared_data = vm->active_shared_function_data(); shared_data && insn.capacity() == shared_data->m_var_environment_bindings_count)
+        var_environment->set_environment_shape_cache(shared_data->m_var_environment_shape, insn.capacity());
+    var_environment->ensure_capacity(insn.capacity());
+    running_execution_context.variable_environment = var_environment;
+    running_execution_context.lexical_environment = var_environment;
+    return static_cast<i64>(pc + sizeof(Op::CreateVariableEnvironment));
+}
+
+i64 asm_slow_path_get_completion_fields(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetCompletionFields const*>(&bytecode[pc]);
+    auto& completion_source = vm->get(insn.completion()).as_object();
+    if (is<GeneratorObject>(completion_source)) {
+        auto const& generator = as<GeneratorObject>(completion_source);
+        vm->set(insn.value_dst(), generator.pending_completion_value());
+        vm->set(insn.type_dst(), Value(to_underlying(generator.pending_completion_type())));
+        return static_cast<i64>(pc + sizeof(Op::GetCompletionFields));
+    }
+
+    auto const& async_generator = as<AsyncGenerator>(completion_source);
+    vm->set(insn.value_dst(), async_generator.pending_completion_value());
+    vm->set(insn.type_dst(), Value(to_underlying(async_generator.pending_completion_type())));
+    return static_cast<i64>(pc + sizeof(Op::GetCompletionFields));
+}
+
+i64 asm_slow_path_set_completion_type(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::SetCompletionType const*>(&bytecode[pc]);
+    auto& completion_source = vm->get(insn.completion()).as_object();
+    if (is<GeneratorObject>(completion_source)) {
+        as<GeneratorObject>(completion_source).set_pending_completion_type(insn.completion_type());
+        return static_cast<i64>(pc + sizeof(Op::SetCompletionType));
+    }
+
+    as<AsyncGenerator>(completion_source).set_pending_completion_type(insn.completion_type());
+    return static_cast<i64>(pc + sizeof(Op::SetCompletionType));
+}
+
+i64 asm_slow_path_get_template_object(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetTemplateObject const*>(&bytecode[pc]);
+    auto& cache = *vm->current_executable().template_object_caches[insn.cache()];
+
+    if (cache.cached_template_object) {
+        vm->set(insn.dst(), cache.cached_template_object);
+        return static_cast<i64>(pc + insn.length());
+    }
+
+    auto& realm = *vm->current_realm();
+    auto strings = insn.strings();
+    u32 count = insn.strings_count() / 2;
+    auto template_object = MUST(JS::Array::create(realm, count));
+    auto raw_object = MUST(JS::Array::create(realm, count));
+
+    for (size_t index = 0; index < count; ++index) {
+        template_object->indexed_put(index, vm->get(strings[index]), Attribute::Enumerable);
+        raw_object->indexed_put(index, vm->get(strings[count + index]), Attribute::Enumerable);
+    }
+
+    MUST(raw_object->set_integrity_level(Object::IntegrityLevel::Frozen));
+    template_object->define_direct_property(vm->names.raw, raw_object, PropertyAttributes {});
+    MUST(template_object->set_integrity_level(Object::IntegrityLevel::Frozen));
+
+    cache.cached_template_object = template_object;
+    vm->set(insn.dst(), template_object);
+    return static_cast<i64>(pc + insn.length());
+}
+
+i64 asm_slow_path_new_function(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::NewFunction const*>(&bytecode[pc]);
+    auto& shared_data = *vm->current_executable().shared_function_data[insn.shared_function_data_index()];
+    auto& realm = *vm->current_realm();
+
+    GC::Ref<Object> prototype = [&]() -> GC::Ref<Object> {
+        switch (shared_data.m_kind) {
+        case FunctionKind::Normal:
+            return realm.intrinsics().function_prototype();
+        case FunctionKind::Generator:
+            return realm.intrinsics().generator_function_prototype();
+        case FunctionKind::Async:
+            return realm.intrinsics().async_function_prototype();
+        case FunctionKind::AsyncGenerator:
+            return realm.intrinsics().async_generator_function_prototype();
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    auto function = ECMAScriptFunctionObject::create_from_function_data(
+        realm,
+        shared_data,
+        vm->lexical_environment(),
+        vm->running_execution_context().private_environment,
+        *prototype);
+
+    if (insn.home_object().has_value()) {
+        auto home_object_value = vm->get(insn.home_object().value());
+        function->make_method(home_object_value.as_object());
+    }
+
+    vm->set(insn.dst(), function);
+    return static_cast<i64>(pc + sizeof(Op::NewFunction));
+}
+
+i64 asm_slow_path_leave_private_environment(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto& running_execution_context = vm->running_execution_context();
+    running_execution_context.private_environment = running_execution_context.private_environment->outer_environment();
+    return static_cast<i64>(pc + sizeof(Op::LeavePrivateEnvironment));
 }
 
 i64 asm_slow_path_throw_if_tdz(VM* vm, u32 pc)

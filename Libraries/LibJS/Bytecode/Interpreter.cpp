@@ -745,39 +745,6 @@ inline ThrowCompletionOr<void> throw_if_needed_for_call(VM& vm, Value callee, Op
     return {};
 }
 
-inline Value new_function(VM& vm, u32 shared_function_data_index, Optional<Operand> const home_object)
-{
-    auto& shared_data = *vm.current_executable().shared_function_data[shared_function_data_index];
-    auto& realm = *vm.current_realm();
-
-    GC::Ref<Object> prototype = [&]() -> GC::Ref<Object> {
-        switch (shared_data.m_kind) {
-        case FunctionKind::Normal:
-            return realm.intrinsics().function_prototype();
-        case FunctionKind::Generator:
-            return realm.intrinsics().generator_function_prototype();
-        case FunctionKind::Async:
-            return realm.intrinsics().async_function_prototype();
-        case FunctionKind::AsyncGenerator:
-            return realm.intrinsics().async_generator_function_prototype();
-        }
-        VERIFY_NOT_REACHED();
-    }();
-
-    auto function = ECMAScriptFunctionObject::create_from_function_data(
-        realm, shared_data,
-        vm.lexical_environment(),
-        vm.running_execution_context().private_environment,
-        *prototype);
-
-    if (home_object.has_value()) {
-        auto home_object_value = vm.get(home_object.value());
-        function->make_method(home_object_value.as_object());
-    }
-
-    return function;
-}
-
 inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const base_identifier, Value property_key_value, Value value, PutKind kind, Strict strict)
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
@@ -988,24 +955,6 @@ inline ThrowCompletionOr<CalleeAndThis> dynamically_get_callee_and_this_from_env
         .callee = callee,
         .this_value = this_value,
     };
-}
-
-// 13.2.7.3 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-regular-expression-literals-runtime-semantics-evaluation
-inline Value new_regexp(VM& vm, Utf16String pattern, Utf16String flags)
-{
-    // 1. Let pattern be CodePointsToString(BodyText of RegularExpressionLiteral).
-    // 2. Let flags be CodePointsToString(FlagText of RegularExpressionLiteral).
-
-    // 3. Return ! RegExpCreate(pattern, flags).
-    auto& realm = *vm.current_realm();
-    // NOTE: We bypass RegExpCreate and subsequently RegExpAlloc as an optimization to use the already parsed values.
-    auto regexp_object = RegExpObject::create(realm, move(pattern), move(flags));
-    // RegExpAlloc has these two steps from the 'Legacy RegExp features' proposal.
-    regexp_object->set_realm(realm);
-    // We don't need to check 'If SameValue(newTarget, thisRealm.[[Intrinsics]].[[%RegExp%]]) is true'
-    // here as we know RegExpCreate calls RegExpAlloc with %RegExp% for newTarget.
-    regexp_object->set_legacy_features_enabled(true);
-    return regexp_object;
 }
 
 inline ThrowCompletionOr<void> create_variable(VM& vm, Utf16FlyString const& name, Op::EnvironmentMode mode, bool is_global, bool is_immutable, bool is_strict)
@@ -1707,11 +1656,6 @@ ThrowCompletionOr<void> GreaterThanEquals::execute_impl(VM& vm) const
     return {};
 }
 
-void Typeof::execute_impl(VM& vm) const
-{
-    vm.set(dst(), vm.get(src()).typeof_(vm));
-}
-
 void Not::execute_impl(VM& vm) const
 {
     vm.set(dst(), Value(!vm.get(src()).to_boolean()));
@@ -1735,94 +1679,12 @@ void NewArray::execute_impl(VM& vm) const
     vm.set(dst(), array);
 }
 
-void NewPrimitiveArray::execute_impl(VM& vm) const
-{
-    auto array = MUST(Array::create(vm.realm(), m_element_count));
-    for (size_t i = 0; i < m_element_count; i++)
-        array->indexed_put(i, m_elements[i]);
-    vm.set(dst(), array);
-}
-
-// 13.2.8.4 GetTemplateObject ( templateLiteral ), https://tc39.es/ecma262/#sec-gettemplateobject
-void GetTemplateObject::execute_impl(VM& vm) const
-{
-    auto& cache = *vm.current_executable().template_object_caches[m_cache];
-
-    // 1. Let realm be the current Realm Record.
-    auto& realm = *vm.current_realm();
-
-    // 2. Let templateRegistry be realm.[[TemplateMap]].
-    // 3. For each element e of templateRegistry, do
-    //    a. If e.[[Site]] is the same Parse Node as templateLiteral, then
-    //       i. Return e.[[Array]].
-    if (cache.cached_template_object) {
-        vm.set(dst(), cache.cached_template_object);
-        return;
-    }
-
-    // 4. Let rawStrings be the TemplateStrings of templateLiteral with argument true.
-    // 5. Assert: rawStrings is a List of Strings.
-    // 6. Let cookedStrings be the TemplateStrings of templateLiteral with argument false.
-    // NOTE: This has already been done.
-
-    // 7. Let count be the number of elements in the List cookedStrings.
-    // NOTE: m_strings contains [cooked_0, ..., cooked_n, raw_0, ..., raw_n]
-    // 8. Assert: count ≤ 2**32 - 1.
-    // NOTE: Done by having count be a u32.
-    u32 count = m_strings_count / 2;
-
-    // 9. Let template be ! ArrayCreate(count).
-    auto template_object = MUST(Array::create(realm, count));
-
-    // 10. Let rawObj be ! ArrayCreate(count).
-    auto raw_object = MUST(Array::create(realm, count));
-
-    // 12. Repeat, while index < count,
-    for (size_t index = 0; index < count; index++) {
-        // a. Let prop be ! ToString(𝔽(index)).
-        // b. Let cookedValue be cookedStrings[index].
-        auto cooked_value = vm.get(m_strings[index]);
-
-        // c. Perform ! DefinePropertyOrThrow(template, prop, PropertyDescriptor { [[Value]]: cookedValue, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }).
-        template_object->indexed_put(index, cooked_value, Attribute::Enumerable);
-
-        // d. Let rawValue be the String value rawStrings[index].
-        auto raw_value = vm.get(m_strings[count + index]);
-
-        // e. Perform ! DefinePropertyOrThrow(rawObj, prop, PropertyDescriptor { [[Value]]: rawValue, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }).
-        raw_object->indexed_put(index, raw_value, Attribute::Enumerable);
-
-        // f. Set index to index + 1.
-    }
-
-    // 13. Perform ! SetIntegrityLevel(rawObj, FROZEN).
-    MUST(raw_object->set_integrity_level(Object::IntegrityLevel::Frozen));
-
-    // 14. Perform ! DefinePropertyOrThrow(template, "raw", PropertyDescriptor { [[Value]]: rawObj, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
-    template_object->define_direct_property(vm.names.raw, raw_object, PropertyAttributes {});
-
-    // 15. Perform ! SetIntegrityLevel(template, FROZEN).
-    MUST(template_object->set_integrity_level(Object::IntegrityLevel::Frozen));
-
-    // 16. Append the Record { [[Site]]: templateLiteral, [[Array]]: template } to realm.[[TemplateMap]].
-    cache.cached_template_object = template_object;
-
-    // 17. Return template.
-    vm.set(dst(), template_object);
-}
-
 ThrowCompletionOr<void> NewArrayWithLength::execute_impl(VM& vm) const
 {
     auto length = static_cast<u64>(vm.get(m_array_length).as_double());
     auto array = TRY(Array::create(vm.realm(), length));
     vm.set(m_dst, array);
     return {};
-}
-
-void AddPrivateName::execute_impl(VM& vm) const
-{
-    auto const& name = vm.get_identifier(m_name);
-    vm.running_execution_context().private_environment->add_private_name(name);
 }
 
 ThrowCompletionOr<void> ArrayAppend::execute_impl(VM& vm) const
@@ -1880,12 +1742,6 @@ void NewObject::execute_impl(VM& vm) const
     vm.set(dst(), Object::create(realm, realm.intrinsics().object_prototype()));
 }
 
-void NewObjectWithNoPrototype::execute_impl(VM& vm) const
-{
-    auto& realm = *vm.current_realm();
-    vm.set(dst(), Object::create(realm, nullptr));
-}
-
 void CacheObjectShape::execute_impl(VM& vm) const
 {
     auto& cache = vm.current_executable().object_shape_caches[m_cache];
@@ -1928,27 +1784,6 @@ void InitObjectLiteralProperty::execute_impl(VM& vm) const
 
     auto const& property_key = vm.current_executable().get_property_key(m_property);
     init_object_literal_property_slow(object, property_key, value, cache, m_property_slot);
-}
-
-void NewRegExp::execute_impl(VM& vm) const
-{
-    vm.set(dst(),
-        new_regexp(
-            vm,
-            vm.current_executable().get_string(m_source_index),
-            vm.current_executable().get_string(m_flags_index)));
-}
-
-COLD void NewReferenceError::execute_impl(VM& vm) const
-{
-    auto& realm = *vm.current_realm();
-    vm.set(dst(), ReferenceError::create(realm, vm.current_executable().get_string(m_error_string)));
-}
-
-COLD void NewTypeError::execute_impl(VM& vm) const
-{
-    auto& realm = *vm.current_realm();
-    vm.set(dst(), TypeError::create(realm, vm.current_executable().get_string(m_error_string)));
 }
 
 ThrowCompletionOr<void> CopyObjectExcludingProperties::execute_impl(VM& vm) const
@@ -2178,34 +2013,6 @@ COLD ThrowCompletionOr<void> DeleteVariable::execute_impl(VM& vm) const
     return {};
 }
 
-void CreateLexicalEnvironment::execute_impl(VM& vm) const
-{
-    auto& parent = as<Environment>(vm.get(m_parent).as_cell());
-    auto environment = new_declarative_environment(parent);
-    environment->ensure_capacity(m_capacity);
-    environment->set_is_catch_environment(m_is_catch_environment);
-    vm.set(m_dst, environment);
-    vm.running_execution_context().lexical_environment = environment;
-}
-
-void CreatePrivateEnvironment::execute_impl(VM& vm) const
-{
-    auto& running_execution_context = vm.running_execution_context();
-    auto outer_private_environment = running_execution_context.private_environment;
-    running_execution_context.private_environment = new_private_environment(vm, outer_private_environment);
-}
-
-void CreateVariableEnvironment::execute_impl(VM& vm) const
-{
-    auto& running_execution_context = vm.running_execution_context();
-    auto var_environment = new_declarative_environment(*running_execution_context.lexical_environment);
-    if (auto* shared_data = vm.active_shared_function_data(); shared_data && m_capacity == shared_data->m_var_environment_bindings_count)
-        var_environment->set_environment_shape_cache(shared_data->m_var_environment_shape, m_capacity);
-    var_environment->ensure_capacity(m_capacity);
-    running_execution_context.variable_environment = var_environment;
-    running_execution_context.lexical_environment = var_environment;
-}
-
 COLD ThrowCompletionOr<void> EnterObjectEnvironment::execute_impl(VM& vm) const
 {
     auto object = TRY(vm.get(m_object).to_object(vm));
@@ -2216,53 +2023,10 @@ COLD ThrowCompletionOr<void> EnterObjectEnvironment::execute_impl(VM& vm) const
     return {};
 }
 
-COLD void Catch::execute_impl(VM& vm) const
-{
-    vm.catch_exception(dst());
-}
-
 ThrowCompletionOr<void> CreateVariable::execute_impl(VM& vm) const
 {
     auto const& name = vm.get_identifier(m_identifier);
     return create_variable(vm, name, m_mode, m_is_global, m_is_immutable, m_is_strict);
-}
-
-void CreateRestParams::execute_impl(VM& vm) const
-{
-    auto const arguments = vm.running_execution_context().arguments_span();
-    auto arguments_count = vm.running_execution_context().passed_argument_count;
-    auto array = MUST(Array::create(vm.realm(), 0));
-    for (size_t rest_index = m_rest_index; rest_index < arguments_count; ++rest_index)
-        array->indexed_append(arguments[rest_index]);
-    vm.set(m_dst, array);
-}
-
-void CreateArguments::execute_impl(VM& vm) const
-{
-    auto const& function = vm.running_execution_context().function;
-    auto const arguments = vm.running_execution_context().arguments_span();
-    auto const& environment = vm.running_execution_context().lexical_environment;
-
-    auto passed_arguments = ReadonlySpan<Value> { arguments.data(), vm.running_execution_context().passed_argument_count };
-    Object* arguments_object;
-    if (m_kind == ArgumentsKind::Mapped) {
-        auto const& ecma_function = static_cast<ECMAScriptFunctionObject const&>(*function);
-        arguments_object = create_mapped_arguments_object(vm, *function, ecma_function.parameter_names_for_mapped_arguments(), passed_arguments, *environment);
-    } else {
-        arguments_object = create_unmapped_arguments_object(vm, passed_arguments);
-    }
-
-    if (m_dst.has_value()) {
-        vm.set(*m_dst, arguments_object);
-        return;
-    }
-
-    if (m_is_immutable) {
-        MUST(environment->create_immutable_binding(vm, vm.names.arguments.as_string(), false));
-    } else {
-        MUST(environment->create_mutable_binding(vm, vm.names.arguments.as_string(), false));
-    }
-    MUST(environment->initialize_binding(vm, vm.names.arguments.as_string(), arguments_object, Environment::InitializeBindingHint::Normal));
 }
 
 template<EnvironmentMode environment_mode, BindingInitializationMode initialization_mode>
@@ -2520,23 +2284,6 @@ ThrowCompletionOr<void> ResolveSuperBase::execute_impl(VM& vm) const
     vm.set(dst(), TRY(env.get_super_base()));
 
     return {};
-}
-
-void GetNewTarget::execute_impl(VM& vm) const
-{
-    vm.set(dst(), vm.get_new_target());
-}
-
-// 13.3.7.2 GetSuperConstructor ( ), https://tc39.es/ecma262/#sec-getsuperconstructor
-void GetSuperConstructor::execute_impl(VM& vm) const
-{
-    auto* super_constructor = get_super_constructor(vm);
-    vm.set(dst(), super_constructor ? Value(super_constructor) : js_null());
-}
-
-void GetImportMeta::execute_impl(VM& vm) const
-{
-    vm.set(dst(), vm.get_import_meta());
 }
 
 void GetLexicalEnvironment::execute_impl(VM& vm) const
@@ -2865,11 +2612,6 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(VM& vm) const
     return {};
 }
 
-void NewFunction::execute_impl(VM& vm) const
-{
-    vm.set(dst(), new_function(vm, m_shared_function_data_index, m_home_object));
-}
-
 static Optional<StringView> function_name_prefix_to_string(Op::FunctionNamePrefix prefix)
 {
     switch (prefix) {
@@ -3004,12 +2746,6 @@ ThrowCompletionOr<void> ThrowIfTDZ::execute_impl(VM& vm) const
 ThrowCompletionOr<void> ThrowConstAssignment::execute_impl(VM& vm) const
 {
     return vm.throw_completion<TypeError>(ErrorType::InvalidAssignToConst);
-}
-
-void LeavePrivateEnvironment::execute_impl(VM& vm) const
-{
-    auto& running_execution_context = vm.running_execution_context();
-    running_execution_context.private_environment = running_execution_context.private_environment->outer_environment();
 }
 
 void Yield::execute_impl(VM& vm) const
@@ -3242,32 +2978,6 @@ ThrowCompletionOr<void> DynamicTypeofBinding::execute_impl(VM& vm) const
     return {};
 }
 
-void GetCompletionFields::execute_impl(VM& vm) const
-{
-    auto& completion_source = vm.get(m_completion).as_object();
-    if (is<GeneratorObject>(completion_source)) {
-        auto const& generator = as<GeneratorObject>(completion_source);
-        vm.set(m_value_dst, generator.pending_completion_value());
-        vm.set(m_type_dst, Value(to_underlying(generator.pending_completion_type())));
-        return;
-    }
-
-    auto const& async_generator = as<AsyncGenerator>(completion_source);
-    vm.set(m_value_dst, async_generator.pending_completion_value());
-    vm.set(m_type_dst, Value(to_underlying(async_generator.pending_completion_type())));
-}
-
-void SetCompletionType::execute_impl(VM& vm) const
-{
-    auto& completion_source = vm.get(m_completion).as_object();
-    if (is<GeneratorObject>(completion_source)) {
-        as<GeneratorObject>(completion_source).set_pending_completion_type(m_completion_type);
-        return;
-    }
-
-    as<AsyncGenerator>(completion_source).set_pending_completion_type(m_completion_type);
-}
-
 ThrowCompletionOr<void> CreateImmutableBinding::execute_impl(VM& vm) const
 {
     auto& environment = as<Environment>(vm.get(m_environment).as_cell());
@@ -3286,34 +2996,10 @@ ThrowCompletionOr<void> ToObject::execute_impl(VM& vm) const
     return {};
 }
 
-void ToBoolean::execute_impl(VM& vm) const
-{
-    vm.set(m_dst, Value(vm.get(m_value).to_boolean()));
-}
-
 ThrowCompletionOr<void> ToLength::execute_impl(VM& vm) const
 {
     vm.set(m_dst, Value { TRY(vm.get(m_value).to_length(vm)) });
     return {};
-}
-
-void CreateAsyncFromSyncIterator::execute_impl(VM& vm) const
-{
-    auto& realm = vm.realm();
-
-    auto& iterator = vm.get(m_iterator).as_object();
-    auto next_method = vm.get(m_next_method);
-    auto done = vm.get(m_done).as_bool();
-
-    auto iterator_record = realm.create<IteratorRecord>(iterator, next_method, done);
-    auto async_from_sync_iterator = create_async_from_sync_iterator(vm, iterator_record);
-
-    auto iterator_object = Object::create(realm, nullptr);
-    iterator_object->define_direct_property(vm.names.iterator, async_from_sync_iterator.iterator, default_attributes);
-    iterator_object->define_direct_property(vm.names.nextMethod, async_from_sync_iterator.next_method, default_attributes);
-    iterator_object->define_direct_property(vm.names.done, Value { async_from_sync_iterator.done }, default_attributes);
-
-    vm.set(m_dst, iterator_object);
 }
 
 ThrowCompletionOr<void> CreateDataPropertyOrThrow::execute_impl(VM& vm) const
@@ -3323,16 +3009,6 @@ ThrowCompletionOr<void> CreateDataPropertyOrThrow::execute_impl(VM& vm) const
     auto value = vm.get(m_value);
     TRY(object.create_data_property_or_throw(property, value));
     return {};
-}
-
-void IsCallable::execute_impl(VM& vm) const
-{
-    vm.set(dst(), Value(vm.get(value()).is_function()));
-}
-
-void IsConstructor::execute_impl(VM& vm) const
-{
-    vm.set(dst(), Value(vm.get(value()).is_constructor()));
 }
 
 }

@@ -956,9 +956,33 @@ handler Not
     dispatch_next
 end
 
+handler ToBoolean
+    temp value, truthy, result
+    load_operand value, m_value
+    call_helper asm_helper_to_boolean, value, truthy
+    assert_lt_unsigned truthy, 2
+    branch_zero truthy, .store_false
+    mov result, BOOLEAN_TRUE
+    store_operand m_dst, result
+    dispatch_next
+.store_false:
+    mov result, BOOLEAN_FALSE
+    store_operand m_dst, result
+    dispatch_next
+end
+
 # ============================================================================
 # Return / function call
 # ============================================================================
+
+handler Catch
+    temp exception, empty
+    load64 exception, [values, EXCEPTION_REG_OFFSET]
+    store_operand m_dst, exception
+    mov empty, EMPTY_VALUE
+    store64 [values, EXCEPTION_REG_OFFSET], empty
+    dispatch_next
+end
 
 handler Return
     # Empty is the internal "no explicit value" marker. Returning it from
@@ -1015,6 +1039,18 @@ handler GetLexicalEnvironment
     or env, tag
     store_operand m_dst, env
     dispatch_next
+end
+
+handler GetImportMeta
+    call_slow_path asm_slow_path_get_import_meta
+end
+
+handler GetNewTarget
+    call_slow_path asm_slow_path_get_new_target
+end
+
+handler GetSuperConstructor
+    call_slow_path asm_slow_path_get_super_constructor
 end
 
 handler SetLexicalEnvironment
@@ -2988,6 +3024,10 @@ handler NewObject
     call_slow_path asm_slow_path_new_object
 end
 
+handler NewObjectWithNoPrototype
+    call_slow_path asm_slow_path_new_object_with_no_prototype
+end
+
 handler CacheObjectShape
     call_slow_path asm_slow_path_cache_object_shape
 end
@@ -3000,8 +3040,84 @@ handler NewArray
     call_slow_path asm_slow_path_new_array
 end
 
+handler NewPrimitiveArray
+    call_slow_path asm_slow_path_new_primitive_array
+end
+
+handler NewRegExp
+    call_slow_path asm_slow_path_new_regexp
+end
+
+handler NewReferenceError
+    call_slow_path asm_slow_path_new_reference_error
+end
+
+handler NewTypeError
+    call_slow_path asm_slow_path_new_type_error
+end
+
 handler InstanceOf
     call_slow_path asm_slow_path_instance_of
+end
+
+handler IsCallable
+    call_slow_path asm_slow_path_is_callable
+end
+
+handler IsConstructor
+    call_slow_path asm_slow_path_is_constructor
+end
+
+handler AddPrivateName
+    call_slow_path asm_slow_path_add_private_name
+end
+
+handler CreateAsyncFromSyncIterator
+    call_slow_path asm_slow_path_create_async_from_sync_iterator
+end
+
+handler CreateRestParams
+    call_slow_path asm_slow_path_create_rest_params
+end
+
+handler CreateArguments
+    call_slow_path asm_slow_path_create_arguments
+end
+
+handler CreateLexicalEnvironment
+    call_slow_path asm_slow_path_create_lexical_environment
+end
+
+handler CreatePrivateEnvironment
+    call_slow_path asm_slow_path_create_private_environment
+end
+
+handler CreateVariableEnvironment
+    call_slow_path asm_slow_path_create_variable_environment
+end
+
+handler GetCompletionFields
+    call_slow_path asm_slow_path_get_completion_fields
+end
+
+handler SetCompletionType
+    call_slow_path asm_slow_path_set_completion_type
+end
+
+handler GetTemplateObject
+    call_slow_path asm_slow_path_get_template_object
+end
+
+handler NewFunction
+    call_slow_path asm_slow_path_new_function
+end
+
+handler Typeof
+    call_slow_path asm_slow_path_typeof
+end
+
+handler LeavePrivateEnvironment
+    call_slow_path asm_slow_path_leave_private_environment
 end
 
 # Fast path: if this_value register is already cached (non-empty), skip the slow path.
