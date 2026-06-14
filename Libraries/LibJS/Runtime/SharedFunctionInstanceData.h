@@ -7,10 +7,11 @@
 #pragma once
 
 #include <AK/IntrusiveList.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
-#include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/EnvironmentShape.h>
 #include <LibJS/Runtime/FunctionKind.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
@@ -123,7 +124,7 @@ public:
     size_t m_bytecode_cache_source_text_offset { 0 };
     size_t m_bytecode_cache_source_text_length { 0 };
 
-    Vector<LocalVariable> m_local_variables_names;
+    Vector<Utf16FlyString> m_local_variables_names;
 
     i32 m_function_length { 0 };
     u32 m_formal_parameter_count { 0 };

@@ -388,7 +388,7 @@ static void dump_metadata(StringBuilder& output, Executable const& executable)
         for (size_t i = 0; i < executable.local_variable_names.size(); ++i) {
             if (i != 0)
                 output.append(", "sv);
-            output.appendff("{}{}~{}{}", blue, executable.local_variable_names[i].name, i, reset);
+            output.appendff("{}{}~{}{}", blue, executable.local_variable_names[i], i, reset);
         }
         output.append('\n');
     }

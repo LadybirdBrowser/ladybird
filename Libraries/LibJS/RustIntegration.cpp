@@ -130,7 +130,7 @@ static void bytecode_dump_append(void* ctx, uint8_t const* data, size_t len)
 static void bytecode_dump_append_local(void* ctx, uint32_t index)
 {
     auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
-    builder.output.append(builder.executable->local_variable_names[index].name);
+    builder.output.append(builder.executable->local_variable_names[index]);
 }
 
 static void bytecode_dump_append_identifier(void* ctx, uint32_t index, bool quoted)
@@ -1410,10 +1410,7 @@ extern "C" void* rust_create_executable(
     // Set local variable names
     executable->local_variable_names.ensure_capacity(data->local_variable_count);
     for (size_t i = 0; i < data->local_variable_count; ++i) {
-        executable->local_variable_names.append({
-            .name = utf16_fly_from_ffi(data->local_variable_names[i]),
-            .declaration_kind = JS::LocalVariable::DeclarationKind::Var,
-        });
+        executable->local_variable_names.append(utf16_fly_from_ffi(data->local_variable_names[i]));
     }
 
     // Set layout indices
