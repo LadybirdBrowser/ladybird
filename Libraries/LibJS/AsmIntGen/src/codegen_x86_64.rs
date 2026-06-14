@@ -305,11 +305,11 @@ fn generate_win64_entry_point(out: &mut String, program: &Program) {
 
 fn generate_fallback_handler(out: &mut String, program: &Program, abi: X86_64Abi) {
     // The fallback handler calls into C++ for any unhandled instruction.
-    // extern "C" i64 asm_fallback_handler(VM* vm, u32 pc);
+    // extern "C" i64 asm_fallback_handler(VM* vm, u32 pc, u8 const* instruction);
     // Returns >= 0: new pc to dispatch to. Returns < 0: exit.
     w!(out, ".p2align 4");
     w!(out, "asm_handler_fallback:");
-    emit_vm_pc_args(out, abi);
+    emit_vm_pc_instruction_args(out, abi);
     w!(out, "    call CSYM(asm_fallback_handler)");
     // Check for exit (return < 0)
     w!(out, "    test rax, rax");
@@ -376,6 +376,15 @@ fn emit_vm_pc_args(out: &mut String, abi: X86_64Abi) {
     } else {
         emit_load_vm(out, "rdi", abi);
         w!(out, "    mov esi, r13d");
+    }
+}
+
+fn emit_vm_pc_instruction_args(out: &mut String, abi: X86_64Abi) {
+    emit_vm_pc_args(out, abi);
+    if abi.is_win64() {
+        w!(out, "    lea r8, [r14 + r13]");
+    } else {
+        w!(out, "    lea rdx, [r14 + r13]");
     }
 }
 
@@ -749,14 +758,14 @@ fn emit_instruction(
         }
 
         // call_slow_path pseudo-instruction
-        // Calls a slow path C function: i64 func(VM*, u32 pc)
+        // Calls a slow path C function: i64 func(VM*, u32 pc, Op::Foo const* instruction)
         // Returns >= 0: new pc to dispatch to. Returns < 0: exit.
         // This is TERMINAL: it dispatches after return, control doesn't come back.
         // After the call, pb and values are reloaded from the running execution
         // context, since exception handling may have unwound inline frames.
         "call_slow_path" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
-                emit_vm_pc_args(out, abi);
+                emit_vm_pc_instruction_args(out, abi);
                 w!(out, "    call CSYM({func_name})");
                 // Check for exit (return < 0)
                 w!(out, "    test rax, rax");
@@ -785,12 +794,12 @@ fn emit_instruction(
         }
 
         // call_interp pseudo-instruction
-        // Calls a C++ helper: i64 func(VM*, u32 pc)
+        // Calls a C++ helper: i64 func(VM*, u32 pc, Op::Foo const* instruction)
         // Same args as call_slow_path, but NON-TERMINAL: result in rax (t0),
         // handler continues after.
         "call_interp" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
-                emit_vm_pc_args(out, abi);
+                emit_vm_pc_instruction_args(out, abi);
                 w!(out, "    call CSYM({func_name})");
             }
         }

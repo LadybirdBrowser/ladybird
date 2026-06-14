@@ -85,7 +85,8 @@
 //!
 //! ### C++ interop
 //!
-//! - `call_slow_path func` -- **TERMINAL.** Calls `i64 func(VM*, u32 pc)`.
+//! - `call_slow_path func` -- **TERMINAL.** Calls
+//!   `i64 func(VM*, u32 pc, Op::Foo const* instruction)`.
 //!   If return >= 0, reloads pinned state (exec_ctx, pb, values -- they may
 //!   have changed due to exception unwinding), sets pc to the return value,
 //!   and dispatches. If return < 0, exits. Control does NOT return to the
