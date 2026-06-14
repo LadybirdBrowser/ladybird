@@ -29,8 +29,6 @@ namespace JS {
 
 using namespace Bytecode;
 
-extern "C" void asm_register_slow_path_stats();
-
 // Defined in generated assembly (asmint_x86_64.S or asmint_aarch64.S)
 extern "C" void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, VM* vm);
 
@@ -298,8 +296,6 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
     if (vm().interpreter_stack().is_exhausted() || vm().did_reach_stack_space_limit()) [[unlikely]] {
         reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).value();
     } else {
-        asm_register_slow_path_stats();
-
         auto* bytecode = executable.bytecode.data();
         auto* values = context.registers_and_constants_and_locals_and_arguments_span().data();
 
