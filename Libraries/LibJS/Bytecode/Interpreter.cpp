@@ -56,18 +56,6 @@ using namespace Bytecode;
 
 bool Bytecode::g_dump_bytecode = false;
 
-ALWAYS_INLINE Value VM::do_yield(Value value, Optional<Label> continuation, bool value_is_iterator_result)
-{
-    auto& context = running_execution_context();
-    if (continuation.has_value())
-        context.yield_continuation = continuation->address();
-    else
-        context.yield_continuation = ExecutionContext::no_yield_continuation;
-    context.yield_is_await = false;
-    context.yield_value_is_iterator_result = value_is_iterator_result;
-    return value;
-}
-
 // 16.1.6 ScriptEvaluation ( scriptRecord ), https://tc39.es/ecma262/#sec-runtime-semantics-scriptevaluation
 ThrowCompletionOr<Value> VM::run(Script& script_record, GC::Ptr<Environment> lexical_environment_override)
 {
@@ -280,100 +268,6 @@ ExecutionContext* VM::push_inline_frame(
     return callee_context;
 }
 
-NEVER_INLINE bool VM::try_inline_call(Instruction const& insn, u32 current_pc)
-{
-    auto& instruction = static_cast<Op::Call const&>(insn);
-    auto callee = get(instruction.callee());
-    if (!callee.is_object())
-        return false;
-    auto& callee_object = callee.as_object();
-    if (!is<ECMAScriptFunctionObject>(callee_object))
-        return false;
-    auto& callee_function = static_cast<ECMAScriptFunctionObject&>(callee_object);
-    if (!callee_function.can_inline_call())
-        return false;
-
-    auto& callee_executable = callee_function.inline_call_executable();
-
-    u32 return_pc = current_pc + instruction.length();
-
-    auto* callee_context = push_inline_frame(
-        callee_function, callee_executable,
-        instruction.arguments(), return_pc, instruction.dst().raw(),
-        get(instruction.this_value()), nullptr, false);
-
-    if (!callee_context) [[unlikely]]
-        return false;
-
-    return true;
-}
-
-NEVER_INLINE bool VM::try_inline_call_construct(Instruction const& insn, u32 current_pc)
-{
-    auto& instruction = static_cast<Op::CallConstruct const&>(insn);
-    auto callee = get(instruction.callee());
-    if (!callee.is_object())
-        return false;
-    auto& callee_object = callee.as_object();
-    if (!is<ECMAScriptFunctionObject>(callee_object))
-        return false;
-    auto& callee_function = static_cast<ECMAScriptFunctionObject&>(callee_object);
-    if (!callee_function.has_constructor()
-        || callee_function.constructor_kind() != ConstructorKind::Base
-        || !callee_function.bytecode_executable())
-        return false;
-
-    // OrdinaryCreateFromConstructor: create the this object.
-    auto prototype_or_error = get_prototype_from_constructor(vm(), callee_function, &Intrinsics::object_prototype);
-    if (prototype_or_error.is_error()) [[unlikely]]
-        return false;
-    auto this_argument = Object::create(realm(), prototype_or_error.release_value());
-
-    u32 return_pc = current_pc + instruction.length();
-
-    auto* callee_context = push_inline_frame(
-        callee_function, *callee_function.bytecode_executable(),
-        instruction.arguments(), return_pc, instruction.dst().raw(),
-        this_argument, &callee_function, true);
-
-    if (!callee_context) [[unlikely]]
-        return false;
-
-    // Ensure this_value is set for construct return semantics.
-    if (!callee_context->this_value.has_value())
-        callee_context->this_value = Value(this_argument);
-
-    // InitializeInstanceElements (can throw).
-    auto init_result = this_argument->initialize_instance_elements(callee_function);
-    if (init_result.is_throw_completion()) [[unlikely]] {
-        m_running_execution_context = callee_context->caller_frame;
-        vm().interpreter_stack().deallocate(callee_context);
-        return false;
-    }
-
-    return true;
-}
-
-NEVER_INLINE void VM::pop_inline_frame(Value return_value)
-{
-    auto* callee_frame = m_running_execution_context;
-    auto* caller_frame = callee_frame->caller_frame;
-    auto caller_dst_raw = callee_frame->caller_dst_raw;
-    auto caller_pc = callee_frame->caller_return_pc;
-
-    // For base constructor calls, apply construct return semantics.
-    if (callee_frame->caller_is_construct && !return_value.is_object())
-        return_value = callee_frame->this_value.value();
-
-    vm().interpreter_stack().deallocate(callee_frame);
-
-    m_running_execution_context = caller_frame;
-    caller_frame->program_counter = caller_pc;
-    caller_frame->registers_and_constants_and_locals_and_arguments()[caller_dst_raw] = return_value;
-
-    vm().finish_execution_generation();
-}
-
 NEVER_INLINE void VM::unwind_inline_frame_for_exception()
 {
     auto* callee_frame = m_running_execution_context;
@@ -458,52 +352,6 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
         return JS::throw_completion(exception);
 
     return reg(Register::return_value());
-}
-
-void VM::catch_exception(Operand dst)
-{
-    set(dst, reg(Register::exception()));
-    reg(Register::exception()) = js_special_empty_value();
-}
-
-template<typename EnvironmentPointer>
-static EnvironmentPointer get_cacheable_environment(EnvironmentPointer environment, EnvironmentCoordinate const& cache)
-{
-    VERIFY(cache.is_valid());
-
-    for (size_t i = 0; i < cache.hops; ++i) {
-        if (!environment->is_declarative_environment() || environment->is_permanently_screwed_by_eval()) [[unlikely]]
-            return nullptr;
-        environment = environment->outer_environment();
-        if (!environment) [[unlikely]]
-            return nullptr;
-    }
-    if (environment->is_declarative_environment() && !environment->is_permanently_screwed_by_eval()) [[likely]]
-        return environment;
-    return nullptr;
-}
-
-template<typename EnvironmentPointer>
-static EnvironmentPointer get_cached_environment(EnvironmentPointer environment, EnvironmentCoordinate& cache)
-{
-    if (!cache.is_valid()) [[unlikely]]
-        return nullptr;
-
-    if (auto* cached_environment = get_cacheable_environment(environment, cache)) [[likely]]
-        return cached_environment;
-
-    cache = {};
-    return nullptr;
-}
-
-template<typename EnvironmentPointer>
-static void update_environment_coordinate_cache(EnvironmentPointer environment, Reference const& reference, EnvironmentCoordinate& cache)
-{
-    if (!reference.environment_coordinate().has_value())
-        return;
-    auto candidate = reference.environment_coordinate().value();
-    if (get_cacheable_environment(environment, candidate))
-        cache = candidate;
 }
 
 ByteString Instruction::to_byte_string(Bytecode::Executable const& executable) const

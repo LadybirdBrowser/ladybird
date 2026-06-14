@@ -567,13 +567,13 @@ end
 # CallConstruct, so caller_is_construct is always false for asm-managed inline
 # frames.
 #
-# This mirrors VM::pop_inline_frame():
-#   1. Read the caller's destination register from the callee frame.
-#   2. Publish the caller's resume pc and returned value.
-#   3. Deallocate the callee by rewinding InterpreterStack::top to exec_ctx.
-#   4. Make the caller the running execution context again.
-#   5. Advance execution_generation so WeakRef and similar observers still see
-#      the same boundary they would have seen through the C++ helper.
+# This resumes the caller by:
+#   1. Reading the caller's destination register from the callee frame.
+#   2. Publishing the caller's resume pc and returned value.
+#   3. Deallocating the callee by rewinding InterpreterStack::top to exec_ctx.
+#   4. Making the caller the running execution context again.
+#   5. Advancing execution_generation so WeakRef and similar observers still see
+#      the expected execution boundary.
 #
 # The macro expects exec_ctx/pb/values/pc to still describe the callee frame.
 # Input:
