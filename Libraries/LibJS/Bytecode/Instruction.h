@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <AK/Function.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/OpCodes.h>
 #include <LibJS/Forward.h>
@@ -80,8 +79,6 @@ public:
 
     Type type() const { return m_type; }
     size_t length() const;
-    void visit_labels(Function<void(Label&)> visitor);
-    void visit_operands(Function<void(Operand&)> visitor);
 
     Strict strict() const { return m_strict; }
     void set_strict(Strict strict) { m_strict = strict; }
@@ -91,9 +88,6 @@ protected:
         : m_type(type)
     {
     }
-
-    void visit_labels_impl(Function<void(Label&)>) { }
-    void visit_operands_impl(Function<void(Operand&)>) { }
 
 private:
     Type m_type {};
