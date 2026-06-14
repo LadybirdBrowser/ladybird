@@ -386,6 +386,7 @@ fn generate_fallback_handler(out: &mut String, program: &Program, _pinned: &Pinn
     // Set up args: x0=vm (x20), w1=pc (ip - pb), x2=instruction (ip)
     w!(out, "    mov x0, x20");
     w!(out, "    sub w1, w21, w26");
+    emit_sync_pc_to_execution_context(out, program);
     w!(out, "    mov x2, x21");
     w!(out, "    bl CSYM(asm_fallback_handler)");
     // Check for exit (return < 0)
@@ -428,6 +429,15 @@ fn emit_state_reload(out: &mut String, program: &Program) {
     emit_ldr64(out, "x9", "x28", exec_executable);
     emit_ldr64(out, "x26", "x9", exec_bytecode);
     emit_add_imm(out, "x27", "x28", sizeof_execctx);
+}
+
+fn emit_sync_pc_to_execution_context(out: &mut String, program: &Program) {
+    let program_counter = program
+        .constants
+        .get("EXECUTION_CONTEXT_PROGRAM_COUNTER")
+        .copied()
+        .expect("EXECUTION_CONTEXT_PROGRAM_COUNTER constant required");
+    emit_str32(out, "w1", "x28", program_counter);
 }
 
 /// Emit a dispatch sequence: recompute x21 from w25 + x26, then dispatch.
@@ -1347,6 +1357,7 @@ fn emit_instruction(
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
                 w!(out, "    mov x0, x20"); // vm
                 w!(out, "    sub w1, w21, w26"); // pc = ip - pb
+                emit_sync_pc_to_execution_context(out, program);
                 w!(out, "    mov x2, x21"); // instruction
                 w!(out, "    bl CSYM({func_name})");
                 w!(out, "    tbnz x0, #63, .Lexit");

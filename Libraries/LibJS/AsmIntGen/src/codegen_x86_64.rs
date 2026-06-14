@@ -309,6 +309,7 @@ fn generate_fallback_handler(out: &mut String, program: &Program, abi: X86_64Abi
     // Returns >= 0: new pc to dispatch to. Returns < 0: exit.
     w!(out, ".p2align 4");
     w!(out, "asm_handler_fallback:");
+    emit_sync_pc_to_execution_context(out, program);
     emit_vm_pc_instruction_args(out, abi);
     w!(out, "    call CSYM(asm_fallback_handler)");
     // Check for exit (return < 0)
@@ -386,6 +387,15 @@ fn emit_vm_pc_instruction_args(out: &mut String, abi: X86_64Abi) {
     } else {
         w!(out, "    lea rdx, [r14 + r13]");
     }
+}
+
+fn emit_sync_pc_to_execution_context(out: &mut String, program: &Program) {
+    let program_counter = program
+        .constants
+        .get("EXECUTION_CONTEXT_PROGRAM_COUNTER")
+        .copied()
+        .expect("EXECUTION_CONTEXT_PROGRAM_COUNTER constant required");
+    w!(out, "    mov DWORD PTR [rbx + {program_counter}], r13d");
 }
 
 fn emit_dispatch(out: &mut String) {
@@ -765,6 +775,7 @@ fn emit_instruction(
         // context, since exception handling may have unwound inline frames.
         "call_slow_path" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
+                emit_sync_pc_to_execution_context(out, program);
                 emit_vm_pc_instruction_args(out, abi);
                 w!(out, "    call CSYM({func_name})");
                 // Check for exit (return < 0)
