@@ -684,6 +684,28 @@ RefPtr<StyleValue const> Parser::parse_anchor(TokenStream<ComponentValue>& token
     if (!function_token.is_function("anchor"sv))
         return {};
 
+    // It is only allowed in the inset properties (and is otherwise invalid).
+    static Array allowed_property_ids = {
+        PropertyID::Inset,
+        PropertyID::Top,
+        PropertyID::Right,
+        PropertyID::Bottom,
+        PropertyID::Left,
+        PropertyID::InsetBlock,
+        PropertyID::InsetBlockStart,
+        PropertyID::InsetBlockEnd,
+        PropertyID::InsetInline,
+        PropertyID::InsetInlineStart,
+        PropertyID::InsetInlineEnd,
+    };
+
+    auto property_context = m_value_context.last_matching([](ValueParsingContext const& it) {
+        return it.has<PropertyID>();
+    });
+    bool valid_property_context = property_context.has_value() && allowed_property_ids.contains_slow(property_context->get<PropertyID>());
+    if (!valid_property_context)
+        return {};
+
     auto argument_tokens = TokenStream { function_token.function().value };
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
     Optional<FlyString> anchor_name;
