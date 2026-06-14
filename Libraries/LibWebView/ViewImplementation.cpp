@@ -524,6 +524,7 @@ void ViewImplementation::reset_zoom()
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
     auto* mouse_event = event.get_pointer<Web::MouseEvent>();
+    auto* pinch_event = event.get_pointer<Web::PinchEvent>();
     if (mouse_event && mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
         mouse_event->wheel_delta_x /= zoom_level();
         mouse_event->wheel_delta_y /= zoom_level();
@@ -555,6 +556,15 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
                 m_client_state.page_index, mouse_event->position.x().value(), mouse_event->position.y().value());
             return;
         }
+    }
+    if (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
+        && m_client_state.has_usable_bitmap
+        && pinch_event) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor pinch bypass for page {} at {},{} scale delta {}",
+            m_client_state.page_index, pinch_event->position.x().value(), pinch_event->position.y().value(), pinch_event->scale_delta);
+        auto handled = client().handle_pinch_event_in_compositor(m_client_state.page_index, *pinch_event);
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor pinch bypass result for page {}: {}",
+            m_client_state.page_index, handled ? "accepted"sv : "rejected"sv);
     }
 
     // Send the next event over to the WebContent to be handled by JS. We'll later get a message to say whether JS

@@ -89,6 +89,11 @@ Messages::CompositorControlServer::DispatchMouseEventToWebContentResponse Connec
     return m_compositor_state->dispatch_mouse_event_to_web_content(context_id, event);
 }
 
+Messages::CompositorControlServer::HandlePinchEventResponse ConnectionFromClient::handle_pinch_event(Web::Compositor::CompositorContextId context_id, Web::PinchEvent event)
+{
+    return m_compositor_state->handle_pinch_event(context_id, event);
+}
+
 Messages::CompositorControlServer::AsyncScrollByResponse ConnectionFromClient::async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
 {
     return m_compositor_state->async_scroll_by(context_id, position, delta_in_device_pixels);

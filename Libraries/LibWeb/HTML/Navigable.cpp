@@ -3290,12 +3290,18 @@ void Navigable::resolve_all_pending_async_scroll_operations()
 
 static bool adopt_async_viewport_scroll_delta(Navigable& navigable, CSSPixelPoint scroll_delta)
 {
-    auto scroll_offset = navigable.viewport_scroll_offset();
-    scroll_offset.translate_by(scroll_delta);
-    if (scroll_offset == navigable.viewport_scroll_offset())
+    auto document = navigable.active_document();
+    if (!document)
         return false;
-    navigable.perform_scroll_of_viewport_scrolling_box(scroll_offset);
-    return true;
+
+    auto visual_viewport = document->visual_viewport();
+    CSSPixelPoint page_position { CSSPixels(visual_viewport->page_left()), CSSPixels(visual_viewport->page_top()) };
+    auto viewport_scroll_offset = navigable.viewport_scroll_offset();
+    navigable.scroll_viewport_by_delta(scroll_delta);
+
+    CSSPixelPoint new_page_position { CSSPixels(visual_viewport->page_left()), CSSPixels(visual_viewport->page_top()) };
+    return new_page_position != page_position
+        || navigable.viewport_scroll_offset() != viewport_scroll_offset;
 }
 
 void Navigable::adopt_pending_async_scroll_offsets()

@@ -645,6 +645,17 @@ bool Application::handle_mouse_event_in_compositor(Web::Compositor::CompositorCo
     return result.release_value();
 }
 
+bool Application::handle_pinch_event_in_compositor(Web::Compositor::CompositorContextId context_id, Web::PinchEvent const& event)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return false;
+
+    auto result = m_compositor_client->try_handle_pinch_event(context_id, event);
+    if (result.is_error())
+        return false;
+    return result.release_value();
+}
+
 bool Application::dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))

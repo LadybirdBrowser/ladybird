@@ -312,6 +312,17 @@ bool WebContentClient::handle_mouse_event_in_compositor(u64 page_id, Web::MouseE
     return handled;
 }
 
+bool WebContentClient::handle_pinch_event_in_compositor(u64 page_id, Web::PinchEvent const& event)
+{
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
+    auto handled = Application::the().handle_pinch_event_in_compositor(compositor_context_id_for_page(page_id), event);
+
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC pinch_event page {} returned {} in {} us",
+        page_id, handled, timer.elapsed_time().to_microseconds());
+    return handled;
+}
+
 void WebContentClient::dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const& event)
 {
     auto context_id = compositor_context_id_for_page(page_id);

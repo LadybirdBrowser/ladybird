@@ -45,6 +45,7 @@
 namespace Web {
 
 struct MouseEvent;
+struct PinchEvent;
 
 }
 
@@ -103,6 +104,7 @@ public:
     void update_compositor_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     bool send_async_scroll_to_compositor(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
     bool handle_mouse_event_in_compositor(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
+    bool handle_pinch_event_in_compositor(Web::Compositor::CompositorContextId, Web::PinchEvent const&);
     bool dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     void notify_compositor_presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
 
