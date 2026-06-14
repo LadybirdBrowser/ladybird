@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-// https://drafts.csswg.org/css-anchor-position-1/#funcdef-anchor-size
+// https://drafts.csswg.org/css-anchor-position-1/#funcdef-anchor
 class AnchorStyleValue final : public StyleValueWithDefaultOperators<AnchorStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<AnchorStyleValue const> create(Optional<FlyString> const& anchor_name,
