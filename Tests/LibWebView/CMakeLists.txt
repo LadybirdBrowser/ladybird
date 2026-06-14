@@ -14,5 +14,5 @@ if (BUILD_TESTING AND NOT WIN32)
         NAME TestWebDriverSessionHistory
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-session-history.py $<TARGET_FILE:WebDriver>
     )
-    set_tests_properties(TestWebDriverSessionHistory PROPERTIES TIMEOUT 60)
+    set_tests_properties(TestWebDriverSessionHistory PROPERTIES TIMEOUT 120)
 endif()

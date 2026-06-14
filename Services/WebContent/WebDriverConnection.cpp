@@ -463,7 +463,7 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
             }
 
             metadata->will_replace_web_content_process = traversal_result.will_replace_web_content_process;
-            metadata->wait_for_navigation_completion = traversal_result.will_change_top_level_entry;
+            metadata->wait_for_navigation_completion = true;
             if (metadata->will_replace_web_content_process)
                 async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle());
             if (metadata->sync_response_returned)
@@ -495,7 +495,7 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
             }
 
             metadata->will_replace_web_content_process = traversal_result.will_replace_web_content_process;
-            metadata->wait_for_navigation_completion = traversal_result.will_change_top_level_entry;
+            metadata->wait_for_navigation_completion = true;
             if (metadata->will_replace_web_content_process)
                 async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle());
             if (metadata->sync_response_returned)
