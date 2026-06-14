@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Drawing a cross-origin (CORS-cross-origin) image onto a 2D canvas clears its origin-clean flag. toDataURL(),
+    // toBlob() and getImageData() must then all throw a "SecurityError" DOMException so cross-origin pixels can't be
+    // read back.
+    const imagePath = "/echo/canvas-toDataURL-toBlob-origin-clean.png";
+
+    function registerEchoResponse(response) {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/echo", false);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(JSON.stringify(response));
+    }
+
+    // 1x1 transparent PNG.
+    const transparentPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+    registerEchoResponse({
+        method: "GET",
+        path: imagePath,
+        status: 200,
+        headers: {
+            "Cache-Control": "no-store",
+            "Content-Type": "image/png",
+        },
+        body_encoding: "base64",
+        body: transparentPng,
+    });
+
+    // A unique hostname on the echo server's port is a different origin, so the image (loaded without a crossorigin
+    // attribute) is CORS-cross-origin.
+    const crossOriginImageUrl = new URL(imagePath, location.href);
+    crossOriginImageUrl.hostname = uniqueLocalhostHostname("canvas-toDataURL-toBlob-origin-clean");
+
+    function report(label, fn) {
+        try {
+            fn();
+            println(`${label}: no throw`);
+        } catch (error) {
+            println(`${label}: ${error.name}`);
+        }
+    }
+
+    asyncTest(done => {
+        // An untainted canvas must still serialize normally (no over-blocking).
+        const cleanCanvas = document.createElement("canvas");
+        cleanCanvas.width = 1;
+        cleanCanvas.height = 1;
+        cleanCanvas.getContext("2d");
+        println(`untainted toDataURL ok: ${cleanCanvas.toDataURL().startsWith("data:image/png")}`);
+
+        const image = new Image();
+        image.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = 1;
+            canvas.height = 1;
+            const context = canvas.getContext("2d");
+            context.drawImage(image, 0, 0);
+
+            report("tainted toDataURL", () => canvas.toDataURL());
+            report("tainted toBlob", () => canvas.toBlob(() => {}));
+            report("tainted getImageData", () => context.getImageData(0, 0, 1, 1));
+            done();
+        };
+        image.onerror = () => {
+            println("tainted image load: FAILED");
+            done();
+        };
+        image.src = crossOriginImageUrl.href;
+    });
+</script>

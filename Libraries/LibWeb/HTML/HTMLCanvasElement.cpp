@@ -33,6 +33,7 @@
 #include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
 
@@ -333,10 +334,21 @@ Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, siz
     return Gfx::IntSize(width, height);
 }
 
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
-String HTMLCanvasElement::to_data_url(StringView type, Optional<JS::Value> js_quality)
+// https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
+bool HTMLCanvasElement::is_origin_clean() const
 {
-    // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
+    return m_context.visit(
+        [](GC::Ref<CanvasRenderingContext2D> const& context) { return context->origin_clean(); },
+        // FIXME: WebGL and WebGL2 contexts do not track the origin-clean flag yet.
+        [](auto const&) { return true; });
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
+WebIDL::ExceptionOr<String> HTMLCanvasElement::to_data_url(StringView type, Optional<JS::Value> js_quality)
+{
+    // 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
+    if (!is_origin_clean())
+        return WebIDL::SecurityError::create(realm(), "Canvas is not origin-clean"_utf16);
 
     // 2. If this canvas element's bitmap has no pixels (i.e. either its horizontal dimension or its vertical dimension is zero),
     //    then return the string "data:,". (This is the shortest data: URL; it represents the empty string in a text/plain resource.)
@@ -365,7 +377,9 @@ String HTMLCanvasElement::to_data_url(StringView type, Optional<JS::Value> js_qu
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob
 WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, Optional<JS::Value> js_quality)
 {
-    // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
+    // 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
+    if (!is_origin_clean())
+        return WebIDL::SecurityError::create(realm(), "Canvas is not origin-clean"_utf16);
 
     // 2. Let result be null.
     // 3. If this canvas element's bitmap has pixels (i.e., neither its horizontal dimension nor its vertical dimension is zero),
