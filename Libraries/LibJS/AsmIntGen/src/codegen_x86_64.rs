@@ -662,13 +662,17 @@ fn emit_instruction(
         "assert_tag" | "assert_not_tag" if program.enable_assertions => {
             if insn.operands.len() == 2 {
                 let value = resolve_op(&insn.operands[0], handler, program);
-                let tag = resolve_op(&insn.operands[1], handler, program);
                 let ok_label = format!(".Lasm_{}.assert_ok_{}", handler.name, state.unique_counter);
                 state.unique_counter += 1;
                 let cc = if m == "assert_tag" { "je" } else { "jne" };
                 w!(out, "    mov r11, {value}");
                 w!(out, "    shr r11, 48");
-                w!(out, "    cmp r11, {tag}");
+                if let Some(tag) = get_immediate_value(&insn.operands[1], program) {
+                    w!(out, "    cmp r11, {tag}");
+                } else {
+                    let tag = resolve_op(&insn.operands[1], handler, program);
+                    w!(out, "    cmp r11, {tag}");
+                }
                 w!(out, "    {cc} {ok_label}");
                 w!(out, "    ud2");
                 w!(out, "{ok_label}:");
