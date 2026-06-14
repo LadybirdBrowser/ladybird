@@ -42,7 +42,6 @@
 #include <LibJS/Runtime/MathObject.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/NativeFunction.h>
-#include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/RegExpObject.h>
@@ -925,64 +924,6 @@ static void update_environment_coordinate_cache(EnvironmentPointer environment, 
         cache = candidate;
 }
 
-inline ThrowCompletionOr<CalleeAndThis> dynamically_get_callee_and_this_from_environment(VM& vm, Utf16FlyString const& name, Strict strict, EnvironmentCoordinate& cache)
-{
-    auto const* current_environment = vm.running_execution_context().lexical_environment.ptr();
-    if (auto const* environment = get_cached_environment(current_environment, cache)) [[likely]] {
-        auto callee = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
-        return CalleeAndThis {
-            .callee = callee,
-            .this_value = js_undefined(),
-        };
-    }
-
-    auto reference = TRY(vm.resolve_binding(name, strict));
-    update_environment_coordinate_cache(current_environment, reference, cache);
-
-    auto callee = TRY(reference.get_value(vm));
-
-    Value this_value;
-    if (reference.is_property_reference()) {
-        this_value = reference.get_this_value();
-    } else {
-        if (reference.is_environment_reference()) {
-            if (auto base_object = reference.base_environment().with_base_object()) [[unlikely]]
-                this_value = base_object;
-        }
-    }
-
-    return CalleeAndThis {
-        .callee = callee,
-        .this_value = this_value,
-    };
-}
-
-inline ThrowCompletionOr<void> create_variable(VM& vm, Utf16FlyString const& name, Op::EnvironmentMode mode, bool is_global, bool is_immutable, bool is_strict)
-{
-    if (mode == Op::EnvironmentMode::Lexical) {
-        VERIFY(!is_global);
-
-        // Note: This is papering over an issue where "FunctionDeclarationInstantiation" creates these bindings for us.
-        //       Instead of crashing in there, we'll just raise an exception here.
-        if (TRY(vm.lexical_environment()->has_binding(name))) [[unlikely]]
-            return vm.throw_completion<InternalError>(TRY_OR_THROW_OOM(vm, String::formatted("Lexical environment already has binding '{}'", name)));
-
-        if (is_immutable)
-            return vm.lexical_environment()->create_immutable_binding(vm, name, is_strict);
-        return vm.lexical_environment()->create_mutable_binding(vm, name, is_strict);
-    }
-
-    if (!is_global) {
-        if (is_immutable)
-            return vm.variable_environment()->create_immutable_binding(vm, name, is_strict);
-        return vm.variable_environment()->create_mutable_binding(vm, name, is_strict);
-    }
-
-    // NOTE: CreateVariable with m_is_global set to true is expected to only be used in GlobalDeclarationInstantiation currently, which only uses "false" for "can_be_deleted".
-    //       The only area that sets "can_be_deleted" to true is EvalDeclarationInstantiation, which is currently fully implemented in C++ and not in Bytecode.
-    return as<GlobalEnvironment>(vm.variable_environment())->create_global_var_binding(name, false);
-}
-
 inline ThrowCompletionOr<GC::Ref<Array>> iterator_to_array(VM& vm, Value iterator)
 {
     auto& iterator_record = static_cast<IteratorRecord&>(iterator.as_cell());
@@ -998,63 +939,6 @@ inline ThrowCompletionOr<GC::Ref<Array>> iterator_to_array(VM& vm, Value iterato
         MUST(array->create_data_property_or_throw(index, value.release_value()));
         index++;
     }
-}
-
-inline ThrowCompletionOr<void> append(VM& vm, Value lhs, Value rhs, bool is_spread)
-{
-    // Note: This OpCode is used to construct array literals and argument arrays for calls,
-    //       containing at least one spread element,
-    //       Iterating over such a spread element to unpack it has to be visible by
-    //       the user courtesy of
-    //       (1) https://tc39.es/ecma262/#sec-runtime-semantics-arrayaccumulation
-    //          SpreadElement : ... AssignmentExpression
-    //              1. Let spreadRef be ? Evaluation of AssignmentExpression.
-    //              2. Let spreadObj be ? GetValue(spreadRef).
-    //              3. Let iteratorRecord be ? GetIterator(spreadObj).
-    //              4. Repeat,
-    //                  a. Let next be ? IteratorStep(iteratorRecord).
-    //                  b. If next is false, return nextIndex.
-    //                  c. Let nextValue be ? IteratorValue(next).
-    //                  d. Perform ! CreateDataPropertyOrThrow(array, ! ToString(𝔽(nextIndex)), nextValue).
-    //                  e. Set nextIndex to nextIndex + 1.
-    //       (2) https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation
-    //          ArgumentList : ... AssignmentExpression
-    //              1. Let list be a new empty List.
-    //              2. Let spreadRef be ? Evaluation of AssignmentExpression.
-    //              3. Let spreadObj be ? GetValue(spreadRef).
-    //              4. Let iteratorRecord be ? GetIterator(spreadObj).
-    //              5. Repeat,
-    //                  a. Let next be ? IteratorStep(iteratorRecord).
-    //                  b. If next is false, return list.
-    //                  c. Let nextArg be ? IteratorValue(next).
-    //                  d. Append nextArg to list.
-    //          ArgumentList : ArgumentList , ... AssignmentExpression
-    //             1. Let precedingArgs be ? ArgumentListEvaluation of ArgumentList.
-    //             2. Let spreadRef be ? Evaluation of AssignmentExpression.
-    //             3. Let iteratorRecord be ? GetIterator(? GetValue(spreadRef)).
-    //             4. Repeat,
-    //                 a. Let next be ? IteratorStep(iteratorRecord).
-    //                 b. If next is false, return precedingArgs.
-    //                 c. Let nextArg be ? IteratorValue(next).
-    //                 d. Append nextArg to precedingArgs.
-
-    // Note: We know from codegen, that lhs is a plain array with only indexed properties
-    auto& lhs_array = lhs.as_array_exotic_object();
-    auto lhs_size = lhs_array.indexed_array_like_size();
-
-    if (is_spread) {
-        // ...rhs
-        size_t i = lhs_size;
-        TRY(get_iterator_values(vm, rhs, [&i, &lhs_array](Value iterator_value) -> Optional<Completion> {
-            lhs_array.indexed_put(i, iterator_value);
-            ++i;
-            return {};
-        }));
-    } else {
-        lhs_array.indexed_put(lhs_size, rhs);
-    }
-
-    return {};
 }
 
 struct FastPropertyNameIteratorData {
@@ -1529,18 +1413,6 @@ ThrowCompletionOr<void> ToInt32::execute_impl(VM& vm) const
     return {};
 }
 
-ThrowCompletionOr<void> ToString::execute_impl(VM& vm) const
-{
-    vm.set(m_dst, Value { TRY(vm.get(m_value).to_primitive_string(vm)) });
-    return {};
-}
-
-ThrowCompletionOr<void> ToPrimitiveWithStringHint::execute_impl(VM& vm) const
-{
-    vm.set(m_dst, TRY(vm.get(m_value).to_primitive(vm, Value::PreferredType::String)));
-    return {};
-}
-
 ThrowCompletionOr<void> BitwiseOr::execute_impl(VM& vm) const
 {
     auto const lhs = vm.get(m_lhs);
@@ -1679,19 +1551,6 @@ void NewArray::execute_impl(VM& vm) const
     vm.set(dst(), array);
 }
 
-ThrowCompletionOr<void> NewArrayWithLength::execute_impl(VM& vm) const
-{
-    auto length = static_cast<u64>(vm.get(m_array_length).as_double());
-    auto array = TRY(Array::create(vm.realm(), length));
-    vm.set(m_dst, array);
-    return {};
-}
-
-ThrowCompletionOr<void> ArrayAppend::execute_impl(VM& vm) const
-{
-    return append(vm, vm.get(dst()), vm.get(src()), m_is_spread);
-}
-
 ThrowCompletionOr<void> ImportCall::execute_impl(VM& vm) const
 {
     auto specifier = vm.get(m_specifier);
@@ -1724,66 +1583,6 @@ ThrowCompletionOr<void> IteratorToArray::execute_impl(VM& vm) const
 
     vm.set(dst(), array);
     return {};
-}
-
-void NewObject::execute_impl(VM& vm) const
-{
-    auto& realm = *vm.current_realm();
-
-    if (m_cache != NumericLimits<u32>::max()) {
-        auto& cache = vm.current_executable().object_shape_caches[m_cache];
-        auto cached_shape = cache.shape.ptr();
-        if (cached_shape) {
-            vm.set(dst(), Object::create_with_premade_shape(*cached_shape));
-            return;
-        }
-    }
-
-    vm.set(dst(), Object::create(realm, realm.intrinsics().object_prototype()));
-}
-
-void CacheObjectShape::execute_impl(VM& vm) const
-{
-    auto& cache = vm.current_executable().object_shape_caches[m_cache];
-    if (!cache.shape) {
-        auto& object = vm.get(m_object).as_object();
-        if (!object.shape().is_dictionary())
-            cache.shape = &object.shape();
-    }
-}
-
-COLD static void init_object_literal_property_slow(Object& object, PropertyKey const& property_key, Value value, ObjectShapeCache& cache, u32 property_slot)
-{
-    object.define_direct_property(property_key, value, JS::Attribute::Enumerable | JS::Attribute::Writable | JS::Attribute::Configurable);
-
-    // Cache the property offset for future fast-path use
-    // Note: lookup may fail if the shape is in dictionary mode or for other edge cases.
-    // We only cache if we're not in dictionary mode and the lookup succeeds.
-    if (!object.shape().is_dictionary()) {
-        auto metadata = object.shape().lookup(property_key);
-        if (metadata.has_value()) {
-            if (property_slot >= cache.property_offsets.size())
-                cache.property_offsets.resize(property_slot + 1);
-            cache.property_offsets[property_slot] = metadata->offset;
-        }
-    }
-}
-
-void InitObjectLiteralProperty::execute_impl(VM& vm) const
-{
-    auto& object = vm.get(m_object).as_object();
-    auto value = vm.get(m_src);
-    auto& cache = vm.current_executable().object_shape_caches[m_shape_cache_index];
-
-    // Fast path: if we have a cached shape and it matches, write directly to the cached offset
-    auto cached_shape = cache.shape.ptr();
-    if (cached_shape && &object.shape() == cached_shape && m_property_slot < cache.property_offsets.size()) {
-        object.put_direct(cache.property_offsets[m_property_slot], value);
-        return;
-    }
-
-    auto const& property_key = vm.current_executable().get_property_key(m_property);
-    init_object_literal_property_slow(object, property_key, value, cache, m_property_slot);
 }
 
 ThrowCompletionOr<void> CopyObjectExcludingProperties::execute_impl(VM& vm) const
@@ -1836,29 +1635,6 @@ static ThrowCompletionOr<void> get_binding(VM& vm, Operand dst, EnvironmentCoord
     return {};
 }
 
-template<BindingIsKnownToBeInitialized binding_is_known_to_be_initialized>
-static ThrowCompletionOr<void> dynamically_get_binding(VM& vm, Operand dst, IdentifierTableIndex identifier, Strict strict, EnvironmentCoordinate& cache)
-{
-    auto const* current_environment = vm.running_execution_context().lexical_environment.ptr();
-    if (auto const* environment = get_cached_environment(current_environment, cache)) [[likely]] {
-        Value value;
-        if constexpr (binding_is_known_to_be_initialized == BindingIsKnownToBeInitialized::No) {
-            value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
-        } else {
-            value = static_cast<DeclarativeEnvironment const&>(*environment).get_initialized_binding_value_direct(cache.index);
-        }
-        vm.set(dst, value);
-        return {};
-    }
-
-    auto& executable = vm.current_executable();
-    auto reference = TRY(vm.resolve_binding(executable.get_identifier(identifier), strict));
-    update_environment_coordinate_cache(current_environment, reference, cache);
-
-    vm.set(dst, TRY(reference.get_value(vm)));
-    return {};
-}
-
 ThrowCompletionOr<void> GetBinding::execute_impl(VM& vm) const
 {
     return get_binding<BindingIsKnownToBeInitialized::No>(vm, m_dst, m_cache);
@@ -1869,33 +1645,11 @@ ThrowCompletionOr<void> GetInitializedBinding::execute_impl(VM& vm) const
     return get_binding<BindingIsKnownToBeInitialized::Yes>(vm, m_dst, m_cache);
 }
 
-ThrowCompletionOr<void> DynamicGetBinding::execute_impl(VM& vm) const
-{
-    return dynamically_get_binding<BindingIsKnownToBeInitialized::No>(vm, m_dst, m_identifier, strict(), vm.current_executable().environment_coordinate_caches[m_cache]);
-}
-
-ThrowCompletionOr<void> DynamicGetInitializedBinding::execute_impl(VM& vm) const
-{
-    return dynamically_get_binding<BindingIsKnownToBeInitialized::Yes>(vm, m_dst, m_identifier, strict(), vm.current_executable().environment_coordinate_caches[m_cache]);
-}
-
 ThrowCompletionOr<void> GetCalleeAndThisFromEnvironment::execute_impl(VM& vm) const
 {
     auto callee_and_this = TRY(get_callee_and_this_from_environment(
         vm,
         m_cache));
-    vm.set(m_callee, callee_and_this.callee);
-    vm.set(m_this_value, callee_and_this.this_value);
-    return {};
-}
-
-ThrowCompletionOr<void> DynamicGetCalleeAndThisFromEnvironment::execute_impl(VM& vm) const
-{
-    auto callee_and_this = TRY(dynamically_get_callee_and_this_from_environment(
-        vm,
-        vm.get_identifier(m_identifier),
-        strict(),
-        vm.current_executable().environment_coordinate_caches[m_cache]));
     vm.set(m_callee, callee_and_this.callee);
     vm.set(m_this_value, callee_and_this.this_value);
     return {};
@@ -2005,126 +1759,6 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(VM& vm) const
     return {};
 }
 
-COLD ThrowCompletionOr<void> DeleteVariable::execute_impl(VM& vm) const
-{
-    auto const& string = vm.get_identifier(m_identifier);
-    auto reference = TRY(vm.resolve_binding(string, strict()));
-    vm.set(dst(), Value(TRY(reference.delete_(vm))));
-    return {};
-}
-
-COLD ThrowCompletionOr<void> EnterObjectEnvironment::execute_impl(VM& vm) const
-{
-    auto object = TRY(vm.get(m_object).to_object(vm));
-    auto& old_environment = vm.running_execution_context().lexical_environment;
-    auto new_environment = new_object_environment(*object, true, old_environment);
-    vm.set(m_dst, new_environment);
-    vm.running_execution_context().lexical_environment = new_environment;
-    return {};
-}
-
-ThrowCompletionOr<void> CreateVariable::execute_impl(VM& vm) const
-{
-    auto const& name = vm.get_identifier(m_identifier);
-    return create_variable(vm, name, m_mode, m_is_global, m_is_immutable, m_is_strict);
-}
-
-template<EnvironmentMode environment_mode, BindingInitializationMode initialization_mode>
-static ThrowCompletionOr<void> initialize_or_set_binding(VM& vm, Strict strict, Value value, EnvironmentCoordinate const& cache)
-{
-    VERIFY(cache.is_valid());
-
-    auto* environment = environment_mode == EnvironmentMode::Lexical
-        ? vm.running_execution_context().lexical_environment.ptr()
-        : vm.running_execution_context().variable_environment.ptr();
-
-    for (size_t i = 0; i < cache.hops; ++i)
-        environment = environment->outer_environment();
-
-    if constexpr (initialization_mode == BindingInitializationMode::Initialize) {
-        TRY(static_cast<DeclarativeEnvironment&>(*environment).initialize_binding_direct(vm, cache.index, value, Environment::InitializeBindingHint::Normal));
-    } else {
-        TRY(static_cast<DeclarativeEnvironment&>(*environment).set_mutable_binding_direct(vm, cache.index, value, strict == Strict::Yes));
-    }
-    return {};
-}
-
-template<EnvironmentMode environment_mode, BindingInitializationMode initialization_mode>
-static ThrowCompletionOr<void> dynamically_initialize_or_set_binding(VM& vm, IdentifierTableIndex identifier_index, Strict strict, Value value, EnvironmentCoordinate& cache)
-{
-    auto* environment = environment_mode == EnvironmentMode::Lexical
-        ? vm.running_execution_context().lexical_environment.ptr()
-        : vm.running_execution_context().variable_environment.ptr();
-
-    if (auto* cached_environment = get_cached_environment(environment, cache)) [[likely]] {
-        if constexpr (initialization_mode == BindingInitializationMode::Initialize) {
-            TRY(static_cast<DeclarativeEnvironment&>(*cached_environment).initialize_binding_direct(vm, cache.index, value, Environment::InitializeBindingHint::Normal));
-        } else if (initialization_mode == BindingInitializationMode::Set) {
-            TRY(static_cast<DeclarativeEnvironment&>(*cached_environment).set_mutable_binding_direct(vm, cache.index, value, strict == Strict::Yes));
-        }
-        return {};
-    }
-
-    auto reference = TRY(vm.resolve_binding(vm.get_identifier(identifier_index), strict, environment));
-    update_environment_coordinate_cache(environment, reference, cache);
-    if constexpr (initialization_mode == BindingInitializationMode::Initialize) {
-        TRY(reference.initialize_referenced_binding(vm, value));
-    } else if (initialization_mode == BindingInitializationMode::Set) {
-        TRY(reference.put_value(vm, value));
-    }
-    return {};
-}
-
-ThrowCompletionOr<void> InitializeLexicalBinding::execute_impl(VM& vm) const
-{
-    return initialize_or_set_binding<EnvironmentMode::Lexical, BindingInitializationMode::Initialize>(vm, strict(), vm.get(m_src), m_cache);
-}
-
-ThrowCompletionOr<void> InitializeVariableBinding::execute_impl(VM& vm) const
-{
-    return initialize_or_set_binding<EnvironmentMode::Var, BindingInitializationMode::Initialize>(vm, strict(), vm.get(m_src), m_cache);
-}
-
-ThrowCompletionOr<void> DynamicInitializeLexicalBinding::execute_impl(VM& vm) const
-{
-    return dynamically_initialize_or_set_binding<EnvironmentMode::Lexical, BindingInitializationMode::Initialize>(vm, m_identifier, strict(), vm.get(m_src), vm.current_executable().environment_coordinate_caches[m_cache]);
-}
-
-ThrowCompletionOr<void> DynamicInitializeVariableBinding::execute_impl(VM& vm) const
-{
-    return dynamically_initialize_or_set_binding<EnvironmentMode::Var, BindingInitializationMode::Initialize>(vm, m_identifier, strict(), vm.get(m_src), vm.current_executable().environment_coordinate_caches[m_cache]);
-}
-
-ThrowCompletionOr<void> SetLexicalBinding::execute_impl(VM& vm) const
-{
-    return initialize_or_set_binding<EnvironmentMode::Lexical, BindingInitializationMode::Set>(vm, strict(), vm.get(m_src), m_cache);
-}
-
-ThrowCompletionOr<void> SetResolvedBinding::execute_impl(VM& vm) const
-{
-    auto const& identifier = vm.get_identifier(m_identifier);
-    auto environment = vm.get(m_environment);
-    auto reference = environment.is_null()
-        ? Reference { Reference::BaseType::Unresolvable, PropertyKey { identifier }, strict() }
-        : Reference { as<Environment>(environment.as_cell()), identifier, strict() };
-    return reference.put_value(vm, vm.get(m_src));
-}
-
-ThrowCompletionOr<void> SetVariableBinding::execute_impl(VM& vm) const
-{
-    return initialize_or_set_binding<EnvironmentMode::Var, BindingInitializationMode::Set>(vm, strict(), vm.get(m_src), m_cache);
-}
-
-ThrowCompletionOr<void> DynamicSetLexicalBinding::execute_impl(VM& vm) const
-{
-    return dynamically_initialize_or_set_binding<EnvironmentMode::Lexical, BindingInitializationMode::Set>(vm, m_identifier, strict(), vm.get(m_src), vm.current_executable().environment_coordinate_caches[m_cache]);
-}
-
-ThrowCompletionOr<void> DynamicSetVariableBinding::execute_impl(VM& vm) const
-{
-    return dynamically_initialize_or_set_binding<EnvironmentMode::Var, BindingInitializationMode::Set>(vm, m_identifier, strict(), vm.get(m_src), vm.current_executable().environment_coordinate_caches[m_cache]);
-}
-
 ThrowCompletionOr<void> GetById::execute_impl(VM& vm) const
 {
     auto base_value = vm.get(base());
@@ -2168,20 +1802,6 @@ ThrowCompletionOr<void> GetPrivateById::execute_impl(VM& vm) const
     auto base_value = vm.get(m_base);
     auto private_reference = make_private_reference(vm, base_value, name);
     vm.set(dst(), TRY(private_reference.get_value(vm)));
-    return {};
-}
-
-ThrowCompletionOr<void> HasPrivateId::execute_impl(VM& vm) const
-{
-
-    auto base = vm.get(m_base);
-    if (!base.is_object()) [[unlikely]]
-        return vm.throw_completion<TypeError>(ErrorType::InOperatorWithObject);
-
-    auto private_environment = vm.running_execution_context().private_environment;
-    VERIFY(private_environment);
-    auto private_name = private_environment->resolve_private_identifier(vm.get_identifier(m_property));
-    vm.set(dst(), Value(base.as_object().private_element_find(private_name) != nullptr));
     return {};
 }
 
@@ -2229,28 +1849,6 @@ ThrowCompletionOr<void> PutPrivateById::execute_impl(VM& vm) const
     return {};
 }
 
-COLD ThrowCompletionOr<void> DeleteById::execute_impl(VM& vm) const
-{
-    auto const& property_key = vm.get_property_key(m_property);
-    auto reference = Reference { vm.get(m_base), property_key, {}, strict() };
-    vm.set(dst(), Value(TRY(reference.delete_(vm))));
-    return {};
-}
-
-ThrowCompletionOr<void> ResolveBinding::execute_impl(VM& vm) const
-{
-    auto const& identifier = vm.get_identifier(m_identifier);
-    auto reference = TRY(vm.resolve_binding(identifier, strict()));
-    if (reference.is_unresolvable()) {
-        vm.set(dst(), js_null());
-        return {};
-    }
-
-    VERIFY(reference.is_environment_reference());
-    vm.set(dst(), &reference.base_environment());
-    return {};
-}
-
 ThrowCompletionOr<void> ResolveThisBinding::execute_impl(VM& vm) const
 {
     auto& cached_this_value = vm.reg(Register::this_value());
@@ -2270,30 +1868,9 @@ ThrowCompletionOr<void> ResolveThisBinding::execute_impl(VM& vm) const
     return {};
 }
 
-// https://tc39.es/ecma262/#sec-makesuperpropertyreference
-ThrowCompletionOr<void> ResolveSuperBase::execute_impl(VM& vm) const
-{
-
-    // 1. Let env be GetThisEnvironment().
-    auto& env = as<FunctionEnvironment>(*get_this_environment(vm));
-
-    // 2. Assert: env.HasSuperBinding() is true.
-    VERIFY(env.has_super_binding());
-
-    // 3. Let baseValue be ? env.GetSuperBase().
-    vm.set(dst(), TRY(env.get_super_base()));
-
-    return {};
-}
-
 void GetLexicalEnvironment::execute_impl(VM& vm) const
 {
     vm.set(dst(), vm.running_execution_context().lexical_environment);
-}
-
-void SetLexicalEnvironment::execute_impl(VM& vm) const
-{
-    vm.running_execution_context().lexical_environment = &as<Environment>(vm.get(m_environment).as_cell());
 }
 
 template<CallType call_type>
@@ -2612,30 +2189,6 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(VM& vm) const
     return {};
 }
 
-static Optional<StringView> function_name_prefix_to_string(Op::FunctionNamePrefix prefix)
-{
-    switch (prefix) {
-    case Op::FunctionNamePrefix::None:
-        return {};
-    case Op::FunctionNamePrefix::Get:
-        return "get"sv;
-    case Op::FunctionNamePrefix::Set:
-        return "set"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-ThrowCompletionOr<void> SetFunctionName::execute_impl(VM& vm) const
-{
-    auto function = vm.get(m_function).as_if<ECMAScriptFunctionObject>();
-    if (!function || !function->name().is_empty())
-        return {};
-
-    auto property_key = TRY(vm.get(m_name).to_property_key(vm));
-    function->set_inferred_name(Variant<PropertyKey, PrivateName> { move(property_key) }, function_name_prefix_to_string(m_prefix));
-    return {};
-}
-
 void Return::execute_impl(VM& vm) const
 {
     vm.do_return(vm.get(m_value));
@@ -2714,64 +2267,6 @@ ThrowCompletionOr<void> PostfixDecrement::execute_impl(VM& vm) const
     return {};
 }
 
-COLD ThrowCompletionOr<void> Throw::execute_impl(VM& vm) const
-{
-    return throw_completion(vm.get(src()));
-}
-
-ThrowCompletionOr<void> ThrowIfNotObject::execute_impl(VM& vm) const
-{
-    auto src = vm.get(m_src);
-    if (!src.is_object()) [[unlikely]]
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, src);
-    return {};
-}
-
-ThrowCompletionOr<void> ThrowIfNullish::execute_impl(VM& vm) const
-{
-    auto value = vm.get(m_src);
-    if (value.is_nullish()) [[unlikely]]
-        return vm.throw_completion<TypeError>(ErrorType::NotObjectCoercible, value);
-    return {};
-}
-
-ThrowCompletionOr<void> ThrowIfTDZ::execute_impl(VM& vm) const
-{
-    auto value = vm.get(m_src);
-    if (value.is_special_empty_value()) [[unlikely]]
-        return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, value);
-    return {};
-}
-
-ThrowCompletionOr<void> ThrowConstAssignment::execute_impl(VM& vm) const
-{
-    return vm.throw_completion<TypeError>(ErrorType::InvalidAssignToConst);
-}
-
-void Yield::execute_impl(VM& vm) const
-{
-    auto yielded_value = vm.get(m_value).is_special_empty_value() ? js_undefined() : vm.get(m_value);
-    vm.do_return(
-        vm.do_yield(yielded_value, m_continuation_label));
-}
-
-void YieldIteratorResult::execute_impl(VM& vm) const
-{
-    auto yielded_value = vm.get(m_value).is_special_empty_value() ? js_undefined() : vm.get(m_value);
-    vm.do_return(
-        vm.do_yield(yielded_value, m_continuation_label, true));
-}
-
-void Await::execute_impl(VM& vm) const
-{
-    auto yielded_value = vm.get(m_argument).is_special_empty_value() ? js_undefined() : vm.get(m_argument);
-    auto& context = vm.running_execution_context();
-    context.yield_continuation = m_continuation_label.address();
-    context.yield_is_await = true;
-    context.yield_value_is_iterator_result = false;
-    vm.do_return(yielded_value);
-}
-
 ThrowCompletionOr<void> GetByValue::execute_impl(VM& vm) const
 {
     vm.set(dst(), TRY(get_by_value(vm, m_base_identifier, vm.get(m_base), vm.get(m_property), vm.current_executable())));
@@ -2804,14 +2299,6 @@ ThrowCompletionOr<void> PutByValueWithThis::execute_impl(VM& vm) const
     auto this_value = vm.get(m_this_value);
     auto property_key = TRY(vm.get(m_property).to_property_key(vm));
     TRY(put_by_property_key(vm, base, this_value, value, {}, property_key, m_kind, strict()));
-    return {};
-}
-
-COLD ThrowCompletionOr<void> DeleteByValue::execute_impl(VM& vm) const
-{
-    auto property_key = TRY(vm.get(m_property).to_property_key(vm));
-    auto reference = Reference { vm.get(m_base), property_key, {}, strict() };
-    vm.set(m_dst, Value(TRY(reference.delete_(vm))));
     return {};
 }
 
@@ -2930,84 +2417,6 @@ NEVER_INLINE ThrowCompletionOr<void> NewClass::execute_impl(VM& vm) const
 
     auto* retval = TRY(construct_class(vm, blueprint, vm.current_executable(), class_environment, outer_environment, super_class, element_keys, binding_name, class_name));
     vm.set(dst(), retval);
-    return {};
-}
-
-// 13.5.3.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-typeof-operator-runtime-semantics-evaluation
-ThrowCompletionOr<void> TypeofBinding::execute_impl(VM& vm) const
-{
-    VERIFY(m_cache.is_valid());
-
-    auto const* environment = vm.running_execution_context().lexical_environment.ptr();
-    for (size_t i = 0; i < m_cache.hops; ++i)
-        environment = environment->outer_environment();
-
-    auto value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, m_cache.index));
-    vm.set(dst(), value.typeof_(vm));
-    return {};
-}
-
-ThrowCompletionOr<void> DynamicTypeofBinding::execute_impl(VM& vm) const
-{
-    auto& cache = vm.current_executable().environment_coordinate_caches[m_cache];
-    auto const* current_environment = vm.running_execution_context().lexical_environment.ptr();
-    if (auto const* environment = get_cached_environment(current_environment, cache)) [[likely]] {
-        auto value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
-        vm.set(dst(), value.typeof_(vm));
-        return {};
-    }
-
-    // 1. Let val be the result of evaluating UnaryExpression.
-    auto reference = TRY(vm.resolve_binding(vm.get_identifier(m_identifier), strict()));
-
-    // 2. If val is a Reference Record, then
-    //    a. If IsUnresolvableReference(val) is true, return "undefined".
-    if (reference.is_unresolvable()) {
-        vm.set(dst(), PrimitiveString::create(vm, "undefined"_string));
-        return {};
-    }
-
-    // 3. Set val to ? GetValue(val).
-    update_environment_coordinate_cache(current_environment, reference, cache);
-
-    auto value = TRY(reference.get_value(vm));
-
-    // 4. NOTE: This step is replaced in section B.3.6.3.
-    // 5. Return a String according to Table 41.
-    vm.set(dst(), value.typeof_(vm));
-    return {};
-}
-
-ThrowCompletionOr<void> CreateImmutableBinding::execute_impl(VM& vm) const
-{
-    auto& environment = as<Environment>(vm.get(m_environment).as_cell());
-    return environment.create_immutable_binding(vm, vm.get_identifier(m_identifier), m_strict_binding);
-}
-
-ThrowCompletionOr<void> CreateMutableBinding::execute_impl(VM& vm) const
-{
-    auto& environment = as<Environment>(vm.get(m_environment).as_cell());
-    return environment.create_mutable_binding(vm, vm.get_identifier(m_identifier), m_can_be_deleted);
-}
-
-ThrowCompletionOr<void> ToObject::execute_impl(VM& vm) const
-{
-    vm.set(m_dst, TRY(vm.get(m_value).to_object(vm)));
-    return {};
-}
-
-ThrowCompletionOr<void> ToLength::execute_impl(VM& vm) const
-{
-    vm.set(m_dst, Value { TRY(vm.get(m_value).to_length(vm)) });
-    return {};
-}
-
-ThrowCompletionOr<void> CreateDataPropertyOrThrow::execute_impl(VM& vm) const
-{
-    auto& object = vm.get(m_object).as_object();
-    auto property = TRY(vm.get(m_property).to_property_key(vm));
-    auto value = vm.get(m_value);
-    TRY(object.create_data_property_or_throw(property, value));
     return {};
 }
 

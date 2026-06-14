@@ -438,17 +438,18 @@ macro dispatch_current()
 end
 
 # Walk the environment chain using a statically computed EnvironmentCoordinate.
-# Input: m_cache_field is the offset of the EnvironmentCoordinate inside
-# the bytecode instruction.
+# Input: m_environment_field is the offset of the starting environment inside
+# ExecutionContext. m_cache_field is the offset of the EnvironmentCoordinate
+# inside the bytecode instruction.
 # Output: target_env points at the resolved environment, bind_index holds
 # the binding index within it.
 # On failure (the caller's binding operation fails): jumps to fail_label.
-macro walk_env_chain(m_cache_field, target_env, bind_index, fail_label)
+macro walk_env_chain(m_environment_field, m_cache_field, target_env, bind_index, fail_label)
     temp coord_addr, hops
     lea coord_addr, [pb, pc]
     add coord_addr, m_cache_field
     load_pair32 hops, bind_index, [coord_addr, ENVIRONMENT_COORDINATE_HOPS], [coord_addr, ENVIRONMENT_COORDINATE_INDEX]
-    load64 target_env, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
+    load64 target_env, [exec_ctx, m_environment_field]
     assert_nonzero target_env
     branch_zero hops, .walk_done
 .walk_loop:
@@ -1121,7 +1122,7 @@ end
 # Inline environment chain walk + binding value load with TDZ check.
 handler GetBinding
     temp env, idx, binding_values, value, empty
-    walk_env_chain m_cache, env, idx, .slow
+    walk_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, m_cache, env, idx, .slow
     check_binding_initialized env, idx, binding_values, value, empty, .slow
     store_operand m_dst, value
     dispatch_next
@@ -1142,7 +1143,7 @@ end
 # Inline environment chain walk + direct binding value load.
 handler GetInitializedBinding
     temp env, idx, binding_values, value
-    walk_env_chain m_cache, env, idx, .slow
+    walk_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, m_cache, env, idx, .slow
     load_binding_value env, idx, binding_values, value
     store_operand m_dst, value
     dispatch_next
@@ -1163,12 +1164,22 @@ end
 # Inline environment chain walk + initialize binding.
 handler InitializeLexicalBinding
     temp env, idx, value, binding_values
-    walk_env_chain m_cache, env, idx, .slow
+    walk_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, m_cache, env, idx, .slow
     load_operand value, m_src
     store_binding_value env, idx, binding_values, value
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_initialize_lexical_binding
+end
+
+handler InitializeVariableBinding
+    temp env, idx, value, binding_values
+    walk_env_chain EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT, m_cache, env, idx, .slow
+    load_operand value, m_src
+    store_binding_value env, idx, binding_values, value
+    dispatch_next
+.slow:
+    call_slow_path asm_slow_path_initialize_variable_binding
 end
 
 handler DynamicInitializeLexicalBinding
@@ -1194,7 +1205,7 @@ end
 # Inline environment chain walk + set mutable binding.
 handler SetLexicalBinding
     temp env, idx, flag, value, binding_values, flags, empty
-    walk_env_chain m_cache, env, idx, .slow
+    walk_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, m_cache, env, idx, .slow
     check_binding_initialized env, idx, binding_values, value, empty, .slow
     # Check mutable
     load_binding_flags env, idx, flags, flag
@@ -1205,6 +1216,21 @@ handler SetLexicalBinding
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_set_lexical_binding
+end
+
+handler SetVariableBinding
+    temp env, idx, flag, value, binding_values, flags, empty
+    walk_env_chain EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT, m_cache, env, idx, .slow
+    check_binding_initialized env, idx, binding_values, value, empty, .slow
+    # Check mutable
+    load_binding_flags env, idx, flags, flag
+    and flag, BINDING_FLAG_MUTABLE
+    branch_zero flag, .slow
+    load_operand value, m_src
+    store_binding_value env, idx, binding_values, value
+    dispatch_next
+.slow:
+    call_slow_path asm_slow_path_set_variable_binding
 end
 
 handler DynamicSetLexicalBinding
@@ -1235,6 +1261,50 @@ handler DynamicSetVariableBinding
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_dynamic_set_variable_binding
+end
+
+handler ResolveBinding
+    call_slow_path asm_slow_path_resolve_binding
+end
+
+handler ResolveSuperBase
+    call_slow_path asm_slow_path_resolve_super_base
+end
+
+handler SetResolvedBinding
+    call_slow_path asm_slow_path_set_resolved_binding
+end
+
+handler TypeofBinding
+    call_slow_path asm_slow_path_typeof_binding
+end
+
+handler DynamicTypeofBinding
+    call_slow_path asm_slow_path_dynamic_typeof_binding
+end
+
+handler HasPrivateId
+    call_slow_path asm_slow_path_has_private_id
+end
+
+handler SetFunctionName
+    call_slow_path asm_slow_path_set_function_name
+end
+
+handler NewArrayWithLength
+    call_slow_path asm_slow_path_new_array_with_length
+end
+
+handler ArrayAppend
+    call_slow_path asm_slow_path_array_append
+end
+
+handler CreateVariable
+    call_slow_path asm_slow_path_create_variable
+end
+
+handler EnterObjectEnvironment
+    call_slow_path asm_slow_path_enter_object_environment
 end
 
 # x++: save original to dst first, then increment src in-place.
@@ -1410,6 +1480,42 @@ handler ThrowIfNullish
     call_slow_path asm_slow_path_throw_if_nullish
 end
 
+handler ThrowConstAssignment
+    call_slow_path asm_slow_path_throw_const_assignment
+end
+
+handler Throw
+    call_slow_path asm_slow_path_throw
+end
+
+handler Await
+    call_slow_path asm_slow_path_await
+end
+
+handler Yield
+    call_slow_path asm_slow_path_yield
+end
+
+handler YieldIteratorResult
+    call_slow_path asm_slow_path_yield_iterator_result
+end
+
+handler ToString
+    call_slow_path asm_slow_path_to_string
+end
+
+handler ToPrimitiveWithStringHint
+    call_slow_path asm_slow_path_to_primitive_with_string_hint
+end
+
+handler ToObject
+    call_slow_path asm_slow_path_to_object
+end
+
+handler ToLength
+    call_slow_path asm_slow_path_to_length
+end
+
 # Fast path for int32: ~value
 handler BitwiseNot
     temp value, tag, dst
@@ -1554,7 +1660,7 @@ end
 # Inline environment chain walk + get callee and this.
 handler GetCalleeAndThisFromEnvironment
     temp env, idx, binding_values, value, empty
-    walk_env_chain m_cache, env, idx, .slow
+    walk_env_chain EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, m_cache, env, idx, .slow
     check_binding_initialized env, idx, binding_values, value, empty, .slow
     store_operand m_callee, value
     # this = undefined (DeclarativeEnvironment.with_base_object() always returns nullptr)
@@ -3076,6 +3182,18 @@ handler CreateAsyncFromSyncIterator
     call_slow_path asm_slow_path_create_async_from_sync_iterator
 end
 
+handler CreateDataPropertyOrThrow
+    call_slow_path asm_slow_path_create_data_property_or_throw
+end
+
+handler CreateImmutableBinding
+    call_slow_path asm_slow_path_create_immutable_binding
+end
+
+handler CreateMutableBinding
+    call_slow_path asm_slow_path_create_mutable_binding
+end
+
 handler CreateRestParams
     call_slow_path asm_slow_path_create_rest_params
 end
@@ -3094,6 +3212,18 @@ end
 
 handler CreateVariableEnvironment
     call_slow_path asm_slow_path_create_variable_environment
+end
+
+handler DeleteById
+    call_slow_path asm_slow_path_delete_by_id
+end
+
+handler DeleteByValue
+    call_slow_path asm_slow_path_delete_by_value
+end
+
+handler DeleteVariable
+    call_slow_path asm_slow_path_delete_variable
 end
 
 handler GetCompletionFields
