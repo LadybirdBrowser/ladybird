@@ -1,0 +1,8 @@
+<!doctype html>
+<iframe id="frame"></iframe>
+<script>
+frame.onload = () => {
+    frame.contentWindow.history.pushState({}, "", "#child");
+};
+frame.srcdoc = "<!doctype html><body>child</body>";
+</script>

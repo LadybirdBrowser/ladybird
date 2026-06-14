@@ -839,32 +839,23 @@ void ApplyHistoryStepState::start()
     // 8. For each navigable of changingNavigables:
     auto changing_navigables = m_traversable->get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_target_step);
     for (auto& navigable : changing_navigables) {
-        // AD-HOC: For a synchronous (same-document) application of a history step, skip a navigable that has just
-        //         been claimed by a fresh ongoing navigation. Apply the history step would otherwise transition the
-        //         navigable's ongoing navigation through "traversal" and back to null, which informs the navigation
-        //         API about aborting (cancelling the in-flight navigation's navigate event) and then trips the
-        //         "ongoing navigation is no longer navigationId" bail-out in navigate's deferred steps, leaving the
-        //         in-flight navigation stranded.
-        //
-        //         The race shows up when a click capture handler calls history.replaceState and the link's
-        //         cross-document activation behavior runs in the same task: the replaceState's queued sync step
-        //         finalizes after the link nav has already entered begin_navigation, and wipes its id. Real-world
-        //         example: Shopify storefronts running hCaptcha (which hooks click and replaceStates to the current
-        //         URL for analytics). The page silently never moves.
-        //
-        //         No major engine reproduces this. Chromium runs sync same-document nav entirely in-task and never
-        //         enters a parallel traversal queue, WebKit doesn't track navigation IDs at all, and Gecko routes
-        //         sync replaceState directly through history without entering SetOngoingNavigation. The strictly
-        //         correct long-term fix is to bypass the traversal queue for sync same-document navigations to
-        //         match Chromium; until then, skipping the transient when the navigable is already mid-navigation
-        //         matches the observable behavior of all three.
-        //
-        //         Cross-document and traversal applications still process every changing navigable: the "traversal"
-        //         transition there is not transient. It precedes an actual document switch that takes ownership.
+        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
+        // AD-HOC: The spec queues same-document history updates because they happen synchronously, outside the
+        //         traversal queue, and must later resolve races with the current history step. If another navigation
+        //         has already claimed the navigable by the time this queued reconciliation runs, leave that navigation
+        //         ID alone. This matches the observable behavior of Chromium, WebKit, and Gecko: a same-document
+        //         history update does not cancel a later cross-document navigation from the same task.
         if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes
             && navigable->ongoing_navigation().has<String>()) {
             continue;
         }
+
+        // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-child-navigable
+        // NB: The creation/destruction update is the bookkeeping step after the child's nested history has been
+        //     attached to its parent document state. If the container's requested navigation has already started, it
+        //     owns the ongoing navigation ID and eventual document activation.
+        if (!m_navigation_type.has_value() && navigable->ongoing_navigation().has<String>())
+            continue;
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
         auto target_entry = navigable->get_the_target_history_entry(m_target_step);
@@ -1157,7 +1148,7 @@ void ApplyHistoryStepState::process_continuations()
             continue;
         }
 
-        VERIFY(m_target_step == m_traversable->get_the_used_step(m_step));
+        m_target_step = m_traversable->get_the_used_step(m_step);
 
         // 7. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
         auto history_object_length_and_index = m_traversable->get_the_history_object_length_and_index(m_target_step);
@@ -1271,7 +1262,7 @@ void ApplyHistoryStepState::process_continuations()
 
 void ApplyHistoryStepState::enter_waiting_for_non_changing_jobs()
 {
-    VERIFY(m_target_step == m_traversable->get_the_used_step(m_step));
+    m_target_step = m_traversable->get_the_used_step(m_step);
 
     // 17. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
     auto length_and_index = m_traversable->get_the_history_object_length_and_index(m_target_step);
@@ -1398,11 +1389,20 @@ TraversableNavigable::SessionHistorySnapshot TraversableNavigable::create_sessio
     auto used_history_steps = get_all_used_history_steps();
     Vector<i32> used_session_history_steps;
     used_session_history_steps.ensure_capacity(used_history_steps.size());
+    auto current_session_history_step_for_snapshot = current_session_history_step();
+    if (!used_history_steps.contains_slow(current_session_history_step_for_snapshot)) {
+        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
+        // NB: The UI process snapshot needs a current item from the used-steps list. While the
+        //     creation/destruction update is reconciling removed child navigables, the traversable's current
+        //     session history step can be a hole. Use the same greatest-used-step <= current step rule here only;
+        //     traversal and back/forward decisions still use the spec's current-step-in-allSteps assertions.
+        current_session_history_step_for_snapshot = get_the_used_step(current_session_history_step_for_snapshot);
+    }
     Optional<size_t> current_used_step_index;
     for (size_t i = 0; i < used_history_steps.size(); ++i) {
         auto step = used_history_steps[i];
         used_session_history_steps.unchecked_append(static_cast<i32>(step));
-        if (step == current_session_history_step())
+        if (step == current_session_history_step_for_snapshot)
             current_used_step_index = i;
     }
     VERIFY(current_used_step_index.has_value());
@@ -1420,6 +1420,12 @@ void ApplyHistoryStepState::complete()
         return;
     m_phase = Phase::Completed;
     m_timeout->stop();
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
+    // NB: targetStep was computed before the asynchronous portions of applying the history step. If a child
+    //     navigable was removed while those steps were running, that step can stop being used. Normalize again
+    //     before storing it as the traversable's current session history step.
+    m_target_step = m_traversable->get_the_used_step(m_target_step);
 
     // 20. Set traversable's current session history step to targetStep.
     m_traversable->m_current_session_history_step = m_target_step;

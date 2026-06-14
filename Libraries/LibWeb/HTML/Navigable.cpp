@@ -254,6 +254,35 @@ HashTable<GC::RawRef<Navigable>>& all_navigables()
     return *set;
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
+static Vector<NonnullRefPtr<SessionHistoryEntry>>* get_session_history_entries_if_present(TraversableNavigable& traversable, Navigable const& navigable)
+{
+    // 4. Let docStates be an empty ordered set of document states.
+    Vector<RefPtr<DocumentState>> doc_states;
+
+    // 5. For each entry of traversable's session history entries, append entry's document state to docStates.
+    for (auto& entry : traversable.session_history_entries())
+        doc_states.append(entry->document_state());
+
+    // 6. For each docState of docStates:
+    for (size_t i = 0; i < doc_states.size(); ++i) {
+        auto doc_state = doc_states[i];
+
+        // 1. For each nestedHistory of docState's nested histories:
+        for (auto& nested_history : doc_state->nested_histories()) {
+            // 1. If nestedHistory's id equals navigable's id, return nestedHistory's entries.
+            if (nested_history.id == navigable.id())
+                return &nested_history.entries;
+
+            // 2. For each entry of nestedHistory's entries, append entry's document state to docStates.
+            for (auto& entry : nested_history.entries)
+                doc_states.append(entry->document_state());
+        }
+    }
+
+    return nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#child-navigable
 Vector<GC::Root<Navigable>> Navigable::child_navigables() const
 {
@@ -936,28 +965,8 @@ Vector<NonnullRefPtr<SessionHistoryEntry>>& Navigable::get_session_history_entri
     if (this == traversable)
         return traversable->session_history_entries();
 
-    // 4. Let docStates be an empty ordered set of document states.
-    Vector<RefPtr<DocumentState>> doc_states;
-
-    // 5. For each entry of traversable's session history entries, append entry's document state to docStates.
-    for (auto& entry : traversable->session_history_entries())
-        doc_states.append(entry->document_state());
-
-    // 6. For each docState of docStates:
-    for (size_t i = 0; i < doc_states.size(); ++i) {
-        auto doc_state = doc_states[i];
-
-        // 1. For each nestedHistory of docState's nested histories:
-        for (auto& nested_history : doc_state->nested_histories()) {
-            // 1. If nestedHistory's id equals navigable's id, return nestedHistory's entries.
-            if (nested_history.id == id())
-                return nested_history.entries;
-
-            // 2. For each entry of nestedHistory's entries, append entry's document state to docStates.
-            for (auto& entry : nested_history.entries)
-                doc_states.append(entry->document_state());
-        }
-    }
+    if (auto* entries = get_session_history_entries_if_present(*traversable, *this))
+        return *entries;
 
     VERIFY_NOT_REACHED();
 }
@@ -2855,7 +2864,23 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     int target_step;
 
     // 8. Let targetEntries be the result of getting session history entries for navigable.
-    auto& target_entries = navigable->get_session_history_entries();
+    Vector<NonnullRefPtr<SessionHistoryEntry>>* target_entries_pointer = nullptr;
+    if (navigable.ptr() == traversable.ptr()) {
+        target_entries_pointer = &traversable->session_history_entries();
+    } else {
+        target_entries_pointer = get_session_history_entries_if_present(*traversable, navigable);
+        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
+        // AD-HOC: The spec asserts that a nested history list is found. A queued child-frame commit can run
+        //         after the iframe has been removed, when there is no remaining list to update. Chromium,
+        //         WebKit, and Gecko bind child-frame commits to the live frame, so a removed frame's late
+        //         commit has no observable session history effect.
+        if (!target_entries_pointer) {
+            navigable->clear_navigation_load_event_guard();
+            on_complete->function()(HistoryStepResult::Applied);
+            return;
+        }
+    }
+    auto& target_entries = *target_entries_pointer;
 
     // 9. If entryToReplace is null, then:
     if (entry_to_replace == nullptr) {
@@ -2872,10 +2897,45 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
         target_entries.append(history_entry);
     } else {
         // 1. Replace entryToReplace with historyEntry in targetEntries.
-        *(target_entries.find(*entry_to_replace)) = history_entry;
+        auto entry_to_replace_iterator = target_entries.find(*entry_to_replace);
+        if (entry_to_replace_iterator == target_entries.end()) {
+            if (!navigable->active_document()->is_initial_about_blank()) {
+                // AD-HOC: A non-initial document whose entryToReplace is no longer in targetEntries is the same
+                //         stale child-frame commit case as above.
+                navigable->clear_navigation_load_event_guard();
+                on_complete->function()(HistoryStepResult::Applied);
+                return;
+            }
 
-        // 2. Set historyEntry's step to entryToReplace's step.
-        history_entry->set_step(entry_to_replace->step());
+            // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-child-navigable
+            // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
+            // AD-HOC: Initial about:blank's first real navigation is a replacement. If a synchronous
+            //         same-document history update swapped out the original entry object before the queued
+            //         cross-document commit runs, replace the remaining initial child entry instead.
+            Optional<size_t> entry_to_replace_index;
+            for (size_t i = 0; i < target_entries.size(); ++i) {
+                if (target_entries[i]->step() == entry_to_replace->step()) {
+                    entry_to_replace_index = i;
+                    break;
+                }
+            }
+            if (!entry_to_replace_index.has_value() && target_entries.size() == 1)
+                entry_to_replace_index = 0;
+            if (!entry_to_replace_index.has_value()) {
+                navigable->clear_navigation_load_event_guard();
+                on_complete->function()(HistoryStepResult::Applied);
+                return;
+            }
+
+            auto replacement_entry = target_entries[*entry_to_replace_index];
+            target_entries[*entry_to_replace_index] = history_entry;
+            history_entry->set_step(replacement_entry->step());
+        } else {
+            *entry_to_replace_iterator = history_entry;
+
+            // 2. Set historyEntry's step to entryToReplace's step.
+            history_entry->set_step(entry_to_replace->step());
+        }
 
         // 3. If historyEntry's document state's origin is same origin with entryToReplace's document state's origin,
         //    then set historyEntry's navigation API key to entryToReplace's navigation API key.
