@@ -1,0 +1,27 @@
+<!doctype html>
+<body></body>
+<script src="../include.js"></script>
+<script>
+    function loadFrame(url) {
+        return new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            iframe.onload = () => resolve(iframe);
+            document.body.insertBefore(iframe, document.body.firstChild);
+            iframe.src = url;
+        });
+    }
+
+    asyncTest(async done => {
+        history.pushState({ section: "running" }, "", "#running");
+
+        const first = await loadFrame("about:blank");
+        println("first loaded");
+        first.contentWindow.history.pushState({}, "", "about:blank#first");
+        first.remove();
+        await internals.flushSessionHistoryTraversalQueue();
+
+        await loadFrame("about:blank");
+        println("second loaded");
+        done();
+    });
+</script>
