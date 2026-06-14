@@ -546,6 +546,22 @@ TEST_CASE(test_exif)
     EXPECT_EQ(frame.image->get_pixel(190, 10), Gfx::Color(255, 0, 0));
 }
 
+TEST_CASE(test_exif_orientation_transpose_non_square)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/exif-orientation-5.png"sv)));
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 3 }));
+    EXPECT(plugin_decoder->metadata().has_value());
+    auto const& exif_metadata = static_cast<Gfx::ExifMetadata const&>(plugin_decoder->metadata().value());
+    EXPECT_EQ(*exif_metadata.orientation(), Gfx::TIFF::Orientation::Rotate90ClockwiseThenFlipHorizontally);
+
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(255, 0, 0));
+    EXPECT_EQ(frame.image->get_pixel(0, 1), Gfx::Color(0, 255, 0));
+    EXPECT_EQ(frame.image->get_pixel(0, 2), Gfx::Color(0, 0, 255));
+}
+
 TEST_CASE(test_png_malformed_frame)
 {
     Array test_inputs = {
