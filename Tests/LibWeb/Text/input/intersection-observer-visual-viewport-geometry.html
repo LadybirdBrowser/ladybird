@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #top-left-target,
+    #right-target {
+        width: 100px;
+        height: 100px;
+    }
+
+    #right-target {
+        margin-left: 400px;
+    }
+</style>
+<div id="top-left-target"></div>
+<div id="right-target"></div>
+<script src="include.js"></script>
+<script>
+    function observe(target) {
+        return new Promise(resolve => {
+            const observer = new IntersectionObserver(entries => {
+                observer.disconnect();
+                resolve(entries[0]);
+            });
+            observer.observe(target);
+        });
+    }
+
+    asyncTest(async done => {
+        function fixed(value) {
+            return value.toFixed(3);
+        }
+
+        await animationFrame();
+
+        await new Promise(resolve => {
+            visualViewport.addEventListener("resize", resolve, { once: true });
+            internals.pinch(100, 100, 0.5);
+        });
+
+        const topLeftTarget = document.getElementById("top-left-target");
+        const topLeftRect = topLeftTarget.getBoundingClientRect();
+        println(`visualViewport: ${fixed(visualViewport.width)}x${fixed(visualViewport.height)} scale=${fixed(visualViewport.scale)}`);
+        println(`visualViewport offset: ${fixed(visualViewport.offsetLeft)},${fixed(visualViewport.offsetTop)}`);
+        println(`top-left target origin: ${fixed(topLeftRect.x)},${fixed(topLeftRect.y)}`);
+        println(`top-left target size: ${fixed(topLeftRect.width)}x${fixed(topLeftRect.height)}`);
+
+        const topLeftEntry = await observe(topLeftTarget);
+        println(`top-left rootBounds origin: ${fixed(topLeftEntry.rootBounds.x)},${fixed(topLeftEntry.rootBounds.y)}`);
+        println(`top-left rootBounds size: ${fixed(topLeftEntry.rootBounds.width)}x${fixed(topLeftEntry.rootBounds.height)}`);
+        println(`top-left intersectionRect origin: ${fixed(topLeftEntry.intersectionRect.x)},${fixed(topLeftEntry.intersectionRect.y)}`);
+        println(`top-left intersectionRect size: ${fixed(topLeftEntry.intersectionRect.width)}x${fixed(topLeftEntry.intersectionRect.height)}`);
+        println(`top-left intersectionRatio: ${fixed(topLeftEntry.intersectionRatio)}`);
+
+        const rightEntry = await observe(document.getElementById("right-target"));
+        println(`right target isIntersecting: ${rightEntry.isIntersecting ? "PASS" : "FAIL"}`);
+        println(`right target intersectionRatio: ${fixed(rightEntry.intersectionRatio)}`);
+        done();
+    });
+</script>

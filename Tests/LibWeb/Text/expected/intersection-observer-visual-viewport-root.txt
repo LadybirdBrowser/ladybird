@@ -1,0 +1,3 @@
+visualViewport: 533.333x400.000
+rootBounds: 800.000x600.000
+rootBounds match layout viewport: PASS

@@ -1639,7 +1639,7 @@ static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element c
     Vector<CSSPixelRect> rects;
     if (auto paintable_box = element.paintable_box()) {
         auto absolute_rect = paintable_box->absolute_border_box_rect();
-        rects.append(paintable_box->transform_rect_to_viewport(absolute_rect));
+        rects.append(paintable_box->transform_rect_to_viewport(absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
     } else if (element.paintable()) {
         dbgln("FIXME: Failed to get client rects for element ({})", element.debug_description());
     }

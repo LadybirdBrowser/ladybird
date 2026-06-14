@@ -285,9 +285,12 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
         // Since the spec says that this is only reach if the document is fully active, that means it must have a navigable.
         VERIFY(document->navigable());
 
-        // NOTE: This rect is the *size* of the viewport. The viewport *offset* is not relevant,
-        //       as intersections are computed using viewport-relative element rects.
-        rect = CSSPixelRect { CSSPixelPoint { 0, 0 }, document->viewport_rect().size() };
+        // NOTE: This rect is in the same layout viewport coordinate space as
+        //       Element::getBoundingClientRect().
+        rect = CSSPixelRect {
+            CSSPixelPoint { 0, 0 },
+            document->viewport_rect().size(),
+        };
     } else {
         VERIFY(intersection_root.has<GC::Ref<DOM::Element>>());
         auto element = intersection_root.get<GC::Ref<DOM::Element>>();

@@ -1,0 +1,4 @@
+before: 0.000,0.000 100.000x100.000
+visualViewport scale: 1.500
+after: 0.000,0.000 100.000x100.000
+size unchanged: PASS

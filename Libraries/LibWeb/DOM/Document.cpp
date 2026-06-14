@@ -6151,7 +6151,7 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect t
             auto overflow_y = container->computed_values().overflow_y();
             bool has_content_clip = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
             if (has_content_clip) {
-                auto clip_rect = container->transform_rect_to_viewport(container->absolute_padding_box_rect());
+                auto clip_rect = container->transform_rect_to_viewport(container->absolute_padding_box_rect(), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
 
                 // Apply scroll margin to expand the scrollport for scroll containers.
                 auto& scroll_margin = observer.scroll_margin_values();

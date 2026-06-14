@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #target {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="target"></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        await animationFrame();
+
+        const target = document.getElementById("target");
+        const before = target.getBoundingClientRect();
+        println(`before: ${before.x.toFixed(3)},${before.y.toFixed(3)} ${before.width.toFixed(3)}x${before.height.toFixed(3)}`);
+
+        await new Promise(resolve => {
+            visualViewport.addEventListener("resize", resolve, { once: true });
+            internals.pinch(100, 100, 0.5);
+        });
+
+        const after = target.getBoundingClientRect();
+        println(`visualViewport scale: ${visualViewport.scale.toFixed(3)}`);
+        println(`after: ${after.x.toFixed(3)},${after.y.toFixed(3)} ${after.width.toFixed(3)}x${after.height.toFixed(3)}`);
+        println(`size unchanged: ${after.width === before.width && after.height === before.height ? "PASS" : "FAIL"}`);
+        done();
+    });
+</script>
