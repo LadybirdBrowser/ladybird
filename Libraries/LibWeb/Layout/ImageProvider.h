@@ -15,6 +15,7 @@
 
 namespace Web::Layout {
 
+// FIXME: Update all ImageProviders to be DecodedImageData::Clients (i.e. support animated images)
 class ImageProvider {
 public:
     virtual ~ImageProvider() { }

@@ -6821,7 +6821,7 @@ void Document::prune_image_resource_caches()
 
     auto is_used_by_css_image_resource = [&](URL::URL const& url, HTML::SharedResourceRequest const& request) {
         auto* css_image_resource = this->css_image_resource(url);
-        return css_image_resource && css_image_resource->image_data() == request.image_data();
+        return css_image_resource && css_image_resource->decoded_image_data() == request.image_data();
     };
 
     struct CacheSize {

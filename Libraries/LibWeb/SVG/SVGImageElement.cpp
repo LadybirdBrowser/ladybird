@@ -32,6 +32,12 @@ SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qua
 
 SVGImageElement::~SVGImageElement() = default;
 
+void SVGImageElement::finalize()
+{
+    Base::finalize();
+    unregister_with_decoded_image_data_if_needed();
+}
+
 void SVGImageElement::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGImageElement);
@@ -185,6 +191,7 @@ void SVGImageElement::process_the_url(Optional<String> const& href)
 void SVGImageElement::fetch_the_document(URL::URL const& url)
 {
     m_load_event_delayer.emplace(document());
+    unregister_with_decoded_image_data_if_needed();
     m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), url);
     m_resource_request->add_callbacks(
         [this, resource_request = GC::Root { m_resource_request }] {
@@ -195,6 +202,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
                 m_animation_timer->set_interval(image_data->frame_duration(0));
                 m_animation_timer->start();
             }
+            register_with_decoded_image_data_if_needed();
             set_needs_style_update(true);
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 

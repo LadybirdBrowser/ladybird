@@ -22,6 +22,16 @@ class DecodedImageData : public JS::Cell {
     GC_CELL(DecodedImageData, JS::Cell);
 
 public:
+    class Client {
+    public:
+        virtual GC::Ptr<DecodedImageData> decoded_image_data() const = 0;
+        virtual void decoded_image_data_did_update() = 0;
+
+    protected:
+        void register_with_decoded_image_data_if_needed();
+        void unregister_with_decoded_image_data_if_needed();
+    };
+
     virtual ~DecodedImageData();
 
     [[nodiscard]] bool is_cors_cross_origin() const { return m_is_cors_cross_origin; }
@@ -46,7 +56,10 @@ public:
 protected:
     DecodedImageData();
 
+    void notify_clients_did_update();
+
 private:
+    HashTable<Client*> m_clients;
     bool m_is_cors_cross_origin { false };
 };
 
