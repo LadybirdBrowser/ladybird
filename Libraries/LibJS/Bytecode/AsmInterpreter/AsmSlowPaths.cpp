@@ -627,7 +627,6 @@ i64 asm_slow_path_jump_loosely_equals(VM*, u32 pc);
 i64 asm_slow_path_jump_loosely_inequals(VM*, u32 pc);
 i64 asm_slow_path_jump_strictly_equals(VM*, u32 pc);
 i64 asm_slow_path_jump_strictly_inequals(VM*, u32 pc);
-i64 asm_slow_path_set_lexical_environment(VM*, u32 pc);
 i64 asm_slow_path_postfix_increment(VM*, u32 pc);
 i64 asm_slow_path_get_by_id(VM*, u32 pc);
 i64 asm_slow_path_get_by_id_with_this(VM*, u32 pc);
@@ -734,7 +733,6 @@ i64 asm_slow_path_create_variable(VM*, u32 pc);
 i64 asm_slow_path_enter_object_environment(VM*, u32 pc);
 i64 asm_slow_path_bitwise_not(VM*, u32 pc);
 i64 asm_slow_path_unary_plus(VM*, u32 pc);
-i64 asm_slow_path_is_callable(VM*, u32 pc);
 i64 asm_slow_path_is_constructor(VM*, u32 pc);
 i64 asm_slow_path_add_private_name(VM*, u32 pc);
 i64 asm_slow_path_create_async_from_sync_iterator(VM*, u32 pc);
@@ -754,7 +752,6 @@ i64 asm_slow_path_get_completion_fields(VM*, u32 pc);
 i64 asm_slow_path_set_completion_type(VM*, u32 pc);
 i64 asm_slow_path_get_template_object(VM*, u32 pc);
 i64 asm_slow_path_new_function(VM*, u32 pc);
-i64 asm_slow_path_leave_private_environment(VM*, u32 pc);
 i64 asm_slow_path_throw(VM*, u32 pc);
 i64 asm_slow_path_throw_if_tdz(VM*, u32 pc);
 i64 asm_slow_path_throw_if_not_object(VM*, u32 pc);
@@ -942,15 +939,6 @@ i64 asm_slow_path_jump_strictly_inequals(VM* vm, u32 pc)
 }
 
 // ===== Dedicated slow paths for hot instructions =====
-
-i64 asm_slow_path_set_lexical_environment(VM* vm, u32 pc)
-{
-    bump_slow_path(*vm, pc);
-    auto* bytecode = vm->current_executable().bytecode.data();
-    auto& insn = *reinterpret_cast<Op::SetLexicalEnvironment const*>(&bytecode[pc]);
-    vm->running_execution_context().lexical_environment = &as<Environment>(vm->get(insn.environment()).as_cell());
-    return static_cast<i64>(pc + sizeof(Op::SetLexicalEnvironment));
-}
 
 i64 asm_slow_path_get_initialized_binding(VM* vm, u32 pc)
 {
@@ -2889,15 +2877,6 @@ i64 asm_slow_path_unary_plus(VM* vm, u32 pc)
     return static_cast<i64>(pc + sizeof(Op::UnaryPlus));
 }
 
-i64 asm_slow_path_is_callable(VM* vm, u32 pc)
-{
-    bump_slow_path(*vm, pc);
-    auto* bytecode = vm->current_executable().bytecode.data();
-    auto& insn = *reinterpret_cast<Op::IsCallable const*>(&bytecode[pc]);
-    vm->set(insn.dst(), Value(vm->get(insn.value()).is_function()));
-    return static_cast<i64>(pc + sizeof(Op::IsCallable));
-}
-
 i64 asm_slow_path_is_constructor(VM* vm, u32 pc)
 {
     bump_slow_path(*vm, pc);
@@ -3208,14 +3187,6 @@ i64 asm_slow_path_new_function(VM* vm, u32 pc)
 
     vm->set(insn.dst(), function);
     return static_cast<i64>(pc + sizeof(Op::NewFunction));
-}
-
-i64 asm_slow_path_leave_private_environment(VM* vm, u32 pc)
-{
-    bump_slow_path(*vm, pc);
-    auto& running_execution_context = vm->running_execution_context();
-    running_execution_context.private_environment = running_execution_context.private_environment->outer_environment();
-    return static_cast<i64>(pc + sizeof(Op::LeavePrivateEnvironment));
 }
 
 i64 asm_slow_path_throw(VM* vm, u32 pc)

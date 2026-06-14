@@ -328,6 +328,10 @@ int main()
     EMIT_OFFSET(ENVIRONMENT_DECLARATIVE, Environment, m_declarative);
     EMIT_OFFSET(ENVIRONMENT_OUTER, Environment, m_outer_environment);
 
+    // PrivateEnvironment layout
+    outln("\n# PrivateEnvironment layout");
+    EMIT_OFFSET(PRIVATE_ENVIRONMENT_OUTER, PrivateEnvironment, m_outer_environment);
+
     // DeclarativeEnvironment binding storage layout
     outln("\n# DeclarativeEnvironment binding storage layout");
     EMIT_OFFSET(DECLARATIVE_ENVIRONMENT_SHAPE, DeclarativeEnvironment, m_shape);
@@ -388,6 +392,7 @@ int main()
     outln("const SYMBOL_TAG = 0x{:X}", static_cast<u64>(SYMBOL_TAG));
     outln("const BIGINT_TAG = 0x{:X}", static_cast<u64>(BIGINT_TAG));
     outln("const ACCESSOR_TAG = 0x{:X}", static_cast<u64>(ACCESSOR_TAG));
+    outln("const IS_CELL_PATTERN = 0x{:X}", static_cast<u64>(GC::IS_CELL_PATTERN));
     outln("const INT32_TAG = 0x{:X}", static_cast<u64>(INT32_TAG));
     outln("const BOOLEAN_TAG = 0x{:X}", static_cast<u64>(BOOLEAN_TAG));
     outln("const UNDEFINED_TAG = 0x{:X}", static_cast<u64>(UNDEFINED_TAG));
@@ -406,7 +411,7 @@ int main()
     outln("const CANON_NAN_BITS = 0x{:X}", static_cast<u64>(GC::CANON_NAN_BITS));
     outln("const DOUBLE_ONE = 0x{:X}", bit_cast<u64>(1.0));
     outln("const NEGATIVE_ZERO = 0x{:X}", static_cast<u64>(NEGATIVE_ZERO_BITS));
-    outln("const CELL_TAG_SHIFTED = 0x{:X}", static_cast<u64>(GC::SHIFTED_IS_CELL_PATTERN));
+    outln("const SHIFTED_IS_CELL_PATTERN = 0x{:X}", static_cast<u64>(GC::SHIFTED_IS_CELL_PATTERN));
 
     outln("const ACCUMULATOR_REG_OFFSET = {}", static_cast<size_t>(Register::accumulator().index()) * sizeof(Value));
     outln("const EXCEPTION_REG_OFFSET = {}", static_cast<size_t>(Register::exception().index()) * sizeof(Value));

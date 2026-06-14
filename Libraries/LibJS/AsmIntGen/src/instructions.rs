@@ -981,7 +981,7 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
         false,
         false,
         ArchSpec { clobbers_gpr: &["r11"], ..ArchSpec::NONE },
-        ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
+        ArchSpec { clobbers_gpr: &["x9", "x10"], ..ArchSpec::NONE },
     ),
     info(
         "assert_not_tag",
@@ -990,7 +990,7 @@ pub const INSTRUCTIONS: &[InstructionInfo] = &[
         false,
         false,
         ArchSpec { clobbers_gpr: &["r11"], ..ArchSpec::NONE },
-        ArchSpec { clobbers_gpr: &["x9"], ..ArchSpec::NONE },
+        ArchSpec { clobbers_gpr: &["x9", "x10"], ..ArchSpec::NONE },
     ),
 ];
 

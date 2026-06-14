@@ -1250,7 +1250,12 @@ fn emit_instruction(
                 let cc = if m == "assert_tag" { "b.eq" } else { "b.ne" };
                 w!(out, "    lsr x9, {value}, #48");
                 if let Some(val) = get_immediate_value(&insn.operands[1], program) {
-                    emit_cmp_imm(out, "x9", val, pinned);
+                    if (val as u64) <= 4095 || pinned.get(val).is_some() || is_cmn_candidate(val) {
+                        emit_cmp_imm(out, "x9", val, pinned);
+                    } else {
+                        emit_mov_imm(out, "x10", val);
+                        w!(out, "    cmp x9, x10");
+                    }
                 } else {
                     let tag = resolve_op(&insn.operands[1], handler, program);
                     w!(out, "    cmp x9, {tag}");

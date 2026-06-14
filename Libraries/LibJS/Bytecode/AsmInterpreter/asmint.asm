@@ -368,6 +368,74 @@ macro bitwise_op(op_insn, slow_path_func)
     call_slow_path slow_path_func
 end
 
+macro prefix_inc_dec(op32_overflow, fp_op, slow_path_func)
+    temp value, tag, int_value, dst
+    ftemp result_dbl, one_dbl
+    load_operand value, m_dst
+    extract_tag tag, value
+    branch_ne tag, INT32_TAG, .slow
+    unbox_int32 int_value, value
+    op32_overflow int_value, 1, .overflow
+    box_int32_clean dst, int_value
+    store_operand m_dst, dst
+    dispatch_next
+.overflow:
+    unbox_int32 int_value, value
+    int_to_double result_dbl, int_value
+    mov dst, DOUBLE_ONE
+    fp_mov one_dbl, dst
+    fp_op result_dbl, one_dbl
+    fp_mov dst, result_dbl
+    store_operand m_dst, dst
+    dispatch_next
+.slow:
+    call_slow_path slow_path_func
+end
+
+macro postfix_inc_dec(op32_overflow, fp_op, slow_path_func)
+    temp value, tag, int_value, dst
+    ftemp result_dbl, one_dbl
+    load_operand value, m_src
+    extract_tag tag, value
+    branch_ne tag, INT32_TAG, .slow
+    store_operand m_dst, value
+    unbox_int32 int_value, value
+    op32_overflow int_value, 1, .overflow_after_store
+    box_int32_clean dst, int_value
+    store_operand m_src, dst
+    dispatch_next
+.overflow_after_store:
+    unbox_int32 int_value, value
+    int_to_double result_dbl, int_value
+    mov dst, DOUBLE_ONE
+    fp_mov one_dbl, dst
+    fp_op result_dbl, one_dbl
+    fp_mov dst, result_dbl
+    store_operand m_src, dst
+    dispatch_next
+.slow:
+    call_slow_path slow_path_func
+end
+
+macro int32_shift_op(op_insn, slow_path_func)
+    temp lhs, rhs, lhs_tag, rhs_tag, lhs_int, count, dst
+    load_operand lhs, m_lhs
+    load_operand rhs, m_rhs
+    extract_tag lhs_tag, lhs
+    branch_ne lhs_tag, INT32_TAG, .slow
+    extract_tag rhs_tag, rhs
+    branch_ne rhs_tag, INT32_TAG, .slow
+    unbox_int32 lhs_int, lhs
+    unbox_int32 count, rhs
+    and count, 31
+    op_insn lhs_int, count
+    box_int32 dst, lhs_int
+    store_operand m_dst, dst
+    dispatch_next
+.slow:
+    call_slow_path slow_path_func
+end
+
 # Validate that the callee still points at the expected builtin function.
 # Jumps to fail if the call target has been replaced or is not a function.
 macro validate_callee_builtin(expected_builtin, fail)
@@ -895,52 +963,12 @@ end
 # Fast path for ++x: int32 + 1 with overflow check.
 # On overflow, convert to double and add 1.0.
 handler Increment
-    temp value, tag, int_value, dst
-    ftemp result_dbl, one_dbl
-    load_operand value, m_dst
-    extract_tag tag, value
-    branch_ne tag, INT32_TAG, .slow
-    unbox_int32 int_value, value
-    add32_overflow int_value, 1, .overflow
-    box_int32_clean dst, int_value
-    store_operand m_dst, dst
-    dispatch_next
-.overflow:
-    unbox_int32 int_value, value
-    int_to_double result_dbl, int_value
-    mov dst, DOUBLE_ONE
-    fp_mov one_dbl, dst
-    fp_add result_dbl, one_dbl
-    fp_mov dst, result_dbl
-    store_operand m_dst, dst
-    dispatch_next
-.slow:
-    call_slow_path asm_slow_path_increment
+    prefix_inc_dec add32_overflow, fp_add, asm_slow_path_increment
 end
 
 # Fast path for --x: int32 - 1 with overflow check.
 handler Decrement
-    temp value, tag, int_value, dst
-    ftemp result_dbl, one_dbl
-    load_operand value, m_dst
-    extract_tag tag, value
-    branch_ne tag, INT32_TAG, .slow
-    unbox_int32 int_value, value
-    sub32_overflow int_value, 1, .overflow
-    box_int32_clean dst, int_value
-    store_operand m_dst, dst
-    dispatch_next
-.overflow:
-    unbox_int32 int_value, value
-    int_to_double result_dbl, int_value
-    mov dst, DOUBLE_ONE
-    fp_mov one_dbl, dst
-    fp_sub result_dbl, one_dbl
-    fp_mov dst, result_dbl
-    store_operand m_dst, dst
-    dispatch_next
-.slow:
-    call_slow_path asm_slow_path_decrement
+    prefix_inc_dec sub32_overflow, fp_sub, asm_slow_path_decrement
 end
 
 handler Not
@@ -1056,7 +1084,7 @@ handler GetLexicalEnvironment
     temp env, tag
     load64 env, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
     assert_nonzero env
-    mov tag, CELL_TAG_SHIFTED
+    mov tag, SHIFTED_IS_CELL_PATTERN
     or env, tag
     store_operand m_dst, env
     dispatch_next
@@ -1075,7 +1103,12 @@ handler GetSuperConstructor
 end
 
 handler SetLexicalEnvironment
-    call_slow_path asm_slow_path_set_lexical_environment
+    temp env
+    load_operand env, m_environment
+    assert_tag env, IS_CELL_PATTERN
+    unbox_object env, env
+    store64 [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], env
+    dispatch_next
 end
 
 # ============================================================================
@@ -1329,30 +1362,7 @@ end
 
 # x++: save original to dst first, then increment src in-place.
 handler PostfixIncrement
-    temp value, tag, int_value, dst
-    ftemp result_dbl, one_dbl
-    load_operand value, m_src
-    extract_tag tag, value
-    branch_ne tag, INT32_TAG, .slow
-    # Save original value to dst (the "postfix" part)
-    store_operand m_dst, value
-    # Increment in-place: src = src + 1
-    unbox_int32 int_value, value
-    add32_overflow int_value, 1, .overflow_after_store
-    box_int32_clean dst, int_value
-    store_operand m_src, dst
-    dispatch_next
-.overflow_after_store:
-    unbox_int32 int_value, value
-    int_to_double result_dbl, int_value
-    mov dst, DOUBLE_ONE
-    fp_mov one_dbl, dst
-    fp_add result_dbl, one_dbl
-    fp_mov dst, result_dbl
-    store_operand m_src, dst
-    dispatch_next
-.slow:
-    call_slow_path asm_slow_path_postfix_increment
+    postfix_inc_dec add32_overflow, fp_add, asm_slow_path_postfix_increment
 end
 
 # Division result is stored as int32 when representable (e.g. 6/3 = 2),
@@ -1562,41 +1572,11 @@ end
 
 # Shift ops: int32-only fast path, shift count masked to 0-31 per spec.
 handler LeftShift
-    temp lhs, rhs, lhs_tag, rhs_tag, lhs_int, count, dst
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
-    extract_tag lhs_tag, lhs
-    branch_ne lhs_tag, INT32_TAG, .slow
-    extract_tag rhs_tag, rhs
-    branch_ne rhs_tag, INT32_TAG, .slow
-    unbox_int32 lhs_int, lhs
-    unbox_int32 count, rhs
-    and count, 31
-    shl lhs_int, count
-    box_int32 dst, lhs_int
-    store_operand m_dst, dst
-    dispatch_next
-.slow:
-    call_slow_path asm_slow_path_left_shift
+    int32_shift_op shl, asm_slow_path_left_shift
 end
 
 handler RightShift
-    temp lhs, rhs, lhs_tag, rhs_tag, lhs_int, count, dst
-    load_operand lhs, m_lhs
-    load_operand rhs, m_rhs
-    extract_tag lhs_tag, lhs
-    branch_ne lhs_tag, INT32_TAG, .slow
-    extract_tag rhs_tag, rhs
-    branch_ne rhs_tag, INT32_TAG, .slow
-    unbox_int32 lhs_int, lhs
-    unbox_int32 count, rhs
-    and count, 31
-    sar lhs_int, count
-    box_int32 dst, lhs_int
-    store_operand m_dst, dst
-    dispatch_next
-.slow:
-    call_slow_path asm_slow_path_right_shift
+    int32_shift_op sar, asm_slow_path_right_shift
 end
 
 # Unsigned right shift: result is always unsigned, so values > INT32_MAX
@@ -1757,30 +1737,7 @@ end
 
 # x--: save original to dst first, then decrement src in-place.
 handler PostfixDecrement
-    temp value, tag, int_value, dst
-    ftemp result_dbl, one_dbl
-    load_operand value, m_src
-    extract_tag tag, value
-    branch_ne tag, INT32_TAG, .slow
-    # Save original value to dst (the "postfix" part)
-    store_operand m_dst, value
-    # Decrement in-place: src = src - 1
-    unbox_int32 int_value, value
-    sub32_overflow int_value, 1, .overflow_after_store
-    box_int32_clean dst, int_value
-    store_operand m_src, dst
-    dispatch_next
-.overflow_after_store:
-    unbox_int32 int_value, value
-    int_to_double result_dbl, int_value
-    mov dst, DOUBLE_ONE
-    fp_mov one_dbl, dst
-    fp_sub result_dbl, one_dbl
-    fp_mov dst, result_dbl
-    store_operand m_src, dst
-    dispatch_next
-.slow:
-    call_slow_path asm_slow_path_postfix_decrement
+    postfix_inc_dec sub32_overflow, fp_sub, asm_slow_path_postfix_decrement
 end
 
 handler ToInt32
@@ -3258,7 +3215,20 @@ handler In
 end
 
 handler IsCallable
-    call_slow_path asm_slow_path_is_callable
+    temp value, tag, object, flags, result
+    load_operand value, m_value
+    extract_tag tag, value
+    branch_ne tag, OBJECT_TAG, .not_callable
+    unbox_object object, value
+    load8 flags, [object, OBJECT_FLAGS]
+    branch_bits_clear flags, OBJECT_FLAG_IS_FUNCTION, .not_callable
+    mov result, BOOLEAN_TRUE
+    store_operand m_dst, result
+    dispatch_next
+.not_callable:
+    mov result, BOOLEAN_FALSE
+    store_operand m_dst, result
+    dispatch_next
 end
 
 handler IsConstructor
@@ -3338,7 +3308,12 @@ handler Typeof
 end
 
 handler LeavePrivateEnvironment
-    call_slow_path asm_slow_path_leave_private_environment
+    temp private_environment, outer_environment
+    load64 private_environment, [exec_ctx, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT]
+    assert_nonzero private_environment
+    load64 outer_environment, [private_environment, PRIVATE_ENVIRONMENT_OUTER]
+    store64 [exec_ctx, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], outer_environment
+    dispatch_next
 end
 
 # Fast path: if this_value register is already cached (non-empty), skip the slow path.
