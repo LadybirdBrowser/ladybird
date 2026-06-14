@@ -383,9 +383,10 @@ fn generate_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) 
 fn generate_fallback_handler(out: &mut String, program: &Program, _pinned: &PinnedConstants) {
     emit_handler_alignment(out, program.object_format);
     w!(out, "asm_handler_fallback:");
-    // Set up args: x0=vm (x20), w1=pc (ip - pb)
+    // Set up args: x0=vm (x20), w1=pc (ip - pb), x2=instruction (ip)
     w!(out, "    mov x0, x20");
     w!(out, "    sub w1, w21, w26");
+    w!(out, "    mov x2, x21");
     w!(out, "    bl CSYM(asm_fallback_handler)");
     // Check for exit (return < 0)
     w!(out, "    tbnz x0, #63, .Lexit");
@@ -1346,6 +1347,7 @@ fn emit_instruction(
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
                 w!(out, "    mov x0, x20"); // vm
                 w!(out, "    sub w1, w21, w26"); // pc = ip - pb
+                w!(out, "    mov x2, x21"); // instruction
                 w!(out, "    bl CSYM({func_name})");
                 w!(out, "    tbnz x0, #63, .Lexit");
                 emit_state_reload(out, program);
@@ -1374,11 +1376,12 @@ fn emit_instruction(
             }
         }
 
-        // call_interp: NON-TERMINAL call with (VM*, u32 pc)
+        // call_interp: NON-TERMINAL call with (VM*, u32 pc, Op::Foo const* instruction)
         "call_interp" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
                 w!(out, "    mov x0, x20");
                 w!(out, "    sub w1, w21, w26"); // pc = ip - pb
+                w!(out, "    mov x2, x21"); // instruction
                 w!(out, "    bl CSYM({func_name})");
                 // Result in x0 (= t0)
             }
