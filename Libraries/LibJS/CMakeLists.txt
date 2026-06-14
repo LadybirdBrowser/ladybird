@@ -328,6 +328,8 @@ if ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64)$")
     set(ASMINT_ARCH "x86_64")
 elseif ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(aarch64|arm64|ARM64)$")
     set(ASMINT_ARCH "aarch64")
+else()
+    message(FATAL_ERROR "LibJS requires AsmInterpreter support for ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
 if (DEFINED ASMINT_ARCH)

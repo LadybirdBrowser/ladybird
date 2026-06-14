@@ -34,9 +34,6 @@ static struct AsmSlowPathStats {
 
 static void print_asm_slow_path_stats()
 {
-    if (getenv("LIBJS_USE_CPP_INTERPRETER"))
-        return;
-
     fprintf(stderr, "\n=== AsmInterpreter slow path stats ===\n");
 
     static char const* const s_type_names[] = {
@@ -80,42 +77,23 @@ static void print_asm_slow_path_stats()
 
 namespace JS::Bytecode {
 
-// The asm interpreter is available on x86_64 and AArch64.
-#if ARCH(AARCH64) || ARCH(X86_64)
-#    define HAS_ASM_INTERPRETER 1
-#else
-#    define HAS_ASM_INTERPRETER 0
-#endif
-
-#if HAS_ASM_INTERPRETER
 // Defined in generated assembly (asmint_x86_64.S or asmint_aarch64.S)
 extern "C" void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, VM* vm);
-#endif
 
-bool AsmInterpreter::is_available()
+void AsmInterpreter::run(VM& vm, size_t entry_point)
 {
-    return HAS_ASM_INTERPRETER;
-}
-
-void AsmInterpreter::run(VM& vm, [[maybe_unused]] size_t entry_point)
-{
-#if !HAS_ASM_INTERPRETER
-    (void)vm;
-    VERIFY_NOT_REACHED();
-#else
-#    ifdef JS_ASMINT_SLOW_PATH_COUNTERS
+#ifdef JS_ASMINT_SLOW_PATH_COUNTERS
     if (!s_stats.registered) {
         s_stats.registered = true;
         atexit(print_asm_slow_path_stats);
     }
-#    endif
+#endif
 
     auto& context = vm.running_execution_context();
     auto* bytecode = context.executable->bytecode.data();
     auto* values = context.registers_and_constants_and_locals_and_arguments_span().data();
 
     asm_interpreter_entry(bytecode, static_cast<u32>(entry_point), values, &vm);
-#endif
 }
 
 }
@@ -138,6 +116,17 @@ static i64 handle_asm_exception(VM& vm, u32 pc, Value exception)
     return static_cast<i64>(vm.running_execution_context().program_counter);
 }
 
+#define ASM_TRY(vm, pc, expression)                                                            \
+    ({                                                                                         \
+        auto& asm_try_vm = (vm);                                                               \
+        auto asm_try_pc = (pc);                                                                \
+        asm_try_vm.running_execution_context().program_counter = asm_try_pc;                   \
+        auto&& asm_try_result = (expression);                                                  \
+        if (asm_try_result.is_error()) [[unlikely]]                                            \
+            return handle_asm_exception(asm_try_vm, asm_try_pc, asm_try_result.error_value()); \
+        asm_try_result.release_value();                                                        \
+    })
+
 // Helper: execute a throwing instruction and handle errors
 template<typename InsnType>
 static i64 execute_throwing(VM& vm, u32 pc)
@@ -145,9 +134,7 @@ static i64 execute_throwing(VM& vm, u32 pc)
     vm.running_execution_context().program_counter = pc;
     auto* bytecode = vm.current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<InsnType const*>(&bytecode[pc]);
-    auto result = insn.execute_impl(vm);
-    if (result.is_error()) [[unlikely]]
-        return handle_asm_exception(vm, pc, result.error_value());
+    ASM_TRY(vm, pc, insn.execute_impl(vm));
     if constexpr (InsnType::IsVariableLength)
         return static_cast<i64>(pc + insn.length());
     else
@@ -314,8 +301,8 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
     // Terminators
     case Instruction::Type::Throw: {
         auto& typed = *reinterpret_cast<Op::Throw const*>(&bytecode[pc]);
-        auto result = typed.execute_impl(*vm);
-        return handle_asm_exception(*vm, pc, result.error_value());
+        ASM_TRY(*vm, pc, typed.execute_impl(*vm));
+        VERIFY_NOT_REACHED();
     }
     case Instruction::Type::Await: {
         auto& typed = *reinterpret_cast<Op::Await const*>(&bytecode[pc]);
@@ -570,10 +557,7 @@ i64 asm_slow_path_decrement(VM* vm, u32 pc)
         auto& insn = *reinterpret_cast<Op::Jump##op_name const*>(&bytecode[pc]); \
         auto lhs = vm->get(insn.lhs());                                          \
         auto rhs = vm->get(insn.rhs());                                          \
-        auto result = compare_call;                                              \
-        if (result.is_error()) [[unlikely]]                                      \
-            return handle_asm_exception(*vm, pc, result.error_value());          \
-        if (result.value())                                                      \
+        if (ASM_TRY(*vm, pc, compare_call))                                      \
             return static_cast<i64>(insn.true_target().address());               \
         return static_cast<i64>(insn.false_target().address());                  \
     }
@@ -592,10 +576,7 @@ i64 asm_slow_path_jump_loosely_inequals(VM* vm, u32 pc)
     auto& insn = *reinterpret_cast<Op::JumpLooselyInequals const*>(&bytecode[pc]);
     auto lhs = vm->get(insn.lhs());
     auto rhs = vm->get(insn.rhs());
-    auto result = is_loosely_equal(VM::the(), lhs, rhs);
-    if (result.is_error()) [[unlikely]]
-        return handle_asm_exception(*vm, pc, result.error_value());
-    if (!result.value())
+    if (!ASM_TRY(*vm, pc, is_loosely_equal(VM::the(), lhs, rhs)))
         return static_cast<i64>(insn.true_target().address());
     return static_cast<i64>(insn.false_target().address());
 }
@@ -1273,15 +1254,11 @@ i64 asm_slow_path_get_private_by_id(VM* vm, u32 pc)
     auto& current_vm = *vm;
 
     if (!base_value.is_object()) [[unlikely]] {
-        auto object = base_value.to_object(current_vm);
-        if (object.is_error())
-            return handle_asm_exception(*vm, pc, object.error_value());
+        ASM_TRY(*vm, pc, base_value.to_object(current_vm));
         auto const& name = current_vm.get_identifier(insn.property());
         auto private_name = make_private_reference(current_vm, base_value, name);
-        auto result = private_name.get_value(current_vm);
-        if (result.is_error()) [[unlikely]]
-            return handle_asm_exception(*vm, pc, result.error_value());
-        vm->set(insn.dst(), result.release_value());
+        auto result = ASM_TRY(*vm, pc, private_name.get_value(current_vm));
+        vm->set(insn.dst(), result);
         return static_cast<i64>(pc + sizeof(Op::GetPrivateById));
     }
 
@@ -1289,10 +1266,8 @@ i64 asm_slow_path_get_private_by_id(VM* vm, u32 pc)
     auto private_environment = current_vm.running_execution_context().private_environment;
     VERIFY(private_environment);
     auto private_name = private_environment->resolve_private_identifier(name);
-    auto result = base_value.as_object().private_get(private_name);
-    if (result.is_error()) [[unlikely]]
-        return handle_asm_exception(*vm, pc, result.error_value());
-    vm->set(insn.dst(), result.release_value());
+    auto result = ASM_TRY(*vm, pc, base_value.as_object().private_get(private_name));
+    vm->set(insn.dst(), result);
     return static_cast<i64>(pc + sizeof(Op::GetPrivateById));
 }
 
@@ -1308,14 +1283,10 @@ i64 asm_slow_path_put_private_by_id(VM* vm, u32 pc)
     auto value = vm->get(insn.src());
 
     if (!base_value.is_object()) [[unlikely]] {
-        auto object = base_value.to_object(current_vm);
-        if (object.is_error())
-            return handle_asm_exception(*vm, pc, object.error_value());
+        auto object = ASM_TRY(*vm, pc, base_value.to_object(current_vm));
         auto const& name = current_vm.get_identifier(insn.property());
-        auto private_reference = make_private_reference(current_vm, object.release_value(), name);
-        auto result = private_reference.put_value(current_vm, value);
-        if (result.is_error()) [[unlikely]]
-            return handle_asm_exception(*vm, pc, result.error_value());
+        auto private_reference = make_private_reference(current_vm, object, name);
+        ASM_TRY(*vm, pc, private_reference.put_value(current_vm, value));
         return static_cast<i64>(pc + sizeof(Op::PutPrivateById));
     }
 
@@ -1323,9 +1294,7 @@ i64 asm_slow_path_put_private_by_id(VM* vm, u32 pc)
     auto private_environment = current_vm.running_execution_context().private_environment;
     VERIFY(private_environment);
     auto private_name = private_environment->resolve_private_identifier(name);
-    auto result = base_value.as_object().private_set(private_name, value);
-    if (result.is_error()) [[unlikely]]
-        return handle_asm_exception(*vm, pc, result.error_value());
+    ASM_TRY(*vm, pc, base_value.as_object().private_set(private_name, value));
     return static_cast<i64>(pc + sizeof(Op::PutPrivateById));
 }
 

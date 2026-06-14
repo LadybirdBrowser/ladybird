@@ -16,7 +16,6 @@ namespace Bytecode {
 class AsmInterpreter {
 public:
     static void run(VM&, size_t entry_point);
-    static bool is_available();
 };
 
 }
