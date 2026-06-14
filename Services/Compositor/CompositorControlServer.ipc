@@ -18,6 +18,7 @@ endpoint CompositorControlServer
 
     handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool handled)
     dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool dispatched)
+    handle_pinch_event(Web::Compositor::CompositorContextId context_id, Web::PinchEvent event) => (bool handled)
     async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels) => (bool handled)
     presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id) =|
     crash() =|

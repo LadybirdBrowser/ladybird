@@ -40,6 +40,7 @@ class SkiaBackendContext;
 namespace Web {
 
 struct MouseEvent;
+struct PinchEvent;
 
 }
 
@@ -121,6 +122,7 @@ public:
 
     void invalidate_wheel_event_listener_state(u64 generation);
     ContextUpdateResult handle_mouse_event(Web::MouseEvent const&);
+    ContextUpdateResult handle_pinch_event(Web::PinchEvent const&);
     AsyncScrollResult async_scroll_by(
         Web::UniqueNodeID document_id,
         Gfx::FloatPoint position,
@@ -157,15 +159,23 @@ public:
     void did_finish_gpu_present(i32 bitmap_id);
 
 private:
+    struct VisualViewportScrollDelta {
+        Web::Compositor::AsyncScrollOffset scroll_offset;
+        Gfx::FloatPoint consumed_delta;
+    };
+
     void stop_backing_store_shrink_timer();
     Web::Painting::AccumulatedVisualContextTree const& current_visual_context_tree() const;
     Optional<Gfx::FloatPoint> viewport_scroll_offset_from(Vector<Web::Compositor::AsyncScrollOffset> const&) const;
+    Optional<float> visual_viewport_scale_for_compositing() const;
+    Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
     Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&);
     void store_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});
     Optional<Gfx::IntRect> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
     bool is_present_blocked() const;
     bool can_render_frame() const;
+    Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_compositing() const;
     void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&);
 
     CompositorStateWebContentClient& m_web_content_client;
@@ -178,6 +188,7 @@ private:
 
     RefPtr<Web::Painting::DisplayList const> m_display_list;
     Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree;
+    mutable Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree_for_compositing;
     Web::Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Web::Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;
@@ -191,8 +202,10 @@ private:
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };
     bool m_can_accept_async_wheel_events { false };
+    bool m_has_blocking_wheel_event_listeners { false };
     u64 m_wheel_event_listener_state_generation { 0 };
     Web::Compositor::WheelRoutingAdmission m_wheel_routing_admission { Web::Compositor::WheelRoutingAdmission::NoAsyncScrollingState };
+    Optional<Web::Painting::TransformData> m_async_visual_viewport_transform;
 
     Gfx::IntSize m_viewport_size;
     Web::Compositor::WindowResizingInProgress m_window_resize_in_progress { Web::Compositor::WindowResizingInProgress::No };

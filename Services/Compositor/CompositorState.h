@@ -32,6 +32,7 @@
 namespace Web {
 
 struct MouseEvent;
+struct PinchEvent;
 
 }
 
@@ -83,6 +84,7 @@ public:
     void invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId, u64 generation);
     bool handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
+    bool handle_pinch_event(Web::Compositor::CompositorContextId, Web::PinchEvent const&);
     Web::Compositor::AsyncScrollEnqueueResult async_scroll_by(Web::Compositor::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking);
     bool async_scroll_by(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta);
     bool should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId) const;

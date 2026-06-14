@@ -200,6 +200,15 @@ bool CompositorState::dispatch_mouse_event_to_web_content(Web::Compositor::Compo
     return true;
 }
 
+bool CompositorState::handle_pinch_event(Web::Compositor::CompositorContextId context_id, Web::PinchEvent const& event)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return false;
+
+    return apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
+}
+
 Web::Compositor::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
 {
     if (!m_async_scrolling_enabled)
