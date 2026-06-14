@@ -89,6 +89,7 @@ interface Internals {
     undefined setDevicePixelRatio(double ratio);
 
     readonly attribute boolean headless;
+    readonly attribute boolean screenWakeLockActive;
 
     DOMString dumpDisplayList();
     DOMString dumpAccessibilityTree();

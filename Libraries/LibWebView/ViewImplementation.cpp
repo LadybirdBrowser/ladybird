@@ -904,6 +904,16 @@ void ViewImplementation::did_change_audio_play_state(Badge<WebContentClient>, We
         on_audio_play_state_changed(m_audio_play_state);
 }
 
+void ViewImplementation::did_change_screen_wake_lock_state(Badge<WebContentClient>, Web::ScreenWakeLockState wake_lock_state)
+{
+    if (m_screen_wake_lock_state == wake_lock_state)
+        return;
+
+    m_screen_wake_lock_state = wake_lock_state;
+    if (on_screen_wake_lock_state_changed)
+        on_screen_wake_lock_state_changed(m_screen_wake_lock_state);
+}
+
 void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled) const
 {
     m_navigate_back_action->set_enabled(back_enabled);

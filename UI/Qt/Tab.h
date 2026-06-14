@@ -7,7 +7,10 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWeb/Page/ScreenWakeLock.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/FindInPageWidget.h>
@@ -115,6 +118,7 @@ private:
     void set_loading(bool);
     void update_tab_icon();
     int tab_index();
+    void set_screen_wake_lock_state(Web::ScreenWakeLockState);
 
     QWidget* m_toolbar_container { nullptr };
     QWidget* m_toolbar { nullptr };
@@ -130,6 +134,7 @@ private:
     LocationEdit* m_location_edit { nullptr };
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };
+    Optional<WakeLock::DisplaySleepInhibitor> m_screen_display_sleep_inhibitor;
     BrowserWindow* m_window { nullptr };
     QString m_title;
     HyperlinkLabel* m_hover_label { nullptr };

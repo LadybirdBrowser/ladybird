@@ -7,6 +7,7 @@
 #include <AK/Optional.h>
 #include <Interface/LadybirdWebViewBridge.h>
 #include <LibURL/URL.h>
+#include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Utilities.h>
@@ -90,6 +91,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 @interface LadybirdWebView () <NSDraggingDestination>
 {
     OwnPtr<Ladybird::WebViewBridge> m_web_view_bridge;
+    Optional<WakeLock::DisplaySleepInhibitor> m_screen_display_sleep_inhibitor;
 
     Optional<HideCursor> m_hidden_cursor;
 
@@ -963,6 +965,25 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
             return;
         }
         [self.observer onAudioPlayStateChange:play_state];
+    };
+
+    m_web_view_bridge->on_screen_wake_lock_state_changed = [weak_self](auto wake_lock_state) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+
+        switch (wake_lock_state) {
+        case Web::ScreenWakeLockState::Released:
+            self->m_screen_display_sleep_inhibitor.clear();
+            break;
+        case Web::ScreenWakeLockState::Acquired:
+            if (self->m_screen_display_sleep_inhibitor.has_value())
+                break;
+            if (auto inhibitor = WakeLock::DisplaySleepInhibitor::create("Ladybird video playback"sv); !inhibitor.is_error())
+                self->m_screen_display_sleep_inhibitor = inhibitor.release_value();
+            break;
+        }
     };
 }
 

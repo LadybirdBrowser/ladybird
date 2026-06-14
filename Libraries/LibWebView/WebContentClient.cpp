@@ -1256,6 +1256,12 @@ void WebContentClient::did_change_audio_play_state(u64 page_id, Web::HTML::Audio
         view->did_change_audio_play_state({}, play_state);
 }
 
+void WebContentClient::did_change_screen_wake_lock_state(u64 page_id, Web::ScreenWakeLockState wake_lock_state)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_change_screen_wake_lock_state({}, wake_lock_state);
+}
+
 void WebContentClient::did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

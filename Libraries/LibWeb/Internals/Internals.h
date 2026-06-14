@@ -103,6 +103,7 @@ public:
     void set_device_pixel_ratio(double ratio);
 
     bool headless();
+    bool screen_wake_lock_active();
 
     String dump_display_list();
     String dump_accessibility_tree();

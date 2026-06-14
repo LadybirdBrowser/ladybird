@@ -23,6 +23,7 @@ add_subdirectory(LibURL)
 add_subdirectory(LibUnicode)
 add_subdirectory(LibWasm)
 add_subdirectory(LibWebSocket)
+add_subdirectory(LibWakeLock)
 add_subdirectory(LibXML)
 
 if (ENABLE_GUI_TARGETS)
