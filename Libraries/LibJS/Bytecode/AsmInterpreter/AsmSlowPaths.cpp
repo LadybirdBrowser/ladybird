@@ -37,65 +37,6 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <math.h>
-#include <stdlib.h>
-
-// ===== Slow path hit counters (for profiling) =====
-// Define JS_ASMINT_SLOW_PATH_COUNTERS to enable per-opcode slow path
-// counters. They are printed on exit when the asm interpreter is active.
-#ifdef JS_ASMINT_SLOW_PATH_COUNTERS
-static struct AsmSlowPathStats {
-    u64 slow_path_by_type[256] {};
-    bool registered {};
-} s_stats;
-
-static void print_asm_slow_path_stats()
-{
-    fprintf(stderr, "\n=== AsmInterpreter slow path stats ===\n");
-
-    static char const* const s_type_names[] = {
-#    define __BYTECODE_OP(op) #op,
-        ENUMERATE_BYTECODE_OPS(__BYTECODE_OP)
-#    undef __BYTECODE_OP
-    };
-
-    struct Entry {
-        char const* name;
-        u64 count;
-    };
-    Entry entries[512];
-    size_t num_entries = 0;
-
-    for (size_t i = 0; i < 256; ++i) {
-        if (s_stats.slow_path_by_type[i] > 0)
-            entries[num_entries++] = { s_type_names[i], s_stats.slow_path_by_type[i] };
-    }
-
-    // Bubble sort by count descending (small array, no need for qsort)
-    for (size_t i = 0; i < num_entries; ++i)
-        for (size_t j = i + 1; j < num_entries; ++j)
-            if (entries[j].count > entries[i].count) {
-                auto tmp = entries[i];
-                entries[i] = entries[j];
-                entries[j] = tmp;
-            }
-
-    for (size_t i = 0; i < num_entries; ++i)
-        fprintf(stderr, "  %12llu  %s\n", static_cast<unsigned long long>(entries[i].count), entries[i].name);
-
-    fprintf(stderr, "===\n\n");
-}
-#endif
-
-extern "C" void asm_register_slow_path_stats();
-extern "C" void asm_register_slow_path_stats()
-{
-#ifdef JS_ASMINT_SLOW_PATH_COUNTERS
-    if (!s_stats.registered) {
-        s_stats.registered = true;
-        atexit(print_asm_slow_path_stats);
-    }
-#endif
-}
 
 // ===== Slow path functions callable from assembly =====
 // All slow path functions follow the same convention:
@@ -125,15 +66,6 @@ static i64 handle_asm_exception(VM& vm, u32 pc, Value exception)
             return handle_asm_exception(asm_try_vm, asm_try_pc, asm_try_result.release_error().value()); \
         asm_try_result.release_value();                                                                  \
     })
-
-#ifdef JS_ASMINT_SLOW_PATH_COUNTERS
-ALWAYS_INLINE static void bump_slow_path(VM& vm, u32 pc)
-{
-    ++s_stats.slow_path_by_type[static_cast<u8>(Instruction::Type { vm.current_executable().bytecode[pc] })];
-}
-#else
-ALWAYS_INLINE static void bump_slow_path(VM&, u32) { }
-#endif
 
 template<typename EnvironmentPointer>
 static EnvironmentPointer asm_get_cacheable_environment(EnvironmentPointer environment, EnvironmentCoordinate const& cache)
@@ -785,7 +717,6 @@ i64 asm_fallback_handler(VM*, u32)
 
 i64 asm_slow_path_add(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Add const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, add(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -794,7 +725,6 @@ i64 asm_slow_path_add(VM* vm, u32 pc)
 
 i64 asm_slow_path_sub(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Sub const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, sub(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -803,7 +733,6 @@ i64 asm_slow_path_sub(VM* vm, u32 pc)
 
 i64 asm_slow_path_mul(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Mul const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, mul(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -812,7 +741,6 @@ i64 asm_slow_path_mul(VM* vm, u32 pc)
 
 i64 asm_slow_path_div(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Div const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, div(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -821,7 +749,6 @@ i64 asm_slow_path_div(VM* vm, u32 pc)
 
 i64 asm_slow_path_less_than(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::LessThan const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, less_than(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
@@ -830,7 +757,6 @@ i64 asm_slow_path_less_than(VM* vm, u32 pc)
 
 i64 asm_slow_path_less_than_equals(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::LessThanEquals const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, less_than_equals(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
@@ -839,7 +765,6 @@ i64 asm_slow_path_less_than_equals(VM* vm, u32 pc)
 
 i64 asm_slow_path_greater_than(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GreaterThan const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, greater_than(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
@@ -848,7 +773,6 @@ i64 asm_slow_path_greater_than(VM* vm, u32 pc)
 
 i64 asm_slow_path_greater_than_equals(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GreaterThanEquals const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, greater_than_equals(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
@@ -857,7 +781,6 @@ i64 asm_slow_path_greater_than_equals(VM* vm, u32 pc)
 
 i64 asm_slow_path_increment(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Increment const*>(&bytecode[pc]);
     auto old_value = ASM_TRY(*vm, pc, vm->get(insn.dst()).to_numeric(*vm));
@@ -870,7 +793,6 @@ i64 asm_slow_path_increment(VM* vm, u32 pc)
 
 i64 asm_slow_path_decrement(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Decrement const*>(&bytecode[pc]);
     auto old_value = ASM_TRY(*vm, pc, vm->get(insn.dst()).to_numeric(*vm));
@@ -885,7 +807,6 @@ i64 asm_slow_path_decrement(VM* vm, u32 pc)
 #define DEFINE_JUMP_COMPARISON_SLOW_PATH(snake_name, op_name, compare_call)      \
     i64 asm_slow_path_jump_##snake_name(VM* vm, u32 pc)                          \
     {                                                                            \
-        bump_slow_path(*vm, pc);                                                 \
         auto* bytecode = vm->current_executable().bytecode.data();               \
         auto& insn = *reinterpret_cast<Op::Jump##op_name const*>(&bytecode[pc]); \
         auto lhs = vm->get(insn.lhs());                                          \
@@ -904,7 +825,6 @@ DEFINE_JUMP_COMPARISON_SLOW_PATH(loosely_equals, LooselyEquals, is_loosely_equal
 
 i64 asm_slow_path_jump_loosely_inequals(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::JumpLooselyInequals const*>(&bytecode[pc]);
     auto lhs = vm->get(insn.lhs());
@@ -916,7 +836,6 @@ i64 asm_slow_path_jump_loosely_inequals(VM* vm, u32 pc)
 
 i64 asm_slow_path_jump_strictly_equals(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::JumpStrictlyEquals const*>(&bytecode[pc]);
     auto lhs = vm->get(insn.lhs());
@@ -928,7 +847,6 @@ i64 asm_slow_path_jump_strictly_equals(VM* vm, u32 pc)
 
 i64 asm_slow_path_jump_strictly_inequals(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::JumpStrictlyInequals const*>(&bytecode[pc]);
     auto lhs = vm->get(insn.lhs());
@@ -942,7 +860,6 @@ i64 asm_slow_path_jump_strictly_inequals(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_initialized_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetInitializedBinding const*>(&bytecode[pc]);
     auto next_pc = asm_get_binding<AsmBindingIsKnownToBeInitialized::Yes>(*vm, pc, insn.dst(), insn.cache());
@@ -953,7 +870,6 @@ i64 asm_slow_path_get_initialized_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_dynamic_get_initialized_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DynamicGetInitializedBinding const*>(&bytecode[pc]);
     auto& cache = vm->current_executable().environment_coordinate_caches[insn.cache()];
@@ -965,7 +881,6 @@ i64 asm_slow_path_dynamic_get_initialized_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_callee_and_this(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetCalleeAndThisFromEnvironment const*>(&bytecode[pc]);
     auto const& cache = insn.cache();
@@ -986,7 +901,6 @@ i64 asm_slow_path_get_callee_and_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_dynamic_get_callee_and_this(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DynamicGetCalleeAndThisFromEnvironment const*>(&bytecode[pc]);
     auto& cache = vm->current_executable().environment_coordinate_caches[insn.cache()];
@@ -998,7 +912,6 @@ i64 asm_slow_path_dynamic_get_callee_and_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_postfix_increment(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PostfixIncrement const*>(&bytecode[pc]);
     auto old_value = ASM_TRY(*vm, pc, vm->get(insn.src()).to_numeric(*vm));
@@ -1012,7 +925,6 @@ i64 asm_slow_path_postfix_increment(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_by_id(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetById const*>(&bytecode[pc]);
     auto base_value = vm->get(insn.base());
@@ -1024,7 +936,6 @@ i64 asm_slow_path_get_by_id(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_by_id_with_this(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetByIdWithThis const*>(&bytecode[pc]);
     auto base_value = vm->get(insn.base());
@@ -1037,7 +948,6 @@ i64 asm_slow_path_get_by_id_with_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_put_by_id(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PutById const*>(&bytecode[pc]);
     auto value = vm->get(insn.src());
@@ -1053,7 +963,6 @@ i64 asm_slow_path_put_by_id(VM* vm, u32 pc)
 
 i64 asm_slow_path_put_by_id_with_this(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PutByIdWithThis const*>(&bytecode[pc]);
     auto value = vm->get(insn.src());
@@ -1066,7 +975,6 @@ i64 asm_slow_path_put_by_id_with_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_by_value(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetByValue const*>(&bytecode[pc]);
     auto base_value = vm->get(insn.base());
@@ -1089,7 +997,6 @@ i64 asm_slow_path_get_by_value(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_by_value_with_this(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetByValueWithThis const*>(&bytecode[pc]);
     auto property_key_value = vm->get(insn.property());
@@ -1102,7 +1009,6 @@ i64 asm_slow_path_get_by_value_with_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_length(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetLength const*>(&bytecode[pc]);
     auto base_value = vm->get(insn.base());
@@ -1115,7 +1021,6 @@ i64 asm_slow_path_get_length(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_length_with_this(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetLengthWithThis const*>(&bytecode[pc]);
     auto base_value = vm->get(insn.base());
@@ -1129,7 +1034,6 @@ i64 asm_slow_path_get_length_with_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_method(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetMethod const*>(&bytecode[pc]);
     auto const& property_key = vm->get_property_key(insn.property());
@@ -1140,7 +1044,6 @@ i64 asm_slow_path_get_method(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_iterator(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetIterator const*>(&bytecode[pc]);
     auto iterator_record = ASM_TRY(*vm, pc, get_iterator_impl(*vm, vm->get(insn.iterable()), insn.hint()));
@@ -1152,7 +1055,6 @@ i64 asm_slow_path_get_iterator(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_import_meta(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetImportMeta const*>(&bytecode[pc]);
     vm->set(insn.dst(), vm->get_import_meta());
@@ -1161,7 +1063,6 @@ i64 asm_slow_path_get_import_meta(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_new_target(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetNewTarget const*>(&bytecode[pc]);
     vm->set(insn.dst(), vm->get_new_target());
@@ -1170,7 +1071,6 @@ i64 asm_slow_path_get_new_target(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_super_constructor(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetSuperConstructor const*>(&bytecode[pc]);
     auto* super_constructor = get_super_constructor(*vm);
@@ -1205,7 +1105,6 @@ i64 asm_try_get_global_env_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_global(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetGlobal const*>(&bytecode[pc]);
 
@@ -1311,7 +1210,6 @@ i64 asm_try_set_global_env_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_set_global(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SetGlobal const*>(&bytecode[pc]);
 
@@ -1406,7 +1304,6 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc)
 
 i64 asm_slow_path_concat_string(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ConcatString const*>(&bytecode[pc]);
     auto string = ASM_TRY(*vm, pc, vm->get(insn.src()).to_primitive_string(*vm));
@@ -1416,7 +1313,6 @@ i64 asm_slow_path_concat_string(VM* vm, u32 pc)
 
 i64 asm_slow_path_copy_object_excluding_properties(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CopyObjectExcludingProperties const*>(&bytecode[pc]);
     auto& realm = *vm->current_realm();
@@ -1435,7 +1331,6 @@ i64 asm_slow_path_copy_object_excluding_properties(VM* vm, u32 pc)
 
 i64 asm_slow_path_exp(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Exp const*>(&bytecode[pc]);
     auto result = ASM_TRY(*vm, pc, exp(*vm, vm->get(insn.lhs()), vm->get(insn.rhs())));
@@ -1445,7 +1340,6 @@ i64 asm_slow_path_exp(VM* vm, u32 pc)
 
 i64 asm_slow_path_import_call(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ImportCall const*>(&bytecode[pc]);
     auto specifier = vm->get(insn.specifier());
@@ -1456,7 +1350,6 @@ i64 asm_slow_path_import_call(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_class(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewClass const*>(&bytecode[pc]);
 
@@ -1567,7 +1460,6 @@ NEVER_INLINE static ThrowCompletionOr<void> execute_asm_call(
 
 i64 asm_slow_path_call(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Call const*>(&bytecode[pc]);
     ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), insn.arguments(), insn.dst(), insn.expression_string(), insn.strict()));
@@ -1621,7 +1513,6 @@ static ThrowCompletionOr<void> call_direct_eval(
 
 i64 asm_slow_path_call_direct_eval(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CallDirectEval const*>(&bytecode[pc]);
     ASM_TRY(*vm, pc, call_direct_eval(*vm, vm->get(insn.callee()), vm->get(insn.this_value()), insn.arguments(), insn.dst(), insn.expression_string(), insn.strict()));
@@ -1689,7 +1580,6 @@ static ThrowCompletionOr<void> call_with_argument_array(
 
 i64 asm_slow_path_call_with_argument_array(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CallWithArgumentArray const*>(&bytecode[pc]);
     ASM_TRY(*vm, pc, call_with_argument_array(Op::CallType::Call, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), vm->get(insn.arguments()), insn.dst(), insn.expression_string(), insn.strict()));
@@ -1698,7 +1588,6 @@ i64 asm_slow_path_call_with_argument_array(VM* vm, u32 pc)
 
 i64 asm_slow_path_call_direct_eval_with_argument_array(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CallDirectEvalWithArgumentArray const*>(&bytecode[pc]);
     ASM_TRY(*vm, pc, call_with_argument_array(Op::CallType::DirectEval, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), vm->get(insn.arguments()), insn.dst(), insn.expression_string(), insn.strict()));
@@ -1707,7 +1596,6 @@ i64 asm_slow_path_call_direct_eval_with_argument_array(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_object_property_iterator(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetObjectPropertyIterator const*>(&bytecode[pc]);
     auto* cache = &vm->current_executable().object_property_iterator_caches[insn.cache()];
@@ -1717,7 +1605,6 @@ i64 asm_slow_path_get_object_property_iterator(VM* vm, u32 pc)
 
 i64 asm_slow_path_object_property_iterator_next(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ObjectPropertyIteratorNext const*>(&bytecode[pc]);
     auto& iterator = static_cast<PropertyNameIterator&>(vm->get(insn.iterator_object()).as_object());
@@ -1732,7 +1619,6 @@ i64 asm_slow_path_object_property_iterator_next(VM* vm, u32 pc)
 
 i64 asm_slow_path_iterator_close(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::IteratorClose const*>(&bytecode[pc]);
     auto& iterator_object = vm->get(insn.iterator_object()).as_object();
@@ -1746,7 +1632,6 @@ i64 asm_slow_path_iterator_close(VM* vm, u32 pc)
 
 i64 asm_slow_path_iterator_next(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::IteratorNext const*>(&bytecode[pc]);
     auto& iterator_object = vm->get(insn.iterator_object()).as_object();
@@ -1762,7 +1647,6 @@ i64 asm_slow_path_iterator_next(VM* vm, u32 pc)
 
 i64 asm_slow_path_iterator_next_unpack(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::IteratorNextUnpack const*>(&bytecode[pc]);
     auto& iterator_object = vm->get(insn.iterator_object()).as_object();
@@ -1788,7 +1672,6 @@ i64 asm_slow_path_iterator_next_unpack(VM* vm, u32 pc)
 
 i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::IteratorToArray const*>(&bytecode[pc]);
     IteratorRecordImpl iterator_record {
@@ -1817,7 +1700,6 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc)
 #define JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, implementation)                                                                                    \
     i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                     \
     {                                                                                                                                                                    \
-        bump_slow_path(*vm, pc);                                                                                                                                         \
         auto* bytecode = vm->current_executable().bytecode.data();                                                                                                       \
         auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                     \
         Operand arguments[] { insn.argument() };                                                                                                                         \
@@ -1833,7 +1715,6 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc)
 #define JS_DEFINE_BINARY_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, implementation)                                                                                   \
     i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                     \
     {                                                                                                                                                                    \
-        bump_slow_path(*vm, pc);                                                                                                                                         \
         auto* bytecode = vm->current_executable().bytecode.data();                                                                                                       \
         auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                     \
         Operand arguments[] { insn.argument0(), insn.argument1() };                                                                                                      \
@@ -1849,7 +1730,6 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc)
 #define JS_DEFINE_NULLARY_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, implementation)                                                                           \
     i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                              \
     {                                                                                                                                                             \
-        bump_slow_path(*vm, pc);                                                                                                                                  \
         auto* bytecode = vm->current_executable().bytecode.data();                                                                                                \
         auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                              \
         auto callee = vm->get(insn.callee());                                                                                                                     \
@@ -1864,7 +1744,6 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc)
 #define JS_DEFINE_GENERIC_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, ...)                                                                                                      \
     i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                              \
     {                                                                                                                                                                             \
-        bump_slow_path(*vm, pc);                                                                                                                                                  \
         auto* bytecode = vm->current_executable().bytecode.data();                                                                                                                \
         auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                              \
         ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), {}, insn.dst(), insn.expression_string(), insn.strict())); \
@@ -1874,7 +1753,6 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc)
 #define JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, ...)                                                                                                       \
     i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                                     \
     {                                                                                                                                                                                    \
-        bump_slow_path(*vm, pc);                                                                                                                                                         \
         auto* bytecode = vm->current_executable().bytecode.data();                                                                                                                       \
         auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                                     \
         Operand arguments[] { insn.argument() };                                                                                                                                         \
@@ -1885,7 +1763,6 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc)
 #define JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, ...)                                                                                                      \
     i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                                     \
     {                                                                                                                                                                                    \
-        bump_slow_path(*vm, pc);                                                                                                                                                         \
         auto* bytecode = vm->current_executable().bytecode.data();                                                                                                                       \
         auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                                     \
         Operand arguments[] { insn.argument0(), insn.argument1() };                                                                                                                      \
@@ -1927,7 +1804,6 @@ JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(StringPrototypeCharAt, string_pro
 
 i64 asm_slow_path_call_construct(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CallConstruct const*>(&bytecode[pc]);
     ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Construct, *vm, vm->get(insn.callee()), js_undefined(), insn.arguments(), insn.dst(), insn.expression_string(), insn.strict()));
@@ -1936,7 +1812,6 @@ i64 asm_slow_path_call_construct(VM* vm, u32 pc)
 
 i64 asm_slow_path_call_construct_with_argument_array(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CallConstructWithArgumentArray const*>(&bytecode[pc]);
     ASM_TRY(*vm, pc, call_with_argument_array(Op::CallType::Construct, *vm, vm->get(insn.callee()), js_undefined(), vm->get(insn.arguments()), insn.dst(), insn.expression_string(), insn.strict()));
@@ -1945,7 +1820,6 @@ i64 asm_slow_path_call_construct_with_argument_array(VM* vm, u32 pc)
 
 i64 asm_slow_path_super_call_with_argument_array(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SuperCallWithArgumentArray const*>(&bytecode[pc]);
 
@@ -2021,7 +1895,6 @@ i64 asm_slow_path_super_call_with_argument_array(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_object(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewObject const*>(&bytecode[pc]);
     auto& realm = *vm->current_realm();
@@ -2041,7 +1914,6 @@ i64 asm_slow_path_new_object(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_object_with_no_prototype(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewObjectWithNoPrototype const*>(&bytecode[pc]);
     auto& realm = *vm->current_realm();
@@ -2051,7 +1923,6 @@ i64 asm_slow_path_new_object_with_no_prototype(VM* vm, u32 pc)
 
 i64 asm_slow_path_cache_object_shape(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CacheObjectShape const*>(&bytecode[pc]);
     auto& cache = vm->current_executable().object_shape_caches[insn.cache()];
@@ -2065,7 +1936,6 @@ i64 asm_slow_path_cache_object_shape(VM* vm, u32 pc)
 
 i64 asm_slow_path_init_object_literal_property(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::InitObjectLiteralProperty const*>(&bytecode[pc]);
     auto& object = vm->get(insn.object()).as_object();
@@ -2095,7 +1965,6 @@ i64 asm_slow_path_init_object_literal_property(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_array(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewArray const*>(&bytecode[pc]);
     auto array = MUST(JS::Array::create(vm->realm(), insn.element_count()));
@@ -2107,7 +1976,6 @@ i64 asm_slow_path_new_array(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_primitive_array(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewPrimitiveArray const*>(&bytecode[pc]);
     auto array = MUST(JS::Array::create(vm->realm(), insn.element_count()));
@@ -2119,7 +1987,6 @@ i64 asm_slow_path_new_primitive_array(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_regexp(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewRegExp const*>(&bytecode[pc]);
     auto& realm = *vm->current_realm();
@@ -2135,7 +2002,6 @@ i64 asm_slow_path_new_regexp(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_reference_error(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewReferenceError const*>(&bytecode[pc]);
     auto& realm = *vm->current_realm();
@@ -2145,7 +2011,6 @@ i64 asm_slow_path_new_reference_error(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_type_error(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewTypeError const*>(&bytecode[pc]);
     auto& realm = *vm->current_realm();
@@ -2155,7 +2020,6 @@ i64 asm_slow_path_new_type_error(VM* vm, u32 pc)
 
 i64 asm_slow_path_bitwise_xor(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::BitwiseXor const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, bitwise_xor(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -2164,7 +2028,6 @@ i64 asm_slow_path_bitwise_xor(VM* vm, u32 pc)
 
 i64 asm_slow_path_bitwise_and(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::BitwiseAnd const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, bitwise_and(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -2173,7 +2036,6 @@ i64 asm_slow_path_bitwise_and(VM* vm, u32 pc)
 
 i64 asm_slow_path_bitwise_or(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::BitwiseOr const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, bitwise_or(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -2182,7 +2044,6 @@ i64 asm_slow_path_bitwise_or(VM* vm, u32 pc)
 
 i64 asm_slow_path_left_shift(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::LeftShift const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, left_shift(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -2191,7 +2052,6 @@ i64 asm_slow_path_left_shift(VM* vm, u32 pc)
 
 i64 asm_slow_path_right_shift(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::RightShift const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, right_shift(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -2200,7 +2060,6 @@ i64 asm_slow_path_right_shift(VM* vm, u32 pc)
 
 i64 asm_slow_path_unsigned_right_shift(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::UnsignedRightShift const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, unsigned_right_shift(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -2209,7 +2068,6 @@ i64 asm_slow_path_unsigned_right_shift(VM* vm, u32 pc)
 
 i64 asm_slow_path_mod(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Mod const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, mod(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
@@ -2241,7 +2099,6 @@ static bool strictly_equals(Value lhs, Value rhs)
 
 i64 asm_slow_path_strictly_equals(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::StrictlyEquals const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value { strictly_equals(vm->get(insn.lhs()), vm->get(insn.rhs())) });
@@ -2250,7 +2107,6 @@ i64 asm_slow_path_strictly_equals(VM* vm, u32 pc)
 
 i64 asm_slow_path_strictly_inequals(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::StrictlyInequals const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value { !strictly_equals(vm->get(insn.lhs()), vm->get(insn.rhs())) });
@@ -2259,7 +2115,6 @@ i64 asm_slow_path_strictly_inequals(VM* vm, u32 pc)
 
 i64 asm_slow_path_loosely_equals(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::LooselyEquals const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, loosely_equals(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
@@ -2268,7 +2123,6 @@ i64 asm_slow_path_loosely_equals(VM* vm, u32 pc)
 
 i64 asm_slow_path_loosely_inequals(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::LooselyInequals const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, loosely_inequals(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
@@ -2277,7 +2131,6 @@ i64 asm_slow_path_loosely_inequals(VM* vm, u32 pc)
 
 i64 asm_slow_path_unary_minus(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::UnaryMinus const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, unary_minus(*vm, vm->get(insn.src()))));
@@ -2286,7 +2139,6 @@ i64 asm_slow_path_unary_minus(VM* vm, u32 pc)
 
 i64 asm_slow_path_to_string(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ToString const*>(&bytecode[pc]);
     auto result = ASM_TRY(*vm, pc, vm->get(insn.value()).to_primitive_string(*vm));
@@ -2296,7 +2148,6 @@ i64 asm_slow_path_to_string(VM* vm, u32 pc)
 
 i64 asm_slow_path_to_primitive_with_string_hint(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ToPrimitiveWithStringHint const*>(&bytecode[pc]);
     auto result = ASM_TRY(*vm, pc, vm->get(insn.value()).to_primitive(*vm, Value::PreferredType::String));
@@ -2306,7 +2157,6 @@ i64 asm_slow_path_to_primitive_with_string_hint(VM* vm, u32 pc)
 
 i64 asm_slow_path_to_object(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ToObject const*>(&bytecode[pc]);
     auto result = ASM_TRY(*vm, pc, vm->get(insn.value()).to_object(*vm));
@@ -2316,7 +2166,6 @@ i64 asm_slow_path_to_object(VM* vm, u32 pc)
 
 i64 asm_slow_path_to_length(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ToLength const*>(&bytecode[pc]);
     auto result = ASM_TRY(*vm, pc, vm->get(insn.value()).to_length(*vm));
@@ -2326,7 +2175,6 @@ i64 asm_slow_path_to_length(VM* vm, u32 pc)
 
 i64 asm_slow_path_typeof(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Typeof const*>(&bytecode[pc]);
     vm->set(insn.dst(), vm->get(insn.src()).typeof_(*vm));
@@ -2335,7 +2183,6 @@ i64 asm_slow_path_typeof(VM* vm, u32 pc)
 
 i64 asm_slow_path_postfix_decrement(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PostfixDecrement const*>(&bytecode[pc]);
     auto old_value = ASM_TRY(*vm, pc, vm->get(insn.src()).to_numeric(*vm));
@@ -2349,7 +2196,6 @@ i64 asm_slow_path_postfix_decrement(VM* vm, u32 pc)
 
 i64 asm_slow_path_to_int32(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ToInt32 const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value(ASM_TRY(*vm, pc, vm->get(insn.value()).to_i32(*vm))));
@@ -2358,7 +2204,6 @@ i64 asm_slow_path_to_int32(VM* vm, u32 pc)
 
 i64 asm_slow_path_put_by_value(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PutByValue const*>(&bytecode[pc]);
     auto value = vm->get(insn.src());
@@ -2374,7 +2219,6 @@ i64 asm_slow_path_put_by_value(VM* vm, u32 pc)
 
 i64 asm_slow_path_put_by_value_with_this(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PutByValueWithThis const*>(&bytecode[pc]);
     auto value = vm->get(insn.src());
@@ -2387,7 +2231,6 @@ i64 asm_slow_path_put_by_value_with_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_put_by_spread(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PutBySpread const*>(&bytecode[pc]);
     auto value = vm->get(insn.src());
@@ -2570,7 +2413,6 @@ i64 asm_try_get_by_id_cache(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetBinding const*>(&bytecode[pc]);
     auto next_pc = asm_get_binding<AsmBindingIsKnownToBeInitialized::No>(*vm, pc, insn.dst(), insn.cache());
@@ -2581,7 +2423,6 @@ i64 asm_slow_path_get_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_dynamic_get_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DynamicGetBinding const*>(&bytecode[pc]);
     auto& cache = vm->current_executable().environment_coordinate_caches[insn.cache()];
@@ -2593,7 +2434,6 @@ i64 asm_slow_path_dynamic_get_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_initialize_lexical_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::InitializeLexicalBinding const*>(&bytecode[pc]);
     auto next_pc = asm_initialize_or_set_binding<Op::EnvironmentMode::Lexical, Op::BindingInitializationMode::Initialize>(*vm, pc, insn.strict(), vm->get(insn.src()), insn.cache());
@@ -2604,7 +2444,6 @@ i64 asm_slow_path_initialize_lexical_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_dynamic_initialize_lexical_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DynamicInitializeLexicalBinding const*>(&bytecode[pc]);
     auto next_pc = asm_dynamic_initialize_or_set_binding<Op::EnvironmentMode::Lexical, Op::BindingInitializationMode::Initialize>(*vm, pc, insn.identifier(), insn.strict(), vm->get(insn.src()), vm->current_executable().environment_coordinate_caches[insn.cache()]);
@@ -2615,7 +2454,6 @@ i64 asm_slow_path_dynamic_initialize_lexical_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_initialize_variable_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::InitializeVariableBinding const*>(&bytecode[pc]);
     auto next_pc = asm_initialize_or_set_binding<Op::EnvironmentMode::Var, Op::BindingInitializationMode::Initialize>(*vm, pc, insn.strict(), vm->get(insn.src()), insn.cache());
@@ -2626,7 +2464,6 @@ i64 asm_slow_path_initialize_variable_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_dynamic_initialize_variable_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DynamicInitializeVariableBinding const*>(&bytecode[pc]);
     auto next_pc = asm_dynamic_initialize_or_set_binding<Op::EnvironmentMode::Var, Op::BindingInitializationMode::Initialize>(*vm, pc, insn.identifier(), insn.strict(), vm->get(insn.src()), vm->current_executable().environment_coordinate_caches[insn.cache()]);
@@ -2637,7 +2474,6 @@ i64 asm_slow_path_dynamic_initialize_variable_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_set_lexical_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SetLexicalBinding const*>(&bytecode[pc]);
     auto next_pc = asm_initialize_or_set_binding<Op::EnvironmentMode::Lexical, Op::BindingInitializationMode::Set>(*vm, pc, insn.strict(), vm->get(insn.src()), insn.cache());
@@ -2648,7 +2484,6 @@ i64 asm_slow_path_set_lexical_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_dynamic_set_lexical_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DynamicSetLexicalBinding const*>(&bytecode[pc]);
     auto next_pc = asm_dynamic_initialize_or_set_binding<Op::EnvironmentMode::Lexical, Op::BindingInitializationMode::Set>(*vm, pc, insn.identifier(), insn.strict(), vm->get(insn.src()), vm->current_executable().environment_coordinate_caches[insn.cache()]);
@@ -2659,7 +2494,6 @@ i64 asm_slow_path_dynamic_set_lexical_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_set_variable_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SetVariableBinding const*>(&bytecode[pc]);
     auto next_pc = asm_initialize_or_set_binding<Op::EnvironmentMode::Var, Op::BindingInitializationMode::Set>(*vm, pc, insn.strict(), vm->get(insn.src()), insn.cache());
@@ -2670,7 +2504,6 @@ i64 asm_slow_path_set_variable_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_dynamic_set_variable_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DynamicSetVariableBinding const*>(&bytecode[pc]);
     auto next_pc = asm_dynamic_initialize_or_set_binding<Op::EnvironmentMode::Var, Op::BindingInitializationMode::Set>(*vm, pc, insn.identifier(), insn.strict(), vm->get(insn.src()), vm->current_executable().environment_coordinate_caches[insn.cache()]);
@@ -2681,7 +2514,6 @@ i64 asm_slow_path_dynamic_set_variable_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_resolve_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ResolveBinding const*>(&bytecode[pc]);
     auto const& identifier = vm->get_identifier(insn.identifier());
@@ -2698,7 +2530,6 @@ i64 asm_slow_path_resolve_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_resolve_super_base(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ResolveSuperBase const*>(&bytecode[pc]);
 
@@ -2711,7 +2542,6 @@ i64 asm_slow_path_resolve_super_base(VM* vm, u32 pc)
 
 i64 asm_slow_path_set_resolved_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SetResolvedBinding const*>(&bytecode[pc]);
     auto const& identifier = vm->get_identifier(insn.identifier());
@@ -2725,7 +2555,6 @@ i64 asm_slow_path_set_resolved_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_typeof_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::TypeofBinding const*>(&bytecode[pc]);
     VERIFY(insn.cache().is_valid());
@@ -2741,7 +2570,6 @@ i64 asm_slow_path_typeof_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_dynamic_typeof_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DynamicTypeofBinding const*>(&bytecode[pc]);
     auto& cache = vm->current_executable().environment_coordinate_caches[insn.cache()];
@@ -2779,7 +2607,6 @@ static Optional<StringView> asm_function_name_prefix_to_string(Op::FunctionNameP
 
 i64 asm_slow_path_has_private_id(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::HasPrivateId const*>(&bytecode[pc]);
     auto base = vm->get(insn.base());
@@ -2797,7 +2624,6 @@ i64 asm_slow_path_has_private_id(VM* vm, u32 pc)
 
 i64 asm_slow_path_set_function_name(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SetFunctionName const*>(&bytecode[pc]);
     auto function = vm->get(insn.function()).as_if<ECMAScriptFunctionObject>();
@@ -2811,7 +2637,6 @@ i64 asm_slow_path_set_function_name(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_array_with_length(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewArrayWithLength const*>(&bytecode[pc]);
     auto length = static_cast<u64>(vm->get(insn.array_length()).as_double());
@@ -2822,7 +2647,6 @@ i64 asm_slow_path_new_array_with_length(VM* vm, u32 pc)
 
 i64 asm_slow_path_array_append(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ArrayAppend const*>(&bytecode[pc]);
     auto rhs = vm->get(insn.src());
@@ -2847,7 +2671,6 @@ i64 asm_slow_path_array_append(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_variable(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CreateVariable const*>(&bytecode[pc]);
     auto const& name = vm->get_identifier(insn.identifier());
@@ -2857,7 +2680,6 @@ i64 asm_slow_path_create_variable(VM* vm, u32 pc)
 
 i64 asm_slow_path_enter_object_environment(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::EnterObjectEnvironment const*>(&bytecode[pc]);
     auto object = ASM_TRY(*vm, pc, vm->get(insn.object()).to_object(*vm));
@@ -2870,7 +2692,6 @@ i64 asm_slow_path_enter_object_environment(VM* vm, u32 pc)
 
 i64 asm_slow_path_bitwise_not(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::BitwiseNot const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, bitwise_not(*vm, vm->get(insn.src()))));
@@ -2879,7 +2700,6 @@ i64 asm_slow_path_bitwise_not(VM* vm, u32 pc)
 
 i64 asm_slow_path_unary_plus(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::UnaryPlus const*>(&bytecode[pc]);
     vm->set(insn.dst(), ASM_TRY(*vm, pc, unary_plus(*vm, vm->get(insn.src()))));
@@ -2888,7 +2708,6 @@ i64 asm_slow_path_unary_plus(VM* vm, u32 pc)
 
 i64 asm_slow_path_is_constructor(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::IsConstructor const*>(&bytecode[pc]);
     vm->set(insn.dst(), Value(vm->get(insn.value()).is_constructor()));
@@ -2897,7 +2716,6 @@ i64 asm_slow_path_is_constructor(VM* vm, u32 pc)
 
 i64 asm_slow_path_add_private_name(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::AddPrivateName const*>(&bytecode[pc]);
     auto const& name = vm->get_identifier(insn.name());
@@ -2907,7 +2725,6 @@ i64 asm_slow_path_add_private_name(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_async_from_sync_iterator(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CreateAsyncFromSyncIterator const*>(&bytecode[pc]);
     auto& realm = vm->realm();
@@ -2930,7 +2747,6 @@ i64 asm_slow_path_create_async_from_sync_iterator(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_data_property_or_throw(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CreateDataPropertyOrThrow const*>(&bytecode[pc]);
     auto& object = vm->get(insn.object()).as_object();
@@ -2942,7 +2758,6 @@ i64 asm_slow_path_create_data_property_or_throw(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_immutable_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CreateImmutableBinding const*>(&bytecode[pc]);
     auto& environment = as<Environment>(vm->get(insn.environment()).as_cell());
@@ -2952,7 +2767,6 @@ i64 asm_slow_path_create_immutable_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_mutable_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CreateMutableBinding const*>(&bytecode[pc]);
     auto& environment = as<Environment>(vm->get(insn.environment()).as_cell());
@@ -2962,7 +2776,6 @@ i64 asm_slow_path_create_mutable_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_rest_params(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CreateRestParams const*>(&bytecode[pc]);
     auto const arguments = vm->running_execution_context().arguments_span();
@@ -2976,7 +2789,6 @@ i64 asm_slow_path_create_rest_params(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_arguments(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CreateArguments const*>(&bytecode[pc]);
     auto const& function = vm->running_execution_context().function;
@@ -3008,7 +2820,6 @@ i64 asm_slow_path_create_arguments(VM* vm, u32 pc)
 
 i64 asm_slow_path_await(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Await const*>(&bytecode[pc]);
     auto yielded_value = vm->get(insn.argument()).is_special_empty_value() ? js_undefined() : vm->get(insn.argument());
@@ -3022,7 +2833,6 @@ i64 asm_slow_path_await(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_lexical_environment(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CreateLexicalEnvironment const*>(&bytecode[pc]);
     auto& parent = as<Environment>(vm->get(insn.parent()).as_cell());
@@ -3036,7 +2846,6 @@ i64 asm_slow_path_create_lexical_environment(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_private_environment(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto& running_execution_context = vm->running_execution_context();
     auto outer_private_environment = running_execution_context.private_environment;
     running_execution_context.private_environment = new_private_environment(*vm, outer_private_environment);
@@ -3045,7 +2854,6 @@ i64 asm_slow_path_create_private_environment(VM* vm, u32 pc)
 
 i64 asm_slow_path_create_variable_environment(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::CreateVariableEnvironment const*>(&bytecode[pc]);
     auto& running_execution_context = vm->running_execution_context();
@@ -3060,7 +2868,6 @@ i64 asm_slow_path_create_variable_environment(VM* vm, u32 pc)
 
 i64 asm_slow_path_delete_by_id(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DeleteById const*>(&bytecode[pc]);
     auto const& property_key = vm->get_property_key(insn.property());
@@ -3072,7 +2879,6 @@ i64 asm_slow_path_delete_by_id(VM* vm, u32 pc)
 
 i64 asm_slow_path_delete_by_value(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DeleteByValue const*>(&bytecode[pc]);
     auto property_key = ASM_TRY(*vm, pc, vm->get(insn.property()).to_property_key(*vm));
@@ -3084,7 +2890,6 @@ i64 asm_slow_path_delete_by_value(VM* vm, u32 pc)
 
 i64 asm_slow_path_delete_variable(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::DeleteVariable const*>(&bytecode[pc]);
     auto const& string = vm->get_identifier(insn.identifier());
@@ -3096,7 +2901,6 @@ i64 asm_slow_path_delete_variable(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_completion_fields(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetCompletionFields const*>(&bytecode[pc]);
     auto& completion_source = vm->get(insn.completion()).as_object();
@@ -3115,7 +2919,6 @@ i64 asm_slow_path_get_completion_fields(VM* vm, u32 pc)
 
 i64 asm_slow_path_set_completion_type(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SetCompletionType const*>(&bytecode[pc]);
     auto& completion_source = vm->get(insn.completion()).as_object();
@@ -3130,7 +2933,6 @@ i64 asm_slow_path_set_completion_type(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_template_object(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetTemplateObject const*>(&bytecode[pc]);
     auto& cache = *vm->current_executable().template_object_caches[insn.cache()];
@@ -3162,7 +2964,6 @@ i64 asm_slow_path_get_template_object(VM* vm, u32 pc)
 
 i64 asm_slow_path_new_function(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::NewFunction const*>(&bytecode[pc]);
     auto& shared_data = *vm->current_executable().shared_function_data[insn.shared_function_data_index()];
@@ -3200,7 +3001,6 @@ i64 asm_slow_path_new_function(VM* vm, u32 pc)
 
 i64 asm_slow_path_throw(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Throw const*>(&bytecode[pc]);
     return handle_asm_exception(*vm, pc, vm->get(insn.src()));
@@ -3208,7 +3008,6 @@ i64 asm_slow_path_throw(VM* vm, u32 pc)
 
 i64 asm_slow_path_throw_if_tdz(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ThrowIfTDZ const*>(&bytecode[pc]);
     auto value = vm->get(insn.src());
@@ -3221,7 +3020,6 @@ i64 asm_slow_path_throw_if_tdz(VM* vm, u32 pc)
 
 i64 asm_slow_path_throw_if_not_object(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ThrowIfNotObject const*>(&bytecode[pc]);
     auto src = vm->get(insn.src());
@@ -3234,7 +3032,6 @@ i64 asm_slow_path_throw_if_not_object(VM* vm, u32 pc)
 
 i64 asm_slow_path_throw_if_nullish(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::ThrowIfNullish const*>(&bytecode[pc]);
     auto value = vm->get(insn.src());
@@ -3247,14 +3044,12 @@ i64 asm_slow_path_throw_if_nullish(VM* vm, u32 pc)
 
 i64 asm_slow_path_throw_const_assignment(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto completion = vm->throw_completion<TypeError>(ErrorType::InvalidAssignToConst);
     return handle_asm_exception(*vm, pc, completion.value());
 }
 
 i64 asm_slow_path_yield(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Yield const*>(&bytecode[pc]);
     auto yielded_value = vm->get(insn.value()).is_special_empty_value() ? js_undefined() : vm->get(insn.value());
@@ -3271,7 +3066,6 @@ i64 asm_slow_path_yield(VM* vm, u32 pc)
 
 i64 asm_slow_path_yield_iterator_result(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::YieldIteratorResult const*>(&bytecode[pc]);
     auto yielded_value = vm->get(insn.value()).is_special_empty_value() ? js_undefined() : vm->get(insn.value());
@@ -3441,7 +3235,6 @@ i64 asm_try_put_by_value_typed_array(VM* vm, u32 pc)
 
 i64 asm_slow_path_instance_of(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::InstanceOf const*>(&bytecode[pc]);
     auto result = ASM_TRY(*vm, pc, instance_of(*vm, vm->get(insn.lhs()), vm->get(insn.rhs())));
@@ -3451,7 +3244,6 @@ i64 asm_slow_path_instance_of(VM* vm, u32 pc)
 
 i64 asm_slow_path_in(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::In const*>(&bytecode[pc]);
     auto result = ASM_TRY(*vm, pc, in(*vm, vm->get(insn.lhs()), vm->get(insn.rhs())));
@@ -3461,7 +3253,6 @@ i64 asm_slow_path_in(VM* vm, u32 pc)
 
 i64 asm_slow_path_resolve_this_binding(VM* vm, u32 pc)
 {
-    bump_slow_path(*vm, pc);
     auto& cached_this_value = vm->reg(Register::this_value());
     if (!cached_this_value.is_special_empty_value())
         return static_cast<i64>(pc + sizeof(Op::ResolveThisBinding));
