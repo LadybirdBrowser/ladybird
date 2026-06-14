@@ -23,6 +23,7 @@
 #include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/MathObject.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
@@ -30,6 +31,7 @@
 #include <LibJS/Runtime/PrivateEnvironment.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/RegExpObject.h>
+#include <LibJS/Runtime/StringConstructor.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
@@ -136,40 +138,12 @@ static i64 handle_asm_exception(VM& vm, u32 pc, Value exception)
         asm_try_result.release_value();                                                                  \
     })
 
-// Helper: execute a throwing instruction and handle errors
-template<typename InsnType>
-static i64 execute_throwing(VM& vm, u32 pc)
-{
-    vm.running_execution_context().program_counter = pc;
-    auto* bytecode = vm.current_executable().bytecode.data();
-    auto& insn = *reinterpret_cast<InsnType const*>(&bytecode[pc]);
-    ASM_TRY(vm, pc, insn.execute_impl(vm));
-    if constexpr (InsnType::IsVariableLength)
-        return static_cast<i64>(pc + insn.length());
-    else
-        return static_cast<i64>(pc + sizeof(InsnType));
-}
-
-// Slow path wrappers: optionally bump per-opcode counter, then delegate.
 #ifdef JS_ASMINT_SLOW_PATH_COUNTERS
-template<typename InsnType>
-ALWAYS_INLINE static i64 slow_path_throwing(VM& vm, u32 pc)
-{
-    ++s_stats.slow_path_by_type[static_cast<u8>(Instruction::Type { vm.current_executable().bytecode[pc] })];
-    return execute_throwing<InsnType>(vm, pc);
-}
-
 ALWAYS_INLINE static void bump_slow_path(VM& vm, u32 pc)
 {
     ++s_stats.slow_path_by_type[static_cast<u8>(Instruction::Type { vm.current_executable().bytecode[pc] })];
 }
 #else
-template<typename InsnType>
-ALWAYS_INLINE static i64 slow_path_throwing(VM& vm, u32 pc)
-{
-    return execute_throwing<InsnType>(vm, pc);
-}
-
 ALWAYS_INLINE static void bump_slow_path(VM&, u32) { }
 #endif
 
@@ -217,6 +191,25 @@ enum class AsmBindingIsKnownToBeInitialized {
     No,
     Yes,
 };
+
+template<AsmBindingIsKnownToBeInitialized binding_is_known_to_be_initialized>
+static i64 asm_get_binding(VM& vm, u32 pc, Operand dst, EnvironmentCoordinate const& cache)
+{
+    VERIFY(cache.is_valid());
+
+    auto const* environment = vm.running_execution_context().lexical_environment.ptr();
+    for (size_t i = 0; i < cache.hops; ++i)
+        environment = environment->outer_environment();
+
+    Value value;
+    if constexpr (binding_is_known_to_be_initialized == AsmBindingIsKnownToBeInitialized::No) {
+        value = ASM_TRY(vm, pc, static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
+    } else {
+        value = static_cast<DeclarativeEnvironment const&>(*environment).get_initialized_binding_value_direct(cache.index);
+    }
+    vm.set(dst, value);
+    return static_cast<i64>(pc);
+}
 
 template<AsmBindingIsKnownToBeInitialized binding_is_known_to_be_initialized>
 static i64 asm_dynamic_get_binding(VM& vm, u32 pc, Operand dst, IdentifierTableIndex identifier_index, Strict strict, EnvironmentCoordinate& cache)
@@ -807,56 +800,103 @@ i64 asm_fallback_handler(VM*, u32)
 
 i64 asm_slow_path_add(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Add>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Add const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, add(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::Add));
 }
 
 i64 asm_slow_path_sub(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Sub>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Sub const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, sub(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::Sub));
 }
 
 i64 asm_slow_path_mul(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Mul>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Mul const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, mul(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::Mul));
 }
 
 i64 asm_slow_path_div(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Div>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Div const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, div(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::Div));
 }
 
 i64 asm_slow_path_less_than(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::LessThan>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::LessThan const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, less_than(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
+    return static_cast<i64>(pc + sizeof(Op::LessThan));
 }
 
 i64 asm_slow_path_less_than_equals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::LessThanEquals>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::LessThanEquals const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, less_than_equals(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
+    return static_cast<i64>(pc + sizeof(Op::LessThanEquals));
 }
 
 i64 asm_slow_path_greater_than(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GreaterThan>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GreaterThan const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, greater_than(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
+    return static_cast<i64>(pc + sizeof(Op::GreaterThan));
 }
 
 i64 asm_slow_path_greater_than_equals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GreaterThanEquals>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GreaterThanEquals const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, greater_than_equals(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
+    return static_cast<i64>(pc + sizeof(Op::GreaterThanEquals));
 }
 
 i64 asm_slow_path_increment(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Increment>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Increment const*>(&bytecode[pc]);
+    auto old_value = ASM_TRY(*vm, pc, vm->get(insn.dst()).to_numeric(*vm));
+    if (old_value.is_number())
+        vm->set(insn.dst(), Value(old_value.as_double() + 1));
+    else
+        vm->set(insn.dst(), BigInt::create(*vm, old_value.as_bigint().big_integer().plus(Crypto::SignedBigInteger { 1 })));
+    return static_cast<i64>(pc + sizeof(Op::Increment));
 }
 
 i64 asm_slow_path_decrement(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Decrement>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Decrement const*>(&bytecode[pc]);
+    auto old_value = ASM_TRY(*vm, pc, vm->get(insn.dst()).to_numeric(*vm));
+    if (old_value.is_number())
+        vm->set(insn.dst(), Value(old_value.as_double() - 1));
+    else
+        vm->set(insn.dst(), BigInt::create(*vm, old_value.as_bigint().big_integer().minus(Crypto::SignedBigInteger { 1 })));
+    return static_cast<i64>(pc + sizeof(Op::Decrement));
 }
 
-// Comparison jump slow paths - these are terminators (execute_impl returns void),
-// so they need custom handling instead of the generic slow_path_throwing template.
+// Comparison jump slow paths return one of two target PCs.
 #define DEFINE_JUMP_COMPARISON_SLOW_PATH(snake_name, op_name, compare_call)      \
     i64 asm_slow_path_jump_##snake_name(VM* vm, u32 pc)                          \
     {                                                                            \
@@ -926,7 +966,13 @@ i64 asm_slow_path_set_lexical_environment(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_initialized_binding(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetInitializedBinding>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetInitializedBinding const*>(&bytecode[pc]);
+    auto next_pc = asm_get_binding<AsmBindingIsKnownToBeInitialized::Yes>(*vm, pc, insn.dst(), insn.cache());
+    if (next_pc != static_cast<i64>(pc))
+        return next_pc;
+    return static_cast<i64>(pc + sizeof(Op::GetInitializedBinding));
 }
 
 i64 asm_slow_path_dynamic_get_initialized_binding(VM* vm, u32 pc)
@@ -941,19 +987,25 @@ i64 asm_slow_path_dynamic_get_initialized_binding(VM* vm, u32 pc)
     return static_cast<i64>(pc + sizeof(Op::DynamicGetInitializedBinding));
 }
 
-i64 asm_slow_path_loosely_equals(VM* vm, u32 pc)
-{
-    return slow_path_throwing<Op::LooselyEquals>(*vm, pc);
-}
-
-i64 asm_slow_path_loosely_inequals(VM* vm, u32 pc)
-{
-    return slow_path_throwing<Op::LooselyInequals>(*vm, pc);
-}
-
 i64 asm_slow_path_get_callee_and_this(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetCalleeAndThisFromEnvironment>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetCalleeAndThisFromEnvironment const*>(&bytecode[pc]);
+    auto const& cache = insn.cache();
+    VERIFY(cache.is_valid());
+
+    auto const* environment = vm->running_execution_context().lexical_environment.ptr();
+    for (size_t i = 0; i < cache.hops; ++i)
+        environment = environment->outer_environment();
+
+    auto callee = ASM_TRY(*vm, pc, static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(*vm, cache.index));
+    vm->set(insn.callee(), callee);
+    auto this_value = js_undefined();
+    if (auto base_object = environment->with_base_object()) [[unlikely]]
+        this_value = base_object;
+    vm->set(insn.this_value(), this_value);
+    return static_cast<i64>(pc + sizeof(Op::GetCalleeAndThisFromEnvironment));
 }
 
 i64 asm_slow_path_dynamic_get_callee_and_this(VM* vm, u32 pc)
@@ -970,7 +1022,16 @@ i64 asm_slow_path_dynamic_get_callee_and_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_postfix_increment(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::PostfixIncrement>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::PostfixIncrement const*>(&bytecode[pc]);
+    auto old_value = ASM_TRY(*vm, pc, vm->get(insn.src()).to_numeric(*vm));
+    vm->set(insn.dst(), old_value);
+    if (old_value.is_number())
+        vm->set(insn.src(), Value(old_value.as_double() + 1));
+    else
+        vm->set(insn.src(), BigInt::create(*vm, old_value.as_bigint().big_integer().plus(Crypto::SignedBigInteger { 1 })));
+    return static_cast<i64>(pc + sizeof(Op::PostfixIncrement));
 }
 
 i64 asm_slow_path_get_by_id(VM* vm, u32 pc)
@@ -1000,7 +1061,18 @@ i64 asm_slow_path_get_by_id_with_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_put_by_id(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::PutById>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::PutById const*>(&bytecode[pc]);
+    auto value = vm->get(insn.src());
+    auto base = vm->get(insn.base());
+    Optional<Utf16FlyString const&> base_identifier;
+    if (insn.base_identifier().has_value())
+        base_identifier = vm->get_identifier(insn.base_identifier().value());
+    auto const& property_key = vm->get_property_key(insn.property());
+    auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
+    ASM_TRY(*vm, pc, put_by_property_key(*vm, base, base, value, base_identifier, property_key, insn.kind(), insn.strict(), &cache));
+    return static_cast<i64>(pc + sizeof(Op::PutById));
 }
 
 i64 asm_slow_path_put_by_id_with_this(VM* vm, u32 pc)
@@ -1018,7 +1090,25 @@ i64 asm_slow_path_put_by_id_with_this(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_by_value(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetByValue>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetByValue const*>(&bytecode[pc]);
+    auto base_value = vm->get(insn.base());
+    auto property_key_value = vm->get(insn.property());
+    auto object = ASM_TRY(*vm, pc, base_object_for_get(*vm, base_value, [&]() -> Optional<Utf16FlyString const&> {
+        if (insn.base_identifier().has_value())
+            return vm->get_identifier(insn.base_identifier().value());
+        return {}; }, [&] { return property_key_value; }));
+    auto property_key = ASM_TRY(*vm, pc, property_key_value.to_property_key(*vm));
+    if (base_value.is_string()) {
+        auto string_value = ASM_TRY(*vm, pc, base_value.as_string().get(*vm, property_key));
+        if (string_value.has_value()) {
+            vm->set(insn.dst(), *string_value);
+            return static_cast<i64>(pc + sizeof(Op::GetByValue));
+        }
+    }
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, object->internal_get(property_key, base_value)));
+    return static_cast<i64>(pc + sizeof(Op::GetByValue));
 }
 
 i64 asm_slow_path_get_by_value_with_this(VM* vm, u32 pc)
@@ -1139,7 +1229,83 @@ i64 asm_try_get_global_env_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_global(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetGlobal>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetGlobal const*>(&bytecode[pc]);
+
+    auto& binding_object = vm->global_object();
+    auto& declarative_record = vm->global_declarative_environment();
+    auto& cache = vm->current_executable().global_variable_caches[insn.cache()];
+
+    auto& shape = binding_object.shape();
+    if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
+        auto* entry = cache.first_entry();
+        if (entry && &shape == entry->shape && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
+            auto value = binding_object.get_direct(entry->property_offset);
+            vm->set(insn.dst(), ASM_TRY(*vm, pc, get_cached_property_value(*vm, value, &binding_object)));
+            return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+        }
+
+        if (cache.has_environment_binding_index) {
+            Value value;
+            if (cache.in_module_environment) {
+                auto module = vm->running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
+                value = ASM_TRY(*vm, pc, (*module)->environment()->get_binding_value_direct(*vm, cache.environment_binding_index));
+            } else {
+                value = ASM_TRY(*vm, pc, declarative_record.get_binding_value_direct(*vm, cache.environment_binding_index));
+            }
+            vm->set(insn.dst(), value);
+            return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+        }
+    }
+
+    cache.environment_serial_number = declarative_record.environment_serial_number();
+
+    auto& identifier = vm->get_identifier(insn.identifier());
+
+    if (auto* module = vm->running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>()) {
+        auto& module_environment = *(*module)->environment();
+        Optional<size_t> index;
+        if (ASM_TRY(*vm, pc, module_environment.has_binding(identifier, &index))) {
+            if (index.has_value()) {
+                cache.environment_binding_index = static_cast<u32>(index.value());
+                cache.has_environment_binding_index = true;
+                cache.in_module_environment = true;
+                vm->set(insn.dst(), ASM_TRY(*vm, pc, module_environment.get_binding_value_direct(*vm, index.value())));
+                return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+            }
+            vm->set(insn.dst(), ASM_TRY(*vm, pc, module_environment.get_binding_value(*vm, identifier, true)));
+            return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+        }
+    }
+
+    Optional<size_t> offset;
+    if (ASM_TRY(*vm, pc, declarative_record.has_binding(identifier, &offset))) {
+        cache.environment_binding_index = static_cast<u32>(offset.value());
+        cache.has_environment_binding_index = true;
+        cache.in_module_environment = false;
+        vm->set(insn.dst(), ASM_TRY(*vm, pc, declarative_record.get_binding_value(*vm, identifier, insn.strict() == Strict::Yes)));
+        return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+    }
+
+    if (ASM_TRY(*vm, pc, binding_object.has_property(identifier))) [[likely]] {
+        CacheableGetPropertyMetadata cacheable_metadata;
+        auto value = ASM_TRY(*vm, pc, binding_object.internal_get(identifier, &binding_object, &cacheable_metadata));
+        if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
+            cache.update(PropertyLookupCache::Entry::Type::GetOwnProperty, [&](auto& entry) {
+                entry.shape = shape;
+                entry.property_offset = cacheable_metadata.property_offset.value();
+
+                if (shape.is_dictionary())
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
+            });
+        }
+        vm->set(insn.dst(), value);
+        return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+    }
+
+    auto completion = vm->throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, identifier);
+    return handle_asm_exception(*vm, pc, completion.value());
 }
 
 i64 asm_try_set_global_env_binding(VM* vm, u32 pc)
@@ -1169,7 +1335,97 @@ i64 asm_try_set_global_env_binding(VM* vm, u32 pc)
 
 i64 asm_slow_path_set_global(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::SetGlobal>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::SetGlobal const*>(&bytecode[pc]);
+
+    auto& binding_object = vm->global_object();
+    auto& declarative_record = vm->global_declarative_environment();
+    auto& cache = vm->current_executable().global_variable_caches[insn.cache()];
+    auto& shape = binding_object.shape();
+    auto src = vm->get(insn.src());
+
+    if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
+        auto* entry = cache.first_entry();
+        if (entry && &shape == entry->shape && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
+            auto value = binding_object.get_direct(entry->property_offset);
+            if (value.is_accessor())
+                ASM_TRY(*vm, pc, call(*vm, value.as_accessor().setter(), &binding_object, src));
+            else
+                binding_object.put_direct(entry->property_offset, src);
+            return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+        }
+
+        if (cache.has_environment_binding_index) {
+            if (cache.in_module_environment) {
+                auto module = vm->running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
+                ASM_TRY(*vm, pc, (*module)->environment()->set_mutable_binding_direct(*vm, cache.environment_binding_index, src, insn.strict() == Strict::Yes));
+            } else {
+                ASM_TRY(*vm, pc, declarative_record.set_mutable_binding_direct(*vm, cache.environment_binding_index, src, insn.strict() == Strict::Yes));
+            }
+            return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+        }
+    }
+
+    cache.environment_serial_number = declarative_record.environment_serial_number();
+
+    auto& identifier = vm->get_identifier(insn.identifier());
+
+    if (auto* module = vm->running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>()) {
+        auto& module_environment = *(*module)->environment();
+        Optional<size_t> index;
+        if (ASM_TRY(*vm, pc, module_environment.has_binding(identifier, &index))) {
+            if (index.has_value()) {
+                cache.environment_binding_index = static_cast<u32>(index.value());
+                cache.has_environment_binding_index = true;
+                cache.in_module_environment = true;
+                ASM_TRY(*vm, pc, module_environment.set_mutable_binding_direct(*vm, index.value(), src, insn.strict() == Strict::Yes));
+                return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+            }
+            ASM_TRY(*vm, pc, module_environment.set_mutable_binding(*vm, identifier, src, insn.strict() == Strict::Yes));
+            return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+        }
+    }
+
+    Optional<size_t> offset;
+    if (ASM_TRY(*vm, pc, declarative_record.has_binding(identifier, &offset))) {
+        cache.environment_binding_index = static_cast<u32>(offset.value());
+        cache.has_environment_binding_index = true;
+        cache.in_module_environment = false;
+        ASM_TRY(*vm, pc, declarative_record.set_mutable_binding(*vm, identifier, src, insn.strict() == Strict::Yes));
+        return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+    }
+
+    if (ASM_TRY(*vm, pc, binding_object.has_property(identifier))) {
+        CacheableSetPropertyMetadata cacheable_metadata;
+        auto success = ASM_TRY(*vm, pc, binding_object.internal_set(identifier, src, &binding_object, &cacheable_metadata));
+        if (!success && insn.strict() == Strict::Yes) [[unlikely]] {
+            auto property_or_error = binding_object.internal_get_own_property(identifier);
+            if (!property_or_error.is_error()) {
+                auto property = property_or_error.release_value();
+                if (property.has_value() && !property->writable.value_or(true)) {
+                    auto completion = vm->throw_completion<TypeError>(ErrorType::DescWriteNonWritable, identifier);
+                    return handle_asm_exception(*vm, pc, completion.value());
+                }
+            }
+            auto completion = vm->throw_completion<TypeError>(ErrorType::ObjectSetReturnedFalse);
+            return handle_asm_exception(*vm, pc, completion.value());
+        }
+        if (cacheable_metadata.type == CacheableSetPropertyMetadata::Type::ChangeOwnProperty) {
+            cache.update(PropertyLookupCache::Entry::Type::ChangeOwnProperty, [&](auto& entry) {
+                entry.shape = shape;
+                entry.property_offset = cacheable_metadata.property_offset.value();
+
+                if (shape.is_dictionary())
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
+            });
+        }
+        return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+    }
+
+    auto reference = ASM_TRY(*vm, pc, vm->resolve_binding(identifier, insn.strict(), &declarative_record));
+    ASM_TRY(*vm, pc, reference.put_value(*vm, src));
+    return static_cast<i64>(pc + sizeof(Op::SetGlobal));
 }
 
 i64 asm_slow_path_concat_string(VM* vm, u32 pc)
@@ -1260,11 +1516,6 @@ i64 asm_slow_path_new_class(VM* vm, u32 pc)
     return static_cast<i64>(pc + insn.length());
 }
 
-i64 asm_slow_path_call(VM* vm, u32 pc)
-{
-    return slow_path_throwing<Op::Call>(*vm, pc);
-}
-
 static COLD Completion throw_type_error_for_asm_callee(VM& vm, Value callee, StringView callee_type, Optional<StringTableIndex> const expression_string)
 {
     if (expression_string.has_value())
@@ -1281,6 +1532,67 @@ static ThrowCompletionOr<void> throw_if_needed_for_asm_call(VM& vm, Value callee
     if (call_type == Op::CallType::Construct && !callee.is_constructor()) [[unlikely]]
         return throw_type_error_for_asm_callee(vm, callee, "constructor"sv, expression_string);
     return {};
+}
+
+NEVER_INLINE static ThrowCompletionOr<void> execute_asm_call(
+    Op::CallType call_type,
+    VM& vm,
+    Value callee,
+    Value this_value,
+    ReadonlySpan<Operand> arguments,
+    Operand dst,
+    Optional<StringTableIndex> const expression_string,
+    Strict strict)
+{
+    TRY(throw_if_needed_for_asm_call(vm, callee, call_type, expression_string));
+
+    auto& function = callee.as_function();
+
+    size_t registers_and_locals_count = 0;
+    ReadonlySpan<Value> constants;
+    size_t argument_count = arguments.size();
+    function.get_stack_frame_info(registers_and_locals_count, constants, argument_count);
+
+    auto& stack = vm.interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants, max(arguments.size(), argument_count));
+    if (!callee_context) [[unlikely]]
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
+
+    auto* callee_context_argument_values = callee_context->arguments_data();
+    auto const callee_context_argument_count = callee_context->argument_count;
+    auto const insn_argument_count = arguments.size();
+
+    for (size_t i = 0; i < insn_argument_count; ++i)
+        callee_context_argument_values[i] = vm.get(arguments.data()[i]);
+    for (size_t i = insn_argument_count; i < callee_context_argument_count; ++i)
+        callee_context_argument_values[i] = js_undefined();
+    callee_context->passed_argument_count = insn_argument_count;
+
+    Value retval;
+    if (call_type == Op::CallType::DirectEval) {
+        if (callee == vm.realm().intrinsics().eval_function()) {
+            retval = TRY(perform_eval(vm, callee_context->argument_count > 0 ? callee_context->arguments_data()[0] : js_undefined(), strict == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
+        } else {
+            retval = TRY(function.internal_call(*callee_context, this_value));
+        }
+    } else if (call_type == Op::CallType::Construct) {
+        retval = TRY(function.internal_construct(*callee_context, function));
+    } else {
+        retval = TRY(function.internal_call(*callee_context, this_value));
+    }
+    vm.set(dst, retval);
+    return {};
+}
+
+i64 asm_slow_path_call(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Call const*>(&bytecode[pc]);
+    ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), insn.arguments(), insn.dst(), insn.expression_string(), insn.strict()));
+    return static_cast<i64>(pc + insn.length());
 }
 
 static ThrowCompletionOr<void> call_direct_eval(
@@ -1520,17 +1832,124 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc)
     }
 }
 
-#define DEFINE_CALL_BUILTIN_SLOW_PATH(name, snake_case_name, ...)    \
-    i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc) \
-    {                                                                \
-        return slow_path_throwing<Op::CallBuiltin##name>(*vm, pc);   \
+#define JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, implementation)                                                                                    \
+    i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                     \
+    {                                                                                                                                                                    \
+        bump_slow_path(*vm, pc);                                                                                                                                         \
+        auto* bytecode = vm->current_executable().bytecode.data();                                                                                                       \
+        auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                     \
+        Operand arguments[] { insn.argument() };                                                                                                                         \
+        auto callee = vm->get(insn.callee());                                                                                                                            \
+        if (callee.is_function() && callee.as_function().builtin() == Builtin::name) {                                                                                   \
+            vm->set(insn.dst(), ASM_TRY(*vm, pc, implementation(*vm, vm->get(insn.argument()))));                                                                        \
+            return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                 \
+        }                                                                                                                                                                \
+        ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, callee, vm->get(insn.this_value()), arguments, insn.dst(), insn.expression_string(), insn.strict())); \
+        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                     \
     }
-JS_ENUMERATE_BUILTINS(DEFINE_CALL_BUILTIN_SLOW_PATH)
-#undef DEFINE_CALL_BUILTIN_SLOW_PATH
+
+#define JS_DEFINE_BINARY_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, implementation)                                                                                   \
+    i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                     \
+    {                                                                                                                                                                    \
+        bump_slow_path(*vm, pc);                                                                                                                                         \
+        auto* bytecode = vm->current_executable().bytecode.data();                                                                                                       \
+        auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                     \
+        Operand arguments[] { insn.argument0(), insn.argument1() };                                                                                                      \
+        auto callee = vm->get(insn.callee());                                                                                                                            \
+        if (callee.is_function() && callee.as_function().builtin() == Builtin::name) {                                                                                   \
+            vm->set(insn.dst(), ASM_TRY(*vm, pc, implementation(*vm, vm->get(insn.argument0()), vm->get(insn.argument1()))));                                            \
+            return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                 \
+        }                                                                                                                                                                \
+        ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, callee, vm->get(insn.this_value()), arguments, insn.dst(), insn.expression_string(), insn.strict())); \
+        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                     \
+    }
+
+#define JS_DEFINE_NULLARY_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, implementation)                                                                           \
+    i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                              \
+    {                                                                                                                                                             \
+        bump_slow_path(*vm, pc);                                                                                                                                  \
+        auto* bytecode = vm->current_executable().bytecode.data();                                                                                                \
+        auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                              \
+        auto callee = vm->get(insn.callee());                                                                                                                     \
+        if (callee.is_function() && callee.as_function().builtin() == Builtin::name) {                                                                            \
+            vm->set(insn.dst(), implementation());                                                                                                                \
+            return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                          \
+        }                                                                                                                                                         \
+        ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, callee, vm->get(insn.this_value()), {}, insn.dst(), insn.expression_string(), insn.strict())); \
+        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                              \
+    }
+
+#define JS_DEFINE_GENERIC_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, ...)                                                                                                      \
+    i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                              \
+    {                                                                                                                                                                             \
+        bump_slow_path(*vm, pc);                                                                                                                                                  \
+        auto* bytecode = vm->current_executable().bytecode.data();                                                                                                                \
+        auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                              \
+        ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), {}, insn.dst(), insn.expression_string(), insn.strict())); \
+        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                              \
+    }
+
+#define JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, ...)                                                                                                       \
+    i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                                     \
+    {                                                                                                                                                                                    \
+        bump_slow_path(*vm, pc);                                                                                                                                                         \
+        auto* bytecode = vm->current_executable().bytecode.data();                                                                                                                       \
+        auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                                     \
+        Operand arguments[] { insn.argument() };                                                                                                                                         \
+        ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), arguments, insn.dst(), insn.expression_string(), insn.strict())); \
+        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                     \
+    }
+
+#define JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, ...)                                                                                                      \
+    i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc)                                                                                                                     \
+    {                                                                                                                                                                                    \
+        bump_slow_path(*vm, pc);                                                                                                                                                         \
+        auto* bytecode = vm->current_executable().bytecode.data();                                                                                                                       \
+        auto& insn = *reinterpret_cast<Op::CallBuiltin##name const*>(&bytecode[pc]);                                                                                                     \
+        Operand arguments[] { insn.argument0(), insn.argument1() };                                                                                                                      \
+        ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), arguments, insn.dst(), insn.expression_string(), insn.strict())); \
+        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                     \
+    }
+
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathAbs, math_abs, MathObject::abs_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathLog, math_log, MathObject::log_impl)
+JS_DEFINE_BINARY_BUILTIN_CALL_SLOW_PATH(MathPow, math_pow, MathObject::pow_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathExp, math_exp, MathObject::exp_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathCeil, math_ceil, MathObject::ceil_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathFloor, math_floor, MathObject::floor_impl)
+JS_DEFINE_BINARY_BUILTIN_CALL_SLOW_PATH(MathImul, math_imul, MathObject::imul_impl)
+JS_DEFINE_NULLARY_BUILTIN_CALL_SLOW_PATH(MathRandom, math_random, MathObject::random_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathRound, math_round, MathObject::round_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathSqrt, math_sqrt, MathObject::sqrt_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathSin, math_sin, MathObject::sin_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathCos, math_cos, MathObject::cos_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathTan, math_tan, MathObject::tan_impl)
+JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(RegExpPrototypeExec, regexp_prototype_exec)
+JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_SLOW_PATH(RegExpPrototypeReplace, regexp_prototype_replace)
+JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_SLOW_PATH(RegExpPrototypeSplit, regexp_prototype_split)
+JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(OrdinaryHasInstance, ordinary_has_instance)
+JS_DEFINE_GENERIC_BUILTIN_CALL_SLOW_PATH(ArrayIteratorPrototypeNext, array_iterator_prototype_next)
+JS_DEFINE_GENERIC_BUILTIN_CALL_SLOW_PATH(MapIteratorPrototypeNext, map_iterator_prototype_next)
+JS_DEFINE_GENERIC_BUILTIN_CALL_SLOW_PATH(SetIteratorPrototypeNext, set_iterator_prototype_next)
+JS_DEFINE_GENERIC_BUILTIN_CALL_SLOW_PATH(StringIteratorPrototypeNext, string_iterator_prototype_next)
+JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(StringFromCharCode, string_from_char_code, StringConstructor::from_char_code_impl)
+JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(StringPrototypeCharCodeAt, string_prototype_char_code_at)
+JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(StringPrototypeCharAt, string_prototype_char_at)
+
+#undef JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_SLOW_PATH
+#undef JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH
+#undef JS_DEFINE_GENERIC_BUILTIN_CALL_SLOW_PATH
+#undef JS_DEFINE_NULLARY_BUILTIN_CALL_SLOW_PATH
+#undef JS_DEFINE_BINARY_BUILTIN_CALL_SLOW_PATH
+#undef JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH
 
 i64 asm_slow_path_call_construct(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::CallConstruct>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CallConstruct const*>(&bytecode[pc]);
+    ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Construct, *vm, vm->get(insn.callee()), js_undefined(), insn.arguments(), insn.dst(), insn.expression_string(), insn.strict()));
+    return static_cast<i64>(pc + insn.length());
 }
 
 i64 asm_slow_path_call_construct_with_argument_array(VM* vm, u32 pc)
@@ -1693,9 +2112,12 @@ i64 asm_slow_path_new_array(VM* vm, u32 pc)
 {
     bump_slow_path(*vm, pc);
     auto* bytecode = vm->current_executable().bytecode.data();
-    auto& typed = *reinterpret_cast<Op::NewArray const*>(&bytecode[pc]);
-    typed.execute_impl(*vm);
-    return static_cast<i64>(pc + typed.length());
+    auto& insn = *reinterpret_cast<Op::NewArray const*>(&bytecode[pc]);
+    auto array = MUST(JS::Array::create(vm->realm(), insn.element_count()));
+    for (size_t i = 0; i < insn.element_count(); ++i)
+        array->indexed_put(i, vm->get(insn.elements()[i]));
+    vm->set(insn.dst(), array);
+    return static_cast<i64>(pc + insn.length());
 }
 
 i64 asm_slow_path_new_primitive_array(VM* vm, u32 pc)
@@ -1748,52 +2170,133 @@ i64 asm_slow_path_new_type_error(VM* vm, u32 pc)
 
 i64 asm_slow_path_bitwise_xor(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::BitwiseXor>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::BitwiseXor const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, bitwise_xor(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::BitwiseXor));
 }
 
 i64 asm_slow_path_bitwise_and(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::BitwiseAnd>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::BitwiseAnd const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, bitwise_and(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::BitwiseAnd));
 }
 
 i64 asm_slow_path_bitwise_or(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::BitwiseOr>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::BitwiseOr const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, bitwise_or(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::BitwiseOr));
 }
 
 i64 asm_slow_path_left_shift(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::LeftShift>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::LeftShift const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, left_shift(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::LeftShift));
 }
 
 i64 asm_slow_path_right_shift(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::RightShift>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::RightShift const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, right_shift(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::RightShift));
 }
 
 i64 asm_slow_path_unsigned_right_shift(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::UnsignedRightShift>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::UnsignedRightShift const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, unsigned_right_shift(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::UnsignedRightShift));
 }
 
 i64 asm_slow_path_mod(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Mod>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Mod const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, mod(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))));
+    return static_cast<i64>(pc + sizeof(Op::Mod));
+}
+
+static ThrowCompletionOr<bool> loosely_equals(VM& vm, Value lhs, Value rhs)
+{
+    if (lhs.tag() == rhs.tag()) {
+        if (lhs.is_int32() || lhs.is_object() || lhs.is_boolean() || lhs.is_nullish())
+            return lhs.encoded() == rhs.encoded();
+    }
+    return TRY(is_loosely_equal(vm, lhs, rhs));
+}
+
+static ThrowCompletionOr<bool> loosely_inequals(VM& vm, Value lhs, Value rhs)
+{
+    return !TRY(loosely_equals(vm, lhs, rhs));
+}
+
+static bool strictly_equals(Value lhs, Value rhs)
+{
+    if (lhs.tag() == rhs.tag()) {
+        if (lhs.is_int32() || lhs.is_object() || lhs.is_boolean() || lhs.is_nullish())
+            return lhs.encoded() == rhs.encoded();
+    }
+    return is_strictly_equal(lhs, rhs);
 }
 
 i64 asm_slow_path_strictly_equals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::StrictlyEquals>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::StrictlyEquals const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value { strictly_equals(vm->get(insn.lhs()), vm->get(insn.rhs())) });
+    return static_cast<i64>(pc + sizeof(Op::StrictlyEquals));
 }
 
 i64 asm_slow_path_strictly_inequals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::StrictlyInequals>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::StrictlyInequals const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value { !strictly_equals(vm->get(insn.lhs()), vm->get(insn.rhs())) });
+    return static_cast<i64>(pc + sizeof(Op::StrictlyInequals));
+}
+
+i64 asm_slow_path_loosely_equals(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::LooselyEquals const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, loosely_equals(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
+    return static_cast<i64>(pc + sizeof(Op::LooselyEquals));
+}
+
+i64 asm_slow_path_loosely_inequals(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::LooselyInequals const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value { ASM_TRY(*vm, pc, loosely_inequals(*vm, vm->get(insn.lhs()), vm->get(insn.rhs()))) });
+    return static_cast<i64>(pc + sizeof(Op::LooselyInequals));
 }
 
 i64 asm_slow_path_unary_minus(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::UnaryMinus>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::UnaryMinus const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, unary_minus(*vm, vm->get(insn.src()))));
+    return static_cast<i64>(pc + sizeof(Op::UnaryMinus));
 }
 
 i64 asm_slow_path_to_string(VM* vm, u32 pc)
@@ -1847,17 +2350,41 @@ i64 asm_slow_path_typeof(VM* vm, u32 pc)
 
 i64 asm_slow_path_postfix_decrement(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::PostfixDecrement>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::PostfixDecrement const*>(&bytecode[pc]);
+    auto old_value = ASM_TRY(*vm, pc, vm->get(insn.src()).to_numeric(*vm));
+    vm->set(insn.dst(), old_value);
+    if (old_value.is_number())
+        vm->set(insn.src(), Value(old_value.as_double() - 1));
+    else
+        vm->set(insn.src(), BigInt::create(*vm, old_value.as_bigint().big_integer().minus(Crypto::SignedBigInteger { 1 })));
+    return static_cast<i64>(pc + sizeof(Op::PostfixDecrement));
 }
 
 i64 asm_slow_path_to_int32(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::ToInt32>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::ToInt32 const*>(&bytecode[pc]);
+    vm->set(insn.dst(), Value(ASM_TRY(*vm, pc, vm->get(insn.value()).to_i32(*vm))));
+    return static_cast<i64>(pc + sizeof(Op::ToInt32));
 }
 
 i64 asm_slow_path_put_by_value(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::PutByValue>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::PutByValue const*>(&bytecode[pc]);
+    auto value = vm->get(insn.src());
+    auto base = vm->get(insn.base());
+    Optional<Utf16FlyString const&> base_identifier;
+    if (insn.base_identifier().has_value())
+        base_identifier = vm->get_identifier(insn.base_identifier().value());
+    auto property = vm->get(insn.property());
+    auto property_key = ASM_TRY(*vm, pc, property.to_property_key(*vm));
+    ASM_TRY(*vm, pc, put_by_property_key(*vm, base, base, value, base_identifier, property_key, insn.kind(), insn.strict()));
+    return static_cast<i64>(pc + sizeof(Op::PutByValue));
 }
 
 i64 asm_slow_path_put_by_value_with_this(VM* vm, u32 pc)
@@ -2058,7 +2585,13 @@ i64 asm_try_get_by_id_cache(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_binding(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetBinding>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetBinding const*>(&bytecode[pc]);
+    auto next_pc = asm_get_binding<AsmBindingIsKnownToBeInitialized::No>(*vm, pc, insn.dst(), insn.cache());
+    if (next_pc != static_cast<i64>(pc))
+        return next_pc;
+    return static_cast<i64>(pc + sizeof(Op::GetBinding));
 }
 
 i64 asm_slow_path_dynamic_get_binding(VM* vm, u32 pc)
@@ -2352,12 +2885,20 @@ i64 asm_slow_path_enter_object_environment(VM* vm, u32 pc)
 
 i64 asm_slow_path_bitwise_not(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::BitwiseNot>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::BitwiseNot const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, bitwise_not(*vm, vm->get(insn.src()))));
+    return static_cast<i64>(pc + sizeof(Op::BitwiseNot));
 }
 
 i64 asm_slow_path_unary_plus(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::UnaryPlus>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::UnaryPlus const*>(&bytecode[pc]);
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, unary_plus(*vm, vm->get(insn.src()))));
+    return static_cast<i64>(pc + sizeof(Op::UnaryPlus));
 }
 
 i64 asm_slow_path_is_callable(VM* vm, u32 pc)
@@ -2952,7 +3493,21 @@ i64 asm_slow_path_in(VM* vm, u32 pc)
 
 i64 asm_slow_path_resolve_this_binding(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::ResolveThisBinding>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto& cached_this_value = vm->reg(Register::this_value());
+    if (!cached_this_value.is_special_empty_value())
+        return static_cast<i64>(pc + sizeof(Op::ResolveThisBinding));
+
+    auto& running_execution_context = vm->running_execution_context();
+    if (auto function = running_execution_context.function; function && is<ECMAScriptFunctionObject>(*function)) {
+        auto& ecmascript_function = static_cast<ECMAScriptFunctionObject&>(*function);
+        if (!ecmascript_function.allocates_function_environment() && !ecmascript_function.this_value_needs_environment_resolution()) {
+            cached_this_value = running_execution_context.this_value.value();
+            return static_cast<i64>(pc + sizeof(Op::ResolveThisBinding));
+        }
+    }
+    cached_this_value = ASM_TRY(*vm, pc, vm->resolve_this_binding());
+    return static_cast<i64>(pc + sizeof(Op::ResolveThisBinding));
 }
 
 // Direct handler for GetPrivateById: bypasses Reference indirection.
