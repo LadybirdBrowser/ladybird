@@ -2,6 +2,7 @@ FROM ubuntu:26.04
 
 ARG GCC_VERSION=14
 ARG LLVM_VERSION=21
+ARG WASM_TOOLS_VERSION=1.243.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV RUSTUP_HOME=/opt/rustup
@@ -100,3 +101,21 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
     && rustup component add rustfmt clippy \
     && rm -rf /opt/rustup/downloads /opt/rustup/tmp /opt/cargo/registry /tmp/rust-toolchain.toml \
     && rm -rf /var/lib/apt/lists/*
+
+ARG TARGETARCH
+
+# wasm-tools is required at build time to generate the WebAssembly spec tests
+# (INCLUDE_WASM_SPEC_TESTS). The version is pinned for reproducible test generation.
+RUN case "${TARGETARCH}" in \
+        amd64) WASM_TOOLS_ARCH=x86_64 ;; \
+        arm64) WASM_TOOLS_ARCH=aarch64 ;; \
+        *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2 ; exit 1 ;; \
+    esac \
+    && NAME="wasm-tools-${WASM_TOOLS_VERSION}-${WASM_TOOLS_ARCH}-linux" \
+    && curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        "https://github.com/bytecodealliance/wasm-tools/releases/download/v${WASM_TOOLS_VERSION}/${NAME}.tar.gz" \
+        -o /tmp/wasm-tools.tar.gz \
+    && tar -xzf /tmp/wasm-tools.tar.gz -C /tmp \
+    && install -m 0755 "/tmp/${NAME}/wasm-tools" /usr/local/bin/wasm-tools \
+    && rm -rf /tmp/wasm-tools.tar.gz "/tmp/${NAME}" \
+    && wasm-tools --version
