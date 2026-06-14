@@ -23,6 +23,11 @@ struct PinnedConstants {
     map: HashMap<i64, &'static str>,
 }
 
+const AARCH64_FRAME_SIZE: u32 = 112;
+const AARCH64_COFF_FRAME_SIZE: u32 = 128;
+const AARCH64_COFF_RAW_NATIVE_RETURN_SLOT: u32 = 112;
+const AARCH64_COFF_RAW_NATIVE_VARIANT_SLOT: u32 = 120;
+
 impl PinnedConstants {
     fn new(program: &Program) -> Self {
         let mut map = HashMap::new();
@@ -55,6 +60,30 @@ fn emit_symbol_addr(out: &mut String, dst: &str, symbol: &str, fmt: ObjectFormat
             w!(out, "    adrp {dst}, {symbol}");
             w!(out, "    add {dst}, {dst}, :lo12:{symbol}");
         }
+        ObjectFormat::Coff => {
+            w!(out, "    adrp {dst}, {symbol}");
+            w!(out, "    add {dst}, {dst}, :lo12:{symbol}");
+        }
+    }
+}
+
+fn frame_size_for_format(fmt: ObjectFormat) -> u32 {
+    if matches!(fmt, ObjectFormat::Coff) {
+        AARCH64_COFF_FRAME_SIZE
+    } else {
+        AARCH64_FRAME_SIZE
+    }
+}
+
+fn cfi_offset(fmt: ObjectFormat, stack_offset: u32) -> i32 {
+    stack_offset as i32 - frame_size_for_format(fmt) as i32
+}
+
+fn emit_handler_alignment(out: &mut String, fmt: ObjectFormat) {
+    // LLVM's ARM64 Windows SEH emitter needs the exact function length before
+    // alignments are resolved, so keep align directives out of .seh_proc bodies.
+    if !matches!(fmt, ObjectFormat::Coff) {
+        w!(out, ".p2align 4");
     }
 }
 
@@ -76,14 +105,14 @@ pub fn generate(program: &Program) -> String {
     w!(out, ".text");
     w!(out);
 
-    // Generate dispatch table
+    // Generate dispatch table.
     // The table contains absolute addresses that need relocation, so on Linux
     // it must go in .data.rel.ro (not .rodata) to avoid PIC errors in shared libs.
-    w!(out, "#ifdef __APPLE__");
-    w!(out, ".section __DATA,__const");
-    w!(out, "#else");
-    w!(out, ".section .data.rel.ro");
-    w!(out, "#endif");
+    match program.object_format {
+        ObjectFormat::MachO => w!(out, ".section __DATA,__const"),
+        ObjectFormat::Elf => w!(out, ".section .data.rel.ro"),
+        ObjectFormat::Coff => w!(out, ".section .rdata,\"dr\""),
+    }
     w!(out, ".p2align 3");
     w!(out, "asm_dispatch_table:");
 
@@ -112,10 +141,10 @@ pub fn generate(program: &Program) -> String {
     w!(out, ".text");
     w!(out);
 
-    emit_proc_start(&mut out);
+    emit_proc_start(&mut out, program.object_format);
 
     // Generate entry point
-    generate_entry_point(&mut out, program);
+    generate_entry_point(&mut out, program, program.object_format);
 
     // Generate fallback handler
     generate_fallback_handler(&mut out, program, &pinned);
@@ -126,33 +155,39 @@ pub fn generate(program: &Program) -> String {
     }
 
     generate_exit_point(&mut out, program.object_format);
-    emit_proc_end(&mut out);
-    emit_file_trailer(&mut out);
+    emit_proc_end(&mut out, program.object_format);
+    emit_file_trailer(&mut out, program.object_format);
 
     out
 }
 
-fn emit_proc_start(out: &mut String) {
+fn emit_proc_start(out: &mut String, fmt: ObjectFormat) {
     // Start one unwind-covered region for the entire monolithic interpreter
     // blob, from the entry label through the last handler.
     w!(out, ".globl CSYM(asm_interpreter_entry)");
     w!(out, ".p2align 4");
     w!(out, "CSYM(asm_interpreter_entry):");
-    w!(out, "    .cfi_startproc");
+    match fmt {
+        ObjectFormat::Coff => w!(out, "    .seh_proc CSYM(asm_interpreter_entry)"),
+        ObjectFormat::Elf | ObjectFormat::MachO => w!(out, "    .cfi_startproc"),
+    }
 }
 
-fn emit_proc_end(out: &mut String) {
+fn emit_proc_end(out: &mut String, fmt: ObjectFormat) {
     // Close the interpreter's unwind frame after the last handler so any PC
     // within the handler blob can unwind back to the C++ caller.
-    w!(out, ".cfi_endproc");
+    match fmt {
+        ObjectFormat::Coff => w!(out, "    .seh_endproc"),
+        ObjectFormat::Elf | ObjectFormat::MachO => w!(out, ".cfi_endproc"),
+    }
     w!(out);
 }
 
-fn emit_file_trailer(out: &mut String) {
+fn emit_file_trailer(out: &mut String, fmt: ObjectFormat) {
     // Mark stack as non-executable (required by Linux linker)
-    w!(out, "#ifndef __APPLE__");
-    w!(out, ".section .note.GNU-stack,\"\",@progbits");
-    w!(out, "#endif");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, ".section .note.GNU-stack,\"\",@progbits");
+    }
 }
 
 fn generate_exit_point(out: &mut String, fmt: ObjectFormat) {
@@ -160,47 +195,66 @@ fn generate_exit_point(out: &mut String, fmt: ObjectFormat) {
     // Keep this at the end of the proc so its CFI state does not affect
     // later handler PCs. Mach-O's assembler rejects epilogue CFI directives,
     // so only emit those for ELF.
+    let frame_size = frame_size_for_format(fmt);
     w!(out, ".Lexit:");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_startepilogue");
+    }
     w!(out, "    ldp x25, x26, [sp, #16]");
     if matches!(fmt, ObjectFormat::Elf) {
         w!(out, "    .cfi_restore x25");
         w!(out, "    .cfi_restore x26");
+    } else if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x25, 16");
     }
     w!(out, "    ldp x27, x28, [sp, #32]");
     if matches!(fmt, ObjectFormat::Elf) {
         w!(out, "    .cfi_restore x27");
         w!(out, "    .cfi_restore x28");
+    } else if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x27, 32");
     }
     w!(out, "    ldp x19, x20, [sp, #48]");
     if matches!(fmt, ObjectFormat::Elf) {
         w!(out, "    .cfi_restore x19");
         w!(out, "    .cfi_restore x20");
+    } else if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x19, 48");
     }
     w!(out, "    ldp x21, x22, [sp, #64]");
     if matches!(fmt, ObjectFormat::Elf) {
         w!(out, "    .cfi_restore x21");
         w!(out, "    .cfi_restore x22");
+    } else if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x21, 64");
     }
     w!(out, "    ldp x23, x24, [sp, #80]");
     if matches!(fmt, ObjectFormat::Elf) {
         w!(out, "    .cfi_restore x23");
         w!(out, "    .cfi_restore x24");
+    } else if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x23, 80");
     }
     w!(out, "    ldr d8, [sp, #96]");
     if matches!(fmt, ObjectFormat::Elf) {
         w!(out, "    .cfi_restore d8");
+    } else if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_freg d8, 96");
     }
-    w!(out, "    ldp x29, x30, [sp], #112");
+    w!(out, "    ldp x29, x30, [sp], #{frame_size}");
     if matches!(fmt, ObjectFormat::Elf) {
         w!(out, "    .cfi_restore x29");
         w!(out, "    .cfi_restore x30");
         w!(out, "    .cfi_def_cfa sp, 0");
+    } else if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_fplr_x {frame_size}");
+        w!(out, "    .seh_endepilogue");
     }
     w!(out, "    ret");
     w!(out);
 }
 
-fn generate_entry_point(out: &mut String, program: &Program) {
+fn generate_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) {
     // void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, VM* vm)
     // AAPCS64: x0=bytecode, w1=entry_point, x2=values, x3=vm
 
@@ -210,29 +264,63 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     // x25 is only used when DSL code writes to pc directly (rare).
     // x22 = INT32_TAG, x23 = BOOLEAN_TAG, x24 = NAN_BASE_TAG (pinned constants).
     // d8 is pinned to hold CANON_NAN_BITS (callee-saved FP register).
-    w!(out, "    stp x29, x30, [sp, #-112]!");
-    w!(out, "    .cfi_def_cfa_offset 112");
-    w!(out, "    .cfi_offset x29, -112");
-    w!(out, "    .cfi_offset x30, -104");
+    let frame_size = frame_size_for_format(fmt);
+    w!(out, "    stp x29, x30, [sp, #-{frame_size}]!");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_fplr_x {frame_size}");
+    } else {
+        w!(out, "    .cfi_def_cfa_offset {frame_size}");
+        w!(out, "    .cfi_offset x29, {}", cfi_offset(fmt, 0));
+        w!(out, "    .cfi_offset x30, {}", cfi_offset(fmt, 8));
+    }
     w!(out, "    mov x29, sp");
-    w!(out, "    .cfi_def_cfa_register x29");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_set_fp");
+    } else {
+        w!(out, "    .cfi_def_cfa_register x29");
+    }
     w!(out, "    stp x25, x26, [sp, #16]");
-    w!(out, "    .cfi_offset x25, -96");
-    w!(out, "    .cfi_offset x26, -88");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x25, 16");
+    } else {
+        w!(out, "    .cfi_offset x25, {}", cfi_offset(fmt, 16));
+        w!(out, "    .cfi_offset x26, {}", cfi_offset(fmt, 24));
+    }
     w!(out, "    stp x27, x28, [sp, #32]");
-    w!(out, "    .cfi_offset x27, -80");
-    w!(out, "    .cfi_offset x28, -72");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x27, 32");
+    } else {
+        w!(out, "    .cfi_offset x27, {}", cfi_offset(fmt, 32));
+        w!(out, "    .cfi_offset x28, {}", cfi_offset(fmt, 40));
+    }
     w!(out, "    stp x19, x20, [sp, #48]");
-    w!(out, "    .cfi_offset x19, -64");
-    w!(out, "    .cfi_offset x20, -56");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x19, 48");
+    } else {
+        w!(out, "    .cfi_offset x19, {}", cfi_offset(fmt, 48));
+        w!(out, "    .cfi_offset x20, {}", cfi_offset(fmt, 56));
+    }
     w!(out, "    stp x21, x22, [sp, #64]");
-    w!(out, "    .cfi_offset x21, -48");
-    w!(out, "    .cfi_offset x22, -40");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x21, 64");
+    } else {
+        w!(out, "    .cfi_offset x21, {}", cfi_offset(fmt, 64));
+        w!(out, "    .cfi_offset x22, {}", cfi_offset(fmt, 72));
+    }
     w!(out, "    stp x23, x24, [sp, #80]");
-    w!(out, "    .cfi_offset x23, -32");
-    w!(out, "    .cfi_offset x24, -24");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_regp x23, 80");
+    } else {
+        w!(out, "    .cfi_offset x23, {}", cfi_offset(fmt, 80));
+        w!(out, "    .cfi_offset x24, {}", cfi_offset(fmt, 88));
+    }
     w!(out, "    str d8, [sp, #96]");
-    w!(out, "    .cfi_offset d8, -16");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_freg d8, 96");
+        w!(out, "    .seh_endprologue");
+    } else {
+        w!(out, "    .cfi_offset d8, {}", cfi_offset(fmt, 96));
+    }
 
     // Set up pinned registers
     // x0=bytecode (pb), w1=entry_point (pc), x2=values, x3=vm
@@ -293,7 +381,7 @@ fn generate_entry_point(out: &mut String, program: &Program) {
 }
 
 fn generate_fallback_handler(out: &mut String, program: &Program, _pinned: &PinnedConstants) {
-    w!(out, ".p2align 4");
+    emit_handler_alignment(out, program.object_format);
     w!(out, "asm_handler_fallback:");
     // Set up args: x0=vm (x20), w1=pc (ip - pb)
     w!(out, "    mov x0, x20");
@@ -393,7 +481,7 @@ fn generate_handler(
     program: &Program,
     pinned: &PinnedConstants,
 ) {
-    w!(out, ".p2align 4");
+    emit_handler_alignment(out, program.object_format);
     w!(out, "asm_handler_{}:", handler.name);
     // x21 = pb + pc is set by the dispatch sequence that branches here.
     // It is callee-saved, so it survives C++ calls within the handler.
@@ -1292,14 +1380,24 @@ fn emit_instruction(
         }
 
         // call_raw_native: NON-TERMINAL indirect call to
-        // ThrowCompletionOr<Value> (*)(VM&). Passes VM* in x0 and keeps the
-        // aggregate return in x0/x1 (= t0/t1).
+        // ThrowCompletionOr<Value> (*)(VM&). Normalizes the aggregate return
+        // into x0/x1 (= t0/t1).
         "call_raw_native" => {
             if let Some(op) = insn.operands.first() {
                 let func = resolve_op(op, handler, program);
                 w!(out, "    mov x9, {func}");
-                w!(out, "    mov x0, x20");
-                w!(out, "    blr x9");
+                if matches!(program.object_format, ObjectFormat::Coff) {
+                    // Windows ARM64 returns non-trivial C++ aggregates via
+                    // sret: hidden return buffer in x0, then VM& in x1.
+                    w!(out, "    add x0, sp, #{AARCH64_COFF_RAW_NATIVE_RETURN_SLOT}");
+                    w!(out, "    mov x1, x20");
+                    w!(out, "    blr x9");
+                    w!(out, "    ldr x1, [sp, #{AARCH64_COFF_RAW_NATIVE_VARIANT_SLOT}]");
+                    w!(out, "    ldr x0, [sp, #{AARCH64_COFF_RAW_NATIVE_RETURN_SLOT}]");
+                } else {
+                    w!(out, "    mov x0, x20");
+                    w!(out, "    blr x9");
+                }
             }
         }
 
@@ -2830,4 +2928,77 @@ fn emit_ccmp_imm(out: &mut String, reg: &str, val: i64, pinned: &PinnedConstants
 fn is_cmn_candidate(val: i64) -> bool {
     let neg = -val;
     (0..=4095).contains(&neg)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytecode_def::OpLayout;
+    use std::collections::HashMap;
+
+    fn coff_program(instructions: Vec<AsmInstruction>) -> Program {
+        Program {
+            constants: HashMap::from([
+                ("VM_RUNNING_EXECUTION_CONTEXT".into(), 8),
+                ("CANON_NAN_BITS".into(), 0x7ff8_0000_0000_0000u64 as i64),
+                ("INT32_TAG".into(), 0xfffau64 as i64),
+                ("BOOLEAN_TAG".into(), 0xfffbu64 as i64),
+                ("NAN_BASE_TAG".into(), 0xfff8u64 as i64),
+                ("EXECUTION_CONTEXT_EXECUTABLE".into(), 16),
+                ("EXECUTABLE_BYTECODE_DATA".into(), 24),
+                ("SIZEOF_EXECUTION_CONTEXT".into(), 32),
+            ]),
+            macros: HashMap::new(),
+            handlers: vec![Handler {
+                name: "Call".into(),
+                size: Some(1),
+                instructions,
+            }],
+            op_layouts: HashMap::from([(
+                "Call".into(),
+                OpLayout {
+                    field_offsets: HashMap::new(),
+                    size: Some(1),
+                },
+            )]),
+            opcode_list: vec!["Call".into()],
+            object_format: ObjectFormat::Coff,
+            has_jscvt: false,
+            enable_assertions: false,
+        }
+    }
+
+    #[test]
+    fn coff_output_uses_windows_arm64_sections_relocations_and_unwind_directives() {
+        let output = generate(&coff_program(Vec::new()));
+
+        assert!(output.contains(".section .rdata,\"dr\""));
+        assert!(output.contains("    .seh_proc CSYM(asm_interpreter_entry)"));
+        assert!(output.contains("    .seh_save_fplr_x 128"));
+        assert!(output.contains("    .seh_save_regp x25, 16"));
+        assert!(output.contains("    .seh_save_freg d8, 96"));
+        assert!(output.contains("    .seh_endprologue"));
+        assert!(output.contains("    .seh_startepilogue"));
+        assert!(output.contains("    .seh_endepilogue"));
+        assert!(output.contains("    .seh_endproc"));
+        assert!(output.contains("    adrp x19, asm_dispatch_table"));
+        assert!(output.contains("    add x19, x19, :lo12:asm_dispatch_table"));
+        assert!(!output.contains(".p2align 4\nasm_handler_fallback:"));
+        assert!(!output.contains(".p2align 4\nasm_handler_Call:"));
+        assert!(!output.contains(".cfi_"));
+    }
+
+    #[test]
+    fn coff_raw_native_call_uses_windows_arm64_sret() {
+        let output = generate(&coff_program(vec![AsmInstruction {
+            mnemonic: "call_raw_native".into(),
+            operands: vec![Operand::Register("x8".into())],
+        }]));
+
+        assert!(output.contains("    add x0, sp, #112"));
+        assert!(output.contains("    mov x1, x20"));
+        assert!(output.contains("    blr x9"));
+        assert!(output.contains("    ldr x1, [sp, #120]"));
+        assert!(output.contains("    ldr x0, [sp, #112]"));
+    }
 }

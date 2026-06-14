@@ -155,7 +155,7 @@ int main()
     EMIT_OFFSET(EXECUTION_CONTEXT_ARGUMENT_COUNT, ExecutionContext, argument_count);
     EMIT_SIZEOF(SIZEOF_EXECUTION_CONTEXT, ExecutionContext);
     outln("const ALIGNOF_EXECUTION_CONTEXT = {}", alignof(ExecutionContext));
-    outln("const EXECUTION_CONTEXT_NO_YIELD_CONTINUATION = {}", ExecutionContext::no_yield_continuation);
+    outln("const EXECUTION_CONTEXT_NO_YIELD_CONTINUATION = {}", static_cast<u32>(ExecutionContext::no_yield_continuation));
     outln("const SIZEOF_SCRIPT_OR_MODULE = {}", sizeof(ScriptOrModule));
 
     // InterpreterStack layout
@@ -293,10 +293,10 @@ int main()
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_FUNCTION_ENVIRONMENT_NEEDED, SharedFunctionInstanceData, m_function_environment_needed);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_USES_THIS, SharedFunctionInstanceData, m_uses_this);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_CAN_INLINE_CALL, SharedFunctionInstanceData, m_can_inline_call);
-    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL = {}", SharedFunctionInstanceData::asm_call_metadata_can_inline_call);
-    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION = {}", SharedFunctionInstanceData::asm_call_metadata_needs_environment_or_this_value_resolution);
-    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS = {}", SharedFunctionInstanceData::asm_call_metadata_uses_this);
-    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT = {}", SharedFunctionInstanceData::asm_call_metadata_strict);
+    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL = {}", static_cast<u64>(SharedFunctionInstanceData::asm_call_metadata_can_inline_call));
+    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION = {}", static_cast<u64>(SharedFunctionInstanceData::asm_call_metadata_needs_environment_or_this_value_resolution));
+    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS = {}", static_cast<u64>(SharedFunctionInstanceData::asm_call_metadata_uses_this));
+    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT = {}", static_cast<u64>(SharedFunctionInstanceData::asm_call_metadata_strict));
 
     // GlobalEnvironment layout
     outln("\n# GlobalEnvironment layout");

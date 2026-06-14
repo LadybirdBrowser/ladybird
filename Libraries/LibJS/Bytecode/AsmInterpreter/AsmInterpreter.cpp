@@ -80,11 +80,8 @@ static void print_asm_slow_path_stats()
 
 namespace JS::Bytecode {
 
-// The asm interpreter is available on x86_64 (non-Windows) and AArch64.
-// Win64 uses a different ABI that the x86_64 backend doesn't support yet.
-#if ARCH(AARCH64)
-#    define HAS_ASM_INTERPRETER 1
-#elif ARCH(X86_64) && !defined(_WIN32)
+// The asm interpreter is available on x86_64 and AArch64.
+#if ARCH(AARCH64) || ARCH(X86_64)
 #    define HAS_ASM_INTERPRETER 1
 #else
 #    define HAS_ASM_INTERPRETER 0
