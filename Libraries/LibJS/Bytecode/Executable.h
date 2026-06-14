@@ -356,8 +356,6 @@ public:
     [[nodiscard]] SourceRange const& get_source_range(u32 program_counter);
 
     void dump() const;
-    [[nodiscard]] String dump_to_string() const;
-
     [[nodiscard]] Operand original_operand_from_raw(u32) const;
 
     virtual Cell const& owner_cell(Badge<GC::Heap>) const override { return *this; }
