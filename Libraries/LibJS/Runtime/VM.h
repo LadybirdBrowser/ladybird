@@ -112,7 +112,6 @@ public:
         m_running_execution_context->registers_and_constants_and_locals_and_arguments_span().data()[op.raw()] = value;
     }
 
-    Value do_yield(Value value, Optional<Bytecode::Label> continuation, bool value_is_iterator_result = false);
     void do_return(Value value)
     {
         if (value.is_special_empty_value())
@@ -120,8 +119,6 @@ public:
         reg(Bytecode::Register::return_value()) = value;
         reg(Bytecode::Register::exception()) = js_special_empty_value();
     }
-
-    void catch_exception(Bytecode::Operand dst);
 
     Bytecode::Executable& current_executable() { return *m_running_execution_context->executable; }
     Bytecode::Executable const& current_executable() const { return *m_running_execution_context->executable; }
@@ -142,7 +139,6 @@ public:
     };
     [[nodiscard]] COLD HandleExceptionResponse handle_exception(u32 program_counter, Value exception);
 
-    NEVER_INLINE void pop_inline_frame(Value return_value);
     NEVER_INLINE void unwind_inline_frame_for_exception();
 
     ExecutionContext* push_inline_frame(
@@ -518,9 +514,6 @@ private:
 
     void run_queued_promise_jobs_impl();
     void run_bytecode(size_t entry_point);
-
-    [[nodiscard]] NEVER_INLINE bool try_inline_call(Bytecode::Instruction const&, u32 current_pc);
-    [[nodiscard]] NEVER_INLINE bool try_inline_call_construct(Bytecode::Instruction const&, u32 current_pc);
 
     static VM* s_the;
 
