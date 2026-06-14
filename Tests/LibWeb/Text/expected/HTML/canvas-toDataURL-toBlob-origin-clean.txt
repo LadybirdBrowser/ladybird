@@ -1,0 +1,4 @@
+untainted toDataURL ok: true
+tainted toDataURL: SecurityError
+tainted toBlob: SecurityError
+tainted getImageData: SecurityError

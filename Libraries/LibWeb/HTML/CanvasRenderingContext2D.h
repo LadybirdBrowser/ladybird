@@ -61,6 +61,9 @@ public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     static JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> create(JS::Realm&, HTMLCanvasElement&, JS::Value options);
+
+    // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
+    bool origin_clean() const { return m_origin_clean; }
     virtual ~CanvasRenderingContext2D() override;
 
     virtual void fill_rect(float x, float y, float width, float height) override;
