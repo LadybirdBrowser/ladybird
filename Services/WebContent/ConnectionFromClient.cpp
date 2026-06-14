@@ -201,6 +201,14 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
     m_compositor_connection->on_mouse_event = [this](u64 page_id, Web::MouseEvent event) {
         mouse_event(page_id, move(event));
     };
+
+#ifdef AK_OS_WINDOWS
+    // Perform Windows peer PID handshake before any other IPC
+    if constexpr (requires { m_compositor_connection->transport().set_peer_pid(0); }) {
+        auto response = m_compositor_connection->send_sync<Messages::CompositorWebContentServer::InitTransport>(Core::System::getpid());
+        m_compositor_connection->transport().set_peer_pid(response->compositor_pid());
+    }
+#endif
 }
 
 void ConnectionFromClient::compositor_process_reconnected()

@@ -5,6 +5,7 @@
  */
 
 #include <Compositor/ConnectionFromWebContent.h>
+#include <LibCore/System.h>
 #include <LibWeb/Page/InputEvent.h>
 
 namespace Compositor {
@@ -26,6 +27,15 @@ void ConnectionFromWebContent::die()
 void ConnectionFromWebContent::notify_compositor_lost()
 {
     async_did_lose_compositor();
+}
+
+Messages::CompositorWebContentServer::InitTransportResponse ConnectionFromWebContent::init_transport([[maybe_unused]] int peer_pid)
+{
+#ifdef AK_OS_WINDOWS
+    m_transport->set_peer_pid(peer_pid);
+    return Core::System::getpid();
+#endif
+    VERIFY_NOT_REACHED();
 }
 
 void ConnectionFromWebContent::request_rendering_update()
