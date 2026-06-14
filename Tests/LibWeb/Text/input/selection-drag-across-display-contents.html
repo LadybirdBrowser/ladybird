@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<body>
+<div style="display: contents">
+    <p>alpha</p>
+    <p>bravo</p>
+</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const paragraphs = document.querySelectorAll("p");
+        const first = paragraphs[0].getBoundingClientRect();
+        const second = paragraphs[1].getBoundingClientRect();
+
+        // Drag a selection from the first paragraph into the second. Both paragraphs are children of a display:contents
+        // element, which has no layout box. So, the user-select:contain containment walk steps onto an element whose
+        // layout_node() is null, and must not dereference it.
+        internals.mouseDown(first.left + 1, first.top + first.height / 2);
+        internals.mouseMove(second.right - 1, second.top + second.height / 2);
+        internals.mouseUp(second.right - 1, second.top + second.height / 2);
+
+        println(`selection includes alpha: ${getSelection().toString().includes("alpha")}`);
+    });
+</script>
