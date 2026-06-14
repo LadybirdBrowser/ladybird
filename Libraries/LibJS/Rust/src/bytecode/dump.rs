@@ -347,6 +347,23 @@ impl<'a> BytecodeDumper<'a> {
         }
         self.append("]");
     }
+
+    pub fn append_exception_handlers(&mut self, exception_handlers: &[FFIDumpExceptionHandler]) {
+        if exception_handlers.is_empty() {
+            return;
+        }
+
+        self.append("\nException handlers:\n");
+        for handler in exception_handlers {
+            self.append("  [");
+            self.append(&format!("{:4x}", handler.start_offset));
+            self.append(" .. ");
+            self.append(&format!("{:4x}", handler.end_offset));
+            self.append("] => handler ");
+            self.append_label("", handler.handler_offset as u32);
+            self.append("\n");
+        }
+    }
 }
 
 fn collect_basic_block_start_offsets(bytecode: &[u8], exception_handlers: &[FFIDumpExceptionHandler]) -> Vec<u32> {
@@ -459,5 +476,7 @@ pub unsafe extern "C" fn rust_dump_bytecode(
             at += instruction_length_from_bytes(bytecode[at], bytecode, at)
                 .expect("validated bytecode should have valid instruction lengths");
         }
+
+        dumper.append_exception_handlers(exception_handlers);
     });
 }
