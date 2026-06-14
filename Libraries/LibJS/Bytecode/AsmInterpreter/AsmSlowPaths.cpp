@@ -60,7 +60,6 @@ static i64 handle_asm_exception(VM& vm, u32 pc, Value exception)
     ({                                                                                                   \
         auto& asm_try_vm = (vm);                                                                         \
         auto asm_try_pc = (pc);                                                                          \
-        asm_try_vm.running_execution_context().program_counter = asm_try_pc;                             \
         auto&& asm_try_result = (expression);                                                            \
         if (asm_try_result.is_error()) [[unlikely]]                                                      \
             return handle_asm_exception(asm_try_vm, asm_try_pc, asm_try_result.release_error().value()); \
@@ -803,18 +802,18 @@ i64 asm_slow_path_decrement(VM* vm, u32 pc, Op::Decrement const* instruction)
         return static_cast<i64>(instruction->false_target().address());                       \
     }
 
-DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than, LessThan, less_than(VM::the(), lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than, GreaterThan, greater_than(VM::the(), lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than_equals, LessThanEquals, less_than_equals(VM::the(), lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than_equals, GreaterThanEquals, greater_than_equals(VM::the(), lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(loosely_equals, LooselyEquals, is_loosely_equal(VM::the(), lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than, LessThan, less_than(*vm, lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than, GreaterThan, greater_than(*vm, lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than_equals, LessThanEquals, less_than_equals(*vm, lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than_equals, GreaterThanEquals, greater_than_equals(*vm, lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(loosely_equals, LooselyEquals, is_loosely_equal(*vm, lhs, rhs))
 #undef DEFINE_JUMP_COMPARISON_SLOW_PATH
 
 i64 asm_slow_path_jump_loosely_inequals(VM* vm, u32 pc, Op::JumpLooselyInequals const* instruction)
 {
     auto lhs = vm->get(instruction->lhs());
     auto rhs = vm->get(instruction->rhs());
-    if (!ASM_TRY(*vm, pc, is_loosely_equal(VM::the(), lhs, rhs)))
+    if (!ASM_TRY(*vm, pc, is_loosely_equal(*vm, lhs, rhs)))
         return static_cast<i64>(instruction->true_target().address());
     return static_cast<i64>(instruction->false_target().address());
 }
@@ -2963,8 +2962,6 @@ i64 asm_slow_path_resolve_this_binding(VM* vm, u32 pc, Op::ResolveThisBinding co
 // Direct handler for GetPrivateById: bypasses Reference indirection.
 i64 asm_slow_path_get_private_by_id(VM* vm, u32 pc, Op::GetPrivateById const* instruction)
 {
-    vm->running_execution_context().program_counter = pc;
-
     auto base_value = vm->get(instruction->base());
     auto& current_vm = *vm;
 
@@ -2989,8 +2986,6 @@ i64 asm_slow_path_get_private_by_id(VM* vm, u32 pc, Op::GetPrivateById const* in
 // Direct handler for PutPrivateById: bypasses Reference indirection.
 i64 asm_slow_path_put_private_by_id(VM* vm, u32 pc, Op::PutPrivateById const* instruction)
 {
-    vm->running_execution_context().program_counter = pc;
-
     auto base_value = vm->get(instruction->base());
     auto& current_vm = *vm;
     auto value = vm->get(instruction->src());
