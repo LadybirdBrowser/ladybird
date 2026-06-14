@@ -134,10 +134,6 @@
 #    cmakedefine01 IMAGE_LOADER_DEBUG
 #endif
 
-#ifndef JS_BYTECODE_DEBUG
-#    cmakedefine01 JS_BYTECODE_DEBUG
-#endif
-
 #ifndef JS_MODULE_DEBUG
 #    cmakedefine01 JS_MODULE_DEBUG
 #endif
