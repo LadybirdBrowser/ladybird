@@ -3915,15 +3915,28 @@ return [location.href, window.canceledTraverseCount];
                 + "\n".join(log)
             )
 
-        expect_current_top_level_history_url(
+        def browser_ui_traverse_setup_is_mirrored(snapshot):
+            ui_history = snapshot["ui"]
+            if (
+                not ui_history["webContentHistoryMatchesUI"]
+                or ui_history["waitingToSeedWebContent"]
+                or ui_history["waitingForWebContentSeedAck"]
+                or ui_history["ignoringWebContentUpdatesUntilSeed"]
+                or ui_history["reseedAfterCurrentHistoryLoad"]
+                or ui_history["pendingWebContentHistoryStepAfterFallbackLoad"] is not None
+                or ui_history["pendingSessionHistoryNavigation"] is not None
+                or ui_history["pendingSessionHistoryTraversal"] is not None
+                or comparable_history(ui_history) != comparable_history(snapshot["webContent"])
+            ):
+                return False
+            return history_current_entry(ui_history)["url"] == url_scroll_cancel_current
+
+        history_before_browser_ui_traverse = wait_for_session_history(
             webdriver_port,
             session_id,
             "before browser UI traverse with navigate cancel handler",
-            url_scroll_cancel_current,
+            browser_ui_traverse_setup_is_mirrored,
             log,
-        )
-        history_before_browser_ui_traverse = expect_web_content_session_history_matches_ui(
-            webdriver_port, session_id, "before browser UI traverse with navigate cancel handler", log
         )
         if history_before_browser_ui_traverse["ui"]["currentUsedStepIndex"] == 0:
             raise AssertionError(
