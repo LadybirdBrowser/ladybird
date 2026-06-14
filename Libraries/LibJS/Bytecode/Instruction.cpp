@@ -78,9 +78,4 @@ size_t Instruction::length() const
 #undef __BYTECODE_OP
 }
 
-Operand::Operand(Register reg)
-    : Operand(Type::Register, reg.index())
-{
-}
-
 }

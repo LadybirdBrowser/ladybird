@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <AK/Format.h>
+#include <AK/Assertions.h>
+#include <AK/Types.h>
 #include <LibJS/Forward.h>
 
 namespace JS::Bytecode {
@@ -45,20 +46,6 @@ enum class Builtin : u8 {
         __Count,
 };
 
-static StringView builtin_name(Builtin value)
-{
-    switch (value) {
-#define DEFINE_BUILTIN_CASE(name, snake_case_name, base, property, ...) \
-    case Builtin::name:                                                 \
-        return #base "." #property##sv;
-        JS_ENUMERATE_BUILTINS(DEFINE_BUILTIN_CASE)
-#undef DEFINE_BUILTIN_CASE
-    case Builtin::__Count:
-        VERIFY_NOT_REACHED();
-    }
-    VERIFY_NOT_REACHED();
-}
-
 inline size_t builtin_argument_count(Builtin value)
 {
     switch (value) {
@@ -72,17 +59,5 @@ inline size_t builtin_argument_count(Builtin value)
     }
     VERIFY_NOT_REACHED();
 }
-
-}
-
-namespace AK {
-
-template<>
-struct Formatter<JS::Bytecode::Builtin> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder& builder, JS::Bytecode::Builtin value)
-    {
-        return Formatter<StringView>::format(builder, builtin_name(value));
-    }
-};
 
 }

@@ -12,7 +12,6 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
 #include <LibJS/Bytecode/Executable.h>
-#include <LibJS/Bytecode/FormatOperand.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/RegexTable.h>
@@ -500,15 +499,6 @@ void Executable::dump() const
     output.append('\n');
     RustIntegration::dump_bytecode(output, *this);
 
-    if (!exception_handlers.is_empty()) {
-        output.append("\nException handlers:\n"sv);
-        for (auto const& handler : exception_handlers) {
-            output.appendff("  [{:4x} .. {:4x}] => handler ", handler.start_offset, handler.end_offset);
-            Label handler_label(static_cast<u32>(handler.handler_offset));
-            output.appendff("{}\n", format_label(""sv, handler_label, *this));
-        }
-    }
-
     output.append('\n');
     warnln("{}", output.string_view());
 }
@@ -691,18 +681,6 @@ SourceRange const& Executable::get_source_range(u32 program_counter)
         static NeverDestroyed<SourceRange> dummy { SourceRange { SourceCode::create({}, Utf16String {}), {} } };
         return *dummy;
     });
-}
-
-Operand Executable::original_operand_from_raw(u32 raw) const
-{
-    // NB: Layout is [registers | locals | constants | arguments]
-    if (raw < number_of_registers)
-        return Operand { Operand::Type::Register, raw };
-    if (raw < registers_and_locals_count)
-        return Operand { Operand::Type::Local, raw - local_index_base };
-    if (raw < argument_index_base)
-        return Operand { Operand::Type::Constant, raw - registers_and_locals_count };
-    return Operand { Operand::Type::Argument, raw - argument_index_base };
 }
 
 }

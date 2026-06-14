@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Format.h>
+#include <AK/Types.h>
 
 namespace JS::Bytecode {
 
@@ -26,11 +26,3 @@ private:
 };
 
 }
-
-template<>
-struct AK::Formatter<JS::Bytecode::Label> : AK::Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, JS::Bytecode::Label const& label)
-    {
-        return AK::Formatter<FormatString>::format(builder, "@{:x}"sv, label.address());
-    }
-};
