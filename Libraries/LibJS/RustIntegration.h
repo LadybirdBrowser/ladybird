@@ -193,6 +193,7 @@ Optional<Vector<GC::Root<SharedFunctionInstanceData>>> compile_builtin_file(
 GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceData& shared_data, bool builtin_abstract_operations_enabled);
 
 JS_API void dump_bytecode(StringBuilder&, Bytecode::Executable const&);
+JS_API size_t count_bytecode_basic_blocks(Bytecode::Executable const&);
 
 JS_API void* clone_function_ast(void const*);
 JS_API FFI::CompiledFunction* compile_function_off_thread(void* function_ast, size_t length_in_code_units, bool builtin_abstract_operations_enabled);

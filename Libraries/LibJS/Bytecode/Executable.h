@@ -347,7 +347,6 @@ public:
         return get_identifier(*index);
     }
 
-    [[nodiscard]] COLD Optional<size_t> basic_block_index_for_offset(size_t offset) const;
     void copy_runtime_caches_from(Executable const&);
     [[nodiscard]] COLD Optional<ExceptionHandlers const&> exception_handlers_for_offset(size_t offset) const;
 

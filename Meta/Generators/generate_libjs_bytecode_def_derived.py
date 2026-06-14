@@ -78,78 +78,6 @@ def generate_enum_macro(ops: List[OpDef]) -> str:
     return "\n".join(lines)
 
 
-def generate_visit_operands(op: OpDef) -> Optional[str]:
-    has_any_operand = any(is_operand_type(f.type) for f in op.fields)
-    if not has_any_operand:
-        return None
-
-    lines: List[str] = []
-    lines.append("    void visit_operands_impl(Function<void(Operand&)> visitor)")
-    lines.append("    {")
-
-    for f in op.fields:
-        t = f.type.strip()
-        if not is_operand_type(t):
-            continue
-
-        if not f.is_array:
-            if is_optional_operand_type(t):
-                lines.append(f"        if ({f.name}.has_value())")
-                lines.append(f"            visitor({f.name}.value());")
-            else:
-                lines.append(f"        visitor({f.name});")
-        else:
-            count_name = get_count_field_name_or_die(op, f)
-
-            if is_optional_operand_type(t):
-                lines.append(f"        for (size_t i = 0; i < {count_name}; ++i) {{")
-                lines.append(f"            if ({f.name}[i].has_value())")
-                lines.append(f"                visitor({f.name}[i].value());")
-                lines.append("        }")
-            else:
-                lines.append(f"        for (size_t i = 0; i < {count_name}; ++i)")
-                lines.append(f"            visitor({f.name}[i]);")
-
-    lines.append("    }")
-    return "\n".join(lines)
-
-
-def generate_visit_labels(op: OpDef) -> Optional[str]:
-    has_any_label = any(is_label_type(f.type) for f in op.fields)
-    if not has_any_label:
-        return None
-
-    lines: List[str] = []
-    lines.append("    void visit_labels_impl(Function<void(Label&)> visitor)")
-    lines.append("    {")
-
-    for f in op.fields:
-        t = f.type.strip()
-        if not is_label_type(t):
-            continue
-
-        if not f.is_array:
-            if is_optional_label_type(t):
-                lines.append(f"        if ({f.name}.has_value())")
-                lines.append(f"            visitor({f.name}.value());")
-            else:
-                lines.append(f"        visitor({f.name});")
-        else:
-            count_name = get_count_field_name_or_die(op, f)
-
-            if is_optional_label_type(t):
-                lines.append(f"        for (size_t i = 0; i < {count_name}; ++i) {{")
-                lines.append(f"            if ({f.name}[i].has_value())")
-                lines.append(f"                visitor({f.name}[i].value());")
-                lines.append("        }")
-            else:
-                lines.append(f"        for (size_t i = 0; i < {count_name}; ++i)")
-                lines.append(f"            visitor({f.name}[i]);")
-
-    lines.append("    }")
-    return "\n".join(lines)
-
-
 def generate_getters(op: OpDef) -> List[str]:
     lines: List[str] = []
     for f in op.fields:
@@ -277,14 +205,6 @@ def generate_class(op: OpDef) -> str:
             lines.append(f"            {af.name}[i] = {span_param}[i];")
     lines.append("    }")
     lines.append("")
-
-    visit_operands = generate_visit_operands(op)
-    if visit_operands:
-        lines.append(visit_operands)
-
-    visit_labels = generate_visit_labels(op)
-    if visit_labels:
-        lines.append(visit_labels)
 
     getters = generate_getters(op)
     if getters:

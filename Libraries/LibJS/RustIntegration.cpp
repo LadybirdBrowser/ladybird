@@ -190,18 +190,23 @@ static void bytecode_dump_append_value_fallback(void* ctx, uint64_t encoded)
 
 namespace JS::RustIntegration {
 
-void dump_bytecode(StringBuilder& output, Bytecode::Executable const& executable)
+static Vector<FFI::FFIDumpExceptionHandler> make_ffi_exception_handlers(Bytecode::Executable const& executable)
 {
     Vector<FFI::FFIDumpExceptionHandler> exception_handlers;
     exception_handlers.ensure_capacity(executable.exception_handlers.size());
     for (auto const& handler : executable.exception_handlers) {
-        exception_handlers.append({
+        exception_handlers.unchecked_append({
             .start_offset = handler.start_offset,
             .end_offset = handler.end_offset,
             .handler_offset = handler.handler_offset,
         });
     }
+    return exception_handlers;
+}
 
+void dump_bytecode(StringBuilder& output, Bytecode::Executable const& executable)
+{
+    auto exception_handlers = make_ffi_exception_handlers(executable);
     BytecodeDumpBuilder builder { output, executable };
     FFI::FFIBytecodeDumpCallbacks callbacks {
         .append = FFI::bytecode_dump_append,
@@ -231,6 +236,16 @@ void dump_bytecode(StringBuilder& output, Bytecode::Executable const& executable
         &metadata,
         &builder,
         &callbacks);
+}
+
+size_t count_bytecode_basic_blocks(Bytecode::Executable const& executable)
+{
+    auto exception_handlers = make_ffi_exception_handlers(executable);
+    return FFI::rust_count_basic_blocks(
+        executable.bytecode.data(),
+        executable.bytecode.size(),
+        exception_handlers.data(),
+        exception_handlers.size());
 }
 
 }

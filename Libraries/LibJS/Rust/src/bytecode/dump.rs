@@ -408,6 +408,34 @@ fn collect_basic_block_start_offsets(bytecode: &[u8], exception_handlers: &[FFID
     offsets
 }
 
+/// Count basic blocks in a validated bytecode instruction stream.
+///
+/// # Safety
+/// `bytecode_ptr` must point to `bytecode_len` bytes of validated bytecode, or
+/// be null when `bytecode_len` is zero. `exception_handlers` must point to
+/// `exception_handler_count` valid entries, or be null when the count is zero.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_count_basic_blocks(
+    bytecode_ptr: *const u8,
+    bytecode_len: usize,
+    exception_handlers: *const FFIDumpExceptionHandler,
+    exception_handler_count: usize,
+) -> usize {
+    abort_on_panic(|| unsafe {
+        let bytecode = if bytecode_len == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(bytecode_ptr, bytecode_len)
+        };
+        let exception_handlers = if exception_handler_count == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(exception_handlers, exception_handler_count)
+        };
+        collect_basic_block_start_offsets(bytecode, exception_handlers).len()
+    })
+}
+
 /// Dump a validated bytecode instruction stream through C++ formatting callbacks.
 ///
 /// # Safety

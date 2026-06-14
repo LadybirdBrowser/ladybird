@@ -10,38 +10,6 @@
 
 namespace JS::Bytecode {
 
-void Instruction::visit_labels(Function<void(JS::Bytecode::Label&)> visitor)
-{
-#define __BYTECODE_OP(op)                                             \
-    case Type::op:                                                    \
-        static_cast<Op::op&>(*this).visit_labels_impl(move(visitor)); \
-        return;
-
-    switch (type()) {
-        ENUMERATE_BYTECODE_OPS(__BYTECODE_OP)
-    default:
-        VERIFY_NOT_REACHED();
-    }
-
-#undef __BYTECODE_OP
-}
-
-void Instruction::visit_operands(Function<void(JS::Bytecode::Operand&)> visitor)
-{
-#define __BYTECODE_OP(op)                                               \
-    case Type::op:                                                      \
-        static_cast<Op::op&>(*this).visit_operands_impl(move(visitor)); \
-        return;
-
-    switch (type()) {
-        ENUMERATE_BYTECODE_OPS(__BYTECODE_OP)
-    default:
-        VERIFY_NOT_REACHED();
-    }
-
-#undef __BYTECODE_OP
-}
-
 template<typename Op>
 concept HasVariableLength = Op::IsVariableLength;
 
