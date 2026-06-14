@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-pos">
+<link rel="author" href="mailto:kiet.ho@apple.com">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/reference/anchor-in-css-min-max-function-ref.html">
+
+<style>
+.container {
+  display: grid;
+  grid-template-columns: repeat(3, 100px);
+  gap: 10px;
+}
+
+.box {
+  width: 100px;
+  height: 100px;
+}
+
+.green {
+  background-color: green;
+}
+
+.red {
+  background-color: red;
+}
+
+#anchor1 {
+  anchor-name: --anchor1;
+}
+
+#anchor2 {
+  anchor-name: --anchor2;
+}
+
+#anchor3 {
+  anchor-name: --anchor3;
+}
+
+#target-fail {
+  position: relative;
+  left: 300px;
+}
+
+#target {
+  position: absolute;
+  top: min(anchor(--anchor1 bottom), anchor(--anchor2 bottom), anchor(--anchor3 top));
+  left: max(anchor(--anchor1 left), anchor(--anchor2 left), anchor(--anchor3 left));
+  z-index: 1;
+}
+</style>
+
+<p>The test passes if there are three green boxes with no red.</p>
+
+<div class="container">
+  <!-- These boxes are 100px by 100px and sits next to each other in a row.
+  First two boxes are green and last box is red -->
+  <div class="box green" id="anchor1"></div>
+  <div class="box green" id="anchor2"></div>
+  <div class="box red" id="anchor3"></div>
+</div>
+
+<!-- If min()/max() works correctly, this green box should completely
+cover the red box. -->
+<div class="box green" id="target"></div>

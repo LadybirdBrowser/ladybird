@@ -5,7 +5,9 @@
  */
 
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -1549,6 +1551,58 @@ AbsposContainingBlockInfo FormattingContext::resolve_abspos_containing_block_inf
     return { rect, horizontal_axis_mode, vertical_axis_mode, {}, {} };
 }
 
+static bool calculation_tree_contains_anchor(CSS::CalculationNode const& root)
+{
+    if (root.type() == CSS::CalculationNode::Type::NonMathFunction && as<CSS::NonMathFunctionCalculationNode>(root).function()->is_anchor())
+        return true;
+
+    for (auto const& child : root.children()) {
+        if (calculation_tree_contains_anchor(child))
+            return true;
+    }
+    return false;
+}
+
+namespace {
+
+template<typename ResolveAnchorSide>
+class AnchorInsetResolver final : public CSS::AnchorResolver {
+public:
+    AnchorInsetResolver(ResolveAnchorSide const& resolve_anchor_side, bool box_is_absolutely_positioned, bool is_from_end, bool is_horizontal_axis, CSSPixels containing_block_extent)
+        : m_resolve_anchor_side(resolve_anchor_side)
+        , m_box_is_absolutely_positioned(box_is_absolutely_positioned)
+        , m_is_from_end(is_from_end)
+        , m_is_horizontal_axis(is_horizontal_axis)
+        , m_containing_block_extent(containing_block_extent)
+    {
+    }
+
+    virtual Optional<CSSPixels> resolve(CSS::AnchorStyleValue const& anchor) const override
+    {
+        if (!m_box_is_absolutely_positioned)
+            return {};
+
+        auto side_px = m_resolve_anchor_side(anchor, m_is_from_end, m_is_horizontal_axis);
+        if (!side_px.has_value())
+            return {};
+
+        // For inset properties measuring from the end edge (right, bottom), the resolved length is the distance from
+        // the anchor side to the corresponding edge of the containing block's padding box.
+        if (m_is_from_end)
+            return m_containing_block_extent - side_px.value();
+        return side_px.value();
+    }
+
+private:
+    ResolveAnchorSide const& m_resolve_anchor_side;
+    bool m_box_is_absolutely_positioned { false };
+    bool m_is_from_end { false };
+    bool m_is_horizontal_axis { false };
+    CSSPixels m_containing_block_extent { 0 };
+};
+
+}
+
 // https://drafts.csswg.org/css-anchor-position-1/#anchor-pos
 void FormattingContext::resolve_anchor_insets(Box& box) const
 {
@@ -1563,18 +1617,40 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
     //     and we only resolve anchor() values in inset properties.
     // FIXME: Support anchor-scope, position-try-fallbacks, anchor-size(), and other anchor positioning features.
 
-    auto const* element = as_if<DOM::Element>(box.dom_node());
+    // NB: Generated boxes for pseudo-elements are anonymous, so their anchor insets live in the generator element's
+    //     computed properties for the relevant pseudo-element rather than on a DOM node of their own.
+    DOM::Element const* element = nullptr;
+    Optional<CSS::PseudoElement> pseudo_element;
+    if (box.is_generated_for_pseudo_element()) {
+        element = box.pseudo_element_generator();
+        pseudo_element = box.generated_for_pseudo_element();
+    } else {
+        element = as_if<DOM::Element>(box.dom_node());
+    }
     if (!element)
         return;
 
-    auto computed = element->computed_properties();
+    auto computed = element->computed_properties(pseudo_element);
     if (!computed)
         return;
     auto const& top = computed->property(CSS::PropertyID::Top);
     auto const& right = computed->property(CSS::PropertyID::Right);
     auto const& bottom = computed->property(CSS::PropertyID::Bottom);
     auto const& left = computed->property(CSS::PropertyID::Left);
-    if (!top.is_anchor() && !right.is_anchor() && !bottom.is_anchor() && !left.is_anchor())
+
+    auto style_value_contains_anchor = [](CSS::StyleValue const& value) {
+        if (value.is_anchor())
+            return true;
+        if (value.is_calculated())
+            return calculation_tree_contains_anchor(value.as_calculated().calculation());
+        return false;
+    };
+
+    bool top_contains_anchor = style_value_contains_anchor(top);
+    bool right_contains_anchor = style_value_contains_anchor(right);
+    bool bottom_contains_anchor = style_value_contains_anchor(bottom);
+    bool left_contains_anchor = style_value_contains_anchor(left);
+    if (!top_contains_anchor && !right_contains_anchor && !bottom_contains_anchor && !left_contains_anchor)
         return;
 
     auto containing_block = box.containing_block();
@@ -1711,42 +1787,45 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
         return {};
     };
 
-    auto resolve_anchor_for_inset = [&](CSS::AnchorStyleValue const& anchor, bool is_from_end, bool is_horizontal_axis)
-        -> CSS::LengthPercentageOrAuto {
-        auto maybe_side_px = resolve_anchor_side(anchor, is_from_end, is_horizontal_axis);
+    auto resolve_inset = [&](bool contains_anchor, CSS::StyleValue const& value, CSS::LengthPercentageOrAuto const& existing_value, CSS::PropertyID property_id, bool is_from_end, bool is_horizontal_axis) -> CSS::LengthPercentageOrAuto {
+        if (!contains_anchor)
+            return existing_value;
 
-        // If any of these conditions are false, the anchor() function computes to its specified fallback value. If no
-        // fallback value is specified, it makes the declaration referencing it invalid at computed-value time.
-        // NB: The fallback value can itself be an anchor(), so we walk the chain.
-        auto const* current = &anchor;
-        while (!maybe_side_px.has_value()) {
-            auto const& fallback = current->fallback_value();
-            if (!fallback)
+        auto containing_block_extent = is_horizontal_axis
+            ? containing_block_state.padding_box_width()
+            : containing_block_state.padding_box_height();
+
+        AnchorInsetResolver anchor_resolver { resolve_anchor_side, box.is_absolutely_positioned(), is_from_end, is_horizontal_axis, containing_block_extent };
+
+        CSS::CalculationResolutionContext resolution_context {
+            .percentage_basis = CSS::Length::make_px(containing_block_extent),
+            .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(box),
+            .anchor_resolver = &anchor_resolver,
+        };
+
+        auto to_inset = [](Optional<CSS::Length> resolved_length) -> CSS::LengthPercentageOrAuto {
+            if (!resolved_length.has_value())
                 return CSS::LengthPercentageOrAuto::make_auto();
-            if (!fallback->is_anchor())
-                return CSS::LengthPercentageOrAuto::from_style_value(*fallback);
-            current = &fallback->as_anchor();
-            maybe_side_px = resolve_anchor_side(*current, is_from_end, is_horizontal_axis);
+            return { CSS::LengthPercentage { resolved_length.release_value() } };
+        };
+
+        // A bare anchor() inset is wrapped in a calculation so it resolves through the same path as calc(anchor()).
+        if (value.is_anchor()) {
+            auto calculation_context = CSS::CalculationContext::for_property(CSS::PropertyNameAndID::from_id(property_id));
+            auto calculation_node = CSS::NonMathFunctionCalculationNode::create(value.as_anchor(), CSS::NumericType { CSS::NumericType::BaseType::Length, 1 });
+            auto calculated_value = CSS::CalculatedStyleValue::create(calculation_node, CSS::NumericType { CSS::NumericType::BaseType::Length, 1 }, calculation_context);
+            return to_inset(calculated_value->resolve_length(resolution_context));
         }
 
-        // For inset properties measuring from the end edge (right, bottom), the resolved length is the distance from
-        // the anchor side to the corresponding edge of the containing block's padding box.
-        auto side_px = maybe_side_px.release_value();
-        if (is_from_end) {
-            auto containing_block_extent = is_horizontal_axis
-                ? containing_block_state.padding_box_width()
-                : containing_block_state.padding_box_height();
-            return { CSS::LengthPercentage { CSS::Length::make_px(containing_block_extent - side_px) } };
-        }
-        return { CSS::LengthPercentage { CSS::Length::make_px(side_px) } };
+        return to_inset(value.as_calculated().resolve_length(resolution_context));
     };
 
     auto const& existing_inset = box.computed_values().inset();
     box.mutable_computed_values().set_inset({
-        top.is_anchor() ? resolve_anchor_for_inset(top.as_anchor(), false, false) : existing_inset.top(),
-        right.is_anchor() ? resolve_anchor_for_inset(right.as_anchor(), true, true) : existing_inset.right(),
-        bottom.is_anchor() ? resolve_anchor_for_inset(bottom.as_anchor(), true, false) : existing_inset.bottom(),
-        left.is_anchor() ? resolve_anchor_for_inset(left.as_anchor(), false, true) : existing_inset.left(),
+        resolve_inset(top_contains_anchor, top, existing_inset.top(), CSS::PropertyID::Top, false, false),
+        resolve_inset(right_contains_anchor, right, existing_inset.right(), CSS::PropertyID::Right, true, true),
+        resolve_inset(bottom_contains_anchor, bottom, existing_inset.bottom(), CSS::PropertyID::Bottom, true, false),
+        resolve_inset(left_contains_anchor, left, existing_inset.left(), CSS::PropertyID::Left, false, true),
     });
 }
 
@@ -1989,6 +2068,21 @@ void FormattingContext::compute_height_for_absolutely_positioned_replaced_elemen
 // https://www.w3.org/TR/css-position-3/#relpos-insets
 void FormattingContext::compute_inset(NodeWithStyleAndBoxModelMetrics const& box, CSSPixelSize containing_block_size)
 {
+    // anchor() functions are unresolvable in the insets of non-absolutely-positioned boxes. Substitute them with their
+    // fallback value (or auto) here so the resulting calc() does not reach length resolution unresolved and crash. This
+    // also covers sticky boxes, whose insets are read later from these computed values.
+    // NB: The box is logically mutable during layout (resolve_anchor_insets rewrites its computed insets), it is only
+    //     passed as const& through the compute_inset() call chain.
+    if (auto const* anchored_box = as_if<Box>(box)) {
+        auto inset_contains_anchor = [](CSS::LengthPercentageOrAuto const& value) {
+            return value.is_calculated() && calculation_tree_contains_anchor(value.calculated()->calculation());
+        };
+        auto const& inset = anchored_box->computed_values().inset();
+        if (inset_contains_anchor(inset.top()) || inset_contains_anchor(inset.right())
+            || inset_contains_anchor(inset.bottom()) || inset_contains_anchor(inset.left()))
+            resolve_anchor_insets(const_cast<Box&>(*anchored_box));
+    }
+
     if (box.computed_values().position() != CSS::Positioning::Relative)
         return;
 
