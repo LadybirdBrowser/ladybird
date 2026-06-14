@@ -513,7 +513,6 @@ private:
     void set_well_known_symbols(WellKnownSymbols well_known_symbols) { m_well_known_symbols = move(well_known_symbols); }
 
     void run_queued_promise_jobs_impl();
-    void run_bytecode(size_t entry_point);
 
     static VM* s_the;
 

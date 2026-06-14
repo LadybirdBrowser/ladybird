@@ -5,7 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
-#include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
+#include <AK/Types.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Op.h>
@@ -1534,7 +1534,10 @@ NEVER_INLINE static ThrowCompletionOr<void> execute_asm_call(
     auto* callee_context = stack.allocate(registers_and_locals_count, constants, max(arguments.size(), argument_count));
     if (!callee_context) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
-    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
+    ScopeGuard deallocate_guard = [&stack, stack_mark] {
+        if (stack.top() > stack_mark)
+            stack.deallocate(stack_mark);
+    };
 
     auto* callee_context_argument_values = callee_context->arguments_data();
     auto const callee_context_argument_count = callee_context->argument_count;
@@ -1652,7 +1655,10 @@ static ThrowCompletionOr<void> call_with_argument_array(
     auto* callee_context = stack.allocate(registers_and_locals_count, constants, max(argument_array_length, argument_count));
     if (!callee_context) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
-    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
+    ScopeGuard deallocate_guard = [&stack, stack_mark] {
+        if (stack.top() > stack_mark)
+            stack.deallocate(stack_mark);
+    };
 
     auto* callee_context_argument_values = callee_context->arguments_data();
     auto const callee_context_argument_count = callee_context->argument_count;
@@ -1977,7 +1983,10 @@ i64 asm_slow_path_super_call_with_argument_array(VM* vm, u32 pc)
         auto completion = vm->throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
         return handle_asm_exception(*vm, pc, completion.value());
     }
-    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
+    ScopeGuard deallocate_guard = [&stack, stack_mark] {
+        if (stack.top() > stack_mark)
+            stack.deallocate(stack_mark);
+    };
 
     auto* callee_context_argument_values = callee_context->arguments_data();
     auto const callee_context_argument_count = callee_context->argument_count;
