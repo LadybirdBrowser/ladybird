@@ -2,6 +2,7 @@ include(libjs_generators)
 
 set(SOURCES
     Bytecode/AsmInterpreter/AsmInterpreter.cpp
+    Bytecode/AsmInterpreter/AsmSlowPaths.cpp
     Bytecode/BasicBlock.cpp
     Bytecode/Executable.cpp
     Bytecode/IdentifierTable.cpp
