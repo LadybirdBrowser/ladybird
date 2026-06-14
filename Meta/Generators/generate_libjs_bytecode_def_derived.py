@@ -170,10 +170,6 @@ def generate_getters(op: OpDef) -> List[str]:
     return lines
 
 
-def execute_return_type(op: OpDef) -> str:
-    return "void" if op.is_nothrow else "ThrowCompletionOr<void>"
-
-
 def generate_class(op: OpDef) -> str:
     if op.name == "Instruction":
         return ""
@@ -287,8 +283,6 @@ def generate_class(op: OpDef) -> str:
     lines.append("    }")
     lines.append("")
 
-    ret_type = execute_return_type(op)
-    lines.append(f"    {ret_type} execute_impl(VM&) const;")
     lines.append("    ByteString to_byte_string_impl(Bytecode::Executable const&) const;")
 
     visit_operands = generate_visit_operands(op)
