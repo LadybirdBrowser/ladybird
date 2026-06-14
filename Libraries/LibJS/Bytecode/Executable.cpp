@@ -323,10 +323,10 @@ static SourceMapEntry const* first_real_source_map_entry(Executable const& execu
     return first_entry;
 }
 
-static void dump_header(StringBuilder& output, Executable const& executable, bool use_color)
+static void dump_header(StringBuilder& output, Executable const& executable)
 {
-    auto const white_bold = use_color ? "\033[37;1m"sv : ""sv;
-    auto const reset = use_color ? "\033[0m"sv : ""sv;
+    auto constexpr white_bold = "\033[37;1m"sv;
+    auto constexpr reset = "\033[0m"sv;
     auto const* first_source_map_entry = first_real_source_map_entry(executable);
 
     u32 hash = 2166136261u; // FNV-1a offset basis
@@ -438,13 +438,13 @@ Optional<size_t> Executable::basic_block_index_for_offset(size_t offset) const
     return {};
 }
 
-static void dump_metadata(StringBuilder& output, Executable const& executable, bool use_color)
+static void dump_metadata(StringBuilder& output, Executable const& executable)
 {
-    auto const green = use_color ? "\033[32m"sv : ""sv;
-    auto const yellow = use_color ? "\033[33m"sv : ""sv;
-    auto const blue = use_color ? "\033[34m"sv : ""sv;
-    auto const cyan = use_color ? "\033[36m"sv : ""sv;
-    auto const reset = use_color ? "\033[0m"sv : ""sv;
+    auto constexpr green = "\033[32m"sv;
+    auto constexpr yellow = "\033[33m"sv;
+    auto constexpr blue = "\033[34m"sv;
+    auto constexpr cyan = "\033[36m"sv;
+    auto constexpr reset = "\033[0m"sv;
 
     output.appendff("  {}Registers{}: {}\n", green, reset, executable.number_of_registers);
     output.appendff("  {}Blocks{}:    {}\n", green, reset, collect_basic_block_start_offsets(executable).size());
@@ -490,10 +490,10 @@ static void dump_metadata(StringBuilder& output, Executable const& executable, b
     }
 }
 
-static void dump_bytecode(StringBuilder& output, Executable const& executable, bool use_color)
+static void dump_bytecode(StringBuilder& output, Executable const& executable)
 {
-    auto const magenta = use_color ? "\033[35;1m"sv : ""sv;
-    auto const reset = use_color ? "\033[0m"sv : ""sv;
+    auto constexpr magenta = "\033[35;1m"sv;
+    auto constexpr reset = "\033[0m"sv;
 
     InstructionStreamIterator it(executable.bytecode, &executable);
     auto basic_block_start_offsets = collect_basic_block_start_offsets(executable);
@@ -519,10 +519,10 @@ void Executable::dump() const
 {
     StringBuilder output;
 
-    dump_header(output, *this, true);
-    dump_metadata(output, *this, true);
+    dump_header(output, *this);
+    dump_metadata(output, *this);
     output.append('\n');
-    dump_bytecode(output, *this, true);
+    dump_bytecode(output, *this);
 
     if (!exception_handlers.is_empty()) {
         output.append("\nException handlers:\n"sv);
@@ -535,26 +535,6 @@ void Executable::dump() const
 
     output.append('\n');
     warnln("{}", output.string_view());
-}
-
-String Executable::dump_to_string() const
-{
-    StringBuilder output;
-    dump_header(output, *this, false);
-    dump_metadata(output, *this, false);
-    output.append('\n');
-    dump_bytecode(output, *this, false);
-
-    if (!exception_handlers.is_empty()) {
-        output.append("\nException handlers:\n"sv);
-        for (auto const& handler : exception_handlers) {
-            output.appendff("  [{:4x} .. {:4x}] => handler ", handler.start_offset, handler.end_offset);
-            Label handler_label(static_cast<u32>(handler.handler_offset));
-            output.appendff("{}\n", format_label(""sv, handler_label, *this));
-        }
-    }
-
-    return output.to_string_without_validation();
 }
 
 void Executable::visit_edges(Visitor& visitor)
