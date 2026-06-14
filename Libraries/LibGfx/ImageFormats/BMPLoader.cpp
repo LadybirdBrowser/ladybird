@@ -1297,8 +1297,9 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
         return Error::from_string_literal("BMP has invalid bpp");
     }
 
-    u32 const width = abs(context.dib.core.width);
-    u32 const height = !context.is_included_in_ico ? abs(context.dib.core.height) : (abs(context.dib.core.height) / 2);
+    u32 const width = static_cast<u32>(abs(static_cast<i64>(context.dib.core.width)));
+    u32 const absolute_height = static_cast<u32>(abs(static_cast<i64>(context.dib.core.height)));
+    u32 const height = !context.is_included_in_ico ? absolute_height : (absolute_height / 2);
 
     context.bitmap = TRY(Bitmap::create(format, Gfx::AlphaType::Unpremultiplied, { static_cast<int>(width), static_cast<int>(height) }));
 
