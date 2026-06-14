@@ -11,7 +11,6 @@
 
 #include <AK/Checked.h>
 #include <AK/Span.h>
-#include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Module.h>

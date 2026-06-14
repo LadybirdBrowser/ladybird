@@ -11,7 +11,6 @@
 #include <AK/StdLibExtras.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
-#include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/FormatOperand.h>
 #include <LibJS/Bytecode/Instruction.h>
