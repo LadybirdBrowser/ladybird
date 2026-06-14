@@ -297,6 +297,13 @@ static void serialize_a_math_function(StringBuilder& builder, CalculationNode co
         return;
     }
 
+    // AD-HOC: A non-math function like sibling-index() or anchor() has no calc() wrapper. Serialize it directly per
+    //         the normal rules for it.
+    if (fn.type() == CalculationNode::Type::NonMathFunction) {
+        serialize_a_calculation_tree(builder, fn, context, serialization_mode, EmitOuterParentheses::No);
+        return;
+    }
+
     // 3. If the calculation tree’s root node is a numeric value, or a calc-operator node, let s be a string initially
     //    containing "calc(".
     //    Otherwise, let s be a string initially containing the name of the root node, lowercased (such as "sin" or

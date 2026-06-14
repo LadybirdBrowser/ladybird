@@ -9,19 +9,70 @@
 </head>
 <body>
   <script>
+// <length>
 test_valid_value('left', 'calc(1px * sibling-index())');
 test_valid_value('left', 'calc(1px * sibling-index( ))', 'calc(1px * sibling-index())');
-test_valid_value('z-index', 'sibling-index()');
+test_valid_value('left', 'calc(1em * sibling-index())');
+test_valid_value('left', 'calc(1rem * sibling-count())');
+test_valid_value('left', 'calc(1vh * sibling-index())');
+test_valid_value('left', 'calc(1ch * sibling-count())');
+test_valid_value('left', 'calc(1% * sibling-index())');
+test_valid_value('left', 'calc(5% * sibling-count())');
 
 test_invalid_value('left', 'calc(1px * sibling-index(100px))');
 test_invalid_value('left', 'calc(1px * sibling-index(1))');
+test_invalid_value('left', 'calc(10 * sibling-index())');
 
-test_valid_value('left', 'calc(1px * sibling-count())');
-test_valid_value('left', 'calc(1px * sibling-count( ))', 'calc(1px * sibling-count())');
+// <angle>
+test_valid_value('rotate', 'calc(10deg * sibling-index())');
+test_valid_value('rotate', 'calc(sibling-index() * 2rad * pi)', 'calc(360deg * sibling-index())');
+test_valid_value('rotate', 'calc(1turn * sibling-count())', 'calc(360deg * sibling-count())');
+test_valid_value('rotate', 'calc(sibling-count() * 1rad * pi)', 'calc(180deg * sibling-count())');
+
+test_invalid_value('rotate', 'calc(1px * sibling-index())');
+test_invalid_value('rotate', 'calc(1s * sibling-index())');
+
+//  <integer> (which accepts these functions without calc())
+test_valid_value('z-index', 'sibling-index()');
 test_valid_value('z-index', 'sibling-count()');
+test_valid_value('z-index', 'calc(2 * sibling-index())');
+test_valid_value('z-index', 'calc(sibling-index())', 'sibling-index()');
+test_valid_value('z-index', 'calc(sibling-count())', 'sibling-count()');
 
-test_invalid_value('left', 'calc(1px * sibling-count(100px))');
-test_invalid_value('left', 'calc(1px * sibling-count(1))');
+test_invalid_value('z-index', 'sibling-index(100px)');
+test_invalid_value('z-index', 'sibling-count(1)');
+
+// <number>
+test_valid_value('opacity', 'calc(0.1 * sibling-index())');
+test_valid_value('opacity', 'calc(0.5 * sibling-count())');
+test_valid_value('scale', 'calc(2 * sibling-index())');
+test_valid_value('scale', 'calc(0.5 * sibling-count())');
+
+test_invalid_value('opacity', 'calc(1ms * sibling-index())');
+test_invalid_value('opacity', 'calc(1px * sibling-count())');
+
+// <time>
+test_valid_value('animation-duration', 'calc(1s * sibling-index())');
+test_valid_value('animation-duration', 'calc(1s * sibling-count( ))', 'calc(1s * sibling-count())');
+test_valid_value('animation-duration', 'calc(100ms * sibling-count())', 'calc(0.1s * sibling-count())');
+test_valid_value('animation-duration', 'calc(0.5s * sibling-index())');
+test_valid_value('animation-duration', 'calc(250ms * sibling-index())', 'calc(0.25s * sibling-index())');
+
+test_invalid_value('animation-duration', 'calc(1px * sibling-index())');
+test_invalid_value('animation-duration', 'calc(1deg * sibling-index())');
+
+// <color> functions
+test_valid_value('color', 'color(srgb calc(0.1 * sibling-index()) 0.5 0.5)');
+test_valid_value('color', 'color(srgb 0 calc(0.1 * sibling-count()) 0.5)');
+test_valid_value('color', 'color(srgb 0 0 calc(0.1 * sibling-index()))');
+test_valid_value('color', 'color(srgb 0.5 0.5 0.5 / calc(0.1 * sibling-count()))');
+test_valid_value('color', 'oklch(calc(0.1 * sibling-index()) 0.2 180)');
+test_valid_value('color', 'oklch(0.5 calc(0.05 * sibling-count()) 180)');
+test_valid_value('color', 'oklch(0.5 0.2 calc(30deg * sibling-index()))');
+test_valid_value('color', 'oklch(0.5 0.2 180 / calc(0.1 * sibling-index()))');
+
+test_invalid_value('color', 'color(srgb calc(1px * sibling-index()) 0 0)');
+test_invalid_value('color', 'oklch(calc(1px * sibling-index()) 0 0)');
   </script>
 </body>
 </html>

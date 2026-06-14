@@ -1,15 +1,53 @@
 Harness status: OK
 
-Found 10 tests
+Found 47 tests
 
-10 Pass
+45 Pass
+2 Fail
 Pass	e.style['left'] = "calc(1px * sibling-index())" should set the property value
 Pass	e.style['left'] = "calc(1px * sibling-index( ))" should set the property value
-Pass	e.style['z-index'] = "sibling-index()" should set the property value
+Pass	e.style['left'] = "calc(1em * sibling-index())" should set the property value
+Pass	e.style['left'] = "calc(1rem * sibling-count())" should set the property value
+Pass	e.style['left'] = "calc(1vh * sibling-index())" should set the property value
+Pass	e.style['left'] = "calc(1ch * sibling-count())" should set the property value
+Pass	e.style['left'] = "calc(1% * sibling-index())" should set the property value
+Pass	e.style['left'] = "calc(5% * sibling-count())" should set the property value
 Pass	e.style['left'] = "calc(1px * sibling-index(100px))" should not set the property value
 Pass	e.style['left'] = "calc(1px * sibling-index(1))" should not set the property value
-Pass	e.style['left'] = "calc(1px * sibling-count())" should set the property value
-Pass	e.style['left'] = "calc(1px * sibling-count( ))" should set the property value
+Pass	e.style['left'] = "calc(10 * sibling-index())" should not set the property value
+Pass	e.style['rotate'] = "calc(10deg * sibling-index())" should set the property value
+Fail	e.style['rotate'] = "calc(sibling-index() * 2rad * pi)" should set the property value
+Pass	e.style['rotate'] = "calc(1turn * sibling-count())" should set the property value
+Fail	e.style['rotate'] = "calc(sibling-count() * 1rad * pi)" should set the property value
+Pass	e.style['rotate'] = "calc(1px * sibling-index())" should not set the property value
+Pass	e.style['rotate'] = "calc(1s * sibling-index())" should not set the property value
+Pass	e.style['z-index'] = "sibling-index()" should set the property value
 Pass	e.style['z-index'] = "sibling-count()" should set the property value
-Pass	e.style['left'] = "calc(1px * sibling-count(100px))" should not set the property value
-Pass	e.style['left'] = "calc(1px * sibling-count(1))" should not set the property value
+Pass	e.style['z-index'] = "calc(2 * sibling-index())" should set the property value
+Pass	e.style['z-index'] = "calc(sibling-index())" should set the property value
+Pass	e.style['z-index'] = "calc(sibling-count())" should set the property value
+Pass	e.style['z-index'] = "sibling-index(100px)" should not set the property value
+Pass	e.style['z-index'] = "sibling-count(1)" should not set the property value
+Pass	e.style['opacity'] = "calc(0.1 * sibling-index())" should set the property value
+Pass	e.style['opacity'] = "calc(0.5 * sibling-count())" should set the property value
+Pass	e.style['scale'] = "calc(2 * sibling-index())" should set the property value
+Pass	e.style['scale'] = "calc(0.5 * sibling-count())" should set the property value
+Pass	e.style['opacity'] = "calc(1ms * sibling-index())" should not set the property value
+Pass	e.style['opacity'] = "calc(1px * sibling-count())" should not set the property value
+Pass	e.style['animation-duration'] = "calc(1s * sibling-index())" should set the property value
+Pass	e.style['animation-duration'] = "calc(1s * sibling-count( ))" should set the property value
+Pass	e.style['animation-duration'] = "calc(100ms * sibling-count())" should set the property value
+Pass	e.style['animation-duration'] = "calc(0.5s * sibling-index())" should set the property value
+Pass	e.style['animation-duration'] = "calc(250ms * sibling-index())" should set the property value
+Pass	e.style['animation-duration'] = "calc(1px * sibling-index())" should not set the property value
+Pass	e.style['animation-duration'] = "calc(1deg * sibling-index())" should not set the property value
+Pass	e.style['color'] = "color(srgb calc(0.1 * sibling-index()) 0.5 0.5)" should set the property value
+Pass	e.style['color'] = "color(srgb 0 calc(0.1 * sibling-count()) 0.5)" should set the property value
+Pass	e.style['color'] = "color(srgb 0 0 calc(0.1 * sibling-index()))" should set the property value
+Pass	e.style['color'] = "color(srgb 0.5 0.5 0.5 / calc(0.1 * sibling-count()))" should set the property value
+Pass	e.style['color'] = "oklch(calc(0.1 * sibling-index()) 0.2 180)" should set the property value
+Pass	e.style['color'] = "oklch(0.5 calc(0.05 * sibling-count()) 180)" should set the property value
+Pass	e.style['color'] = "oklch(0.5 0.2 calc(30deg * sibling-index()))" should set the property value
+Pass	e.style['color'] = "oklch(0.5 0.2 180 / calc(0.1 * sibling-index()))" should set the property value
+Pass	e.style['color'] = "color(srgb calc(1px * sibling-index()) 0 0)" should not set the property value
+Pass	e.style['color'] = "oklch(calc(1px * sibling-index()) 0 0)" should not set the property value
