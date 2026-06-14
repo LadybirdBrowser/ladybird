@@ -28,7 +28,6 @@
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
 #include <LibJS/SourceRange.h>
 
@@ -330,7 +329,7 @@ public:
 
     Vector<SourceMapEntry> source_map;
 
-    Vector<LocalVariable> local_variable_names;
+    Vector<Utf16FlyString> local_variable_names;
     u32 local_index_base { 0 };
     u32 argument_index_base { 0 };
 

@@ -118,7 +118,7 @@ public:
     // Equivalent to absence of [[Construct]]
     virtual bool has_constructor() const override { return kind() == FunctionKind::Normal && !shared_data().m_is_arrow_function && !m_is_method; }
 
-    virtual Vector<LocalVariable> const& local_variables_names() const override { return shared_data().m_local_variables_names; }
+    virtual Vector<Utf16FlyString> const& local_variables_names() const override { return shared_data().m_local_variables_names; }
 
     FunctionKind kind() const { return shared_data().m_kind; }
 

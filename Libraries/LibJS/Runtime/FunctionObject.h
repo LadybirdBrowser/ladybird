@@ -10,8 +10,9 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>
+#include <AK/Utf16FlyString.h>
+#include <AK/Vector.h>
 #include <LibJS/Bytecode/Builtins.h>
-#include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -40,7 +41,7 @@ public:
     // [[Realm]]
     virtual Realm* realm() const { return nullptr; }
 
-    virtual Vector<LocalVariable> const& local_variables_names() const { VERIFY_NOT_REACHED(); }
+    virtual Vector<Utf16FlyString> const& local_variables_names() const { VERIFY_NOT_REACHED(); }
 
     virtual Utf16String name_for_call_stack() const = 0;
 
