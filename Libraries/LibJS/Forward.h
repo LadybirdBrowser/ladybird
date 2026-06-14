@@ -315,7 +315,6 @@ using NativeFunctionPointer = ThrowCompletionOr<Value> (*)(VM&);
 
 namespace Bytecode {
 
-class BasicBlock;
 enum class Builtin : u8;
 class Executable;
 class Generator;

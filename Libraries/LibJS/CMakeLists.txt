@@ -2,12 +2,10 @@ include(libjs_generators)
 
 set(SOURCES
     Bytecode/AsmInterpreter/AsmSlowPaths.cpp
-    Bytecode/BasicBlock.cpp
     Bytecode/Executable.cpp
     Bytecode/IdentifierTable.cpp
     Bytecode/Instruction.cpp
     Bytecode/Interpreter.cpp
-    Bytecode/Label.cpp
     Bytecode/PropertyNameIterator.cpp
     Bytecode/PropertyKeyTable.cpp
     Bytecode/RegexTable.cpp
