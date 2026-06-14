@@ -6777,14 +6777,14 @@ CSS::ImageStyleValueResource const* Document::css_image_resource(URL::URL const&
     return it->value.ptr();
 }
 
-CSS::ImageStyleValueResource& Document::ensure_css_image_resource(URL::URL const& url)
+CSS::ImageStyleValueResource& Document::create_css_image_resource(GC::Ref<HTML::SharedResourceRequest> request)
 {
-    if (auto* resource = css_image_resource(url))
-        return *resource;
+    // NB: The caller should guard against creating already existing resources.
+    VERIFY(!m_css_image_resources.contains(request->url()));
 
-    auto resource = make<CSS::ImageStyleValueResource>(url);
+    auto resource = make<CSS::ImageStyleValueResource>(request, *this);
     auto& resource_ref = *resource;
-    m_css_image_resources.set(url, move(resource));
+    m_css_image_resources.set(request->url(), move(resource));
     return resource_ref;
 }
 
