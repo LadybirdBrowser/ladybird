@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <AK/TemporaryChange.h>
 #include <LibJS/Bytecode/Debug.h>
 #include <LibJS/Bytecode/FormatOperand.h>
@@ -277,8 +276,6 @@ DeclarativeEnvironment& VM::global_declarative_environment()
 
 ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executable& executable, u32 entry_point)
 {
-    dbgln_if(JS_BYTECODE_DEBUG, "VM will run bytecode unit {}", &executable);
-
     auto const is_outermost_bytecode_execution = m_run_executable_depth == 0;
     TemporaryChange restore_run_executable_depth { m_run_executable_depth, m_run_executable_depth + 1 };
 
@@ -307,20 +304,6 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
         auto* values = context.registers_and_constants_and_locals_and_arguments_span().data();
 
         asm_interpreter_entry(bytecode, entry_point, values, this);
-    }
-
-    dbgln_if(JS_BYTECODE_DEBUG, "VM did run bytecode unit {}", context.executable);
-
-    if constexpr (JS_BYTECODE_DEBUG) {
-        auto* values = context.registers_and_constants_and_locals_and_arguments();
-        for (size_t i = 0; i < executable.number_of_registers; ++i) {
-            String value_string;
-            if (values[i].is_special_empty_value())
-                value_string = "(empty)"_string;
-            else
-                value_string = values[i].to_string_without_side_effects();
-            dbgln("[{:3}] {}", i, value_string);
-        }
     }
 
     if (is_outermost_bytecode_execution && !vm().is_executing_module())
