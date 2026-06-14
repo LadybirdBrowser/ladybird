@@ -4,21 +4,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/PropertyAccess.h>
+#include <LibJS/Bytecode/PropertyNameIterator.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
 #include <LibJS/Runtime/AsyncGenerator.h>
+#include <LibJS/Runtime/ClassConstruction.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/FunctionEnvironment.h>
 #include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
@@ -127,15 +131,15 @@ static i64 handle_asm_exception(VM& vm, u32 pc, Value exception)
     return static_cast<i64>(vm.running_execution_context().program_counter);
 }
 
-#define ASM_TRY(vm, pc, expression)                                                            \
-    ({                                                                                         \
-        auto& asm_try_vm = (vm);                                                               \
-        auto asm_try_pc = (pc);                                                                \
-        asm_try_vm.running_execution_context().program_counter = asm_try_pc;                   \
-        auto&& asm_try_result = (expression);                                                  \
-        if (asm_try_result.is_error()) [[unlikely]]                                            \
-            return handle_asm_exception(asm_try_vm, asm_try_pc, asm_try_result.error_value()); \
-        asm_try_result.release_value();                                                        \
+#define ASM_TRY(vm, pc, expression)                                                                      \
+    ({                                                                                                   \
+        auto& asm_try_vm = (vm);                                                                         \
+        auto asm_try_pc = (pc);                                                                          \
+        asm_try_vm.running_execution_context().program_counter = asm_try_pc;                             \
+        auto&& asm_try_result = (expression);                                                            \
+        if (asm_try_result.is_error()) [[unlikely]]                                                      \
+            return handle_asm_exception(asm_try_vm, asm_try_pc, asm_try_result.release_error().value()); \
+        asm_try_result.release_value();                                                                  \
     })
 
 // Helper: execute a throwing instruction and handle errors
@@ -345,6 +349,287 @@ static ThrowCompletionOr<void> asm_create_variable(VM& vm, Utf16FlyString const&
     return as<GlobalEnvironment>(vm.variable_environment())->create_global_var_binding(name, false);
 }
 
+struct FastPropertyNameIteratorData {
+    Vector<PropertyKey> properties;
+    PropertyNameIterator::FastPath fast_path { PropertyNameIterator::FastPath::None };
+    u32 indexed_property_count { 0 };
+    bool receiver_has_magical_length_property { false };
+    GC::Ptr<Shape> shape;
+    GC::Ptr<PrototypeChainValidity> prototype_chain_validity;
+};
+
+static bool shape_has_enumerable_string_property(Shape const& shape)
+{
+    bool has_enumerable_string_property = false;
+    shape.for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
+        if (property_key.is_string() && metadata.attributes.is_enumerable()) {
+            has_enumerable_string_property = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    return has_enumerable_string_property;
+}
+
+static bool property_name_iterator_fast_path_is_still_eligible(Object& object, PropertyNameIterator::FastPath fast_path, u32 indexed_property_count)
+{
+    Object const* object_to_check = &object;
+    bool is_receiver = true;
+
+    while (object_to_check) {
+        if (!object_to_check->eligible_for_own_property_enumeration_fast_path())
+            return false;
+
+        if (is_receiver) {
+            if (fast_path == PropertyNameIterator::FastPath::PackedIndexed) {
+                if (object_to_check->indexed_storage_kind() != IndexedStorageKind::Packed)
+                    return false;
+                if (object_to_check->indexed_array_like_size() != indexed_property_count)
+                    return false;
+            } else if (object_to_check->indexed_array_like_size() != 0) {
+                return false;
+            }
+        } else if (object_to_check->indexed_array_like_size() != 0) {
+            return false;
+        }
+
+        object_to_check = object_to_check->prototype();
+        is_receiver = false;
+    }
+
+    return true;
+}
+
+static bool object_property_iterator_cache_matches(Object& object, ObjectPropertyIteratorCacheData const& cache)
+{
+    // A cache entry represents the fully flattened key snapshot for one bytecode
+    // site. Reusing it is only valid while the receiver still has the same local
+    // state and the prototype chain validity token says nothing above it changed.
+    if (object.has_magical_length_property() != cache.receiver_has_magical_length_property())
+        return false;
+
+    auto& shape = object.shape();
+    if (&shape != cache.shape())
+        return false;
+
+    if (shape.is_dictionary() && shape.dictionary_generation() != cache.shape_dictionary_generation())
+        return false;
+
+    if (cache.prototype_chain_validity() && !cache.prototype_chain_validity()->is_valid())
+        return false;
+
+    return property_name_iterator_fast_path_is_still_eligible(object, cache.fast_path(), cache.indexed_property_count());
+}
+
+static ThrowCompletionOr<Optional<FastPropertyNameIteratorData>> asm_try_get_fast_property_name_iterator_data(Object& object)
+{
+    auto& vm = object.vm();
+    FastPropertyNameIteratorData result {};
+    result.fast_path = PropertyNameIterator::FastPath::PlainNamed;
+    result.receiver_has_magical_length_property = object.has_magical_length_property();
+    result.shape = &object.shape();
+
+    GC::RootHashTable<GC::Ref<Object>> seen_objects;
+    size_t estimated_properties_count = 0;
+    bool prototype_chain_has_enumerable_named_properties = false;
+    for (auto object_to_check = GC::Ptr { &object }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
+        seen_objects.set(*object_to_check);
+        if (!object_to_check->eligible_for_own_property_enumeration_fast_path())
+            return Optional<FastPropertyNameIteratorData> {};
+        if (&object == object_to_check.ptr()) {
+            if (object_to_check->indexed_array_like_size() != 0) {
+                if (object_to_check->indexed_storage_kind() != IndexedStorageKind::Packed)
+                    return Optional<FastPropertyNameIteratorData> {};
+                result.fast_path = PropertyNameIterator::FastPath::PackedIndexed;
+                result.indexed_property_count = object_to_check->indexed_array_like_size();
+            } else {
+                result.fast_path = PropertyNameIterator::FastPath::PlainNamed;
+            }
+        } else if (object_to_check->indexed_array_like_size() != 0) {
+            // The fast path only knows how to synthesize a packed indexed prefix
+            // for the receiver itself. As soon as indexed properties appear in
+            // the prototype chain, we fall back to the generic enumeration path.
+            return Optional<FastPropertyNameIteratorData> {};
+        } else if (!prototype_chain_has_enumerable_named_properties) {
+            prototype_chain_has_enumerable_named_properties = shape_has_enumerable_string_property(object_to_check->shape());
+        }
+        estimated_properties_count += object_to_check->shape().property_count();
+    }
+    seen_objects.clear_with_capacity();
+
+    if (auto* prototype = object.shape().prototype()) {
+        result.prototype_chain_validity = prototype->shape().prototype_chain_validity();
+        if (!result.prototype_chain_validity)
+            return Optional<FastPropertyNameIteratorData> {};
+    }
+
+    if (!prototype_chain_has_enumerable_named_properties) {
+        // Common case: only the receiver contributes enumerable string keys, so
+        // we can copy them straight from the shape without any shadowing work.
+        result.properties.ensure_capacity(object.shape().property_count());
+        object.shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
+            if (property_key.is_string() && metadata.attributes.is_enumerable())
+                result.properties.append(property_key);
+        });
+        return result;
+    }
+
+    result.properties.ensure_capacity(estimated_properties_count);
+
+    GC::ConservativeHashTable<PropertyKey> seen_non_enumerable_properties;
+    Optional<GC::ConservativeHashTable<PropertyKey>> seen_properties;
+    auto ensure_seen_properties = [&] {
+        if (seen_properties.has_value())
+            return;
+        // Prototype shadowing ignores enumerability, so once we start looking
+        // above the receiver we need an explicit visited set for names we have
+        // already decided to expose from lower objects.
+        seen_properties.emplace();
+        seen_properties->ensure_capacity(result.properties.size());
+        for (auto const& property : result.properties)
+            seen_properties->set(property);
+    };
+
+    bool in_prototype_chain = false;
+    for (auto object_to_check = GC::Ptr { &object }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
+        seen_objects.set(*object_to_check);
+
+        // Arrays keep a non-enumerable magical `length` property outside the shape
+        // table, but it still shadows enumerable `length` properties higher up the
+        // prototype chain during for-in.
+        if (object_to_check->has_magical_length_property())
+            seen_non_enumerable_properties.set(vm.names.length);
+
+        object_to_check->shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
+            if (!property_key.is_string())
+                return;
+
+            bool enumerable = metadata.attributes.is_enumerable();
+            if (!enumerable)
+                seen_non_enumerable_properties.set(property_key);
+            if (in_prototype_chain && enumerable) {
+                if (seen_non_enumerable_properties.contains(property_key))
+                    return;
+                ensure_seen_properties();
+                if (seen_properties->contains(property_key))
+                    return;
+            }
+            if (enumerable)
+                result.properties.append(property_key);
+            if (seen_properties.has_value())
+                seen_properties->set(property_key);
+        });
+        in_prototype_chain = true;
+    }
+
+    return result;
+}
+
+// 14.7.5.9 EnumerateObjectProperties ( O ), https://tc39.es/ecma262/#sec-enumerate-object-properties
+static ThrowCompletionOr<GC::Ref<PropertyNameIterator>> asm_get_object_property_iterator(VM& vm, Value value, ObjectPropertyIteratorCache* cache = nullptr)
+{
+    // While the spec does provide an algorithm, it allows us to implement it ourselves so long as we meet the following invariants:
+    //    1- Returned property keys do not include keys that are Symbols
+    //    2- Properties of the target object may be deleted during enumeration. A property that is deleted before it is processed by the iterator's next method is ignored
+    //    3- If new properties are added to the target object during enumeration, the newly added properties are not guaranteed to be processed in the active enumeration
+    //    4- A property name will be returned by the iterator's next method at most once in any enumeration.
+    //    5- Enumerating the properties of the target object includes enumerating properties of its prototype, and the prototype of the prototype, and so on, recursively;
+    //       but a property of a prototype is not processed if it has the same name as a property that has already been processed by the iterator's next method.
+    //    6- The values of [[Enumerable]] attributes are not considered when determining if a property of a prototype object has already been processed.
+    //    7- The enumerable property names of prototype objects must be obtained by invoking EnumerateObjectProperties passing the prototype object as the argument.
+    //    8- EnumerateObjectProperties must obtain the own property keys of the target object by calling its [[OwnPropertyKeys]] internal method.
+    //    9- Property attributes of the target object must be obtained by calling its [[GetOwnProperty]] internal method
+
+    // Invariant 3 effectively allows the implementation to ignore newly added keys, and we do so (similar to other implementations).
+    auto object = TRY(value.to_object(vm));
+    // Note: While the spec doesn't explicitly require these to be ordered, it says that the values should be retrieved via OwnPropertyKeys,
+    //       so we just keep the order consistent anyway.
+
+    if (cache && cache->data) {
+        if (object_property_iterator_cache_matches(*object, *cache->data)) {
+            if (cache->reusable_property_name_iterator) {
+                // We keep one iterator object per bytecode site alive so hot
+                // loops can recycle it without allocating a new cell each time.
+                auto& iterator = static_cast<PropertyNameIterator&>(*cache->reusable_property_name_iterator);
+                cache->reusable_property_name_iterator = nullptr;
+                iterator.reset_with_cache_data(object, *cache->data, cache);
+                return iterator;
+            }
+
+            return PropertyNameIterator::create(vm.realm(), object, *cache->data, cache);
+        }
+    }
+
+    if (auto fast_iterator_data = TRY(asm_try_get_fast_property_name_iterator_data(*object)); fast_iterator_data.has_value()) {
+        VERIFY(fast_iterator_data->shape);
+        auto cache_data = vm.heap().allocate<ObjectPropertyIteratorCacheData>(
+            vm,
+            move(fast_iterator_data->properties),
+            fast_iterator_data->fast_path,
+            fast_iterator_data->indexed_property_count,
+            fast_iterator_data->receiver_has_magical_length_property,
+            *fast_iterator_data->shape,
+            fast_iterator_data->prototype_chain_validity);
+        if (cache)
+            cache->data = cache_data;
+        if (cache && cache->reusable_property_name_iterator) {
+            auto& iterator = static_cast<PropertyNameIterator&>(*cache->reusable_property_name_iterator);
+            cache->reusable_property_name_iterator = nullptr;
+            iterator.reset_with_cache_data(object, cache_data, cache);
+            return iterator;
+        }
+
+        return PropertyNameIterator::create(vm.realm(), object, cache_data, cache);
+    }
+
+    size_t estimated_properties_count = 0;
+    GC::RootHashTable<GC::Ref<Object>> seen_objects;
+    for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
+        seen_objects.set(*object_to_check);
+        estimated_properties_count += object_to_check->own_properties_count();
+    }
+    seen_objects.clear_with_capacity();
+
+    GC::ConservativeVector<PropertyKey> properties;
+    properties.ensure_capacity(estimated_properties_count);
+
+    GC::ConservativeHashTable<PropertyKey> seen_non_enumerable_properties;
+    Optional<GC::ConservativeHashTable<PropertyKey>> seen_properties;
+    auto ensure_seen_properties = [&] {
+        if (seen_properties.has_value())
+            return;
+        seen_properties.emplace();
+        seen_properties->ensure_capacity(properties.size());
+        for (auto const& property : properties)
+            seen_properties->set(property);
+    };
+
+    // Collect all keys immediately (invariant no. 5)
+    bool in_prototype_chain = false;
+    for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
+        seen_objects.set(*object_to_check);
+        TRY(object_to_check->for_each_own_property_with_enumerability([&](PropertyKey const& property_key, bool enumerable) -> ThrowCompletionOr<void> {
+            if (!enumerable)
+                seen_non_enumerable_properties.set(property_key);
+            if (in_prototype_chain && enumerable) {
+                if (seen_non_enumerable_properties.contains(property_key))
+                    return {};
+                ensure_seen_properties();
+                if (seen_properties->contains(property_key))
+                    return {};
+            }
+            if (enumerable)
+                properties.append(property_key);
+            if (seen_properties.has_value())
+                seen_properties->set(property_key);
+            return {};
+        }));
+        in_prototype_chain = true;
+    }
+
+    return PropertyNameIterator::create(vm.realm(), object, move(properties));
+}
+
 extern "C" {
 
 // Forward declarations for all functions called from assembly.
@@ -370,9 +655,15 @@ i64 asm_slow_path_jump_strictly_inequals(VM*, u32 pc);
 i64 asm_slow_path_set_lexical_environment(VM*, u32 pc);
 i64 asm_slow_path_postfix_increment(VM*, u32 pc);
 i64 asm_slow_path_get_by_id(VM*, u32 pc);
+i64 asm_slow_path_get_by_id_with_this(VM*, u32 pc);
 i64 asm_slow_path_put_by_id(VM*, u32 pc);
+i64 asm_slow_path_put_by_id_with_this(VM*, u32 pc);
 i64 asm_slow_path_get_by_value(VM*, u32 pc);
+i64 asm_slow_path_get_by_value_with_this(VM*, u32 pc);
 i64 asm_slow_path_get_length(VM*, u32 pc);
+i64 asm_slow_path_get_length_with_this(VM*, u32 pc);
+i64 asm_slow_path_get_method(VM*, u32 pc);
+i64 asm_slow_path_get_iterator(VM*, u32 pc);
 i64 asm_slow_path_get_import_meta(VM*, u32 pc);
 i64 asm_slow_path_get_new_target(VM*, u32 pc);
 i64 asm_slow_path_get_super_constructor(VM*, u32 pc);
@@ -380,14 +671,28 @@ i64 asm_try_get_global_env_binding(VM*, u32 pc);
 i64 asm_try_set_global_env_binding(VM*, u32 pc);
 i64 asm_slow_path_get_global(VM*, u32 pc);
 i64 asm_slow_path_set_global(VM*, u32 pc);
+i64 asm_slow_path_concat_string(VM*, u32 pc);
+i64 asm_slow_path_copy_object_excluding_properties(VM*, u32 pc);
+i64 asm_slow_path_exp(VM*, u32 pc);
+i64 asm_slow_path_import_call(VM*, u32 pc);
+i64 asm_slow_path_new_class(VM*, u32 pc);
 i64 asm_slow_path_call(VM*, u32 pc);
+i64 asm_slow_path_call_direct_eval(VM*, u32 pc);
+i64 asm_slow_path_call_with_argument_array(VM*, u32 pc);
+i64 asm_slow_path_call_direct_eval_with_argument_array(VM*, u32 pc);
 #define DECLARE_CALL_BUILTIN_SLOW_PATH(name, snake_case_name, ...) \
     i64 asm_slow_path_call_builtin_##snake_case_name(VM*, u32 pc);
 JS_ENUMERATE_BUILTINS(DECLARE_CALL_BUILTIN_SLOW_PATH)
 #undef DECLARE_CALL_BUILTIN_SLOW_PATH
 i64 asm_slow_path_get_object_property_iterator(VM*, u32 pc);
 i64 asm_slow_path_object_property_iterator_next(VM*, u32 pc);
+i64 asm_slow_path_iterator_close(VM*, u32 pc);
+i64 asm_slow_path_iterator_next(VM*, u32 pc);
+i64 asm_slow_path_iterator_next_unpack(VM*, u32 pc);
+i64 asm_slow_path_iterator_to_array(VM*, u32 pc);
 i64 asm_slow_path_call_construct(VM*, u32 pc);
+i64 asm_slow_path_call_construct_with_argument_array(VM*, u32 pc);
+i64 asm_slow_path_super_call_with_argument_array(VM*, u32 pc);
 i64 asm_slow_path_new_object(VM*, u32 pc);
 i64 asm_slow_path_new_object_with_no_prototype(VM*, u32 pc);
 i64 asm_slow_path_cache_object_shape(VM*, u32 pc);
@@ -415,6 +720,8 @@ i64 asm_slow_path_to_length(VM*, u32 pc);
 i64 asm_slow_path_postfix_decrement(VM*, u32 pc);
 i64 asm_slow_path_to_int32(VM*, u32 pc);
 i64 asm_slow_path_put_by_value(VM*, u32 pc);
+i64 asm_slow_path_put_by_value_with_this(VM*, u32 pc);
+i64 asm_slow_path_put_by_spread(VM*, u32 pc);
 i64 asm_try_put_by_value_holey_array(VM*, u32 pc);
 u64 asm_helper_to_boolean(u64 encoded_value);
 u64 asm_helper_math_exp(u64 encoded_value);
@@ -488,6 +795,7 @@ i64 asm_try_put_by_value_typed_array(VM*, u32 pc);
 i64 asm_slow_path_get_private_by_id(VM*, u32 pc);
 i64 asm_slow_path_put_private_by_id(VM*, u32 pc);
 i64 asm_slow_path_instance_of(VM*, u32 pc);
+i64 asm_slow_path_in(VM*, u32 pc);
 i64 asm_slow_path_resolve_this_binding(VM*, u32 pc);
 
 // ===== Fallback handler for opcodes without DSL handlers =====
@@ -504,56 +812,6 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
 
     switch (insn.type()) {
     // Throwing instructions
-    case Instruction::Type::CallConstructWithArgumentArray:
-        return execute_throwing<Op::CallConstructWithArgumentArray>(*vm, pc);
-    case Instruction::Type::CallDirectEval:
-        return execute_throwing<Op::CallDirectEval>(*vm, pc);
-    case Instruction::Type::CallDirectEvalWithArgumentArray:
-        return execute_throwing<Op::CallDirectEvalWithArgumentArray>(*vm, pc);
-    case Instruction::Type::CallWithArgumentArray:
-        return execute_throwing<Op::CallWithArgumentArray>(*vm, pc);
-    case Instruction::Type::ConcatString:
-        return execute_throwing<Op::ConcatString>(*vm, pc);
-    case Instruction::Type::CopyObjectExcludingProperties:
-        return execute_throwing<Op::CopyObjectExcludingProperties>(*vm, pc);
-    case Instruction::Type::Exp:
-        return execute_throwing<Op::Exp>(*vm, pc);
-    case Instruction::Type::GetByIdWithThis:
-        return execute_throwing<Op::GetByIdWithThis>(*vm, pc);
-    case Instruction::Type::GetByValueWithThis:
-        return execute_throwing<Op::GetByValueWithThis>(*vm, pc);
-    case Instruction::Type::GetIterator:
-        return execute_throwing<Op::GetIterator>(*vm, pc);
-    case Instruction::Type::GetLengthWithThis:
-        return execute_throwing<Op::GetLengthWithThis>(*vm, pc);
-    case Instruction::Type::GetMethod:
-        return execute_throwing<Op::GetMethod>(*vm, pc);
-    case Instruction::Type::GetObjectPropertyIterator:
-        return execute_throwing<Op::GetObjectPropertyIterator>(*vm, pc);
-    case Instruction::Type::ObjectPropertyIteratorNext:
-        return execute_throwing<Op::ObjectPropertyIteratorNext>(*vm, pc);
-    case Instruction::Type::ImportCall:
-        return execute_throwing<Op::ImportCall>(*vm, pc);
-    case Instruction::Type::In:
-        return execute_throwing<Op::In>(*vm, pc);
-    case Instruction::Type::IteratorClose:
-        return execute_throwing<Op::IteratorClose>(*vm, pc);
-    case Instruction::Type::IteratorNext:
-        return execute_throwing<Op::IteratorNext>(*vm, pc);
-    case Instruction::Type::IteratorNextUnpack:
-        return execute_throwing<Op::IteratorNextUnpack>(*vm, pc);
-    case Instruction::Type::IteratorToArray:
-        return execute_throwing<Op::IteratorToArray>(*vm, pc);
-    case Instruction::Type::NewClass:
-        return execute_throwing<Op::NewClass>(*vm, pc);
-    case Instruction::Type::PutByIdWithThis:
-        return execute_throwing<Op::PutByIdWithThis>(*vm, pc);
-    case Instruction::Type::PutBySpread:
-        return execute_throwing<Op::PutBySpread>(*vm, pc);
-    case Instruction::Type::PutByValueWithThis:
-        return execute_throwing<Op::PutByValueWithThis>(*vm, pc);
-    case Instruction::Type::SuperCallWithArgumentArray:
-        return execute_throwing<Op::SuperCallWithArgumentArray>(*vm, pc);
     default:
         VERIFY_NOT_REACHED();
     }
@@ -735,7 +993,27 @@ i64 asm_slow_path_postfix_increment(VM* vm, u32 pc)
 
 i64 asm_slow_path_get_by_id(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetById>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetById const*>(&bytecode[pc]);
+    auto base_value = vm->get(insn.base());
+    auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
+    auto value = ASM_TRY(*vm, pc, get_by_id<GetByIdMode::Normal>(*vm, [&] { return vm->get_identifier(insn.base_identifier()); }, [&] -> PropertyKey const& { return vm->get_property_key(insn.property()); }, base_value, base_value, cache));
+    vm->set(insn.dst(), value);
+    return static_cast<i64>(pc + sizeof(Op::GetById));
+}
+
+i64 asm_slow_path_get_by_id_with_this(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetByIdWithThis const*>(&bytecode[pc]);
+    auto base_value = vm->get(insn.base());
+    auto this_value = vm->get(insn.this_value());
+    auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
+    auto value = ASM_TRY(*vm, pc, get_by_id<GetByIdMode::Normal>(*vm, [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return vm->get_property_key(insn.property()); }, base_value, this_value, cache));
+    vm->set(insn.dst(), value);
+    return static_cast<i64>(pc + sizeof(Op::GetByIdWithThis));
 }
 
 i64 asm_slow_path_put_by_id(VM* vm, u32 pc)
@@ -743,14 +1021,85 @@ i64 asm_slow_path_put_by_id(VM* vm, u32 pc)
     return slow_path_throwing<Op::PutById>(*vm, pc);
 }
 
+i64 asm_slow_path_put_by_id_with_this(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::PutByIdWithThis const*>(&bytecode[pc]);
+    auto value = vm->get(insn.src());
+    auto base = vm->get(insn.base());
+    auto const& name = vm->get_property_key(insn.property());
+    auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
+    ASM_TRY(*vm, pc, put_by_property_key(*vm, base, vm->get(insn.this_value()), value, {}, name, insn.kind(), insn.strict(), &cache));
+    return static_cast<i64>(pc + sizeof(Op::PutByIdWithThis));
+}
+
 i64 asm_slow_path_get_by_value(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::GetByValue>(*vm, pc);
 }
 
+i64 asm_slow_path_get_by_value_with_this(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetByValueWithThis const*>(&bytecode[pc]);
+    auto property_key_value = vm->get(insn.property());
+    auto object = ASM_TRY(*vm, pc, vm->get(insn.base()).to_object(*vm));
+    auto property_key = ASM_TRY(*vm, pc, property_key_value.to_property_key(*vm));
+    auto value = ASM_TRY(*vm, pc, object->internal_get(property_key, vm->get(insn.this_value())));
+    vm->set(insn.dst(), value);
+    return static_cast<i64>(pc + sizeof(Op::GetByValueWithThis));
+}
+
 i64 asm_slow_path_get_length(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetLength>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetLength const*>(&bytecode[pc]);
+    auto base_value = vm->get(insn.base());
+    auto& executable = vm->current_executable();
+    auto& cache = executable.property_lookup_caches[insn.cache()];
+    auto value = ASM_TRY(*vm, pc, get_by_id<GetByIdMode::Length>(*vm, [&] { return vm->get_identifier(insn.base_identifier()); }, [&] -> PropertyKey const& { return executable.get_property_key(*executable.length_identifier); }, base_value, base_value, cache));
+    vm->set(insn.dst(), value);
+    return static_cast<i64>(pc + sizeof(Op::GetLength));
+}
+
+i64 asm_slow_path_get_length_with_this(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetLengthWithThis const*>(&bytecode[pc]);
+    auto base_value = vm->get(insn.base());
+    auto this_value = vm->get(insn.this_value());
+    auto& executable = vm->current_executable();
+    auto& cache = executable.property_lookup_caches[insn.cache()];
+    auto value = ASM_TRY(*vm, pc, get_by_id<GetByIdMode::Length>(*vm, [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return executable.get_property_key(*executable.length_identifier); }, base_value, this_value, cache));
+    vm->set(insn.dst(), value);
+    return static_cast<i64>(pc + sizeof(Op::GetLengthWithThis));
+}
+
+i64 asm_slow_path_get_method(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetMethod const*>(&bytecode[pc]);
+    auto const& property_key = vm->get_property_key(insn.property());
+    auto method = ASM_TRY(*vm, pc, vm->get(insn.object()).get_method(*vm, property_key));
+    vm->set(insn.dst(), method ?: js_undefined());
+    return static_cast<i64>(pc + sizeof(Op::GetMethod));
+}
+
+i64 asm_slow_path_get_iterator(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetIterator const*>(&bytecode[pc]);
+    auto iterator_record = ASM_TRY(*vm, pc, get_iterator_impl(*vm, vm->get(insn.iterable()), insn.hint()));
+    vm->set(insn.dst_iterator_object(), iterator_record.iterator);
+    vm->set(insn.dst_iterator_next(), iterator_record.next_method);
+    vm->set(insn.dst_iterator_done(), Value(iterator_record.done));
+    return static_cast<i64>(pc + sizeof(Op::GetIterator));
 }
 
 i64 asm_slow_path_get_import_meta(VM* vm, u32 pc)
@@ -841,19 +1190,352 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc)
     return slow_path_throwing<Op::SetGlobal>(*vm, pc);
 }
 
+i64 asm_slow_path_concat_string(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::ConcatString const*>(&bytecode[pc]);
+    auto string = ASM_TRY(*vm, pc, vm->get(insn.src()).to_primitive_string(*vm));
+    vm->set(insn.dst(), PrimitiveString::create(*vm, vm->get(insn.dst()).as_string(), string));
+    return static_cast<i64>(pc + sizeof(Op::ConcatString));
+}
+
+i64 asm_slow_path_copy_object_excluding_properties(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CopyObjectExcludingProperties const*>(&bytecode[pc]);
+    auto& realm = *vm->current_realm();
+    auto from_object = vm->get(insn.from_object());
+    auto to_object = Object::create(realm, realm.intrinsics().object_prototype());
+
+    GC::ConservativeHashTable<PropertyKey> excluded_names;
+    auto excluded_names_operands = insn.excluded_names();
+    for (size_t i = 0; i < insn.excluded_names_count(); ++i)
+        excluded_names.set(ASM_TRY(*vm, pc, vm->get(excluded_names_operands[i]).to_property_key(*vm)));
+
+    ASM_TRY(*vm, pc, to_object->copy_data_properties(*vm, from_object, excluded_names));
+    vm->set(insn.dst(), to_object);
+    return static_cast<i64>(pc + insn.length());
+}
+
+i64 asm_slow_path_exp(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::Exp const*>(&bytecode[pc]);
+    auto result = ASM_TRY(*vm, pc, exp(*vm, vm->get(insn.lhs()), vm->get(insn.rhs())));
+    vm->set(insn.dst(), result);
+    return static_cast<i64>(pc + sizeof(Op::Exp));
+}
+
+i64 asm_slow_path_import_call(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::ImportCall const*>(&bytecode[pc]);
+    auto specifier = vm->get(insn.specifier());
+    auto options_value = vm->get(insn.options());
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, perform_import_call(*vm, specifier, options_value)));
+    return static_cast<i64>(pc + sizeof(Op::ImportCall));
+}
+
+i64 asm_slow_path_new_class(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::NewClass const*>(&bytecode[pc]);
+
+    Value super_class;
+    if (insn.super_class().has_value())
+        super_class = vm->get(insn.super_class().value());
+    GC::RootVector<Value> element_keys;
+    element_keys.ensure_capacity(insn.element_keys_count());
+    for (size_t i = 0; i < insn.element_keys_count(); ++i) {
+        Value element_key;
+        if (insn.element_keys()[i].has_value())
+            element_key = vm->get(insn.element_keys()[i].value());
+        element_keys.unchecked_append(element_key);
+    }
+
+    auto& running_execution_context = vm->running_execution_context();
+    auto* class_environment = &as<Environment>(vm->get(insn.class_environment()).as_cell());
+    auto& outer_environment = running_execution_context.lexical_environment;
+
+    auto const& blueprint = vm->current_executable().class_blueprints[insn.class_blueprint_index()];
+
+    Optional<Utf16FlyString> binding_name;
+    Utf16FlyString class_name;
+    if (!blueprint.has_name && insn.lhs_name().has_value()) {
+        class_name = vm->get_identifier(insn.lhs_name().value());
+    } else {
+        class_name = blueprint.name;
+        binding_name = class_name;
+    }
+
+    auto* retval = ASM_TRY(*vm, pc, construct_class(*vm, blueprint, vm->current_executable(), class_environment, outer_environment, super_class, element_keys, binding_name, class_name));
+    vm->set(insn.dst(), retval);
+    return static_cast<i64>(pc + insn.length());
+}
+
 i64 asm_slow_path_call(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::Call>(*vm, pc);
 }
 
+static COLD Completion throw_type_error_for_asm_callee(VM& vm, Value callee, StringView callee_type, Optional<StringTableIndex> const expression_string)
+{
+    if (expression_string.has_value())
+        return vm.throw_completion<TypeError>(ErrorType::IsNotAEvaluatedFrom, callee, callee_type, vm.current_executable().get_string(*expression_string));
+
+    return vm.throw_completion<TypeError>(ErrorType::IsNotA, callee, callee_type);
+}
+
+static ThrowCompletionOr<void> throw_if_needed_for_asm_call(VM& vm, Value callee, Op::CallType call_type, Optional<StringTableIndex> const expression_string)
+{
+    if ((call_type == Op::CallType::Call || call_type == Op::CallType::DirectEval)
+        && !callee.is_function()) [[unlikely]]
+        return throw_type_error_for_asm_callee(vm, callee, "function"sv, expression_string);
+    if (call_type == Op::CallType::Construct && !callee.is_constructor()) [[unlikely]]
+        return throw_type_error_for_asm_callee(vm, callee, "constructor"sv, expression_string);
+    return {};
+}
+
+static ThrowCompletionOr<void> call_direct_eval(
+    VM& vm,
+    Value callee,
+    Value this_value,
+    ReadonlySpan<Operand> arguments,
+    Operand dst,
+    Optional<StringTableIndex> const expression_string,
+    Strict strict)
+{
+    TRY(throw_if_needed_for_asm_call(vm, callee, Op::CallType::DirectEval, expression_string));
+
+    auto& function = callee.as_function();
+
+    size_t registers_and_locals_count = 0;
+    ReadonlySpan<Value> constants;
+    size_t argument_count = arguments.size();
+    function.get_stack_frame_info(registers_and_locals_count, constants, argument_count);
+
+    auto& stack = vm.interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants, max(arguments.size(), argument_count));
+    if (!callee_context) [[unlikely]]
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
+
+    auto* callee_context_argument_values = callee_context->arguments_data();
+    auto const callee_context_argument_count = callee_context->argument_count;
+    auto const insn_argument_count = arguments.size();
+
+    for (size_t i = 0; i < insn_argument_count; ++i)
+        callee_context_argument_values[i] = vm.get(arguments.data()[i]);
+    for (size_t i = insn_argument_count; i < callee_context_argument_count; ++i)
+        callee_context_argument_values[i] = js_undefined();
+    callee_context->passed_argument_count = insn_argument_count;
+
+    Value retval;
+    if (callee == vm.realm().intrinsics().eval_function()) {
+        retval = TRY(perform_eval(vm, callee_context->argument_count > 0 ? callee_context->arguments_data()[0] : js_undefined(), strict == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
+    } else {
+        retval = TRY(function.internal_call(*callee_context, this_value));
+    }
+    vm.set(dst, retval);
+    return {};
+}
+
+i64 asm_slow_path_call_direct_eval(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CallDirectEval const*>(&bytecode[pc]);
+    ASM_TRY(*vm, pc, call_direct_eval(*vm, vm->get(insn.callee()), vm->get(insn.this_value()), insn.arguments(), insn.dst(), insn.expression_string(), insn.strict()));
+    return static_cast<i64>(pc + insn.length());
+}
+
+static ThrowCompletionOr<void> call_with_argument_array(
+    Op::CallType call_type,
+    VM& vm,
+    Value callee,
+    Value this_value,
+    Value arguments,
+    Operand dst,
+    Optional<StringTableIndex> const expression_string,
+    Strict strict)
+{
+    TRY(throw_if_needed_for_asm_call(vm, callee, call_type, expression_string));
+
+    auto& function = callee.as_function();
+
+    auto& argument_array = arguments.as_array_exotic_object();
+    auto argument_array_length = argument_array.indexed_array_like_size();
+
+    size_t argument_count = argument_array_length;
+    size_t registers_and_locals_count = 0;
+    ReadonlySpan<Value> constants;
+    function.get_stack_frame_info(registers_and_locals_count, constants, argument_count);
+
+    auto& stack = vm.interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants, max(argument_array_length, argument_count));
+    if (!callee_context) [[unlikely]]
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
+
+    auto* callee_context_argument_values = callee_context->arguments_data();
+    auto const callee_context_argument_count = callee_context->argument_count;
+    auto const insn_argument_count = argument_array_length;
+
+    for (size_t i = 0; i < insn_argument_count; ++i) {
+        if (auto maybe_value = argument_array.indexed_get(i); maybe_value.has_value())
+            callee_context_argument_values[i] = maybe_value.release_value().value;
+        else
+            callee_context_argument_values[i] = js_undefined();
+    }
+    for (size_t i = insn_argument_count; i < callee_context_argument_count; ++i)
+        callee_context_argument_values[i] = js_undefined();
+    callee_context->passed_argument_count = insn_argument_count;
+
+    Value retval;
+    if (call_type == Op::CallType::DirectEval && callee == vm.realm().intrinsics().eval_function()) {
+        retval = TRY(perform_eval(vm, callee_context->argument_count > 0 ? callee_context->arguments_data()[0] : js_undefined(), strict == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
+    } else if (call_type == Op::CallType::Construct) {
+        retval = TRY(function.internal_construct(*callee_context, function));
+    } else {
+        retval = TRY(function.internal_call(*callee_context, this_value));
+    }
+
+    vm.set(dst, retval);
+    return {};
+}
+
+i64 asm_slow_path_call_with_argument_array(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CallWithArgumentArray const*>(&bytecode[pc]);
+    ASM_TRY(*vm, pc, call_with_argument_array(Op::CallType::Call, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), vm->get(insn.arguments()), insn.dst(), insn.expression_string(), insn.strict()));
+    return static_cast<i64>(pc + sizeof(Op::CallWithArgumentArray));
+}
+
+i64 asm_slow_path_call_direct_eval_with_argument_array(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CallDirectEvalWithArgumentArray const*>(&bytecode[pc]);
+    ASM_TRY(*vm, pc, call_with_argument_array(Op::CallType::DirectEval, *vm, vm->get(insn.callee()), vm->get(insn.this_value()), vm->get(insn.arguments()), insn.dst(), insn.expression_string(), insn.strict()));
+    return static_cast<i64>(pc + sizeof(Op::CallDirectEvalWithArgumentArray));
+}
+
 i64 asm_slow_path_get_object_property_iterator(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetObjectPropertyIterator>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::GetObjectPropertyIterator const*>(&bytecode[pc]);
+    auto* cache = &vm->current_executable().object_property_iterator_caches[insn.cache()];
+    vm->set(insn.dst_iterator(), ASM_TRY(*vm, pc, asm_get_object_property_iterator(*vm, vm->get(insn.object()), cache)));
+    return static_cast<i64>(pc + sizeof(Op::GetObjectPropertyIterator));
 }
 
 i64 asm_slow_path_object_property_iterator_next(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::ObjectPropertyIteratorNext>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::ObjectPropertyIteratorNext const*>(&bytecode[pc]);
+    auto& iterator = static_cast<PropertyNameIterator&>(vm->get(insn.iterator_object()).as_object());
+    Value value;
+    bool done = false;
+    ASM_TRY(*vm, pc, iterator.next(*vm, done, value));
+    vm->set(insn.dst_done(), Value(done));
+    if (!done)
+        vm->set(insn.dst_value(), value);
+    return static_cast<i64>(pc + sizeof(Op::ObjectPropertyIteratorNext));
+}
+
+i64 asm_slow_path_iterator_close(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::IteratorClose const*>(&bytecode[pc]);
+    auto& iterator_object = vm->get(insn.iterator_object()).as_object();
+    auto iterator_next_method = vm->get(insn.iterator_next());
+    auto iterator_done_property = vm->get(insn.iterator_done()).as_bool();
+    IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
+
+    ASM_TRY(*vm, pc, iterator_close(*vm, iterator_record, Completion { insn.completion_type(), vm->get(insn.completion_value()) }));
+    return static_cast<i64>(pc + sizeof(Op::IteratorClose));
+}
+
+i64 asm_slow_path_iterator_next(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::IteratorNext const*>(&bytecode[pc]);
+    auto& iterator_object = vm->get(insn.iterator_object()).as_object();
+    auto iterator_next_method = vm->get(insn.iterator_next());
+    auto iterator_done_property = vm->get(insn.iterator_done()).as_bool();
+    IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
+    auto result = iterator_next(*vm, iterator_record);
+    if (iterator_record.done)
+        vm->set(insn.iterator_done(), Value(true));
+    vm->set(insn.dst(), ASM_TRY(*vm, pc, result));
+    return static_cast<i64>(pc + sizeof(Op::IteratorNext));
+}
+
+i64 asm_slow_path_iterator_next_unpack(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::IteratorNextUnpack const*>(&bytecode[pc]);
+    auto& iterator_object = vm->get(insn.iterator_object()).as_object();
+    auto iterator_next_method = vm->get(insn.iterator_next());
+    auto iterator_done_property = vm->get(insn.iterator_done()).as_bool();
+    IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
+    auto iteration_result_or_done_or_error = iterator_step(*vm, iterator_record);
+    if (iterator_record.done)
+        vm->set(insn.iterator_done(), Value(true));
+    auto iteration_result_or_done = ASM_TRY(*vm, pc, iteration_result_or_done_or_error);
+    if (iteration_result_or_done.has<IterationDone>()) {
+        vm->set(insn.dst_done(), Value(true));
+        return static_cast<i64>(pc + sizeof(Op::IteratorNextUnpack));
+    }
+    auto& iteration_result = iteration_result_or_done.get<IterationResult>();
+    vm->set(insn.dst_done(), ASM_TRY(*vm, pc, iteration_result.done));
+    auto value = move(iteration_result.value);
+    if (value.is_throw_completion())
+        vm->set(insn.iterator_done(), Value(true));
+    vm->set(insn.dst_value(), ASM_TRY(*vm, pc, value));
+    return static_cast<i64>(pc + sizeof(Op::IteratorNextUnpack));
+}
+
+i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::IteratorToArray const*>(&bytecode[pc]);
+    IteratorRecordImpl iterator_record {
+        .done = vm->get(insn.iterator_done_property()).as_bool(),
+        .iterator = vm->get(insn.iterator_object()).as_object(),
+        .next_method = vm->get(insn.iterator_next_method())
+    };
+
+    auto array = MUST(JS::Array::create(*vm->current_realm(), 0));
+    size_t index = 0;
+    while (true) {
+        auto value_or_error = iterator_step_value(*vm, iterator_record);
+        if (iterator_record.done)
+            vm->set(insn.iterator_done_property(), Value(true));
+        auto value = ASM_TRY(*vm, pc, value_or_error);
+        if (!value.has_value()) {
+            vm->set(insn.dst(), array);
+            return static_cast<i64>(pc + sizeof(Op::IteratorToArray));
+        }
+
+        MUST(array->create_data_property_or_throw(index, value.release_value()));
+        ++index;
+    }
 }
 
 #define DEFINE_CALL_BUILTIN_SLOW_PATH(name, snake_case_name, ...)    \
@@ -867,6 +1549,88 @@ JS_ENUMERATE_BUILTINS(DEFINE_CALL_BUILTIN_SLOW_PATH)
 i64 asm_slow_path_call_construct(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::CallConstruct>(*vm, pc);
+}
+
+i64 asm_slow_path_call_construct_with_argument_array(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::CallConstructWithArgumentArray const*>(&bytecode[pc]);
+    ASM_TRY(*vm, pc, call_with_argument_array(Op::CallType::Construct, *vm, vm->get(insn.callee()), js_undefined(), vm->get(insn.arguments()), insn.dst(), insn.expression_string(), insn.strict()));
+    return static_cast<i64>(pc + sizeof(Op::CallConstructWithArgumentArray));
+}
+
+i64 asm_slow_path_super_call_with_argument_array(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::SuperCallWithArgumentArray const*>(&bytecode[pc]);
+
+    auto new_target = vm->get_new_target();
+    VERIFY(new_target.is_object());
+
+    auto super_constructor = vm->get(insn.super_constructor());
+    if (!super_constructor.is_constructor()) [[unlikely]] {
+        vm->running_execution_context().program_counter = pc;
+        auto completion = vm->throw_completion<TypeError>(ErrorType::NotAConstructor, "Super constructor");
+        return handle_asm_exception(*vm, pc, completion.value());
+    }
+
+    auto& function = super_constructor.as_function();
+
+    auto& argument_array = vm->get(insn.arguments()).as_array_exotic_object();
+    size_t argument_array_length = 0;
+
+    if (insn.is_synthetic()) {
+        argument_array_length = MUST(length_of_array_like(*vm, argument_array));
+    } else {
+        argument_array_length = argument_array.indexed_array_like_size();
+    }
+
+    size_t argument_count = argument_array_length;
+    size_t registers_and_locals_count = 0;
+    ReadonlySpan<Value> constants;
+    function.get_stack_frame_info(registers_and_locals_count, constants, argument_count);
+
+    auto& stack = vm->interpreter_stack();
+    auto* stack_mark = stack.top();
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants, max(argument_array_length, argument_count));
+    if (!callee_context) [[unlikely]] {
+        vm->running_execution_context().program_counter = pc;
+        auto completion = vm->throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+        return handle_asm_exception(*vm, pc, completion.value());
+    }
+    ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
+
+    auto* callee_context_argument_values = callee_context->arguments_data();
+    auto const callee_context_argument_count = callee_context->argument_count;
+    auto const insn_argument_count = argument_array_length;
+
+    if (insn.is_synthetic()) {
+        for (size_t i = 0; i < insn_argument_count; ++i)
+            callee_context_argument_values[i] = argument_array.get_without_side_effects(PropertyKey { i });
+    } else {
+        for (size_t i = 0; i < insn_argument_count; ++i) {
+            if (auto maybe_value = argument_array.indexed_get(i); maybe_value.has_value())
+                callee_context_argument_values[i] = maybe_value.release_value().value;
+            else
+                callee_context_argument_values[i] = js_undefined();
+        }
+    }
+    for (size_t i = insn_argument_count; i < callee_context_argument_count; ++i)
+        callee_context_argument_values[i] = js_undefined();
+    callee_context->passed_argument_count = insn_argument_count;
+
+    auto result = ASM_TRY(*vm, pc, function.internal_construct(*callee_context, new_target.as_function()));
+
+    auto& this_environment = as<FunctionEnvironment>(*get_this_environment(*vm));
+    ASM_TRY(*vm, pc, this_environment.bind_this_value(*vm, result));
+
+    auto& f = as<ECMAScriptFunctionObject>(this_environment.function_object());
+    ASM_TRY(*vm, pc, result->initialize_instance_elements(f));
+
+    vm->set(insn.dst(), result);
+    return static_cast<i64>(pc + sizeof(Op::SuperCallWithArgumentArray));
 }
 
 i64 asm_slow_path_new_object(VM* vm, u32 pc)
@@ -1112,6 +1876,34 @@ i64 asm_slow_path_to_int32(VM* vm, u32 pc)
 i64 asm_slow_path_put_by_value(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::PutByValue>(*vm, pc);
+}
+
+i64 asm_slow_path_put_by_value_with_this(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::PutByValueWithThis const*>(&bytecode[pc]);
+    auto value = vm->get(insn.src());
+    auto base = vm->get(insn.base());
+    auto this_value = vm->get(insn.this_value());
+    auto property_key = ASM_TRY(*vm, pc, vm->get(insn.property()).to_property_key(*vm));
+    ASM_TRY(*vm, pc, put_by_property_key(*vm, base, this_value, value, {}, property_key, insn.kind(), insn.strict()));
+    return static_cast<i64>(pc + sizeof(Op::PutByValueWithThis));
+}
+
+i64 asm_slow_path_put_by_spread(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::PutBySpread const*>(&bytecode[pc]);
+    auto value = vm->get(insn.src());
+    auto base = vm->get(insn.base());
+
+    // a. Let baseObj be ? ToObject(V.[[Base]]).
+    auto object = ASM_TRY(*vm, pc, base.to_object(*vm));
+
+    ASM_TRY(*vm, pc, object->copy_data_properties(*vm, value, {}));
+    return static_cast<i64>(pc + sizeof(Op::PutBySpread));
 }
 
 i64 asm_try_put_by_value_holey_array(VM* vm, u32 pc)
@@ -2158,7 +2950,22 @@ i64 asm_try_put_by_value_typed_array(VM* vm, u32 pc)
 
 i64 asm_slow_path_instance_of(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::InstanceOf>(*vm, pc);
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::InstanceOf const*>(&bytecode[pc]);
+    auto result = ASM_TRY(*vm, pc, instance_of(*vm, vm->get(insn.lhs()), vm->get(insn.rhs())));
+    vm->set(insn.dst(), result);
+    return static_cast<i64>(pc + sizeof(Op::InstanceOf));
+}
+
+i64 asm_slow_path_in(VM* vm, u32 pc)
+{
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
+    auto& insn = *reinterpret_cast<Op::In const*>(&bytecode[pc]);
+    auto result = ASM_TRY(*vm, pc, in(*vm, vm->get(insn.lhs()), vm->get(insn.rhs())));
+    vm->set(insn.dst(), result);
+    return static_cast<i64>(pc + sizeof(Op::In));
 }
 
 i64 asm_slow_path_resolve_this_binding(VM* vm, u32 pc)

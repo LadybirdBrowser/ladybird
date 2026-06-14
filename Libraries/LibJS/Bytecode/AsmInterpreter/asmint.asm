@@ -695,6 +695,26 @@ handler Mul
     call_slow_path asm_slow_path_mul
 end
 
+handler Exp
+    call_slow_path asm_slow_path_exp
+end
+
+handler ConcatString
+    call_slow_path asm_slow_path_concat_string
+end
+
+handler CopyObjectExcludingProperties
+    call_slow_path asm_slow_path_copy_object_excluding_properties
+end
+
+handler ImportCall
+    call_slow_path asm_slow_path_import_call
+end
+
+handler NewClass
+    call_slow_path asm_slow_path_new_class
+end
+
 # ============================================================================
 # Control flow
 # ============================================================================
@@ -1992,6 +2012,10 @@ handler GetById
     dispatch_next
 end
 
+handler GetByIdWithThis
+    call_slow_path asm_slow_path_get_by_id_with_this
+end
+
 # Inline cache fast path for own-property store (ChangeOwnProperty).
 handler PutById
     temp base, tag, obj, shape, plc, cache_shape, cache_proto, prop_offset, dict_gen, cur_dict_gen, props, value, src, result
@@ -2027,6 +2051,10 @@ handler PutById
     call_slow_path asm_slow_path_put_by_id
 .done:
     dispatch_next
+end
+
+handler PutByIdWithThis
+    call_slow_path asm_slow_path_put_by_id_with_this
 end
 
 # Fast path for array[int32_index] with Packed/Holey indexed storage.
@@ -2165,6 +2193,18 @@ handler GetByValue
     call_slow_path asm_slow_path_get_by_value
 end
 
+handler GetByValueWithThis
+    call_slow_path asm_slow_path_get_by_value_with_this
+end
+
+handler PutByValueWithThis
+    call_slow_path asm_slow_path_put_by_value_with_this
+end
+
+handler PutBySpread
+    call_slow_path asm_slow_path_put_by_spread
+end
+
 # Fast path for Array.length (magical length property).
 # Also includes IC fast path for non-array objects (same as GetById).
 handler GetLength
@@ -2212,6 +2252,18 @@ handler GetLength
     dispatch_next
 .slow:
     call_slow_path asm_slow_path_get_length
+end
+
+handler GetLengthWithThis
+    call_slow_path asm_slow_path_get_length_with_this
+end
+
+handler GetMethod
+    call_slow_path asm_slow_path_get_method
+end
+
+handler GetIterator
+    call_slow_path asm_slow_path_get_iterator
 end
 
 # Inline cache fast path for global variable access via the global object.
@@ -3122,8 +3174,44 @@ handler ObjectPropertyIteratorNext
     call_slow_path asm_slow_path_object_property_iterator_next
 end
 
+handler IteratorClose
+    call_slow_path asm_slow_path_iterator_close
+end
+
+handler IteratorNext
+    call_slow_path asm_slow_path_iterator_next
+end
+
+handler IteratorNextUnpack
+    call_slow_path asm_slow_path_iterator_next_unpack
+end
+
+handler IteratorToArray
+    call_slow_path asm_slow_path_iterator_to_array
+end
+
 handler CallConstruct
     call_slow_path asm_slow_path_call_construct
+end
+
+handler CallDirectEval
+    call_slow_path asm_slow_path_call_direct_eval
+end
+
+handler CallWithArgumentArray
+    call_slow_path asm_slow_path_call_with_argument_array
+end
+
+handler CallDirectEvalWithArgumentArray
+    call_slow_path asm_slow_path_call_direct_eval_with_argument_array
+end
+
+handler CallConstructWithArgumentArray
+    call_slow_path asm_slow_path_call_construct_with_argument_array
+end
+
+handler SuperCallWithArgumentArray
+    call_slow_path asm_slow_path_super_call_with_argument_array
 end
 
 handler NewObject
@@ -3164,6 +3252,10 @@ end
 
 handler InstanceOf
     call_slow_path asm_slow_path_instance_of
+end
+
+handler In
+    call_slow_path asm_slow_path_in
 end
 
 handler IsCallable
