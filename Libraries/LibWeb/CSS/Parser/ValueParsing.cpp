@@ -5148,6 +5148,10 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
             if (auto tree_counting_function = parse_tree_counting_function(tree_counting_function_tokens, TreeCountingFunctionStyleValue::ComputedType::Number))
                 return NonMathFunctionCalculationNode::create(tree_counting_function.release_nonnull(), NumericType {});
 
+            auto anchor_function_tokens = TokenStream<ComponentValue>::of_single_token(component_value);
+            if (auto anchor_function = parse_anchor(anchor_function_tokens))
+                return NonMathFunctionCalculationNode::create(anchor_function->as_anchor(), NumericType { NumericType::BaseType::Length, 1 });
+
             // NOTE: If we get here, then we have a ComponentValue that didn't get replaced with something else,
             //       so the calc() is invalid.
             ErrorReporter::the().report(InvalidValueError {

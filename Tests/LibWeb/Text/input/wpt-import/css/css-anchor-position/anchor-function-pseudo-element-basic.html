@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>Positioning pseudo-elements using anchor functions</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#positioning">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+body { margin: 0 }
+#anchor, #target::before, #target::after {
+    width: 100px;
+    height: 100px;
+    position: absolute;
+}
+#anchor.moved {
+    left: 200px;
+    top: 200px;
+}
+#anchor {
+    left: 50px;
+    top: 100px;
+    anchor-name: --a;
+    background: blue;
+}
+#target::before {
+    position-anchor: --a;
+    left: anchor(right);
+    top: anchor(top);
+    background: green;
+    content:'';
+}
+#target::after {
+    position-anchor: --a;
+    left: anchor(left);
+    top: anchor(bottom);
+    background: green;
+    content:'';
+}
+</style>
+<div id=anchor></div>
+<div id=target></div>
+<script>
+test(() => {
+    assert_equals(getComputedStyle(target, '::before').top, '100px', "#target::before top is positioned against anchor");
+    assert_equals(getComputedStyle(target, '::before').left, '150px', "#target::before left is positioned against anchor");
+    assert_equals(getComputedStyle(target, '::after').top, '200px', "#target::after top is positioned against anchor");
+    assert_equals(getComputedStyle(target, '::after').left, '50px', "#target::after left is positioned against anchor");
+}, "Initial anchored position");
+
+test(() => {
+    anchor.classList.add("moved");
+    assert_equals(getComputedStyle(target, '::before').top, '200px', "#target::before top is positioned against anchor");
+    assert_equals(getComputedStyle(target, '::before').left, '300px', "#target::before left is positioned against anchor");
+    assert_equals(getComputedStyle(target, '::after').top, '300px', "#target::after top is positioned against anchor");
+    assert_equals(getComputedStyle(target, '::after').left, '200px', "#target::after left is positioned against anchor");
+}, "Anchored position after moving");
+</script>

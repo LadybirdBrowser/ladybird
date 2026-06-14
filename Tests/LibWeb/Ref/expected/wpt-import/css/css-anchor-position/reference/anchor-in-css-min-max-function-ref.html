@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+
+<style>
+.container {
+  display: grid;
+  grid-template-columns: repeat(3, 100px);
+  gap: 10px;
+}
+
+.box {
+  width: 100px;
+  height: 100px;
+}
+
+.green {
+  background-color: green;
+}
+</style>
+
+<p>The test passes if there are three green boxes with no red.</p>
+
+<div class="container">
+  <div class="box green"></div>
+  <div class="box green"></div>
+  <div class="box green"></div>
+</div>
