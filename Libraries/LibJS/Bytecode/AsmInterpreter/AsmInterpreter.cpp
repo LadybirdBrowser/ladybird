@@ -42,7 +42,6 @@
 // counters. They are printed on exit when the asm interpreter is active.
 #ifdef JS_ASMINT_SLOW_PATH_COUNTERS
 static struct AsmSlowPathStats {
-    u64 fallback_by_type[256] {};
     u64 slow_path_by_type[256] {};
     bool registered {};
 } s_stats;
@@ -63,11 +62,6 @@ static void print_asm_slow_path_stats()
     };
     Entry entries[512];
     size_t num_entries = 0;
-
-    for (size_t i = 0; i < 256; ++i) {
-        if (s_stats.fallback_by_type[i] > 0)
-            entries[num_entries++] = { s_type_names[i], s_stats.fallback_by_type[i] };
-    }
 
     for (size_t i = 0; i < 256; ++i) {
         if (s_stats.slow_path_by_type[i] > 0)
@@ -798,23 +792,11 @@ i64 asm_slow_path_instance_of(VM*, u32 pc);
 i64 asm_slow_path_in(VM*, u32 pc);
 i64 asm_slow_path_resolve_this_binding(VM*, u32 pc);
 
-// ===== Fallback handler for opcodes without DSL handlers =====
-// NB: Opcodes with DSL handlers are dispatched directly and never reach here.
-i64 asm_fallback_handler(VM* vm, u32 pc)
+// ===== Fallback handler for invalid dispatch table entries =====
+// NB: Every bytecode opcode has a DSL handler, so this should never run.
+i64 asm_fallback_handler(VM*, u32)
 {
-    auto& ctx = vm->running_execution_context();
-    ctx.program_counter = pc;
-    auto* bytecode = ctx.executable->bytecode.data();
-    auto& insn = *reinterpret_cast<Instruction const*>(&bytecode[pc]);
-#ifdef JS_ASMINT_SLOW_PATH_COUNTERS
-    ++s_stats.fallback_by_type[to_underlying(insn.type())];
-#endif
-
-    switch (insn.type()) {
-    // Throwing instructions
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    VERIFY_NOT_REACHED();
 }
 
 // ===== Specific slow paths for asm-optimized instructions =====

@@ -1,6 +1,6 @@
 # AsmInterpreter DSL source
 # Each handler implements one bytecode instruction.
-# Instructions not listed here fall through to the C++ fallback handler.
+# Invalid dispatch table entries fall through to the C++ fallback handler.
 #
 # For the full DSL instruction reference, see AsmIntGen/src/main.rs.
 #
@@ -3070,8 +3070,7 @@ end
 
 # Handlers below are pure slow-path delegations: no fast path is worthwhile
 # because the operation is inherently complex (object allocation, prototype
-# chain walks, etc). Having them here avoids the generic fallback handler's
-# overhead of saving/restoring all temporaries.
+# chain walks, etc).
 
 handler GetObjectPropertyIterator
     call_slow_path asm_slow_path_get_object_property_iterator
