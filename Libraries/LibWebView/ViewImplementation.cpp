@@ -1969,6 +1969,8 @@ void ViewImplementation::did_traverse_the_history_to_step(Badge<WebContentClient
                 if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url != current_url)
                     m_webdriver_pending_navigation_url = current_url;
             }
+            if (!m_pending_session_history_traversal->will_change_top_level_entry)
+                complete_webdriver_pending_navigation_if_url_matches(m_url);
             m_pending_session_history_traversal.clear();
             update_navigation_action_state();
             dump_session_history("webcontent-history-step-applied"sv);
