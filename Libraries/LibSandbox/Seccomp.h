@@ -17,6 +17,7 @@ public:
     SeccompPolicy();
 
     void deny_readonly_filesystem_probes();
+    void deny_current_directory_queries();
     void allow_readonly_file_opens();
     void allow_filesystem_metadata_queries();
     void allow_filesystem_writes();

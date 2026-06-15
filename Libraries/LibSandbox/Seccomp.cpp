@@ -1167,6 +1167,15 @@ void SeccompPolicy::allow_common_runtime()
     allow_process_metadata();
     allow_prctl();
     allow_exit();
+    deny_current_directory_queries();
+}
+
+void SeccompPolicy::deny_current_directory_queries()
+{
+#ifdef __NR_getcwd
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_getcwd, 0, 1));
+    append(SECCOMP_ERRNO(ENOENT));
+#endif
 }
 
 void SeccompPolicy::allow_prctl()
