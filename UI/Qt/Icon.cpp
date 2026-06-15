@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <LibCore/Resource.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
@@ -26,6 +27,26 @@ QIcon load_icon_from_uri(StringView uri)
     auto path = qstring_from_ak_string(resource->filesystem_path());
 
     return QIcon { path };
+}
+
+QIcon icon_from_base64_png(StringView favicon_base64_png, int logical_size)
+{
+    auto decoded = decode_base64(favicon_base64_png);
+    if (decoded.is_error())
+        return {};
+
+    QPixmap pixmap;
+    if (!pixmap.loadFromData(decoded.value().data(), static_cast<uint>(decoded.value().size()), "PNG"))
+        return {};
+
+    QIcon icon;
+    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS) {
+        auto size = logical_size * device_pixel_ratio;
+        auto scaled_pixmap = pixmap.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        scaled_pixmap.setDevicePixelRatio(device_pixel_ratio);
+        icon.addPixmap(scaled_pixmap);
+    }
+    return icon;
 }
 
 static QPen chrome_icon_pen(QColor const& color, qreal width)
