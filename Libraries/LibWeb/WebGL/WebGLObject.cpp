@@ -18,6 +18,7 @@ WebGLObject::WebGLObject(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> co
     : Bindings::PlatformObject(realm)
     , m_context(context)
     , m_handle(handle)
+    , m_context_generation(context->context_generation())
 {
 }
 
@@ -62,8 +63,7 @@ ErrorOr<Optional<GLuint>> WebGLObject::handle_for_query(WebGLRenderingContextBas
 
 bool WebGLObject::invalidated_for_context(WebGLRenderingContextBase const* context) const
 {
-    (void)context;
-    return m_invalidated;
+    return m_invalidated || m_context_generation != context->context_generation();
 }
 
 ErrorOr<void> WebGLObject::validate_context(WebGLRenderingContextBase const* context) const

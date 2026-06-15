@@ -45,6 +45,7 @@ private:
     WebGL2RenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<WebGLContextProxy> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual bool reestablish_remote_context() override;
 
     GC::Ref<HTML::HTMLCanvasElement> m_canvas_element;
 

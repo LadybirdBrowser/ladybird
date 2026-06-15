@@ -308,6 +308,9 @@ void CompositorConnection::did_lose_compositor()
             entry.value.callback();
     }
     m_screenshots.clear();
+
+    if (on_compositor_lost)
+        on_compositor_lost();
 }
 
 bool CompositorConnection::can_send_message_to_compositor() const

@@ -25,6 +25,16 @@ WebGLContextProxyBase::~WebGLContextProxyBase()
     m_transport->destroy_context();
 }
 
+void WebGLContextProxyBase::restore(NonnullRefPtr<RemoteWebGLTransport> transport, Vector<String> supported_extensions)
+{
+    m_transport = move(transport);
+    m_supported_extensions = move(supported_extensions);
+    m_lost = false;
+    m_commands.clear_with_capacity();
+    m_pending_bitmaps.clear_with_capacity();
+    m_string_cache.clear();
+}
+
 void WebGLContextProxyBase::flush_commands()
 {
     if (m_commands.is_empty())

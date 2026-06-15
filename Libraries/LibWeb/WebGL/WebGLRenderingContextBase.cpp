@@ -249,12 +249,19 @@ Optional<WebGLRenderingContextBase::TexImageSourceFrame> WebGLRenderingContextBa
     };
 }
 
+// https://registry.khronos.org/webgl/specs/latest/1.0/#CONTEXT_LOST_WEBGL
+static constexpr GLenum CONTEXT_LOST_WEBGL = 0x9242;
+
 // TODO: The glGetError spec allows for queueing errors which is something we should probably do, for now
 //       this just keeps track of one error which is also fine by the spec
 GLenum WebGLRenderingContextBase::get_error_value()
 {
-    // A locally-detected failure (currently an upload too large to send over IPC) is reported
-    // before consulting the host.
+    if (m_context_lost) {
+        auto error = m_error;
+        m_error = GL_NO_ERROR;
+        return error;
+    }
+
     if (auto local_error = context().take_pending_local_error(); local_error != GL_NO_ERROR)
         return local_error;
 
@@ -277,6 +284,52 @@ bool WebGLRenderingContextBase::is_context_lost() const
 {
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::is_context_lost()");
     return m_context_lost;
+}
+
+void WebGLRenderingContextBase::lose_context_from_compositor_loss()
+{
+    if (m_context_lost)
+        return;
+    m_context_lost = true;
+    context().set_lost();
+
+    // The next getError() must report CONTEXT_LOST_WEBGL (one-shot) per the spec.
+    m_error = CONTEXT_LOST_WEBGL;
+
+    HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(heap(), [this, canvas = canvas_for_binding()] {
+        // webglcontextlost is cancelable; preventDefault() means the page wants the context
+        // restored once a compositor is available again.
+        m_context_restore_requested = !fire_webgl_context_event(canvas, EventNames::webglcontextlost);
+    }));
+}
+
+void WebGLRenderingContextBase::restore_context_after_compositor_reconnect()
+{
+    if (!m_context_lost || !m_context_restore_requested)
+        return;
+
+    // A fresh host context starts with no GL objects; per the spec the page re-creates them
+    // in its webglcontextrestored handler.
+    if (!reestablish_remote_context())
+        return;
+
+    reset_context_state_after_loss();
+    m_context_lost = false;
+    m_context_restore_requested = false;
+    m_error = GL_NO_ERROR;
+
+    HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(heap(), [canvas = canvas_for_binding()] {
+        fire_webgl_context_event(canvas, EventNames::webglcontextrestored);
+    }));
+}
+
+void WebGLRenderingContextBase::reset_context_state_after_loss()
+{
+    ++m_context_generation;
+    m_unpack_flip_y = false;
+    m_unpack_premultiply_alpha = false;
+    m_unpack_colorspace_conversion = BROWSER_DEFAULT_WEBGL;
+    reset_client_side_webgl_state();
 }
 
 // https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible

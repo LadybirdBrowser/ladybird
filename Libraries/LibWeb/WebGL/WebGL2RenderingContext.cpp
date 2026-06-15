@@ -70,6 +70,11 @@ void WebGL2RenderingContext::prepare_for_compositing()
     context().present_canvas_for_compositing(m_context_creation_parameters.preserve_drawing_buffer);
 }
 
+bool WebGL2RenderingContext::reestablish_remote_context()
+{
+    return restore_webgl_context_proxy(context(), *m_canvas_element, WebGLVersion::WebGL2, m_actual_context_parameters);
+}
+
 GC::Ref<HTML::HTMLCanvasElement> WebGL2RenderingContext::canvas_for_binding() const
 {
     return *m_canvas_element;

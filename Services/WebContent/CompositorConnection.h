@@ -67,6 +67,7 @@ public:
     void read_webgl_buffer_sub_data(Web::Painting::CanvasId, Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer const& data);
 
     Function<void(u64 page_id, Web::MouseEvent)> on_mouse_event;
+    Function<void()> on_compositor_lost;
 
 private:
     struct PendingScreenshot {

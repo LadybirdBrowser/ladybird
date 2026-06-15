@@ -44,6 +44,7 @@ protected:
 
 private:
     GLuint m_handle { 0 };
+    u64 m_context_generation { 0 };
 
     bool m_invalidated { false };
     String m_label;

@@ -64,4 +64,10 @@ void PageHost::compositor_process_reconnected()
         page->compositor_process_reconnected();
 }
 
+void PageHost::compositor_process_lost()
+{
+    for (auto& [_, page] : m_pages)
+        page->compositor_process_lost();
+}
+
 }

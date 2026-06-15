@@ -35,7 +35,10 @@ public:
     ~WebGLContextProxyBase();
 
     void flush_commands();
+    void set_lost() { m_lost = true; }
     Optional<Painting::CanvasId> canvas_id() const { return m_transport->canvas_id(); }
+
+    void restore(NonnullRefPtr<RemoteWebGLTransport>, Vector<String> supported_extensions);
 
     void make_current() { }
     void notify_content_will_change() { }
