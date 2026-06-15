@@ -108,6 +108,8 @@ void SharedResourceRequest::set_fetch_controller(GC::Ptr<Fetch::Infrastructure::
 
 void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
+    VERIFY(needs_fetching());
+
     if (!ResourceLoader::is_initialized()) {
         handle_failed_fetch();
         return;

@@ -119,7 +119,8 @@ void ImageRequest::prepare_for_presentation(HTMLImageElement&)
 void ImageRequest::fetch_image(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
     VERIFY(m_shared_resource_request);
-    m_shared_resource_request->fetch_resource(realm, request);
+    if (m_shared_resource_request->needs_fetching())
+        m_shared_resource_request->fetch_resource(realm, request);
 }
 
 void ImageRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail)
