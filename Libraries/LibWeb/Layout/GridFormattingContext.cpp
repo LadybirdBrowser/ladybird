@@ -369,6 +369,14 @@ void GridFormattingContext::for_each_subgrid_item_contributing_to_track_sizing(G
     subgrid_context.place_grid_items();
     subgrid_context.initialize_grid_tracks_for_columns_and_rows();
     subgrid_context.initialize_gap_tracks(*m_available_space);
+
+    if (dimension == GridDimension::Row) {
+        subgrid_context.resolve_items_box_metrics(GridDimension::Column);
+        subgrid_context.run_track_sizing(GridDimension::Column);
+        subgrid_context.resolve_items_box_metrics(GridDimension::Column);
+        subgrid_context.resolve_grid_item_sizes(GridDimension::Column);
+    }
+
     subgrid_context.resolve_items_box_metrics(dimension);
 
     subgrid_context.for_each_item_contributing_to_track_sizing(dimension, [&](GridItem const& item) {

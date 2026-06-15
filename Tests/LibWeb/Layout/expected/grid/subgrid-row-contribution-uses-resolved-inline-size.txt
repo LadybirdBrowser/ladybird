@@ -1,0 +1,23 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] children: not-inline
+      Box <div.outer> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
+        Box <div.subgrid> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
+          ImageBox <img> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] children: not-inline
+            (SVG-as-image isolated context)
+            Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+              SVGSVGBox <svg> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [SVG] children: not-inline
+                SVGGeometryBox <rect> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [0,40] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x40]
+      PaintableBox (Box<DIV>.outer) [0,0 800x40]
+        PaintableBox (Box<DIV>.subgrid) [0,0 800x40]
+          ImagePaintable (ImageBox<IMG>) [0,0 800x40]
+      PaintableWithLines (BlockContainer(anonymous)) [0,40 800x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x40] (z-index: auto)
