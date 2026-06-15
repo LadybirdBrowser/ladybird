@@ -145,8 +145,12 @@ pub fn canonicalize_a_port(port_value: &str, protocol_value: &Option<String>) ->
     if let Some(protocol_value) = protocol_value {
         dummy_url.set_scheme(protocol_value.clone());
     }
+    // 4. Otherwise, set dummyURL's scheme to the empty string.
+    else {
+        dummy_url.set_scheme(String::new());
+    }
 
-    // 4. Let parseResult be the result of running basic URL parser given portValue with dummyURL
+    // 5. Let parseResult be the result of running basic URL parser given portValue with dummyURL
     //    as url and port state as state override.
     let parse_result = basic_parse_into(
         port_value,
@@ -154,12 +158,12 @@ pub fn canonicalize_a_port(port_value: &str, protocol_value: &Option<String>) ->
         &BasicParseOptions::new().state_override(State::Port),
     );
 
-    // 4. If parseResult is failure, then throw a TypeError.
+    // 6. If parseResult is failure, then throw a TypeError.
     if !parse_result {
         return Err(ErrorInfo::new("Failed to canonicalize port string"));
     }
 
-    // 5. Return dummyURL’s port, serialized, or empty string if it is null.
+    // 7. Return dummyURL’s port, serialized, or empty string if it is null.
     if dummy_url.port.is_none() {
         return Ok(String::new());
     }
