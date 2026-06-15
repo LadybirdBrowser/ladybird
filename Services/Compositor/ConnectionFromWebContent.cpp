@@ -13,6 +13,7 @@ namespace Compositor {
 ConnectionFromWebContent::ConnectionFromWebContent(NonnullOwnPtr<IPC::Transport> transport, NonnullRefPtr<CompositorState> compositor_state, int client_id)
     : IPC::ConnectionFromClient<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport), client_id)
     , m_compositor_state(move(compositor_state))
+    , m_canvas_host(m_compositor_state->skia_backend_context(), m_compositor_state->canvas_surface_registry())
 {
 }
 
@@ -115,6 +116,71 @@ void ConnectionFromWebContent::clear_compositor_surface(Web::Compositor::Composi
 {
     verify_context_is_owned_by_this_connection(context_id);
     m_compositor_state->clear_compositor_surface(context_id, surface_id);
+}
+
+Messages::CompositorWebContentServer::CreateCanvas2dContextResponse ConnectionFromWebContent::create_canvas_2d_context(Gfx::IntSize size, bool alpha)
+{
+    auto canvas_id = m_canvas_host.create_2d_context(size, alpha);
+    if (!canvas_id.has_value())
+        return { false, Web::Painting::CanvasId { 0 } };
+    return { true, *canvas_id };
+}
+
+void ConnectionFromWebContent::update_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList commands)
+{
+    m_canvas_host.execute_canvas_2d_commands(canvas_id, commands);
+}
+
+void ConnectionFromWebContent::destroy_canvas_context(Web::Painting::CanvasId canvas_id)
+{
+    m_canvas_host.destroy_context(canvas_id);
+}
+
+Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebContent::get_canvas_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect rect)
+{
+    return m_canvas_host.read_back_pixels(canvas_id, rect);
+}
+
+Messages::CompositorWebContentServer::CreateWebglContextResponse ConnectionFromWebContent::create_webgl_context(Web::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias)
+{
+    auto result = m_canvas_host.create_webgl_context(webgl_version, size, depth, stencil, antialias);
+    return { result.success, result.canvas_id, move(result.supported_extensions) };
+}
+
+void ConnectionFromWebContent::webgl_commands(Web::Painting::CanvasId canvas_id, ByteBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps)
+{
+    m_canvas_host.execute_webgl_commands(canvas_id, commands, bitmaps);
+}
+
+void ConnectionFromWebContent::webgl_present_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer)
+{
+    m_canvas_host.present_webgl_canvas(canvas_id, preserve_drawing_buffer);
+}
+
+Messages::CompositorWebContentServer::WebglSyncCallResponse ConnectionFromWebContent::webgl_sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request)
+{
+    return MUST(m_canvas_host.execute_webgl_sync_call(canvas_id, move(request)));
+}
+
+Messages::CompositorWebContentServer::WebglReadPixelsResponse ConnectionFromWebContent::webgl_read_pixels(Web::Painting::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels)
+{
+    if (buf_size < 0 || (buf_size > 0 && (!pixels.is_valid() || pixels.size() < static_cast<size_t>(buf_size)))) {
+        did_misbehave("WebContent sent an invalid WebGL readPixels buffer");
+        return { 0, 0, 0 };
+    }
+
+    auto result = m_canvas_host.webgl_read_pixels_robust_angle(canvas_id, x, y, width, height, format, type, buf_size, move(pixels));
+    return { result.length, result.columns, result.rows };
+}
+
+void ConnectionFromWebContent::webgl_read_buffer_sub_data(Web::Painting::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data)
+{
+    if (size < 0 || (size > 0 && (!data.is_valid() || data.size() < static_cast<size_t>(size)))) {
+        did_misbehave("WebContent sent an invalid WebGL buffer readback target");
+        return;
+    }
+
+    m_canvas_host.webgl_read_buffer_sub_data(canvas_id, target, offset, size, move(data));
 }
 
 void ConnectionFromWebContent::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)

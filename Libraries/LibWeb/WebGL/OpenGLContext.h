@@ -8,6 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Forward.h>

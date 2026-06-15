@@ -69,6 +69,9 @@ public:
 
     OwnPtr<CompositorContextHandle> create_context(CompositorContextId);
 
+    virtual RefPtr<WebGL::RemoteWebGLTransport> create_webgl_transport() = 0;
+    virtual RefPtr<HTML::RemoteCanvas2DTransport> create_canvas_2d_transport() = 0;
+
     virtual void destroy_context(CompositorContextId) = 0;
     virtual void set_presentation_mode(CompositorContextId, PresentationMode) = 0;
 

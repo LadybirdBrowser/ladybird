@@ -5,14 +5,109 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Optional.h>
+#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
+#include <LibWeb/WebGL/RemoteWebGLTransport.h>
 #include <WebContent/CompositorConnection.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/WebContentCompositorHost.h>
 
 namespace WebContent {
+
+class WebContentRemoteWebGLTransport final : public Web::WebGL::RemoteWebGLTransport {
+public:
+    explicit WebContentRemoteWebGLTransport(NonnullRefPtr<CompositorConnection> connection)
+        : m_connection(move(connection))
+    {
+    }
+
+private:
+    virtual CreateResult create_context(Web::WebGL::WebGLVersion webgl_version, Gfx::IntSize initial_size, bool depth, bool stencil, bool antialias) override
+    {
+        CreateResult result;
+        auto canvas_id = m_connection->create_webgl_context(webgl_version, initial_size, depth, stencil, antialias, result.supported_extensions);
+        if (canvas_id.has_value()) {
+            result.success = true;
+            result.canvas_id = *canvas_id;
+        }
+        return result;
+    }
+
+    virtual void destroy_context(Web::Painting::CanvasId canvas_id) override
+    {
+        m_connection->destroy_canvas_context(canvas_id);
+    }
+
+    virtual void send_commands(Web::Painting::CanvasId canvas_id, ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps) override
+    {
+        m_connection->send_webgl_commands(canvas_id, commands, bitmaps);
+    }
+
+    virtual void present_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer) override
+    {
+        m_connection->present_webgl_canvas(canvas_id, preserve_drawing_buffer);
+    }
+
+    virtual ByteBuffer sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request) override
+    {
+        return m_connection->webgl_sync_call(canvas_id, move(request));
+    }
+
+    virtual Web::WebGL::ReadPixelsResult read_pixels_robust_angle(Web::Painting::CanvasId canvas_id, Web::WebGL::GLint x, Web::WebGL::GLint y, Web::WebGL::GLsizei width, Web::WebGL::GLsizei height, Web::WebGL::GLenum format, Web::WebGL::GLenum type, Web::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels) override
+    {
+        return m_connection->read_webgl_pixels(canvas_id, x, y, width, height, format, type, buf_size, pixels);
+    }
+
+    virtual void read_buffer_sub_data(Web::Painting::CanvasId canvas_id, Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data) override
+    {
+        m_connection->read_webgl_buffer_sub_data(canvas_id, target, offset, size, data);
+    }
+
+    virtual Gfx::ShareableBitmap read_back_drawing_buffer(Web::Painting::CanvasId canvas_id, Gfx::IntRect const& rect) override
+    {
+        return m_connection->get_canvas_pixels(canvas_id, rect);
+    }
+
+    NonnullRefPtr<CompositorConnection> m_connection;
+};
+
+class WebContentRemoteCanvas2DTransport final : public Web::HTML::RemoteCanvas2DTransport {
+public:
+    explicit WebContentRemoteCanvas2DTransport(NonnullRefPtr<CompositorConnection> connection)
+        : m_connection(move(connection))
+    {
+    }
+
+private:
+    virtual Optional<Web::Painting::CanvasId> create_context(Gfx::IntSize size, bool alpha) override
+    {
+        return m_connection->create_canvas_2d_context(size, alpha);
+    }
+
+    virtual void destroy_context(Web::Painting::CanvasId canvas_id) override
+    {
+        m_connection->destroy_canvas_context(canvas_id);
+    }
+
+    virtual void update_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands) override
+    {
+        m_connection->update_canvas_2d_commands(canvas_id, commands);
+    }
+
+    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect const& rect) override
+    {
+        auto shareable_bitmap = m_connection->get_canvas_pixels(canvas_id, rect);
+        if (!shareable_bitmap.is_valid())
+            return nullptr;
+        return shareable_bitmap.bitmap();
+    }
+
+    NonnullRefPtr<CompositorConnection> m_connection;
+};
 
 class WebContentCompositorHost final : public Web::Compositor::CompositorHost {
 public:
@@ -22,6 +117,20 @@ public:
     }
 
 private:
+    virtual RefPtr<Web::WebGL::RemoteWebGLTransport> create_webgl_transport() override
+    {
+        if (auto* connection = compositor_connection())
+            return adopt_ref(*new WebContentRemoteWebGLTransport(*connection));
+        return nullptr;
+    }
+
+    virtual RefPtr<Web::HTML::RemoteCanvas2DTransport> create_canvas_2d_transport() override
+    {
+        if (auto* connection = compositor_connection())
+            return adopt_ref(*new WebContentRemoteCanvas2DTransport(*connection));
+        return nullptr;
+    }
+
     virtual void destroy_context(Web::Compositor::CompositorContextId context_id) override
     {
         if (auto* connection = compositor_connection())
