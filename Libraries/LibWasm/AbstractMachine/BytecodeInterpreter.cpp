@@ -139,6 +139,7 @@ static void install_compiled_fault_handlers()
 static struct sigaction s_old_sigsegv;
 static struct sigaction s_old_sigbus;
 static struct sigaction s_old_sigill;
+static struct sigaction s_old_sigfpe;
 
 [[noreturn]] static void chain_fault_signal(int signal, siginfo_t* info, void* context, struct sigaction const& previous_action)
 {
@@ -198,7 +199,7 @@ static void compiled_fault_signal_handler(int signal, siginfo_t* info, void* con
         return;
     }
 
-    if (recovery && signal == SIGILL) {
+    if (recovery && (signal == SIGILL || signal == SIGFPE)) {
 #        if defined(AK_OS_MACOS)
 #            if ARCH(AARCH64)
         auto pc = static_cast<FlatPtr>(uc->uc_mcontext->__ss.__pc);
@@ -240,6 +241,8 @@ static void compiled_fault_signal_handler(int signal, siginfo_t* info, void* con
         chain_fault_signal(signal, info, context, s_old_sigsegv);
     if (signal == SIGILL)
         chain_fault_signal(signal, info, context, s_old_sigill);
+    if (signal == SIGFPE)
+        chain_fault_signal(signal, info, context, s_old_sigfpe);
     chain_fault_signal(signal, info, context, s_old_sigbus);
 }
 
@@ -256,6 +259,7 @@ static void install_compiled_fault_handlers()
     sigaction(SIGSEGV, &action, &s_old_sigsegv);
     sigaction(SIGBUS, &action, &s_old_sigbus);
     sigaction(SIGILL, &action, &s_old_sigill);
+    sigaction(SIGFPE, &action, &s_old_sigfpe);
 }
 
 #    endif
