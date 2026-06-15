@@ -10,6 +10,10 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 
+#ifdef USE_DIRECTX
+#    include <LibGfx/Direct3DContext.h>
+#endif
+
 #ifdef USE_VULKAN
 #    include <LibGfx/VulkanContext.h>
 #endif
@@ -24,6 +28,7 @@ class SkSurface;
 namespace Gfx {
 
 struct VulkanContext;
+class Direct3DContext;
 class MetalContext;
 
 class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
@@ -31,6 +36,10 @@ class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
     AK_MAKE_NONMOVABLE(SkiaBackendContext);
 
 public:
+#ifdef USE_DIRECTX
+    static RefPtr<SkiaBackendContext> create_direct3d_context(NonnullRefPtr<Direct3DContext>);
+#endif
+
 #ifdef USE_VULKAN
     static RefPtr<SkiaBackendContext> create_vulkan_context(const VulkanContext& vulkan_context);
 #endif
