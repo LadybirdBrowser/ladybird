@@ -33,7 +33,7 @@ class WEB_API DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
 
-    void execute(DisplayList const&, AccumulatedVisualContextTree const&, DisplayListResourceStorage const&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>);
+    void execute(DisplayList const&, AccumulatedVisualContextTree const&, DisplayListResourceStorage const&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>, CanvasSurfaceRegistry const* = nullptr);
     virtual void flush(Gfx::PaintingSurface&) = 0;
 
 protected:
@@ -41,6 +41,7 @@ protected:
     DisplayList const& active_display_list() const { return *m_active_display_list; }
     AccumulatedVisualContextTree const& active_visual_context_tree() const { return *m_active_visual_context_tree; }
     DisplayListResourceStorage const& resource_storage() const { return *m_resource_storage; }
+    CanvasSurfaceRegistry const* canvas_surface_registry() const { return m_canvas_surface_registry; }
     ReadonlyBytes inline_data(DisplayListDataSpan span) const
     {
         VERIFY(static_cast<size_t>(span.offset) + span.size <= m_current_command_payload.size());
@@ -73,6 +74,7 @@ private:
     DisplayList const* m_active_display_list { nullptr };
     AccumulatedVisualContextTree const* m_active_visual_context_tree { nullptr };
     DisplayListResourceStorage const* m_resource_storage { nullptr };
+    CanvasSurfaceRegistry const* m_canvas_surface_registry { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
 };

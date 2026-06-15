@@ -9,6 +9,7 @@
 #include <Compositor/CompositorState.h>
 #include <Compositor/ContextState.h>
 #include <LibCore/Timer.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PaintingSurface.h>
@@ -79,8 +80,9 @@ static void clamp_visual_viewport_transform_to_viewport(Web::Painting::Transform
     transform.matrix[1, 3] = clamp(transform.matrix[1, 3], min_y, 0.0f);
 }
 
-ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, bool async_scrolling_enabled)
+ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Web::Painting::CanvasSurfaceRegistry const& canvas_surface_registry, bool async_scrolling_enabled)
     : m_web_content_client(web_content_client)
+    , m_canvas_surface_registry(canvas_surface_registry)
     , m_page_id(page_id)
     , m_async_scrolling_enabled(async_scrolling_enabled)
 {
@@ -877,7 +879,7 @@ Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_
 void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface)
 {
     VERIFY(m_display_list);
-    display_list_player.execute(*m_display_list, visual_context_tree_for_compositing(), m_display_list_resource_storage, m_scroll_state_snapshot, surface);
+    display_list_player.execute(*m_display_list, visual_context_tree_for_compositing(), m_display_list_resource_storage, m_scroll_state_snapshot, surface, &m_canvas_surface_registry);
     m_viewport_scrollbar_controller.paint(surface, display_list_player, m_scroll_state_snapshot);
 }
 

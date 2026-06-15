@@ -25,6 +25,7 @@
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/CanvasSurfaceRegistry.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ScrollState.h>
@@ -68,6 +69,10 @@ public:
     void set_client(CompositorStateClient&);
     ContextOwnerCheckResult check_context_owner(Web::Compositor::CompositorContextId, CompositorStateWebContentClient&);
     void destroy_contexts_for_web_content_client(CompositorStateWebContentClient&);
+
+    RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const { return m_skia_backend_context; }
+    Web::Painting::CanvasSurfaceRegistry& canvas_surface_registry() { return m_canvas_surface_registry; }
+    Web::Painting::CanvasSurfaceRegistry const& canvas_surface_registry() const { return m_canvas_surface_registry; }
 
     void create_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&);
     void destroy_context(Web::Compositor::CompositorContextId);
@@ -143,6 +148,7 @@ private:
     HashMap<Web::Compositor::CompositorContextId, OwnPtr<ContextState>> m_contexts;
     DoublyLinkedList<PendingAsyncPresent> m_pending_async_presents;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
+    Web::Painting::CanvasSurfaceRegistry m_canvas_surface_registry;
     OwnPtr<Web::Painting::DisplayListPlayerSkia> m_display_list_player;
     HashMap<Optional<u64>, OwnPtr<VSyncScheduler>> m_vsync_schedulers_by_display;
     RefPtr<Core::Timer> m_gpu_completion_timer;

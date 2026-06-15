@@ -85,7 +85,7 @@ public:
         i32 bitmap_id { 0 };
     };
 
-    ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, bool async_scrolling_enabled);
+    ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, Web::Painting::CanvasSurfaceRegistry const&, bool async_scrolling_enabled);
     ~ContextState();
 
     static bool presentation_mode_presents_to_client(Web::Compositor::PresentationMode const&);
@@ -179,6 +179,7 @@ private:
     void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&);
 
     CompositorStateWebContentClient& m_web_content_client;
+    Web::Painting::CanvasSurfaceRegistry const& m_canvas_surface_registry;
     Optional<u64> m_page_id;
     bool const m_async_scrolling_enabled { true };
 
