@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Painter.h>
@@ -33,12 +33,9 @@ public:
     void restore();
     void clip(Gfx::Path const&, Gfx::WindingRule);
     void reset();
-    void prune_caches();
 
 private:
-    struct Impl;
-    Impl& impl() { return *m_impl; }
-    NonnullOwnPtr<Impl> m_impl;
+    NonnullRefPtr<PaintingSurface> m_painting_surface;
     u32 m_initial_save_count { 0 };
 };
 

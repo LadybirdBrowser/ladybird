@@ -278,7 +278,6 @@ void CanvasRenderingContext2D::present()
     if (!m_player)
         return;
     flush_recorded_commands();
-    m_player->prune_caches();
 }
 
 void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
