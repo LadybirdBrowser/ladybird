@@ -1324,16 +1324,21 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         }
     }
 
-    auto const defer_commit_handler_steps_until_same_document_entry_update = end_result_is_same_document
+    auto const event_was_intercepted = event->interception_state() != NavigateEvent::InterceptionState::None;
+    auto const same_document_entry_update_will_run_commit_handler_steps = end_result_is_same_document
         && (navigation_type == Bindings::NavigationType::Traverse
-            || navigation_type == Bindings::NavigationType::Push
-            || navigation_type == Bindings::NavigationType::Replace);
+            || (!event_was_intercepted
+                && (navigation_type == Bindings::NavigationType::Push
+                    || navigation_type == Bindings::NavigationType::Replace)));
 
     if (end_result_is_same_document) {
         // NB: Same-document Navigation API entry updates run these steps after currententrychange.
-        //     If those steps have not started here, run them as a fallback for same-document paths
-        //     that did not update entries.
-        if (!defer_commit_handler_steps_until_same_document_entry_update && !event->has_started_navigate_event_intercept_commit_handler_steps())
+        //     If those steps have not started here, run them as a fallback for same-document paths that did not update
+        //     entries. Intercepted push/replace navigations have already attempted their same-document entry update
+        //     above, so keep this fallback enabled in case the navigate event handler detached its document and caused
+        //     that update to return early due to entries and events being disabled.
+        if (!same_document_entry_update_will_run_commit_handler_steps
+            && !event->has_started_navigate_event_intercept_commit_handler_steps())
             run_the_navigate_event_intercept_commit_handler_steps(event, api_method_tracker);
     }
 
