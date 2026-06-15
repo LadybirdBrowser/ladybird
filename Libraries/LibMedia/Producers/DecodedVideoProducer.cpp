@@ -398,17 +398,12 @@ void DecodedVideoProducer::ThreadData::dispatch_frame_end_time(CodedFrame const&
     });
 }
 
-static AK::Duration conservative_frame_end(VideoFrame& frame)
-{
-    return frame.timestamp() + frame.duration().scaled_by(3, 2);
-}
-
 void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> const& frame)
 {
     if (m_seek_id.load() != m_last_processed_seek_id)
         return;
     m_queue.enqueue(frame);
-    m_latest_available_timestamp = max(m_latest_available_timestamp, conservative_frame_end(frame));
+    m_latest_available_timestamp = max(m_latest_available_timestamp, frame->conservative_end());
     dispatch_wake_if_needed_while_locked();
 }
 

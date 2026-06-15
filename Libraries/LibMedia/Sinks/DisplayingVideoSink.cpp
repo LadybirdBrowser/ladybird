@@ -75,11 +75,6 @@ void DisplayingVideoSink::disconnect_input(NonnullRefPtr<VideoProducer> const& i
     m_input = nullptr;
 }
 
-static AK::Duration conservative_frame_end(VideoFrame& frame)
-{
-    return frame.timestamp() + frame.duration().scaled_by(3, 2);
-}
-
 void DisplayingVideoSink::seek(AK::Duration timestamp)
 {
     m_seek_id++;
@@ -96,7 +91,7 @@ void DisplayingVideoSink::seek(AK::Duration timestamp)
             if (frame == nullptr)
                 return;
             available_start = min(available_start, frame->timestamp());
-            available_end = max(available_end, conservative_frame_end(*frame));
+            available_end = max(available_end, frame->conservative_end());
         };
         include_frame(m_current_frame);
         include_frame(m_next_frame);
@@ -157,7 +152,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
             break;
         if (m_next_frame->timestamp() > current_time)
             break;
-        if (current_time > conservative_frame_end(*m_next_frame)) {
+        if (current_time > m_next_frame->conservative_end()) {
             consume_moved_position_signals(last_status);
             if (m_next_frame == nullptr)
                 continue;
@@ -180,7 +175,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         if (is_terminal(last_status))
             current_frame_end = m_current_frame->timestamp() + m_current_frame->duration();
         else
-            current_frame_end = conservative_frame_end(*m_current_frame);
+            current_frame_end = m_current_frame->conservative_end();
         if (current_time <= current_frame_end)
             last_status = PipelineStatus::HaveData;
     }
