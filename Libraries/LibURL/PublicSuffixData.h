@@ -14,12 +14,17 @@ namespace URL {
 
 class PublicSuffixData {
 public:
-    static bool is_matching_public_suffix(StringView host);
-    static bool is_matching_public_suffix(Host const& host);
-    static Optional<String> find_matching_public_suffix(StringView string);
-    static Optional<String> find_matching_public_suffix(Host const& host);
-    static Optional<String> find_matching_registrable_domain(StringView string);
-    static Optional<String> find_matching_registrable_domain(Host const& host);
+    enum class IncludeStarRule {
+        No,
+        Yes,
+    };
+
+    static bool is_matching_public_suffix(StringView host, IncludeStarRule);
+    static bool is_matching_public_suffix(Host const& host, IncludeStarRule);
+    static Optional<String> find_matching_public_suffix(StringView string, IncludeStarRule);
+    static Optional<String> find_matching_public_suffix(Host const& host, IncludeStarRule);
+    static Optional<String> find_matching_registrable_domain(StringView string, IncludeStarRule);
+    static Optional<String> find_matching_registrable_domain(Host const& host, IncludeStarRule);
 };
 
 }
