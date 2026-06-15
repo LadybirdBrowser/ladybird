@@ -110,14 +110,17 @@ void DisplayListPlayer::execute(
     AccumulatedVisualContextTree const& visual_context_tree,
     DisplayListResourceStorage const& resource_storage,
     ScrollStateSnapshot const& scroll_state_snapshot,
-    RefPtr<Gfx::PaintingSurface> surface)
+    RefPtr<Gfx::PaintingSurface> surface,
+    CanvasSurfaceRegistry const* canvas_surface_registry)
 {
     VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
     m_surface = surface;
     m_active_display_list = &display_list;
     m_active_visual_context_tree = &visual_context_tree;
     m_resource_storage = &resource_storage;
+    m_canvas_surface_registry = canvas_surface_registry;
     execute_impl(display_list, scroll_state_snapshot);
+    m_canvas_surface_registry = nullptr;
     m_resource_storage = nullptr;
     m_active_visual_context_tree = nullptr;
     m_active_display_list = nullptr;

@@ -38,6 +38,7 @@
 #include <LibGfx/SkiaUtils.h>
 #include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
+#include <LibWeb/Painting/CanvasSurfaceRegistry.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 
 namespace Web::Painting {
@@ -214,6 +215,28 @@ void DisplayListPlayerSkia::play_command(DrawCompositorSurface const& command)
         return;
 
     auto image = m_image_cache.image_for_frame(frame.value());
+    if (!image)
+        return;
+
+    auto dst_rect = to_skia_rect(command.dst_rect);
+    SkRect src_rect = SkRect::MakeIWH(image->width(), image->height());
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    canvas.drawImageRect(image.get(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
+}
+
+void DisplayListPlayerSkia::play_command(DrawCanvas const& command)
+{
+    auto const* registry = canvas_surface_registry();
+    if (!registry)
+        return;
+
+    auto* canvas_surface = registry->canvas_surface(command.canvas_id);
+    if (!canvas_surface)
+        return;
+
+    auto image = canvas_surface->sk_image_snapshot<sk_sp<SkImage>>();
     if (!image)
         return;
 

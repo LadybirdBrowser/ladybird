@@ -46,6 +46,7 @@ namespace Web::Painting {
 class AccumulatedVisualContextTree;
 class BackingStore;
 class ChromeWidget;
+class CanvasSurfaceRegistry;
 class DevicePixelConverter;
 class DisplayList;
 class DisplayListPlayerSkia;

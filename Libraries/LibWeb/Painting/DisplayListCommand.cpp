@@ -45,6 +45,11 @@ void DrawCompositorSurface::dump(StringBuilder& builder) const
     builder.appendff(" dst_rect={}", dst_rect);
 }
 
+void DrawCanvas::dump(StringBuilder& builder) const
+{
+    builder.appendff(" dst_rect={}", dst_rect);
+}
+
 void DrawVideoFrame::dump(StringBuilder& builder) const
 {
     builder.appendff(" dst_rect={}", dst_rect);

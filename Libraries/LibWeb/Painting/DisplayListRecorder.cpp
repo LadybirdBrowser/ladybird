@@ -523,6 +523,17 @@ void DisplayListRecorder::draw_compositor_surface(Gfx::IntRect const& dst_rect, 
     });
 }
 
+void DisplayListRecorder::draw_canvas(Gfx::IntRect const& dst_rect, CanvasId canvas_id, Gfx::ScalingMode scaling_mode)
+{
+    if (dst_rect.is_empty())
+        return;
+    append_command(DrawCanvas {
+        .dst_rect = dst_rect,
+        .canvas_id = canvas_id,
+        .scaling_mode = scaling_mode,
+    });
+}
+
 void DisplayListRecorder::draw_video_frame(Gfx::IntRect const& dst_rect, VideoFrameResourceId frame_id, RefPtr<Media::VideoFrame const> frame, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())

@@ -39,6 +39,7 @@ class DisplayList;
     V(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)                    \
     V(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame)                \
     V(DrawCompositorSurface, draw_compositor_surface)                                  \
+    V(DrawCanvas, draw_canvas)                                                         \
     V(DrawVideoFrame, draw_video_frame)                                                \
     V(Save, save)                                                                      \
     V(SaveLayer, save_layer)                                                           \
@@ -193,6 +194,18 @@ struct DrawCompositorSurface {
 
     Gfx::IntRect dst_rect;
     CompositorSurfaceId surface_id;
+    Gfx::ScalingMode scaling_mode;
+
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
+    void dump(StringBuilder&) const;
+};
+
+struct DrawCanvas {
+    static constexpr StringView command_name = "DrawCanvas"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawCanvas;
+
+    Gfx::IntRect dst_rect;
+    CanvasId canvas_id;
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }

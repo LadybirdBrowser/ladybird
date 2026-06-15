@@ -17,6 +17,7 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, ImageFrameResourceId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, VideoFrameResourceId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, DisplayListResourceId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, CompositorSurfaceId);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, CanvasId);
 
 inline VideoFrameResourceId allocate_video_frame_resource_id()
 {
