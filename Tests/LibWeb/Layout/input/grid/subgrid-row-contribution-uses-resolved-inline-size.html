@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .outer {
+        display: grid;
+        outline: 2px solid red;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-template-rows: subgrid;
+    }
+
+    img {
+        display: block;
+        width: 100%;
+    }
+</style>
+<div class="outer"><div class="subgrid"><img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='40'><rect width='800' height='40' fill='green'/></svg>"></div></div>
