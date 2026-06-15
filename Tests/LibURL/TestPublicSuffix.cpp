@@ -50,15 +50,17 @@ TEST_CASE(public_suffix_matching_for_psl_rules)
     };
 
     for (auto const& test_case : test_cases) {
-        EXPECT_EQ(URL::PublicSuffixData::is_matching_public_suffix(test_case.input), test_case.is_public_suffix);
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(test_case.input), test_case.public_suffix);
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(test_case.input), test_case.registrable_domain);
+        auto exclude_star_rule = URL::PublicSuffixData::IncludeStarRule::No;
+
+        EXPECT_EQ(URL::PublicSuffixData::is_matching_public_suffix(test_case.input, exclude_star_rule), test_case.is_public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(test_case.input, exclude_star_rule), test_case.public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(test_case.input, exclude_star_rule), test_case.registrable_domain);
 
         auto host = URL::Parser::parse_host(test_case.input);
         VERIFY(host.has_value());
-        EXPECT_EQ(URL::PublicSuffixData::is_matching_public_suffix(*host), test_case.is_public_suffix);
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host), test_case.public_suffix);
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host), test_case.registrable_domain);
+        EXPECT_EQ(URL::PublicSuffixData::is_matching_public_suffix(*host, exclude_star_rule), test_case.is_public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host, exclude_star_rule), test_case.public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host, exclude_star_rule), test_case.registrable_domain);
         EXPECT_EQ(host->public_suffix(), test_case.public_suffix);
         EXPECT_EQ(host->registrable_domain(), test_case.registrable_domain);
     }
@@ -68,36 +70,46 @@ TEST_CASE(public_suffix_matching_without_psl_rule)
 {
     struct TestCase {
         StringView input;
+        bool is_public_suffix_with_star_rule;
         Optional<StringView> host_public_suffix;
         Optional<StringView> host_registrable_domain;
     };
 
     TestCase test_cases[] {
-        { "foobar"sv, "foobar"sv, OptionalNone {} },
-        { "foobar."sv, "foobar."sv, OptionalNone {} },
-        { "not-a-public-suffix"sv, "not-a-public-suffix"sv, OptionalNone {} },
-        { "a.example"sv, "example"sv, "a.example"sv },
-        { "a.example."sv, "example."sv, "a.example."sv },
-        { "b.b.example"sv, "example"sv, "b.example"sv },
-        { "b.b.example."sv, "example."sv, "b.example."sv },
-        { "foo.not-a-public-suffix"sv, "not-a-public-suffix"sv, "foo.not-a-public-suffix"sv },
-        { "sub.foo.not-a-public-suffix"sv, "not-a-public-suffix"sv, "foo.not-a-public-suffix"sv },
-        { "إختبار"sv, "xn--kgbechtv"sv, OptionalNone {} },
-        { "example.إختبار"sv, "xn--kgbechtv"sv, "example.xn--kgbechtv"sv },
-        { "example.إختبار."sv, "xn--kgbechtv."sv, "example.xn--kgbechtv."sv },
-        { "sub.example.إختبار"sv, "xn--kgbechtv"sv, "example.xn--kgbechtv"sv },
+        { "foobar"sv, true, "foobar"sv, OptionalNone {} },
+        { "foobar."sv, true, "foobar."sv, OptionalNone {} },
+        { "not-a-public-suffix"sv, true, "not-a-public-suffix"sv, OptionalNone {} },
+        { "a.example"sv, false, "example"sv, "a.example"sv },
+        { "a.example."sv, false, "example."sv, "a.example."sv },
+        { "b.b.example"sv, false, "example"sv, "b.example"sv },
+        { "b.b.example."sv, false, "example."sv, "b.example."sv },
+        { "foo.not-a-public-suffix"sv, false, "not-a-public-suffix"sv, "foo.not-a-public-suffix"sv },
+        { "sub.foo.not-a-public-suffix"sv, false, "not-a-public-suffix"sv, "foo.not-a-public-suffix"sv },
+        { "إختبار"sv, true, "xn--kgbechtv"sv, OptionalNone {} },
+        { "example.إختبار"sv, false, "xn--kgbechtv"sv, "example.xn--kgbechtv"sv },
+        { "example.إختبار."sv, false, "xn--kgbechtv."sv, "example.xn--kgbechtv."sv },
+        { "sub.example.إختبار"sv, false, "xn--kgbechtv"sv, "example.xn--kgbechtv"sv },
     };
 
     for (auto const& test_case : test_cases) {
-        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(test_case.input));
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(test_case.input), OptionalNone {});
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(test_case.input), OptionalNone {});
+        auto exclude_star_rule = URL::PublicSuffixData::IncludeStarRule::No;
+        auto include_star_rule = URL::PublicSuffixData::IncludeStarRule::Yes;
+
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(test_case.input, exclude_star_rule));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(test_case.input, exclude_star_rule), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(test_case.input, exclude_star_rule), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::is_matching_public_suffix(test_case.input, include_star_rule), test_case.is_public_suffix_with_star_rule);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(test_case.input, include_star_rule), test_case.host_public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(test_case.input, include_star_rule), test_case.host_registrable_domain);
 
         auto host = URL::Parser::parse_host(test_case.input);
         VERIFY(host.has_value());
-        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(*host));
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host), OptionalNone {});
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host), OptionalNone {});
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(*host, exclude_star_rule));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host, exclude_star_rule), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host, exclude_star_rule), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::is_matching_public_suffix(*host, include_star_rule), test_case.is_public_suffix_with_star_rule);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host, include_star_rule), test_case.host_public_suffix);
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host, include_star_rule), test_case.host_registrable_domain);
         EXPECT_EQ(host->public_suffix(), test_case.host_public_suffix);
         EXPECT_EQ(host->registrable_domain(), test_case.host_registrable_domain);
     }
@@ -116,11 +128,13 @@ TEST_CASE(invalid_hosts)
 
     // Above inputs are not valid hosts, so should not be able to be parsed or matched in the PSL.
     for (auto const& input : raw_invalid_inputs) {
+        auto exclude_star_rule = URL::PublicSuffixData::IncludeStarRule::No;
+
         auto host = URL::Parser::parse_host(input);
         EXPECT(!host.has_value());
-        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(input));
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(input), OptionalNone {});
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(input), OptionalNone {});
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(input, exclude_star_rule));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(input, exclude_star_rule), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(input, exclude_star_rule), OptionalNone {});
     }
 }
 
@@ -132,15 +146,17 @@ TEST_CASE(public_suffix_matching_for_ip_addresses)
     };
 
     for (auto const& input : test_cases) {
-        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(input));
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(input), OptionalNone {});
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(input), OptionalNone {});
+        auto exclude_star_rule = URL::PublicSuffixData::IncludeStarRule::No;
+
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(input, exclude_star_rule));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(input, exclude_star_rule), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(input, exclude_star_rule), OptionalNone {});
 
         auto host = URL::Parser::parse_host(input);
         VERIFY(host.has_value());
-        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(*host));
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host), OptionalNone {});
-        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host), OptionalNone {});
+        EXPECT(!URL::PublicSuffixData::is_matching_public_suffix(*host, exclude_star_rule));
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_public_suffix(*host, exclude_star_rule), OptionalNone {});
+        EXPECT_EQ(URL::PublicSuffixData::find_matching_registrable_domain(*host, exclude_star_rule), OptionalNone {});
         EXPECT_EQ(host->public_suffix(), OptionalNone {});
         EXPECT_EQ(host->registrable_domain(), OptionalNone {});
     }
