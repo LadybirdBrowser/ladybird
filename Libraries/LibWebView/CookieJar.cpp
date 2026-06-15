@@ -228,7 +228,7 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
         return Error::from_string_literal("Cookie URL host cannot be canonicalized");
 
     // 9. If the user agent is configured to reject "public suffixes" and the domain-attribute is a public suffix:
-    if (URL::PublicSuffixData::is_matching_public_suffix(domain_attribute, URL::PublicSuffixData::IncludeStarRule::No)) {
+    if (URL::PublicSuffixData::is_matching_public_suffix(domain_attribute, URL::PublicSuffixData::IncludeStarRule::Yes)) {
         // 1. Let request-host-canonical be the canonicalized request-host.
         // 2. If request-host fails to be canonicalized then abort this algorithm and ignore the cookie entirely.
 

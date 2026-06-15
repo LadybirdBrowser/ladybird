@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 55 tests
 
-54 Pass
-1 Fail
+55 Pass
 Pass	Test cookie domain attribute parsing
 Pass	Return cookie for a domain match
 Pass	No cookie returned for domain mismatch (subdomains differ post-redirect)
@@ -21,7 +20,7 @@ Pass	No cookie returned for domain attribute with whitespace that surrounds a le
 Pass	No cookie returned for domain attribute with trailing '.'
 Pass	No cookie returned for domain attribute with trailing '..'
 Pass	No cookie returned for domain attribute with trailing whitespace and '.'
-Fail	No cookie returned for domain attribute with TLD as value
+Pass	No cookie returned for domain attribute with TLD as value
 Pass	No cookie returned for domain attribute with TLD as value, with leading '.'
 Pass	No cookie returned for domain attribute with TLD as value, with leading and trailing '.'
 Pass	Return multiple cookies that match on domain (without and with leading '.')
