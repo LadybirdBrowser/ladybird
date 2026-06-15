@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const page2Body = `<!DOCTYPE html><script>parent.postMessage("loaded-page2", "*");<\/script>`;
+        const page2Url = await server.createEcho("GET", "/location-navigate-then-push-state-page2", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: page2Body,
+        });
+
+        const page1Body = `<!DOCTYPE html>
+            <script>
+                location.href = "${page2Url}";
+                history.pushState({}, "", "?same-document");
+            <\/script>`;
+        const page1Url = await server.createEcho("GET", "/location-navigate-then-push-state-page1", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: page1Body,
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const result = await new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.source === iframe.contentWindow && event.data === "loaded-page2")
+                    resolve("PASS");
+            });
+            iframe.src = page1Url;
+        });
+        iframe.remove();
+        println(result);
+        done();
+    });
+</script>

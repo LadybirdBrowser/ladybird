@@ -2455,18 +2455,24 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
     // 16. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
 
+    // AD-HOC: Browser engines commit same-document navigations synchronously when no traversal state is active. Keep
+    //         the spec's queued synchronous-navigation steps as the fallback for reentrant traversal work and child
+    //         navigables whose nested history is not ready yet.
     // 17. Append the following session history synchronous navigation steps involving navigable to traversable:
-    traversable->append_session_history_synchronous_navigation_steps(*this, GC::create_function(heap(), [this, traversable, history_entry, entry_to_replace, navigation_id, history_handling, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, entryToReplace, historyHandling, and userInvolvement.
-        finalize_a_same_document_navigation(*traversable, *this, history_entry, entry_to_replace, history_handling, user_involvement,
-            GC::create_function(heap(), [signal](HistoryStepResult) {
-                signal->resolve({});
-            }));
+    if (!traversable->try_to_synchronously_commit_same_document_navigation(*this, history_entry, entry_to_replace)) {
+        traversable->append_session_history_synchronous_navigation_steps(*this, GC::create_function(heap(), [this, traversable, history_entry, entry_to_replace, navigation_id, history_handling, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
+            // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, entryToReplace,
+            //    historyHandling, and userInvolvement.
+            finalize_a_same_document_navigation(*traversable, *this, history_entry, entry_to_replace, history_handling, user_involvement,
+                GC::create_function(heap(), [signal](HistoryStepResult) {
+                    signal->resolve({});
+                }));
 
-        // FIXME: 2. Invoke WebDriver BiDi fragment navigated with navigable and a new WebDriver BiDi
-        //            navigation status whose id is navigationId, url is url, and status is "complete".
-        (void)navigation_id;
-    }));
+            // FIXME: 2. Invoke WebDriver BiDi fragment navigated with navigable and a new WebDriver BiDi
+            //            navigation status whose id is navigationId, url is url, and status is "complete".
+            (void)navigation_id;
+        }));
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#evaluate-a-javascript:-url
@@ -3018,15 +3024,21 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     // 12. Let traversable be navigable's traversable navigable.
     auto traversable = navigable->traversable_navigable();
 
+    // AD-HOC: Browser engines commit same-document navigations synchronously when no traversal state is active. Keep
+    //         the spec's queued synchronous-navigation steps as the fallback for reentrant traversal work and child
+    //         navigables whose nested history is not ready yet.
     // 13. Append the following session history synchronous navigation steps involving navigable to traversable:
-    traversable->append_session_history_synchronous_navigation_steps(*navigable, GC::create_function(document.realm().heap(), [traversable, navigable, new_entry, entry_to_replace, history_handling](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        // 1. Finalize a same-document navigation given traversable, navigable, newEntry, entryToReplace, historyHandling, and "none".
-        finalize_a_same_document_navigation(*traversable, *navigable, new_entry, entry_to_replace, history_handling, UserNavigationInvolvement::None,
-            GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
-                signal->resolve({});
-            }));
-        // 2. FIXME: Invoke WebDriver BiDi history updated with navigable.
-    }));
+    if (!traversable->try_to_synchronously_commit_same_document_navigation(*navigable, new_entry, entry_to_replace)) {
+        traversable->append_session_history_synchronous_navigation_steps(*navigable, GC::create_function(document.realm().heap(), [traversable, navigable, new_entry, entry_to_replace, history_handling](NonnullRefPtr<Core::Promise<Empty>> signal) {
+            // 1. Finalize a same-document navigation given traversable, navigable, newEntry, entryToReplace,
+            //    historyHandling, and "none".
+            finalize_a_same_document_navigation(*traversable, *navigable, new_entry, entry_to_replace, history_handling, UserNavigationInvolvement::None,
+                GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
+                    signal->resolve({});
+                }));
+            // 2. FIXME: Invoke WebDriver BiDi history updated with navigable.
+        }));
+    }
 }
 
 void Navigable::scroll_offset_did_change()
