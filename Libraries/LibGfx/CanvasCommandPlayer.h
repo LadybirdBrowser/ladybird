@@ -29,8 +29,6 @@ public:
 
     void play(CanvasCommandList const&);
 
-    void prune_caches();
-
 private:
     void play_command(CanvasCommands::ClearRect const&);
     void play_command(CanvasCommands::FillRect const&);
