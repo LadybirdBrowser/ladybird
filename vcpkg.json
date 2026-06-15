@@ -150,7 +150,7 @@
         "freetype",
         "harfbuzz",
         "icu",
-        "vulkan"
+        "direct3d"
       ]
     },
     {
@@ -180,8 +180,14 @@
         "zstd"
       ]
     },
-    "vulkan",
-    "vulkan-headers",
+    {
+      "name": "vulkan",
+      "platform": "linux | bsd | android"
+    },
+    {
+      "name": "vulkan-headers",
+      "platform": "linux | bsd | android"
+    },
     "woff2",
     "wuffs",
     "zlib"
@@ -254,7 +260,6 @@
             "pcre2",
             "png",
             "thread",
-            "vulkan",
             "widgets",
             "zstd"
           ]
