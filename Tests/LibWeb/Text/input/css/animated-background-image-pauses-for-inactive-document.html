@@ -1,0 +1,52 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const imageURL = "../wpt-import/images/anim-gr.gif";
+
+    async function loadIframe(iframe) {
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.append(iframe);
+        await loaded;
+        iframe.contentWindow.internals.dumpLayoutTree(iframe.contentDocument);
+    }
+
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                #target {
+                    width: 100px;
+                    height: 50px;
+                    background-image: url("../wpt-import/images/anim-gr.gif");
+                }
+            </style>
+            <div id="target"></div>
+        `;
+
+        await loadIframe(iframe);
+
+        const iframeWindow = iframe.contentWindow;
+
+        // Wait the animation to progress to the second frame
+        await waitForImageAnimationState(imageURL, state => state.timerActive && state.frameIndex > 0, iframeWindow);
+
+        // Make the iframe document inactive - this should stop the animation.
+        iframe.remove();
+
+        // Wait a tick for the iframe to become inactive
+        await timeout(0);
+
+        println(
+            `timer stopped after iframe removal: ${!iframeWindow.internals.imageAnimationStateForURL(imageURL).timerActive}`
+        );
+
+        // Make the iframe document active again - this should reset the animation.
+        await loadIframe(iframe);
+
+        const stateAfterReattach = iframe.contentWindow.internals.imageAnimationStateForURL(imageURL);
+        println(
+            `animation restarted after iframe reattach: ${stateAfterReattach.timerActive && stateAfterReattach.frameIndex === 0 && stateAfterReattach.loopsCompleted === 0}`
+        );
+    });
+</script>

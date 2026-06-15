@@ -38,7 +38,6 @@ public:
     Gfx::FloatRect bounding_box() const;
 
     // ^Layout::ImageProvider
-    virtual size_t current_frame_index() const override { return m_current_frame_index; }
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
 
 protected:
@@ -57,16 +56,10 @@ private:
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
     virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
 
-    void animate();
-
     GC::Ptr<SVG::SVGAnimatedLength> m_x;
     GC::Ptr<SVG::SVGAnimatedLength> m_y;
     GC::Ptr<SVG::SVGAnimatedLength> m_width;
     GC::Ptr<SVG::SVGAnimatedLength> m_height;
-
-    RefPtr<Core::Timer> m_animation_timer;
-    size_t m_current_frame_index { 0 };
-    size_t m_loops_completed { 0 };
 
     Optional<URL::URL> m_href;
 

@@ -5,26 +5,39 @@
             margin: 0;
         }
 
-        #target {
+        #container {
+            display: flex;
+            gap: 4px;
+        }
+
+        .target {
             width: 100px;
             height: 50px;
-            /* red-then-green.gif is 100x50: frame 0 is solid red for 500ms, frame 1 is solid green for 100s, it does not loop */
             background: url("../data/red-then-green.gif") no-repeat;
         }
     </style>
-    <div id="target"></div>
+    <div id="container">
+        <div class="target"></div>
+    </div>
     <script src="../../Text/input/include.js"></script>
     <script>
         (async () => {
             const imageURL = "../data/red-then-green.gif";
 
-            // Wait for the animation to start
+            // Wait for the animation to start.
             await waitForImageAnimationState(imageURL, state => state.timerActive);
 
-            // Wait until the next frame
+            // Wait for half of the first frame's duration
+            await timeout(250);
+
+            // Add a new consumer. It's frame timings should be aligned with the first consumer.
+            const lateTarget = document.createElement("div");
+            lateTarget.className = "target";
+            container.append(lateTarget);
+
+            // Wait for the animation to advance to the second frame. Both consumers should be showing the second frame
             await waitForImageAnimationState(imageURL, state => state.frameIndex > 0);
 
-            // Take a screenshot - the image should have been invalidated and repainted.
             document.documentElement.classList.remove("reftest-wait");
         })();
     </script>

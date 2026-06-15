@@ -5,7 +5,6 @@
  */
 
 #include "SVGImageElement.h"
-#include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/SVGImageElement.h>
@@ -26,8 +25,6 @@ GC_DEFINE_ALLOCATOR(SVGImageElement);
 SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
 {
-    m_animation_timer = Core::Timer::create();
-    m_animation_timer->on_timeout = [this] { animate(); };
 }
 
 SVGImageElement::~SVGImageElement() = default;
@@ -196,12 +193,6 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     m_resource_request->add_callbacks(
         [this, resource_request = GC::Root { m_resource_request }] {
             m_load_event_delayer.clear();
-            auto image_data = resource_request->image_data();
-            if (image_data->is_animated() && image_data->frame_count() > 1) {
-                m_current_frame_index = 0;
-                m_animation_timer->set_interval(image_data->frame_duration(0));
-                m_animation_timer->start();
-            }
             register_with_decoded_image_data_if_needed();
             set_needs_style_update(true);
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
@@ -224,31 +215,6 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
 RefPtr<Layout::Node> SVGImageElement::create_layout_node(CSS::ComputedProperties const& style)
 {
     return make_ref_counted<Layout::SVGImageBox>(document(), *this, style);
-}
-
-void SVGImageElement::animate()
-{
-    auto image_data = m_resource_request->image_data();
-    if (!image_data) {
-        return;
-    }
-
-    m_current_frame_index = (m_current_frame_index + 1) % image_data->frame_count();
-    auto current_frame_duration = image_data->frame_duration(m_current_frame_index);
-
-    if (current_frame_duration != m_animation_timer->interval()) {
-        m_animation_timer->restart(current_frame_duration);
-    }
-
-    if (m_current_frame_index == image_data->frame_count() - 1) {
-        ++m_loops_completed;
-        if (m_loops_completed > 0 && m_loops_completed == image_data->loop_count()) {
-            m_animation_timer->stop();
-        }
-    }
-
-    if (paintable())
-        paintable()->set_needs_repaint();
 }
 
 GC::Ptr<HTML::DecodedImageData> SVGImageElement::decoded_image_data() const

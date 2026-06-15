@@ -1,0 +1,2 @@
+timer active before base change: true
+timer active after removal: true

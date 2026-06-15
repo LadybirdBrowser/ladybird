@@ -6798,22 +6798,6 @@ void Document::remove_css_image_resource_if_unused(URL::URL const& url)
     m_css_image_resources.remove(it);
 }
 
-void Document::animate_css_image_resource(URL::URL const& url)
-{
-    if (auto* resource = css_image_resource(url))
-        resource->animate(*this);
-}
-
-u64 Document::active_css_image_animation_timer_count() const
-{
-    u64 count = 0;
-    for (auto const& it : m_css_image_resources) {
-        if (it.value->has_active_animation_timer())
-            ++count;
-    }
-    return count;
-}
-
 void Document::prune_image_resource_caches()
 {
     static constexpr size_t decoded_image_resource_cache_limit = 8 * MiB;

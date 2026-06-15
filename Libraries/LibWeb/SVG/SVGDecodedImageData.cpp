@@ -229,7 +229,7 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     return surface;
 }
 
-Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::frame(size_t, Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::current_frame(Gfx::IntSize size) const
 {
     if (size.is_empty())
         return {};
@@ -251,7 +251,7 @@ Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::default_frame(Gfx::IntSize
 {
     // FIXME: Implement this properly once we support animated SVGs, potentially by creating a temporary internal
     //        document which has animations disabled.
-    return frame(0, size);
+    return current_frame(size);
 }
 
 Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
@@ -308,7 +308,7 @@ void SVGDecodedImageData::SVGPageClient::visit_edges(Visitor& visitor)
     visitor.visit(m_svg_page);
 }
 
-void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, CSS::ImageRendering) const
+void SVGDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::IntRect dst_rect, CSS::ImageRendering) const
 {
     auto display_list = record_display_list(dst_rect.size(), context.display_list_recorder().resource_storage());
     if (!display_list.has_value())

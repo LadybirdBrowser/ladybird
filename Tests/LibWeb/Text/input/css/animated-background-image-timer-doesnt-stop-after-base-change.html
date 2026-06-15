@@ -9,14 +9,15 @@
     "
 ></div>
 <script>
+    const imageURL = new URL("../wpt-import/images/anim-gr.gif", document.baseURI).href;
+
     asyncTest(async done => {
         await new Promise(resolve => window.addEventListener("load", resolve));
 
         internals.dumpLayoutTree(document);
-        const activeAnimationsBeforeBaseChange =
-            internals.activeImageStyleValueAnimationCount();
+        const timerActiveBeforeBaseChange = internals.imageAnimationStateForURL(imageURL).timerActive;
         println(
-            `active animations before base change: ${activeAnimationsBeforeBaseChange}`
+            `timer active before base change: ${timerActiveBeforeBaseChange}`
         );
 
         const base = document.createElement("base");
@@ -25,9 +26,8 @@
 
         target.remove();
         internals.dumpLayoutTree(document);
-        const activeAnimationsAfterRemoval =
-            internals.activeImageStyleValueAnimationCount();
-        println(`active animations after removal: ${activeAnimationsAfterRemoval}`);
+        const timerActiveAfterRemoval = internals.imageAnimationStateForURL(imageURL).timerActive;
+        println(`timer active after removal: ${timerActiveAfterRemoval}`);
         done();
     });
 </script>

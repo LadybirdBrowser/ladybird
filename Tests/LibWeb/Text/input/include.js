@@ -52,6 +52,21 @@ function timeout(ms) {
     return promise;
 }
 
+async function waitForImageAnimationState(url, predicate, targetWindow = window) {
+    return new Promise(async resolve => {
+        while (true) {
+            try {
+                const state = targetWindow.internals.imageAnimationStateForURL(url);
+                if (predicate(state)) return resolve(state);
+            } catch {
+                // The image hasn't loaded yet.
+            }
+
+            await animationFrame();
+        }
+    });
+}
+
 const __testErrorHandlerController = new AbortController();
 window.addEventListener(
     "error",

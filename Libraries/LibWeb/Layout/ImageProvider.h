@@ -22,8 +22,6 @@ public:
 
     bool is_image_available() const { return decoded_image_data() != nullptr; }
 
-    virtual size_t current_frame_index() const = 0;
-
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const = 0;
 
     Optional<CSSPixels> intrinsic_width() const;

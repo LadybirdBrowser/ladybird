@@ -136,7 +136,7 @@ public:
     void set_preferred_color_scheme(StringView color_scheme);
     String canvas_color_scheme();
     bool style_sheet_may_have_has_selectors(CSS::CSSStyleSheet&);
-    WebIDL::UnsignedLongLong active_image_style_value_animation_count();
+    WebIDL::ExceptionOr<JS::Object*> image_animation_state_for_url(String const& url);
     JS::Object* async_scrolling_state();
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
     bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);

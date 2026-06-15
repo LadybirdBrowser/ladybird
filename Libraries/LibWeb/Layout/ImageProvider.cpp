@@ -50,7 +50,7 @@ Optional<CSSPixelSize> ImageProvider::intrinsic_size() const
 Optional<Gfx::DecodedImageFrame> ImageProvider::current_image_frame(Optional<Gfx::IntSize> size) const
 {
     if (auto const& data = decoded_image_data())
-        return data->frame(current_frame_index(), size.value_or(intrinsic_size().value_or({}).to_type<int>()));
+        return data->current_frame(size.value_or(intrinsic_size().value_or({}).to_type<int>()));
     return {};
 }
 

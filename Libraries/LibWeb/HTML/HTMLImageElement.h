@@ -98,8 +98,6 @@ public:
     ImageRequest& current_request() { return *m_current_request; }
     ImageRequest const& current_request() const { return *m_current_request; }
 
-    virtual size_t current_frame_index() const override { return m_current_frame_index; }
-
     // https://html.spec.whatwg.org/multipage/images.html#upgrade-the-pending-request-to-the-current-request
     void upgrade_pending_request_to_current_request();
 
@@ -139,15 +137,6 @@ private:
     void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, String const& url_string, String const& previous_url, u64 update_the_image_data_count);
 
     virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
-
-    bool current_request_has_running_animation() const;
-    void start_animation_timer_if_visible();
-    void animate();
-
-    RefPtr<Core::Timer> m_animation_timer;
-    size_t m_current_frame_index { 0 };
-    size_t m_loops_completed { 0 };
-    bool m_animation_paused_by_visibility { false };
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 

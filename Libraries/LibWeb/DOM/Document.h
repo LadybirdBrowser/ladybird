@@ -831,8 +831,6 @@ public:
     CSS::ImageStyleValueResource const* css_image_resource(URL::URL const&) const;
     CSS::ImageStyleValueResource& create_css_image_resource(GC::Ref<HTML::SharedResourceRequest>);
     void remove_css_image_resource_if_unused(URL::URL const&);
-    void animate_css_image_resource(URL::URL const&);
-    u64 active_css_image_animation_timer_count() const;
     void prune_image_resource_caches();
 
     void restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry);

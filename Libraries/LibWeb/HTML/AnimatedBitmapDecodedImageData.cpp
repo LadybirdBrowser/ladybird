@@ -9,11 +9,14 @@
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
+#include <LibWeb/Platform/Timer.h>
 
 namespace Web::HTML {
 
@@ -55,6 +58,7 @@ void AnimatedBitmapDecodedImageData::deliver_frames_for_session(i64 session_id, 
 
 GC::Ref<AnimatedBitmapDecodedImageData> AnimatedBitmapDecodedImageData::create(
     JS::Realm& realm,
+    DOM::Document& document,
     i64 session_id,
     u32 frame_count,
     u32 loop_count,
@@ -63,8 +67,11 @@ GC::Ref<AnimatedBitmapDecodedImageData> AnimatedBitmapDecodedImageData::create(
     Vector<u32> durations,
     Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps)
 {
+    auto animation_timer = Platform::Timer::create(realm.heap());
+    auto document_observer = realm.create<DOM::DocumentObserver>(realm, document);
+
     auto data = realm.create<AnimatedBitmapDecodedImageData>(
-        session_id, frame_count, loop_count, size, move(color_space), move(durations));
+        session_id, frame_count, loop_count, size, move(color_space), move(durations), animation_timer, document_observer);
 
     // Place initial bitmaps into the buffer pool.
     for (u32 i = 0; i < initial_bitmaps.size(); ++i) {
@@ -89,17 +96,31 @@ AnimatedBitmapDecodedImageData::AnimatedBitmapDecodedImageData(
     u32 loop_count,
     Gfx::IntSize size,
     Gfx::ColorSpace color_space,
-    Vector<u32> durations)
-    : m_session_id(session_id)
+    Vector<u32> durations,
+    GC::Ref<Platform::Timer> animation_timer,
+    GC::Ref<DOM::DocumentObserver> document_observer)
+    : AnimatedDecodedImageData(document_observer)
+    , m_session_id(session_id)
     , m_frame_count(frame_count)
     , m_loop_count(loop_count)
     , m_size(size)
     , m_color_space(move(color_space))
     , m_durations(move(durations))
+    , m_animation_timer(animation_timer)
 {
+    m_animation_timer->on_timeout = GC::create_function(vm().heap(), [weak_this = GC::Weak { *this }] {
+        if (auto self = weak_this.ptr())
+            self->advance_animation();
+    });
 }
 
 AnimatedBitmapDecodedImageData::~AnimatedBitmapDecodedImageData() = default;
+
+void AnimatedBitmapDecodedImageData::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_animation_timer);
+}
 
 size_t AnimatedBitmapDecodedImageData::external_memory_size() const
 {
@@ -114,8 +135,54 @@ size_t AnimatedBitmapDecodedImageData::external_memory_size() const
 void AnimatedBitmapDecodedImageData::finalize()
 {
     Base::finalize();
+    m_animation_timer->stop();
     session_registry().remove(m_session_id);
     Platform::ImageCodecPlugin::the().stop_animation_decode(m_session_id);
+}
+
+bool AnimatedBitmapDecodedImageData::animation_has_completed() const
+{
+    return m_loop_count > 0 && m_loops_completed == m_loop_count;
+}
+
+void AnimatedBitmapDecodedImageData::reset_animation()
+{
+    m_current_frame_index = 0;
+    m_loops_completed = 0;
+    maybe_request_more_frames(m_current_frame_index);
+    notify_clients_did_update();
+}
+
+void AnimatedBitmapDecodedImageData::start_animation()
+{
+    // NB: We should only ever start the animation when the first client is registered, or when animation restarts, both
+    //     of which should guarantee that we are at the beginning of the animation.
+    VERIFY(m_current_frame_index == 0 && m_loops_completed == 0);
+
+    m_animation_timer->start(frame_duration(0));
+}
+
+void AnimatedBitmapDecodedImageData::stop_animation()
+{
+    m_animation_timer->stop();
+}
+
+void AnimatedBitmapDecodedImageData::advance_animation()
+{
+    m_current_frame_index = (m_current_frame_index + 1) % m_frame_count;
+    maybe_request_more_frames(m_current_frame_index);
+
+    auto current_frame_duration = frame_duration(m_current_frame_index);
+    if (current_frame_duration != m_animation_timer->interval())
+        m_animation_timer->restart(current_frame_duration);
+
+    if (m_current_frame_index == m_frame_count - 1) {
+        ++m_loops_completed;
+        if (animation_has_completed())
+            stop_animation();
+    }
+
+    notify_clients_did_update();
 }
 
 AnimatedBitmapDecodedImageData::BufferSlot const* AnimatedBitmapDecodedImageData::find_slot(u32 frame_index) const
@@ -159,6 +226,11 @@ Optional<Gfx::DecodedImageFrame> AnimatedBitmapDecodedImageData::default_frame(G
     return frame(0, size);
 }
 
+Optional<Gfx::DecodedImageFrame> AnimatedBitmapDecodedImageData::current_frame(Gfx::IntSize size) const
+{
+    return frame(m_current_frame_index, size);
+}
+
 int AnimatedBitmapDecodedImageData::frame_duration(size_t frame_index) const
 {
     if (frame_index >= m_durations.size())
@@ -181,9 +253,9 @@ Optional<CSSPixelFraction> AnimatedBitmapDecodedImageData::intrinsic_aspect_rati
     return CSSPixels(m_size.width()) / CSSPixels(m_size.height());
 }
 
-void AnimatedBitmapDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, CSS::ImageRendering image_rendering) const
+void AnimatedBitmapDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::IntRect dst_rect, CSS::ImageRendering image_rendering) const
 {
-    auto decoded_frame = frame(frame_index);
+    auto decoded_frame = current_frame();
     if (!decoded_frame.has_value())
         return;
 
@@ -212,22 +284,13 @@ void AnimatedBitmapDecodedImageData::receive_frames(Vector<NonnullRefPtr<Gfx::Bi
     }
 }
 
-size_t AnimatedBitmapDecodedImageData::notify_frame_advanced(size_t caller_frame_index)
-{
-    // We own the frame progression. Only advance when a caller reports
-    // the expected next frame (this deduplicates multiple callers per tick).
-    size_t expected_next = (m_current_frame_index + 1) % m_frame_count;
-    if (caller_frame_index == expected_next) {
-        m_current_frame_index = expected_next;
-        maybe_request_more_frames(m_current_frame_index);
-    }
-    return m_current_frame_index;
-}
-
 void AnimatedBitmapDecodedImageData::maybe_request_more_frames(size_t current_frame_index)
 {
     if (m_request_in_flight)
         return;
+
+    // TODO: Once all `ImageProvider`s are `DecodedImageData::Client`s we can defer loading new frames if we have no
+    //       clients
 
     // Count how many frames ahead of current are in the pool.
     u32 frames_ahead = 0;

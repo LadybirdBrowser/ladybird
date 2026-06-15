@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<img id="first" src="../../data/loop-count-2.gif" />
+<img id="second" src="../../data/loop-count-2.gif" />
+<script>
+    const imageURL = "../../data/loop-count-2.gif";
+
+    promiseTest(async () => {
+        const stateBeforeRestart = await waitForImageAnimationState(imageURL, state => state.frameIndex > 0);
+
+        println(`client count before restart: ${stateBeforeRestart.clientCount}`);
+        println(`frame advanced before restart: ${stateBeforeRestart.frameIndex > 0}`);
+
+        first.removeAttribute("src");
+        await timeout(0);
+
+        const reloaded = new Promise(resolve => first.addEventListener("load", resolve, { once: true }));
+        first.src = imageURL;
+        await reloaded;
+
+        const stateAfterRestart = internals.imageAnimationStateForURL(imageURL);
+        println(`session unchanged after restart: ${stateAfterRestart.sessionID === stateBeforeRestart.sessionID}`);
+        println(
+            `animation restarted after src reset: ${stateAfterRestart.frameIndex === 0 && stateAfterRestart.loopsCompleted === 0 && stateAfterRestart.timerActive}`
+        );
+        println(`client count after restart: ${stateAfterRestart.clientCount}`);
+    });
+</script>

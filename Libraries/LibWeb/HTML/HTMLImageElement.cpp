@@ -148,9 +148,6 @@ GC_DEFINE_ALLOCATOR(HTMLImageElement);
 HTMLImageElement::HTMLImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
-    m_animation_timer = Core::Timer::create();
-    m_animation_timer->on_timeout = [this] { animate(); };
-
     document.register_viewport_client(*this);
 }
 
@@ -171,25 +168,12 @@ void HTMLImageElement::initialize(JS::Realm& realm)
     m_current_request = ImageRequest::create(realm, document().page());
 
     // AD-HOC: Create a DocumentObserver eagerly to handle document lifecycle changes.
-    //         The document_became_inactive callback handles the navigation case by clearing the
-    //         load event delayer and stopping the animation timer.
+    //         The document_became_inactive callback handles the navigation case by clearing the load event delayer.
     //         A document_became_active callback is set lazily by update_the_image_data() when
     //         needed to restart image loading after the document becomes active again.
     m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
     m_document_observer->set_document_became_inactive([this]() {
         m_load_event_delayer.clear();
-        m_animation_timer->stop();
-        m_animation_paused_by_visibility = false;
-    });
-    m_document_observer->set_document_visibility_state_observer([this](HTML::VisibilityState visibility_state) {
-        if (visibility_state == HTML::VisibilityState::Hidden) {
-            m_animation_paused_by_visibility = m_animation_timer->is_active();
-            m_animation_timer->stop();
-            return;
-        }
-
-        if (m_animation_paused_by_visibility)
-            start_animation_timer_if_visible();
     });
 }
 
@@ -206,6 +190,8 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
 
     if (m_load_event_delayer.has_value())
         m_load_event_delayer.emplace(document());
+
+    // FIXME: The current and pending requests may still be pointing at the old document's SharedResourceRequests.
 }
 
 void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
@@ -699,7 +685,6 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
             m_current_request = ImageRequest::create(document().realm(), document().page());
             m_current_request->set_image_data(entry->image_data);
             m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
-            m_current_frame_index = 0;
             register_with_decoded_image_data_if_needed();
 
             // 5. Prepare the current request for presentation given the img element.
@@ -985,13 +970,6 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 if (!maybe_omit_events || previous_url != url_string)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
 
-                m_current_frame_index = 0;
-                m_animation_timer->stop();
-                if (image_data->is_animated() && image_data->frame_count() > 1) {
-                    m_animation_timer->set_interval(image_data->frame_duration(0));
-                    start_animation_timer_if_visible();
-                }
-
                 m_load_event_delayer.clear();
             }));
         },
@@ -1230,38 +1208,8 @@ void HTMLImageElement::handle_failed_fetch()
 // https://html.spec.whatwg.org/multipage/rendering.html#restart-the-animation
 void HTMLImageElement::restart_the_animation()
 {
-    m_current_frame_index = 0;
-
-    if (current_request_has_running_animation()) {
-        start_animation_timer_if_visible();
-    } else {
-        m_animation_timer->stop();
-        m_animation_paused_by_visibility = false;
-    }
-}
-
-bool HTMLImageElement::current_request_has_running_animation() const
-{
-    auto image_data = m_current_request->image_data();
-    return image_data && image_data->is_animated() && image_data->frame_count() > 1;
-}
-
-void HTMLImageElement::start_animation_timer_if_visible()
-{
-    if (!current_request_has_running_animation()) {
-        m_animation_timer->stop();
-        m_animation_paused_by_visibility = false;
-        return;
-    }
-
-    if (document().visibility_state_value() == VisibilityState::Hidden) {
-        m_animation_timer->stop();
-        m_animation_paused_by_visibility = true;
-        return;
-    }
-
-    m_animation_paused_by_visibility = false;
-    m_animation_timer->start();
+    if (auto image_data = m_current_request->image_data())
+        image_data->restart_animation();
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#update-the-source-set
@@ -1422,38 +1370,6 @@ Optional<ImageSourceAndPixelDensity> HTMLImageElement::select_an_image_source()
 void HTMLImageElement::set_source_set(SourceSet source_set)
 {
     m_source_set = move(source_set);
-}
-
-void HTMLImageElement::animate()
-{
-    if (document().visibility_state_value() == VisibilityState::Hidden) {
-        m_animation_timer->stop();
-        m_animation_paused_by_visibility = true;
-        return;
-    }
-
-    auto image_data = m_current_request->image_data();
-    if (!image_data) {
-        return;
-    }
-
-    m_current_frame_index = (m_current_frame_index + 1) % image_data->frame_count();
-    m_current_frame_index = image_data->notify_frame_advanced(m_current_frame_index);
-    auto current_frame_duration = image_data->frame_duration(m_current_frame_index);
-
-    if (current_frame_duration != m_animation_timer->interval()) {
-        m_animation_timer->restart(current_frame_duration);
-    }
-
-    if (m_current_frame_index == image_data->frame_count() - 1) {
-        ++m_loops_completed;
-        if (m_loops_completed > 0 && m_loops_completed == image_data->loop_count()) {
-            m_animation_timer->stop();
-            m_animation_paused_by_visibility = false;
-        }
-    }
-
-    set_needs_repaint();
 }
 
 bool HTMLImageElement::allows_auto_sizes() const

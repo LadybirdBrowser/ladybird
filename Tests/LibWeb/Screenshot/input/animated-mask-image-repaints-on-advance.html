@@ -15,6 +15,7 @@
         }
     </style>
     <div id="target"></div>
+    <script src="../../Text/input/include.js"></script>
     <script>
         const gifURL = "../data/animated-mask-image.gif";
 
@@ -22,26 +23,12 @@
             .getElementById("target")
             .style.setProperty("mask-image", `linear-gradient(transparent, transparent), url("${gifURL}")`);
 
-        const waitForAnimationToStart = () =>
-            new Promise(resolve => {
-                const wait = () => {
-                    if (internals.activeImageStyleValueAnimationCount() > 0) {
-                        resolve();
-                        return;
-                    }
-
-                    requestAnimationFrame(wait);
-                };
-
-                wait();
-            });
-
         (async () => {
             // Wait for the animation to start
-            await waitForAnimationToStart();
+            await waitForImageAnimationState(gifURL, state => state.timerActive);
 
             // Wait until the next frame
-            await new Promise(resolve => setTimeout(resolve, 600));
+            await waitForImageAnimationState(gifURL, state => state.frameIndex > 0);
 
             // Take a screenshot - the mask image should have been invalidated and repainted.
             document.documentElement.classList.remove("reftest-wait");

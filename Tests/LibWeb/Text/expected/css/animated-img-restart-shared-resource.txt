@@ -1,0 +1,5 @@
+client count before restart: 2
+frame advanced before restart: true
+session unchanged after restart: true
+animation restarted after src reset: true
+client count after restart: 2

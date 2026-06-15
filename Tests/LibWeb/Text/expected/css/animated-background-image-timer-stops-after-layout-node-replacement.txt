@@ -1,3 +1,0 @@
-active animations before replacement: 1
-active animations after replacement: 1
-active animations after hiding: 0
