@@ -41,17 +41,19 @@ static Web::Painting::TransformData const& visual_viewport_transform(Web::Painti
 
 static bool visual_viewport_transforms_match(Web::Painting::TransformData const& a, Web::Painting::TransformData const& b)
 {
-    static constexpr float epsilon = 0.01f;
+    static constexpr float transform_epsilon = 0.01f;
+    static constexpr float translation_epsilon = 0.5f;
 
     for (size_t row = 0; row < 4; ++row) {
         for (size_t column = 0; column < 4; ++column) {
+            auto epsilon = (column == 3 && (row == 0 || row == 1)) ? translation_epsilon : transform_epsilon;
             if (AK::fabs(a.matrix[row, column] - b.matrix[row, column]) > epsilon)
                 return false;
         }
     }
 
-    return AK::fabs(a.origin.x() - b.origin.x()) <= epsilon
-        && AK::fabs(a.origin.y() - b.origin.y()) <= epsilon;
+    return AK::fabs(a.origin.x() - b.origin.x()) <= translation_epsilon
+        && AK::fabs(a.origin.y() - b.origin.y()) <= translation_epsilon;
 }
 
 static Web::Compositor::AsyncScrollNodeStableID viewport_stable_id_from(Web::Compositor::AsyncScrollNodeID node_id)
@@ -200,6 +202,10 @@ void ContextState::install_display_list_update(
     m_wheel_routing_admission = wheel_routing_admission;
     m_can_accept_async_wheel_events = wheel_routing_admission == Web::Compositor::WheelRoutingAdmission::Accepted;
     m_has_blocking_wheel_event_listeners = async_scrolling_state.has_blocking_wheel_event_listeners;
+    if (m_async_visual_viewport_transform.has_value() && (!m_can_accept_async_wheel_events || m_has_blocking_wheel_event_listeners)) {
+        m_async_visual_viewport_transform.clear();
+        m_visual_context_tree_for_compositing.clear();
+    }
 
     m_viewport_scrollbar_controller.set_scrollbars(async_scrolling_state.viewport_scrollbars);
     m_async_scroll_tree.set_state(move(async_scrolling_state));
