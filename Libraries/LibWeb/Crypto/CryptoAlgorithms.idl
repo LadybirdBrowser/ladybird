@@ -1,0 +1,162 @@
+
+// https://w3c.github.io/webcrypto/#key-algorithm-dictionary
+dictionary KeyAlgorithm {
+    required DOMString name;
+};
+
+// https://w3c.github.io/webcrypto/#dom-hashalgorithmidentifier
+typedef AlgorithmIdentifier HashAlgorithmIdentifier;
+
+// https://w3c.github.io/webcrypto/#dfn-BigInteger
+typedef Uint8Array BigInteger;
+
+// https://www.w3.org/TR/webcrypto-2/#aes-cbc-params
+dictionary AesCbcParams : Algorithm {
+    required BufferSource iv;
+};
+
+// https://w3c.github.io/webcrypto/#aes-ctr-params
+dictionary AesCtrParams : Algorithm {
+    required BufferSource counter;
+    required [EnforceRange] octet length;
+};
+
+// https://w3c.github.io/webcrypto/#AesKeyAlgorithm-dictionary
+dictionary AesKeyAlgorithm : KeyAlgorithm {
+    required unsigned short length;
+};
+
+// https://w3c.github.io/webcrypto/#aes-gcm-params
+dictionary AesGcmParams : Algorithm {
+    required BufferSource iv;
+    BufferSource additionalData;
+    [EnforceRange] octet tagLength;
+};
+
+// https://w3c.github.io/webcrypto/#hkdf-params
+dictionary HkdfParams : Algorithm {
+    required HashAlgorithmIdentifier hash;
+    required BufferSource salt;
+    required BufferSource info;
+};
+
+dictionary Pbkdf2Params : Algorithm {
+    required BufferSource salt;
+    required [EnforceRange] unsigned long iterations;
+    required HashAlgorithmIdentifier hash;
+};
+
+// https://w3c.github.io/webcrypto/#RsaKeyGenParams-dictionary
+dictionary RsaKeyGenParams : Algorithm {
+    required [EnforceRange] unsigned long modulusLength;
+    required BigInteger publicExponent;
+};
+
+// https://w3c.github.io/webcrypto/#RsaHashedKeyGenParams-dictionary
+dictionary RsaHashedKeyGenParams : RsaKeyGenParams {
+    required HashAlgorithmIdentifier hash;
+};
+
+// https://w3c.github.io/webcrypto/#RsaHashedImportParams-dictionary
+dictionary RsaHashedImportParams : Algorithm {
+    required HashAlgorithmIdentifier hash;
+};
+
+// https://w3c.github.io/webcrypto/#rsa-oaep-params
+dictionary RsaOaepParams : Algorithm {
+    BufferSource label;
+};
+
+// https://w3c.github.io/webcrypto/#RsaPssParams-dictionary
+dictionary RsaPssParams : Algorithm {
+    required [EnforceRange] unsigned long saltLength;
+};
+
+// https://w3c.github.io/webcrypto/#EcdsaParams-dictionary
+dictionary EcdsaParams : Algorithm {
+    required HashAlgorithmIdentifier hash;
+};
+
+typedef DOMString NamedCurve;
+
+dictionary EcKeyGenParams : Algorithm {
+    required NamedCurve namedCurve;
+};
+
+// https://w3c.github.io/webcrypto/#aes-keygen-params
+dictionary AesKeyGenParams : Algorithm {
+    required [EnforceRange] unsigned short length;
+};
+
+// https://w3c.github.io/webcrypto/#aes-derivedkey-params
+dictionary AesDerivedKeyParams : Algorithm {
+    required [EnforceRange] unsigned short length;
+};
+
+// https://w3c.github.io/webcrypto/#dh-EcdhKeyDeriveParams
+dictionary EcdhKeyDeriveParams : Algorithm {
+    required CryptoKey public;
+};
+
+// https://w3c.github.io/webcrypto/#EcKeyImportParams-dictionary
+dictionary EcKeyImportParams : Algorithm {
+    required NamedCurve namedCurve;
+};
+
+// https://w3c.github.io/webcrypto/#hmac-importparams
+dictionary HmacImportParams : Algorithm {
+    required HashAlgorithmIdentifier hash;
+    [EnforceRange] unsigned long length;
+};
+
+// https://w3c.github.io/webcrypto/#hmac-keygen-params
+dictionary HmacKeyGenParams : Algorithm {
+    required HashAlgorithmIdentifier hash;
+    [EnforceRange] unsigned long length;
+};
+
+// https://wicg.github.io/webcrypto-secure-curves/#ed448-params
+dictionary Ed448Params : Algorithm {
+    BufferSource context;
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#argon2-params
+dictionary Argon2Params : Algorithm {
+    required BufferSource nonce;
+    required [EnforceRange] unsigned long parallelism;
+    required [EnforceRange] unsigned long memory;
+    required [EnforceRange] unsigned long passes;
+    [EnforceRange] octet version;
+    BufferSource secretValue;
+    BufferSource associatedData;
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#cshake-params
+dictionary CShakeParams : Algorithm {
+    required [EnforceRange] unsigned long outputLength;
+    BufferSource functionName;
+    BufferSource customization;
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-params
+dictionary KmacParams : Algorithm {
+    required [EnforceRange] unsigned long outputLength;
+    BufferSource customization;
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-keygen-params
+dictionary KmacKeyGenParams : Algorithm {
+    [EnforceRange] unsigned long length;
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-importparams
+dictionary KmacImportParams : Algorithm {
+    [EnforceRange] unsigned long length;
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#aead-params
+dictionary AeadParams : Algorithm {
+    required BufferSource iv;
+    BufferSource additionalData;
+    [EnforceRange] octet tagLength;
+};

@@ -20,6 +20,7 @@
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Cipher/AES.h>
 #include <LibCrypto/Cipher/ChaCha.h>
+#include <LibWeb/Bindings/CryptoAlgorithms.h>
 #include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/Hash/Argon2.h>
@@ -45,19 +46,15 @@
 
 namespace Web::Crypto {
 
-static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_from_value(JS::VM& vm, JS::Value const hash_value)
+static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_from_idl_value(JS::VM& vm, AlgorithmIdentifier const& hash_value)
 {
     auto* realm = vm.current_realm();
 
     auto maybe_normalized_algorithm = [&]() -> WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> {
-        if (hash_value.is_string()) {
-            auto const hash_string = TRY(hash_value.to_string(vm));
-            return normalize_an_algorithm(*realm, hash_string, "digest"_string);
-        }
-        if (hash_value.is_object()) {
-            auto const hash_object = TRY(hash_value.to_object(vm));
-            return normalize_an_algorithm(*realm, hash_object, "digest"_string);
-        }
+        if (hash_value.has<String>())
+            return normalize_an_algorithm(*realm, hash_value.get<String>(), "digest"_string);
+        if (hash_value.has<GC::Ref<JS::Object>>())
+            return normalize_an_algorithm(*realm, hash_value.get<GC::Ref<JS::Object>>(), "digest"_string);
         VERIFY_NOT_REACHED();
     }();
 
@@ -66,6 +63,11 @@ static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_
     }
 
     return HashAlgorithmIdentifier { maybe_normalized_algorithm.value().parameter->name };
+}
+
+static JS::ThrowCompletionOr<ByteBuffer> copy_buffer_source(JS::VM& vm, WebIDL::BufferSourceVariant const& buffer_source)
+{
+    return TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(WebIDL::BufferSource { buffer_source }));
 }
 
 // https://w3c.github.io/webcrypto/#concept-usage-intersection
@@ -316,12 +318,8 @@ AesCbcParams::~AesCbcParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCbcParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
-
-    auto iv_value = TRY(object.get("iv"_utf16_fly_string));
-    if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_aes_cbc_params(vm, value));
+    auto iv = TRY(copy_buffer_source(vm, idl_params.iv));
 
     return adopt_own<AlgorithmParams>(*new AesCbcParams { iv });
 }
@@ -330,65 +328,34 @@ AesCtrParams::~AesCtrParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCtrParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_aes_ctr_params(vm, value));
+    auto counter = TRY(copy_buffer_source(vm, idl_params.counter));
 
-    auto iv_value = TRY(object.get("counter"_utf16_fly_string));
-    if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
-
-    auto length_value = TRY(object.get("length"_utf16_fly_string));
-    auto length = TRY(length_value.to_u8(vm));
-
-    return adopt_own<AlgorithmParams>(*new AesCtrParams { iv, length });
+    return adopt_own<AlgorithmParams>(*new AesCtrParams { counter, idl_params.length });
 }
 
 AesGcmParams::~AesGcmParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesGcmParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
-
-    auto iv_value = TRY(object.get("iv"_utf16_fly_string));
-    if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_aes_gcm_params(vm, value));
+    auto iv = TRY(copy_buffer_source(vm, idl_params.iv));
 
     auto maybe_additional_data = Optional<ByteBuffer> {};
-    if (MUST(object.has_property("additionalData"_utf16_fly_string))) {
-        auto additional_data_value = TRY(object.get("additionalData"_utf16_fly_string));
-        if (!additional_data_value.is_object() || !(is<JS::TypedArrayBase>(additional_data_value.as_object()) || is<JS::ArrayBuffer>(additional_data_value.as_object()) || is<JS::DataView>(additional_data_value.as_object())))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-        maybe_additional_data = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(additional_data_value.as_object()));
-    }
+    if (idl_params.additional_data.has_value())
+        maybe_additional_data = TRY(copy_buffer_source(vm, idl_params.additional_data.value()));
 
-    auto maybe_tag_length = Optional<u8> {};
-    if (MUST(object.has_property("tagLength"_utf16_fly_string))) {
-        auto tag_length_value = TRY(object.get("tagLength"_utf16_fly_string));
-        maybe_tag_length = TRY(tag_length_value.to_u8(vm));
-    }
-
-    return adopt_own<AlgorithmParams>(*new AesGcmParams { iv, maybe_additional_data, maybe_tag_length });
+    return adopt_own<AlgorithmParams>(*new AesGcmParams { iv, maybe_additional_data, idl_params.tag_length });
 }
 
 HKDFParams::~HKDFParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HKDFParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
-
-    auto hash_value = TRY(object.get("hash"_utf16_fly_string));
-    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
-
-    auto salt_value = TRY(object.get("salt"_utf16_fly_string));
-    if (!salt_value.is_object() || !(is<JS::TypedArrayBase>(salt_value.as_object()) || is<JS::ArrayBuffer>(salt_value.as_object()) || is<JS::DataView>(salt_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto salt = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(salt_value.as_object()));
-
-    auto info_value = TRY(object.get("info"_utf16_fly_string));
-    if (!info_value.is_object() || !(is<JS::TypedArrayBase>(info_value.as_object()) || is<JS::ArrayBuffer>(info_value.as_object()) || is<JS::DataView>(info_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto info = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(info_value.as_object()));
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_hkdf_params(vm, value));
+    auto hash = TRY(hash_algorithm_identifier_from_idl_value(vm, idl_params.hash));
+    auto salt = TRY(copy_buffer_source(vm, idl_params.salt));
+    auto info = TRY(copy_buffer_source(vm, idl_params.info));
 
     return adopt_own<AlgorithmParams>(*new HKDFParams { hash, salt, info });
 }
@@ -397,75 +364,38 @@ PBKDF2Params::~PBKDF2Params() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> PBKDF2Params::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_pbkdf2_params(vm, value));
+    auto salt = TRY(copy_buffer_source(vm, idl_params.salt));
+    auto hash = TRY(hash_algorithm_identifier_from_idl_value(vm, idl_params.hash));
 
-    auto salt_value = TRY(object.get("salt"_utf16_fly_string));
-
-    if (!salt_value.is_object() || !(is<JS::TypedArrayBase>(salt_value.as_object()) || is<JS::ArrayBuffer>(salt_value.as_object()) || is<JS::DataView>(salt_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-
-    auto salt = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(salt_value.as_object()));
-
-    auto iterations_value = TRY(object.get("iterations"_utf16_fly_string));
-    auto iterations = TRY(iterations_value.to_u32(vm));
-
-    auto hash_value = TRY(object.get("hash"_utf16_fly_string));
-    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
-
-    return adopt_own<AlgorithmParams>(*new PBKDF2Params { salt, iterations, hash });
+    return adopt_own<AlgorithmParams>(*new PBKDF2Params { salt, idl_params.iterations, hash });
 }
 
 RsaKeyGenParams::~RsaKeyGenParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaKeyGenParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_rsa_key_gen_params(vm, value));
 
-    auto modulus_length_value = TRY(object.get("modulusLength"_utf16_fly_string));
-    auto modulus_length = TRY(modulus_length_value.to_u32(vm));
-
-    auto public_exponent_value = TRY(object.get("publicExponent"_utf16_fly_string));
-    GC::Ptr<JS::Uint8Array> public_exponent;
-
-    if (!public_exponent_value.is_object() || !is<JS::Uint8Array>(public_exponent_value.as_object()))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Uint8Array");
-
-    public_exponent = static_cast<JS::Uint8Array&>(public_exponent_value.as_object());
-
-    return adopt_own<AlgorithmParams>(*new RsaKeyGenParams { modulus_length, big_integer_from_api_big_integer(public_exponent) });
+    return adopt_own<AlgorithmParams>(*new RsaKeyGenParams { idl_params.modulus_length, big_integer_from_api_big_integer(idl_params.public_exponent.ptr()) });
 }
 
 RsaHashedKeyGenParams::~RsaHashedKeyGenParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedKeyGenParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_rsa_hashed_key_gen_params(vm, value));
+    auto hash = TRY(hash_algorithm_identifier_from_idl_value(vm, idl_params.hash));
 
-    auto modulus_length_value = TRY(object.get("modulusLength"_utf16_fly_string));
-    auto modulus_length = TRY(modulus_length_value.to_u32(vm));
-
-    auto public_exponent_value = TRY(object.get("publicExponent"_utf16_fly_string));
-    GC::Ptr<JS::Uint8Array> public_exponent;
-
-    if (!public_exponent_value.is_object() || !is<JS::Uint8Array>(public_exponent_value.as_object()))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Uint8Array");
-
-    public_exponent = static_cast<JS::Uint8Array&>(public_exponent_value.as_object());
-
-    auto hash_value = TRY(object.get("hash"_utf16_fly_string));
-    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
-
-    return adopt_own<AlgorithmParams>(*new RsaHashedKeyGenParams { modulus_length, big_integer_from_api_big_integer(public_exponent), hash });
+    return adopt_own<AlgorithmParams>(*new RsaHashedKeyGenParams { idl_params.modulus_length, big_integer_from_api_big_integer(idl_params.public_exponent.ptr()), hash });
 }
 
 RsaHashedImportParams::~RsaHashedImportParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedImportParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
-
-    auto hash_value = TRY(object.get("hash"_utf16_fly_string));
-    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_rsa_hashed_import_params(vm, value));
+    auto hash = TRY(hash_algorithm_identifier_from_idl_value(vm, idl_params.hash));
 
     return adopt_own<AlgorithmParams>(*new RsaHashedImportParams { hash });
 }
@@ -474,17 +404,11 @@ RsaOaepParams::~RsaOaepParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaOaepParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
-
-    auto label_value = TRY(object.get("label"_utf16_fly_string));
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_rsa_oaep_params(vm, value));
 
     ByteBuffer label;
-    if (!label_value.is_nullish()) {
-        if (!label_value.is_object() || !(is<JS::TypedArrayBase>(label_value.as_object()) || is<JS::ArrayBuffer>(label_value.as_object()) || is<JS::DataView>(label_value.as_object())))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-
-        label = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(label_value.as_object()));
-    }
+    if (idl_params.label.has_value())
+        label = TRY(copy_buffer_source(vm, idl_params.label.value()));
 
     return adopt_own<AlgorithmParams>(*new RsaOaepParams { move(label) });
 }
@@ -494,22 +418,17 @@ RsaPssParams::~RsaPssParams() = default;
 // https://w3c.github.io/webcrypto/#RsaPssParams-dictionary
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaPssParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_rsa_pss_params(vm, value));
 
-    auto salt_length_value = TRY(object.get("saltLength"_utf16_fly_string));
-    auto salt_length = TRY(salt_length_value.to_u32(vm));
-
-    return adopt_own<AlgorithmParams>(*new RsaPssParams { salt_length });
+    return adopt_own<AlgorithmParams>(*new RsaPssParams { idl_params.salt_length });
 }
 
 EcdsaParams::~EcdsaParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdsaParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
-
-    auto hash_value = TRY(object.get("hash"_utf16_fly_string));
-    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_ecdsa_params(vm, value));
+    auto hash = TRY(hash_algorithm_identifier_from_idl_value(vm, idl_params.hash));
 
     return adopt_own<AlgorithmParams>(*new EcdsaParams { hash });
 }
@@ -518,193 +437,113 @@ EcKeyGenParams::~EcKeyGenParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyGenParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_ec_key_gen_params(vm, value));
 
-    auto curve_value = TRY(object.get("namedCurve"_utf16_fly_string));
-    auto curve = TRY(curve_value.to_string(vm));
-
-    return adopt_own<AlgorithmParams>(*new EcKeyGenParams { curve });
+    return adopt_own<AlgorithmParams>(*new EcKeyGenParams { idl_params.named_curve });
 }
 
 AesKeyGenParams::~AesKeyGenParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesKeyGenParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_aes_key_gen_params(vm, value));
 
-    auto length_value = TRY(object.get("length"_utf16_fly_string));
-    auto length = TRY(length_value.to_u16(vm));
-
-    return adopt_own<AlgorithmParams>(*new AesKeyGenParams { length });
+    return adopt_own<AlgorithmParams>(*new AesKeyGenParams { idl_params.length });
 }
 
 AesDerivedKeyParams::~AesDerivedKeyParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesDerivedKeyParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_aes_derived_key_params(vm, value));
 
-    auto length_value = TRY(object.get("length"_utf16_fly_string));
-    auto length = TRY(length_value.to_u16(vm));
-
-    return adopt_own<AlgorithmParams>(*new AesDerivedKeyParams { length });
+    return adopt_own<AlgorithmParams>(*new AesDerivedKeyParams { idl_params.length });
 }
 
 EcdhKeyDeriveParams::~EcdhKeyDeriveParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDeriveParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_ecdh_key_derive_params(vm, value));
 
-    auto key_value = TRY(object.get("public"_utf16_fly_string));
-    auto key_object = TRY(key_value.to_object(vm));
-
-    if (!is<CryptoKey>(*key_object)) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CryptoKey");
-    }
-
-    auto& key = as<CryptoKey>(*key_object);
-
-    return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { key });
+    return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { idl_params.public_ });
 }
 
 EcKeyImportParams::~EcKeyImportParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyImportParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_ec_key_import_params(vm, value));
 
-    auto named_curve_value = TRY(object.get("namedCurve"_utf16_fly_string));
-    auto named_curve = TRY(named_curve_value.to_string(vm));
-
-    return adopt_own<AlgorithmParams>(*new EcKeyImportParams { named_curve });
+    return adopt_own<AlgorithmParams>(*new EcKeyImportParams { idl_params.named_curve });
 }
 
 HmacImportParams::~HmacImportParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacImportParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_hmac_import_params(vm, value));
+    auto hash = TRY(hash_algorithm_identifier_from_idl_value(vm, idl_params.hash));
 
-    auto hash_value = TRY(object.get("hash"_utf16_fly_string));
-    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
-
-    auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"_utf16_fly_string))) {
-        auto length_value = TRY(object.get("length"_utf16_fly_string));
-        maybe_length = TRY(length_value.to_u32(vm));
-    }
-
-    return adopt_own<AlgorithmParams>(*new HmacImportParams { hash, maybe_length });
+    return adopt_own<AlgorithmParams>(*new HmacImportParams { hash, idl_params.length });
 }
 
 HmacKeyGenParams::~HmacKeyGenParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacKeyGenParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_hmac_key_gen_params(vm, value));
+    auto hash = TRY(hash_algorithm_identifier_from_idl_value(vm, idl_params.hash));
 
-    auto hash_value = TRY(object.get("hash"_utf16_fly_string));
-    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
-
-    auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"_utf16_fly_string))) {
-        auto length_value = TRY(object.get("length"_utf16_fly_string));
-        maybe_length = TRY(length_value.to_u32(vm));
-    }
-
-    return adopt_own<AlgorithmParams>(*new HmacKeyGenParams { hash, maybe_length });
+    return adopt_own<AlgorithmParams>(*new HmacKeyGenParams { hash, idl_params.length });
 }
 
 Ed448Params::~Ed448Params() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Ed448Params::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_ed448_params(vm, value));
 
     auto maybe_context = Optional<ByteBuffer> {};
-    if (MUST(object.has_property("context"_utf16_fly_string))) {
-        auto context_value = TRY(object.get("context"_utf16_fly_string));
-        if (!context_value.is_object() || !(is<JS::TypedArrayBase>(context_value.as_object()) || is<JS::ArrayBuffer>(context_value.as_object()) || is<JS::DataView>(context_value.as_object())))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-        maybe_context = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(context_value.as_object()));
-    }
+    if (idl_params.context.has_value())
+        maybe_context = TRY(copy_buffer_source(vm, idl_params.context.value()));
 
     return adopt_own<AlgorithmParams>(*new Ed448Params { maybe_context });
-}
-
-static inline JS::ThrowCompletionOr<Optional<ByteBuffer>> get_optional_buffer_source(JS::VM& vm, JS::Object const& object, JS::PropertyKey const& name)
-{
-    if (!TRY(object.has_property(name)))
-        return OptionalNone {};
-
-    auto value = TRY(object.get(name));
-
-    if (!WebIDL::is_buffer_source_type(value))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-
-    return TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(value.as_object()));
 }
 
 Argon2Params::~Argon2Params() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Argon2Params::from_value(JS::VM& vm, JS::Value value)
 {
-    VERIFY(value.is_object());
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_argon2_params(vm, value));
+    auto const nonce = TRY(copy_buffer_source(vm, idl_params.nonce));
 
-    if (!MUST(object.has_property("nonce"_utf16_fly_string))) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "nonce");
-    }
-    auto nonce_value = TRY(object.get("nonce"_utf16_fly_string));
-    if (!nonce_value.is_object() || !(is<JS::TypedArrayBase>(nonce_value.as_object()) || is<JS::ArrayBuffer>(nonce_value.as_object()) || is<JS::DataView>(nonce_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto const nonce = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(nonce_value.as_object()));
+    auto secret_value = Optional<ByteBuffer> {};
+    if (idl_params.secret_value.has_value())
+        secret_value = TRY(copy_buffer_source(vm, idl_params.secret_value.value()));
 
-    auto const extract_u32_value = [&](auto const& name) -> JS::ThrowCompletionOr<WebIDL::UnsignedLong> {
-        if (!MUST(object.has_property(name))) {
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, name);
-        }
-        auto key_value = TRY(object.get(name));
-        return WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, key_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No);
-    };
+    auto associated_data = Optional<ByteBuffer> {};
+    if (idl_params.associated_data.has_value())
+        associated_data = TRY(copy_buffer_source(vm, idl_params.associated_data.value()));
 
-    auto const parallelism = TRY(extract_u32_value("parallelism"_utf16_fly_string));
-    auto const memory = TRY(extract_u32_value("memory"_utf16_fly_string));
-    auto const passes = TRY(extract_u32_value("passes"_utf16_fly_string));
-
-    auto maybe_version = Optional<u8> {};
-    if (MUST(object.has_property("version"_utf16_fly_string))) {
-        auto version_value = TRY(object.get("version"_utf16_fly_string));
-        maybe_version = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, version_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
-    }
-
-    auto const secret_value = TRY(get_optional_buffer_source(vm, object, "secretValue"_utf16_fly_string));
-    auto const associated_data = TRY(get_optional_buffer_source(vm, object, "associatedData"_utf16_fly_string));
-
-    return adopt_own<AlgorithmParams>(*new Argon2Params { nonce, parallelism, memory, passes, maybe_version, secret_value, associated_data });
+    return adopt_own<AlgorithmParams>(*new Argon2Params { nonce, idl_params.parallelism, idl_params.memory, idl_params.passes, idl_params.version, secret_value, associated_data });
 }
 
 CShakeParams::~CShakeParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> CShakeParams::from_value(JS::VM& vm, JS::Value value)
 {
-    VERIFY(value.is_object());
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_c_shake_params(vm, value));
 
-    if (!MUST(object.has_property("outputLength"_utf16_fly_string))) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "outputLength");
-    }
+    auto function_name = Optional<ByteBuffer> {};
+    if (idl_params.function_name.has_value())
+        function_name = TRY(copy_buffer_source(vm, idl_params.function_name.value()));
 
-    auto const output_length = TRY(object.get("outputLength"_utf16_fly_string));
+    auto customization = Optional<ByteBuffer> {};
+    if (idl_params.customization.has_value())
+        customization = TRY(copy_buffer_source(vm, idl_params.customization.value()));
 
-    auto const length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, output_length, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
-
-    auto const function_name = TRY(get_optional_buffer_source(vm, object, "functionName"_utf16_fly_string));
-
-    auto const customization = TRY(get_optional_buffer_source(vm, object, "customization"_utf16_fly_string));
-
-    return adopt_own<AlgorithmParams>(*new CShakeParams { length, function_name, customization });
+    return adopt_own<AlgorithmParams>(*new CShakeParams { idl_params.output_length, function_name, customization });
 }
 
 KmacParams::~KmacParams() = default;
@@ -712,21 +551,13 @@ KmacParams::~KmacParams() = default;
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-params
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacParams::from_value(JS::VM& vm, JS::Value value)
 {
-    VERIFY(value.is_object());
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_kmac_params(vm, value));
 
-    // 1. If the outputLength member is missing, throw a TypeError.
-    if (!MUST(object.has_property("outputLength"_utf16_fly_string))) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "outputLength");
-    }
+    auto customization = Optional<ByteBuffer> {};
+    if (idl_params.customization.has_value())
+        customization = TRY(copy_buffer_source(vm, idl_params.customization.value()));
 
-    auto const output_length = TRY(object.get("outputLength"_utf16_fly_string));
-    auto const length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, output_length, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
-
-    // 2. Let customization be the optional customization member or the empty octet string.
-    auto const customization = TRY(get_optional_buffer_source(vm, object, "customization"_utf16_fly_string));
-
-    return adopt_own<AlgorithmParams>(*new KmacParams { length, customization });
+    return adopt_own<AlgorithmParams>(*new KmacParams { idl_params.output_length, customization });
 }
 
 KmacKeyGenParams::~KmacKeyGenParams() = default;
@@ -734,17 +565,9 @@ KmacKeyGenParams::~KmacKeyGenParams() = default;
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-keygen-params
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacKeyGenParams::from_value(JS::VM& vm, JS::Value value)
 {
-    VERIFY(value.is_object());
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_kmac_key_gen_params(vm, value));
 
-    // 1. If the length member is present, record its unsigned long value; otherwise leave it unset.
-    auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"_utf16_fly_string))) {
-        auto length_value = TRY(object.get("length"_utf16_fly_string));
-        maybe_length = TRY(length_value.to_u32(vm));
-    }
-
-    return adopt_own<AlgorithmParams>(*new KmacKeyGenParams { maybe_length });
+    return adopt_own<AlgorithmParams>(*new KmacKeyGenParams { idl_params.length });
 }
 
 KmacImportParams::~KmacImportParams() = default;
@@ -752,17 +575,9 @@ KmacImportParams::~KmacImportParams() = default;
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-import-params
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacImportParams::from_value(JS::VM& vm, JS::Value value)
 {
-    VERIFY(value.is_object());
-    auto& object = value.as_object();
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_kmac_import_params(vm, value));
 
-    // 1. If the length member is present, record its unsigned long value; otherwise leave it unset.
-    auto maybe_length = Optional<WebIDL::UnsignedLong> {};
-    if (MUST(object.has_property("length"_utf16_fly_string))) {
-        auto length_value = TRY(object.get("length"_utf16_fly_string));
-        maybe_length = TRY(length_value.to_u32(vm));
-    }
-
-    return adopt_own<AlgorithmParams>(*new KmacImportParams { maybe_length });
+    return adopt_own<AlgorithmParams>(*new KmacImportParams { idl_params.length });
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-encrypt
@@ -9827,28 +9642,14 @@ AeadParams::~AeadParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AeadParams::from_value(JS::VM& vm, JS::Value value)
 {
-    auto& object = value.as_object();
-
-    auto iv_value = TRY(object.get("iv"_utf16_fly_string));
-    if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
+    auto idl_params = TRY(Bindings::convert_to_idl_value_for_aead_params(vm, value));
+    auto iv = TRY(copy_buffer_source(vm, idl_params.iv));
 
     auto maybe_additional_data = Optional<ByteBuffer> {};
-    if (MUST(object.has_property("additionalData"_utf16_fly_string))) {
-        auto additional_data_value = TRY(object.get("additionalData"_utf16_fly_string));
-        if (!additional_data_value.is_object() || !(is<JS::TypedArrayBase>(additional_data_value.as_object()) || is<JS::ArrayBuffer>(additional_data_value.as_object()) || is<JS::DataView>(additional_data_value.as_object())))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-        maybe_additional_data = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(additional_data_value.as_object()));
-    }
+    if (idl_params.additional_data.has_value())
+        maybe_additional_data = TRY(copy_buffer_source(vm, idl_params.additional_data.value()));
 
-    auto maybe_tag_length = Optional<u8> {};
-    if (MUST(object.has_property("tagLength"_utf16_fly_string))) {
-        auto tag_length_value = TRY(object.get("tagLength"_utf16_fly_string));
-        maybe_tag_length = TRY(tag_length_value.to_u8(vm));
-    }
-
-    return adopt_own<AlgorithmParams>(*new AeadParams { iv, maybe_additional_data, maybe_tag_length });
+    return adopt_own<AlgorithmParams>(*new AeadParams { iv, maybe_additional_data, idl_params.tag_length });
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-encrypt
