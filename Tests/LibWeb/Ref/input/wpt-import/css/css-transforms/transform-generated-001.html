@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Generated Content (block)</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-rendering">
+    <meta name="assert" content="Transforms need to work on boxes of generated
+    content just as on any other boxes.  This file tests a generated block
+    box.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-generated-001-ref.html">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-transforms/transform-generated-001-notref.html">
+    <style>
+      div {
+        float: left;
+      }
+      div::before {
+        transform: rotate(180deg);
+        float: left;
+        content: 'abc';
+      }
+    </style>
+  </head>
+  <body>
+    <div>def</div>
+  </body>
+</html>

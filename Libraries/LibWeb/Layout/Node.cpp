@@ -1214,12 +1214,10 @@ bool Node::is_transformable() const
 {
     // A transformable element is an element in one of these categories:
     auto const* dom_node = this->dom_node();
-    if (!dom_node)
-        return false;
 
     // * all SVG paint server elements, the clipPath element and SVG renderable elements with the exception
     //   of any descendant element of text content elements [SVG2].
-    if (is<SVG::SVGElement>(*dom_node)) {
+    if (is<SVG::SVGElement>(dom_node)) {
         // Paint servers and clipPath are always transformable.
         if (is<SVG::SVGGradientElement>(*dom_node) || is<SVG::SVGPatternElement>(*dom_node) || is<SVG::SVGClipPathElement>(*dom_node))
             return true;
@@ -1236,7 +1234,8 @@ bool Node::is_transformable() const
 
     // * all elements whose layout is governed by the CSS box model except for non-replaced inline boxes,
     //   table-column boxes, and table-column-group boxes [CSS2].
-    if (is<DOM::Element>(*dom_node) && is_box()) {
+    bool is_element_or_pseudo_element = is<DOM::Element>(dom_node) || is_generated_for_pseudo_element();
+    if (is_element_or_pseudo_element && is_box()) {
         auto display = this->display();
         if (display.is_table_column() || display.is_table_column_group())
             return false;

@@ -520,7 +520,7 @@ SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
     SC for BlockContainer<DIV>.endOfContent [233.5,175 333x0] [children: 0] (z-index: 0), has_transform
     SC for BlockContainer<SPAN> [316.75,64.9375 121.046875x23.328125] [children: 0] (z-index: 1), has_transform
   SC for BlockContainer<DIV>.toolbar [0,0 800x32] [children: 14] (z-index: 2)
-   SC for BlockContainer(anonymous) [15,8 16x16] [children: 0] (z-index: auto)
+   SC for BlockContainer(anonymous) [15,8 16x16] [children: 0] (z-index: auto), has_transform
    SC for BlockContainer(anonymous) [75,8 16x16] [children: 0] (z-index: auto)
    SC for Box<BUTTON>#previous.toolbarButton [98,2 28x28] [children: 1] (z-index: auto)
     SC for BlockContainer(anonymous) [104,8 16x16] [children: 0] (z-index: auto)
@@ -535,4 +535,4 @@ SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
    SC for BlockContainer(anonymous) [678,8 16x16] [children: 0] (z-index: auto)
    SC for BlockContainer(anonymous) [713,8 16x16] [children: 0] (z-index: auto)
    SC for BlockContainer(anonymous) [742,8 16x16] [children: 0] (z-index: auto)
-   SC for BlockContainer(anonymous) [777,8 16x16] [children: 0] (z-index: auto)
+   SC for BlockContainer(anonymous) [777,8 16x16] [children: 0] (z-index: auto), has_transform

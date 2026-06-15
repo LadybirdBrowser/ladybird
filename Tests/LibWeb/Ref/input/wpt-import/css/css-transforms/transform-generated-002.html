@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Generated Content (inline)</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-rendering">
+    <meta name="assert" content="Transforms need to work on boxes of generated
+    content just as on any other boxes.  This file tests a generated inline
+    box.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-generated-002-ref.html">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-transforms/transform-generated-002-notref.html">
+    <style>
+      span::before {
+        transform: rotate(180deg);
+        transform-origin: left;
+        display: block;
+        content: 'abc';
+      }
+    </style>
+  </head>
+  <body>
+    <span>def</span>
+  </body>
+</html>
