@@ -740,6 +740,19 @@ struct ChangingNavigableContinuationState : public JS::Cell {
 
 GC_DEFINE_ALLOCATOR(ChangingNavigableContinuationState);
 
+static void queue_apply_history_step_task(GC::Ref<Navigable> navigable, GC::Ptr<DOM::Document> top_level_document, GC::Ref<GC::Function<void()>> steps)
+{
+    // AD-HOC: Queue top-level tasks with the active Document instead of using queue_global_task(active_window).
+    //         During initial about:blank Window reuse, active_window()->associated_document() can already be the
+    //         pending Document, but the apply-history task must run against the current active Document.
+    //
+    //         Child navigables can destroy or deactivate their active Document before the queued task runs, causing
+    //         document-associated tasks to be dropped. Queue child tasks with a null Document so the task remains
+    //         runnable, and revalidate the child navigable inside the task.
+    auto task_document = navigable->is_top_level_traversable() ? top_level_document : GC::Ptr<DOM::Document> {};
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, task_document, steps);
+}
+
 class ApplyHistoryStepState : public GC::Cell {
     GC_CELL(ApplyHistoryStepState, GC::Cell);
     GC_DECLARE_ALLOCATOR(ApplyHistoryStepState);
@@ -947,12 +960,9 @@ void ApplyHistoryStepState::start()
             signal_progress();
             continue;
         }
-        // AD-HOC: Queue with navigable's active Document instead of using queue_global_task(active_window).
-        //         During initial about:blank Window reuse, active_window()->associated_document() can already be
-        //         the pending Document. This activation task must stay runnable against the current active Document.
-        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, navigable->active_document(), GC::create_function(heap(), [this, navigable] {
+        queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(heap(), [this, navigable] {
             // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
-            if (navigable->has_been_destroyed()) {
+            if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()) {
                 ++m_completed_change_jobs;
                 signal_progress();
                 return;
@@ -1235,6 +1245,17 @@ void ApplyHistoryStepState::process_continuations()
         RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
         auto const displayed_document_id = continuation->displayed_document_id;
         auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), navigation_type = m_navigation_type] {
+            if (update_only || continuation->resolved_document.ptr() == continuation->displayed_document.ptr()) {
+                // AD-HOC: Child navigable same-document/update-only tasks are queued without an associated Document so
+                //         they can survive the old active Document being deactivated. That also lets them run after the
+                //         child frame was destroyed or after a newer navigation claimed the frame. Browser engines let
+                //         the newer frame state win, so skip this stale continuation in that case.
+                if (!changing_navigable_is_still_current(navigable, displayed_document_id)) {
+                    complete_change_job_without_applying(navigable);
+                    return;
+                }
+            }
+
             if (population_output)
                 population_output->apply_to(*target_entry);
 
@@ -1306,7 +1327,7 @@ void ApplyHistoryStepState::process_continuations()
             navigable->set_ongoing_navigation({}, m_navigation_api_abort_behavior);
 
             // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
-            queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), after_potential_unload);
+            queue_apply_history_step_task(*navigable, navigable->active_document(), after_potential_unload);
         }
         // AD-HOC: During navigable creation, the initial about:blank document can be
         //         replaced by the container's initial navigation while applying the

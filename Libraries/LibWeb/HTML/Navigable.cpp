@@ -1189,7 +1189,18 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         // 3. If navigable is not a top-level traversable, then:
         if (!state_holder->navigable->is_top_level_traversable()) {
             // 1. Let parentEnvironment be navigable's parent's active document's relevant settings object.
-            auto& parent_environment = state_holder->navigable->parent()->active_document()->relevant_settings_object();
+            auto parent = state_holder->navigable->parent();
+            auto parent_document = parent ? parent->active_document() : nullptr;
+            if (!parent || parent->has_been_destroyed() || !parent_document || parent_document->has_been_destroyed()) {
+                // AD-HOC: A queued child navigation can resume after its parent document has been destroyed. The
+                //         specification assumes the parent environment is still available here, but browser engines
+                //         abandon this stale detached frame navigation instead of continuing it against a discarded
+                //         parent.
+                state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Parent document is no longer active"_string);
+                fetch_completion_steps->function()();
+                return;
+            }
+            auto& parent_environment = parent_document->relevant_settings_object();
 
             // 2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
             top_level_creation_url = parent_environment.top_level_creation_url;
