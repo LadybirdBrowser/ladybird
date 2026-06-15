@@ -321,6 +321,15 @@ static NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_p
     return entry;
 }
 
+static bool synchronous_same_document_navigation_must_preserve_ongoing_navigation(Navigable const& navigable)
+{
+    // AD-HOC: The spec queues same-document history updates because they happen synchronously, outside the traversal
+    //         queue, and must later resolve races with the current history step. If another navigation has already
+    //         claimed the navigable, leave that navigation ID alone. This matches Chromium, WebKit, and Gecko:
+    //         a same-document history update from the same task does not cancel a later cross-document navigation.
+    return navigable.ongoing_navigation().has<String>();
+}
+
 bool TraversableNavigable::replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index)
 {
     if (entries_from_ui_process.is_empty() || current_top_level_entry_index >= entries_from_ui_process.size())
@@ -839,14 +848,8 @@ void ApplyHistoryStepState::start()
     // 8. For each navigable of changingNavigables:
     auto changing_navigables = m_traversable->get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_target_step);
     for (auto& navigable : changing_navigables) {
-        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
-        // AD-HOC: The spec queues same-document history updates because they happen synchronously, outside the
-        //         traversal queue, and must later resolve races with the current history step. If another navigation
-        //         has already claimed the navigable by the time this queued reconciliation runs, leave that navigation
-        //         ID alone. This matches the observable behavior of Chromium, WebKit, and Gecko: a same-document
-        //         history update does not cancel a later cross-document navigation from the same task.
         if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes
-            && navigable->ongoing_navigation().has<String>()) {
+            && synchronous_same_document_navigation_must_preserve_ongoing_navigation(*navigable)) {
             continue;
         }
 
@@ -859,6 +862,18 @@ void ApplyHistoryStepState::start()
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
         auto target_entry = navigable->get_the_target_history_entry(m_target_step);
+
+        // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-traverse-navigate-event
+        // NB: Same-document traversals are synchronous in browser engines, but the specification routes them through
+        //     the traversal queue. If a later cross-document navigation has already claimed the navigable by the time
+        //     this queued same-document traversal reaches its bookkeeping step, do not replace that navigation's ID
+        //     with "traversal". The queued traversal is stale reconciliation at that point, and must not cancel the
+        //     newer navigation.
+        if (m_navigation_type == Bindings::NavigationType::Traverse
+            && navigable->ongoing_navigation().has<String>()
+            && target_entry->document_state()->document_id() == navigable->active_document_id()) {
+            continue;
+        }
 
         // 2. Set navigable's current session history entry to targetEntry.
         navigable->set_current_session_history_entry(target_entry);
@@ -2119,6 +2134,108 @@ void TraversableNavigable::apply_the_push_or_replace_history_step(int step, Hist
     apply_the_history_step(step, false, {}, {}, user_involvement, navigation_type, synchronous_navigation, Navigable::NavigationAPIAbortBehavior::Abort, pending_document, on_complete);
 }
 
+static Optional<int> update_session_history_entries_for_same_document_navigation(TraversableNavigable& traversable, GC::Ref<Navigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace)
+{
+    // NB: This is the entry-list portion of the "finalize a same-document navigation" algorithm. Keep the synchronous
+    //     commit path and the queued fallback sharing it so the two paths cannot drift.
+
+    // 2. If targetNavigable's active session history entry is not targetEntry, then return.
+    // FIXME: This is a workaround for a spec issue where the early return loses replace entries.
+    //        Revisit when https://github.com/whatwg/html/issues/10232 is resolved.
+    if (target_navigable->active_session_history_entry() != target_entry) {
+        if (entry_to_replace) {
+            auto& target_entries = target_navigable->get_session_history_entries();
+            if (auto it = target_entries.find(*entry_to_replace); it != target_entries.end()) {
+                target_entry->set_step(entry_to_replace->step());
+                *it = target_entry;
+            }
+        }
+        return {};
+    }
+
+    // 3. Let targetStep be null.
+    Optional<int> target_step;
+
+    // 4. Let targetEntries be the result of getting session history entries for targetNavigable.
+    auto& target_entries = target_navigable->get_session_history_entries();
+
+    // 5. If entryToReplace is null, then:
+    // FIXME: Checking containment of entryToReplace should not be needed.
+    //        For more details see https://github.com/whatwg/html/issues/10232#issuecomment-2037543137
+    if (!entry_to_replace || !target_entries.contains_slow(NonnullRefPtr { *entry_to_replace })) {
+        // 1. Clear the forward session history of traversable.
+        traversable.clear_the_forward_session_history();
+
+        // 2. Set targetStep to traversable's current session history step + 1.
+        target_step = traversable.current_session_history_step() + 1;
+
+        // 3. Set targetEntry's step to targetStep.
+        target_entry->set_step(*target_step);
+
+        // 4. Append targetEntry to targetEntries.
+        target_entries.append(target_entry);
+    } else {
+        // 1. Replace entryToReplace with targetEntry in targetEntries.
+        *(target_entries.find(*entry_to_replace)) = target_entry;
+
+        // 2. Set targetEntry's step to entryToReplace's step.
+        target_entry->set_step(entry_to_replace->step());
+
+        // 3. Set targetStep to traversable's current session history step.
+        target_step = traversable.current_session_history_step();
+    }
+
+    return target_step;
+}
+
+bool TraversableNavigable::try_to_synchronously_commit_same_document_navigation(GC::Ref<Navigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace)
+{
+    if (m_apply_history_step_state || m_paused_apply_history_step_state)
+        return false;
+
+    if (target_navigable->has_been_destroyed())
+        return true;
+
+    if (!target_navigable->has_session_history_entry_and_ready_for_navigation())
+        return false;
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
+    auto target_step = update_session_history_entries_for_same_document_navigation(*this, target_navigable, target_entry, entry_to_replace);
+    if (!target_step.has_value())
+        return true;
+
+    target_navigable->set_current_session_history_entry(target_entry);
+    m_current_session_history_step = get_the_used_step(*target_step);
+
+    // NB: The queued apply-history-step path clears the ongoing navigation when the history step finishes. The
+    //     synchronous fast path has already committed the same-document navigation and the Navigation API entry update
+    //     owns settling its promises/events, so do the same cleanup without reporting an abort to the Navigation API.
+    if (!synchronous_same_document_navigation_must_preserve_ongoing_navigation(*target_navigable))
+        target_navigable->set_ongoing_navigation({}, Navigable::NavigationAPIAbortBehavior::Preserve);
+
+    auto history_object_length_and_index = get_the_history_object_length_and_index(m_current_session_history_step);
+    if (auto active_document = this->active_document()) {
+        for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
+            if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()->is_fully_active())
+                continue;
+
+            auto document = navigable->active_document();
+            document->history()->m_index = history_object_length_and_index.script_history_index;
+            document->history()->m_length = history_object_length_and_index.script_history_length;
+        }
+    }
+
+    if (page().client().should_report_session_history_updates()) {
+        auto session_history_snapshot = create_session_history_snapshot(SaveActiveEntryPersistedState::Yes);
+        page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+    }
+
+    VERIFY(session_history_entries().size() > 0);
+    page().client().page_did_update_navigation_buttons_state(can_go_back(), can_go_forward());
+    page().client().page_did_change_url(current_session_history_entry()->url());
+    return true;
+}
+
 void TraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<Navigable> initiator_to_check, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     // 1. Return the result of applying the history step step to traversable given true, sourceSnapshotParams, initiatorToCheck, userInvolvement, and "traverse".
@@ -2225,51 +2342,10 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
 
     // FIXME: 1. Assert: this is running on traversable's session history traversal queue.
 
-    // 2. If targetNavigable's active session history entry is not targetEntry, then return.
-    // FIXME: This is a workaround for a spec issue where the early return loses replace entries.
-    //        Revisit when https://github.com/whatwg/html/issues/10232 is resolved.
-    if (target_navigable->active_session_history_entry() != target_entry) {
-        if (entry_to_replace) {
-            auto& target_entries = target_navigable->get_session_history_entries();
-            if (auto it = target_entries.find(*entry_to_replace); it != target_entries.end()) {
-                target_entry->set_step(entry_to_replace->step());
-                *it = target_entry;
-            }
-        }
+    auto target_step = update_session_history_entries_for_same_document_navigation(*traversable, target_navigable, target_entry, entry_to_replace);
+    if (!target_step.has_value()) {
         on_complete->function()(HistoryStepResult::Applied);
         return;
-    }
-
-    // 3. Let targetStep be null.
-    Optional<int> target_step;
-
-    // 4. Let targetEntries be the result of getting session history entries for targetNavigable.
-    auto& target_entries = target_navigable->get_session_history_entries();
-
-    // 5. If entryToReplace is null, then:
-    // FIXME: Checking containment of entryToReplace should not be needed.
-    //        For more details see https://github.com/whatwg/html/issues/10232#issuecomment-2037543137
-    if (!entry_to_replace || !target_entries.contains_slow(NonnullRefPtr { *entry_to_replace })) {
-        // 1. Clear the forward session history of traversable.
-        traversable->clear_the_forward_session_history();
-
-        // 2. Set targetStep to traversable's current session history step + 1.
-        target_step = traversable->current_session_history_step() + 1;
-
-        // 3. Set targetEntry's step to targetStep.
-        target_entry->set_step(*target_step);
-
-        // 4. Append targetEntry to targetEntries.
-        target_entries.append(target_entry);
-    } else {
-        // 1. Replace entryToReplace with targetEntry in targetEntries.
-        *(target_entries.find(*entry_to_replace)) = target_entry;
-
-        // 2. Set targetEntry's step to entryToReplace's step.
-        target_entry->set_step(entry_to_replace->step());
-
-        // 3. Set targetStep to traversable's current session history step.
-        target_step = traversable->current_session_history_step();
     }
 
     // 6. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.

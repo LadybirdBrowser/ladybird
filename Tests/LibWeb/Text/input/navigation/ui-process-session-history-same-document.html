@@ -28,7 +28,6 @@
     asyncTest(async done => {
         history.replaceState({ replaced: true }, "", "?same-document-replaced");
         history.pushState({ pushed: true }, "", "?same-document-pushed");
-        await internals.flushSessionHistoryTraversalQueue();
 
         const uiHistory = currentUIHistory();
         if (!internals.dumpSessionHistory().includes("ui-process-session-history-same-document.html?same-document-pushed (current)")
