@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .target {
+        width: 100px;
+        height: 50px;
+        background-image: url("../../data/loop-count-2.gif");
+    }
+</style>
+<div class="target"></div>
+<div class="target"></div>
+<script>
+    const imageURL = "../../data/loop-count-2.gif";
+
+    promiseTest(async () => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+
+        internals.dumpLayoutTree(document);
+
+        const state = internals.imageAnimationStateForURL(imageURL);
+        println(`timer active for shared animation: ${state.timerActive}`);
+        println(`client count: ${state.clientCount}`);
+    });
+</script>

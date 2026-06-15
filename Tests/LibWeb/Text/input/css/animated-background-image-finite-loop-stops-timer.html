@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: 100px;
+        height: 50px;
+        background-image: url("../../data/loop-count-2.gif");
+    }
+</style>
+<div id="target"></div>
+<script>
+    const imageURL = "../../data/loop-count-2.gif";
+
+    promiseTest(async () => {
+        console.log("A");
+
+        // Wait for the animation to start.
+        await waitForImageAnimationState(imageURL, state => state.timerActive);
+
+        console.log("B");
+
+        // Wait for the animation to complete.
+        await timeout(2500);
+
+        console.log("C");
+
+        println(internals.imageAnimationStateForURL(imageURL).timerActive ? "FAIL" : "PASS");
+
+        console.log("D");
+    });
+</script>

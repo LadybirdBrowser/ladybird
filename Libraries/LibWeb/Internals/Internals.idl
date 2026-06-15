@@ -132,7 +132,7 @@ interface Internals {
     DOMString canvasColorScheme();
     // Returns the selector-insight cache state for stylesheet invalidation tests.
     boolean styleSheetMayHaveHasSelectors(CSSStyleSheet sheet);
-    unsigned long long activeImageStyleValueAnimationCount();
+    object imageAnimationStateForURL(USVString url);
 
     object asyncScrollingState();
     boolean asyncScrollingStateBlocksWheelEventAt(double x, double y);

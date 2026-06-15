@@ -1,2 +1,2 @@
-top document active animations: 0
-iframe document active animations: 1
+top document has animation state: false
+iframe document timer active: true

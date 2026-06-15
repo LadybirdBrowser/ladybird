@@ -83,7 +83,6 @@ private:
     virtual i32 default_tab_index_value() const override;
 
     // ^Layout::ImageProvider
-    virtual size_t current_frame_index() const override { return 0; }
     virtual GC::Ptr<DecodedImageData> decoded_image_data() const override { return image_data(); }
 
     GC::Ptr<DecodedImageData> image_data() const;

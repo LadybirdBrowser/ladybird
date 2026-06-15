@@ -32,32 +32,20 @@ public:
 
     void visit_edges(JS::Cell::Visitor&);
 
-    void register_image_style_value(DOM::Document&, ImageStyleValue const&);
+    void register_image_style_value(ImageStyleValue const&);
     void unregister_image_style_value(ImageStyleValue const&);
     bool can_be_removed() const { return m_image_style_values.is_empty(); }
 
     [[nodiscard]] virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
-    [[nodiscard]] size_t current_frame_index() const { return m_current_frame_index; }
-    [[nodiscard]] bool has_active_animation_timer() const;
-
-    void animate(DOM::Document&);
 
 private:
     virtual void decoded_image_data_did_update() override { notify_image_style_values_did_update(); }
 
-    void on_decoded_image_data_loaded(DOM::Document&);
+    void on_decoded_image_data_loaded();
     void notify_image_style_values_did_update();
-    void start_animation_timer_if_needed(DOM::Document&);
-    void stop_animation_timer();
-    bool is_animatable() const;
-    bool animation_has_completed() const;
-    int current_frame_duration() const;
 
     GC::Ref<HTML::SharedResourceRequest> m_resource_request;
-    GC::Ptr<Platform::Timer> m_timer;
     HashTable<ImageStyleValue const*> m_image_style_values;
-    size_t m_current_frame_index { 0 };
-    size_t m_loops_completed { 0 };
 };
 
 class ImageStyleValue final
@@ -88,7 +76,6 @@ public:
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&, Optional<::URL::URL> style_resource_base_url);
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(::URL::URL const&);
     virtual ~ImageStyleValue() override;
-    static u64 active_animation_timer_count(DOM::Document const&);
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual bool equals(StyleValue const& other) const override;
@@ -106,7 +93,6 @@ public:
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const override;
     Optional<Gfx::DecodedImageFrame> current_frame(DOM::Document const&, DevicePixelRect const& dest_rect = {}) const;
-    size_t current_frame_index(DOM::Document const&) const;
 
     GC::Ptr<HTML::DecodedImageData> image_data(DOM::Document const&) const;
 

@@ -221,6 +221,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
 
             strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(
                 strong_this->m_document->realm(),
+                *strong_this->m_document,
                 result.session_id,
                 result.frame_count,
                 result.loop_count,

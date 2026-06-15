@@ -8,21 +8,22 @@
     }
 </style>
 <div id="target"></div>
-<dialog id="dialog">Hello</dialog>
 <script>
+    const imageURL = "../wpt-import/images/anim-gr.gif";
+
     asyncTest(async done => {
         await new Promise(resolve => window.addEventListener("load", resolve));
 
         internals.dumpLayoutTree(document);
-        println(`active animations before teardown: ${internals.activeImageStyleValueAnimationCount()}`);
+        println(`timer active before replacement: ${internals.imageAnimationStateForURL(imageURL).timerActive}`);
 
-        dialog.showModal();
+        target.style.display = "inline";
         internals.dumpLayoutTree(document);
-        println(`active animations after teardown: ${internals.activeImageStyleValueAnimationCount()}`);
+        println(`timer active after replacement: ${internals.imageAnimationStateForURL(imageURL).timerActive}`);
 
         target.style.display = "none";
         internals.dumpLayoutTree(document);
-        println(`active animations after hiding: ${internals.activeImageStyleValueAnimationCount()}`);
+        println(`timer active after hiding: ${internals.imageAnimationStateForURL(imageURL).timerActive}`);
         done();
     });
 </script>

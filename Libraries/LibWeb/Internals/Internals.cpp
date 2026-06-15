@@ -24,7 +24,6 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
-#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
@@ -35,6 +34,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Geometry/DOMRect.h>
+#include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
@@ -43,6 +43,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalGamepad.h>
@@ -55,6 +56,7 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Internals {
@@ -856,9 +858,38 @@ bool Internals::style_sheet_may_have_has_selectors(CSS::CSSStyleSheet& style_she
     return style_sheet.selector_insights().has_has_selectors;
 }
 
-WebIDL::UnsignedLongLong Internals::active_image_style_value_animation_count()
+WebIDL::ExceptionOr<JS::Object*> Internals::image_animation_state_for_url(String const& url)
 {
-    return CSS::ImageStyleValue::active_animation_timer_count(window().associated_document());
+    auto& document = window().associated_document();
+    auto parsed_url = document.encoding_parse_url(url);
+    if (!parsed_url.has_value())
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = MUST(String::formatted("Invalid URL: '{}'", url)) };
+
+    auto it = document.shared_resource_requests().find(*parsed_url);
+    if (it == document.shared_resource_requests().end())
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = MUST(String::formatted("URL doesn't have any associated shared resource requests: '{}'", url)) };
+
+    auto image_data = it->value->image_data();
+
+    if (!image_data)
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = MUST(String::formatted("URL's shared resource request doesn't have any associated image data: '{}'", url)) };
+
+    auto const* animated_bitmap_data = as_if<HTML::AnimatedBitmapDecodedImageData>(*image_data);
+
+    if (!animated_bitmap_data)
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = MUST(String::formatted("URL's associated image is not an animated bitmap: '{}'", url)) };
+
+    auto object = JS::Object::create(realm(), nullptr);
+
+    object->define_direct_property("timerActive"_utf16_fly_string, JS::Value(animated_bitmap_data->m_animation_timer->is_active()), JS::default_attributes);
+    object->define_direct_property("sessionID"_utf16_fly_string, JS::Value(static_cast<double>(animated_bitmap_data->m_session_id)), JS::default_attributes);
+    object->define_direct_property("frameIndex"_utf16_fly_string, JS::Value(animated_bitmap_data->m_current_frame_index), JS::default_attributes);
+    object->define_direct_property("frameCount"_utf16_fly_string, JS::Value(animated_bitmap_data->m_frame_count), JS::default_attributes);
+    object->define_direct_property("loopsCompleted"_utf16_fly_string, JS::Value(animated_bitmap_data->m_loops_completed), JS::default_attributes);
+    object->define_direct_property("loopCount"_utf16_fly_string, JS::Value(animated_bitmap_data->m_loop_count), JS::default_attributes);
+    object->define_direct_property("clientCount"_utf16_fly_string, JS::Value(image_data->m_clients.size()), JS::default_attributes);
+
+    return object.ptr();
 }
 
 struct AsyncScrollingStateSnapshot {

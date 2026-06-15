@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
+    const imageURL = "../wpt-import/images/anim-gr.gif";
+
     asyncTest(async done => {
         const iframe = document.createElement("iframe");
         const iframeLoaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
@@ -10,7 +12,7 @@
                 #target {
                     width: 100px;
                     height: 50px;
-                    background-image: url("../wpt-import/images/anim-gr.gif");
+                    background-image: url("${imageURL}");
                 }
             </style>
             <div id="target"></div>
@@ -20,8 +22,15 @@
 
         internals.dumpLayoutTree(iframe.contentDocument);
 
-        println(`top document active animations: ${internals.activeImageStyleValueAnimationCount()}`);
-        println(`iframe document active animations: ${iframe.contentWindow.internals.activeImageStyleValueAnimationCount()}`);
+        let topDocumentHasAnimationState = true;
+        try {
+            internals.imageAnimationStateForURL(imageURL);
+        } catch {
+            topDocumentHasAnimationState = false;
+        }
+
+        println(`top document has animation state: ${topDocumentHasAnimationState}`);
+        println(`iframe document timer active: ${iframe.contentWindow.internals.imageAnimationStateForURL(imageURL).timerActive}`);
 
         done();
     });

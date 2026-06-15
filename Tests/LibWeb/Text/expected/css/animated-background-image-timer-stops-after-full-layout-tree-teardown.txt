@@ -1,3 +1,0 @@
-active animations before teardown: 1
-active animations after teardown: 1
-active animations after hiding: 0

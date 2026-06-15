@@ -1,0 +1,2 @@
+timer active for shared animation: true
+client count: 1

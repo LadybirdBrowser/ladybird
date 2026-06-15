@@ -8,7 +8,6 @@
  */
 
 #include <AK/AnyOf.h>
-#include <LibGC/Function.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -22,7 +21,6 @@
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
-#include <LibWeb/Platform/Timer.h>
 
 namespace Web::CSS {
 
@@ -34,7 +32,7 @@ ImageStyleValueResource::ImageStyleValueResource(GC::Ref<HTML::SharedResourceReq
             // FIXME: Can we directly access the resource (i.e. this) here instead of looking it up in the document?
             if (auto document = weak_document.ptr()) {
                 if (auto* resource = document->css_image_resource(url))
-                    resource->on_decoded_image_data_loaded(*document);
+                    resource->on_decoded_image_data_loaded();
             }
         },
         nullptr);
@@ -42,7 +40,6 @@ ImageStyleValueResource::ImageStyleValueResource(GC::Ref<HTML::SharedResourceReq
 
 ImageStyleValueResource::~ImageStyleValueResource()
 {
-    stop_animation_timer();
     VERIFY(m_image_style_values.is_empty());
     unregister_with_decoded_image_data_if_needed();
 }
@@ -50,23 +47,19 @@ ImageStyleValueResource::~ImageStyleValueResource()
 void ImageStyleValueResource::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_resource_request);
-    visitor.visit(m_timer);
 }
 
-void ImageStyleValueResource::register_image_style_value(DOM::Document& document, ImageStyleValue const& image_style_value)
+void ImageStyleValueResource::register_image_style_value(ImageStyleValue const& image_style_value)
 {
     m_image_style_values.set(&image_style_value);
-    start_animation_timer_if_needed(document);
     register_with_decoded_image_data_if_needed();
 }
 
 void ImageStyleValueResource::unregister_image_style_value(ImageStyleValue const& image_style_value)
 {
     m_image_style_values.remove(&image_style_value);
-    if (m_image_style_values.is_empty()) {
-        stop_animation_timer();
+    if (m_image_style_values.is_empty())
         unregister_with_decoded_image_data_if_needed();
-    }
 }
 
 GC::Ptr<HTML::DecodedImageData> ImageStyleValueResource::decoded_image_data() const
@@ -74,15 +67,9 @@ GC::Ptr<HTML::DecodedImageData> ImageStyleValueResource::decoded_image_data() co
     return m_resource_request->image_data();
 }
 
-bool ImageStyleValueResource::has_active_animation_timer() const
-{
-    return m_timer && m_timer->is_active();
-}
-
-void ImageStyleValueResource::on_decoded_image_data_loaded(DOM::Document& document)
+void ImageStyleValueResource::on_decoded_image_data_loaded()
 {
     notify_image_style_values_did_update();
-    start_animation_timer_if_needed(document);
     if (!m_image_style_values.is_empty())
         register_with_decoded_image_data_if_needed();
 }
@@ -91,79 +78,6 @@ void ImageStyleValueResource::notify_image_style_values_did_update()
 {
     for (auto const* image_style_value : m_image_style_values)
         image_style_value->notify_clients_did_update();
-}
-
-void ImageStyleValueResource::start_animation_timer_if_needed(DOM::Document& document)
-{
-    if (m_image_style_values.is_empty() || !is_animatable())
-        return;
-
-    if (m_timer && m_timer->is_active())
-        return;
-
-    if (!m_timer) {
-        auto timer = Platform::Timer::create(document.heap());
-        m_timer = timer;
-        timer->on_timeout = GC::create_function(document.heap(), [weak_document = GC::Weak(document), url = m_resource_request->url()] {
-            if (auto document = weak_document.ptr())
-                document->animate_css_image_resource(url);
-        });
-    }
-
-    m_timer->set_interval(current_frame_duration());
-    m_timer->start();
-}
-
-void ImageStyleValueResource::stop_animation_timer()
-{
-    if (m_timer && m_timer->is_active())
-        m_timer->stop();
-}
-
-bool ImageStyleValueResource::is_animatable() const
-{
-    auto image_data = this->decoded_image_data();
-    if (!image_data || !image_data->is_animated() || image_data->frame_count() <= 1)
-        return false;
-
-    return !animation_has_completed();
-}
-
-bool ImageStyleValueResource::animation_has_completed() const
-{
-    auto image_data = this->decoded_image_data();
-    return image_data && image_data->loop_count() > 0 && m_loops_completed == image_data->loop_count();
-}
-
-int ImageStyleValueResource::current_frame_duration() const
-{
-    auto image_data = this->decoded_image_data();
-    if (!image_data)
-        return 0;
-
-    return image_data->frame_duration(m_current_frame_index);
-}
-
-void ImageStyleValueResource::animate(DOM::Document&)
-{
-    auto image_data = m_resource_request->image_data();
-    if (!image_data)
-        return;
-
-    m_current_frame_index = (m_current_frame_index + 1) % image_data->frame_count();
-    m_current_frame_index = image_data->notify_frame_advanced(m_current_frame_index);
-    auto current_frame_duration = image_data->frame_duration(m_current_frame_index);
-
-    if (m_timer && current_frame_duration != m_timer->interval())
-        m_timer->restart(current_frame_duration);
-
-    if (m_current_frame_index == image_data->frame_count() - 1) {
-        ++m_loops_completed;
-        if (animation_has_completed())
-            stop_animation_timer();
-    }
-
-    notify_image_style_values_did_update();
 }
 
 ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(URL const& url)
@@ -189,11 +103,6 @@ ImageStyleValue::ImageStyleValue(URL const& url, Optional<::URL::URL> style_reso
 }
 
 ImageStyleValue::~ImageStyleValue() = default;
-
-u64 ImageStyleValue::active_animation_timer_count(DOM::Document const& document)
-{
-    return document.active_css_image_animation_timer_count();
-}
 
 GC::Ptr<HTML::SharedResourceRequest> ImageStyleValue::fetch_image(DOM::Document& document) const
 {
@@ -256,28 +165,15 @@ void ImageStyleValue::paint(DisplayListRecordingContext& context, DOM::Document 
     if (!image_data)
         return;
 
-    auto current_frame_index = this->current_frame_index(document);
     auto dest_int_rect = dest_rect.to_type<int>();
-    image_data->paint(context, current_frame_index, dest_int_rect, image_rendering);
+    image_data->paint(context, dest_int_rect, image_rendering);
 }
 
 Optional<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DOM::Document const& document, DevicePixelRect const& dest_rect) const
 {
     if (auto image_data = this->image_data(document))
-        return image_data->frame(current_frame_index(document), dest_rect.size().to_type<int>());
-
+        return image_data->current_frame(dest_rect.size().to_type<int>());
     return {};
-}
-
-size_t ImageStyleValue::current_frame_index(DOM::Document const& document) const
-{
-    auto resolved_url = this->resolved_url(document);
-    if (!resolved_url.has_value())
-        return 0;
-
-    if (auto const* resource = document.css_image_resource(*resolved_url))
-        return resource->current_frame_index();
-    return 0;
 }
 
 GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data(DOM::Document const& document) const
@@ -397,7 +293,7 @@ void ImageStyleValue::register_client(Client& client) const
         resource = document->create_css_image_resource(*resource_request);
     }
 
-    resource->register_image_style_value(*document, *this);
+    resource->register_image_style_value(*this);
 }
 
 void ImageStyleValue::unregister_client(Client& client) const

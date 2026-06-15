@@ -219,13 +219,6 @@ public:
         m_layout_node = layout_node;
     }
 
-    virtual size_t current_frame_index() const override
-    {
-        if (auto document = this->document())
-            return m_image->current_frame_index(*document);
-        return 0;
-    }
-
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override
     {
         if (auto document = this->document())

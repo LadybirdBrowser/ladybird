@@ -1,0 +1,2 @@
+timer active before hiding: true
+timer active after hiding: true

@@ -16,6 +16,8 @@ void DecodedImageData::Client::register_with_decoded_image_data_if_needed()
         return;
 
     image_data->m_clients.set(this);
+
+    image_data->on_client_registered();
 }
 
 void DecodedImageData::Client::unregister_with_decoded_image_data_if_needed()
