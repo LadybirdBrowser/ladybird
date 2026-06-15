@@ -60,6 +60,10 @@ if (APPLE)
     list(APPEND SOURCES MetalContext.mm)
 endif()
 
+if (HAS_DIRECTX)
+    list(APPEND SOURCES Direct3DContext.cpp)
+endif()
+
 if (HAS_VULKAN)
     list(APPEND SOURCES VulkanContext.cpp VulkanImage.cpp)
 endif()
@@ -94,6 +98,10 @@ endif()
 if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework Metal")
     target_link_libraries(LibCore PUBLIC "-framework Accelerate")
+endif()
+
+if (HAS_DIRECTX)
+    target_link_libraries(LibGfx PRIVATE d3d12 dxgi d3dcompiler)
 endif()
 
 if (HAS_VULKAN)
