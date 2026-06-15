@@ -330,7 +330,7 @@ static bool synchronous_same_document_navigation_must_preserve_ongoing_navigatio
     return navigable.ongoing_navigation().has<String>();
 }
 
-bool TraversableNavigable::replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index)
+bool TraversableNavigable::replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)
 {
     if (entries_from_ui_process.is_empty() || current_top_level_entry_index >= entries_from_ui_process.size())
         return false;
@@ -349,6 +349,58 @@ bool TraversableNavigable::replace_top_level_session_history_entries_from_ui_pro
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
     auto active_entry = active_session_history_entry();
     VERIFY(active_entry);
+    auto active_document = this->active_document();
+    VERIFY(active_document);
+    if (!active_document->is_initial_about_blank()) {
+        // NB: The UI process can ask WebContent to reseed its top-level session history after observing an
+        //     incomplete or stale snapshot. Same-document history updates are committed synchronously in WebContent,
+        //     while the UI-process mirror is necessarily fed by async IPC. If that mirror sends back an older current
+        //     entry, accepting it would clobber the active document's live latest entry and make a queued traversal
+        //     target unreachable. Rejecting the seed lets the UI process converge from WebContent's current snapshot
+        //     instead. Descriptor ID 0 means the UI process only has a provisional document state; do not apply that
+        //     to a live non-initial document. Process-swap/preload seeds still go through the initial about:blank path
+        //     above.
+        auto const& current_entry_from_ui_process = entries_from_ui_process[current_top_level_entry_index];
+        if (current_entry_from_ui_process.document_state.id == 0)
+            return false;
+        // NB: Nested histories can be UI-owned state that is intentionally restored after the current top-level
+        //     document has loaded. The live latest entry must still match the UI seed's top-level state, but requiring
+        //     nested histories to match would reject the state we are being asked to restore.
+        auto latest_entry = active_document->latest_entry();
+        if (!latest_entry)
+            return false;
+
+        auto latest_entry_matches_ui_seed = session_history_entry_matches_descriptor_ignoring_document_state_id(*latest_entry, current_entry_from_ui_process, MatchNestedHistories::No);
+
+        auto active_entry_is_latest_entry = latest_entry.ptr() == active_entry.ptr();
+        auto current_entry_url_matches_ui_seed = latest_entry->url() == current_entry_from_ui_process.url;
+
+        // NB: A UI-process fallback load starts a fresh WebContent process with a single top-level entry for the URL
+        //     being restored, then seeds the UI-owned traversable session history around that document. The fresh
+        //     entry has local step and Navigation API identity, so accept the seed when the process has no other
+        //     top-level history to protect.
+        auto can_restore_fresh_ui_history_load = entries_from_ui_process.size() > 1
+            && m_session_history_entries.size() == 1
+            && active_entry.ptr() == m_session_history_entries.first().ptr()
+            && active_entry_is_latest_entry
+            && current_entry_url_matches_ui_seed;
+
+        // NB: Crash recovery pre-seeds WebContent before loading the current entry, then reseeds after the document is
+        //     loaded so same-document state, Navigation API state, scroll restoration mode, and target name are
+        //     restored onto the fresh Document. At that point WebContent already has the UI-owned top-level history and
+        //     step coordinates, but the active entry can still have freshly loaded document state.
+        auto latest_entry_step = latest_entry->step_value();
+        auto can_restore_preseeded_ui_history_load = latest_entry_step.has_value()
+            && *latest_entry_step == current_entry_from_ui_process.step
+            && m_session_history_entries.size() == entries_from_ui_process.size()
+            && active_entry_is_latest_entry
+            && current_entry_url_matches_ui_seed;
+
+        auto can_reconstruct_current_entry = allow_reconstructing_current_entry
+            && (can_restore_fresh_ui_history_load || can_restore_preseeded_ui_history_load);
+        if (!latest_entry_matches_ui_seed && !can_reconstruct_current_entry)
+            return false;
+    }
 
     SessionHistoryEntryReconstructionState reconstruction_state;
     if (entries_from_ui_process[current_top_level_entry_index].document_state.id != 0) {
@@ -380,7 +432,7 @@ bool TraversableNavigable::replace_top_level_session_history_entries_from_ui_pro
     set_current_session_history_entry(current_entry);
     m_current_session_history_step = current_entry->step().get<int>();
 
-    auto document = active_document();
+    auto document = this->active_document();
     VERIFY(document);
     auto history_object_length_and_index = get_the_history_object_length_and_index(m_current_session_history_step);
     document->history()->m_index = history_object_length_and_index.script_history_index;
@@ -2068,13 +2120,11 @@ void TraversableNavigable::check_if_traverse_history_step_is_canceled(int step, 
     append_session_history_traversal_steps(GC::create_function(heap(), [this, step, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
         auto all_steps = get_all_used_history_steps();
         if (!all_steps.contains_slow(step)) {
-            // The UI process can ask about a step in its authoritative
-            // session history mirror that this WebContent process cannot
-            // address locally, for example after a process swap with a partial
-            // restored history. We cannot run the full traverse prechecks
-            // without the target entry, but the active document tree still must
-            // get a chance to cancel unloading before the UI process replaces
-            // this WebContent process or fallback-loads the target entry.
+            // NB: The UI process can ask about a step in its authoritative session history mirror that this WebContent
+            //     process cannot address locally, for example after a process swap with a partial restored history. We
+            //     cannot run the full traverse prechecks without the target entry, but the active document tree still
+            //     must get a chance to cancel unloading before the UI process replaces this WebContent process or
+            //     fallback-loads the target entry.
             check_if_unloading_is_canceled(active_document()->inclusive_descendant_navigables(),
                 GC::create_function(heap(), [signal, on_complete](CheckIfUnloadingIsCanceledResult result) {
                     on_complete->function()(result == CheckIfUnloadingIsCanceledResult::Continue ? HistoryStepResult::Applied : HistoryStepResult::CanceledByBeforeUnload);

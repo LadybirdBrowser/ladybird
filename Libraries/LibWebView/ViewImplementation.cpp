@@ -1156,6 +1156,66 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
     dump_session_history("did-update-navigation-buttons-state-using-webcontent"sv);
 }
 
+static Optional<size_t> current_top_level_history_entry_index_for_step(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Optional<i32> current_step);
+
+TraversableSessionHistory::UpdateResult ViewImplementation::update_session_history_from_web_content(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, bool pending_step_after_fallback_load_was_restored, bool seed_web_content_on_invalid_snapshot)
+{
+    auto update_result = m_session_history.update_from_web_content(move(entries), move(used_steps), current_used_step_index);
+    m_current_web_content_session_history_matches_mirror = update_result == TraversableSessionHistory::UpdateResult::CompleteSnapshot
+        && m_session_history.web_content_history_matches_mirror();
+    if (update_result != TraversableSessionHistory::UpdateResult::InvalidSnapshot) {
+        // NB: A complete WebContent snapshot means the UI-owned navigation settled, including redirected navigations
+        //     whose final URL differs from the original pending navigation URL. A partial snapshot only updates the UI
+        //     mirror with the current WebContent-visible subset.
+        if (update_result == TraversableSessionHistory::UpdateResult::CompleteSnapshot)
+            m_pending_session_history_navigation.clear();
+        if (auto* current_entry = m_session_history.current_entry()) {
+            auto current_url = current_entry->url;
+            auto const url_changed = m_url != current_url;
+            set_url(current_url);
+            if (url_changed && on_url_change)
+                on_url_change(m_url);
+            if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url != current_url)
+                m_webdriver_pending_navigation_url = current_url;
+            if (m_webdriver_pending_navigation_completes_with_session_history_update)
+                complete_webdriver_pending_navigation_if_url_matches(m_url);
+        }
+        if (pending_step_after_fallback_load_was_restored)
+            m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.clear();
+    } else if (seed_web_content_on_invalid_snapshot) {
+        if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == m_url) {
+            prepare_to_seed_web_content_session_history_from_ui_process();
+            seed_web_content_session_history_from_ui_process();
+        }
+    }
+
+    update_navigation_action_state();
+    return update_result;
+}
+
+bool ViewImplementation::adopt_web_content_session_history_after_rejected_seed(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
+{
+    if (entries.is_empty())
+        return false;
+
+    auto entries_from_web_content = entries;
+    auto used_steps_from_web_content = used_steps;
+    auto update_result = update_session_history_from_web_content(move(entries), move(used_steps), current_used_step_index, false, false);
+    if (update_result == TraversableSessionHistory::UpdateResult::InvalidSnapshot && current_used_step_index < used_steps_from_web_content.size()) {
+        auto current_top_level_entry_index = current_top_level_history_entry_index_for_step(entries_from_web_content, used_steps_from_web_content[current_used_step_index]);
+        if (current_top_level_entry_index.has_value() && entries_from_web_content[*current_top_level_entry_index].url == m_url) {
+            m_session_history.clear();
+            update_result = update_session_history_from_web_content(move(entries_from_web_content), move(used_steps_from_web_content), current_used_step_index, false, false);
+        }
+    }
+    if (update_result == TraversableSessionHistory::UpdateResult::InvalidSnapshot)
+        return false;
+
+    m_pending_web_content_session_history_seed.clear();
+    m_pending_session_history_traversal.clear();
+    return true;
+}
+
 void ViewImplementation::did_update_session_history(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
     if (!should_manage_session_history_in_ui_process())
@@ -1188,35 +1248,28 @@ void ViewImplementation::did_update_session_history(Badge<WebContentClient>, Vec
         update_navigation_action_state();
         return;
     }
-    auto update_result = m_session_history.update_from_web_content(move(entries), move(used_steps), current_used_step_index);
-    m_current_web_content_session_history_matches_mirror = update_result == TraversableSessionHistory::UpdateResult::CompleteSnapshot
-        && m_session_history.web_content_history_matches_mirror();
-    if (update_result != TraversableSessionHistory::UpdateResult::InvalidSnapshot) {
-        // A complete WebContent snapshot means the UI-owned navigation settled,
-        // including redirected navigations whose final URL differs from the
-        // original pending navigation URL. A partial snapshot only updates the
-        // UI mirror with the current WebContent-visible subset.
-        if (update_result == TraversableSessionHistory::UpdateResult::CompleteSnapshot)
-            m_pending_session_history_navigation.clear();
-        if (auto* current_entry = m_session_history.current_entry()) {
-            auto current_url = current_entry->url;
-            auto const url_changed = m_url != current_url;
-            set_url(current_url);
-            if (url_changed && on_url_change)
-                on_url_change(m_url);
-            if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url != current_url)
-                m_webdriver_pending_navigation_url = current_url;
-            if (m_webdriver_pending_navigation_completes_with_session_history_update)
-                complete_webdriver_pending_navigation_if_url_matches(m_url);
-        }
-        if (pending_step_after_fallback_load_was_restored)
-            m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.clear();
-    } else if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == m_url) {
-        prepare_to_seed_web_content_session_history_from_ui_process();
-        seed_web_content_session_history_from_ui_process();
-    }
-    update_navigation_action_state();
+    update_session_history_from_web_content(move(entries), move(used_steps), current_used_step_index, pending_step_after_fallback_load_was_restored, true);
     dump_session_history("did-update-session-history"sv);
+}
+
+void ViewImplementation::did_update_session_history_for_testing(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
+{
+    if (!should_manage_session_history_in_ui_process())
+        return;
+
+    // NB: dumpUIProcessSessionHistory() first sends WebContent's current snapshot to the UI process, then returns
+    //     the UI mirror. If a stale seed ack is still pending, normal async snapshots are intentionally ignored, so
+    //     use the same convergence path as a rejected seed ack to make this testing hook deterministic.
+    if (m_pending_web_content_session_history_seed.waiting_for_ack) {
+        if (adopt_web_content_session_history_after_rejected_seed(move(entries), move(used_steps), current_used_step_index))
+            dump_session_history("did-update-session-history-for-testing-after-rejected-seed"sv);
+        else
+            dump_session_history("ignored-session-history-for-testing-before-ui-seed-ack"sv);
+        return;
+    }
+
+    update_session_history_from_web_content(move(entries), move(used_steps), current_used_step_index, false, true);
+    dump_session_history("did-update-session-history-for-testing"sv);
 }
 
 void ViewImplementation::did_change_needs_beforeunload_check(Badge<WebContentClient>, bool needs_beforeunload_check)
@@ -1459,13 +1512,15 @@ void ViewImplementation::did_finish_navigation(URL::URL const& url)
     if (should_manage_session_history_in_ui_process() && m_pending_web_content_session_history_seed.should_send_entries) {
         if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url) {
             m_session_history.clear_current_entry_reload_pending();
+            auto allow_current_entry_reconstruction = m_pending_web_content_session_history_seed.should_reseed_after_current_history_load
+                ? AllowCurrentEntryReconstruction::Yes
+                : AllowCurrentEntryReconstruction::No;
             m_pending_web_content_session_history_seed.should_reseed_after_current_history_load = false;
-            seed_web_content_session_history_from_ui_process();
+            seed_web_content_session_history_from_ui_process(allow_current_entry_reconstruction);
         } else {
-            // The first finish notification from a fresh WebContent process can
-            // still report about:blank before the traversed-to entry is ready.
-            // Keep the pending seed state intact so partial snapshots remain
-            // ignored until we can seed the full UI-owned history.
+            // NB: The first finish notification from a fresh WebContent process can still report about:blank before the
+            //     traversed-to entry is ready. Keep the pending seed state intact so partial snapshots remain ignored
+            //     until we can seed the full UI-owned history.
             dump_session_history("skip-seed-webcontent-session-history"sv);
         }
     }
@@ -1707,7 +1762,7 @@ void ViewImplementation::update_navigation_action_state()
     m_navigate_forward_action->set_enabled(m_session_history.can_go_forward());
 }
 
-void ViewImplementation::seed_web_content_session_history_from_ui_process()
+void ViewImplementation::seed_web_content_session_history_from_ui_process(AllowCurrentEntryReconstruction allow_current_entry_reconstruction)
 {
     auto current_top_level_entry_index = m_session_history.current_top_level_entry_index();
     if (!current_top_level_entry_index.has_value()) {
@@ -1737,7 +1792,20 @@ void ViewImplementation::seed_web_content_session_history_from_ui_process()
             history_log_entries(entries, current_top_level_entry_index));
     }
 
-    client().async_set_top_level_session_history(page_id(), move(entries), *current_top_level_entry_index);
+    // NB: A fallback traversal or crash recovery can restore the current top-level document before WebContent has the
+    //     UI-owned session history that surrounds it. Allow WebContent to reconstruct that current entry only while the
+    //     UI process is actively restoring that authoritative history, including the follow-up child navigable step for
+    //     nested history. After crash recovery there might not be a pending traversal object anymore, but a pending
+    //     nested step still means the top-level document is only a staging point for restoring the current history
+    //     step.
+    auto is_restoring_traversal_target = m_pending_session_history_traversal.has_value()
+        && (m_pending_session_history_traversal->stage == PendingSessionHistoryTraversal::Stage::LoadingEntryFromUIProcess
+            || m_pending_session_history_traversal->stage == PendingSessionHistoryTraversal::Stage::ReplacingWebContentProcess
+            || m_pending_session_history_traversal->stage == PendingSessionHistoryTraversal::Stage::RestoringNestedStepAfterSeed);
+    auto allow_reconstructing_current_entry = is_restoring_traversal_target
+        || m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value()
+        || allow_current_entry_reconstruction == AllowCurrentEntryReconstruction::Yes;
+    client().async_set_top_level_session_history(page_id(), move(entries), *current_top_level_entry_index, allow_reconstructing_current_entry);
     m_pending_web_content_session_history_seed.waiting_for_ack = true;
     m_pending_web_content_session_history_seed.should_send_entries = false;
     update_navigation_action_state();
@@ -1750,10 +1818,9 @@ void ViewImplementation::prepare_to_seed_web_content_session_history_from_ui_pro
     m_session_history.forget_web_content_state();
     m_pending_session_history_navigation.clear();
     m_pending_web_content_session_history_seed.clear();
-    // A fresh or repaired WebContent process reaches the current top-level
-    // session history entry after loading or reseeding m_url. If the
-    // traversable's current session history step is nested, finish restoration
-    // by traversing to that step after seeding the top-level entries.
+    // NB: A fresh or repaired WebContent process reaches the current top-level session history entry after loading or
+    //     reseeding m_url. If the traversable's current session history step is nested, finish restoration by
+    //     traversing to that step after seeding the top-level entries.
     m_pending_web_content_session_history_seed.step_after_loading_top_level_entry = m_session_history.current_step_to_restore_after_loading_top_level_entry();
     m_pending_web_content_session_history_seed.should_send_entries = true;
     m_pending_web_content_session_history_seed.ignore_updates_until_seed = true;
@@ -1814,7 +1881,10 @@ void ViewImplementation::load_session_history_traversal_target_from_ui_process(T
         move(previous_session_history),
     };
     m_webdriver_pending_navigation_url = target.target_top_level_entry->url;
-    m_webdriver_pending_navigation_completes_with_session_history_update = false;
+    // NB: A UI-process fallback traversal is only fully observable once the replacement WebContent process has
+    //     accepted the UI-owned history seed. Completing WebDriver at load finish would let tests, and callers doing
+    //     immediate history inspection, observe the fresh process before it has consumed the authoritative history.
+    m_webdriver_pending_navigation_completes_with_session_history_update = true;
     set_url(target.target_top_level_entry->url);
     dump_session_history(dump_reason);
     load_current_session_history_entry_from_ui_process();
@@ -1848,6 +1918,15 @@ void ViewImplementation::did_set_top_level_session_history(Badge<WebContentClien
     }
 
     if (!accepted) {
+        // NB: WebContent can reject a stale UI-process seed without changing its live session history. In that case
+        //     the ack carries WebContent's current snapshot, so converge the UI mirror from the same path used by
+        //     normal WebContent history updates. If the snapshot itself is not usable, fall back to forgetting the
+        //     WebContent state below and wait for the next repair point.
+        if (adopt_web_content_session_history_after_rejected_seed(move(entries), move(used_steps), current_used_step_index)) {
+            dump_session_history("webcontent-session-history-seed-rejected-with-current-snapshot"sv);
+            return;
+        }
+
         abandon_pending_web_content_session_history_seed();
         m_current_web_content_session_history_matches_mirror = false;
         m_session_history.forget_web_content_state();
@@ -1888,8 +1967,8 @@ void ViewImplementation::did_set_top_level_session_history(Badge<WebContentClien
     }
 
     m_pending_web_content_session_history_seed.ignore_updates_until_seed = false;
-    // A seed ack can arrive while a top-level navigation is still blocked.
-    // Keep the mirror provisional until that navigation settles.
+    // NB: A seed ack can arrive while a top-level navigation is still blocked. Keep the mirror provisional until that
+    //     navigation settles.
     m_current_web_content_session_history_matches_mirror = !m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value()
         && !m_pending_session_history_navigation.has_value();
     if (m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value()) {

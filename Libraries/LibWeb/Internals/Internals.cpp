@@ -692,7 +692,7 @@ String Internals::dump_ui_process_session_history()
         if (auto traversable = navigable->traversable_navigable();
             traversable && document.page().client().should_report_session_history_updates()) {
             auto session_history_snapshot = traversable->create_session_history_snapshot();
-            document.page().client().page_did_update_session_history(
+            return document.page().client().page_did_update_session_history_and_request_ui_process_session_history_for_testing(
                 session_history_snapshot.top_level_session_history_entries,
                 session_history_snapshot.used_session_history_steps,
                 session_history_snapshot.current_used_step_index);

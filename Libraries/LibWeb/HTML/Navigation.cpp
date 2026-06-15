@@ -38,6 +38,20 @@ GC_DEFINE_ALLOCATOR(NavigationAPIMethodTracker);
 
 static Bindings::NavigationResult navigation_api_method_tracker_derived_result(GC::Ref<NavigationAPIMethodTracker> api_method_tracker);
 
+static void report_session_history_update_for_navigation_api_state_change(DOM::Document& document)
+{
+    auto navigable = document.navigable();
+    if (!navigable)
+        return;
+
+    auto traversable = navigable->traversable_navigable();
+    if (!traversable->page().client().should_report_session_history_updates())
+        return;
+
+    auto session_history_snapshot = traversable->create_session_history_snapshot();
+    traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+}
+
 NavigationAPIMethodTracker::NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,
     Optional<String> key,
     JS::Value info,
@@ -143,6 +157,11 @@ WebIDL::ExceptionOr<void> Navigation::update_current_entry(Bindings::NavigationU
 
     // 4. Set current's session history entry's navigation API state to serializedState.
     current->session_history_entry().set_navigation_api_state(serialized_state);
+
+    // NB: The UI-process session history mirror needs to observe updateCurrentEntry() state changes so restored
+    //     WebContent processes can reconstruct Navigation API state from the authoritative UI-owned history.
+    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    report_session_history_update_for_navigation_api_state_change(document);
 
     // 5. Fire an event named currententrychange at this using NavigationCurrentEntryChangeEvent,
     //    with its navigationType attribute initialized to null and its from initialized to current.
@@ -1305,13 +1324,16 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         }
     }
 
-    auto const defer_traverse_commit_handler_steps = navigation_type == Bindings::NavigationType::Traverse && end_result_is_same_document;
+    auto const defer_commit_handler_steps_until_same_document_entry_update = end_result_is_same_document
+        && (navigation_type == Bindings::NavigationType::Traverse
+            || navigation_type == Bindings::NavigationType::Push
+            || navigation_type == Bindings::NavigationType::Replace);
 
     if (end_result_is_same_document) {
         // NB: Same-document Navigation API entry updates run these steps after currententrychange.
         //     If those steps have not started here, run them as a fallback for same-document paths
         //     that did not update entries.
-        if (!defer_traverse_commit_handler_steps && !event->has_started_navigate_event_intercept_commit_handler_steps())
+        if (!defer_commit_handler_steps_until_same_document_entry_update && !event->has_started_navigate_event_intercept_commit_handler_steps())
             run_the_navigate_event_intercept_commit_handler_steps(event, api_method_tracker);
     }
 
