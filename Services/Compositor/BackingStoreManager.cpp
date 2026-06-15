@@ -22,7 +22,7 @@ struct BackingStorePair {
     RefPtr<Gfx::PaintingSurface> back;
 };
 
-#ifdef USE_VULKAN
+#if defined(USE_DIRECTX) || defined(USE_VULKAN)
 static NonnullRefPtr<Gfx::PaintingSurface> create_gpu_painting_surface_with_bitmap_flush(Gfx::IntSize size, Gfx::SharedImageBuffer& buffer, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context);
@@ -44,7 +44,7 @@ static BackingStorePair create_shareable_bitmap_backing_stores([[maybe_unused]] 
         };
     }
 #else
-#    ifdef USE_VULKAN
+#    if defined(USE_DIRECTX) || defined(USE_VULKAN)
     if (skia_backend_context) {
         return {
             .front = create_gpu_painting_surface_with_bitmap_flush(size, front_buffer, skia_backend_context),
