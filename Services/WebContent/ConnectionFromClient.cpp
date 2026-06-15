@@ -409,8 +409,14 @@ void ConnectionFromClient::pinch_event(u64 page_id, Web::PinchEvent event)
 
     // OPTIMIZATION: Coalesce consecutive unprocessed pinch events. Pinch scale
     //               deltas are multiplicative, so preserve the combined scale change.
+    //               Only coalesce events with the same focal point, as applying
+    //               one combined zoom around a different point is not equivalent
+    //               to applying each zoom in sequence.
     if (!m_input_event_queue.is_empty() && m_input_event_queue.tail().page_id == page_id) {
         if (auto const* pinch_event = m_input_event_queue.tail().event.get_pointer<Web::PinchEvent>()) {
+            if (pinch_event->position != event.position || pinch_event->modifiers != event.modifiers)
+                return enqueue_input_event({ page_id, move(event), 0 });
+
             event.scale_delta = (1.0 + pinch_event->scale_delta) * (1.0 + event.scale_delta) - 1.0;
             m_input_event_queue.tail().event = move(event);
             ++m_input_event_queue.tail().coalesced_event_count;

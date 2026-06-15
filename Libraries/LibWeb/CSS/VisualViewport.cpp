@@ -175,7 +175,7 @@ void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
     // For pinch zoom we want focal_point to stay put on screen:
     // scale_new * (focal_point - offset_new) = scale_old * (focal_point - offset_old)
     auto new_offset = m_offset.to_type<double>() * m_scale * applied_delta;
-    new_offset += position.to_type<int>().to_type<double>() * (applied_delta - 1.0f);
+    new_offset += position.to_type<double>() * (applied_delta - 1.0f);
 
     auto viewport_float_size = m_document->navigable()->viewport_rect().size().to_type<double>();
     auto max_x_offset = max(0.0, viewport_float_size.width() * (new_scale - 1.0f));
