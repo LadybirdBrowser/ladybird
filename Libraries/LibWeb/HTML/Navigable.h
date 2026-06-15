@@ -300,7 +300,13 @@ protected:
     Variant<Empty, Traversal, String> m_ongoing_navigation;
 
 private:
+    enum class PendingNavigationBehavior {
+        Append,
+        Replace
+    };
+
     void begin_navigation(NavigateParams);
+    void queue_pending_navigation(NavigateParams, PendingNavigationBehavior);
     void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id);
     void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, String navigation_id);
 
@@ -411,7 +417,7 @@ private:
 WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<SerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
 
 }

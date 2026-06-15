@@ -488,9 +488,11 @@ RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_s
     // 2. Return the item in entries that has the greatest step less than or equal to step.
     RefPtr<SessionHistoryEntry> result = nullptr;
     for (auto& entry : entries) {
-        auto entry_step = entry->step().get<int>();
-        if (entry_step <= target_step) {
-            if (!result || result->step().get<int>() < entry_step) {
+        // NB: "pending" is not a used history step.
+        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-step
+        auto entry_step = entry->step_value();
+        if (entry_step.has_value() && *entry_step <= target_step) {
+            if (!result || *result->step_value() < *entry_step) {
                 result = entry;
             }
         }
@@ -742,6 +744,13 @@ void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing
             begin_navigation(navigation_params);
         }
     }
+}
+
+void Navigable::queue_pending_navigation(NavigateParams params, PendingNavigationBehavior behavior)
+{
+    if (behavior == PendingNavigationBehavior::Replace)
+        m_pending_navigations.clear();
+    m_pending_navigations.append(move(params));
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
@@ -1961,7 +1970,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     }
 
     if (!m_has_session_history_entry_and_ready_for_navigation) {
-        m_pending_navigations.append(move(params));
+        queue_pending_navigation(move(params), PendingNavigationBehavior::Append);
         return {};
     }
 
@@ -2112,11 +2121,10 @@ void Navigable::begin_navigation(NavigateParams params)
         // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id
         //    is navigationId, status is "canceled", and url is url.
 
-        // AD-HOC: Instead of canceling the navigation (per spec step 18.2), defer it until the traversal completes.
-        //         This prevents a race condition where page_did_finish_loading is sent to the client before the session
-        //         history traversal from finalize_a_cross_document_navigation completes. If the client sends a new
-        //         navigation before the traversal finishes, it would be dropped, causing the page to appear stuck.
-        m_pending_navigations.append(move(params));
+        // AD-HOC: The HTML Standard cancels a navigation that starts while a traversal is ongoing. We defer it
+        //         instead so UI-initiated navigations that race the tail end of a previous load are not dropped.
+        //         Match Chromium, WebKit, and Gecko's observable behavior by letting the newest navigation win.
+        queue_pending_navigation(move(params), PendingNavigationBehavior::Replace);
 
         // 2. Return.
         return;
@@ -2379,7 +2387,7 @@ void Navigable::begin_navigation(NavigateParams params)
                                 signal->resolve({});
                                 return;
                             }
-                            finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, GC::create_function(heap(), [signal](HistoryStepResult) {
+                            finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, navigation_id, GC::create_function(heap(), [signal](HistoryStepResult) {
                                 signal->resolve({});
                             }));
                         }));
@@ -2688,7 +2696,7 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
 
     // 14. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, userInvolvement, and historyEntry.
     traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, new_document, history_entry, history_handling, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, new_document, GC::create_function(heap(), [signal](HistoryStepResult) {
+        finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, new_document, {}, GC::create_function(heap(), [signal](HistoryStepResult) {
             signal->resolve({});
         }));
     }));
@@ -2832,7 +2840,7 @@ TargetSnapshotParams Navigable::snapshot_target_snapshot_params()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -2965,7 +2973,7 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     }
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
-    traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::No, pending_document,
+    traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::No, pending_document, navigable, move(expected_ongoing_navigation_id),
         GC::create_function(navigable->heap(), [on_complete, navigable](HistoryStepResult result) {
             // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
             if (auto container = navigable->container())

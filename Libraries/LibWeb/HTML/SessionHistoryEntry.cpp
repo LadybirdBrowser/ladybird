@@ -32,6 +32,78 @@ SessionHistoryEntry::SessionHistoryEntry()
 {
 }
 
+static u64 document_state_id_for_descriptor(DocumentState const& document_state, SessionHistoryEntryDescriptorCreationState& creation_state)
+{
+    if (auto id = creation_state.document_state_ids.get(&document_state); id.has_value())
+        return *id;
+
+    auto id = creation_state.next_document_state_id++;
+    VERIFY(id != 0);
+    creation_state.document_state_ids.set(&document_state, id);
+    return id;
+}
+
+static SessionHistoryDocumentStateDescriptor create_session_history_document_state_descriptor(DocumentState const& document_state, SessionHistoryEntryDescriptorCreationState& creation_state)
+{
+    Vector<SessionHistoryNestedHistoryDescriptor> nested_history_descriptors;
+    nested_history_descriptors.ensure_capacity(document_state.nested_histories().size());
+    for (auto const& nested_history : document_state.nested_histories()) {
+        Vector<SessionHistoryEntryDescriptor> nested_entry_descriptors;
+        nested_entry_descriptors.ensure_capacity(nested_history.entries.size());
+        for (auto const& nested_entry : nested_history.entries) {
+            // NB: UI-process session history mirrors only concrete used history steps. A child entry whose step is
+            //     still "pending" has not been attached to the traversable's step graph yet.
+            if (!nested_entry->step_value().has_value())
+                continue;
+            nested_entry_descriptors.unchecked_append(create_session_history_entry_descriptor(nested_entry, creation_state));
+        }
+
+        // NB: Keep the nested-history descriptor even when every entry in it is still pending. The entries are not
+        //     used history steps yet, but the descriptor id preserves the live child navigable identity when the UI
+        //     process later reseeds an already-loaded document.
+        nested_history_descriptors.unchecked_append({
+            .id = nested_history.id,
+            .entries = move(nested_entry_descriptors),
+        });
+    }
+
+    return {
+        .id = document_state_id_for_descriptor(document_state, creation_state),
+        .history_policy_container = document_state.history_policy_container(),
+        .request_referrer = document_state.request_referrer(),
+        .request_referrer_policy = document_state.request_referrer_policy(),
+        .initiator_origin = document_state.initiator_origin(),
+        .origin = document_state.origin(),
+        .about_base_url = document_state.about_base_url(),
+        .resource = document_state.resource(),
+        .reload_pending = document_state.reload_pending(),
+        .ever_populated = document_state.ever_populated(),
+        .navigable_target_name = document_state.navigable_target_name(),
+        .nested_histories = move(nested_history_descriptors),
+    };
+}
+
+SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const& entry, SessionHistoryEntryDescriptorCreationState& creation_state)
+{
+    auto entry_step = entry.step_value();
+    VERIFY(entry_step.has_value());
+    SessionHistoryDocumentStateDescriptor document_state_descriptor;
+    if (auto document_state = entry.document_state())
+        document_state_descriptor = create_session_history_document_state_descriptor(*document_state, creation_state);
+
+    return {
+        .step = static_cast<i32>(*entry_step),
+        .url = entry.url(),
+        .document_state = move(document_state_descriptor),
+        .classic_history_api_state = entry.classic_history_api_state(),
+        .navigation_api_state = entry.navigation_api_state(),
+        .navigation_api_key = entry.navigation_api_key(),
+        .navigation_api_id = entry.navigation_api_id(),
+        .scroll_restoration_mode = entry.scroll_restoration_mode(),
+        .scroll_position_data = entry.scroll_position_data(),
+    };
+}
+
 static bool session_history_nested_history_descriptors_match(Vector<SessionHistoryNestedHistoryDescriptor> const& a, Vector<SessionHistoryNestedHistoryDescriptor> const& b);
 
 static bool serialized_directives_match(Vector<ContentSecurityPolicy::Directives::SerializedDirective> const& a, Vector<ContentSecurityPolicy::Directives::SerializedDirective> const& b)
@@ -250,7 +322,8 @@ static bool session_history_document_state_descriptor_matches_document_state_ign
 
 bool session_history_entry_matches_descriptor_ignoring_document_state_id(SessionHistoryEntry const& entry, SessionHistoryEntryDescriptor const& descriptor, MatchNestedHistories match_nested_histories)
 {
-    if (!entry.step().has<int>() || entry.step().get<int>() != descriptor.step)
+    auto entry_step = entry.step_value();
+    if (!entry_step.has_value() || *entry_step != descriptor.step)
         return false;
     if (entry.url() != descriptor.url)
         return false;

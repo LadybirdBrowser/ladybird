@@ -77,7 +77,7 @@ public:
         No,
     };
     [[nodiscard]] bool try_to_synchronously_commit_same_document_navigation(GC::Ref<Navigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace);
-    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<Navigable> expected_ongoing_navigation_navigable, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
     void update_for_navigable_creation_or_destruction(GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     int get_the_used_step(int step) const;
@@ -154,6 +154,8 @@ private:
         SynchronousNavigation,
         Navigable::NavigationAPIAbortBehavior,
         GC::Ptr<DOM::Document> pending_document,
+        GC::Ptr<Navigable> expected_ongoing_navigation_navigable,
+        Optional<String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     void apply_the_history_step_after_unload_check(
@@ -165,6 +167,8 @@ private:
         SynchronousNavigation,
         Navigable::NavigationAPIAbortBehavior,
         GC::Ptr<DOM::Document> pending_document,
+        GC::Ptr<Navigable> expected_ongoing_navigation_navigable,
+        Optional<String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     using OnHistoryStepPrechecksComplete = GC::Function<void(HistoryStepResult, int target_step, Navigable::NavigationAPIAbortBehavior)>;

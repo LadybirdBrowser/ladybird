@@ -10,6 +10,7 @@
 #include <AK/RefCounted.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/POSTResource.h>
@@ -19,7 +20,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-2
-class DocumentState final : public RefCounted<DocumentState> {
+class WEB_API DocumentState final : public RefCounted<DocumentState> {
 public:
     static NonnullRefPtr<DocumentState> create() { return adopt_ref(*new DocumentState()); }
     ~DocumentState();

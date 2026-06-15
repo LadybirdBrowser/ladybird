@@ -3,6 +3,13 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(async done => {
+        const server = httpTestServer();
+        const finalPageUrl = await server.createEcho("GET", "/iframe-pushstate-before-nested-history-ready-final", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>parent.postMessage("final page loaded", "*");<\/script>`,
+        });
+
         const iframe = document.createElement("iframe");
 
         document.body.append(iframe);
@@ -11,6 +18,16 @@
         await internals.flushSessionHistoryTraversalQueue();
         println(iframe.contentWindow.location.hash);
         println("queue drained");
+
+        const loaded = new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.source === iframe.contentWindow && event.data === "final page loaded")
+                    resolve();
+            });
+        });
+        iframe.src = finalPageUrl;
+        await loaded;
+        println("navigation drained");
         done();
     });
 </script>

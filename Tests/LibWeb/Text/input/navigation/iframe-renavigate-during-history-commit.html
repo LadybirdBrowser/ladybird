@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        const finalPageUrl = await server.createEcho("GET", "/iframe-renavigate-during-history-commit-final", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>parent.postMessage({ page: "final", href: location.href }, "*");<\/script>`,
+        });
+
+        const intermediatePageUrl = await server.createEcho("GET", "/iframe-renavigate-during-history-commit-intermediate", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>parent.postMessage({ page: "intermediate" }, "*");<\/script>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const result = await new Promise(resolve => {
+            window.addEventListener("message", async event => {
+                if (event.source !== iframe.contentWindow)
+                    return;
+
+                if (event.data.page === "intermediate") {
+                    iframe.src = finalPageUrl;
+                    return;
+                }
+
+                if (event.data.page === "final") {
+                    await internals.flushSessionHistoryTraversalQueue();
+                    resolve(event.data.href.endsWith("/iframe-renavigate-during-history-commit-final") ? "PASS" : `FAIL: ${event.data.href}`);
+                }
+            });
+
+            iframe.src = intermediatePageUrl;
+        });
+
+        iframe.remove();
+        println(result);
+        done();
+    });
+</script>
