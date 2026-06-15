@@ -16,7 +16,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
-#include <LibWeb/HTML/AnimatedDecodedImageData.h>
+#include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
 #include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
@@ -210,7 +210,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
 
     auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this), image_data_is_cors_cross_origin](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
         if (result.session_id != 0) {
-            // Streaming animated decode: create AnimatedDecodedImageData.
+            // Streaming animated decode: create AnimatedBitmapDecodedImageData.
             Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps;
             initial_bitmaps.ensure_capacity(result.frames.size());
             for (auto& frame : result.frames)
@@ -219,7 +219,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
             auto first_bitmap = result.frames.first().bitmap;
             auto size = first_bitmap->size();
 
-            strong_this->m_image_data = AnimatedDecodedImageData::create(
+            strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(
                 strong_this->m_document->realm(),
                 result.session_id,
                 result.frame_count,

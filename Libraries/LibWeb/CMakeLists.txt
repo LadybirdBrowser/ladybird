@@ -687,7 +687,7 @@ set(SOURCES
     HTML/SessionHistoryEntry.cpp
     HTML/SessionHistoryTraversalQueue.cpp
     HTML/SharedResourceRequest.cpp
-    HTML/AnimatedDecodedImageData.cpp
+    HTML/AnimatedBitmapDecodedImageData.cpp
     HTML/SharedWorker.cpp
     HTML/SharedWorkerGlobalScope.cpp
     HTML/SourceSet.cpp

@@ -10,22 +10,22 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/HTML/AnimatedDecodedImageData.h>
+#include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(AnimatedDecodedImageData);
+GC_DEFINE_ALLOCATOR(AnimatedBitmapDecodedImageData);
 
-HashMap<i64, GC::RawPtr<AnimatedDecodedImageData>>& AnimatedDecodedImageData::session_registry()
+HashMap<i64, GC::RawPtr<AnimatedBitmapDecodedImageData>>& AnimatedBitmapDecodedImageData::session_registry()
 {
-    static NeverDestroyed<HashMap<i64, GC::RawPtr<AnimatedDecodedImageData>>> registry;
+    static NeverDestroyed<HashMap<i64, GC::RawPtr<AnimatedBitmapDecodedImageData>>> registry;
     return *registry;
 }
 
-void AnimatedDecodedImageData::install_frame_delivery_callback()
+void AnimatedBitmapDecodedImageData::install_frame_delivery_callback()
 {
     static bool s_installed = false;
     if (s_installed)
@@ -44,7 +44,7 @@ void AnimatedDecodedImageData::install_frame_delivery_callback()
     };
 }
 
-void AnimatedDecodedImageData::deliver_frames_for_session(i64 session_id, Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps)
+void AnimatedBitmapDecodedImageData::deliver_frames_for_session(i64 session_id, Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps)
 {
     auto it = session_registry().find(session_id);
     if (it == session_registry().end())
@@ -53,7 +53,7 @@ void AnimatedDecodedImageData::deliver_frames_for_session(i64 session_id, Vector
         data->receive_frames(move(bitmaps), data->m_last_requested_start_frame);
 }
 
-GC::Ref<AnimatedDecodedImageData> AnimatedDecodedImageData::create(
+GC::Ref<AnimatedBitmapDecodedImageData> AnimatedBitmapDecodedImageData::create(
     JS::Realm& realm,
     i64 session_id,
     u32 frame_count,
@@ -63,7 +63,7 @@ GC::Ref<AnimatedDecodedImageData> AnimatedDecodedImageData::create(
     Vector<u32> durations,
     Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps)
 {
-    auto data = realm.create<AnimatedDecodedImageData>(
+    auto data = realm.create<AnimatedBitmapDecodedImageData>(
         session_id, frame_count, loop_count, size, move(color_space), move(durations));
 
     // Place initial bitmaps into the buffer pool.
@@ -83,7 +83,7 @@ GC::Ref<AnimatedDecodedImageData> AnimatedDecodedImageData::create(
     return data;
 }
 
-AnimatedDecodedImageData::AnimatedDecodedImageData(
+AnimatedBitmapDecodedImageData::AnimatedBitmapDecodedImageData(
     i64 session_id,
     u32 frame_count,
     u32 loop_count,
@@ -99,9 +99,9 @@ AnimatedDecodedImageData::AnimatedDecodedImageData(
 {
 }
 
-AnimatedDecodedImageData::~AnimatedDecodedImageData() = default;
+AnimatedBitmapDecodedImageData::~AnimatedBitmapDecodedImageData() = default;
 
-size_t AnimatedDecodedImageData::external_memory_size() const
+size_t AnimatedBitmapDecodedImageData::external_memory_size() const
 {
     size_t size = JS::vector_external_memory_size(m_durations);
     for (auto const& slot : m_buffer_slots) {
@@ -111,14 +111,14 @@ size_t AnimatedDecodedImageData::external_memory_size() const
     return size;
 }
 
-void AnimatedDecodedImageData::finalize()
+void AnimatedBitmapDecodedImageData::finalize()
 {
     Base::finalize();
     session_registry().remove(m_session_id);
     Platform::ImageCodecPlugin::the().stop_animation_decode(m_session_id);
 }
 
-AnimatedDecodedImageData::BufferSlot const* AnimatedDecodedImageData::find_slot(u32 frame_index) const
+AnimatedBitmapDecodedImageData::BufferSlot const* AnimatedBitmapDecodedImageData::find_slot(u32 frame_index) const
 {
     for (auto const& slot : m_buffer_slots) {
         if (slot.frame_index == frame_index && slot.frame.has_value())
@@ -127,7 +127,7 @@ AnimatedDecodedImageData::BufferSlot const* AnimatedDecodedImageData::find_slot(
     return nullptr;
 }
 
-AnimatedDecodedImageData::BufferSlot& AnimatedDecodedImageData::evict_oldest_slot()
+AnimatedBitmapDecodedImageData::BufferSlot& AnimatedBitmapDecodedImageData::evict_oldest_slot()
 {
     BufferSlot* oldest = &m_buffer_slots[0];
     for (auto& slot : m_buffer_slots) {
@@ -137,7 +137,7 @@ AnimatedDecodedImageData::BufferSlot& AnimatedDecodedImageData::evict_oldest_slo
     return *oldest;
 }
 
-Optional<Gfx::DecodedImageFrame> AnimatedDecodedImageData::frame(size_t frame_index, Gfx::IntSize) const
+Optional<Gfx::DecodedImageFrame> AnimatedBitmapDecodedImageData::frame(size_t frame_index, Gfx::IntSize) const
 {
     if (frame_index >= m_frame_count)
         return m_last_displayed_frame;
@@ -151,7 +151,7 @@ Optional<Gfx::DecodedImageFrame> AnimatedDecodedImageData::frame(size_t frame_in
     return m_last_displayed_frame;
 }
 
-Optional<Gfx::DecodedImageFrame> AnimatedDecodedImageData::default_frame(Gfx::IntSize size) const
+Optional<Gfx::DecodedImageFrame> AnimatedBitmapDecodedImageData::default_frame(Gfx::IntSize size) const
 {
     // FIXME: This should account for if the file specifies a default frame other than the first frame e.g. the
     //        "static image" in APNG or the "primary image item" in AVIF.
@@ -159,29 +159,29 @@ Optional<Gfx::DecodedImageFrame> AnimatedDecodedImageData::default_frame(Gfx::In
     return frame(0, size);
 }
 
-int AnimatedDecodedImageData::frame_duration(size_t frame_index) const
+int AnimatedBitmapDecodedImageData::frame_duration(size_t frame_index) const
 {
     if (frame_index >= m_durations.size())
         return 0;
     return m_durations[frame_index];
 }
 
-Optional<CSSPixels> AnimatedDecodedImageData::intrinsic_width() const
+Optional<CSSPixels> AnimatedBitmapDecodedImageData::intrinsic_width() const
 {
     return m_size.width();
 }
 
-Optional<CSSPixels> AnimatedDecodedImageData::intrinsic_height() const
+Optional<CSSPixels> AnimatedBitmapDecodedImageData::intrinsic_height() const
 {
     return m_size.height();
 }
 
-Optional<CSSPixelFraction> AnimatedDecodedImageData::intrinsic_aspect_ratio() const
+Optional<CSSPixelFraction> AnimatedBitmapDecodedImageData::intrinsic_aspect_ratio() const
 {
     return CSSPixels(m_size.width()) / CSSPixels(m_size.height());
 }
 
-void AnimatedDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, CSS::ImageRendering image_rendering) const
+void AnimatedBitmapDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, CSS::ImageRendering image_rendering) const
 {
     auto decoded_frame = frame(frame_index);
     if (!decoded_frame.has_value())
@@ -192,7 +192,7 @@ void AnimatedDecodedImageData::paint(DisplayListRecordingContext& context, size_
     context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, *decoded_frame, scaling_mode);
 }
 
-void AnimatedDecodedImageData::receive_frames(Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps, u32 start_frame_index)
+void AnimatedBitmapDecodedImageData::receive_frames(Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps, u32 start_frame_index)
 {
     m_request_in_flight = false;
 
@@ -212,7 +212,7 @@ void AnimatedDecodedImageData::receive_frames(Vector<NonnullRefPtr<Gfx::Bitmap>>
     }
 }
 
-size_t AnimatedDecodedImageData::notify_frame_advanced(size_t caller_frame_index)
+size_t AnimatedBitmapDecodedImageData::notify_frame_advanced(size_t caller_frame_index)
 {
     // We own the frame progression. Only advance when a caller reports
     // the expected next frame (this deduplicates multiple callers per tick).
@@ -224,7 +224,7 @@ size_t AnimatedDecodedImageData::notify_frame_advanced(size_t caller_frame_index
     return m_current_frame_index;
 }
 
-void AnimatedDecodedImageData::maybe_request_more_frames(size_t current_frame_index)
+void AnimatedBitmapDecodedImageData::maybe_request_more_frames(size_t current_frame_index)
 {
     if (m_request_in_flight)
         return;

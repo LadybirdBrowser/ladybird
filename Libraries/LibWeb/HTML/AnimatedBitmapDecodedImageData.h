@@ -16,14 +16,14 @@
 
 namespace Web::HTML {
 
-class AnimatedDecodedImageData final : public DecodedImageData {
-    GC_CELL(AnimatedDecodedImageData, DecodedImageData);
-    GC_DECLARE_ALLOCATOR(AnimatedDecodedImageData);
+class AnimatedBitmapDecodedImageData final : public DecodedImageData {
+    GC_CELL(AnimatedBitmapDecodedImageData, DecodedImageData);
+    GC_DECLARE_ALLOCATOR(AnimatedBitmapDecodedImageData);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<AnimatedDecodedImageData> create(
+    static GC::Ref<AnimatedBitmapDecodedImageData> create(
         JS::Realm&,
         i64 session_id,
         u32 frame_count,
@@ -33,7 +33,7 @@ public:
         Vector<u32> durations,
         Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps);
 
-    virtual ~AnimatedDecodedImageData() override;
+    virtual ~AnimatedBitmapDecodedImageData() override;
     virtual void finalize() override;
 
     virtual Optional<Gfx::DecodedImageFrame> default_frame(Gfx::IntSize = {}) const override;
@@ -60,7 +60,7 @@ public:
     static void install_frame_delivery_callback();
 
 private:
-    static HashMap<i64, GC::RawPtr<AnimatedDecodedImageData>>& session_registry();
+    static HashMap<i64, GC::RawPtr<AnimatedBitmapDecodedImageData>>& session_registry();
 
     static constexpr u32 BUFFER_POOL_SIZE = 8;
     static constexpr u32 REQUEST_BATCH_SIZE = 4;
@@ -71,7 +71,7 @@ private:
         u64 generation { 0 };
     };
 
-    AnimatedDecodedImageData(
+    AnimatedBitmapDecodedImageData(
         i64 session_id,
         u32 frame_count,
         u32 loop_count,
