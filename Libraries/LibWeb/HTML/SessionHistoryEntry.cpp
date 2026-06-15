@@ -32,6 +32,244 @@ SessionHistoryEntry::SessionHistoryEntry()
 {
 }
 
+static bool session_history_nested_history_descriptors_match(Vector<SessionHistoryNestedHistoryDescriptor> const& a, Vector<SessionHistoryNestedHistoryDescriptor> const& b);
+
+static bool serialized_directives_match(Vector<ContentSecurityPolicy::Directives::SerializedDirective> const& a, Vector<ContentSecurityPolicy::Directives::SerializedDirective> const& b)
+{
+    if (a.size() != b.size())
+        return false;
+
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (a[i].name != b[i].name || a[i].value != b[i].value)
+            return false;
+    }
+    return true;
+}
+
+static bool serialized_policies_match(Vector<ContentSecurityPolicy::SerializedPolicy> const& a, Vector<ContentSecurityPolicy::SerializedPolicy> const& b)
+{
+    if (a.size() != b.size())
+        return false;
+
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (!serialized_directives_match(a[i].directives, b[i].directives)
+            || a[i].disposition != b[i].disposition
+            || a[i].source != b[i].source
+            || a[i].self_origin != b[i].self_origin
+            || a[i].pre_parsed_policy_string != b[i].pre_parsed_policy_string)
+            return false;
+    }
+    return true;
+}
+
+static bool embedder_policies_match(EmbedderPolicy const& a, EmbedderPolicy const& b)
+{
+    return a.value == b.value
+        && a.report_only_value == b.report_only_value
+        && a.reporting_endpoint == b.reporting_endpoint
+        && a.report_only_reporting_endpoint == b.report_only_reporting_endpoint;
+}
+
+static bool serialized_policy_containers_match(SerializedPolicyContainer const& a, SerializedPolicyContainer const& b)
+{
+    return serialized_policies_match(a.csp_list, b.csp_list)
+        && embedder_policies_match(a.embedder_policy, b.embedder_policy)
+        && a.referrer_policy == b.referrer_policy;
+}
+
+static bool history_policy_containers_match(Variant<SerializedPolicyContainer, DocumentState::Client> const& a, Variant<SerializedPolicyContainer, DocumentState::Client> const& b)
+{
+    if (auto const* a_serialized_policy_container = a.get_pointer<SerializedPolicyContainer>()) {
+        auto const* b_serialized_policy_container = b.get_pointer<SerializedPolicyContainer>();
+        return b_serialized_policy_container && serialized_policy_containers_match(*a_serialized_policy_container, *b_serialized_policy_container);
+    }
+
+    return a.has<DocumentState::Client>() && b.has<DocumentState::Client>();
+}
+
+static bool session_history_document_state_descriptors_match(SessionHistoryDocumentStateDescriptor const& a, SessionHistoryDocumentStateDescriptor const& b)
+{
+    return a.id == b.id
+        && history_policy_containers_match(a.history_policy_container, b.history_policy_container)
+        && a.request_referrer == b.request_referrer
+        && a.request_referrer_policy == b.request_referrer_policy
+        && a.initiator_origin == b.initiator_origin
+        && a.origin == b.origin
+        && a.about_base_url == b.about_base_url
+        && a.resource == b.resource
+        && a.reload_pending == b.reload_pending
+        && a.ever_populated == b.ever_populated
+        && a.navigable_target_name == b.navigable_target_name
+        && session_history_nested_history_descriptors_match(a.nested_histories, b.nested_histories);
+}
+
+static bool session_history_nested_history_descriptors_match_ignoring_document_state_ids(Vector<SessionHistoryNestedHistoryDescriptor> const&, Vector<SessionHistoryNestedHistoryDescriptor> const&);
+
+static bool session_history_document_state_descriptors_match_ignoring_id(SessionHistoryDocumentStateDescriptor const& a, SessionHistoryDocumentStateDescriptor const& b, MatchNestedHistories match_nested_histories)
+{
+    if (!(history_policy_containers_match(a.history_policy_container, b.history_policy_container)
+            && a.request_referrer == b.request_referrer
+            && a.request_referrer_policy == b.request_referrer_policy
+            && a.initiator_origin == b.initiator_origin
+            && a.origin == b.origin
+            && a.about_base_url == b.about_base_url
+            && a.resource == b.resource
+            && a.reload_pending == b.reload_pending
+            && a.ever_populated == b.ever_populated
+            && a.navigable_target_name == b.navigable_target_name))
+        return false;
+
+    if (match_nested_histories == MatchNestedHistories::No)
+        return true;
+
+    return session_history_nested_history_descriptors_match_ignoring_document_state_ids(a.nested_histories, b.nested_histories);
+}
+
+bool session_history_entry_descriptors_match(SessionHistoryEntryDescriptor const& a, SessionHistoryEntryDescriptor const& b)
+{
+    return a.step == b.step
+        && a.url == b.url
+        && session_history_document_state_descriptors_match(a.document_state, b.document_state)
+        && a.classic_history_api_state == b.classic_history_api_state
+        && a.navigation_api_state == b.navigation_api_state
+        && a.navigation_api_key == b.navigation_api_key
+        && a.navigation_api_id == b.navigation_api_id
+        && a.scroll_restoration_mode == b.scroll_restoration_mode
+        && a.scroll_position_data == b.scroll_position_data;
+}
+
+bool session_history_entry_descriptors_match_ignoring_document_state_id(SessionHistoryEntryDescriptor const& a, SessionHistoryEntryDescriptor const& b, MatchNestedHistories match_nested_histories)
+{
+    if (a.step != b.step)
+        return false;
+    if (a.url != b.url)
+        return false;
+    if (a.document_state.id != 0 && !session_history_document_state_descriptors_match_ignoring_id(a.document_state, b.document_state, match_nested_histories))
+        return false;
+    if (a.classic_history_api_state != b.classic_history_api_state)
+        return false;
+    if (a.navigation_api_state != b.navigation_api_state || a.navigation_api_key != b.navigation_api_key || a.navigation_api_id != b.navigation_api_id)
+        return false;
+    if (a.scroll_restoration_mode != b.scroll_restoration_mode)
+        return false;
+    if (a.document_state.id != 0 && a.scroll_position_data != b.scroll_position_data)
+        return false;
+    return true;
+}
+
+static bool session_history_entry_descriptors_match(Vector<SessionHistoryEntryDescriptor> const& a, Vector<SessionHistoryEntryDescriptor> const& b)
+{
+    if (a.size() != b.size())
+        return false;
+
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (session_history_entry_descriptors_match(a[i], b[i]))
+            continue;
+        return false;
+    }
+    return true;
+}
+
+static bool session_history_entry_descriptors_match_ignoring_document_state_ids(Vector<SessionHistoryEntryDescriptor> const& a, Vector<SessionHistoryEntryDescriptor> const& b)
+{
+    if (a.size() != b.size())
+        return false;
+
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (session_history_entry_descriptors_match_ignoring_document_state_id(a[i], b[i]))
+            continue;
+        return false;
+    }
+    return true;
+}
+
+static bool session_history_nested_history_descriptors_match(Vector<SessionHistoryNestedHistoryDescriptor> const& a, Vector<SessionHistoryNestedHistoryDescriptor> const& b)
+{
+    if (a.size() != b.size())
+        return false;
+
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (a[i].id == b[i].id && session_history_entry_descriptors_match(a[i].entries, b[i].entries))
+            continue;
+        return false;
+    }
+    return true;
+}
+
+static bool session_history_nested_history_descriptors_match_ignoring_document_state_ids(Vector<SessionHistoryNestedHistoryDescriptor> const& a, Vector<SessionHistoryNestedHistoryDescriptor> const& b)
+{
+    if (a.size() != b.size())
+        return false;
+
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (a[i].id == b[i].id && session_history_entry_descriptors_match_ignoring_document_state_ids(a[i].entries, b[i].entries))
+            continue;
+        return false;
+    }
+    return true;
+}
+
+static bool session_history_nested_history_descriptors_match_document_state_nested_histories(Vector<SessionHistoryNestedHistoryDescriptor> const& descriptors, Vector<DocumentState::NestedHistory> const& nested_histories)
+{
+    if (descriptors.size() != nested_histories.size())
+        return false;
+
+    for (size_t i = 0; i < descriptors.size(); ++i) {
+        auto const& descriptor = descriptors[i];
+        auto const& nested_history = nested_histories[i];
+        if (descriptor.id != nested_history.id || descriptor.entries.size() != nested_history.entries.size())
+            return false;
+        for (size_t j = 0; j < descriptor.entries.size(); ++j) {
+            if (!session_history_entry_matches_descriptor_ignoring_document_state_id(*nested_history.entries[j], descriptor.entries[j]))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+static bool session_history_document_state_descriptor_matches_document_state_ignoring_id(SessionHistoryDocumentStateDescriptor const& descriptor, DocumentState const& document_state, MatchNestedHistories match_nested_histories)
+{
+    if (!(history_policy_containers_match(descriptor.history_policy_container, document_state.history_policy_container())
+            && descriptor.request_referrer == document_state.request_referrer()
+            && descriptor.request_referrer_policy == document_state.request_referrer_policy()
+            && descriptor.initiator_origin == document_state.initiator_origin()
+            && descriptor.origin == document_state.origin()
+            && descriptor.about_base_url == document_state.about_base_url()
+            && descriptor.resource == document_state.resource()
+            && descriptor.reload_pending == document_state.reload_pending()
+            && descriptor.ever_populated == document_state.ever_populated()
+            && descriptor.navigable_target_name == document_state.navigable_target_name()))
+        return false;
+
+    if (match_nested_histories == MatchNestedHistories::No)
+        return true;
+
+    return session_history_nested_history_descriptors_match_document_state_nested_histories(descriptor.nested_histories, document_state.nested_histories());
+}
+
+bool session_history_entry_matches_descriptor_ignoring_document_state_id(SessionHistoryEntry const& entry, SessionHistoryEntryDescriptor const& descriptor, MatchNestedHistories match_nested_histories)
+{
+    if (!entry.step().has<int>() || entry.step().get<int>() != descriptor.step)
+        return false;
+    if (entry.url() != descriptor.url)
+        return false;
+    if (descriptor.document_state.id != 0) {
+        auto document_state = entry.document_state();
+        if (!document_state || !session_history_document_state_descriptor_matches_document_state_ignoring_id(descriptor.document_state, *document_state, match_nested_histories))
+            return false;
+    }
+    if (entry.classic_history_api_state() != descriptor.classic_history_api_state)
+        return false;
+    if (entry.navigation_api_state() != descriptor.navigation_api_state || entry.navigation_api_key() != descriptor.navigation_api_key || entry.navigation_api_id() != descriptor.navigation_api_id)
+        return false;
+    if (entry.scroll_restoration_mode() != descriptor.scroll_restoration_mode)
+        return false;
+    if (descriptor.document_state.id != 0 && entry.scroll_position_data() != descriptor.scroll_position_data)
+        return false;
+    return true;
+}
+
 }
 
 template<>

@@ -62,172 +62,13 @@ static bool entries_are_valid(Vector<TraversableSessionHistory::Entry> const& en
     return true;
 }
 
-static bool nested_histories_match(Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> const& a, Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> const& b);
-
-static bool serialized_directives_match(Vector<Web::ContentSecurityPolicy::Directives::SerializedDirective> const& a, Vector<Web::ContentSecurityPolicy::Directives::SerializedDirective> const& b)
-{
-    if (a.size() != b.size())
-        return false;
-
-    for (size_t i = 0; i < a.size(); ++i) {
-        if (a[i].name != b[i].name || a[i].value != b[i].value)
-            return false;
-    }
-    return true;
-}
-
-static bool serialized_policies_match(Vector<Web::ContentSecurityPolicy::SerializedPolicy> const& a, Vector<Web::ContentSecurityPolicy::SerializedPolicy> const& b)
-{
-    if (a.size() != b.size())
-        return false;
-
-    for (size_t i = 0; i < a.size(); ++i) {
-        if (!serialized_directives_match(a[i].directives, b[i].directives)
-            || a[i].disposition != b[i].disposition
-            || a[i].source != b[i].source
-            || a[i].self_origin != b[i].self_origin
-            || a[i].pre_parsed_policy_string != b[i].pre_parsed_policy_string)
-            return false;
-    }
-    return true;
-}
-
-static bool embedder_policies_match(Web::HTML::EmbedderPolicy const& a, Web::HTML::EmbedderPolicy const& b)
-{
-    return a.value == b.value
-        && a.report_only_value == b.report_only_value
-        && a.reporting_endpoint == b.reporting_endpoint
-        && a.report_only_reporting_endpoint == b.report_only_reporting_endpoint;
-}
-
-static bool serialized_policy_containers_match(Web::HTML::SerializedPolicyContainer const& a, Web::HTML::SerializedPolicyContainer const& b)
-{
-    return serialized_policies_match(a.csp_list, b.csp_list)
-        && embedder_policies_match(a.embedder_policy, b.embedder_policy)
-        && a.referrer_policy == b.referrer_policy;
-}
-
-static bool history_policy_containers_match(Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentState::Client> const& a, Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentState::Client> const& b)
-{
-    if (auto const* a_serialized_policy_container = a.get_pointer<Web::HTML::SerializedPolicyContainer>()) {
-        auto const* b_serialized_policy_container = b.get_pointer<Web::HTML::SerializedPolicyContainer>();
-        return b_serialized_policy_container && serialized_policy_containers_match(*a_serialized_policy_container, *b_serialized_policy_container);
-    }
-
-    return a.has<Web::HTML::DocumentState::Client>() && b.has<Web::HTML::DocumentState::Client>();
-}
-
-static bool document_state_descriptors_match(Web::HTML::SessionHistoryDocumentStateDescriptor const& a, Web::HTML::SessionHistoryDocumentStateDescriptor const& b)
-{
-    return a.id == b.id
-        && history_policy_containers_match(a.history_policy_container, b.history_policy_container)
-        && a.request_referrer == b.request_referrer
-        && a.request_referrer_policy == b.request_referrer_policy
-        && a.initiator_origin == b.initiator_origin
-        && a.origin == b.origin
-        && a.about_base_url == b.about_base_url
-        && a.resource == b.resource
-        && a.reload_pending == b.reload_pending
-        && a.ever_populated == b.ever_populated
-        && a.navigable_target_name == b.navigable_target_name
-        && nested_histories_match(a.nested_histories, b.nested_histories);
-}
-
-static bool nested_histories_match_ignoring_document_state_ids(Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> const&, Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> const&);
-
-static bool document_state_descriptors_match_ignoring_id(Web::HTML::SessionHistoryDocumentStateDescriptor const& a, Web::HTML::SessionHistoryDocumentStateDescriptor const& b)
-{
-    return history_policy_containers_match(a.history_policy_container, b.history_policy_container)
-        && a.request_referrer == b.request_referrer
-        && a.request_referrer_policy == b.request_referrer_policy
-        && a.initiator_origin == b.initiator_origin
-        && a.origin == b.origin
-        && a.about_base_url == b.about_base_url
-        && a.resource == b.resource
-        && a.reload_pending == b.reload_pending
-        && a.ever_populated == b.ever_populated
-        && a.navigable_target_name == b.navigable_target_name
-        && nested_histories_match_ignoring_document_state_ids(a.nested_histories, b.nested_histories);
-}
-
-static bool entry_descriptors_match(TraversableSessionHistory::Entry const& a, TraversableSessionHistory::Entry const& b)
-{
-    return a.step == b.step
-        && a.url == b.url
-        && document_state_descriptors_match(a.document_state, b.document_state)
-        && a.classic_history_api_state == b.classic_history_api_state
-        && a.navigation_api_state == b.navigation_api_state
-        && a.navigation_api_key == b.navigation_api_key
-        && a.navigation_api_id == b.navigation_api_id
-        && a.scroll_restoration_mode == b.scroll_restoration_mode
-        && a.scroll_position_data == b.scroll_position_data;
-}
-
-static bool entry_descriptors_match_ignoring_document_state_id(TraversableSessionHistory::Entry const& a, TraversableSessionHistory::Entry const& b)
-{
-    if (a.step != b.step)
-        return false;
-    if (a.url != b.url)
-        return false;
-    if (a.document_state.id != 0 && !document_state_descriptors_match_ignoring_id(a.document_state, b.document_state))
-        return false;
-    if (a.classic_history_api_state != b.classic_history_api_state)
-        return false;
-    if (a.navigation_api_state != b.navigation_api_state || a.navigation_api_key != b.navigation_api_key || a.navigation_api_id != b.navigation_api_id)
-        return false;
-    if (a.scroll_restoration_mode != b.scroll_restoration_mode)
-        return false;
-    if (a.document_state.id != 0 && a.scroll_position_data != b.scroll_position_data)
-        return false;
-    return true;
-}
-
 static bool entries_match(Vector<TraversableSessionHistory::Entry> const& a, Vector<TraversableSessionHistory::Entry> const& b)
 {
     if (a.size() != b.size())
         return false;
 
     for (size_t i = 0; i < a.size(); ++i) {
-        if (entry_descriptors_match(a[i], b[i]))
-            continue;
-        return false;
-    }
-    return true;
-}
-
-static bool entries_match_ignoring_document_state_ids(Vector<TraversableSessionHistory::Entry> const& a, Vector<TraversableSessionHistory::Entry> const& b)
-{
-    if (a.size() != b.size())
-        return false;
-
-    for (size_t i = 0; i < a.size(); ++i) {
-        if (entry_descriptors_match_ignoring_document_state_id(a[i], b[i]))
-            continue;
-        return false;
-    }
-    return true;
-}
-
-static bool nested_histories_match(Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> const& a, Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> const& b)
-{
-    if (a.size() != b.size())
-        return false;
-
-    for (size_t i = 0; i < a.size(); ++i) {
-        if (a[i].id == b[i].id && entries_match(a[i].entries, b[i].entries))
-            continue;
-        return false;
-    }
-    return true;
-}
-
-static bool nested_histories_match_ignoring_document_state_ids(Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> const& a, Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor> const& b)
-{
-    if (a.size() != b.size())
-        return false;
-
-    for (size_t i = 0; i < a.size(); ++i) {
-        if (a[i].id == b[i].id && entries_match_ignoring_document_state_ids(a[i].entries, b[i].entries))
+        if (Web::HTML::session_history_entry_descriptors_match(a[i], b[i]))
             continue;
         return false;
     }
@@ -263,7 +104,7 @@ static bool seed_ack_entries_match(Vector<TraversableSessionHistory::Entry> cons
     for (size_t i = 0; i < a.size(); ++i) {
         if (current_unknown_entry_index.has_value() && i == *current_unknown_entry_index && current_unknown_entry_seed_ack_matches(a[i], b[i]))
             continue;
-        if (entry_descriptors_match_ignoring_document_state_id(a[i], b[i]))
+        if (Web::HTML::session_history_entry_descriptors_match_ignoring_document_state_id(a[i], b[i]))
             continue;
         return false;
     }
@@ -1048,7 +889,7 @@ bool TraversableSessionHistory::did_restore_web_content_to_current_step(i32 step
     auto const* ui_current_top_level_entry = current_entry();
     if (!web_content_current_top_level_entry || !ui_current_top_level_entry)
         return false;
-    if (!entry_descriptors_match(*web_content_current_top_level_entry, *ui_current_top_level_entry))
+    if (!Web::HTML::session_history_entry_descriptors_match(*web_content_current_top_level_entry, *ui_current_top_level_entry))
         return false;
 
     m_web_content_current_step = step;
@@ -1181,7 +1022,7 @@ bool TraversableSessionHistory::web_content_can_traverse_to(TraversalTarget cons
     auto const* web_content_target_top_level_entry = WebView::top_level_entry_for_step(m_web_content_known_entries, target.target_step);
     if (!web_content_target_top_level_entry || !target.target_top_level_entry)
         return false;
-    return entry_descriptors_match(*web_content_target_top_level_entry, *target.target_top_level_entry);
+    return Web::HTML::session_history_entry_descriptors_match(*web_content_target_top_level_entry, *target.target_top_level_entry);
 }
 
 Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::traversal_target_for_delta(int delta) const

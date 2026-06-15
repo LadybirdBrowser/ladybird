@@ -12,6 +12,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DocumentState.h>
@@ -162,6 +163,14 @@ private:
     // FIXME: persisted user state, which is implementation-defined, initially null
     // NOTE: This is where we could remember the state of form controls, for example.
 };
+
+WEB_API bool session_history_entry_descriptors_match(SessionHistoryEntryDescriptor const&, SessionHistoryEntryDescriptor const&);
+enum class MatchNestedHistories {
+    Yes,
+    No,
+};
+WEB_API bool session_history_entry_descriptors_match_ignoring_document_state_id(SessionHistoryEntryDescriptor const&, SessionHistoryEntryDescriptor const&, MatchNestedHistories = MatchNestedHistories::Yes);
+WEB_API bool session_history_entry_matches_descriptor_ignoring_document_state_id(SessionHistoryEntry const&, SessionHistoryEntryDescriptor const&, MatchNestedHistories = MatchNestedHistories::Yes);
 
 }
 
