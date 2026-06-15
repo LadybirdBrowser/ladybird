@@ -9,7 +9,7 @@
 #include <LibWeb/Bindings/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/WebGLVertexArrayObjectOES.h>
-#include <LibWeb/WebGL/OpenGLContext.h>
+#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 #include <GLES2/gl2.h>
@@ -43,33 +43,38 @@ void OESVertexArrayObject::delete_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjec
 {
     m_context->context().make_current();
 
-    GLuint vertex_array_handle = 0;
-    if (array_object) {
-        auto handle_or_error = array_object->handle(m_context.ptr());
-        if (handle_or_error.is_error()) {
-            // FIXME: m_context->set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        vertex_array_handle = handle_or_error.release_value();
-    }
+    if (!array_object)
+        return;
 
-    m_context->context().delete_vertex_arrays_oes(1, &vertex_array_handle);
+    auto handle_or_error = array_object->handle_for_deletion(m_context.ptr());
+    if (handle_or_error.is_error()) {
+        // FIXME: m_context->set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto vertex_array_handle = handle_or_error.release_value();
+    if (!vertex_array_handle.has_value())
+        return;
+
+    auto handle = vertex_array_handle.value();
+    m_context->context().delete_vertex_arrays_oes(1, &handle);
 }
 
 bool OESVertexArrayObject::is_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object)
 {
     m_context->context().make_current();
 
-    GLuint vertex_array_handle = 0;
-    if (array_object) {
-        auto handle_or_error = array_object->handle(m_context.ptr());
-        if (handle_or_error.is_error()) {
-            return false;
-        }
-        vertex_array_handle = handle_or_error.release_value();
-    }
+    if (!array_object)
+        return false;
 
-    return m_context->context().is_vertex_array_oes(vertex_array_handle) == GL_TRUE;
+    auto handle_or_error = array_object->handle_for_query(m_context.ptr());
+    if (handle_or_error.is_error()) {
+        return false;
+    }
+    auto vertex_array_handle = handle_or_error.release_value();
+    if (!vertex_array_handle.has_value())
+        return false;
+
+    return m_context->context().is_vertex_array_oes(vertex_array_handle.value()) == GL_TRUE;
 }
 
 void OESVertexArrayObject::bind_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object)

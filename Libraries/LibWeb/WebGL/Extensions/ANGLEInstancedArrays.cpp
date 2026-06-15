@@ -8,7 +8,7 @@
 #include <LibWeb/Bindings/ANGLEInstancedArrays.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
-#include <LibWeb/WebGL/OpenGLContext.h>
+#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 #include <GLES2/gl2.h>

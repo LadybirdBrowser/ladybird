@@ -524,10 +524,10 @@ void EventLoop::update_the_rendering()
 
     // FIXME: 21. For each doc of docs, mark paint timing for doc.
 
-    // AD-HOC: Present all canvas element surfaces in documents' pages after callbacks
+    // AD-HOC: Flush dirty canvas contexts in documents' pages after callbacks
     // have had a chance to update them, and before painting snapshots the frame.
     for (auto& document : docs)
-        document->page().present_all_canvas_element_surfaces();
+        document->page().prepare_canvas_contexts_for_compositing();
 
     // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
     for (auto& doc : docs.in_reverse()) {

@@ -16,10 +16,10 @@ extern "C" {
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGL2RenderingContextImpl.h>
 #include <LibWeb/WebGL/WebGLActiveInfo.h>
 #include <LibWeb/WebGL/WebGLBuffer.h>
+#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLFramebuffer.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
 #include <LibWeb/WebGL/WebGLQuery.h>
@@ -36,7 +36,7 @@ extern "C" {
 
 namespace Web::WebGL {
 
-WebGL2RenderingContextImpl::WebGL2RenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
+WebGL2RenderingContextImpl::WebGL2RenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<WebGLContextProxy> context)
     : WebGLRenderingContextImpl(realm, move(context))
 {
 }
@@ -89,21 +89,17 @@ void WebGL2RenderingContextImpl::get_buffer_sub_data(WebIDL::UnsignedLong target
 
     // If copyLength is greater than zero, copy copyLength typed elements (each of size elementSize) from buf into
     // dstBuffer, reading buf starting at byte index srcByteOffset and writing into dstBuffer starting at element
-    // index dstOffset.
-    auto* buffer_data = m_context->map_buffer_range(target, src_byte_offset, copy_bytes, GL_MAP_READ_BIT);
-    if (!buffer_data)
-        return;
-
-    dst_buffer.write({ buffer_data, copy_bytes }, dst_offset_in_bytes);
-
-    m_context->unmap_buffer(target);
+    // index dstOffset. The destination span is bounds-checked above, so the readback can
+    // land directly in the JS-owned buffer without staging.
+    auto dst_span = dst_buffer.viewed_array_buffer()->span().slice(dst_buffer.byte_offset() + dst_offset_in_bytes, copy_bytes);
+    m_context->read_buffer_sub_data(target, src_byte_offset, dst_span);
 }
 
 void WebGL2RenderingContextImpl::blit_framebuffer(WebIDL::Long src_x0, WebIDL::Long src_y0, WebIDL::Long src_x1, WebIDL::Long src_y1, WebIDL::Long dst_x0, WebIDL::Long dst_y0, WebIDL::Long dst_x1, WebIDL::Long dst_y1, WebIDL::UnsignedLong mask, WebIDL::UnsignedLong filter)
 {
     m_context->make_current();
     m_context->notify_content_will_change();
-    needs_to_present();
+    did_update_canvas_content();
     m_context->blit_framebuffer(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0, dst_x1, dst_y1, mask, filter);
 }
 
@@ -130,7 +126,7 @@ void WebGL2RenderingContextImpl::invalidate_framebuffer(WebIDL::UnsignedLong tar
     m_context->notify_content_will_change();
 
     m_context->invalidate_framebuffer(target, attachments.size(), attachments.data());
-    needs_to_present();
+    did_update_canvas_content();
 }
 
 void WebGL2RenderingContextImpl::invalidate_sub_framebuffer(WebIDL::UnsignedLong target, Vector<WebIDL::UnsignedLong> attachments, WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height)
@@ -139,7 +135,7 @@ void WebGL2RenderingContextImpl::invalidate_sub_framebuffer(WebIDL::UnsignedLong
     m_context->notify_content_will_change();
 
     m_context->invalidate_sub_framebuffer(target, attachments.size(), attachments.data(), x, y, width, height);
-    needs_to_present();
+    did_update_canvas_content();
 }
 
 void WebGL2RenderingContextImpl::read_buffer(WebIDL::UnsignedLong src)
@@ -156,9 +152,8 @@ JS::Value WebGL2RenderingContextImpl::get_internalformat_parameter(WebIDL::Unsig
     case GL_SAMPLES: {
         GLint num_sample_counts { 0 };
         m_context->get_internalformativ_robust_angle(target, internalformat, GL_NUM_SAMPLE_COUNTS, 1, nullptr, &num_sample_counts);
-        size_t buffer_size = num_sample_counts * sizeof(GLint);
-        auto samples_buffer = MUST(ByteBuffer::create_zeroed(buffer_size));
-        m_context->get_internalformativ_robust_angle(target, internalformat, GL_SAMPLES, buffer_size, nullptr, reinterpret_cast<GLint*>(samples_buffer.data()));
+        auto samples_buffer = MUST(ByteBuffer::create_zeroed(num_sample_counts * sizeof(GLint)));
+        m_context->get_internalformativ_robust_angle(target, internalformat, GL_SAMPLES, num_sample_counts, nullptr, reinterpret_cast<GLint*>(samples_buffer.data()));
         auto array_buffer = JS::ArrayBuffer::create(realm(), move(samples_buffer));
         return JS::Int32Array::create(realm(), num_sample_counts, array_buffer);
     }
@@ -488,7 +483,7 @@ void WebGL2RenderingContextImpl::draw_arrays_instanced(WebIDL::UnsignedLong mode
 {
     m_context->make_current();
     m_context->notify_content_will_change();
-    needs_to_present();
+    did_update_canvas_content();
     m_context->draw_arrays_instanced(mode, first, count, instance_count);
 }
 
@@ -498,14 +493,14 @@ void WebGL2RenderingContextImpl::draw_elements_instanced(WebIDL::UnsignedLong mo
     m_context->notify_content_will_change();
 
     m_context->draw_elements_instanced(mode, count, type, reinterpret_cast<void*>(offset), instance_count);
-    needs_to_present();
+    did_update_canvas_content();
 }
 
 void WebGL2RenderingContextImpl::draw_range_elements(WebIDL::UnsignedLong mode, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, WebIDL::Long count, WebIDL::UnsignedLong type, WebIDL::LongLong offset)
 {
     m_context->make_current();
     m_context->notify_content_will_change();
-    needs_to_present();
+    did_update_canvas_content();
     m_context->draw_range_elements(mode, start, end, count, type, reinterpret_cast<void*>(offset));
 }
 
@@ -544,7 +539,7 @@ void WebGL2RenderingContextImpl::clear_bufferfv(WebIDL::UnsignedLong buffer, Web
     }
 
     m_context->clear_bufferfv(buffer, drawbuffer, span.data());
-    needs_to_present();
+    did_update_canvas_content();
 }
 
 void WebGL2RenderingContextImpl::clear_bufferiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Int32List values, WebIDL::UnsignedLongLong src_offset)
@@ -575,7 +570,7 @@ void WebGL2RenderingContextImpl::clear_bufferiv(WebIDL::UnsignedLong buffer, Web
     }
 
     m_context->clear_bufferiv(buffer, drawbuffer, span.data());
-    needs_to_present();
+    did_update_canvas_content();
 }
 
 void WebGL2RenderingContextImpl::clear_bufferuiv(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, Uint32List values, WebIDL::UnsignedLongLong src_offset)
@@ -605,14 +600,14 @@ void WebGL2RenderingContextImpl::clear_bufferuiv(WebIDL::UnsignedLong buffer, We
     }
 
     m_context->clear_bufferuiv(buffer, drawbuffer, span.data());
-    needs_to_present();
+    did_update_canvas_content();
 }
 
 void WebGL2RenderingContextImpl::clear_bufferfi(WebIDL::UnsignedLong buffer, WebIDL::Long drawbuffer, float depth, WebIDL::Long stencil)
 {
     m_context->make_current();
     m_context->notify_content_will_change();
-    needs_to_present();
+    did_update_canvas_content();
     m_context->clear_bufferfi(buffer, drawbuffer, depth, stencil);
 }
 
@@ -629,17 +624,20 @@ void WebGL2RenderingContextImpl::delete_query(GC::Ptr<WebGLQuery> query)
 {
     m_context->make_current();
 
-    GLuint query_handle = 0;
-    if (query) {
-        auto handle_or_error = query->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        query_handle = handle_or_error.release_value();
-    }
+    if (!query)
+        return;
 
-    m_context->delete_queries(1, &query_handle);
+    auto handle_or_error = query->handle_for_deletion(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto query_handle = handle_or_error.release_value();
+    if (!query_handle.has_value())
+        return;
+
+    auto handle = query_handle.value();
+    m_context->delete_queries(1, &handle);
 }
 
 void WebGL2RenderingContextImpl::begin_query(WebIDL::UnsignedLong target, GC::Ref<WebGLQuery> query)
@@ -744,17 +742,20 @@ void WebGL2RenderingContextImpl::delete_sampler(GC::Ptr<WebGLSampler> sampler)
 {
     m_context->make_current();
 
-    GLuint sampler_handle = 0;
-    if (sampler) {
-        auto handle_or_error = sampler->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        sampler_handle = handle_or_error.release_value();
-    }
+    if (!sampler)
+        return;
 
-    m_context->delete_samplers(1, &sampler_handle);
+    auto handle_or_error = sampler->handle_for_deletion(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto sampler_handle = handle_or_error.release_value();
+    if (!sampler_handle.has_value())
+        return;
+
+    auto handle = sampler_handle.value();
+    m_context->delete_samplers(1, &handle);
 }
 
 void WebGL2RenderingContextImpl::bind_sampler(WebIDL::UnsignedLong unit, GC::Ptr<WebGLSampler> sampler)
@@ -859,17 +860,19 @@ void WebGL2RenderingContextImpl::delete_sync(GC::Ptr<WebGLSync> sync)
 {
     m_context->make_current();
 
-    GLsync sync_handle = nullptr;
-    if (sync) {
-        auto handle_or_error = sync->sync_handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        sync_handle = static_cast<GLsync>(handle_or_error.release_value());
-    }
+    if (!sync)
+        return;
 
-    m_context->delete_sync(sync_handle);
+    auto handle_or_error = sync->sync_handle_for_deletion(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto sync_handle = handle_or_error.release_value();
+    if (!sync_handle.has_value())
+        return;
+
+    m_context->delete_sync(static_cast<GLsync>(sync_handle.value()));
 }
 
 WebIDL::UnsignedLong WebGL2RenderingContextImpl::client_wait_sync(GC::Ref<WebGLSync> sync, WebIDL::UnsignedLong flags, WebIDL::UnsignedLongLong timeout)
@@ -929,17 +932,20 @@ void WebGL2RenderingContextImpl::delete_transform_feedback(GC::Ptr<WebGLTransfor
 {
     m_context->make_current();
 
-    GLuint transform_feedback_handle = 0;
-    if (transform_feedback) {
-        auto handle_or_error = transform_feedback->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        transform_feedback_handle = handle_or_error.release_value();
-    }
+    if (!transform_feedback)
+        return;
 
-    m_context->delete_transform_feedbacks(1, &transform_feedback_handle);
+    auto handle_or_error = transform_feedback->handle_for_deletion(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto transform_feedback_handle = handle_or_error.release_value();
+    if (!transform_feedback_handle.has_value())
+        return;
+
+    auto handle = transform_feedback_handle.value();
+    m_context->delete_transform_feedbacks(1, &handle);
 }
 
 void WebGL2RenderingContextImpl::bind_transform_feedback(WebIDL::UnsignedLong target, GC::Ptr<WebGLTransformFeedback> transform_feedback)
@@ -1161,7 +1167,7 @@ JS::Value WebGL2RenderingContextImpl::get_active_uniform_block_parameter(GC::Ref
     }
     case GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES: {
         GLint num_active_uniforms = 0;
-        m_context->get_active_uniform_blockiv_robust_angle(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, sizeof(GLint), nullptr, &num_active_uniforms);
+        m_context->get_active_uniform_blockiv_robust_angle(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, 1, nullptr, &num_active_uniforms);
         size_t buffer_size = num_active_uniforms * sizeof(GLint);
         auto active_uniform_indices_buffer = MUST(ByteBuffer::create_zeroed(buffer_size));
         m_context->get_active_uniform_blockiv_robust_angle(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, num_active_uniforms, nullptr, reinterpret_cast<GLint*>(active_uniform_indices_buffer.data()));
@@ -1228,17 +1234,20 @@ void WebGL2RenderingContextImpl::delete_vertex_array(GC::Ptr<WebGLVertexArrayObj
 {
     m_context->make_current();
 
-    GLuint vertex_array_handle = 0;
-    if (vertex_array) {
-        auto handle_or_error = vertex_array->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        vertex_array_handle = handle_or_error.release_value();
-    }
+    if (!vertex_array)
+        return;
 
-    m_context->delete_vertex_arrays(1, &vertex_array_handle);
+    auto handle_or_error = vertex_array->handle_for_deletion(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+    auto vertex_array_handle = handle_or_error.release_value();
+    if (!vertex_array_handle.has_value())
+        return;
+
+    auto handle = vertex_array_handle.value();
+    m_context->delete_vertex_arrays(1, &handle);
     if (m_current_vertex_array == vertex_array)
         m_current_vertex_array = nullptr;
 }
@@ -1247,16 +1256,18 @@ bool WebGL2RenderingContextImpl::is_vertex_array(GC::Ptr<WebGLVertexArrayObject>
 {
     m_context->make_current();
 
-    auto vertex_array_handle = 0;
-    if (vertex_array) {
-        auto handle_or_error = vertex_array->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return false;
-        }
-        vertex_array_handle = handle_or_error.release_value();
+    if (!vertex_array)
+        return false;
+
+    auto handle_or_error = vertex_array->handle_for_query(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return false;
     }
-    return m_context->is_vertex_array(vertex_array_handle);
+    auto vertex_array_handle = handle_or_error.release_value();
+    if (!vertex_array_handle.has_value())
+        return false;
+    return m_context->is_vertex_array(vertex_array_handle.value());
 }
 
 void WebGL2RenderingContextImpl::bind_vertex_array(GC::Ptr<WebGLVertexArrayObject> array)

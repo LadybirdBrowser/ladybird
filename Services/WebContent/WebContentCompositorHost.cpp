@@ -28,51 +28,73 @@ public:
 private:
     virtual CreateResult create_context(Web::WebGL::WebGLVersion webgl_version, Gfx::IntSize initial_size, bool depth, bool stencil, bool antialias) override
     {
+        VERIFY(!m_canvas_id.has_value());
         CreateResult result;
         auto canvas_id = m_connection->create_webgl_context(webgl_version, initial_size, depth, stencil, antialias, result.supported_extensions);
         if (canvas_id.has_value()) {
             result.success = true;
-            result.canvas_id = *canvas_id;
+            m_canvas_id = *canvas_id;
         }
         return result;
     }
 
-    virtual void destroy_context(Web::Painting::CanvasId canvas_id) override
+    virtual Optional<Web::Painting::CanvasId> canvas_id() const override
     {
-        m_connection->destroy_canvas_context(canvas_id);
+        return m_canvas_id;
     }
 
-    virtual void send_commands(Web::Painting::CanvasId canvas_id, ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps) override
+    virtual void destroy_context() override
     {
-        m_connection->send_webgl_commands(canvas_id, commands, bitmaps);
+        if (!m_canvas_id.has_value())
+            return;
+        m_connection->destroy_canvas_context(*m_canvas_id);
+        m_canvas_id.clear();
     }
 
-    virtual void present_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer) override
+    virtual void send_commands(ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps) override
     {
-        m_connection->present_webgl_canvas(canvas_id, preserve_drawing_buffer);
+        if (!m_canvas_id.has_value())
+            return;
+        m_connection->send_webgl_commands(*m_canvas_id, commands, bitmaps);
     }
 
-    virtual ByteBuffer sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request) override
+    virtual void present_canvas(bool preserve_drawing_buffer) override
     {
-        return m_connection->webgl_sync_call(canvas_id, move(request));
+        if (!m_canvas_id.has_value())
+            return;
+        m_connection->present_webgl_canvas(*m_canvas_id, preserve_drawing_buffer);
     }
 
-    virtual Web::WebGL::ReadPixelsResult read_pixels_robust_angle(Web::Painting::CanvasId canvas_id, Web::WebGL::GLint x, Web::WebGL::GLint y, Web::WebGL::GLsizei width, Web::WebGL::GLsizei height, Web::WebGL::GLenum format, Web::WebGL::GLenum type, Web::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels) override
+    virtual ByteBuffer sync_call(ByteBuffer request) override
     {
-        return m_connection->read_webgl_pixels(canvas_id, x, y, width, height, format, type, buf_size, pixels);
+        if (!m_canvas_id.has_value())
+            return {};
+        return m_connection->webgl_sync_call(*m_canvas_id, move(request));
     }
 
-    virtual void read_buffer_sub_data(Web::Painting::CanvasId canvas_id, Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data) override
+    virtual Web::WebGL::ReadPixelsResult read_pixels_robust_angle(Web::WebGL::GLint x, Web::WebGL::GLint y, Web::WebGL::GLsizei width, Web::WebGL::GLsizei height, Web::WebGL::GLenum format, Web::WebGL::GLenum type, Web::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels) override
     {
-        m_connection->read_webgl_buffer_sub_data(canvas_id, target, offset, size, data);
+        if (!m_canvas_id.has_value())
+            return {};
+        return m_connection->read_webgl_pixels(*m_canvas_id, x, y, width, height, format, type, buf_size, pixels);
     }
 
-    virtual Gfx::ShareableBitmap read_back_drawing_buffer(Web::Painting::CanvasId canvas_id, Gfx::IntRect const& rect) override
+    virtual void read_buffer_sub_data(Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data) override
     {
-        return m_connection->get_canvas_pixels(canvas_id, rect);
+        if (!m_canvas_id.has_value())
+            return;
+        m_connection->read_webgl_buffer_sub_data(*m_canvas_id, target, offset, size, data);
+    }
+
+    virtual Gfx::ShareableBitmap read_back_drawing_buffer(Gfx::IntRect const& rect) override
+    {
+        if (!m_canvas_id.has_value())
+            return {};
+        return m_connection->get_canvas_pixels(*m_canvas_id, rect);
     }
 
     NonnullRefPtr<CompositorConnection> m_connection;
+    Optional<Web::Painting::CanvasId> m_canvas_id;
 };
 
 class WebContentRemoteCanvas2DTransport final : public Web::HTML::RemoteCanvas2DTransport {
@@ -83,30 +105,48 @@ public:
     }
 
 private:
-    virtual Optional<Web::Painting::CanvasId> create_context(Gfx::IntSize size, bool alpha) override
+    virtual bool create_context(Gfx::IntSize size, bool alpha) override
     {
-        return m_connection->create_canvas_2d_context(size, alpha);
+        VERIFY(!m_canvas_id.has_value());
+        auto canvas_id = m_connection->create_canvas_2d_context(size, alpha);
+        if (!canvas_id.has_value())
+            return false;
+        m_canvas_id = *canvas_id;
+        return true;
     }
 
-    virtual void destroy_context(Web::Painting::CanvasId canvas_id) override
+    virtual Optional<Web::Painting::CanvasId> canvas_id() const override
     {
-        m_connection->destroy_canvas_context(canvas_id);
+        return m_canvas_id;
     }
 
-    virtual void update_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands) override
+    virtual void destroy_context() override
     {
-        m_connection->update_canvas_2d_commands(canvas_id, commands);
+        if (!m_canvas_id.has_value())
+            return;
+        m_connection->destroy_canvas_context(*m_canvas_id);
+        m_canvas_id.clear();
     }
 
-    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect const& rect) override
+    virtual void update_commands(Gfx::CanvasCommandList const& commands) override
     {
-        auto shareable_bitmap = m_connection->get_canvas_pixels(canvas_id, rect);
+        if (!m_canvas_id.has_value())
+            return;
+        m_connection->update_canvas_2d_commands(*m_canvas_id, commands);
+    }
+
+    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const& rect) override
+    {
+        if (!m_canvas_id.has_value())
+            return nullptr;
+        auto shareable_bitmap = m_connection->get_canvas_pixels(*m_canvas_id, rect);
         if (!shareable_bitmap.is_valid())
             return nullptr;
         return shareable_bitmap.bitmap();
     }
 
     NonnullRefPtr<CompositorConnection> m_connection;
+    Optional<Web::Painting::CanvasId> m_canvas_id;
 };
 
 class WebContentCompositorHost final : public Web::Compositor::CompositorHost {

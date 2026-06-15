@@ -11,6 +11,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>

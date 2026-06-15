@@ -11,6 +11,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <LibGfx/BitmapExport.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Export.h>
@@ -18,12 +19,11 @@
 
 namespace Web::WebGL {
 
+WEB_API Optional<Gfx::ExportFormat> texture_export_format(GLenum format, GLenum type);
+
 class WEB_API OpenGLContext : public GLFunctions {
 public:
-    enum class WebGLVersion {
-        WebGL1,
-        WebGL2,
-    };
+    using WebGLVersion = WebGL::WebGLVersion;
 
     struct DrawingBufferOptions {
         bool depth;
@@ -54,9 +54,6 @@ public:
     u32 default_renderbuffer() const;
 
     Vector<String> get_supported_opengl_extensions();
-    void request_extension(char const* extension_name);
-
-    WebGLVersion webgl_version() const { return m_webgl_version; }
 
 private:
     NonnullRefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;

@@ -20,11 +20,12 @@ class WEB_API RemoteCanvas2DTransport : public RefCounted<RemoteCanvas2DTranspor
 public:
     virtual ~RemoteCanvas2DTransport() = default;
 
-    virtual Optional<Painting::CanvasId> create_context(Gfx::IntSize, bool alpha) = 0;
-    virtual void destroy_context(Painting::CanvasId) = 0;
-    virtual void update_commands(Painting::CanvasId, Gfx::CanvasCommandList const&) = 0;
+    virtual bool create_context(Gfx::IntSize, bool alpha) = 0;
+    virtual Optional<Painting::CanvasId> canvas_id() const = 0;
+    virtual void destroy_context() = 0;
+    virtual void update_commands(Gfx::CanvasCommandList const&) = 0;
 
-    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Painting::CanvasId, Gfx::IntRect const&) = 0;
+    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const&) = 0;
 };
 
 }

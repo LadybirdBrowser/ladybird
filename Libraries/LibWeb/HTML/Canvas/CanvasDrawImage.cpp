@@ -31,8 +31,6 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
             return { source->width()->anim_val()->value(), source->height()->anim_val()->value() };
         },
         [](GC::Ref<HTMLCanvasElement> source) -> Gfx::IntSize {
-            if (auto painting_surface = source->surface())
-                return painting_surface->size();
             return { source->width(), source->height() };
         },
         [](GC::Ref<ImageBitmap> source) -> Gfx::IntSize {
@@ -67,11 +65,11 @@ Optional<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource con
             return image_data->frame(0, size);
         },
         [](GC::Ref<HTMLCanvasElement> const& canvas) -> Optional<Gfx::DecodedImageFrame> {
-            canvas->present();
-            auto surface = canvas->surface();
-            if (!surface)
-                return Gfx::DecodedImageFrame { *canvas->get_bitmap_from_surface() };
-            return Gfx::DecodedImageFrame { *surface->snapshot_bitmap() };
+            canvas->prepare_for_compositing();
+            auto bitmap = canvas->get_bitmap_from_surface();
+            if (!bitmap)
+                return {};
+            return Gfx::DecodedImageFrame { *bitmap };
         },
         [](OneOf<GC::Ref<ImageBitmap>, GC::Ref<OffscreenCanvas>> auto const& source) -> Optional<Gfx::DecodedImageFrame> {
             auto bitmap = source->bitmap();

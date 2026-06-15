@@ -8,12 +8,13 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/String.h>
-#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawPath.h>
@@ -57,6 +58,8 @@ class CanvasRenderingContext2D
     GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> create(JS::Realm&, HTMLCanvasElement&, JS::Value options);
     virtual ~CanvasRenderingContext2D() override;
 
@@ -78,7 +81,7 @@ public:
 
     virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<GC::Ref<ImageData>> create_image_data(ImageData const& image_data) const override;
-    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height) override;
     WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Gfx::CanvasCommandList&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
@@ -121,10 +124,15 @@ public:
     virtual void set_shadow_color(String) override;
 
     void set_size(Gfx::IntSize const&);
-    void present();
+    void prepare_for_compositing();
 
-    RefPtr<Gfx::PaintingSurface> surface();
-    void allocate_painting_surface_if_needed();
+    void ensure_backing_storage();
+
+    void discard_backing_storage();
+
+    Optional<Painting::CanvasId> canvas_id() const;
+
+    RefPtr<Gfx::Bitmap> read_pixels(Gfx::IntRect const&);
 
 protected:
     [[nodiscard]] Gfx::CanvasCommandList* canvas_command_list() override;
@@ -139,6 +147,7 @@ private:
     virtual bool is_canvas_rendering_context_2d() const final { return true; }
 
     virtual void initialize(JS::Realm&) override;
+    virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
@@ -167,10 +176,14 @@ private:
 
     void flush_recorded_commands();
 
+    bool ensure_remote_canvas_context();
+
+    bool has_backing_storage() const { return m_transport != nullptr; }
+
     GC::Ref<HTMLCanvasElement> m_element;
 
     Gfx::CanvasCommandList m_commands;
-    OwnPtr<Gfx::CanvasCommandPlayer> m_player;
+    RefPtr<RemoteCanvas2DTransport> m_transport;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
     bool m_origin_clean { true };

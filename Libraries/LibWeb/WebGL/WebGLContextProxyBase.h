@@ -31,11 +31,11 @@ class WEB_API WebGLContextProxyBase {
     AK_MAKE_NONMOVABLE(WebGLContextProxyBase);
 
 public:
-    WebGLContextProxyBase(NonnullRefPtr<RemoteWebGLTransport>, Painting::CanvasId, WebGLVersion, Vector<String> supported_extensions);
+    WebGLContextProxyBase(NonnullRefPtr<RemoteWebGLTransport>, WebGLVersion, Vector<String> supported_extensions);
     ~WebGLContextProxyBase();
 
     void flush_commands();
-    Painting::CanvasId canvas_id() const { return m_canvas_id; }
+    Optional<Painting::CanvasId> canvas_id() const { return m_transport->canvas_id(); }
 
     void make_current() { }
     void notify_content_will_change() { }
@@ -91,7 +91,6 @@ protected:
 
 private:
     NonnullRefPtr<RemoteWebGLTransport> m_transport;
-    Painting::CanvasId m_canvas_id { 0 };
     WebGLVersion m_webgl_version { WebGLVersion::WebGL1 };
     Vector<String> m_supported_extensions;
     WebGLCommandList m_commands;

@@ -8,7 +8,7 @@
 #include <LibWeb/Bindings/EXTBlendMinMax.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebGL/Extensions/EXTBlendMinMax.h>
-#include <LibWeb/WebGL/OpenGLContext.h>
+#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
 namespace Web::WebGL {

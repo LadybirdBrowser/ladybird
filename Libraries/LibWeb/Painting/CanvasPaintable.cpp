@@ -32,13 +32,14 @@ void CanvasPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
         ScopedCornerRadiusClip corner_clip { context, canvas_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
         auto& canvas_element = as<HTML::HTMLCanvasElement>(*dom_node());
-        if (auto surface = canvas_element.surface()) {
+        if (auto content_size = canvas_element.canvas_surface_content_size(); content_size.has_value()) {
+            auto canvas_id = canvas_element.canvas_id();
+            VERIFY(canvas_id.has_value());
             auto canvas_int_rect = canvas_rect.to_type<int>();
             auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(),
-                surface->size(), canvas_int_rect.size());
-            auto& mutable_canvas_element = const_cast<HTML::HTMLCanvasElement&>(canvas_element);
-            context.display_list_recorder().draw_compositor_surface(canvas_int_rect,
-                mutable_canvas_element.ensure_compositor_surface_id(), scaling_mode);
+                *content_size, canvas_int_rect.size());
+            context.display_list_recorder().draw_canvas(canvas_int_rect,
+                *canvas_id, scaling_mode);
         }
     }
 }

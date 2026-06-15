@@ -36,9 +36,19 @@ void WebGLSync::initialize(JS::Realm& realm)
 
 ErrorOr<GLsyncInternal> WebGLSync::sync_handle(WebGLRenderingContextBase const* context) const
 {
-    if (context == m_context)
-        return m_sync_handle;
-    return Error::from_errno(GL_INVALID_OPERATION);
+    TRY(validate_context(context));
+    if (invalidated_for_context(context))
+        return Error::from_errno(GL_INVALID_OPERATION);
+    return m_sync_handle;
+}
+
+ErrorOr<Optional<GLsyncInternal>> WebGLSync::sync_handle_for_deletion(WebGLRenderingContextBase const* context)
+{
+    TRY(validate_context(context));
+    if (invalidated_for_context(context))
+        return Optional<GLsyncInternal> {};
+    invalidate();
+    return Optional<GLsyncInternal> { m_sync_handle };
 }
 
 }

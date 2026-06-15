@@ -13,9 +13,8 @@
 
 namespace Web::WebGL {
 
-WebGLContextProxyBase::WebGLContextProxyBase(NonnullRefPtr<RemoteWebGLTransport> transport, Painting::CanvasId canvas_id, WebGLVersion webgl_version, Vector<String> supported_extensions)
+WebGLContextProxyBase::WebGLContextProxyBase(NonnullRefPtr<RemoteWebGLTransport> transport, WebGLVersion webgl_version, Vector<String> supported_extensions)
     : m_transport(move(transport))
-    , m_canvas_id(canvas_id)
     , m_webgl_version(webgl_version)
     , m_supported_extensions(move(supported_extensions))
 {
@@ -23,14 +22,14 @@ WebGLContextProxyBase::WebGLContextProxyBase(NonnullRefPtr<RemoteWebGLTransport>
 
 WebGLContextProxyBase::~WebGLContextProxyBase()
 {
-    m_transport->destroy_context(m_canvas_id);
+    m_transport->destroy_context();
 }
 
 void WebGLContextProxyBase::flush_commands()
 {
     if (m_commands.is_empty())
         return;
-    m_transport->send_commands(m_canvas_id, m_commands.buffer(), m_pending_bitmaps);
+    m_transport->send_commands(m_commands.buffer(), m_pending_bitmaps);
     m_commands.clear_with_capacity();
     m_pending_bitmaps.clear_with_capacity();
 }
@@ -40,13 +39,13 @@ ByteBuffer WebGLContextProxyBase::send_sync_call(ByteBuffer request)
     if (m_lost)
         return {};
     flush_commands();
-    return m_transport->sync_call(m_canvas_id, move(request));
+    return m_transport->sync_call(move(request));
 }
 
 ReadPixelsResult WebGLContextProxyBase::read_pixels_robust_angle_into_shared_buffer(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLsizei buf_size, Core::AnonymousBuffer const& pixels)
 {
     flush_commands();
-    return m_transport->read_pixels_robust_angle(m_canvas_id, x, y, width, height, format, type, buf_size, pixels);
+    return m_transport->read_pixels_robust_angle(x, y, width, height, format, type, buf_size, pixels);
 }
 
 void WebGLContextProxyBase::set_size(Gfx::IntSize const& size)
@@ -57,7 +56,7 @@ void WebGLContextProxyBase::set_size(Gfx::IntSize const& size)
 void WebGLContextProxyBase::present_canvas_for_compositing(bool preserve_drawing_buffer)
 {
     flush_commands();
-    m_transport->present_canvas(m_canvas_id, preserve_drawing_buffer);
+    m_transport->present_canvas(preserve_drawing_buffer);
 }
 
 RefPtr<Gfx::Bitmap> WebGLContextProxyBase::read_back_drawing_buffer(Gfx::IntRect const& rect)
@@ -65,7 +64,7 @@ RefPtr<Gfx::Bitmap> WebGLContextProxyBase::read_back_drawing_buffer(Gfx::IntRect
     if (m_lost)
         return nullptr;
     flush_commands();
-    auto bitmap = m_transport->read_back_drawing_buffer(m_canvas_id, rect);
+    auto bitmap = m_transport->read_back_drawing_buffer(rect);
     if (!bitmap.is_valid())
         return nullptr;
     return bitmap.bitmap();
@@ -138,7 +137,7 @@ void WebGLContextProxyBase::read_buffer_sub_data(GLenum target, long long offset
 
     auto shared_data = shared_data_or_error.release_value_but_fixme_should_propagate_errors();
     flush_commands();
-    m_transport->read_buffer_sub_data(m_canvas_id, target, static_cast<GLintptr>(offset), static_cast<GLintptr>(destination.size()), shared_data);
+    m_transport->read_buffer_sub_data(target, static_cast<GLintptr>(offset), static_cast<GLintptr>(destination.size()), shared_data);
     if (m_lost)
         return;
     __builtin_memcpy(destination.data(), shared_data.data<void>(), destination.size());

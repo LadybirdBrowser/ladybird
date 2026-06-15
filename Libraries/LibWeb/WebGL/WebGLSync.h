@@ -21,6 +21,7 @@ public:
     virtual ~WebGLSync() override;
 
     ErrorOr<GLsyncInternal> sync_handle(WebGLRenderingContextBase const* context) const;
+    ErrorOr<Optional<GLsyncInternal>> sync_handle_for_deletion(WebGLRenderingContextBase const* context);
 
 protected:
     explicit WebGLSync(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLsyncInternal handle);

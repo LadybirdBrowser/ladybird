@@ -25,15 +25,12 @@ public:
 
     virtual ~WebGLRenderingContext() override;
 
-    void present() override;
-    void needs_to_present() override;
+    void prepare_for_compositing() override;
+    void did_update_canvas_content() override;
 
-    GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const;
+    virtual GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const override;
 
     Optional<WebGLContextAttributes> get_context_attributes();
-
-    RefPtr<Gfx::PaintingSurface> surface();
-    void allocate_painting_surface_if_needed();
 
     void set_size(Gfx::IntSize const&);
     void reset_to_default_state();
@@ -44,7 +41,7 @@ public:
 private:
     virtual void initialize(JS::Realm&) override;
 
-    WebGLRenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
+    WebGLRenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<WebGLContextProxy> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -59,7 +56,9 @@ private:
     WebGLContextAttributes m_actual_context_parameters {};
 };
 
-void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type);
+bool fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type);
 void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_element);
+
+OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::HTMLCanvasElement&, WebGLVersion, WebGLContextAttributes const&);
 
 }

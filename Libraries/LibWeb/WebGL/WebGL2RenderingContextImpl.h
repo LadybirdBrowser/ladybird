@@ -24,7 +24,7 @@ class WebGL2RenderingContextImpl : public WebGLRenderingContextImpl {
     WEB_NON_IDL_PLATFORM_OBJECT(WebGL2RenderingContextImpl, WebGLRenderingContextImpl);
 
 public:
-    WebGL2RenderingContextImpl(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
+    WebGL2RenderingContextImpl(JS::Realm&, NonnullOwnPtr<WebGLContextProxy>);
 
     void copy_buffer_sub_data(WebIDL::UnsignedLong read_target, WebIDL::UnsignedLong write_target, WebIDL::LongLong read_offset, WebIDL::LongLong write_offset, WebIDL::LongLong size);
     void get_buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong src_byte_offset, WebIDL::ArrayBufferView dst_buffer, WebIDL::UnsignedLongLong dst_offset, WebIDL::UnsignedLong length);

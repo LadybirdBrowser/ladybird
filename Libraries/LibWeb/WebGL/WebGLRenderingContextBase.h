@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/BitmapExport.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -45,7 +45,8 @@ public:
     using Int32List = Variant<GC::Ref<JS::Int32Array>, Vector<WebIDL::Long>>;
     using Uint32List = Variant<GC::Ref<JS::Uint32Array>, Vector<WebIDL::UnsignedLong>>;
 
-    virtual OpenGLContext& context() = 0;
+    virtual WebGLContextProxy& context() = 0;
+    virtual GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const = 0;
 
     bool is_context_lost() const;
 
@@ -133,7 +134,12 @@ protected:
         return get_offset_span(buffer->data(), src_offset, src_length_override);
     }
 
-    Optional<Gfx::BitmapExportResult> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {});
+    struct TexImageSourceFrame {
+        Gfx::DecodedImageFrame frame;
+        bool flip_y { false };
+        bool premultiply_alpha { false };
+    };
+    Optional<TexImageSourceFrame> read_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type);
 
     static Vector<GLchar> null_terminated_string(StringView string)
     {
