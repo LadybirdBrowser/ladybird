@@ -42,6 +42,8 @@ public:
 protected:
     CanvasState() = default;
 
+    void set_context_lost(bool context_lost) { m_context_lost = context_lost; }
+
 private:
     DrawingState m_drawing_state;
     Vector<DrawingState> m_drawing_state_stack;

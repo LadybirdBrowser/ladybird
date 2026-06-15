@@ -47,6 +47,7 @@ public:
     RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
 
     void prepare_for_compositing();
+    void notify_compositor_backing_storage_lost();
     void set_canvas_content_dirty();
     GC::Ptr<HTML::CanvasRenderingContext2D> canvas_rendering_context_2d() const
     {
@@ -60,6 +61,8 @@ public:
     Optional<Gfx::IntSize> canvas_surface_content_size() const;
 
     void ensure_backing_storage();
+
+    void notify_compositor_connection_lost();
 
     CSS::ComputationContext canvas_font_computation_context();
 

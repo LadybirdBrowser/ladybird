@@ -201,6 +201,9 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
     m_compositor_connection->on_mouse_event = [this](u64 page_id, Web::MouseEvent event) {
         mouse_event(page_id, move(event));
     };
+    m_compositor_connection->on_compositor_lost = [this] {
+        m_page_host->compositor_process_lost();
+    };
 
 #ifdef AK_OS_WINDOWS
     // Perform Windows peer PID handshake before any other IPC

@@ -250,9 +250,15 @@ void PageClient::set_window_size(Web::DevicePixelSize size)
     page().set_window_size(size);
 }
 
+void PageClient::compositor_process_lost()
+{
+    page().notify_all_webgl_contexts_lost();
+}
+
 void PageClient::compositor_process_reconnected()
 {
     page().top_level_traversable()->repaint_after_compositor_process_reconnect();
+    page().notify_all_canvas_elements_of_lost_backing_storage();
     page().prepare_canvas_contexts_for_compositing();
     page().update_all_media_element_video_sinks();
     Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();

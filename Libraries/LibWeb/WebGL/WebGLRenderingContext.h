@@ -44,6 +44,7 @@ private:
     WebGLRenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<WebGLContextProxy> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual bool reestablish_remote_context() override;
 
     GC::Ref<HTML::HTMLCanvasElement> m_canvas_element;
 
@@ -60,5 +61,6 @@ bool fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString
 void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_element);
 
 OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::HTMLCanvasElement&, WebGLVersion, WebGLContextAttributes const&);
+bool restore_webgl_context_proxy(WebGLContextProxy&, HTML::HTMLCanvasElement&, WebGLVersion, WebGLContextAttributes const&);
 
 }

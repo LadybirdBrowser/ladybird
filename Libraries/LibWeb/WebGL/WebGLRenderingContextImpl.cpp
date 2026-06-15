@@ -46,6 +46,30 @@ WebGLRenderingContextImpl::WebGLRenderingContextImpl(JS::Realm& realm, NonnullOw
 {
 }
 
+void WebGLRenderingContextImpl::reset_client_side_webgl_state()
+{
+    m_array_buffer_binding = nullptr;
+    m_element_array_buffer_binding = nullptr;
+    m_current_program = nullptr;
+    m_framebuffer_binding = nullptr;
+    m_renderbuffer_binding = nullptr;
+    m_texture_binding_2d = nullptr;
+    m_texture_binding_cube_map = nullptr;
+    m_uniform_buffer_binding = nullptr;
+    m_copy_read_buffer_binding = nullptr;
+    m_copy_write_buffer_binding = nullptr;
+    m_transform_feedback_buffer_binding = nullptr;
+    m_pixel_pack_buffer_binding = nullptr;
+    m_pixel_unpack_buffer_binding = nullptr;
+    m_texture_binding_2d_array = nullptr;
+    m_texture_binding_3d = nullptr;
+    m_transform_feedback_binding = nullptr;
+    m_current_vertex_array = nullptr;
+    m_any_samples_passed = nullptr;
+    m_any_samples_passed_conservative = nullptr;
+    m_transform_feedback_primitives_written = nullptr;
+}
+
 void WebGLRenderingContextImpl::active_texture(WebIDL::UnsignedLong texture)
 {
     m_context->make_current();

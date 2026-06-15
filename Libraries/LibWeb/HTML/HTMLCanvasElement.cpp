@@ -441,6 +441,12 @@ RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()
     return bitmap;
 }
 
+void HTMLCanvasElement::notify_compositor_connection_lost()
+{
+    if (auto* webgl_context = this->webgl_context())
+        webgl_context->lose_context_from_compositor_loss();
+}
+
 void HTMLCanvasElement::set_canvas_content_dirty()
 {
     m_canvas_content_dirty = true;
@@ -465,6 +471,16 @@ void HTMLCanvasElement::prepare_for_compositing()
         [](Empty) {
             // Do nothing.
         });
+}
+
+void HTMLCanvasElement::notify_compositor_backing_storage_lost()
+{
+    if (auto* webgl_context = this->webgl_context()) {
+        webgl_context->restore_context_after_compositor_reconnect();
+        return;
+    }
+    if (auto context_2d = canvas_rendering_context_2d())
+        context_2d->notify_backing_storage_lost();
 }
 
 Optional<Gfx::IntSize> HTMLCanvasElement::canvas_surface_content_size() const

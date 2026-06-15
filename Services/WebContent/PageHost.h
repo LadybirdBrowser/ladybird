@@ -43,6 +43,7 @@ public:
     ConnectionFromClient& client() const { return m_client; }
     void ensure_compositor_host();
     void compositor_process_reconnected();
+    void compositor_process_lost();
     Web::Compositor::CompositorHost* compositor_host() { return m_compositor_host.ptr(); }
     Web::Compositor::CompositorHost const* compositor_host() const { return m_compositor_host.ptr(); }
 

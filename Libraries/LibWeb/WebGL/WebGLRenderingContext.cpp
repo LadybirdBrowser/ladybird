@@ -32,6 +32,9 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLRenderingContext);
 
+// https://www.khronos.org/registry/webgl/specs/latest/1.0/#fire-a-webgl-context-event
+// Returns false if the event was canceled (the page called preventDefault), which is how
+// webglcontextlost signals that the page wants the context restored.
 bool fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type)
 {
     // To fire a WebGL context event named e means that an event using the WebGLContextEvent interface, with its type attribute [DOM4] initialized to e, its cancelable attribute initialized to true, and its isTrusted attribute [DOM4] initialized to true, is to be dispatched at the given object.
@@ -60,7 +63,14 @@ static Gfx::IntSize initial_drawing_buffer_size(HTML::HTMLCanvasElement& canvas_
     };
 }
 
-OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::HTMLCanvasElement& canvas_element, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
+namespace {
+
+struct RemoteWebGLContext {
+    NonnullRefPtr<RemoteWebGLTransport> transport;
+    RemoteWebGLTransport::CreateResult result;
+};
+
+Optional<RemoteWebGLContext> create_remote_webgl_context(HTML::HTMLCanvasElement& canvas_element, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
 {
     auto& page = canvas_element.document().page();
     if (!page.has_compositor_host())
@@ -78,7 +88,28 @@ OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::HTMLCanvasElement& ca
     if (!result.success)
         return {};
 
-    return make<WebGLContextProxy>(transport.release_nonnull(), webgl_version, move(result.supported_extensions));
+    return RemoteWebGLContext { transport.release_nonnull(), move(result) };
+}
+
+}
+
+OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::HTMLCanvasElement& canvas_element, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
+{
+    auto remote = create_remote_webgl_context(canvas_element, webgl_version, context_attributes);
+    if (!remote.has_value())
+        return {};
+
+    return make<WebGLContextProxy>(move(remote->transport), webgl_version, move(remote->result.supported_extensions));
+}
+
+bool restore_webgl_context_proxy(WebGLContextProxy& context, HTML::HTMLCanvasElement& canvas_element, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
+{
+    auto remote = create_remote_webgl_context(canvas_element, webgl_version, context_attributes);
+    if (!remote.has_value())
+        return false;
+
+    context.restore(move(remote->transport), move(remote->result.supported_extensions));
+    return true;
 }
 
 JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::create(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, JS::Value options)
@@ -121,6 +152,11 @@ void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
 void WebGLRenderingContext::prepare_for_compositing()
 {
     context().present_canvas_for_compositing(m_context_creation_parameters.preserve_drawing_buffer);
+}
+
+bool WebGLRenderingContext::reestablish_remote_context()
+{
+    return restore_webgl_context_proxy(context(), *m_canvas_element, WebGLVersion::WebGL1, m_actual_context_parameters);
 }
 
 GC::Ref<HTML::HTMLCanvasElement> WebGLRenderingContext::canvas_for_binding() const

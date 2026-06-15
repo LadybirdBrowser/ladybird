@@ -48,7 +48,19 @@ public:
     virtual WebGLContextProxy& context() = 0;
     virtual GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const = 0;
 
+    u64 context_generation() const { return m_context_generation; }
+
     bool is_context_lost() const;
+
+    // https://registry.khronos.org/webgl/specs/latest/1.0/#CONTEXT_LOST
+    // The compositor process (and with it the GL state) went away: set the context lost
+    // flag, stop talking to the dead host, and fire webglcontextlost at the canvas.
+    void lose_context_from_compositor_loss();
+
+    // The compositor came back. If the page asked for restoration (called preventDefault on
+    // webglcontextlost), build a fresh remote context and fire webglcontextrestored so the
+    // page can re-create its now-lost GL resources.
+    void restore_context_after_compositor_reconnect();
 
     bool xr_compatible() const { return m_xr_compatible; }
     void set_xr_compatible(bool xr_compatible) { m_xr_compatible = xr_compatible; }
@@ -65,6 +77,12 @@ protected:
     WebGLRenderingContextBase(JS::Realm&);
 
     virtual void visit_edges(Cell::Visitor&) override;
+
+    // Builds a fresh transport and host context against the reconnected compositor and
+    // rebinds the proxy to it. Returns false if no compositor is available. WebGL1/2
+    // implement it because they own the version and the actual context parameters.
+    virtual bool reestablish_remote_context() = 0;
+    virtual void reset_client_side_webgl_state() = 0;
 
     // FIXME: Make this and any another instance of extension names a FlyString, similarly to HTML::TagNames
     bool extension_enabled(StringView extension) const;
@@ -153,6 +171,7 @@ protected:
 
     GLenum get_error_value();
     void set_error(GLenum error);
+    void reset_context_state_after_loss();
 
     // UNPACK_FLIP_Y_WEBGL of type boolean
     //      If set, then during any subsequent calls to texImage2D or texSubImage2D, the source data is flipped along
@@ -181,9 +200,11 @@ private:
     // https://registry.khronos.org/webgl/specs/latest/2.0/#webgl-context-lost-flag
     // Each WebGLRenderingContext and WebGL2RenderingContext has a webgl context lost flag, which is initially unset.
     bool m_context_lost { false };
+    bool m_context_restore_requested { false };
 
     // https://immersive-web.github.io/webxr/#xr-compatible
     bool m_xr_compatible { false };
+    u64 m_context_generation { 0 };
 
     Vector<WebIDL::UnsignedLong> m_enabled_compressed_texture_formats;
 

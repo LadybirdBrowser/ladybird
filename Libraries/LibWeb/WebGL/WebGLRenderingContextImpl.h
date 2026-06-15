@@ -147,6 +147,7 @@ public:
 
 protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void reset_client_side_webgl_state() override;
 
     GC::Ptr<WebGLBuffer> m_array_buffer_binding;
     GC::Ptr<WebGLBuffer> m_element_array_buffer_binding;

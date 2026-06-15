@@ -130,6 +130,8 @@ public:
 
     void discard_backing_storage();
 
+    void notify_backing_storage_lost();
+
     Optional<Painting::CanvasId> canvas_id() const;
 
     RefPtr<Gfx::Bitmap> read_pixels(Gfx::IntRect const&);
