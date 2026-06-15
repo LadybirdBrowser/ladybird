@@ -1,11 +1,24 @@
 set(SOURCES
     BackingStoreManager.cpp
+    CanvasHost.cpp
     CompositorState.cpp
     ContextState.cpp
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp
+    HostWebGLContext.cpp
     VSyncScheduler.cpp
     ViewportScrollbarController.cpp
+    WebGLObjectMap.cpp
+)
+
+invoke_py_generator(
+    "WebGLCommandReplayer.cpp"
+    "generate_compositor_webgl_replayer.py"
+    "${LADYBIRD_SOURCE_DIR}/Libraries/LibWeb/WebGL/GLFunctions.json"
+    "WebGLCommandReplayer.h"
+    "WebGLCommandReplayer.cpp"
+    arguments -j "${LADYBIRD_SOURCE_DIR}/Libraries/LibWeb/WebGL/GLFunctions.json"
+    dependencies "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_webgl.py"
 )
 
 set(GENERATED_SOURCES
@@ -13,6 +26,7 @@ set(GENERATED_SOURCES
     CompositorControlServerEndpoint.h
     CompositorWebContentClientEndpoint.h
     CompositorWebContentServerEndpoint.h
+    WebGLCommandReplayer.cpp
 )
 
 add_library(compositorservice STATIC ${SOURCES} ${GENERATED_SOURCES})
@@ -32,7 +46,7 @@ target_include_directories(compositorservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
 target_include_directories(compositorservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSandbox LibWebView)
-target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibIPC LibMedia LibSync LibWeb)
+target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibIPC LibMedia LibSync LibWeb ${ANGLE_TARGETS})
 
 if (APPLE)
     target_link_libraries(Compositor PRIVATE "-framework CoreGraphics" "-framework CoreVideo")

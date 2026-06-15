@@ -1,6 +1,10 @@
 #include <AK/NonnullRefPtr.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibGfx/CanvasCommandList.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/VideoFrame.h>
@@ -10,6 +14,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
+#include <LibWeb/WebGL/Types.h>
 
 endpoint CompositorWebContentServer
 {
@@ -27,6 +32,18 @@ endpoint CompositorWebContentServer
 
     update_compositor_surface(Web::Compositor::CompositorContextId context_id, Web::Painting::CompositorSurfaceId surface_id, Gfx::SharedImage shared_image) =|
     clear_compositor_surface(Web::Compositor::CompositorContextId context_id, Web::Painting::CompositorSurfaceId surface_id) =|
+
+    create_canvas_2d_context(Gfx::IntSize size, bool alpha) => (bool success, Web::Painting::CanvasId canvas_id)
+    update_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList commands) =|
+    destroy_canvas_context(Web::Painting::CanvasId canvas_id) =|
+    get_canvas_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect rect) => (Gfx::ShareableBitmap pixels)
+
+    create_webgl_context(Web::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) => (bool success, Web::Painting::CanvasId canvas_id, Vector<String> supported_extensions)
+    webgl_commands(Web::Painting::CanvasId canvas_id, ByteBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps) =|
+    webgl_present_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer) =|
+    webgl_sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request) => (ByteBuffer reply)
+    webgl_read_pixels(Web::Painting::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels) => (i32 length, i32 columns, i32 rows)
+    webgl_read_buffer_sub_data(Web::Painting::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data) => ()
 
     invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation) =|
     async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking) => (Web::Compositor::AsyncScrollEnqueueResult result)
