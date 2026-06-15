@@ -307,10 +307,13 @@ def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = N
     if jobs:
         os.environ["VCPKG_MAX_CONCURRENCY"] = jobs
 
-    if platform.host_architecture == HostArchitecture.riscv64:
-        # vcpkg refuses to build ports on riscv64 and other less common architectures without this flag.
-        # With it set vcpkg will use the system provided CMake and Ninja binaries but will still download,
-        # build and use its own pinned versions of gn, meson and pkg-config.
+    needs_system_binaries = platform.host_architecture == HostArchitecture.riscv64 or (
+        platform.host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64
+    )
+    if needs_system_binaries:
+        # vcpkg does not ship prebuilt tool binaries for riscv64 or arm64 Linux and refuses to build
+        # ports on these hosts without this flag. With it set vcpkg uses the system provided CMake and
+        # Ninja binaries but still downloads, builds and uses its own pinned gn, meson and pkg-config.
         os.environ["VCPKG_FORCE_SYSTEM_BINARIES"] = "1"
 
     if "XDG_CACHE_HOME" not in os.environ:
