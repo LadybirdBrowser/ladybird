@@ -109,10 +109,17 @@ public:
         bool will_change_top_level_entry { false };
         bool waiting_for_cancelation_check { false };
     };
+    struct SessionHistoryTraversalMenuItem {
+        int delta { 0 };
+        String title;
+        String url;
+        Optional<String> favicon_base64_png;
+    };
     [[nodiscard]] HistoryTraversalOutcome traverse_the_history_by_delta(
         int delta,
         CheckForCancelation = CheckForCancelation::Yes,
         Function<void(HistoryTraversalOutcome)> = nullptr);
+    [[nodiscard]] Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
 
     void zoom_in();
     void zoom_out();

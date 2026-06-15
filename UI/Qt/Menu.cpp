@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
@@ -141,30 +140,10 @@ static void add_properties(QObject& object, T& menu_or_action)
         object.setProperty(key.to_byte_string().characters(), qstring_from_ak_string(value));
 }
 
-static QIcon icon_from_base64_png(StringView favicon_base64_png)
+static void initialize_native_control(WebView::Action& action, QAction& qaction, QPalette const& palette, IncludeActionIcon include_action_icon)
 {
     static constexpr int const MENU_ICON_SIZE = 16;
 
-    auto decoded = decode_base64(favicon_base64_png);
-    if (decoded.is_error())
-        return {};
-
-    QPixmap pixmap;
-    if (!pixmap.loadFromData(decoded.value().data(), static_cast<uint>(decoded.value().size()), "PNG"))
-        return {};
-
-    QIcon icon;
-    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS) {
-        auto size = MENU_ICON_SIZE * device_pixel_ratio;
-        auto scaled_pixmap = pixmap.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        scaled_pixmap.setDevicePixelRatio(device_pixel_ratio);
-        icon.addPixmap(scaled_pixmap);
-    }
-    return icon;
-}
-
-static void initialize_native_control(WebView::Action& action, QAction& qaction, QPalette const& palette, IncludeActionIcon include_action_icon)
-{
     switch (action.id()) {
     case WebView::ActionID::NavigateBack:
         if (include_action_icon == IncludeActionIcon::Yes)
@@ -209,7 +188,7 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         break;
     case WebView::ActionID::BookmarkItem:
         if (auto icon = action.base64_png_icon(); icon.has_value())
-            qaction.setIcon(icon_from_base64_png(*icon));
+            qaction.setIcon(icon_from_base64_png(*icon, MENU_ICON_SIZE));
         else
             qaction.setIcon(create_chrome_icon(ChromeIcon::Globe, palette));
         break;

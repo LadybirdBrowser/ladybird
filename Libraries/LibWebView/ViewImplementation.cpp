@@ -489,6 +489,54 @@ ViewImplementation::HistoryTraversalOutcome ViewImplementation::traverse_the_his
     };
 }
 
+Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::session_history_traversal_menu_items(int direction) const
+{
+    VERIFY(direction == -1 || direction == 1);
+
+    auto current_used_step_index = m_session_history.current_used_step_index();
+    if (!current_used_step_index.has_value())
+        return {};
+
+    Vector<SessionHistoryTraversalMenuItem> items;
+    auto append_item = [&](size_t target_step_index, TraversableSessionHistory::Entry const& target_entry) {
+        auto history_entry = Application::history_store().entry_for_url(target_entry.url);
+        auto url = target_entry.url.serialize();
+        auto title = history_entry.has_value() && history_entry->title.has_value() && !history_entry->title->is_empty()
+            ? move(*history_entry->title)
+            : url;
+        items.append({
+            static_cast<int>(target_step_index) - static_cast<int>(*current_used_step_index),
+            move(title),
+            move(url),
+            history_entry.has_value() ? move(history_entry->favicon_base64_png) : Optional<String> {},
+        });
+    };
+
+    if (direction < 0) {
+        for (size_t target_step_index = *current_used_step_index; target_step_index > 0; --target_step_index) {
+            auto target_step = m_session_history.step_at(target_step_index - 1);
+            if (!target_step.has_value())
+                continue;
+            auto const* target_entry = m_session_history.top_level_entry_for_step(*target_step);
+            if (!target_entry)
+                continue;
+            append_item(target_step_index - 1, *target_entry);
+        }
+    } else {
+        for (size_t target_step_index = *current_used_step_index + 1; target_step_index < m_session_history.used_step_count(); ++target_step_index) {
+            auto target_step = m_session_history.step_at(target_step_index);
+            if (!target_step.has_value())
+                continue;
+            auto const* target_entry = m_session_history.top_level_entry_for_step(*target_step);
+            if (!target_entry)
+                continue;
+            append_item(target_step_index, *target_entry);
+        }
+    }
+
+    return items;
+}
+
 void ViewImplementation::zoom_in()
 {
     if (m_zoom_level >= ZOOM_MAX_LEVEL)
