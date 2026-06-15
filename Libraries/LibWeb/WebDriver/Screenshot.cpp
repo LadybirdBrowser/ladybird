@@ -5,10 +5,13 @@
  */
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -46,9 +49,6 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
 
     // FIXME: 5. Let context, a canvas context mode, be the result of invoking the 2D context creation algorithm given canvas as the target.
     MUST(canvas.create_2d_context({}));
-    canvas.allocate_painting_surface_if_needed();
-    if (!canvas.surface())
-        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to allocate painting surface"sv);
 
     // 6. Complete implementation specific steps equivalent to drawing the region of the framebuffer specified by the following coordinates onto context:
     //    - X coordinate: rectangle x coordinate
@@ -57,7 +57,7 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     //    - Height: paint height
     Gfx::IntRect paint_rect { rect.x(), rect.y(), paint_width, paint_height };
 
-    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, canvas.surface()->size()));
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize { paint_width, paint_height }));
     auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
     IGNORE_USE_IN_ESCAPING_LAMBDA bool did_paint = false;
     HTML::PaintConfig paint_config { .canvas_fill_rect = paint_rect };
@@ -68,7 +68,10 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
         return did_paint;
     }));
 
-    canvas.surface()->write_from_bitmap(*bitmap);
+    auto image_bitmap = HTML::ImageBitmap::create(element.realm());
+    image_bitmap->set_bitmap(bitmap);
+    if (canvas.canvas_rendering_context_2d()->draw_image(image_bitmap, 0, 0).is_exception())
+        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to draw the screenshot to the canvas"sv);
 
     // 7. Return success with canvas.
     return canvas;
@@ -80,7 +83,7 @@ Response encode_canvas_element(HTML::HTMLCanvasElement& canvas)
     // FIXME: 1. If the canvas element’s bitmap’s origin-clean flag is set to false, return error with error code unable to capture screen.
 
     // 2. If the canvas element’s bitmap has no pixels (i.e. either its horizontal dimension or vertical dimension is zero) then return error with error code unable to capture screen.
-    if (canvas.surface()->size().is_empty())
+    if (!canvas.canvas_surface_content_size().has_value())
         return Error::from_code(ErrorCode::UnableToCaptureScreen, "Captured screenshot is empty"sv);
 
     // 3. Let file be a serialization of the canvas element’s bitmap as a file, using "image/png" as an argument.

@@ -21,78 +21,17 @@ using namespace Web::WebGL;
 
 static constexpr GLsizei max_webgl_string_list_entries = 16384;
 
-static Web::WebGL::OpenGLContext::WebGLVersion to_opengl_webgl_version(WebGLVersion version)
-{
-    switch (version) {
-    case WebGLVersion::WebGL1:
-        return Web::WebGL::OpenGLContext::WebGLVersion::WebGL1;
-    case WebGLVersion::WebGL2:
-        return Web::WebGL::OpenGLContext::WebGLVersion::WebGL2;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static Optional<Gfx::ExportFormat> texture_export_format(GLenum format, GLenum type)
-{
-    switch (format) {
-    case GL_RGB:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return Gfx::ExportFormat::RGB888;
-        case GL_UNSIGNED_SHORT_5_6_5:
-            return Gfx::ExportFormat::RGB565;
-        default:
-            break;
-        }
-        break;
-    case GL_RGBA:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return Gfx::ExportFormat::RGBA8888;
-        case GL_UNSIGNED_SHORT_4_4_4_4:
-            // FIXME: This is not exactly the same as RGBA.
-            return Gfx::ExportFormat::RGBA4444;
-        case GL_UNSIGNED_SHORT_5_5_5_1:
-            return Gfx::ExportFormat::RGBA5551;
-        default:
-            break;
-        }
-        break;
-    case GL_ALPHA:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return Gfx::ExportFormat::Alpha8;
-        default:
-            break;
-        }
-        break;
-    case GL_LUMINANCE:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return Gfx::ExportFormat::Gray8;
-        default:
-            break;
-        }
-        break;
-    default:
-        break;
-    }
-
-    dbgln("WebGL: Unsupported format and type combination. format: 0x{:04x}, type: 0x{:04x}", format, type);
-    return {};
-}
-
 HostWebGLContext::HostWebGLContext(NonnullOwnPtr<Web::WebGL::OpenGLContext> gl_context)
     : m_gl_context(move(gl_context))
 {
 }
 
-OwnPtr<HostWebGLContext> HostWebGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion version, Web::WebGL::OpenGLContext::DrawingBufferOptions options, Gfx::IntSize initial_size)
+OwnPtr<HostWebGLContext> HostWebGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, Web::WebGL::OpenGLContext::WebGLVersion version, Web::WebGL::OpenGLContext::DrawingBufferOptions options, Gfx::IntSize initial_size)
 {
     if (initial_size.width() < 1 || initial_size.width() > max_webgl_drawing_buffer_dimension
         || initial_size.height() < 1 || initial_size.height() > max_webgl_drawing_buffer_dimension)
         return {};
-    auto gl_context = Web::WebGL::OpenGLContext::create(skia_backend_context, to_opengl_webgl_version(version), options);
+    auto gl_context = Web::WebGL::OpenGLContext::create(skia_backend_context, version, options);
     if (!gl_context)
         return {};
     gl_context->set_size(initial_size);

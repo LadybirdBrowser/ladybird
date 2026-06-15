@@ -9,5 +9,5 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x32]
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x32]
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 32x32]
-  DrawCompositorSurface@1 dst_rect=[8,8 32x32]
+  DrawCanvas@1 dst_rect=[8,8 32x32]
 Restore@0

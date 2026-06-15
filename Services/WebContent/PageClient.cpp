@@ -253,7 +253,7 @@ void PageClient::set_window_size(Web::DevicePixelSize size)
 void PageClient::compositor_process_reconnected()
 {
     page().top_level_traversable()->repaint_after_compositor_process_reconnect();
-    page().republish_all_canvas_element_surfaces();
+    page().prepare_canvas_contexts_for_compositing();
     page().update_all_media_element_video_sinks();
     Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
 }

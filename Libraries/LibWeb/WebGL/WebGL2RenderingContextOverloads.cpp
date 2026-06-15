@@ -16,14 +16,14 @@ extern "C" {
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGL2RenderingContextOverloads.h>
+#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::WebGL {
 
-WebGL2RenderingContextOverloads::WebGL2RenderingContextOverloads(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
+WebGL2RenderingContextOverloads::WebGL2RenderingContextOverloads(JS::Realm& realm, NonnullOwnPtr<WebGLContextProxy> context)
     : WebGL2RenderingContextImpl(realm, move(context))
 {
 }
@@ -90,11 +90,11 @@ void WebGL2RenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, W
 {
     m_context->make_current();
 
-    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type);
-    if (!maybe_converted_texture.has_value())
+    auto maybe_source_frame = read_texture_image_source(source, format, type);
+    if (!maybe_source_frame.has_value())
         return;
-    auto converted_texture = maybe_converted_texture.release_value();
-    m_context->tex_image2d_robust_angle(target, level, internalformat, converted_texture.width, converted_texture.height, 0, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
+    auto source_frame = maybe_source_frame.release_value();
+    m_context->tex_image2d_from_bitmap(target, level, internalformat, format, type, move(source_frame.frame), OptionalNone {}, source_frame.flip_y, source_frame.premultiply_alpha);
 }
 
 void WebGL2RenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::NullableArrayBufferViewVariant pixels)
@@ -113,23 +113,29 @@ void WebGL2RenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong targe
 {
     m_context->make_current();
 
-    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type);
-
-    if (!maybe_converted_texture.has_value())
+    auto maybe_source_frame = read_texture_image_source(source, format, type);
+    if (!maybe_source_frame.has_value())
         return;
-    auto converted_texture = maybe_converted_texture.release_value();
-    m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, converted_texture.width, converted_texture.height, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
+    auto source_frame = maybe_source_frame.release_value();
+    m_context->tex_sub_image2d_from_bitmap(target, level, xoffset, yoffset, format, type, move(source_frame.frame), OptionalNone {}, source_frame.flip_y, source_frame.premultiply_alpha);
 }
 
 void WebGL2RenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, TexImageSource source)
 {
     m_context->make_current();
 
-    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type, width, height);
-    if (!maybe_converted_texture.has_value())
+    // https://registry.khronos.org/OpenGL-Refpages/es3.0/html/glTexImage2D.xhtml
+    // border: This value must be 0.
+    if (border != 0) {
+        set_error(GL_INVALID_VALUE);
         return;
-    auto converted_texture = maybe_converted_texture.release_value();
-    m_context->tex_image2d_robust_angle(target, level, internalformat, converted_texture.width, converted_texture.height, border, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
+    }
+
+    auto maybe_source_frame = read_texture_image_source(source, format, type);
+    if (!maybe_source_frame.has_value())
+        return;
+    auto source_frame = maybe_source_frame.release_value();
+    m_context->tex_image2d_from_bitmap(target, level, internalformat, format, type, move(source_frame.frame), Gfx::IntSize { width, height }, source_frame.flip_y, source_frame.premultiply_alpha);
 }
 
 void WebGL2RenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::ArrayBufferView src_data, WebIDL::UnsignedLongLong src_offset)
@@ -145,12 +151,11 @@ void WebGL2RenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong targe
 {
     m_context->make_current();
 
-    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type, width, height);
-
-    if (!maybe_converted_texture.has_value())
+    auto maybe_source_frame = read_texture_image_source(source, format, type);
+    if (!maybe_source_frame.has_value())
         return;
-    auto converted_texture = maybe_converted_texture.release_value();
-    m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, converted_texture.width, converted_texture.height, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
+    auto source_frame = maybe_source_frame.release_value();
+    m_context->tex_sub_image2d_from_bitmap(target, level, xoffset, yoffset, format, type, move(source_frame.frame), Gfx::IntSize { width, height }, source_frame.flip_y, source_frame.premultiply_alpha);
 }
 
 void WebGL2RenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::ArrayBufferView src_data, WebIDL::UnsignedLongLong src_offset)
@@ -393,7 +398,7 @@ void WebGL2RenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y
         return;
     }
 
-    m_context->read_pixels_robust_angle(x, y, width, height, format, type, 0, nullptr, nullptr, nullptr, reinterpret_cast<void*>(offset));
+    m_context->read_pixels_into_pixel_pack_buffer(x, y, width, height, format, type, offset);
 }
 
 }

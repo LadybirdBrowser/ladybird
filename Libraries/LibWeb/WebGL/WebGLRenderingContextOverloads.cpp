@@ -15,13 +15,13 @@ extern "C" {
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/WebGL/OpenGLContext.h>
+#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContextOverloads.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 
 namespace Web::WebGL {
 
-WebGLRenderingContextOverloads::WebGLRenderingContextOverloads(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
+WebGLRenderingContextOverloads::WebGLRenderingContextOverloads(JS::Realm& realm, NonnullOwnPtr<WebGLContextProxy> context)
     : WebGLRenderingContextImpl(realm, move(context))
 {
 }
@@ -167,11 +167,11 @@ void WebGLRenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, We
 {
     m_context->make_current();
 
-    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type);
-    if (!maybe_converted_texture.has_value())
+    auto maybe_source_frame = read_texture_image_source(source, format, type);
+    if (!maybe_source_frame.has_value())
         return;
-    auto converted_texture = maybe_converted_texture.release_value();
-    m_context->tex_image2d_robust_angle(target, level, internalformat, converted_texture.width, converted_texture.height, 0, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
+    auto source_frame = maybe_source_frame.release_value();
+    m_context->tex_image2d_from_bitmap(target, level, internalformat, format, type, move(source_frame.frame), OptionalNone {}, source_frame.flip_y, source_frame.premultiply_alpha);
 }
 
 void WebGLRenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::NullableArrayBufferViewVariant pixels)
@@ -191,12 +191,11 @@ void WebGLRenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong target
 {
     m_context->make_current();
 
-    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type);
-
-    if (!maybe_converted_texture.has_value())
+    auto maybe_source_frame = read_texture_image_source(source, format, type);
+    if (!maybe_source_frame.has_value())
         return;
-    auto converted_texture = maybe_converted_texture.release_value();
-    m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, converted_texture.width, converted_texture.height, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
+    auto source_frame = maybe_source_frame.release_value();
+    m_context->tex_sub_image2d_from_bitmap(target, level, xoffset, yoffset, format, type, move(source_frame.frame), OptionalNone {}, source_frame.flip_y, source_frame.premultiply_alpha);
 }
 
 void WebGLRenderingContextOverloads::uniform1fv(GC::Ptr<WebGLUniformLocation> location, Float32List v)

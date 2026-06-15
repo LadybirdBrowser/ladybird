@@ -24,12 +24,12 @@ class WebGLRenderingContextImpl : public WebGLRenderingContextBase {
     WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextImpl, WebGLRenderingContextBase);
 
 public:
-    WebGLRenderingContextImpl(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
+    WebGLRenderingContextImpl(JS::Realm&, NonnullOwnPtr<WebGLContextProxy>);
 
-    virtual OpenGLContext& context() override { return *m_context; }
+    virtual WebGLContextProxy& context() override { return *m_context; }
 
-    virtual void present() = 0;
-    virtual void needs_to_present() = 0;
+    virtual void prepare_for_compositing() = 0;
+    virtual void did_update_canvas_content() = 0;
 
     void active_texture(WebIDL::UnsignedLong texture);
     void attach_shader(GC::Ref<WebGLProgram> program, GC::Ref<WebGLShader> shader);
@@ -171,7 +171,7 @@ protected:
     GC::Ptr<WebGLQuery> m_any_samples_passed_conservative;
     GC::Ptr<WebGLQuery> m_transform_feedback_primitives_written;
 
-    NonnullOwnPtr<OpenGLContext> m_context;
+    NonnullOwnPtr<WebGLContextProxy> m_context;
 };
 
 }

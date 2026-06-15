@@ -7,6 +7,7 @@
 #include <AK/Base64.h>
 #include <AK/Checked.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/SharedImage.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLCanvasElement.h>
@@ -29,6 +30,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
+#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
@@ -36,7 +38,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLCanvasElement);
 
-static constexpr auto max_canvas_area = 16384 * 16384;
+static RefPtr<Gfx::Bitmap> create_transparent_canvas_bitmap(Gfx::IntSize const& size)
+{
+    auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size);
+    if (bitmap_or_error.is_error())
+        return nullptr;
+    return bitmap_or_error.release_value();
+}
 
 HTMLCanvasElement::HTMLCanvasElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -54,7 +62,10 @@ void HTMLCanvasElement::initialize(JS::Realm& realm)
 
 void HTMLCanvasElement::finalize()
 {
-    clear_compositor_surface();
+    // The remote canvas context belongs to the 2D context; tear it down with the
+    // element, since nothing will reach the context afterwards.
+    if (auto context = canvas_rendering_context_2d())
+        context->discard_backing_storage();
     Base::finalize();
     document().page().unregister_canvas_element({}, unique_id());
 }
@@ -132,16 +143,8 @@ WebIDL::UnsignedLong HTMLCanvasElement::height() const
     return 150;
 }
 
-Painting::CompositorSurfaceId HTMLCanvasElement::ensure_compositor_surface_id()
-{
-    if (!m_compositor_surface_id.has_value())
-        m_compositor_surface_id = Painting::allocate_compositor_surface_id();
-    return *m_compositor_surface_id;
-}
-
 void HTMLCanvasElement::reset_context_to_default_state()
 {
-    clear_compositor_surface();
     m_context.visit(
         [](GC::Ref<CanvasRenderingContext2D>& context) {
             context->reset_to_default_state();
@@ -323,7 +326,7 @@ Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, siz
         dbgln("Refusing to create {}x{} canvas (overflow)", width, height);
         return {};
     }
-    if (area.value() > max_canvas_area) {
+    if (area.value() > Gfx::max_canvas_area) {
         dbgln("Refusing to create {}x{} canvas (exceeds maximum size)", width, height);
         return {};
     }
@@ -333,26 +336,17 @@ Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, siz
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
 String HTMLCanvasElement::to_data_url(StringView type, Optional<JS::Value> js_quality)
 {
-    // It is possible the canvas doesn't have an associated bitmap so create one
-    allocate_painting_surface_if_needed();
-    auto surface = this->surface();
-    auto size = bitmap_size_for_canvas();
-    if (!surface && !size.is_empty()) {
-        // If the context is not initialized yet, we need to allocate transparent surface for serialization
-        surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-    }
-
     // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
 
     // 2. If this canvas element's bitmap has no pixels (i.e. either its horizontal dimension or its vertical dimension is zero),
     //    then return the string "data:,". (This is the shortest data: URL; it represents the empty string in a text/plain resource.)
-    if (!surface)
+    auto bitmap = get_bitmap_from_surface();
+    if (!bitmap)
         return "data:,"_string;
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
-    auto bitmap = surface->snapshot_bitmap();
     Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
-    auto file = serialize_bitmap(bitmap, type, quality);
+    auto file = serialize_bitmap(*bitmap, type, quality);
 
     // 4. If file is null, then return "data:,".
     if (file.is_error()) {
@@ -408,19 +402,40 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     return {};
 }
 
+WebGL::WebGLRenderingContextBase* HTMLCanvasElement::webgl_context() const
+{
+    return m_context.visit(
+        [](GC::Ref<WebGL::WebGLRenderingContext> const& context) -> WebGL::WebGLRenderingContextBase* { return context.ptr(); },
+        [](GC::Ref<WebGL::WebGL2RenderingContext> const& context) -> WebGL::WebGLRenderingContextBase* { return context.ptr(); },
+        [](auto const&) -> WebGL::WebGLRenderingContextBase* { return nullptr; });
+}
+
+Optional<Painting::CanvasId> HTMLCanvasElement::canvas_id() const
+{
+    if (auto context = canvas_rendering_context_2d())
+        return context->canvas_id();
+    if (auto* webgl_context = this->webgl_context(); webgl_context && !webgl_context->is_context_lost())
+        return webgl_context->context().canvas_id();
+    return {};
+}
+
 RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()
 {
-    // It is possible the canvas doesn't have an associated bitmap so create one
-    allocate_painting_surface_if_needed();
-    auto surface = this->surface();
-    if (auto const size = bitmap_size_for_canvas(); !surface && !size.is_empty()) {
-        // If the context is not initialized yet, we need to allocate transparent surface for serialization
-        surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-    }
+    auto const size = bitmap_size_for_canvas();
+    if (size.is_empty())
+        return nullptr;
 
     RefPtr<Gfx::Bitmap> bitmap;
-    if (surface) {
-        bitmap = surface->snapshot_bitmap();
+    if (auto* webgl_context = this->webgl_context()) {
+        bitmap = webgl_context->context().read_back_drawing_buffer({ {}, size });
+    } else {
+        if (auto context = canvas_rendering_context_2d()) {
+            ensure_backing_storage();
+            if (auto pixels = context->read_pixels({ {}, size }); pixels && pixels->size() == size)
+                bitmap = pixels;
+        } else {
+            bitmap = create_transparent_canvas_bitmap(size);
+        }
     }
 
     return bitmap;
@@ -431,7 +446,7 @@ void HTMLCanvasElement::set_canvas_content_dirty()
     m_canvas_content_dirty = true;
 }
 
-void HTMLCanvasElement::present()
+void HTMLCanvasElement::prepare_for_compositing()
 {
     if (!m_canvas_content_dirty)
         return;
@@ -439,80 +454,34 @@ void HTMLCanvasElement::present()
 
     m_context.visit(
         [](GC::Ref<CanvasRenderingContext2D>& context) {
-            context->present();
+            context->prepare_for_compositing();
         },
         [](GC::Ref<WebGL::WebGLRenderingContext>& context) {
-            context->present();
+            context->prepare_for_compositing();
         },
         [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
-            context->present();
+            context->prepare_for_compositing();
         },
         [](Empty) {
             // Do nothing.
         });
-
-    update_compositor_surface();
 }
 
-void HTMLCanvasElement::republish_compositor_surface()
+Optional<Gfx::IntSize> HTMLCanvasElement::canvas_surface_content_size() const
 {
-    if (m_canvas_content_dirty) {
-        present();
-        return;
-    }
+    if (!canvas_id().has_value())
+        return {};
 
-    update_compositor_surface();
+    auto size = bitmap_size_for_canvas();
+    if (size.is_empty())
+        return {};
+    return size;
 }
 
-void HTMLCanvasElement::update_compositor_surface()
+void HTMLCanvasElement::ensure_backing_storage()
 {
-    if (auto surface = this->surface()) {
-        surface->flush();
-        if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
-            navigable->compositor_context().update_compositor_surface(ensure_compositor_surface_id(), surface->snapshot_into_shared_image());
-    }
-}
-
-void HTMLCanvasElement::clear_compositor_surface()
-{
-    if (!m_compositor_surface_id.has_value())
-        return;
-    if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
-        navigable->compositor_context().clear_compositor_surface(*m_compositor_surface_id);
-}
-
-RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::surface() const
-{
-    return m_context.visit(
-        [&](GC::Ref<CanvasRenderingContext2D> const& context) {
-            return context->surface();
-        },
-        [&](GC::Ref<WebGL::WebGLRenderingContext> const& context) -> RefPtr<Gfx::PaintingSurface> {
-            return context->surface();
-        },
-        [&](GC::Ref<WebGL::WebGL2RenderingContext> const& context) -> RefPtr<Gfx::PaintingSurface> {
-            return context->surface();
-        },
-        [](Empty) -> RefPtr<Gfx::PaintingSurface> {
-            return {};
-        });
-}
-
-void HTMLCanvasElement::allocate_painting_surface_if_needed()
-{
-    m_context.visit(
-        [&](GC::Ref<CanvasRenderingContext2D>& context) {
-            context->allocate_painting_surface_if_needed();
-        },
-        [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
-            context->allocate_painting_surface_if_needed();
-        },
-        [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
-            context->allocate_painting_surface_if_needed();
-        },
-        [](Empty) {
-            // Do nothing.
-        });
+    if (auto context = canvas_rendering_context_2d())
+        context->ensure_backing_storage();
 }
 
 }
