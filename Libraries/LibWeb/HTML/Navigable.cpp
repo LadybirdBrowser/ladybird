@@ -2014,12 +2014,12 @@ void Navigable::begin_navigation(NavigateParams params)
     if (!active_window())
         return;
 
-    auto const& url = params.url;
+    auto url = params.url;
     auto source_document = params.source_document;
-    auto const& document_resource = params.document_resource;
+    auto document_resource = params.document_resource;
     auto response = params.response;
     auto history_handling = params.history_handling;
-    auto const& navigation_api_state = params.navigation_api_state;
+    auto navigation_api_state = params.navigation_api_state;
     auto referrer_policy = params.referrer_policy;
     auto user_involvement = params.user_involvement;
     auto source_element = params.source_element;
@@ -2133,6 +2133,7 @@ void Navigable::begin_navigation(NavigateParams params)
         // AD-HOC: The HTML Standard cancels a navigation that starts while a traversal is ongoing. We defer it
         //         instead so UI-initiated navigations that race the tail end of a previous load are not dropped.
         //         Match Chromium, WebKit, and Gecko's observable behavior by letting the newest navigation win.
+        //         See https://github.com/whatwg/html/issues/12581.
         queue_pending_navigation(move(params), PendingNavigationBehavior::Replace);
 
         // 2. Return.
@@ -2201,7 +2202,7 @@ void Navigable::begin_navigation(NavigateParams params)
     // FIXME: 22. If sourceDocument is navigable's container document, then reserve deferred fetch quota for navigable's container given url's origin.
 
     // 23. In parallel, run these steps:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot, user_involvement] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot, user_involvement, params = move(params)] mutable {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window()) {
             set_delaying_load_events(false);
@@ -2210,7 +2211,7 @@ void Navigable::begin_navigation(NavigateParams params)
 
         // 1. Let unloadPromptCanceled be the result of checking if unloading is user-canceled for navigable's active document's inclusive descendant navigables.
         traversable_navigable()->check_if_unloading_is_canceled(this->active_document()->inclusive_descendant_navigables(),
-            GC::create_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot, user_involvement](TraversableNavigable::CheckIfUnloadingIsCanceledResult unload_prompt_canceled) {
+            GC::create_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot, user_involvement, params = move(params)](TraversableNavigable::CheckIfUnloadingIsCanceledResult unload_prompt_canceled) mutable {
                 // 2. If unloadPromptCanceled is not "continue", or navigable's ongoing navigation is no longer navigationId:
                 if (unload_prompt_canceled != TraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue) {
                     // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
@@ -2234,6 +2235,13 @@ void Navigable::begin_navigation(NavigateParams params)
                 }
 
                 if (ongoing_navigation() != navigation_id) {
+                    // AD-HOC: If an ongoing traversal re-stamped our navigation ID while we were checking whether
+                    //         unloading was canceled, this navigation wasn't actually superseded by a newer navigation.
+                    //         Re-defer it (mirroring 66c54b129514), so it runs once the traversal completes — rather
+                    //         than silently dropping it and leaving the navigable stuck with no load event ever firing.
+                    //         See https://github.com/whatwg/html/issues/12581.
+                    if (ongoing_navigation().has<Traversal>())
+                        queue_pending_navigation(move(params), PendingNavigationBehavior::Append);
                     set_delaying_load_events(false);
                     return;
                 }
