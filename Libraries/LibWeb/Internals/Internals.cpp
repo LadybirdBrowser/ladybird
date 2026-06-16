@@ -299,6 +299,11 @@ void Internals::commit_text()
     page().handle_keydown(UIEvents::Key_Return, 0, 0x0d, false, true);
 }
 
+void Internals::clobber_next_navigation_with_a_traversal()
+{
+    HTML::Navigable::clobber_next_navigation_with_a_traversal_for_testing();
+}
+
 UIEvents::MouseButton Internals::button_from_unsigned_short(WebIDL::UnsignedShort button)
 {
     switch (button) {
