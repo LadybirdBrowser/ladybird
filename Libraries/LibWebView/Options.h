@@ -74,7 +74,7 @@ enum class EnableContentBlocker {
     Yes,
 };
 
-enum class EnableSandbox {
+enum class DisableSandbox {
     No,
     Yes,
 };
@@ -98,7 +98,7 @@ struct BrowserOptions {
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;
     EnableContentBlocker enable_content_blocker { EnableContentBlocker::Yes };
-    EnableSandbox enable_sandbox { EnableSandbox::No };
+    DisableSandbox disable_sandbox { DisableSandbox::No };
     Vector<ByteString> content_blocker_list_paths {};
 };
 

@@ -25,7 +25,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
     bool disable_async_scrolling = false;
-    bool enable_sandbox = false;
+    bool disable_sandbox = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
@@ -33,7 +33,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(disable_async_scrolling, "Disable async scrolling", "disable-async-scrolling");
-    args_parser.add_option(enable_sandbox, "Enable process sandboxing", "enable-sandbox");
+    args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.parse(arguments);
 
     if (wait_for_debugger)
@@ -51,7 +51,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Gfx::SkiaBackendContext::initialize_gpu_backend();
     auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
 
-    if (enable_sandbox)
+    if (!disable_sandbox)
         TRY(Compositor::apply_sandbox());
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();

@@ -57,7 +57,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool enable_http_memory_cache = false;
     bool wait_for_debugger = false;
     bool file_origins_are_tuple_origins = false;
-    bool enable_sandbox = false;
+    bool disable_sandbox = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(serenity_resource_root, "Absolute path to directory for serenity resources", "serenity-resource-root", 'r', "serenity-resource-root");
@@ -68,7 +68,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(worker_type_string, "Type of WebWorker to start (dedicated, shared, or service)", "type", 't', "type");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
-    args_parser.add_option(enable_sandbox, "Enable process sandboxing", "enable-sandbox");
+    args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
 
     args_parser.parse(arguments);
 
@@ -97,7 +97,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Bindings::initialize_main_thread_vm(worker_type);
 
-    if (enable_sandbox)
+    if (!disable_sandbox)
         TRY(RendererSandbox::apply_sandbox({}));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>(mach_server_name));
