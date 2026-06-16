@@ -151,7 +151,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool is_headless = false;
     bool disable_scrollbar_painting = false;
     bool disable_async_scrolling = false;
-    bool enable_sandbox = false;
+    bool disable_sandbox = false;
     bool report_session_history_updates_in_test_mode = false;
     StringView echo_server_port_string_view {};
     StringView default_time_zone {};
@@ -175,7 +175,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
     args_parser.add_option(disable_async_scrolling, "Disable async scrolling", "disable-async-scrolling");
-    args_parser.add_option(enable_sandbox, "Enable process sandboxing", "enable-sandbox");
+    args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.add_option(report_session_history_updates_in_test_mode, "Report session history updates in test mode", "report-session-history-updates-in-test-mode");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
@@ -262,7 +262,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (maybe_content_blocker_error.is_error())
         dbgln("Failed to load content blockers: {}", maybe_content_blocker_error.error());
 
-    if (enable_sandbox)
+    if (!disable_sandbox)
         TRY(RendererSandbox::apply_sandbox(config_path));
 
 #if defined(AK_OS_MACOS)
