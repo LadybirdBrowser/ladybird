@@ -715,6 +715,18 @@ void BrowserWindow::activate_tab(int index)
     m_tabs_container->set_current_index(index);
 }
 
+bool BrowserWindow::activate_tab_with_url(URL::URL const& url)
+{
+    for (int index = 0; index < m_tabs_container->count(); ++index) {
+        auto* tab = m_tabs_container->tab(index);
+        if (tab && tab->view().url() == url) {
+            m_tabs_container->set_current_index(index);
+            return true;
+        }
+    }
+    return false;
+}
+
 void BrowserWindow::definitely_close_tab(int index)
 {
     auto* tab = m_tabs_container->tab(index);

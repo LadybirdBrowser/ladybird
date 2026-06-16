@@ -46,6 +46,7 @@ private:
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override;
+    virtual bool activate_tab_with_url(URL::URL const&) const override;
     virtual void open_url_in_new_window(URL::URL const& url) override;
 
     virtual Optional<ByteString> ask_user_for_download_path(StringView file) const override;
