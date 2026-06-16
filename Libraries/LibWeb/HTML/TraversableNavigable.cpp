@@ -405,8 +405,20 @@ bool TraversableNavigable::replace_top_level_session_history_entries_from_ui_pro
             && active_entry_is_latest_entry
             && current_entry_url_matches_ui_seed;
 
+        // NB: UI-process fallback history loads can overlap when a newer traversal supersedes an older one before the
+        //     older load has finished. Other engines give pending history loads an identity so the latest traversal
+        //     stays authoritative; after the race has happened, WebContent can still have the latest live document in
+        //     an incomplete local top-level list, for example [b, c] while the UI process is restoring [a, b, c] at c.
+        //     If the live active entry has the UI seed's current URL, accept the UI-owned list around that document
+        //     instead of making the UI process adopt the incomplete WebContent list. The WebContent step, document state
+        //     id, and Navigation API identity are all process-local placeholders at this point, and are replaced by the
+        //     UI-owned values below.
+        auto can_restore_current_entry_after_superseded_ui_history_load = entries_from_ui_process.size() > m_session_history_entries.size()
+            && active_entry_is_latest_entry
+            && current_entry_url_matches_ui_seed;
+
         auto can_reconstruct_current_entry = allow_reconstructing_current_entry
-            && (can_restore_fresh_ui_history_load || can_restore_preseeded_ui_history_load);
+            && (can_restore_fresh_ui_history_load || can_restore_preseeded_ui_history_load || can_restore_current_entry_after_superseded_ui_history_load);
         if (!latest_entry_matches_ui_seed && !can_reconstruct_current_entry)
             return false;
     }

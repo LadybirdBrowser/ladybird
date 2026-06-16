@@ -572,7 +572,7 @@ protected:
     Optional<PendingSessionHistoryNavigation> m_pending_session_history_navigation;
     Optional<PendingSessionHistoryTraversal> m_pending_session_history_traversal;
     u64 m_next_traverse_history_step_cancelation_check_request_id { 0 };
-    bool m_loading_session_history_entry_from_ui_process { false };
+    Optional<URL::URL> m_session_history_entry_url_loading_from_ui_process;
     PendingWebContentSessionHistorySeed m_pending_web_content_session_history_seed;
     Optional<URL::URL> m_webdriver_pending_navigation_url;
     bool m_webdriver_pending_navigation_completes_with_session_history_update { false };
