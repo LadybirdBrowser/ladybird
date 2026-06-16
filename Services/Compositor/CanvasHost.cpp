@@ -32,7 +32,9 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
         return nullptr;
 
     auto format = alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
-    auto player = make<Gfx::CanvasCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied);
+    auto player = make<Gfx::CanvasCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied, [this](u64 canvas_id) -> Gfx::PaintingSurface const* {
+        return m_canvas_surface_registry.canvas_surface(Web::Painting::CanvasId { canvas_id });
+    });
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
     // "Thus, the bitmap of such a context starts off as opaque black instead of transparent black"

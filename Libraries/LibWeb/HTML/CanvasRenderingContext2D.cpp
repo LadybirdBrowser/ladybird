@@ -175,10 +175,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     if (usability == CanvasImageSourceUsability::Bad)
         return {};
 
-    auto frame = canvas_image_source_frame(image);
-    if (!frame.has_value())
-        return {};
-    auto source_bitmap_rect = frame->rect();
+    auto source_bitmap_rect = Gfx::IntRect { {}, canvas_image_source_dimensions(image) };
 
     // 4. Establish the source and destination rectangles as follows:
     //    If not specified, the dw and dh arguments must default to the values of sw and sh, interpreted such that one CSS pixel in the image is treated as one unit in the output bitmap's coordinate space.
@@ -230,6 +227,34 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     }
 
     if (auto* canvas_command_list = this->canvas_command_list()) {
+        if (auto const* source_canvas = image.get_pointer<GC::Ref<HTMLCanvasElement>>()) {
+            (*source_canvas)->ensure_backing_storage();
+            (*source_canvas)->prepare_for_compositing();
+            if (auto source_canvas_id = (*source_canvas)->canvas_id(); source_canvas_id.has_value()) {
+                canvas_command_list->append(Gfx::CanvasCommands::DrawCanvas {
+                    .source_canvas_id = source_canvas_id->value(),
+                    .dst_rect = destination_rect,
+                    .src_rect = source_rect.to_rounded<int>(),
+                    .scaling_mode = scaling_mode,
+                    .filter = drawing_state().filter,
+                    .global_alpha = drawing_state().global_alpha,
+                    .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
+                });
+                did_draw(destination_rect);
+                flush_recorded_commands();
+
+                // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
+                if (image_is_not_origin_clean(image))
+                    m_origin_clean = false;
+
+                return {};
+            }
+        }
+
+        auto frame = canvas_image_source_frame(image);
+        if (!frame.has_value())
+            return {};
+
         canvas_command_list->append(Gfx::CanvasCommands::DrawBitmap {
             .frame = *frame,
             .dst_rect = destination_rect,
