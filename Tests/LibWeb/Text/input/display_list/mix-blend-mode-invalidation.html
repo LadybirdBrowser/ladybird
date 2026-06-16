@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background: green;
+        mix-blend-mode: normal;
+    }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const displayListBefore = internals.dumpDisplayList();
+
+        box.style.mixBlendMode = "multiply";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before mix-blend-mode change:");
+        println(displayListBefore);
+        println("After mix-blend-mode change:");
+        println(displayListAfter);
+    });
+</script>

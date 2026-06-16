@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background: green;
+        clip-path: inset(0);
+    }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const displayListBefore = internals.dumpDisplayList();
+
+        box.style.clipPath = "inset(50%)";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before clip-path change:");
+        println(displayListBefore);
+        println("After clip-path change:");
+        println(displayListAfter);
+    });
+</script>

@@ -1,0 +1,29 @@
+Before mix-blend-mode change:
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x121]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x100]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 100x100]
+  FillRect@1 rect=[8,8 100x100] color=rgb(0, 128, 0)
+Restore@0
+
+After mix-blend-mode change:
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] effects=[blend_mode=2] (PaintableWithLines(BlockContainer<DIV>#box))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x121]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x100]
+  CompositorWheelHitTestTarget@2 target_scroll_frame_index=0 rect=[8,8 100x100]
+  FillRect@2 rect=[8,8 100x100] color=rgb(0, 128, 0)
+Restore@0
+

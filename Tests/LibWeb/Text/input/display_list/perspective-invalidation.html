@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        perspective: none;
+    }
+
+    #child {
+        width: 100px;
+        height: 100px;
+        background: green;
+        transform: translateZ(10px);
+    }
+</style>
+<div id="box"><div id="child"></div></div>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const displayListBefore = internals.dumpDisplayList();
+
+        box.style.perspective = "100px";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before perspective change:");
+        println(displayListBefore);
+        println("After perspective change:");
+        println(displayListAfter);
+    });
+</script>

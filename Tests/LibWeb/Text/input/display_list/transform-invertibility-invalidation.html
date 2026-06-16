@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background: green;
+        transform: scale(0);
+    }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const displayListBefore = internals.dumpDisplayList();
+
+        box.style.transform = "scale(1)";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before transform change:");
+        println(displayListBefore);
+        println("After transform change:");
+        println(displayListAfter);
+    });
+</script>
