@@ -477,7 +477,7 @@ Web::WebDriver::Response WebDriverConnection::close_window()
             // context has no document or navigable left to reach its traversable through.
             if (ensure_current_top_level_browsing_context_is_open().is_error())
                 return;
-            current_top_level_browsing_context()->top_level_traversable()->close_top_level_traversable();
+            current_top_level_browsing_context()->top_level_traversable()->close_top_level_traversable(Web::HTML::LocalTraversableNavigable::PromptToUnload::No);
         }));
 
         driver_execution_complete(JsonValue {});

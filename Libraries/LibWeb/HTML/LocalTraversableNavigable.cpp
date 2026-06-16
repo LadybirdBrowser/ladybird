@@ -1708,7 +1708,7 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable
-void LocalTraversableNavigable::close_top_level_traversable()
+void LocalTraversableNavigable::close_top_level_traversable(PromptToUnload prompt_to_unload)
 {
     // 1. If traversable's is closing is true, then return.
     if (is_closing())
@@ -1718,22 +1718,15 @@ void LocalTraversableNavigable::close_top_level_traversable()
     set_closing(true);
 
     // 2. Definitely close traversable.
-    definitely_close_top_level_traversable();
+    definitely_close_top_level_traversable(prompt_to_unload);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#definitely-close-a-top-level-traversable
-void LocalTraversableNavigable::definitely_close_top_level_traversable()
+void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToUnload prompt_to_unload)
 {
     VERIFY(is_top_level_traversable());
 
-    // 1. Let toUnload be traversable's active document's inclusive descendant navigables.
-    auto to_unload = active_document()->inclusive_descendant_navigables();
-
-    // 2. If the result of checking if unloading is canceled for toUnload is not "continue", then return.
-    check_if_unloading_is_canceled(move(to_unload), GC::create_function(heap(), [this](CheckIfUnloadingIsCanceledResult result) {
-        if (result != CheckIfUnloadingIsCanceledResult::Continue)
-            return;
-
+    auto append_close_steps = [this] {
         // 3. Append the following session history traversal steps to traversable:
         request_history_operation(
             CloseTopLevelTraversableHistoryOperationParameters { .traversable_id = id() },
@@ -1749,6 +1742,26 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable()
                     ready->function()(HistoryStepResult::Applied);
                 }),
             });
+    };
+
+    if (prompt_to_unload == PromptToUnload::No) {
+        append_close_steps();
+        return;
+    }
+
+    // 1. Let toUnload be traversable's active document's inclusive descendant navigables.
+    auto to_unload = active_document()->inclusive_descendant_navigables();
+
+    // 2. If the result of checking if unloading is canceled for toUnload is not "continue", then return.
+    check_if_unloading_is_canceled(move(to_unload), GC::create_function(heap(), [this, append_close_steps = move(append_close_steps)](CheckIfUnloadingIsCanceledResult result) {
+        if (result != CheckIfUnloadingIsCanceledResult::Continue) {
+            // AD-HOC: Allow a later close attempt if this one was canceled.
+            set_closing(false);
+            return;
+        }
+
+        // 3. Append the following session history traversal steps to traversable:
+        append_close_steps();
     }));
 }
 

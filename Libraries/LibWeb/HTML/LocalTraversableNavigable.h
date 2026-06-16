@@ -84,8 +84,12 @@ public:
     bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry, SessionHistoryEntryDescriptor target_entry);
     void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
 
-    void close_top_level_traversable();
-    void definitely_close_top_level_traversable();
+    enum class PromptToUnload : bool {
+        No,
+        Yes,
+    };
+    void close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
+    void definitely_close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
     void destroy_top_level_traversable();
 
     Utf16String const& window_handle() const { return m_window_handle; }
