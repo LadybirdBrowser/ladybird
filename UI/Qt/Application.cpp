@@ -177,6 +177,13 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return tab.view();
 }
 
+bool Application::activate_tab_with_url(URL::URL const& url) const
+{
+    if (!m_active_window)
+        return false;
+    return m_active_window->activate_tab_with_url(url);
+}
+
 void Application::open_url_in_new_window(URL::URL const& url)
 {
     this->new_window({ url });
