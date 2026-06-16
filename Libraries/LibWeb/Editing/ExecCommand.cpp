@@ -249,34 +249,6 @@ WebIDL::ExceptionOr<bool> Document::query_command_indeterm(FlyString const& comm
         return false;
     auto const& command_definition = optional_command.value();
     if (!command_definition.indeterminate) {
-        // https://w3c.github.io/editing/docs/execCommand/#inline-command-activated-values
-        // If a command is a standard inline value command, it is indeterminate if among formattable nodes that are
-        // effectively contained in the active range, there are two that have distinct effective command values.
-        if (command_definition.command.is_one_of(Editing::CommandNames::backColor, Editing::CommandNames::fontName,
-                Editing::CommandNames::foreColor, Editing::CommandNames::hiliteColor)) {
-            Optional<Utf16String> first_node_value;
-            auto range = Editing::active_range(*this);
-            bool has_distinct_values = false;
-            Editing::for_each_node_effectively_contained_in_range(range, [&](GC::Ref<Node> descendant) {
-                if (!Editing::is_formattable_node(descendant))
-                    return TraversalDecision::Continue;
-
-                auto node_value = Editing::effective_command_value(descendant, command_definition.command);
-                if (!node_value.has_value())
-                    return TraversalDecision::Continue;
-
-                if (!first_node_value.has_value()) {
-                    first_node_value = node_value.value();
-                } else if (first_node_value.value() != node_value.value()) {
-                    has_distinct_values = true;
-                    return TraversalDecision::Break;
-                }
-
-                return TraversalDecision::Continue;
-            });
-            return has_distinct_values;
-        }
-
         // If a command has inline command activated values defined but nothing else defines when it is indeterminate,
         // it is indeterminate if among formattable nodes effectively contained in the active range, there is at least
         // one whose effective command value is one of the given values and at least one whose effective command value
