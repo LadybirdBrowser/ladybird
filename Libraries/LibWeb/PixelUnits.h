@@ -59,6 +59,12 @@ class CSSPixelFraction;
 /// CSSPixels: A position or length in CSS "reference pixels", independent of zoom or screen DPI.
 /// See https://www.w3.org/TR/css-values-3/#reference-pixel
 class WEB_API CSSPixels {
+    enum class ValueRounding : u8 {
+        Nearest,
+        Floor,
+        Truncate,
+    };
+
 public:
     static constexpr i32 fractional_bits = 6;
     static constexpr i32 fixed_point_denominator = 1 << fractional_bits;
@@ -92,24 +98,19 @@ public:
     template<FloatingPoint F>
     static CSSPixels nearest_value_for(F value)
     {
-        i32 raw_value = 0;
-        if (!isnan(value))
-            raw_value = AK::clamp_to<int>(value * fixed_point_denominator);
-        // Note: The resolution of CSSPixels is 0.015625, so care must be taken when converting
-        // floats/doubles to CSSPixels as small values (such as scale factors) can underflow to zero,
-        // or otherwise produce inaccurate results (when scaled back up).
-        if (raw_value == 0 && value != 0)
-            dbgln_if(LIBWEB_CSS_DEBUG, "CSSPixels: Conversion from float or double underflowed to zero");
-        return from_raw(raw_value);
+        return value_for<ValueRounding::Nearest>(value);
     }
 
     template<FloatingPoint F>
     static CSSPixels floored_value_for(F value)
     {
-        i32 raw_value = 0;
-        if (!isnan(value))
-            raw_value = AK::clamp_to<int>(floor(value * fixed_point_denominator));
-        return from_raw(raw_value);
+        return value_for<ValueRounding::Floor>(value);
+    }
+
+    template<FloatingPoint F>
+    static CSSPixels truncated_value_for(F value)
+    {
+        return value_for<ValueRounding::Truncate>(value);
     }
 
     template<Unsigned U>
@@ -274,6 +275,30 @@ public:
     }
 
 private:
+    template<ValueRounding rounding, FloatingPoint F>
+    static CSSPixels value_for(F value)
+    {
+        if (isnan(value))
+            return {};
+
+        auto scaled_value = value * fixed_point_denominator;
+        if constexpr (rounding == ValueRounding::Floor)
+            scaled_value = floor(scaled_value);
+        else if constexpr (rounding == ValueRounding::Truncate)
+            scaled_value = trunc(scaled_value);
+        auto raw_value = AK::clamp_to<int>(scaled_value);
+
+        if constexpr (LIBWEB_CSS_DEBUG) {
+            // Note: The resolution of CSSPixels is 0.015625, so care must be taken when converting floats/doubles to
+            // CSSPixels as small values (such as scale factors) can underflow to zero, or otherwise produce inaccurate
+            // results (when scaled back up).
+            if (raw_value == 0 && value != 0)
+                dbgln("CSSPixels: Conversion from float or double underflowed to zero");
+        }
+
+        return from_raw(raw_value);
+    }
+
     i32 m_value { 0 };
 };
 
