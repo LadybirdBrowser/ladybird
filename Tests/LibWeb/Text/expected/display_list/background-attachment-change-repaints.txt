@@ -1,0 +1,35 @@
+Before background-attachment change:
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x213]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x200]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 200x200]
+  Save@1
+    AddClipRect@1 rect=[0,0 200x200]
+    PaintLinearGradient@1 rect=[0,0 200x600]
+  Restore@1
+Restore@0
+
+After background-attachment change:
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] scroll_compensation(frame_id=1)
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x213]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x200]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 200x200]
+  Save@1
+    AddClipRect@1 rect=[0,0 200x200]
+    PaintLinearGradient@2 rect=[0,0 800x600]
+  Restore@1
+Restore@0
+

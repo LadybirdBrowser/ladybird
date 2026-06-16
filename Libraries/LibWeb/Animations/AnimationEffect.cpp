@@ -873,10 +873,10 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 target->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
             }
         }
-        if (invalidation.repaint) {
-            if (invalidation.rebuild_accumulated_visual_contexts)
-                element.document().set_needs_accumulated_visual_contexts_update(true);
+        if (invalidation.rebuild_accumulated_visual_contexts)
+            element.document().set_needs_accumulated_visual_contexts_update(true);
 
+        if (invalidation.repaint) {
             target->set_needs_repaint();
         }
         if (invalidation.rebuild_stacking_context_tree)

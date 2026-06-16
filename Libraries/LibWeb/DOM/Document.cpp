@@ -2041,7 +2041,10 @@ static void apply_element_style_invalidation_after_style_change(Element& element
 
 static void apply_document_style_invalidation_after_style_change(Document& document, CSS::RequiredInvalidationAfterStyleChange const& invalidation)
 {
-    if (!invalidation.is_none())
+    if (invalidation.repaint
+        || invalidation.rebuild_stacking_context_tree
+        || invalidation.relayout
+        || invalidation.rebuild_layout_tree)
         document.set_needs_to_record_display_list();
     if (invalidation.rebuild_accumulated_visual_contexts)
         document.set_needs_accumulated_visual_contexts_update(true);

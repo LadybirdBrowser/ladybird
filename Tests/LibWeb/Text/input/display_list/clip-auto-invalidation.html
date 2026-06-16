@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: green;
+        clip: auto;
+    }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const displayListBefore = internals.dumpDisplayList();
+
+        box.style.clip = "rect(0, 50px, 50px, 0)";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before clip change:");
+        println(displayListBefore);
+        println("After clip change:");
+        println(displayListAfter);
+    });
+</script>

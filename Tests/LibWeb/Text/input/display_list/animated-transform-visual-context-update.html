@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background: green;
+    }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const animation = box.animate([
+            { transform: "translateX(10px)" },
+            { transform: "translateX(20px)" },
+        ], 1000);
+        animation.pause();
+
+        animation.currentTime = 0;
+        const displayListBefore = internals.dumpDisplayList();
+
+        animation.currentTime = 500;
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before animation update:");
+        println(displayListBefore);
+        println("After animation update:");
+        println(displayListAfter);
+    });
+</script>

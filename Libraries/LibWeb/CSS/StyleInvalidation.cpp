@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 
 namespace Web::CSS {
 
@@ -57,6 +58,81 @@ static bool is_stacking_context_creating_value(CSS::PropertyID property_id, Styl
         // assume any value creates stacking context to be safe
         return true;
     }
+}
+
+static bool opacity_change_affects_paintable_visibility(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+{
+    if (property_id != CSS::PropertyID::Opacity)
+        return false;
+
+    auto old_opacity = old_value ? old_value->as_opacity_value().resolved() : 1.0f;
+    auto new_opacity = new_value ? new_value->as_opacity_value().resolved() : 1.0f;
+    return (old_opacity == 0.0f) != (new_opacity == 0.0f);
+}
+
+static Optional<bool> transform_value_is_invertible(StyleValue const* value)
+{
+    if (!value || value->to_keyword() == CSS::Keyword::None)
+        return true;
+
+    auto transformation_is_invertible = [](TransformationStyleValue const& transformation) -> Optional<bool> {
+        if (!transformation.can_be_converted_to_matrix_without_reference_box())
+            return {};
+        return transformation.to_matrix({}).is_invertible();
+    };
+
+    if (value->is_transformation())
+        return transformation_is_invertible(value->as_transformation());
+
+    if (value->is_value_list()) {
+        auto matrix = Gfx::FloatMatrix4x4::identity();
+        for (auto const& transformation : value->as_value_list().values()) {
+            if (!transformation->is_transformation())
+                return {};
+            if (!transformation->as_transformation().can_be_converted_to_matrix_without_reference_box())
+                return {};
+            matrix = matrix * transformation->as_transformation().to_matrix({});
+        }
+        return matrix.is_invertible();
+    }
+
+    return {};
+}
+
+static bool transform_change_requires_repaint(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+{
+    if (!AK::first_is_one_of(property_id, CSS::PropertyID::Transform, CSS::PropertyID::Scale))
+        return false;
+
+    // StackingContext::paint() omits non-invertibly transformed subtrees, so crossing
+    // this boundary changes display-list contents, not just the visual context matrix.
+    auto old_invertible = transform_value_is_invertible(old_value);
+    auto new_invertible = transform_value_is_invertible(new_value);
+    if (!old_invertible.has_value() || !new_invertible.has_value())
+        return true;
+    return old_invertible.value() != new_invertible.value();
+}
+
+static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+{
+    if (opacity_change_affects_paintable_visibility(property_id, old_value, new_value))
+        return true;
+
+    if (transform_change_requires_repaint(property_id, old_value, new_value))
+        return true;
+
+    switch (property_id) {
+    case CSS::PropertyID::BackgroundAttachment:
+    case CSS::PropertyID::Clip:
+    case CSS::PropertyID::ClipPath:
+    case CSS::PropertyID::MixBlendMode:
+    case CSS::PropertyID::Perspective:
+        return true;
+    default:
+        break;
+    }
+
+    return false;
 }
 
 RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
@@ -135,8 +211,16 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     }
     invalidation.repaint = true;
 
-    if (CSS::property_affects_accumulated_visual_contexts(property_id))
+    if (CSS::property_affects_accumulated_visual_contexts(property_id)) {
         invalidation.rebuild_accumulated_visual_contexts = true;
+        if (!accumulated_visual_context_change_requires_repaint(property_id, old_value, new_value)
+            && !invalidation.rebuild_stacking_context_tree
+            && !invalidation.relayout
+            && !invalidation.rebuild_layout_tree
+            && !invalidation.recompute_descendant_styles
+            && !invalidation.inherited_style_changed)
+            invalidation.repaint = false;
+    }
 
     return invalidation;
 }

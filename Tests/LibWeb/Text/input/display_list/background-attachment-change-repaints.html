@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #box {
+        width: 200px;
+        height: 200px;
+        background-image: linear-gradient(green, blue);
+        background-size: 100% 100vh;
+        background-repeat: no-repeat;
+        background-attachment: scroll;
+    }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const displayListBefore = internals.dumpDisplayList();
+
+        box.style.backgroundAttachment = "fixed";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before background-attachment change:");
+        println(displayListBefore);
+        println("After background-attachment change:");
+        println(displayListAfter);
+    });
+</script>
