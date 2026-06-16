@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A cross-document navigation must not be silently dropped when a concurrent session-history traversal re-stamps
+    // the navigable's ongoing navigation while the cross-document load is still in its unload check.
+    // clobberNextNavigationWithATraversal() arms a one-shot that deterministically interrupts the next navigation's
+    // unload check with a synthetic traversal; the navigation must still run to completion instead of being dropped.
+    asyncTest(async (done) => {
+        const server = httpTestServer();
+
+        const victim = await server.createEcho("GET", "/navigation-not-dropped-by-concurrent-traversal-victim", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!doctype html><script>top.postMessage("victim-loaded", "*")<\/script>`,
+        });
+
+        const trigger = await server.createEcho("GET", "/navigation-not-dropped-by-concurrent-traversal-trigger", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!doctype html><script>
+                addEventListener("message", (e) => { if (e.data === "go") location.href = "${victim}"; });
+                top.postMessage("trigger-ready", "*");
+            <\/script>`,
+        });
+
+        let iframe;
+        let stallTimer;
+        window.addEventListener("message", (e) => {
+            if (e.data === "trigger-ready") {
+                internals.clobberNextNavigationWithATraversal();
+                iframe.contentWindow.postMessage("go", "*");
+                stallTimer = setTimeout(() => {
+                    println("FAIL: cross-document navigation was dropped");
+                    done();
+                }, 10000);
+            } else if (e.data === "victim-loaded") {
+                clearTimeout(stallTimer);
+                println("victim-loaded");
+                done();
+            }
+        });
+
+        iframe = document.createElement("iframe");
+        iframe.src = trigger;
+        document.body.appendChild(iframe);
+    });
+</script>
