@@ -97,7 +97,6 @@ private:
     bool m_request_in_flight { false };
     u32 m_current_frame_index { 0 };
     u32 m_last_requested_start_frame { 0 };
-    u32 m_highest_requested_frame { 0 };
 };
 
 }

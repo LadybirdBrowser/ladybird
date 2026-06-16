@@ -74,8 +74,6 @@ GC::Ref<AnimatedDecodedImageData> AnimatedDecodedImageData::create(
         slot.generation = ++data->m_write_generation;
     }
 
-    data->m_highest_requested_frame = initial_bitmaps.size();
-
     if (!initial_bitmaps.is_empty())
         data->m_last_displayed_frame = data->m_buffer_slots[0].frame;
 
@@ -244,7 +242,6 @@ void AnimatedDecodedImageData::maybe_request_more_frames(size_t current_frame_in
 
     m_request_in_flight = true;
     m_last_requested_start_frame = request_start;
-    m_highest_requested_frame = max(m_highest_requested_frame, request_start + request_count);
     Platform::ImageCodecPlugin::the().request_animation_frames(m_session_id, request_start, request_count);
 }
 
