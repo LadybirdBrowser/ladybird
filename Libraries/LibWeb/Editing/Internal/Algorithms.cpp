@@ -3720,7 +3720,7 @@ void set_the_selections_value(DOM::Document& document, FlyString const& command,
         }
 
         // 5. Otherwise, if command is "createLink" or it has a value specified, set the value override to new value.
-        else if (command == CommandNames::createLink || !MUST(document.query_command_value(CommandNames::createLink)).is_empty()) {
+        else if (command == CommandNames::createLink || command_definition->value) {
             document.set_command_value_override(command, *new_value);
         }
 

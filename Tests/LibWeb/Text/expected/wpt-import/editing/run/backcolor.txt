@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1026 tests
 
-1017 Pass
-9 Fail
+1022 Pass
+4 Fail
 Pass	[["backcolor","#00FFFF"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["backcolor","#00FFFF"]] "foo[]bar" checks for modifications to non-editable content
 Pass	[["backcolor","#00FFFF"]] "foo[]bar" compare innerHTML
@@ -12,7 +12,7 @@ Pass	[["backcolor","#00FFFF"]] "foo[]bar" queryCommandState("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "foo[]bar" queryCommandValue("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "foo[]bar" queryCommandIndeterm("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "foo[]bar" queryCommandState("backcolor") after
-Fail	[["backcolor","#00FFFF"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"]] "foo[]bar" queryCommandValue("backcolor") after
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<p>[foo</p> <p>bar]</p>": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<p>[foo</p> <p>bar]</p>": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<p>[foo</p> <p>bar]</p>" checks for modifications to non-editable content
@@ -149,7 +149,7 @@ Pass	[["backcolor","#00FFFF"]] "<b>foo[]bar</b>" queryCommandState("backcolor") 
 Pass	[["backcolor","#00FFFF"]] "<b>foo[]bar</b>" queryCommandValue("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "<b>foo[]bar</b>" queryCommandIndeterm("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "<b>foo[]bar</b>" queryCommandState("backcolor") after
-Fail	[["backcolor","#00FFFF"]] "<b>foo[]bar</b>" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"]] "<b>foo[]bar</b>" queryCommandValue("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "<i>foo[]bar</i>": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["backcolor","#00FFFF"]] "<i>foo[]bar</i>" checks for modifications to non-editable content
 Pass	[["backcolor","#00FFFF"]] "<i>foo[]bar</i>" compare innerHTML
@@ -158,7 +158,7 @@ Pass	[["backcolor","#00FFFF"]] "<i>foo[]bar</i>" queryCommandState("backcolor") 
 Pass	[["backcolor","#00FFFF"]] "<i>foo[]bar</i>" queryCommandValue("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "<i>foo[]bar</i>" queryCommandIndeterm("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "<i>foo[]bar</i>" queryCommandState("backcolor") after
-Fail	[["backcolor","#00FFFF"]] "<i>foo[]bar</i>" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"]] "<i>foo[]bar</i>" queryCommandValue("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "<span>foo</span>{}<span>bar</span>": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["backcolor","#00FFFF"]] "<span>foo</span>{}<span>bar</span>" checks for modifications to non-editable content
 Pass	[["backcolor","#00FFFF"]] "<span>foo</span>{}<span>bar</span>" compare innerHTML
@@ -167,7 +167,7 @@ Pass	[["backcolor","#00FFFF"]] "<span>foo</span>{}<span>bar</span>" queryCommand
 Pass	[["backcolor","#00FFFF"]] "<span>foo</span>{}<span>bar</span>" queryCommandValue("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "<span>foo</span>{}<span>bar</span>" queryCommandIndeterm("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "<span>foo</span>{}<span>bar</span>" queryCommandState("backcolor") after
-Fail	[["backcolor","#00FFFF"]] "<span>foo</span>{}<span>bar</span>" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"]] "<span>foo</span>{}<span>bar</span>" queryCommandValue("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "<span>foo[</span><span>]bar</span>": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["backcolor","#00FFFF"]] "<span>foo[</span><span>]bar</span>" checks for modifications to non-editable content
 Pass	[["backcolor","#00FFFF"]] "<span>foo[</span><span>]bar</span>" compare innerHTML
@@ -176,7 +176,7 @@ Pass	[["backcolor","#00FFFF"]] "<span>foo[</span><span>]bar</span>" queryCommand
 Pass	[["backcolor","#00FFFF"]] "<span>foo[</span><span>]bar</span>" queryCommandValue("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "<span>foo[</span><span>]bar</span>" queryCommandIndeterm("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "<span>foo[</span><span>]bar</span>" queryCommandState("backcolor") after
-Fail	[["backcolor","#00FFFF"]] "<span>foo[</span><span>]bar</span>" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"]] "<span>foo[</span><span>]bar</span>" queryCommandValue("backcolor") after
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "foo[bar]baz": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "foo[bar]baz": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "foo[bar]baz" checks for modifications to non-editable content
