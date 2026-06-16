@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function loadFrame(src)
+    {
+        return new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            document.body.append(iframe);
+            iframe.onload = () => resolve(iframe);
+            iframe.src = src;
+        });
+    }
+
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const firstPageUrl = await server.createEcho("GET", "/iframe-recreate-pending-history-first", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!doctype html><body>first<script>location.hash = 'child';<\/script></body>",
+        });
+        const secondPageUrl = await server.createEcho("GET", "/iframe-recreate-pending-history-second", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!doctype html><body>second</body>",
+        });
+
+        history.pushState({}, "", "#running");
+        const first = await loadFrame(firstPageUrl);
+        println("first load");
+
+        first.remove();
+
+        await loadFrame(secondPageUrl);
+        println("second load");
+        done();
+    });
+</script>

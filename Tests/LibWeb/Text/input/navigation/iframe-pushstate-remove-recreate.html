@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    async function createFrameWithNestedHistory()
+    {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        iframe.contentWindow.history.pushState({}, "", "about:blank#child");
+        await internals.flushSessionHistoryTraversalQueue();
+        return iframe;
+    }
+
+    asyncTest(async done => {
+        history.pushState({}, "", "#parent");
+        await internals.flushSessionHistoryTraversalQueue();
+
+        const first = await createFrameWithNestedHistory();
+        first.remove();
+        await internals.flushSessionHistoryTraversalQueue();
+
+        const second = await createFrameWithNestedHistory();
+        second.remove();
+        await internals.flushSessionHistoryTraversalQueue();
+
+        println("PASS");
+        done();
+    });
+</script>

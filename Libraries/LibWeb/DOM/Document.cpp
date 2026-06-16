@@ -6675,14 +6675,16 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
         // 5. Otherwise:
         else {
             // 1. Assert: entriesForNavigationAPI is given.
-            VERIFY(entries_for_navigation_api.has_value());
+            VERIFY(!update_navigation_api || entries_for_navigation_api.has_value());
 
             // 2. Restore persisted state given entry.
             if (auto navigable = this->navigable())
                 navigable->restore_persisted_state_from_session_history_entry(*entry);
 
             // 3. Initialize the navigation API entries for a new document given navigation, entriesForNavigationAPI, and entry.
-            navigation->initialize_the_navigation_api_entries_for_a_new_document(*entries_for_navigation_api, entry);
+            if (update_navigation_api)
+                navigation->initialize_the_navigation_api_entries_for_a_new_document(
+                    *entries_for_navigation_api, entry);
         }
     }
 

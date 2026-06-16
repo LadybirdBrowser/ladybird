@@ -114,6 +114,7 @@ public:
     GC::Ptr<Window> active_window();
 
     RefPtr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
+    RefPtr<SessionHistoryEntry> get_the_target_history_entry_if_present(int target_step) const;
 
     void save_persisted_state_to_active_session_history_entry();
     void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
@@ -311,6 +312,7 @@ private:
 
     void begin_navigation(NavigateParams);
     void queue_pending_navigation(NavigateParams, PendingNavigationBehavior);
+    void process_pending_navigations();
     void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id);
     void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, String navigation_id);
 
@@ -420,6 +422,8 @@ private:
 
 WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
 
+Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
+    Navigable& parent_navigable, Navigable& child_navigable, SessionHistoryEntry& history_entry);
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
 void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<SerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
