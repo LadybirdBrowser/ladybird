@@ -31,6 +31,22 @@ public:
     virtual ~Promise() = default;
     static NonnullRefPtr<Promise> construct() { return adopt_ref(*new Promise()); }
 
+    template<typename R = Result>
+    static NonnullRefPtr<Promise> resolved(R&& result)
+    {
+        auto promise = construct();
+        promise->resolve(forward<R>(result));
+        return promise;
+    }
+
+    template<typename E = ErrorType>
+    static NonnullRefPtr<Promise> rejected(E&& error)
+    {
+        auto promise = construct();
+        promise->reject(forward<E>(error));
+        return promise;
+    }
+
     Function<ErrorOr<void, ErrorType>(Result&)> on_resolution;
     Function<void(ErrorType&)> on_rejection;
 
@@ -90,19 +106,24 @@ public:
     template<typename R = Result>
     void resolve(R&& result)
     {
+        auto protector = NonnullRefPtr { *this };
         m_result_or_rejection = forward<R>(result);
 
         if (on_resolution) {
             auto handler_result = on_resolution(m_result_or_rejection->value());
             possibly_handle_rejection(handler_result);
         }
+
+        m_children.clear();
     }
 
     template<typename E = ErrorType>
     void reject(E&& error)
     {
+        auto protector = NonnullRefPtr { *this };
         m_result_or_rejection = forward<E>(error);
         possibly_handle_rejection(*m_result_or_rejection);
+        m_children.clear();
     }
 
     bool is_rejected()

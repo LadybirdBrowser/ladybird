@@ -59,6 +59,12 @@ endif()
 
 if (BUILD_TESTING AND NOT WIN32)
     add_test(
+        NAME TestWebDriverDeleteSession
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-delete-session.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverDeleteSession PROPERTIES TIMEOUT 120)
+
+    add_test(
         NAME TestWebDriverSessionHistory
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-session-history.py $<TARGET_FILE:WebDriver>
     )
