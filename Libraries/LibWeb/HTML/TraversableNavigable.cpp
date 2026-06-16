@@ -804,7 +804,8 @@ public:
         GC::Ptr<Navigable> expected_ongoing_navigation_navigable,
         Optional<String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete)
-        : m_traversable(traversable)
+        : m_generation(++traversable->m_apply_history_step_generation_counter)
+        , m_traversable(traversable)
         , m_step(step)
         , m_target_step(target_step)
         , m_source_snapshot_params(source_snapshot_params)
@@ -919,6 +920,7 @@ private:
     void clear_ongoing_traversals_for_changing_navigables();
 
     Phase m_phase { Phase::WaitingForDocumentPopulation };
+    u64 m_generation { 0 };
     GC::Ref<TraversableNavigable> m_traversable;
     int m_step;
     int m_target_step;
@@ -1039,7 +1041,7 @@ void ApplyHistoryStepState::start()
 
             auto displayed_step = displayed_entry ? displayed_entry->step_value() : Optional<int> {};
             auto target_step = target_entry ? target_entry->step_value() : Optional<int> {};
-            if (!displayed_step.has_value() || !target_step.has_value()) {
+            if (!target_step.has_value()) {
                 // NB: Child navigables created during a busy top-level navigation can still have a pending initial
                 //     session history entry. The spec's step-based history algorithms operate on used history steps,
                 //     so a pending child entry must not block or crash the top-level apply-history step. The queued
@@ -1090,12 +1092,13 @@ void ApplyHistoryStepState::start()
                 case Bindings::NavigationType::Replace:
                     // FIXME: Add ever populated check
                     // - "replace": Assert: targetEntry's step is displayedEntry's step and targetEntry's document state's ever populated is false.
-                    VERIFY(target_entry->step() == displayed_entry->step());
+                    if (displayed_step.has_value())
+                        VERIFY(target_entry->step() == displayed_entry->step());
                     break;
                 case Bindings::NavigationType::Push:
                     // FIXME: Add ever populated check, and fix the bug where top level traversable's step is not updated when a child navigable navigates
                     // - "push": Assert: targetEntry's step is displayedEntry's step + 1 and targetEntry's document state's ever populated is false.
-                    if (*target_step <= *displayed_step) {
+                    if (displayed_step.has_value() && *target_step <= *displayed_step) {
                         // AD-HOC: A queued push can become stale if a later navigation commits before this task runs.
                         //         Browser engines let the later navigation win; do the same and avoid moving the
                         //         traversable's current step back to this push target during completion.
@@ -1519,37 +1522,48 @@ void ApplyHistoryStepState::complete()
     m_phase = Phase::Completed;
     m_timeout->stop();
 
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
-    // NB: targetStep was computed before the asynchronous portions of applying the history step. If a child
-    //     navigable was removed while those steps were running, that step can stop being used. Normalize again
-    //     before storing it as the traversable's current session history step.
-    m_target_step = m_traversable->get_the_used_step(m_target_step);
+    // AD-HOC: Commit the target step only if no newer apply history step has committed one. A synchronous navigation
+    //         jumping the queue while this step was paused has a newer target step; moving the current step back past
+    //         it would let the next push assign a step number that an existing entry already holds.
+    //         See https://github.com/whatwg/html/issues/12576.
+    if (m_generation > m_traversable->m_committed_apply_history_step_generation) {
+        m_traversable->m_committed_apply_history_step_generation = m_generation;
 
-    // 20. Set traversable's current session history step to targetStep.
-    m_traversable->m_current_session_history_step = m_target_step;
+        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
+        // NB: targetStep was computed before the asynchronous portions of applying the history step. If a child
+        //     navigable was removed while those steps were running, that step can stop being used. Normalize again
+        //     before storing it as the current session history step; keep it in a local so the claimed step retired
+        //     below still matches what the navigation claimed, not the re-normalized value.
+        auto const used_target_step = m_traversable->get_the_used_step(m_target_step);
 
-    // AD-HOC: Report the updated session history descriptors to the UI-process mirror.
-    if (m_traversable->page().client().should_report_session_history_updates()) {
-        auto save_active_entry_persisted_state = TraversableNavigable::SaveActiveEntryPersistedState::Yes;
-        // NB: During history traversal, the active entry can point at the target
-        //     entry before the active document's queued history-step update has
-        //     restored the target entry's persisted state. Do not overwrite that
-        //     target entry with the document's pre-restoration viewport offset.
-        if (m_navigation_type == Bindings::NavigationType::Traverse) {
-            auto document = m_traversable->active_document();
-            auto active_entry = m_traversable->active_session_history_entry();
-            if (document && active_entry && document->latest_entry() != active_entry)
-                save_active_entry_persisted_state = TraversableNavigable::SaveActiveEntryPersistedState::No;
+        // 20. Set traversable's current session history step to targetStep.
+        m_traversable->m_current_session_history_step = used_target_step;
+
+        // AD-HOC: Report the updated session history descriptors to the UI-process mirror.
+        if (m_traversable->page().client().should_report_session_history_updates()) {
+            auto save_active_entry_persisted_state = TraversableNavigable::SaveActiveEntryPersistedState::Yes;
+            // NB: During history traversal, the active entry can point at the target
+            //     entry before the active document's queued history-step update has
+            //     restored the target entry's persisted state. Do not overwrite that
+            //     target entry with the document's pre-restoration viewport offset.
+            if (m_navigation_type == Bindings::NavigationType::Traverse) {
+                auto document = m_traversable->active_document();
+                auto active_entry = m_traversable->active_session_history_entry();
+                if (document && active_entry && document->latest_entry() != active_entry)
+                    save_active_entry_persisted_state = TraversableNavigable::SaveActiveEntryPersistedState::No;
+            }
+            auto session_history_snapshot = m_traversable->create_session_history_snapshot(save_active_entry_persisted_state);
+            m_traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
         }
-        auto session_history_snapshot = m_traversable->create_session_history_snapshot(save_active_entry_persisted_state);
-        m_traversable->page().client().page_did_update_session_history(session_history_snapshot.top_level_session_history_entries, session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index);
+
+        VERIFY(m_traversable->m_session_history_entries.size() > 0);
+        auto back_enabled = m_traversable->can_go_back();
+        auto forward_enabled = m_traversable->can_go_forward();
+        m_traversable->page().client().page_did_update_navigation_buttons_state(back_enabled, forward_enabled);
+        m_traversable->page().client().page_did_change_url(m_traversable->current_session_history_entry()->url());
     }
 
-    VERIFY(m_traversable->m_session_history_entries.size() > 0);
-    auto back_enabled = m_traversable->can_go_back();
-    auto forward_enabled = m_traversable->can_go_forward();
-    m_traversable->page().client().page_did_update_navigation_buttons_state(back_enabled, forward_enabled);
-    m_traversable->page().client().page_did_change_url(m_traversable->current_session_history_entry()->url());
+    m_traversable->retire_claimed_session_history_step(m_target_step);
 
     // Clear state BEFORE on_complete, because on_complete may resolve a promise
     // that triggers the next session history traversal queue entry.
@@ -1569,6 +1583,7 @@ void ApplyHistoryStepState::finish_without_applying()
     m_phase = Phase::Completed;
     m_timeout->stop();
     clear_ongoing_traversals_for_changing_navigables();
+    m_traversable->retire_claimed_session_history_step(m_target_step);
     m_traversable->m_apply_history_step_state = nullptr;
     if (m_on_complete)
         m_on_complete->function()(HistoryStepResult::Applied);
@@ -1623,6 +1638,21 @@ void ApplyHistoryStepState::clear_ongoing_traversals_for_changing_navigables()
 {
     for (auto& navigable : m_changing_navigables)
         clear_ongoing_traversal_for_changing_navigable(navigable);
+}
+
+int TraversableNavigable::claim_next_session_history_step()
+{
+    int step = m_current_session_history_step;
+    for (auto claimed : m_outstanding_claimed_session_history_steps)
+        step = max(step, claimed);
+    ++step;
+    m_outstanding_claimed_session_history_steps.append(step);
+    return step;
+}
+
+void TraversableNavigable::retire_claimed_session_history_step(int step)
+{
+    m_outstanding_claimed_session_history_steps.remove_first_matching([step](int claimed) { return claimed == step; });
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
@@ -2075,6 +2105,13 @@ void TraversableNavigable::clear_the_forward_session_history()
     // 2. Let step be the navigable's current session history step.
     auto step = current_session_history_step();
 
+    // AD-HOC: An apply-history-step run can still be in flight with a claimed step above the current step; its entry is
+    //         not forward history that traversing away abandoned — it's the entry the in-flight run is about to make
+    //         current. Removing it would leave that run applying a step with no entry.
+    //         See https://github.com/whatwg/html/issues/12576.
+    for (auto claimed : m_outstanding_claimed_session_history_steps)
+        step = max(step, claimed);
+
     // 3. Let entryLists be the ordered set « navigable's session history entries ».
     Vector<Vector<NonnullRefPtr<SessionHistoryEntry>>&> entry_lists;
     entry_lists.append(session_history_entries());
@@ -2344,7 +2381,9 @@ static Optional<int> update_session_history_entries_for_same_document_navigation
         traversable.clear_the_forward_session_history();
 
         // 2. Set targetStep to traversable's current session history step + 1.
-        target_step = traversable.current_session_history_step() + 1;
+        // AD-HOC: Claim the step instead — so a step claimed by an apply-history-step run still in flight can't be
+        //         handed out twice. See https://github.com/whatwg/html/issues/12576.
+        target_step = traversable.claim_next_session_history_step();
 
         // 3. Set targetEntry's step to targetStep.
         target_entry->set_step(*target_step);
@@ -2383,6 +2422,13 @@ bool TraversableNavigable::try_to_synchronously_commit_same_document_navigation(
 
     target_navigable->set_current_session_history_entry(target_entry);
     m_current_session_history_step = get_the_used_step(*target_step);
+
+    // AD-HOC: A synchronous commit applies its step in this same task, so it has no asynchronous window in which
+    //         another run could observe the claim. Retire it immediately. Unlike the queued apply-history-step path,
+    //         nothing else will. Leaving it outstanding would let claimed steps accumulate without bound — and push
+    //         later step numbers ever higher. (A replacement reuses the current step and claimed nothing, so retiring
+    //         it is a no-op.) See https://github.com/whatwg/html/issues/12576.
+    retire_claimed_session_history_step(*target_step);
 
     // NB: The queued apply-history-step path clears the ongoing navigation when the history step finishes. The
     //     synchronous fast path has already committed the same-document navigation and the Navigation API entry update
