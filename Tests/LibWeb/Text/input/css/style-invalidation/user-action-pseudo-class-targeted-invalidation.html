@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #plain,
+    #link {
+        display: block;
+        width: 100px;
+        height: 20px;
+    }
+
+    a:hover {
+        color: rgb(0, 128, 0);
+    }
+
+    #active-target {
+        display: block;
+        width: 80px;
+        height: 40px;
+        color: black;
+    }
+
+    #active-target:active {
+        color: rgb(1, 2, 3);
+    }
+
+    #active-target:active + #active-sibling {
+        color: rgb(4, 5, 6);
+    }
+
+    #active-container:active #active-ancestor-descendant {
+        color: rgb(7, 8, 9);
+    }
+</style>
+<div id="plain">plain text</div>
+<a id="link" href="#">link text</a>
+<div id="active-container">
+    <button id="active-target">target</button>
+    <div id="active-sibling">sibling</div>
+    <div id="active-ancestor-descendant">ancestor descendant</div>
+</div>
+<script>
+    function moveTo(element) {
+        const rect = element.getBoundingClientRect();
+        internals.mouseMove(rect.left + 5, rect.top + 5);
+        internals.updateStyle();
+    }
+
+    function dumpCounters(label) {
+        const c = internals.getStyleInvalidationCounters();
+        println(
+            `${label}: styleInvalidations=${c.styleInvalidations}, ` +
+            `elementStyleRecomputations=${c.elementStyleRecomputations}, ` +
+            `elementStyleNoopRecomputations=${c.elementStyleNoopRecomputations}`
+        );
+    }
+
+    function appendUnaffectedSubtree(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            let leaf = document.createElement("span");
+            leaf.textContent = `leaf ${i}`;
+            parent.appendChild(leaf);
+        }
+    }
+
+    function clickAndHold(element) {
+        const rect = element.getBoundingClientRect();
+        internals.clickAndHold(Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.height / 2));
+        internals.updateStyle();
+    }
+
+    test(() => {
+        const plain = document.getElementById("plain");
+        const link = document.getElementById("link");
+        const activeContainer = document.getElementById("active-container");
+        const activeTarget = document.getElementById("active-target");
+
+        getComputedStyle(plain).color;
+        internals.resetStyleInvalidationCounters();
+        moveTo(plain);
+        dumpCounters("plain text hover");
+
+        internals.resetStyleInvalidationCounters();
+        moveTo(link);
+        dumpCounters("link hover");
+        println(`link color: ${getComputedStyle(link).color}`);
+
+        appendUnaffectedSubtree(activeContainer, 100);
+        getComputedStyle(activeContainer).color;
+        internals.resetStyleInvalidationCounters();
+        clickAndHold(activeTarget);
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(
+            `active state: fullStyleInvalidations=${counters.fullStyleInvalidations}, ` +
+            `elementStyleRecomputations=${counters.elementStyleRecomputations}`
+        );
+        internals.mouseUp(0, 0);
+    });
+</script>
