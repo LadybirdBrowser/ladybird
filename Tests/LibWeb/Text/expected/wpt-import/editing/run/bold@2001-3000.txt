@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-989 Pass
-11 Fail
+993 Pass
+7 Fail
 Fail	[["bold",""]] "<span style=\"font-weight: 900\">foo[barbaz</span>}" compare innerHTML
 Pass	[["bold",""]] "<span style=\"font-weight: 900\">foo[barbaz</span>}" queryCommandIndeterm("bold") before
 Pass	[["bold",""]] "<span style=\"font-weight: 900\">foo[barbaz</span>}" queryCommandState("bold") before
@@ -471,7 +471,7 @@ Pass	[["bold",""]] "<font color=blue face=monospace><b>foo</b></font>[bar]" quer
 Pass	[["stylewithcss","true"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz": execCommand("bold", false, "") return value
 Pass	[["stylewithcss","true"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" compare innerHTML
 Pass	[["stylewithcss","true"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" queryCommandValue("stylewithcss") before
@@ -487,7 +487,7 @@ Pass	[["stylewithcss","true"],["bold",""]] "foo<span style=\"font-weight: normal
 Pass	[["stylewithcss","false"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz": execCommand("bold", false, "") return value
 Pass	[["stylewithcss","false"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" compare innerHTML
 Pass	[["stylewithcss","false"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["bold",""]] "foo<span style=\"font-weight: normal\"><b>{bar}</b></span>baz" queryCommandValue("stylewithcss") before
@@ -535,7 +535,7 @@ Pass	[["stylewithcss","false"],["bold",""]] "[foo<span class=notbold>bar</span>b
 Pass	[["stylewithcss","true"],["bold",""]] "<b><span class=notbold>[foo]</span></b>": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["bold",""]] "<b><span class=notbold>[foo]</span></b>": execCommand("bold", false, "") return value
 Pass	[["stylewithcss","true"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" compare innerHTML
+Pass	[["stylewithcss","true"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" compare innerHTML
 Pass	[["stylewithcss","true"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" queryCommandValue("stylewithcss") before
@@ -551,7 +551,7 @@ Pass	[["stylewithcss","true"],["bold",""]] "<b><span class=notbold>[foo]</span><
 Pass	[["stylewithcss","false"],["bold",""]] "<b><span class=notbold>[foo]</span></b>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["bold",""]] "<b><span class=notbold>[foo]</span></b>": execCommand("bold", false, "") return value
 Pass	[["stylewithcss","false"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" compare innerHTML
+Pass	[["stylewithcss","false"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" compare innerHTML
 Pass	[["stylewithcss","false"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["bold",""]] "<b><span class=notbold>[foo]</span></b>" queryCommandValue("stylewithcss") before
