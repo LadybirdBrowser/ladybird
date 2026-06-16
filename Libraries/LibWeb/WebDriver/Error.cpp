@@ -85,4 +85,21 @@ Error::Error(unsigned http_status_, String error_, String message_, Optional<Jso
 {
 }
 
+Error::Error(Error const& error)
+    : http_status(error.http_status)
+    , error(error.error)
+    , message(error.message)
+    , data(error.data)
+{
+}
+
+Error& Error::operator=(Error const& other)
+{
+    http_status = other.http_status;
+    error = other.error;
+    message = other.message;
+    data = other.data;
+    return *this;
+}
+
 }
