@@ -7,6 +7,7 @@
 
 #include <AK/JsonObject.h>
 #include <AK/NumericLimits.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/TimeZone.h>
 #include <LibGfx/Cursor.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
@@ -443,6 +444,17 @@ void Internals::spoof_current_url(String const& url_string)
     window.associated_document().set_url(url.value());
     window.associated_document().set_origin(origin);
     HTML::relevant_settings_object(window.associated_document()).creation_url = url.release_value();
+}
+
+void Internals::load_url(String const& url_string)
+{
+    auto url = DOMURL::parse(url_string);
+
+    VERIFY(url.has_value());
+
+    Core::deferred_invoke([page = GC::make_root(page()), url = url.release_value()] {
+        page->load(url);
+    });
 }
 
 GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
