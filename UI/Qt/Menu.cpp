@@ -193,6 +193,13 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
             qaction.setIcon(create_chrome_icon(ChromeIcon::Globe, palette));
         break;
 
+    case WebView::ActionID::ViewHistory:
+#if defined(AK_OS_MACOS)
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Y));
+#else
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_H));
+#endif
+        break;
     case WebView::ActionID::OpenProcessesPage:
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M));
         break;
