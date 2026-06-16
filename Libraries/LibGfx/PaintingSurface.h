@@ -56,7 +56,7 @@ public:
     NonnullRefPtr<Bitmap> snapshot_bitmap() const;
     SharedImage snapshot_into_shared_image() const;
 
-    void read_into_bitmap(Bitmap&) const;
+    void read_into_bitmap(Bitmap&, IntPoint source_position = {}) const;
     void write_from_bitmap(Bitmap const&);
 
     void notify_content_will_change();

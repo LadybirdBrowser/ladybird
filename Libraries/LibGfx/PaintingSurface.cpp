@@ -160,13 +160,13 @@ SharedImage PaintingSurface::snapshot_into_shared_image() const
     return shared_image_buffer.export_shared_image();
 }
 
-void PaintingSurface::read_into_bitmap(Bitmap& bitmap) const
+void PaintingSurface::read_into_bitmap(Bitmap& bitmap, IntPoint source_position) const
 {
     auto color_type = to_skia_color_type(bitmap.format());
     auto alpha_type = to_skia_alpha_type(bitmap.format(), bitmap.alpha_type());
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
-    m_impl->surface->readPixels(pixmap, 0, 0);
+    m_impl->surface->readPixels(pixmap, source_position.x(), source_position.y());
 }
 
 void PaintingSurface::write_from_bitmap(Bitmap const& bitmap)
