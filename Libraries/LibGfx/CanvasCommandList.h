@@ -58,6 +58,8 @@ struct CanvasPatternStyle {
 
 using CanvasPaintStyle = Variant<Color, CanvasLinearGradient, CanvasRadialGradient, CanvasConicGradient, CanvasPatternStyle>;
 
+inline constexpr i64 max_canvas_area = 16384 * 16384;
+
 namespace CanvasCommands {
 
 struct ClearRect {
