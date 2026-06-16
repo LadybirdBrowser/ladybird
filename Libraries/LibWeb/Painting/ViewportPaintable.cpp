@@ -218,7 +218,10 @@ void ViewportPaintable::assign_scroll_frames()
 
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
-    m_visual_context_tree = build_accumulated_visual_context_tree(*this);
+    auto visual_context_tree = build_accumulated_visual_context_tree(*this);
+    if (m_visual_context_tree.has_value() && visual_context_tree.is_compatible_with(*m_visual_context_tree))
+        visual_context_tree.reuse_version_from(*m_visual_context_tree);
+    m_visual_context_tree = move(visual_context_tree);
     m_visual_context_tree_needs_compositor_update = true;
 }
 
