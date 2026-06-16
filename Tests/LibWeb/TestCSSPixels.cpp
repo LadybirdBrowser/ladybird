@@ -89,6 +89,20 @@ TEST_CASE(to_int)
     EXPECT_EQ(b.to_int(), 12);
 }
 
+TEST_CASE(float_conversion)
+{
+    auto value = 620.0 * .333333;
+    EXPECT_EQ(CSSPixels::nearest_value_for(value), CSSPixels::from_raw(13227));
+    EXPECT_EQ(CSSPixels::floored_value_for(value), CSSPixels::from_raw(13226));
+    EXPECT_EQ(CSSPixels::truncated_value_for(value), CSSPixels::from_raw(13226));
+
+    EXPECT_EQ(CSSPixels::floored_value_for(-value), CSSPixels::from_raw(-13227));
+    EXPECT_EQ(CSSPixels::truncated_value_for(-value), CSSPixels::from_raw(-13226));
+
+    EXPECT_EQ(CSSPixels::truncated_value_for(INFINITY), CSSPixels::max());
+    EXPECT_EQ(CSSPixels::truncated_value_for(-INFINITY), CSSPixels::min());
+}
+
 TEST_CASE(comparison1)
 {
     EXPECT_EQ(CSSPixels(1) < CSSPixels(2), true);
