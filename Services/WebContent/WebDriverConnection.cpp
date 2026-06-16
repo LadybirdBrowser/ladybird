@@ -2481,15 +2481,22 @@ Web::WebDriver::Response WebDriverConnection::take_screenshot()
             auto root_rect = calculate_absolute_rect_of_element(*document->document_element());
 
             // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given root rect as an argument.
-            // c. Let canvas be a canvas element of screenshot result's data.
-            auto canvas = WEBDRIVER_TRY(Web::WebDriver::draw_bounding_box_from_the_framebuffer(*current_top_level_browsing_context(), *document->document_element(), root_rect));
+            Web::WebDriver::draw_bounding_box_from_the_framebuffer(*current_top_level_browsing_context(), *document->document_element(), root_rect, [this](auto canvas_or_error) mutable {
+                if (canvas_or_error.is_error()) {
+                    driver_execution_complete(canvas_or_error.release_error());
+                    return;
+                }
 
-            // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
-            // e. Let encoded string be encoding result's data.
-            auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
+                // c. Let canvas be a canvas element of screenshot result's data.
+                auto canvas = canvas_or_error.release_value();
 
-            // 3. Return success with data encoded string.
-            driver_execution_complete(move(encoded_string));
+                // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
+                // e. Let encoded string be encoding result's data.
+                auto encoded_string = Web::WebDriver::encode_canvas_element(*canvas);
+
+                // 3. Return success with data encoded string.
+                driver_execution_complete(move(encoded_string));
+            });
         }));
         document->page().client().request_frame();
     });
@@ -2520,15 +2527,22 @@ Web::WebDriver::Response WebDriverConnection::take_element_screenshot(String ele
             auto element_rect = calculate_absolute_rect_of_element(element);
 
             // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given element rect as an argument.
-            // c. Let canvas be a canvas element of screenshot result's data.
-            auto canvas = WEBDRIVER_TRY(Web::WebDriver::draw_bounding_box_from_the_framebuffer(current_browsing_context(), element, element_rect));
+            Web::WebDriver::draw_bounding_box_from_the_framebuffer(current_browsing_context(), element, element_rect, [this](auto canvas_or_error) mutable {
+                if (canvas_or_error.is_error()) {
+                    driver_execution_complete(canvas_or_error.release_error());
+                    return;
+                }
 
-            // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
-            // e. Let encoded string be encoding result's data.
-            auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
+                // c. Let canvas be a canvas element of screenshot result's data.
+                auto canvas = canvas_or_error.release_value();
 
-            // 6. Return success with data encoded string.
-            driver_execution_complete(move(encoded_string));
+                // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
+                // e. Let encoded string be encoding result's data.
+                auto encoded_string = Web::WebDriver::encode_canvas_element(*canvas);
+
+                // 6. Return success with data encoded string.
+                driver_execution_complete(move(encoded_string));
+            });
         }));
         document->page().client().request_frame();
     });

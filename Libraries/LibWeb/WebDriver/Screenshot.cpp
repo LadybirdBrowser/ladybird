@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/DOM/Document.h>
@@ -23,14 +22,16 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-draw-a-bounding-box-from-the-framebuffer
-ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_context, DOM::Element& element, Gfx::IntRect rect)
+void draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_context, DOM::Element& element, Gfx::IntRect rect, DrawBoundingBoxCallback&& callback)
 {
     HTML::TemporaryExecutionContext execution_context { element.document().relevant_settings_object() };
 
     // 1. If either the initial viewport's width or height is 0 CSS pixels, return error with error code unable to capture screen.
     auto viewport_rect = browsing_context.top_level_traversable()->viewport_rect();
-    if (viewport_rect.is_empty())
-        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Viewport is empty"sv);
+    if (viewport_rect.is_empty()) {
+        callback(Error::from_code(ErrorCode::UnableToCaptureScreen, "Viewport is empty"sv));
+        return;
+    }
 
     auto viewport_device_rect = browsing_context.page().enclosing_device_rect(viewport_rect).to_type<int>();
 
@@ -51,8 +52,10 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     // FIXME: 5. Let context, a canvas context mode, be the result of invoking the 2D context creation algorithm given canvas as the target.
     canvas.create_2d_context({});
     canvas.ensure_backing_storage();
-    if (!canvas.canvas_rendering_context_2d())
-        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to create 2D context"sv);
+    if (!canvas.canvas_rendering_context_2d()) {
+        callback(Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to create 2D context"sv));
+        return;
+    }
 
     // 6. Complete implementation specific steps equivalent to drawing the region of the framebuffer specified by the following coordinates onto context:
     //    - X coordinate: rectangle x coordinate
@@ -63,22 +66,20 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
 
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize { paint_width, paint_height }));
     auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
-    IGNORE_USE_IN_ESCAPING_LAMBDA bool did_paint = false;
     HTML::PaintConfig paint_config { .canvas_fill_rect = paint_rect };
-    browsing_context.active_document()->navigable()->render_screenshot(painting_surface, paint_config, [&did_paint] {
-        did_paint = true;
+    browsing_context.active_document()->navigable()->render_screenshot(painting_surface, paint_config, [bitmap, element = GC::make_root(element), canvas = GC::make_root(canvas), callback = move(callback)] mutable {
+        HTML::TemporaryExecutionContext execution_context { element->document().relevant_settings_object() };
+
+        auto image_bitmap = HTML::ImageBitmap::create();
+        image_bitmap->set_bitmap(bitmap);
+        if (canvas->canvas_rendering_context_2d()->draw_image(image_bitmap, 0, 0).is_exception()) {
+            callback(Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to draw the screenshot to the canvas"sv));
+            return;
+        }
+
+        // 7. Return success with canvas.
+        callback(move(canvas));
     });
-    HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
-        return did_paint;
-    }));
-
-    auto image_bitmap = HTML::ImageBitmap::create();
-    image_bitmap->set_bitmap(bitmap);
-    if (canvas.canvas_rendering_context_2d()->draw_image(image_bitmap, 0, 0).is_exception())
-        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to draw the screenshot to the canvas"sv);
-
-    // 7. Return success with canvas.
-    return canvas;
 }
 
 // https://w3c.github.io/webdriver/#dfn-encoding-a-canvas-as-base64
