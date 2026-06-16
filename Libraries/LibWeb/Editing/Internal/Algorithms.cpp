@@ -1388,7 +1388,7 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
             { node },
             [&](GC::Ref<DOM::Node> sibling) {
                 return is_simple_modifiable_element(sibling)
-                    && specified_command_value(static_cast<DOM::Element&>(*sibling), command) == new_value
+                    && values_are_equivalent(command, specified_command_value(as<DOM::Element>(*sibling), command), new_value)
                     && values_are_loosely_equivalent(command, effective_command_value(sibling, command), new_value);
             },
             [] -> GC::Ptr<DOM::Node> { return {}; });

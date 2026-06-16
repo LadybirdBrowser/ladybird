@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1026 tests
 
-1022 Pass
-4 Fail
+1025 Pass
+1 Fail
 Pass	[["backcolor","#00FFFF"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["backcolor","#00FFFF"]] "foo[]bar" checks for modifications to non-editable content
 Pass	[["backcolor","#00FFFF"]] "foo[]bar" compare innerHTML
@@ -48,7 +48,7 @@ Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "<p>[foo</p> <p>bar]</p>
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>": execCommand("stylewithcss", false, "true") return value
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" checks for modifications to non-editable content
-Fail	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" compare innerHTML
+Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" compare innerHTML
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" queryCommandValue("stylewithcss") before
@@ -64,7 +64,7 @@ Pass	[["stylewithcss","true"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>
 Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>": execCommand("stylewithcss", false, "false") return value
 Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" checks for modifications to non-editable content
-Fail	[["stylewithcss","false"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" compare innerHTML
+Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" compare innerHTML
 Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" queryCommandIndeterm("stylewithcss") before
 Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" queryCommandState("stylewithcss") before
 Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "<span>[foo</span> <span>bar]</span>" queryCommandValue("stylewithcss") before
@@ -832,7 +832,7 @@ Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "foo<span style=backgrou
 Pass	[["stylewithcss","false"],["backcolor","#00FFFF"]] "foo<span style=background-color:tan>ba[r</span>b]az" queryCommandValue("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "fo[o<span style=background-color:tan>bar</span>b]az": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["backcolor","#00FFFF"]] "fo[o<span style=background-color:tan>bar</span>b]az" checks for modifications to non-editable content
-Fail	[["backcolor","#00FFFF"]] "fo[o<span style=background-color:tan>bar</span>b]az" compare innerHTML
+Pass	[["backcolor","#00FFFF"]] "fo[o<span style=background-color:tan>bar</span>b]az" compare innerHTML
 Pass	[["backcolor","#00FFFF"]] "fo[o<span style=background-color:tan>bar</span>b]az" queryCommandIndeterm("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "fo[o<span style=background-color:tan>bar</span>b]az" queryCommandState("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "fo[o<span style=background-color:tan>bar</span>b]az" queryCommandValue("backcolor") before
