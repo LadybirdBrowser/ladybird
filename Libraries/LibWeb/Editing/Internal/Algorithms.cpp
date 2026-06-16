@@ -4040,17 +4040,16 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
         remove_extraneous_line_breaks_at_the_end_of_node(*last_node->parent());
 }
 
-enum class ToggleListMode : u8 {
-    Enable,
-    Disable,
-};
-
 // https://w3c.github.io/editing/docs/execCommand/#toggle-lists
 void toggle_lists(DOM::Document& document, FlyString const& tag_name)
 {
     VERIFY(first_is_one_of(tag_name, HTML::TagNames::ol, HTML::TagNames::ul));
 
     // 1. Let mode be "disable" if the selection's list state is tag name, and "enable" otherwise.
+    enum class ToggleListMode : u8 {
+        Enable,
+        Disable,
+    };
     auto mode = ToggleListMode::Enable;
     auto list_state = selections_list_state(document);
     if ((list_state == SelectionsListState::Ol && tag_name == HTML::TagNames::ol)
