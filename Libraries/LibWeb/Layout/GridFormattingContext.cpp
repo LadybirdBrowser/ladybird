@@ -361,6 +361,8 @@ void GridFormattingContext::for_each_subgrid_item_contributing_to_track_sizing(G
     // This introspection is recursive.
     GridFormattingContext subgrid_context(m_state, LayoutMode::IntrinsicSizing, subgrid.box, this);
     subgrid_context.m_available_space = *m_available_space;
+    if (dimension == GridDimension::Row && subgrid.used_values.has_definite_width())
+        subgrid_context.m_available_space->width = AvailableSize::make_definite(subgrid.used_values.content_width());
     subgrid_context.init_grid_lines(GridDimension::Column);
     subgrid_context.init_grid_lines(GridDimension::Row);
     subgrid_context.build_grid_areas();
@@ -368,7 +370,7 @@ void GridFormattingContext::for_each_subgrid_item_contributing_to_track_sizing(G
     subgrid_context.m_explicit_rows_line_count = subgrid_context.m_row_lines.size();
     subgrid_context.place_grid_items();
     subgrid_context.initialize_grid_tracks_for_columns_and_rows();
-    subgrid_context.initialize_gap_tracks(*m_available_space);
+    subgrid_context.initialize_gap_tracks(*subgrid_context.m_available_space);
 
     if (dimension == GridDimension::Row) {
         subgrid_context.resolve_items_box_metrics(GridDimension::Column);

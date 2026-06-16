@@ -1,0 +1,33 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 67 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [2,2] [0+1+0 796 0+1+0] [0+1+0 65 0+1+0] children: not-inline
+      Box <div.outer> at [3,3] [0+1+0 766 0+1+28] [0+1+0 63 0+1+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        Box <div.card> at [4,4] [0+1+0 245.328125 0+1+0] [0+1+0 61 0+1+0] [GFC] children: not-inline
+          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <p> at [5,5] [0+1+0 243.328125 0+1+0] [0+1+0 37 0+1+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 26, rect: [5,5 222.375x18] baseline: 13.796875
+                "Some long text that should"
+            frag 1 from TextNode start: 27, length: 26, rect: [5,23 219.03125x18] baseline: 13.796875
+                "wrap over to the next line"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [2,67] [0+0+0 796 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x69]
+    PaintableWithLines (BlockContainer<BODY>) [1,1 798x67]
+      PaintableBox (Box<DIV>.outer) [2,2 768x65]
+        PaintableBox (Box<DIV>.card) [3,3 247.328125x63]
+          PaintableWithLines (BlockContainer<P>) [4,4 245.328125x39]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [2,67 796x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x67] (z-index: auto)

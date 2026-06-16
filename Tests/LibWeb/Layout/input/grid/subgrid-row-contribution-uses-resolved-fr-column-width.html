@@ -1,0 +1,28 @@
+<!doctype html>
+<style>
+* {
+    box-sizing: border-box;
+    border: 1px solid;
+    margin: 0;
+    padding: 0;
+}
+
+.outer {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    width: 768px;
+}
+
+.card {
+    display: grid;
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    gap: 12px;
+}
+</style>
+<div class="outer">
+    <div class="card">
+        <p>Some long text that should wrap over to the next line</p>
+    </div>
+</div>
