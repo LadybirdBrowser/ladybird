@@ -482,6 +482,34 @@ void AccumulatedVisualContextTree::set_visual_viewport_transform(TransformData t
     m_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data = move(transform);
 }
 
+bool AccumulatedVisualContextTree::is_compatible_with(AccumulatedVisualContextTree const& other) const
+{
+    if (m_nodes.size() != other.m_nodes.size())
+        return false;
+
+    for (size_t i = 0; i < m_nodes.size(); ++i) {
+        auto const& node = m_nodes[i];
+        auto const& other_node = other.m_nodes[i];
+        if (node.parent_index != other_node.parent_index)
+            return false;
+        if (node.has_empty_effective_clip != other_node.has_empty_effective_clip)
+            return false;
+        if (!node.data.visit([&](auto const& data) {
+                using DataType = RemoveCVReference<decltype(data)>;
+                return other_node.data.has<DataType>();
+            }))
+            return false;
+    }
+
+    return true;
+}
+
+void AccumulatedVisualContextTree::reuse_version_from(AccumulatedVisualContextTree const& other)
+{
+    VERIFY(is_compatible_with(other));
+    m_version = other.m_version;
+}
+
 VisualContextIndex AccumulatedVisualContextTree::find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const
 {
     VERIFY(a.value() < m_nodes.size());
