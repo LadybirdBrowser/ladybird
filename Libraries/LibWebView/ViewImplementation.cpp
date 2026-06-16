@@ -183,7 +183,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
             return false;
         if (!m_pending_web_content_session_history_seed.should_send_entries)
             return false;
-        if (m_loading_session_history_entry_from_ui_process)
+        if (m_session_history_entry_url_loading_from_ui_process.has_value())
             return false;
         if (m_session_history.current_step_to_restore_after_loading_top_level_entry().has_value())
             return false;
@@ -194,7 +194,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     if (ui_session_history_already_points_to_url) {
         m_should_suppress_history_for_current_load = false;
         m_should_suppress_history_for_next_load = false;
-        if (!m_loading_session_history_entry_from_ui_process)
+        if (!m_session_history_entry_url_loading_from_ui_process.has_value())
             m_pending_web_content_session_history_seed.step_after_loading_top_level_entry = m_session_history.current_step_to_restore_after_loading_top_level_entry();
         set_url(url);
         auto seeded_replacement_process_before_load = seed_replacement_process_before_load_if_possible();
@@ -204,7 +204,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     } else {
         m_should_suppress_history_for_current_load = false;
         m_should_suppress_history_for_next_load = false;
-        if (should_manage_session_history_in_ui_process() && !m_loading_session_history_entry_from_ui_process) {
+        if (should_manage_session_history_in_ui_process() && !m_session_history_entry_url_loading_from_ui_process.has_value()) {
             if (m_session_history.current_entry()) {
                 m_pending_session_history_navigation = PendingSessionHistoryNavigation {
                     url,
@@ -221,7 +221,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
             m_current_web_content_session_history_matches_mirror = false;
             update_navigation_action_state();
         }
-        if (!m_loading_session_history_entry_from_ui_process)
+        if (!m_session_history_entry_url_loading_from_ui_process.has_value())
             m_pending_web_content_session_history_seed.step_after_loading_top_level_entry = m_session_history.current_step_to_restore_after_loading_top_level_entry();
         set_url(url);
         auto seeded_replacement_process_before_load = seed_replacement_process_before_load_if_possible();
@@ -282,9 +282,9 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
     auto should_defer_ui_process_history_update = false;
-    if (!m_loading_session_history_entry_from_ui_process)
+    if (!m_session_history_entry_url_loading_from_ui_process.has_value())
         abandon_pending_web_content_session_history_seed();
-    if (should_manage_session_history_in_ui_process() && !m_loading_session_history_entry_from_ui_process) {
+    if (should_manage_session_history_in_ui_process() && !m_session_history_entry_url_loading_from_ui_process.has_value()) {
         m_pending_session_history_traversal.clear();
         auto const* current_entry = m_session_history.current_entry();
         auto is_javascript_navigation = url.scheme() == "javascript"sv;
@@ -428,7 +428,7 @@ ViewImplementation::HistoryTraversalOutcome ViewImplementation::traverse_the_his
     auto web_content_can_apply_traversal = !m_pending_web_content_session_history_seed.should_send_entries
         && !m_pending_web_content_session_history_seed.ignore_updates_until_seed
         && !m_pending_web_content_session_history_seed.waiting_for_ack
-        && !m_loading_session_history_entry_from_ui_process
+        && !m_session_history_entry_url_loading_from_ui_process.has_value()
         && !m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value()
         && m_session_history.web_content_can_traverse_to(*target);
 
@@ -1416,15 +1416,31 @@ void ViewImplementation::did_start_navigation(URL::URL const& url, Variant<Empty
     if (m_should_suppress_history_for_next_load || m_should_suppress_history_for_current_load)
         return;
 
-    if (m_loading_session_history_entry_from_ui_process) {
+    if (m_session_history_entry_url_loading_from_ui_process.has_value()) {
+        if (*m_session_history_entry_url_loading_from_ui_process != url) {
+            // NB: An earlier UI-process history fallback load can start after a newer back/forward request has
+            //     superseded it. Chromium, WebKit, and Firefox all give pending history loads an identity so stale
+            //     traversals cannot consume state belonging to the current one. Keep the UI-owned history authoritative
+            //     here and wait for the load matching the latest requested entry.
+            dump_session_history("ignored-stale-ui-history-load-start"sv);
+            return;
+        }
+
         auto should_keep_preseeded_web_content_history = m_pending_web_content_session_history_seed.waiting_for_ack || m_session_history.web_content_uses_ui_step_coordinates();
-        m_loading_session_history_entry_from_ui_process = false;
+        m_session_history_entry_url_loading_from_ui_process.clear();
         if (!should_keep_preseeded_web_content_history) {
             m_current_web_content_session_history_matches_mirror = false;
             m_session_history.forget_web_content_state();
         }
         dump_session_history("did-start-navigation-from-ui-history-load"sv);
         return;
+    }
+
+    if (m_pending_web_content_session_history_seed.should_send_entries || m_pending_web_content_session_history_seed.ignore_updates_until_seed || m_pending_web_content_session_history_seed.waiting_for_ack) {
+        if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url != url) {
+            dump_session_history("ignored-navigation-start-before-ui-history-seed"sv);
+            return;
+        }
     }
 
     if (m_is_showing_crash_page) {
@@ -1491,8 +1507,8 @@ void ViewImplementation::did_cancel_navigation(URL::URL const& url)
         return;
     }
 
-    if (m_loading_session_history_entry_from_ui_process) {
-        m_loading_session_history_entry_from_ui_process = false;
+    if (m_session_history_entry_url_loading_from_ui_process.has_value() && *m_session_history_entry_url_loading_from_ui_process == url) {
+        m_session_history_entry_url_loading_from_ui_process.clear();
         abandon_pending_web_content_session_history_seed();
         m_current_web_content_session_history_matches_mirror = false;
         m_session_history.forget_web_content_state();
@@ -1561,7 +1577,7 @@ bool ViewImplementation::restore_pending_session_history_navigation(StringView r
             m_webdriver_pending_navigation_completes_with_session_history_update = true;
             load_current_session_history_entry_from_ui_process();
         } else {
-            m_loading_session_history_entry_from_ui_process = false;
+            m_session_history_entry_url_loading_from_ui_process.clear();
             abandon_pending_web_content_session_history_seed();
             m_current_web_content_session_history_matches_mirror = m_session_history.web_content_history_matches_mirror();
             m_webdriver_pending_navigation_url.clear();
@@ -1579,6 +1595,7 @@ bool ViewImplementation::restore_pending_session_history_navigation(StringView r
 
 void ViewImplementation::abandon_pending_web_content_session_history_seed()
 {
+    m_session_history_entry_url_loading_from_ui_process.clear();
     m_pending_web_content_session_history_seed.clear();
 }
 
@@ -1686,9 +1703,13 @@ void ViewImplementation::complete_webdriver_pending_navigation_if_url_matches(UR
     for (auto const& request : m_pending_webdriver_navigation_completion_requests)
         request_ids.unchecked_append(request.key);
 
+    auto view_id = m_view_id;
     for (auto request_id : request_ids) {
-        Core::EventLoop::current().deferred_invoke([this, request_id] {
-            complete_webdriver_navigation_completion(request_id, JsonValue {});
+        Core::EventLoop::current().deferred_invoke([view_id, request_id] {
+            auto view = ViewImplementation::find_view_by_id(view_id);
+            if (!view.has_value())
+                return;
+            view->complete_webdriver_navigation_completion(request_id, JsonValue {});
         });
     }
 }
@@ -1701,7 +1722,7 @@ JsonValue ViewImplementation::webdriver_session_history() const
     serialized.set("backButtonEnabled"sv, m_navigate_back_action->enabled());
     serialized.set("forwardButtonEnabled"sv, m_navigate_forward_action->enabled());
     serialized.set("webContentHistoryMatchesUI"sv, m_current_web_content_session_history_matches_mirror);
-    serialized.set("loadingSessionHistoryEntryFromUI"sv, m_loading_session_history_entry_from_ui_process);
+    serialized.set("loadingSessionHistoryEntryFromUI"sv, m_session_history_entry_url_loading_from_ui_process.has_value());
     serialized.set("waitingToSeedWebContent"sv, m_pending_web_content_session_history_seed.should_send_entries);
     serialized.set("waitingForWebContentSeedAck"sv, m_pending_web_content_session_history_seed.waiting_for_ack);
     serialized.set("ignoringWebContentUpdatesUntilSeed"sv, m_pending_web_content_session_history_seed.ignore_updates_until_seed);
@@ -1848,14 +1869,14 @@ void ViewImplementation::restore_current_session_history_entry_from_ui_process()
 
 void ViewImplementation::load_current_session_history_entry_from_ui_process()
 {
-    m_loading_session_history_entry_from_ui_process = true;
-
     auto const* current_entry = m_session_history.current_entry();
     if (!current_entry) {
+        m_session_history_entry_url_loading_from_ui_process = m_url;
         client().async_load_url(page_id(), m_url, Web::Bindings::NavigationHistoryBehavior::Auto);
         return;
     }
 
+    m_session_history_entry_url_loading_from_ui_process = current_entry->url;
     auto history_handling = m_pending_web_content_session_history_seed.waiting_for_ack || m_session_history.web_content_uses_ui_step_coordinates()
         ? Web::Bindings::NavigationHistoryBehavior::Replace
         : Web::Bindings::NavigationHistoryBehavior::Auto;
@@ -2156,7 +2177,7 @@ void ViewImplementation::did_reset_session_history_for_testing(Badge<WebContentC
     m_current_web_content_session_history_matches_mirror = false;
     m_pending_session_history_navigation.clear();
     m_pending_session_history_traversal.clear();
-    m_loading_session_history_entry_from_ui_process = false;
+    m_session_history_entry_url_loading_from_ui_process.clear();
     abandon_pending_web_content_session_history_seed();
     m_webdriver_pending_navigation_url.clear();
     m_webdriver_pending_navigation_completes_with_session_history_update = false;
@@ -2202,7 +2223,7 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
         m_url,
         m_current_web_content_session_history_matches_mirror,
         m_session_history.web_content_uses_ui_step_coordinates(),
-        m_loading_session_history_entry_from_ui_process,
+        m_session_history_entry_url_loading_from_ui_process.has_value(),
         m_pending_web_content_session_history_seed.should_send_entries,
         m_pending_web_content_session_history_seed.waiting_for_ack,
         m_pending_web_content_session_history_seed.ignore_updates_until_seed,
@@ -2254,7 +2275,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     m_backup_shared_image_buffer = nullptr;
 
     if (should_manage_session_history_in_ui_process()) {
-        m_loading_session_history_entry_from_ui_process = false;
+        m_session_history_entry_url_loading_from_ui_process.clear();
         prepare_to_seed_web_content_session_history_from_ui_process();
     }
 
