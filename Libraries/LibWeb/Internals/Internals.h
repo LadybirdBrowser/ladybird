@@ -74,6 +74,7 @@ public:
     WebIDL::ExceptionOr<bool> dispatch_user_activated_event(DOM::EventTarget&, DOM::Event& event);
 
     void spoof_current_url(String const& url);
+    void load_url(String const& url);
 
     GC::Ref<InternalAnimationTimeline> create_internal_animation_timeline();
 

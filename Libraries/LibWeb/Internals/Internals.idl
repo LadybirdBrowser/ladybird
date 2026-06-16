@@ -63,6 +63,10 @@ interface Internals {
     boolean dispatchUserActivatedEvent(EventTarget target, Event event);
     undefined spoofCurrentURL(USVString url);
 
+    // Loads a URL in the top-level traversable — deferred so it starts outside the calling task and can land between
+    // session-history traversal-queue steps, as can one requested by ConnectionFromClient::load_url in the UI process.
+    undefined loadURL(USVString url);
+
     InternalAnimationTimeline createInternalAnimationTimeline();
 
     undefined simulateDragStart(double x, double y, DOMString mimeType, DOMString contents);
