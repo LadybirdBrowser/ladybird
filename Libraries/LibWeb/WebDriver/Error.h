@@ -60,6 +60,10 @@ struct WEB_API Error {
 
     Error(unsigned http_status, String error, String message, Optional<JsonValue> data);
     Error(AK::Error const&);
+    Error(Error const&);
+    Error(Error&&) = default;
+    Error& operator=(Error const&);
+    Error& operator=(Error&&) = default;
 };
 
 }
