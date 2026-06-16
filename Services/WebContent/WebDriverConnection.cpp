@@ -22,6 +22,7 @@
 #else
 #    include <LibIPC/TransportBootstrapMach.h>
 #endif
+#include <LibGC/Root.h>
 #include <LibGC/Timer.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -59,6 +60,7 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/XMLSerializer.h>
+#include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
@@ -2037,34 +2039,44 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
         // 5. Verify that each file given by the user exists. If any do not, return error with error code invalid argument.
         // 6. Complete implementation specific steps equivalent to setting the selected files on the input element. If
         //    multiple is true files are be appended to element's selected files.
-        auto create_selected_file = [](auto const& path) -> ErrorOr<Web::HTML::SelectedFile> {
-            auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
-            auto contents = TRY(file->read_until_eof());
+        // NB: Each file is opened in the unsandboxed UI process, because the WebContent sandbox blocks this
+        //     process from opening arbitrary paths.
+        auto read_files_and_apply_selection = [connection = this, input_element = GC::make_root(input_element)](this auto const& self, Vector<String> paths, size_t index, Vector<Web::HTML::SelectedFile> selected_files) -> void {
+            if (index < paths.size()) {
+                auto path = paths[index].to_byte_string();
 
-            return Web::HTML::SelectedFile { LexicalPath::basename(path), move(contents) };
+                Web::FileRequest file_request(path, [connection, self, paths = move(paths), index, selected_files = move(selected_files), path](ErrorOr<i32> file_descriptor_or_error) mutable {
+                    auto contents_or_error = [&]() -> ErrorOr<ByteBuffer> {
+                        auto opened_file = TRY(Core::File::adopt_fd(TRY(file_descriptor_or_error), Core::File::OpenMode::Read));
+                        return opened_file->read_until_eof();
+                    }();
+
+                    if (contents_or_error.is_error()) {
+                        connection->async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("'{}' does not exist", path))));
+                        return;
+                    }
+
+                    selected_files.append(Web::HTML::SelectedFile { LexicalPath::basename(path), contents_or_error.release_value() });
+                    self(move(paths), index + 1, move(selected_files));
+                });
+
+                connection->current_browsing_context().page().client().request_file(move(file_request));
+                return;
+            }
+
+            input_element->did_select_files(selected_files, Web::HTML::HTMLInputElement::MultipleHandling::Append);
+
+            // 7. Fire these events in order on element:
+            //     1. input
+            //     2. change
+            // NOTE: These events are fired by `did_select_files` as an element task. So instead of firing them here, we
+            //       spin the event loop once before informing the client that the action is complete.
+            Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(connection->current_browsing_context().heap(), [connection]() {
+                connection->async_driver_execution_complete(JsonValue {});
+            }));
         };
 
-        Vector<Web::HTML::SelectedFile> selected_files;
-        selected_files.ensure_capacity(files.size());
-
-        for (auto const& path : files) {
-            auto selected_file = create_selected_file(path.bytes_as_string_view());
-            if (selected_file.is_error())
-                return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, MUST(String::formatted("'{}' does not exist", path)));
-
-            selected_files.unchecked_append(selected_file.release_value());
-        }
-
-        input_element.did_select_files(selected_files, Web::HTML::HTMLInputElement::MultipleHandling::Append);
-
-        // 7. Fire these events in order on element:
-        //     1. input
-        //     2. change
-        // NOTE: These events are fired by `did_select_files` as an element task. So instead of firing them here, we spin
-        //       the event loop once before informing the client that the action is complete.
-        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_browsing_context().heap(), [this]() {
-            async_driver_execution_complete(JsonValue {});
-        }));
+        read_files_and_apply_selection(move(files), 0, {});
 
         // 8. Return success with data null.
         return JsonValue {};
