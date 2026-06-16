@@ -100,6 +100,10 @@ interface Internals {
     DOMString dumpUIProcessSessionHistory();
     Promise<undefined> flushSessionHistoryTraversalQueue();
 
+    // Test-only: deterministically reproduce the navigation-vs-traversal race in Navigable::begin_navigation by
+    // re-stamping the next navigation's ongoing navigation with a traversal during its unload check.
+    undefined clobberNextNavigationWithATraversal();
+
     // Returns the shadow root of the element, if it has one, even if it's not normally accessible to JS.
     ShadowRoot? getShadowRoot(Element element);
 

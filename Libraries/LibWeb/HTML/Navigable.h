@@ -152,6 +152,10 @@ public:
     Variant<Empty, Traversal, String> ongoing_navigation() const { return m_ongoing_navigation; }
     void set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation, NavigationAPIAbortBehavior = NavigationAPIAbortBehavior::Abort);
 
+    // Test-only (Internals.clobberNextNavigationWithATraversal): make the next navigation's unload check be interrupted
+    // by a synthetic session-history traversal that re-stamps the ongoing navigation.
+    static void clobber_next_navigation_with_a_traversal_for_testing();
+
     void populate_session_history_entry_document(
         URL::URL url,
         Variant<Empty, String, POSTResource> document_resource,

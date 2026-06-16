@@ -113,6 +113,7 @@ public:
     String dump_session_history();
     String dump_ui_process_session_history();
     GC::Ref<WebIDL::Promise> flush_session_history_traversal_queue();
+    void clobber_next_navigation_with_a_traversal();
 
     GC::Ptr<DOM::ShadowRoot> get_shadow_root(GC::Ref<DOM::Element>);
 

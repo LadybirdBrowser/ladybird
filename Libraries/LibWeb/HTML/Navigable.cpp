@@ -1990,6 +1990,15 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 // and an optional boolean initialInsertion (default false):
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+
+// Test-only: armed via Internals.clobberNextNavigationWithATraversal(). Consumed by the next call to begin_navigation,
+// which simulates a concurrent session-history traversal interrupting the unload check.
+static bool s_clobber_next_navigation_with_a_traversal = false;
+void Navigable::clobber_next_navigation_with_a_traversal_for_testing()
+{
+    s_clobber_next_navigation_with_a_traversal = true;
+}
+
 void Navigable::begin_navigation(NavigateParams params)
 {
     // AD-HOC: Not in the spec but we should not navigate a navigable that has been destroyed.
@@ -2211,6 +2220,17 @@ void Navigable::begin_navigation(NavigateParams params)
                     // 2. Abort these steps.
                     set_delaying_load_events(false);
                     return;
+                }
+
+                // Test-only (Internals.clobberNextNavigationWithATraversal): re-stamp our ongoing navigation with a
+                // synthetic traversal now, and clear it on a later turn (which drains deferred navigations). This
+                // deterministically reproduces the race the guard below must survive.
+                if (s_clobber_next_navigation_with_a_traversal) {
+                    s_clobber_next_navigation_with_a_traversal = false;
+                    set_ongoing_navigation(Traversal::Tag, NavigationAPIAbortBehavior::Preserve);
+                    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
+                        set_ongoing_navigation(Empty {}, NavigationAPIAbortBehavior::Preserve);
+                    }));
                 }
 
                 if (ongoing_navigation() != navigation_id) {
