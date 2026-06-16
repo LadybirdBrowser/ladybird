@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
@@ -20,7 +21,9 @@ class CanvasCommandPlayer {
     AK_MAKE_NONMOVABLE(CanvasCommandPlayer);
 
 public:
-    CanvasCommandPlayer(RefPtr<SkiaBackendContext>, IntSize, BitmapFormat, AlphaType);
+    using CanvasSurfaceResolver = Function<PaintingSurface const*(u64)>;
+
+    CanvasCommandPlayer(RefPtr<SkiaBackendContext>, IntSize, BitmapFormat, AlphaType, CanvasSurfaceResolver = {});
     ~CanvasCommandPlayer();
 
     NonnullRefPtr<PaintingSurface> surface() const;
@@ -33,6 +36,7 @@ private:
     void play_command(CanvasCommands::ClearRect const&);
     void play_command(CanvasCommands::FillRect const&);
     void play_command(CanvasCommands::DrawBitmap const&);
+    void play_command(CanvasCommands::DrawCanvas const&);
     void play_command(CanvasCommands::FillPath const&);
     void play_command(CanvasCommands::StrokePath const&);
     void play_command(CanvasCommands::SetTransform const&);
@@ -45,6 +49,7 @@ private:
 
     NonnullRefPtr<PaintingSurface> m_surface;
     NonnullOwnPtr<PainterSkia> m_painter;
+    CanvasSurfaceResolver m_canvas_surface_resolver;
 };
 
 }

@@ -208,6 +208,33 @@ ErrorOr<Gfx::CanvasCommands::DrawBitmap> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::CanvasCommands::DrawCanvas const& command)
+{
+    TRY(encoder.encode(command.source_canvas_id));
+    TRY(encoder.encode(command.dst_rect));
+    TRY(encoder.encode(command.src_rect));
+    TRY(encoder.encode(command.scaling_mode));
+    TRY(encoder.encode(command.filter));
+    TRY(encoder.encode(command.global_alpha));
+    TRY(encoder.encode(command.compositing_and_blending_operator));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::CanvasCommands::DrawCanvas> decode(Decoder& decoder)
+{
+    return Gfx::CanvasCommands::DrawCanvas {
+        .source_canvas_id = TRY(decoder.decode<u64>()),
+        .dst_rect = TRY(decoder.decode<Gfx::FloatRect>()),
+        .src_rect = TRY(decoder.decode<Gfx::IntRect>()),
+        .scaling_mode = TRY(decoder.decode<Gfx::ScalingMode>()),
+        .filter = TRY(decoder.decode<Optional<Gfx::Filter>>()),
+        .global_alpha = TRY(decoder.decode<float>()),
+        .compositing_and_blending_operator = TRY(decoder.decode<Gfx::CompositingAndBlendingOperator>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::CanvasCommands::FillPath const& command)
 {
     TRY(encoder.encode(command.path));

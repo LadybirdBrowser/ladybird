@@ -82,6 +82,16 @@ struct DrawBitmap {
     CompositingAndBlendingOperator compositing_and_blending_operator { CompositingAndBlendingOperator::SourceOver };
 };
 
+struct DrawCanvas {
+    u64 source_canvas_id { 0 };
+    FloatRect dst_rect;
+    IntRect src_rect;
+    ScalingMode scaling_mode { ScalingMode::NearestNeighbor };
+    Optional<Filter> filter;
+    float global_alpha { 1 };
+    CompositingAndBlendingOperator compositing_and_blending_operator { CompositingAndBlendingOperator::SourceOver };
+};
+
 struct FillPath {
     Path path;
     CanvasPaintStyle style;
@@ -128,6 +138,7 @@ using CanvasCommand = Variant<
     CanvasCommands::ClearRect,
     CanvasCommands::FillRect,
     CanvasCommands::DrawBitmap,
+    CanvasCommands::DrawCanvas,
     CanvasCommands::FillPath,
     CanvasCommands::StrokePath,
     CanvasCommands::SetTransform,
@@ -195,6 +206,11 @@ template<>
 ErrorOr<void> encode(Encoder&, Gfx::CanvasCommands::DrawBitmap const&);
 template<>
 ErrorOr<Gfx::CanvasCommands::DrawBitmap> decode(Decoder&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::CanvasCommands::DrawCanvas const&);
+template<>
+ErrorOr<Gfx::CanvasCommands::DrawCanvas> decode(Decoder&);
 
 template<>
 ErrorOr<void> encode(Encoder&, Gfx::CanvasCommands::FillPath const&);
