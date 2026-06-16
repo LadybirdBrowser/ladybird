@@ -117,6 +117,8 @@ void set_the_selections_value(DOM::Document&, FlyString const&, Optional<Utf16St
 GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element>, FlyString const&);
 Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element>, FlyString const& command);
 void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const&);
+bool standard_inline_indeterminate(DOM::Document const&, FlyString const& command);
+Utf16String standard_inline_value(DOM::Document const&, FlyString const& command);
 void toggle_lists(DOM::Document&, FlyString const&);
 bool values_are_equivalent(FlyString const&, Optional<Utf16String const&>, Optional<Utf16String const&>);
 bool values_are_loosely_equivalent(FlyString const&, Optional<Utf16String const&>, Optional<Utf16String const&>);

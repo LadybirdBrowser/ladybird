@@ -53,6 +53,18 @@ bool command_back_color_action(DOM::Document& document, Utf16String const& value
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-backcolor-command
+static bool command_back_color_indeterminate(DOM::Document const& document)
+{
+    return standard_inline_indeterminate(document, CommandNames::backColor);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-backcolor-command
+static Utf16String command_back_color_value(DOM::Document const& document)
+{
+    return standard_inline_value(document, CommandNames::backColor);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-bold-command
 bool command_bold_action(DOM::Document& document, Utf16String const&)
 {
@@ -511,6 +523,18 @@ bool command_font_name_action(DOM::Document& document, Utf16String const& value)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-fontname-command
+static bool command_font_name_indeterminate(DOM::Document const& document)
+{
+    return standard_inline_indeterminate(document, CommandNames::fontName);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-fontname-command
+static Utf16String command_font_name_value(DOM::Document const& document)
+{
+    return standard_inline_value(document, CommandNames::fontName);
+}
+
 enum class FontSizeMode : u8 {
     Absolute,
     RelativePlus,
@@ -624,6 +648,18 @@ bool command_fore_color_action(DOM::Document& document, Utf16String const& value
 
     // 4. Return true.
     return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-forecolor-command
+static bool command_fore_color_indeterminate(DOM::Document const& document)
+{
+    return standard_inline_indeterminate(document, CommandNames::foreColor);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-forecolor-command
+static Utf16String command_fore_color_value(DOM::Document const& document)
+{
+    return standard_inline_value(document, CommandNames::foreColor);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#the-formatblock-command
@@ -2515,6 +2551,8 @@ static auto const& command_definitions()
         CommandDefinition {
             .command = CommandNames::backColor,
             .action = command_back_color_action,
+            .indeterminate = command_back_color_indeterminate,
+            .value = command_back_color_value,
             .relevant_css_property = CSS::PropertyID::BackgroundColor,
             .mapped_value = "formatBackColor"_fly_string,
         },
@@ -2549,6 +2587,8 @@ static auto const& command_definitions()
         CommandDefinition {
             .command = CommandNames::fontName,
             .action = command_font_name_action,
+            .indeterminate = command_font_name_indeterminate,
+            .value = command_font_name_value,
             .relevant_css_property = CSS::PropertyID::FontFamily,
             .mapped_value = "formatFontName"_fly_string,
         },
@@ -2563,6 +2603,8 @@ static auto const& command_definitions()
         CommandDefinition {
             .command = CommandNames::foreColor,
             .action = command_fore_color_action,
+            .indeterminate = command_fore_color_indeterminate,
+            .value = command_fore_color_value,
             .relevant_css_property = CSS::PropertyID::Color,
             .mapped_value = "formatFontColor"_fly_string,
         },
@@ -2585,6 +2627,8 @@ static auto const& command_definitions()
         CommandDefinition {
             .command = CommandNames::hiliteColor,
             .action = command_back_color_action, // For historical reasons, backColor and hiliteColor behave identically.
+            .indeterminate = command_back_color_indeterminate,
+            .value = command_back_color_value,
             .relevant_css_property = CSS::PropertyID::BackgroundColor,
         },
         // https://w3c.github.io/editing/docs/execCommand/#the-indent-command
