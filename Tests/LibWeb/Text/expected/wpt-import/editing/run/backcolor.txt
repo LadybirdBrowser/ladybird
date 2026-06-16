@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 1026 tests
 
-1025 Pass
-1 Fail
+1026 Pass
 Pass	[["backcolor","#00FFFF"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["backcolor","#00FFFF"]] "foo[]bar" checks for modifications to non-editable content
 Pass	[["backcolor","#00FFFF"]] "foo[]bar" compare innerHTML
@@ -914,7 +913,7 @@ Pass	[["backcolor","#00FFFF"]] "foo[<span style=background-color:tan>bar</span>]
 Pass	[["backcolor","#00FFFF"]] "foo[<span style=background-color:tan>bar</span>]baz" queryCommandValue("backcolor") after
 Pass	[["backcolor","#00FFFF"]] "foo<span style=background-color:tan>[bar]</span>baz": execCommand("backcolor", false, "#00FFFF") return value
 Pass	[["backcolor","#00FFFF"]] "foo<span style=background-color:tan>[bar]</span>baz" checks for modifications to non-editable content
-Fail	[["backcolor","#00FFFF"]] "foo<span style=background-color:tan>[bar]</span>baz" compare innerHTML
+Pass	[["backcolor","#00FFFF"]] "foo<span style=background-color:tan>[bar]</span>baz" compare innerHTML
 Pass	[["backcolor","#00FFFF"]] "foo<span style=background-color:tan>[bar]</span>baz" queryCommandIndeterm("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "foo<span style=background-color:tan>[bar]</span>baz" queryCommandState("backcolor") before
 Pass	[["backcolor","#00FFFF"]] "foo<span style=background-color:tan>[bar]</span>baz" queryCommandValue("backcolor") before

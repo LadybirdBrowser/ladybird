@@ -4679,8 +4679,13 @@ void for_each_node_effectively_contained_in_range(GC::Ptr<DOM::Range> range, Fun
         return;
 
     // A node can still be "effectively contained" in range even if it's not actually contained within the range; so we
-    // need to do an inclusive subtree traversal since the common ancestor could be matched as well.
-    range->common_ancestor_container()->for_each_in_inclusive_subtree([&](GC::Ref<DOM::Node> descendant) {
+    // need to traverse the highest effectively contained ancestor of the common ancestor container.
+    // See: https://w3c.github.io/editing/docs/execCommand/#effectively-contained
+    GC::Ref<DOM::Node> traversal_root = range->common_ancestor_container();
+    while (traversal_root->parent() && is_effectively_contained_in_range(*traversal_root->parent(), *range))
+        traversal_root = *traversal_root->parent();
+
+    traversal_root->for_each_in_inclusive_subtree([&](GC::Ref<DOM::Node> descendant) {
         if (!is_effectively_contained_in_range(descendant, *range)) {
             // NOTE: We cannot skip children here since if a descendant is not effectively contained within a range, its
             //       children might still be.
