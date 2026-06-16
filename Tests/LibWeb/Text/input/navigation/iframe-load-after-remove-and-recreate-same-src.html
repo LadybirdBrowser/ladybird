@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function loadFrame(src)
+    {
+        return new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            document.body.append(iframe);
+            iframe.onload = () => resolve(iframe);
+            iframe.src = src;
+        });
+    }
+
+    asyncTest(async done => {
+        const src = "about:blank";
+
+        const first = await loadFrame(src);
+        println("first load");
+        first.contentWindow.location.hash = "child";
+        await internals.flushSessionHistoryTraversalQueue();
+        first.remove();
+        await internals.flushSessionHistoryTraversalQueue();
+
+        const second = await loadFrame(src);
+        println("second load");
+        second.remove();
+
+        done();
+    });
+</script>

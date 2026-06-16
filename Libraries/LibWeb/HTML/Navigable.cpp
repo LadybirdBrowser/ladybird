@@ -40,6 +40,7 @@
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
@@ -283,6 +284,49 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>>* get_session_history_entries_i
     return nullptr;
 }
 
+Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
+    Navigable& parent_navigable, Navigable& child_navigable, SessionHistoryEntry& history_entry)
+{
+    VERIFY(child_navigable.parent() == &parent_navigable);
+
+    auto parent_doc_state = parent_navigable.active_session_history_entry()->document_state();
+    auto& parent_navigable_entries = parent_navigable.get_session_history_entries();
+    auto target_step_entry_iterator = parent_navigable_entries.find_if([parent_doc_state](auto& entry) {
+        return entry->document_state() == parent_doc_state;
+    });
+    if (target_step_entry_iterator == parent_navigable_entries.end())
+        return nullptr;
+
+    history_entry.set_step((*target_step_entry_iterator)->step());
+
+    DocumentState::NestedHistory nested_history {
+        .id = child_navigable.id(),
+        .entries { history_entry },
+    };
+    parent_doc_state->nested_histories().append(move(nested_history));
+    return &parent_doc_state->nested_histories().last().entries;
+}
+
+static Vector<NonnullRefPtr<SessionHistoryEntry>>*
+recreate_missing_nested_history_for_live_child_navigable(TraversableNavigable& traversable, Navigable& navigable)
+{
+    VERIFY(&navigable != &traversable);
+
+    auto parent = navigable.parent();
+    if (!parent)
+        return nullptr;
+
+    auto container = navigable.container();
+    if (!container || container->content_navigable() != &navigable)
+        return nullptr;
+
+    auto history_entry = navigable.active_session_history_entry();
+    if (!history_entry)
+        return nullptr;
+
+    return append_nested_history_for_child_navigable(*parent, navigable, *history_entry);
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#child-navigable
 Vector<GC::Root<Navigable>> Navigable::child_navigables() const
 {
@@ -480,11 +524,9 @@ void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-target-history-entry
-RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_step) const
+static RefPtr<SessionHistoryEntry> get_the_target_history_entry_from_entries(
+    Vector<NonnullRefPtr<SessionHistoryEntry>> const& entries, int target_step)
 {
-    // 1. Let entries be the result of getting session history entries for navigable.
-    auto& entries = get_session_history_entries();
-
     // 2. Return the item in entries that has the greatest step less than or equal to step.
     RefPtr<SessionHistoryEntry> result = nullptr;
     for (auto& entry : entries) {
@@ -499,6 +541,32 @@ RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_s
     }
 
     return result;
+}
+
+RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_step) const
+{
+    // 1. Let entries be the result of getting session history entries for navigable.
+    auto& entries = get_session_history_entries();
+
+    return get_the_target_history_entry_from_entries(entries, target_step);
+}
+
+RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry_if_present(int target_step) const
+{
+    auto traversable = traversable_navigable();
+    Vector<NonnullRefPtr<SessionHistoryEntry>>* entries = nullptr;
+    if (this == traversable.ptr())
+        entries = &traversable->session_history_entries();
+    else
+        entries = get_session_history_entries_if_present(*traversable, *this);
+
+    // AD-HOC: The spec asserts that a nested history list is found. During queued navigable creation/destruction
+    //         bookkeeping, engines can still observe a child navigable after its iframe has been removed from the
+    //         parent's nested histories. In that case, the detached child has no observable session history effect.
+    if (!entries)
+        return nullptr;
+
+    return get_the_target_history_entry_from_entries(*entries, target_step);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
@@ -737,13 +805,10 @@ void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing
     }
 
     // AD-HOC: If we just finished a traversal and there are navigations that were deferred because the traversal was
-    //         ongoing, process them now.
-    if (was_traversal && !ongoing_navigation.has<Traversal>()) {
-        while (!m_pending_navigations.is_empty()) {
-            auto navigation_params = m_pending_navigations.take_first();
-            begin_navigation(navigation_params);
-        }
-    }
+    //         ongoing, process them now. A freshly-created child navigable can also have pending navigations while
+    //         its initial session history entry is being installed, so only drain once both gates are open.
+    if (was_traversal && !ongoing_navigation.has<Traversal>() && m_has_session_history_entry_and_ready_for_navigation)
+        process_pending_navigations();
 }
 
 void Navigable::queue_pending_navigation(NavigateParams params, PendingNavigationBehavior behavior)
@@ -751,6 +816,14 @@ void Navigable::queue_pending_navigation(NavigateParams params, PendingNavigatio
     if (behavior == PendingNavigationBehavior::Replace)
         m_pending_navigations.clear();
     m_pending_navigations.append(move(params));
+}
+
+void Navigable::process_pending_navigations()
+{
+    while (!m_pending_navigations.is_empty()) {
+        auto navigation_params = m_pending_navigations.take_first();
+        begin_navigation(navigation_params);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
@@ -2923,14 +2996,18 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     } else {
         target_entries_pointer = get_session_history_entries_if_present(*traversable, navigable);
         // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-        // AD-HOC: The spec asserts that a nested history list is found. A queued child-frame commit can run
-        //         after the iframe has been removed, when there is no remaining list to update. Chromium,
-        //         WebKit, and Gecko bind child-frame commits to the live frame, so a removed frame's late
-        //         commit has no observable session history effect.
+        // AD-HOC: The spec asserts that targetEntries is not null. A queued child-frame commit can run after the
+        //         iframe was removed and its nested history list was pruned from the parent document state. Chromium,
+        //         WebKit, and Gecko bind child-frame commits to the live frame, so detached frames have no observable
+        //         session history effect. Conversely, if this is still the container's live content navigable,
+        //         preserve the requested navigation by recreating the missing nested history.
         if (!target_entries_pointer) {
-            navigable->clear_navigation_load_event_guard();
-            on_complete->function()(HistoryStepResult::Applied);
-            return;
+            target_entries_pointer = recreate_missing_nested_history_for_live_child_navigable(*traversable, *navigable);
+            if (!target_entries_pointer) {
+                navigable->clear_navigation_load_event_guard();
+                on_complete->function()(HistoryStepResult::Applied);
+                return;
+            }
         }
     }
     auto& target_entries = *target_entries_pointer;
@@ -3683,10 +3760,7 @@ void Navigable::stop_loading()
 void Navigable::set_has_session_history_entry_and_ready_for_navigation()
 {
     m_has_session_history_entry_and_ready_for_navigation = true;
-    while (!m_pending_navigations.is_empty()) {
-        auto navigation_params = m_pending_navigations.take_first();
-        begin_navigation(navigation_params);
-    }
+    process_pending_navigations();
 }
 
 Painting::CompositorSurfaceId Navigable::compositor_surface_id() const

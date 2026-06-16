@@ -601,7 +601,7 @@ Vector<GC::Root<Navigable>> TraversableNavigable::get_all_navigables_whose_curre
         auto navigable = navigables_to_check.take_first();
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
-        auto target_entry = navigable->get_the_target_history_entry(target_step);
+        auto target_entry = navigable->get_the_target_history_entry_if_present(target_step);
         if (!target_entry)
             continue;
 
@@ -641,7 +641,7 @@ Vector<GC::Root<Navigable>> TraversableNavigable::get_all_navigables_that_only_n
         auto navigable = navigables_to_check.take_first();
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
-        auto target_entry = navigable->get_the_target_history_entry(target_step);
+        auto target_entry = navigable->get_the_target_history_entry_if_present(target_step);
         if (!target_entry)
             continue;
 
@@ -680,7 +680,7 @@ Vector<GC::Root<Navigable>> TraversableNavigable::get_all_navigables_that_might_
         auto navigable = navigables_to_check.take_first();
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
-        auto target_entry = navigable->get_the_target_history_entry(target_step);
+        auto target_entry = navigable->get_the_target_history_entry_if_present(target_step);
         if (!target_entry)
             continue;
 
@@ -980,7 +980,7 @@ void ApplyHistoryStepState::start()
             continue;
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
-        auto target_entry = navigable->get_the_target_history_entry(m_target_step);
+        auto target_entry = navigable->get_the_target_history_entry_if_present(m_target_step);
         if (!target_entry)
             continue;
 
