@@ -654,15 +654,48 @@ TraversableSessionHistory::UpdateResult TraversableSessionHistory::update_from_w
         });
     }
 
+    // AD-HOC: The URL-keyed anchor searches are the common case. But find_merge_anchor compares every local entry
+    //         against every incoming entry — and each URL comparison serializes both URLs. A burst of same-document
+    //         navigations (such as a pushState flood) can push the top-level entry count into the hundreds while this
+    //         runs once per history update — so, a quadratic scan with per-comparison serialization becomes a
+    //         UI-process bottleneck. Index the incoming entries by serialized URL once — keyed the same way URL
+    //         equality compares (full serialization, fragment included) — so each URL-keyed search is linear.
     if (!merge_anchor.has_value()) {
-        merge_anchor = find_merge_anchor([](Entry const& local_entry, Entry const& incoming_entry) {
-            return local_entry.url == incoming_entry.url && entries_have_matching_nonzero_document_state_id(local_entry, incoming_entry);
+        HashMap<String, Vector<size_t>> incoming_indices_by_url;
+        for (size_t incoming_index = *incoming_current_top_level_entry_index + 1; incoming_index > 0; --incoming_index) {
+            auto candidate_incoming_index = incoming_index - 1;
+            incoming_indices_by_url.ensure(entries[candidate_incoming_index].url.serialize()).append(candidate_incoming_index);
+        }
+
+        // The incoming index lists are built highest-first. So, this reproduces find_merge_anchor's choice among the
+        // local/incoming entry pairs whose URLs are equal and who satisfy the predicate: The highest local entry — and
+        // for it, the highest matching incoming entry.
+        auto find_url_merge_anchor = [&](auto predicate) -> Optional<SessionHistoryMergeAnchor> {
+            for (size_t local_index = *local_current_top_level_entry_index + 1; local_index > 0; --local_index) {
+                auto candidate_local_index = local_index - 1;
+                auto incoming_candidates = incoming_indices_by_url.find(m_entries[candidate_local_index].url.serialize());
+                if (incoming_candidates == incoming_indices_by_url.end())
+                    continue;
+                for (auto candidate_incoming_index : incoming_candidates->value) {
+                    if (!predicate(m_entries[candidate_local_index], entries[candidate_incoming_index]))
+                        continue;
+                    return SessionHistoryMergeAnchor {
+                        .local_index = candidate_local_index,
+                        .incoming_index = candidate_incoming_index,
+                    };
+                }
+            }
+            return {};
+        };
+
+        merge_anchor = find_url_merge_anchor([](Entry const& local_entry, Entry const& incoming_entry) {
+            return entries_have_matching_nonzero_document_state_id(local_entry, incoming_entry);
         });
-    }
-    if (!merge_anchor.has_value()) {
-        merge_anchor = find_merge_anchor([](Entry const& local_entry, Entry const& incoming_entry) {
-            return local_entry.url == incoming_entry.url;
-        });
+        if (!merge_anchor.has_value()) {
+            merge_anchor = find_url_merge_anchor([](Entry const&, Entry const&) {
+                return true;
+            });
+        }
     }
 
     if (!merge_anchor.has_value())
