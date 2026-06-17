@@ -31,6 +31,16 @@ protected:
     SVGTextContentElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+
+private:
+    virtual bool is_svg_text_content_element() const final { return true; }
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGTextContentElement>() const { return is_svg_text_content_element(); }
 
 }
