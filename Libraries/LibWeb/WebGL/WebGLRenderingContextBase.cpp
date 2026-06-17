@@ -11,7 +11,6 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
-#include <Compositor/OpenGLContext.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -37,6 +36,7 @@ extern "C" {
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tcSrgb.h>
 #include <LibWeb/WebGL/Extensions/WebGLDebugRendererInfo.h>
 #include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
+#include <LibWeb/WebGL/TextureUpload.h>
 #include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>

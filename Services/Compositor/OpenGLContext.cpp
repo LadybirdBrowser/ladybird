@@ -35,57 +35,9 @@ extern "C" {
 #    define ENABLE_WEBGL 1
 #endif
 
-namespace Web::WebGL {
+namespace Compositor {
 
-Optional<Gfx::ExportFormat> texture_export_format(GLenum format, GLenum type)
-{
-    switch (format) {
-    case GL_RGB:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return Gfx::ExportFormat::RGB888;
-        case GL_UNSIGNED_SHORT_5_6_5:
-            return Gfx::ExportFormat::RGB565;
-        default:
-            break;
-        }
-        break;
-    case GL_RGBA:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return Gfx::ExportFormat::RGBA8888;
-        case GL_UNSIGNED_SHORT_4_4_4_4:
-            // FIXME: This is not exactly the same as RGBA.
-            return Gfx::ExportFormat::RGBA4444;
-        case GL_UNSIGNED_SHORT_5_5_5_1:
-            return Gfx::ExportFormat::RGBA5551;
-        default:
-            break;
-        }
-        break;
-    case GL_ALPHA:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return Gfx::ExportFormat::Alpha8;
-        default:
-            break;
-        }
-        break;
-    case GL_LUMINANCE:
-        switch (type) {
-        case GL_UNSIGNED_BYTE:
-            return Gfx::ExportFormat::Gray8;
-        default:
-            break;
-        }
-        break;
-    default:
-        break;
-    }
-
-    dbgln("WebGL: Unsupported format and type combination. format: 0x{:04x}, type: 0x{:04x}", format, type);
-    return {};
-}
+using namespace Web::WebGL;
 
 struct OpenGLContext::Impl {
     EGLDisplay display { EGL_NO_DISPLAY };

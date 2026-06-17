@@ -6,6 +6,7 @@ set(SOURCES
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp
     HostWebGLContext.cpp
+    OpenGLContext.cpp
     VSyncScheduler.cpp
     ViewportScrollbarController.cpp
     WebGLObjectMap.cpp
@@ -26,11 +27,9 @@ set(GENERATED_SOURCES
     CompositorControlServerEndpoint.h
     CompositorWebContentClientEndpoint.h
     CompositorWebContentServerEndpoint.h
+    ${CMAKE_BINARY_DIR}/Libraries/LibWeb/WebGL/GLFunctions.cpp
     WebGLCommandReplayer.cpp
 )
-
-target_sources(LibWeb PRIVATE OpenGLContext.cpp)
-target_include_directories(LibWeb PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 add_library(compositorservice STATIC ${SOURCES} ${GENERATED_SOURCES})
 ladybird_generated_sources(compositorservice)

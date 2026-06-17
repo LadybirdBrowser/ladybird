@@ -1149,6 +1149,7 @@ set(SOURCES
     WebGL/Extensions/WebGLDebugRendererInfo.cpp
     WebGL/Extensions/WebGLDrawBuffers.cpp
     WebGL/Extensions/WebGLVertexArrayObjectOES.cpp
+    WebGL/TextureUpload.cpp
     WebGL/WebGL2RenderingContext.cpp
     WebGL/WebGL2RenderingContextImpl.cpp
     WebGL/WebGL2RenderingContextOverloads.cpp
@@ -1256,12 +1257,12 @@ set(GENERATED_SOURCES
     Worker/WebWorkerServerEndpoint.h
     HTML/MediaControlsDOM.cpp
     HTML/Parser/NamedCharacterReferences.cpp
-    WebGL/GLFunctions.cpp
     WebGL/WebGLCommands.cpp
     WebGL/WebGLContextProxy.cpp
 )
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
+add_dependencies(LibWeb generate_GLFunctions.cpp)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibURL LibTLS LibRequests LibGC LibSync LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 
