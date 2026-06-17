@@ -2873,11 +2873,14 @@ i64 asm_try_put_by_value_typed_array(VM* vm, u32, Op::PutByValue const* instruct
     if (array_length.is_auto()) [[unlikely]]
         return 1;
 
+    // NB: An out-of-bounds write is not simply a no-op: TypedArraySetElement still
+    //     evaluates ToNumber(value) for its side effects before discarding the store.
+    //     Fall back to the slow path so those side effects happen.
     if (index >= array_length.length()) [[unlikely]]
-        return 0;
+        return 1;
 
     if (!is_valid_integer_index(typed_array, CanonicalIndex { CanonicalIndex::Type::Index, index })) [[unlikely]]
-        return 0;
+        return 1;
 
     auto* buffer = typed_array.viewed_array_buffer();
     auto* data = buffer->data() + typed_array.byte_offset();
