@@ -911,6 +911,7 @@ class IDBRequest;
 class IDBTransaction;
 class IDBVersionChangeEvent;
 class Index;
+class Key;
 class ObjectStore;
 class RequestList;
 
