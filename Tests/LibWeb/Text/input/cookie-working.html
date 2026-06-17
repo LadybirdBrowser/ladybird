@@ -64,11 +64,13 @@
     const defaultPathTest = () => {
         document.cookie = "cookie1=value; path=";
         document.cookie = "cookie2=value; path=f";
+        document.cookie = `cookie3=value; path=/${"x".repeat(1024)}`;
 
         printCookies("Default path");
 
         deleteCookie("cookie1");
         deleteCookie("cookie2");
+        deleteCookie("cookie3");
     };
 
     const secureCookiePrefixTest = () => {
