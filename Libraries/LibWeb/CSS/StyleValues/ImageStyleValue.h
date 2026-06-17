@@ -37,7 +37,6 @@ public:
     bool can_be_removed() const { return m_image_style_values.is_empty(); }
 
     [[nodiscard]] virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
-    [[nodiscard]] Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const;
     [[nodiscard]] size_t current_frame_index() const { return m_current_frame_index; }
     [[nodiscard]] bool has_active_animation_timer() const;
 
@@ -106,7 +105,7 @@ public:
     void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const override;
-    Optional<Gfx::DecodedImageFrame> current_frame(DOM::Document const&, DevicePixelRect const& dest_rect) const;
+    Optional<Gfx::DecodedImageFrame> current_frame(DOM::Document const&, DevicePixelRect const& dest_rect = {}) const;
     size_t current_frame_index(DOM::Document const&) const;
 
     GC::Ptr<HTML::DecodedImageData> image_data(DOM::Document const&) const;
@@ -128,7 +127,6 @@ private:
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
-    Optional<Gfx::DecodedImageFrame> frame(DOM::Document const&, size_t frame_index, Gfx::IntSize = {}) const;
 
     URL m_url;
     Optional<::URL::URL> m_style_resource_base_url;

@@ -74,13 +74,6 @@ GC::Ptr<HTML::DecodedImageData> ImageStyleValueResource::decoded_image_data() co
     return m_resource_request->image_data();
 }
 
-Optional<Gfx::DecodedImageFrame> ImageStyleValueResource::frame(size_t frame_index, Gfx::IntSize size) const
-{
-    if (auto image_data = this->decoded_image_data())
-        return image_data->frame(frame_index, size);
-    return {};
-}
-
 bool ImageStyleValueResource::has_active_animation_timer() const
 {
     return m_timer && m_timer->is_active();
@@ -270,7 +263,10 @@ void ImageStyleValue::paint(DisplayListRecordingContext& context, DOM::Document 
 
 Optional<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DOM::Document const& document, DevicePixelRect const& dest_rect) const
 {
-    return frame(document, current_frame_index(document), dest_rect.size().to_type<int>());
+    if (auto image_data = this->image_data(document))
+        return image_data->frame(current_frame_index(document), dest_rect.size().to_type<int>());
+
+    return {};
 }
 
 size_t ImageStyleValue::current_frame_index(DOM::Document const& document) const
@@ -301,7 +297,7 @@ GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data(DOM::Document const&
 
 Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap(DOM::Document const& document) const
 {
-    if (auto decoded_frame = frame(document, current_frame_index(document)); decoded_frame.has_value()) {
+    if (auto decoded_frame = current_frame(document); decoded_frame.has_value()) {
         auto const& bitmap = decoded_frame->bitmap();
         if (bitmap.width() == 1 && bitmap.height() == 1)
             return bitmap.get_pixel(0, 0);
@@ -447,19 +443,6 @@ Optional<::URL::URL> ImageStyleValue::resolved_url(DOM::Document const& document
     return m_style_resource_base_url.value_or_lazy_evaluated([&] {
         return document.relevant_settings_object().api_base_url();
     });
-}
-
-Optional<Gfx::DecodedImageFrame> ImageStyleValue::frame(DOM::Document const& document, size_t frame_index, Gfx::IntSize size) const
-{
-    auto resolved_url = this->resolved_url(document);
-    if (resolved_url.has_value()) {
-        if (auto const* resource = document.css_image_resource(*resolved_url))
-            return resource->frame(frame_index, size);
-    }
-
-    if (auto image_data = this->image_data(document))
-        return image_data->frame(frame_index, size);
-    return {};
 }
 
 ImageStyleValue::Client::Client(DOM::Document& document, ImageStyleValue const& image_style_value)
