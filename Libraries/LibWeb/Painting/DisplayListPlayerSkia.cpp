@@ -50,7 +50,6 @@ DisplayListPlayerSkia::DisplayListPlayerSkia()
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
     : m_skia_backend_context(move(skia_backend_context))
-    , m_image_cache(m_skia_backend_context)
 {
 }
 
@@ -107,7 +106,6 @@ static SkM44 to_skia_matrix4x4(Gfx::FloatMatrix4x4 const& matrix)
 
 void DisplayListPlayerSkia::flush(Gfx::PaintingSurface& surface)
 {
-    m_image_cache.prune();
     if (auto context = surface.skia_backend_context())
         context->flush_and_submit(&surface.sk_surface());
     surface.flush();
@@ -115,7 +113,6 @@ void DisplayListPlayerSkia::flush(Gfx::PaintingSurface& surface)
 
 void DisplayListPlayerSkia::flush_async(Gfx::PaintingSurface& surface, Function<void()>&& callback)
 {
-    m_image_cache.prune();
     if (auto context = surface.skia_backend_context())
         context->flush_and_submit_async(&surface.sk_surface(), move(callback));
     else
@@ -210,11 +207,7 @@ void DisplayListPlayerSkia::play_command(FillRect const& command)
 
 void DisplayListPlayerSkia::play_command(DrawCompositorSurface const& command)
 {
-    auto frame = resource_storage().compositor_surface(command.surface_id);
-    if (!frame.has_value())
-        return;
-
-    auto image = m_image_cache.image_for_frame(frame.value());
+    auto image = resource_storage().skia_image_for_compositor_surface(command.surface_id, m_skia_backend_context);
     if (!image)
         return;
 
@@ -293,8 +286,7 @@ void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
 
 void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& command)
 {
-    auto const& frame = resource_storage().image_frame(command.frame_id);
-    auto image = m_image_cache.image_for_frame(frame);
+    auto image = resource_storage().skia_image_for_image_frame(command.frame_id, m_skia_backend_context);
     if (!image)
         return;
 
@@ -311,7 +303,7 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
 void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& command)
 {
     auto const& frame = resource_storage().image_frame(command.frame_id);
-    auto image = m_image_cache.image_for_frame(frame);
+    auto image = resource_storage().skia_image_for_image_frame(command.frame_id, m_skia_backend_context);
     if (!image)
         return;
 
