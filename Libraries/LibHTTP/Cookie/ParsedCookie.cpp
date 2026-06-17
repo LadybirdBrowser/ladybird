@@ -101,6 +101,29 @@ Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_strin
     return parsed_cookie;
 }
 
+ErrorOr<ParsedCookie> parse_cookie(Cookie const& cookie)
+{
+    ParsedCookie parsed_cookie;
+    parsed_cookie.name = cookie.name;
+    parsed_cookie.value = cookie.value;
+    parsed_cookie.same_site_attribute = cookie.same_site;
+    parsed_cookie.path = cookie.path;
+    parsed_cookie.secure_attribute_present = cookie.secure;
+    parsed_cookie.http_only_attribute_present = cookie.http_only;
+
+    if (!cookie.host_only) {
+        auto domain = cookie.domain.bytes_as_string_view();
+        if (domain.starts_with('.'))
+            domain = domain.substring_view(1);
+        parsed_cookie.domain = domain.to_ascii_lowercase_string();
+    }
+
+    if (cookie.persistent)
+        parsed_cookie.expiry_time_from_expires_attribute = cookie.expiry_time;
+
+    return parsed_cookie;
+}
+
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6-8
 ErrorOr<void> parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie, StringView unparsed_attributes)
 {
