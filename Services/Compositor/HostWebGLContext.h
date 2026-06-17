@@ -11,12 +11,12 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
+#include <Compositor/OpenGLContext.h>
 #include <Compositor/WebGLObjectMap.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
-#include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL::Commands {
