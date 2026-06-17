@@ -29,6 +29,9 @@ set(GENERATED_SOURCES
     WebGLCommandReplayer.cpp
 )
 
+target_sources(LibWeb PRIVATE OpenGLContext.cpp)
+target_include_directories(LibWeb PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
+
 add_library(compositorservice STATIC ${SOURCES} ${GENERATED_SOURCES})
 ladybird_generated_sources(compositorservice)
 

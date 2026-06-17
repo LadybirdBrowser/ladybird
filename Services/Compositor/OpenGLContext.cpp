@@ -28,7 +28,7 @@ extern "C" {
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <LibGfx/VulkanImage.h>
 #endif
-#include <LibWeb/WebGL/OpenGLContext.h>
+#include <Compositor/OpenGLContext.h>
 
 // Enable WebGL if we're on MacOS and can use Metal or if we can use shareable Vulkan images
 #if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)

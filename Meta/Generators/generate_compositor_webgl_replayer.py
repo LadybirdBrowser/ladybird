@@ -257,7 +257,7 @@ def write_header_file(out: TextIO, functions: list) -> None:
 
 #include <AK/Error.h>
 #include <Compositor/WebGLObjectMap.h>
-#include <LibWeb/WebGL/OpenGLContext.h>
+#include <Compositor/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLCommandList.h>
 
 namespace Compositor {
