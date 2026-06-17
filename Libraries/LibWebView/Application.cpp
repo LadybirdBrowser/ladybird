@@ -1975,6 +1975,28 @@ void Application::remove_storage_change_listener(DevTools::TabDescription const&
         view->remove_storage_change_listener(listener_id);
 }
 
+void Application::inspect_indexed_database_storage(DevTools::TabDescription const& description, OnIndexedDBInspectionComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->inspect_indexed_database_storage(move(on_complete));
+}
+
+void Application::inspect_indexed_database_objects(DevTools::TabDescription const& description, String const& host, Optional<JsonArray> names, JsonObject options, OnIndexedDBInspectionComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->inspect_indexed_database_objects(host, move(names), move(options), move(on_complete));
+}
+
 void Application::inspect_tab(DevTools::TabDescription const& description, OnTabInspectionComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

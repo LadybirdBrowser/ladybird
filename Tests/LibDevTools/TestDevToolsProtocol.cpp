@@ -543,6 +543,91 @@ static bool cookie_matches(HTTP::Cookie::Cookie const& cookie, StringView name, 
         && cookie.path == path;
 }
 
+static String indexed_database_path(StringView database, Optional<StringView> object_store = {})
+{
+    JsonArray path;
+    path.must_append(database);
+    if (object_store.has_value())
+        path.must_append(*object_store);
+    return path.serialized();
+}
+
+static JsonObject make_indexed_database_storage_hosts()
+{
+    JsonArray names;
+    names.must_append(indexed_database_path("fixtures (default)"sv, "people"sv));
+    names.must_append(indexed_database_path("empty (default)"sv));
+
+    JsonObject hosts;
+    hosts.set("https://example.test"sv, move(names));
+    return hosts;
+}
+
+static JsonObject make_indexed_database_store_objects(Optional<JsonArray> const& names)
+{
+    JsonArray data;
+
+    bool should_return_databases = !names.has_value() || names->is_empty();
+    Vector<JsonArray> paths;
+    if (names.has_value()) {
+        for (auto const& name : names->values()) {
+            if (!name.is_string())
+                continue;
+            auto parsed = JsonValue::from_string(name.as_string());
+            if (parsed.is_error() || !parsed.value().is_array())
+                continue;
+            auto path = parsed.release_value().as_array();
+            if (path.is_empty())
+                continue;
+            paths.append(move(path));
+        }
+        if (paths.is_empty())
+            should_return_databases = true;
+    }
+
+    if (should_return_databases) {
+        JsonObject fixtures;
+        fixtures.set("uniqueKey"sv, "fixtures (default)"sv);
+        fixtures.set("db"sv, "fixtures"sv);
+        fixtures.set("storage"sv, "default"sv);
+        fixtures.set("origin"sv, "https://example.test"sv);
+        fixtures.set("version"sv, 1);
+        fixtures.set("objectStores"sv, 1);
+        data.must_append(move(fixtures));
+
+        JsonObject empty;
+        empty.set("uniqueKey"sv, "empty (default)"sv);
+        empty.set("db"sv, "empty"sv);
+        empty.set("storage"sv, "default"sv);
+        empty.set("origin"sv, "https://example.test"sv);
+        empty.set("version"sv, 2);
+        empty.set("objectStores"sv, 0);
+        data.must_append(move(empty));
+    } else {
+        for (auto const& path : paths) {
+            if (path.size() == 1) {
+                JsonObject store;
+                store.set("objectStore"sv, "people"sv);
+                store.set("keyPath"sv, "id"sv);
+                store.set("autoIncrement"sv, true);
+                store.set("indexes"sv, "[]"_string);
+                data.must_append(move(store));
+            } else if (path.size() >= 2) {
+                JsonObject record;
+                record.set("name"sv, 1);
+                record.set("value"sv, "{\"name\":\"Ada\"}"sv);
+                data.must_append(move(record));
+            }
+        }
+    }
+
+    JsonObject response;
+    response.set("offset"sv, 0);
+    response.set("total"sv, data.size());
+    response.set("data"sv, move(data));
+    return response;
+}
+
 class TestDevToolsDelegate final : public DevTools::DevToolsDelegate {
 public:
     virtual Vector<DevTools::TabDescription> tab_list() const override
@@ -729,6 +814,19 @@ public:
     {
         storage_change_listeners.remove(listener_id);
         ++remove_storage_change_listener_call_count;
+    }
+
+    virtual void inspect_indexed_database_storage(DevTools::TabDescription const&, OnIndexedDBInspectionComplete callback) const override
+    {
+        ++inspect_indexed_database_storage_call_count;
+        callback(make_indexed_database_storage_hosts());
+    }
+
+    virtual void inspect_indexed_database_objects(DevTools::TabDescription const&, String const& host, Optional<JsonArray> names, JsonObject, OnIndexedDBInspectionComplete callback) const override
+    {
+        ++inspect_indexed_database_objects_call_count;
+        last_indexed_database_host = host;
+        callback(make_indexed_database_store_objects(names));
     }
 
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete callback) const override
@@ -1185,6 +1283,8 @@ public:
     mutable bool fail_set_storage_item { false };
     mutable bool fail_remove_storage_item { false };
     mutable bool fail_clear_storage { false };
+    mutable size_t inspect_indexed_database_storage_call_count { 0 };
+    mutable size_t inspect_indexed_database_objects_call_count { 0 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
     mutable size_t listen_for_dom_properties_call_count { 0 };
     mutable size_t stop_listening_for_dom_properties_call_count { 0 };
@@ -1257,6 +1357,7 @@ public:
     mutable Optional<String> last_navigated_url;
     mutable Optional<bool> last_reload_bypass_cache;
     mutable Optional<int> last_history_delta;
+    mutable Optional<String> last_indexed_database_host;
 };
 
 class ProtocolClient {
@@ -1619,6 +1720,68 @@ static JsonObject remove_all_storage_items(ProtocolClient& client, StringView st
     request.set("type"sv, "removeAll"sv);
     request.set("host"sv, "https://example.test"sv);
     return client.request(move(request));
+}
+
+static String get_indexed_database_actor(ProtocolClient& client)
+{
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("indexed-db"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+
+    auto indexed_database_resource = read_resource(client, "indexed-db"sv);
+    return actor_from(indexed_database_resource, "actor"sv);
+}
+
+static JsonObject get_indexed_database_store_objects(ProtocolClient& client, StringView indexed_database_actor, Optional<String> name = {})
+{
+    JsonObject get_store_objects;
+    get_store_objects.set("to"sv, indexed_database_actor);
+    get_store_objects.set("type"sv, "getStoreObjects"sv);
+    get_store_objects.set("host"sv, "https://example.test"sv);
+    if (name.has_value()) {
+        JsonArray names;
+        names.must_append(*name);
+        get_store_objects.set("names"sv, move(names));
+    } else {
+        get_store_objects.set("names"sv, JsonValue {});
+    }
+    get_store_objects.set("options"sv, JsonObject {});
+    return client.request(move(get_store_objects));
+}
+
+static JsonObject get_indexed_database_store_objects(ProtocolClient& client, StringView indexed_database_actor, JsonArray names)
+{
+    JsonObject get_store_objects;
+    get_store_objects.set("to"sv, indexed_database_actor);
+    get_store_objects.set("type"sv, "getStoreObjects"sv);
+    get_store_objects.set("host"sv, "https://example.test"sv);
+    get_store_objects.set("names"sv, move(names));
+    get_store_objects.set("options"sv, JsonObject {});
+    return client.request(move(get_store_objects));
+}
+
+static JsonArray get_indexed_database_update_paths(JsonObject const& stores_update, StringView update_type, StringView host = "https://example.test"sv)
+{
+    return stores_update.get_object("data"sv)
+        ->get_object(update_type)
+        ->get_object("indexedDB"sv)
+        ->get_array(host)
+        .release_value();
+}
+
+static JsonArray get_indexed_database_cleared_paths(JsonObject const& stores_cleared, StringView host = "https://example.test"sv)
+{
+    return stores_cleared.get_object("data"sv)
+        ->get_object("clearedHostsOrPaths"sv)
+        ->get_array(host)
+        .release_value();
 }
 
 static JsonObject make_cookie_edit_items(HTTP::Cookie::Cookie const& cookie)
@@ -2220,6 +2383,117 @@ TEST_CASE(storage_web_storage_mutation_errors)
     EXPECT_EQ(response.get_string("errorString"sv).value(), "Unable to clear storage"sv);
     EXPECT_EQ(session->delegate.clear_storage_call_count, 1u);
     EXPECT_EQ(session->delegate.fixture_local_storage_items.size(), 1u);
+}
+
+TEST_CASE(storage_indexed_database_resource)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_response = client.request(tab_actor, "getWatcher"sv);
+    auto watcher_actor = actor_from(watcher_response, "actor"sv);
+    auto resources = watcher_response.get_object("traits"sv)->get_object("resources"sv).release_value();
+    EXPECT(resources.get_bool("indexed-db"sv).value());
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("indexed-db"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+
+    auto indexed_database_resource = read_resource(client, "indexed-db"sv);
+    EXPECT_EQ(indexed_database_resource.get_string("resourceKey"sv).value(), "indexedDB"sv);
+    EXPECT_EQ(indexed_database_resource.get_integer<u64>("browsingContextID"sv).value(), 1u);
+    EXPECT_EQ(indexed_database_resource.get_integer<u64>("innerWindowId"sv).value(), 1u);
+    EXPECT_EQ(indexed_database_resource.get_string("resourceId"sv).value(), "indexed-db-1"sv);
+
+    auto hosts = indexed_database_resource.get_object("hosts"sv).release_value();
+    auto names = hosts.get_array("https://example.test"sv).release_value();
+    EXPECT_EQ(names.size(), 2u);
+    EXPECT_EQ(names.at(0).as_string(), "[\"fixtures (default)\",\"people\"]"sv);
+    EXPECT_EQ(names.at(1).as_string(), "[\"empty (default)\"]"sv);
+
+    auto traits = indexed_database_resource.get_object("traits"sv).release_value();
+    EXPECT(!traits.get_bool("supportsAddItem"sv).value());
+    EXPECT(traits.get_bool("supportsRemoveAll"sv).value());
+    EXPECT(!traits.get_bool("supportsRemoveAllSessionCookies"sv).value());
+    EXPECT(traits.get_bool("supportsRemoveItem"sv).value());
+
+    auto indexed_database_actor = actor_from(indexed_database_resource, "actor"sv);
+    auto fields = client.request(indexed_database_actor, "getFields"sv).get_array("value"sv).release_value();
+    EXPECT_EQ(fields.at(0).as_object().get_string("name"sv).value(), "uniqueKey"sv);
+    EXPECT(fields.at(0).as_object().get_bool("private"sv).value());
+    EXPECT_EQ(fields.at(1).as_object().get_string("name"sv).value(), "db"sv);
+
+    JsonObject database_fields_request;
+    database_fields_request.set("to"sv, indexed_database_actor);
+    database_fields_request.set("type"sv, "getFields"sv);
+    database_fields_request.set("subType"sv, "database"sv);
+    auto database_fields = client.request(move(database_fields_request)).get_array("value"sv).release_value();
+    EXPECT_EQ(database_fields.at(0).as_object().get_string("name"sv).value(), "objectStore"sv);
+
+    JsonObject object_store_fields_request;
+    object_store_fields_request.set("to"sv, indexed_database_actor);
+    object_store_fields_request.set("type"sv, "getFields"sv);
+    object_store_fields_request.set("subType"sv, "object store"sv);
+    auto object_store_fields = client.request(move(object_store_fields_request)).get_array("value"sv).release_value();
+    EXPECT_EQ(object_store_fields.at(0).as_object().get_string("name"sv).value(), "name"sv);
+    EXPECT_EQ(object_store_fields.at(1).as_object().get_string("name"sv).value(), "value"sv);
+
+    EXPECT_EQ(session->delegate.inspect_indexed_database_storage_call_count, 1u);
+}
+
+TEST_CASE(storage_indexed_database_store_objects)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto indexed_database_actor = get_indexed_database_actor(client);
+
+    auto databases = get_indexed_database_store_objects(client, indexed_database_actor);
+    EXPECT_EQ(session->delegate.inspect_indexed_database_objects_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_indexed_database_host.value(), "https://example.test"sv);
+    EXPECT_EQ(databases.get_integer<size_t>("offset"sv).value(), 0u);
+    EXPECT_EQ(databases.get_integer<size_t>("total"sv).value(), 2u);
+
+    auto database_rows = databases.get_array("data"sv).release_value();
+    EXPECT_EQ(database_rows.size(), 2u);
+    auto fixtures_database = database_rows.at(0).as_object();
+    EXPECT_EQ(fixtures_database.get_string("uniqueKey"sv).value(), "fixtures (default)"sv);
+    EXPECT_EQ(fixtures_database.get_string("db"sv).value(), "fixtures"sv);
+    EXPECT_EQ(fixtures_database.get_string("storage"sv).value(), "default"sv);
+    EXPECT_EQ(fixtures_database.get_string("origin"sv).value(), "https://example.test"sv);
+    EXPECT_EQ(fixtures_database.get_integer<int>("version"sv).value(), 1);
+    EXPECT_EQ(fixtures_database.get_integer<int>("objectStores"sv).value(), 1);
+
+    auto databases_from_empty_names = get_indexed_database_store_objects(client, indexed_database_actor, JsonArray {});
+    EXPECT_EQ(databases_from_empty_names.get_integer<size_t>("total"sv).value(), 2u);
+
+    JsonArray empty_path_names;
+    empty_path_names.must_append("[]"sv);
+    auto databases_from_empty_path = get_indexed_database_store_objects(client, indexed_database_actor, move(empty_path_names));
+    EXPECT_EQ(databases_from_empty_path.get_integer<size_t>("total"sv).value(), 2u);
+
+    auto object_stores = get_indexed_database_store_objects(client, indexed_database_actor, indexed_database_path("fixtures (default)"sv));
+    EXPECT_EQ(object_stores.get_integer<size_t>("total"sv).value(), 1u);
+    auto object_store_rows = object_stores.get_array("data"sv).release_value();
+    auto people_store = object_store_rows.at(0).as_object();
+    EXPECT_EQ(people_store.get_string("objectStore"sv).value(), "people"sv);
+    EXPECT_EQ(people_store.get_string("keyPath"sv).value(), "id"sv);
+    EXPECT(people_store.get_bool("autoIncrement"sv).value());
+    EXPECT_EQ(people_store.get_string("indexes"sv).value(), "[]"sv);
+
+    auto records = get_indexed_database_store_objects(client, indexed_database_actor, indexed_database_path("fixtures (default)"sv, "people"sv));
+    EXPECT_EQ(records.get_integer<size_t>("total"sv).value(), 1u);
+    auto record_rows = records.get_array("data"sv).release_value();
+    auto record = record_rows.at(0).as_object();
+    EXPECT_EQ(record.get_integer<int>("name"sv).value(), 1);
+    EXPECT_EQ(record.get_string("value"sv).value(), "{\"name\":\"Ada\"}"sv);
 }
 
 TEST_CASE(storage_cookie_store_objects)

@@ -31,19 +31,24 @@ Optional<String> storage_host_for_url(String const& url_string)
     if (!url.has_value())
         return {};
 
-    auto const& scheme = url->scheme();
+    return storage_host_for_url(url.value());
+}
+
+Optional<String> storage_host_for_url(URL::URL const& url)
+{
+    auto const& scheme = url.scheme();
     if (scheme == "http"sv || scheme == "https"sv) {
         StringBuilder builder;
         builder.append(scheme);
         builder.append("://"sv);
-        builder.append(url->serialized_host());
-        if (auto port = url->port(); port.has_value())
+        builder.append(url.serialized_host());
+        if (auto port = url.port(); port.has_value())
             builder.appendff(":{}", *port);
         return builder.to_string_without_validation();
     }
 
     if (scheme == "about"sv || scheme == "file"sv || scheme == "javascript"sv || scheme == "resource"sv)
-        return url->serialize();
+        return url.serialize();
 
     return {};
 }

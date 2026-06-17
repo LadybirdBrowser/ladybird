@@ -12,6 +12,7 @@
 #include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/CookiesActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
+#include <LibDevTools/Actors/IndexedDBActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/NetworkParentActor.h>
 #include <LibDevTools/Actors/StorageActor.h>
@@ -92,13 +93,14 @@ void WatcherActor::handle_message(Message const& message)
             return;
 
         bool should_send_cookie_resources = false;
+        bool should_send_indexed_db_resources = false;
         bool should_send_local_storage_resources = false;
         bool should_send_session_storage_resources = false;
         if constexpr (DEVTOOLS_DEBUG) {
             for (auto const& resource_type : resource_types->values()) {
                 if (!resource_type.is_string())
                     continue;
-                if (!first_is_one_of(resource_type.as_string(), "console-message"sv, "cookies"sv, "local-storage"sv, "session-storage"sv))
+                if (!first_is_one_of(resource_type.as_string(), "console-message"sv, "cookies"sv, "indexed-db"sv, "local-storage"sv, "session-storage"sv))
                     dbgln("Unrecognized `watchResources` resource type: '{}'", resource_type.as_string());
             }
         }
@@ -108,6 +110,9 @@ void WatcherActor::handle_message(Message const& message)
             if (resource_type.as_string() == "cookies"sv) {
                 m_is_watching_cookie_resources = true;
                 should_send_cookie_resources = true;
+            } else if (resource_type.as_string() == "indexed-db"sv) {
+                m_is_watching_indexed_db_resources = true;
+                should_send_indexed_db_resources = true;
             } else if (resource_type.as_string() == "local-storage"sv) {
                 m_is_watching_local_storage_resources = true;
                 should_send_local_storage_resources = true;
@@ -120,6 +125,8 @@ void WatcherActor::handle_message(Message const& message)
         send_response(message, move(response));
         if (should_send_cookie_resources)
             send_cookies_resource_available_message();
+        if (should_send_indexed_db_resources)
+            send_indexed_db_resource_available_message();
         if (should_send_local_storage_resources)
             send_storage_resource_available_message(local_storage_actor());
         if (should_send_session_storage_resources)
@@ -164,7 +171,7 @@ JsonObject WatcherActor::serialize_description() const
     resources.set("document-event"sv, true);
     resources.set("error-message"sv, false);
     resources.set("extension-storage"sv, false);
-    resources.set("indexed-db"sv, false);
+    resources.set("indexed-db"sv, true);
     resources.set("jstracer-state"sv, false);
     resources.set("jstracer-trace"sv, false);
     resources.set("last-private-context-exit"sv, false);
@@ -227,6 +234,8 @@ void WatcherActor::switch_frame_target(FrameActor& previous_target, String const
     target.set_pending_navigation_document_events_after_target_switch(url, title);
     if (m_is_watching_cookie_resources)
         send_cookies_resource_available_message();
+    if (m_is_watching_indexed_db_resources)
+        send_indexed_db_resource_available_message();
     if (m_is_watching_local_storage_resources)
         send_storage_resource_available_message(local_storage_actor());
     if (m_is_watching_session_storage_resources)
@@ -261,6 +270,15 @@ CookiesActor& WatcherActor::cookies_actor()
 
     m_cookies = devtools().register_actor<CookiesActor>(m_tab);
     return *m_cookies.strong_ref();
+}
+
+IndexedDBActor& WatcherActor::indexed_db_actor()
+{
+    if (auto indexed_db = m_indexed_db.strong_ref())
+        return *indexed_db;
+
+    m_indexed_db = devtools().register_actor<IndexedDBActor>(m_tab);
+    return *m_indexed_db.strong_ref();
 }
 
 void WatcherActor::send_cookies_resource_available_message()
@@ -315,6 +333,30 @@ void WatcherActor::send_storage_resource_available_message(StorageActor& storage
     message.set("type"sv, "resources-available-array"sv);
     message.set("array"sv, move(array));
     send_message(move(message));
+}
+
+void WatcherActor::send_indexed_db_resource_available_message()
+{
+    indexed_db_actor().get_storage_resource([weak_self = make_weak_ptr<WatcherActor>()](JsonObject indexed_db) mutable {
+        auto self = weak_self.strong_ref();
+        if (!self)
+            return;
+
+        JsonArray indexed_databases;
+        indexed_databases.must_append(move(indexed_db));
+
+        JsonArray indexed_database_resources;
+        indexed_database_resources.must_append("indexed-db"sv);
+        indexed_database_resources.must_append(move(indexed_databases));
+
+        JsonArray array;
+        array.must_append(move(indexed_database_resources));
+
+        JsonObject message;
+        message.set("type"sv, "resources-available-array"sv);
+        message.set("array"sv, move(array));
+        self->send_message(move(message));
+    });
 }
 
 }

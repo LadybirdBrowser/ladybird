@@ -75,6 +75,10 @@ public:
     virtual u64 add_storage_change_listener(TabDescription const&, OnStorageChange) const { return 0; }
     virtual void remove_storage_change_listener(TabDescription const&, u64) const { }
 
+    using OnIndexedDBInspectionComplete = Function<void(ErrorOr<JsonObject>)>;
+    virtual void inspect_indexed_database_storage(TabDescription const&, OnIndexedDBInspectionComplete) const { }
+    virtual void inspect_indexed_database_objects(TabDescription const&, String const&, Optional<JsonArray>, JsonObject, OnIndexedDBInspectionComplete) const { }
+
     using OnTabInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void inspect_tab(TabDescription const&, OnTabInspectionComplete) const { }
 

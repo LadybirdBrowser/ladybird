@@ -31,7 +31,7 @@ target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${CMAKE_CU
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}>)
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Services/>)
 
-target_link_libraries(webcontentservice PUBLIC LibCore LibCrypto LibFileSystem LibGfx LibHTTP LibIPC LibJS LibMain LibMedia LibWasm LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient LibGC)
+target_link_libraries(webcontentservice PUBLIC LibCore LibCrypto LibDevTools LibFileSystem LibGfx LibHTTP LibIPC LibJS LibMain LibMedia LibWasm LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient LibGC)
 target_link_libraries(webcontentservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 target_link_libraries(webcontentservice PRIVATE SDL3::SDL3)
 target_compile_options(webcontentservice PRIVATE $<$<COMPILE_LANG_AND_ID:CXX,Clang,AppleClang>:-Wexit-time-destructors>)

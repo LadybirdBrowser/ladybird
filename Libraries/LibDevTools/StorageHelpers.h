@@ -11,10 +11,12 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <LibDevTools/Forward.h>
+#include <LibURL/Forward.h>
 
 namespace DevTools {
 
 DEVTOOLS_API Optional<String> storage_host_for_url(String const&);
+DEVTOOLS_API Optional<String> storage_host_for_url(URL::URL const& url);
 DEVTOOLS_API Optional<String> storage_host_name(String const&);
 
 enum class StorageFieldType : u8 {
