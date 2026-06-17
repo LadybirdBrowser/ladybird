@@ -61,8 +61,6 @@ public:
     i16 button() const { return m_button; }
     u16 buttons() const { return m_buttons; }
 
-    GC::Ptr<DOM::EventTarget> related_target() const { return m_related_target; }
-
     bool get_modifier_state(String const& key_arg) const;
 
     virtual u32 which() const override { return m_button + 1; }
@@ -78,7 +76,6 @@ protected:
     MouseEvent(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
 
     double m_screen_x { 0 };
     double m_screen_y { 0 };
@@ -110,7 +107,6 @@ private:
     double m_movement_y { 0 };
     i16 m_button { 0 };
     u16 m_buttons { 0 };
-    GC::Ptr<DOM::EventTarget> m_related_target { nullptr };
 };
 
 }

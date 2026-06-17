@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #left,
+    #right {
+        float: left;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="left"></div>
+<div id="right"></div>
+<script>
+    test(() => {
+        for (const type of ["pointerover", "mouseover", "pointerout", "mouseout"]) {
+            document.body.addEventListener(type, event => {
+                println(`${type}: target=${event.target.id}, related=${event.relatedTarget?.id ?? "null"}`);
+            });
+        }
+
+        internals.mouseMove(50, 50);
+        internals.mouseMove(150, 50);
+    });
+</script>

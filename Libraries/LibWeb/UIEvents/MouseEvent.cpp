@@ -46,8 +46,8 @@ MouseEvent::MouseEvent(JS::Realm& realm, FlyString const& event_name, Bindings::
     , m_movement_y(event_init.movement_y)
     , m_button(event_init.button)
     , m_buttons(event_init.buttons)
-    , m_related_target(event_init.related_target)
 {
+    set_related_target(event_init.related_target.ptr());
 }
 
 MouseEvent::~MouseEvent() = default;
@@ -56,12 +56,6 @@ void MouseEvent::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MouseEvent);
     Base::initialize(realm);
-}
-
-void MouseEvent::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_related_target);
 }
 
 bool MouseEvent::get_modifier_state(String const& key_arg) const
@@ -121,7 +115,7 @@ void MouseEvent::init_mouse_event(String const& type, bool bubbles, bool cancela
     m_alt_key = alt_key;
     m_meta_key = meta_key;
     m_button = button;
-    m_related_target = related_target;
+    set_related_target(related_target);
 }
 
 GC::Ref<MouseEvent> MouseEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
@@ -149,7 +143,7 @@ GC::Ref<MouseEvent> MouseEvent::clone() const
     init.movement_y = m_movement_y;
     init.button = m_button;
     init.buttons = m_buttons;
-    init.related_target = m_related_target;
+    init.related_target = related_target();
     init.ctrl_key = m_ctrl_key;
     init.shift_key = m_shift_key;
     init.alt_key = m_alt_key;
