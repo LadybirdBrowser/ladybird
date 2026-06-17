@@ -799,16 +799,10 @@ RefPtr<StyleValue const> Parser::parse_anchor_size(TokenStream<ComponentValue>& 
         // FIXME: position-anchor
         // FIXME: position-area
     };
-    bool valid_property_context = false;
-    for (auto& value_context : m_value_context) {
-        if (!value_context.has<PropertyID>())
-            continue;
-        if (!allowed_property_ids.contains_slow(value_context.get<PropertyID>())) {
-            valid_property_context = false;
-            break;
-        }
-        valid_property_context = true;
-    }
+    auto property_context = m_value_context.last_matching([](ValueParsingContext const& it) {
+        return it.has<PropertyID>();
+    });
+    bool valid_property_context = property_context.has_value() && allowed_property_ids.contains_slow(property_context->get<PropertyID>());
     if (!valid_property_context)
         return {};
 
