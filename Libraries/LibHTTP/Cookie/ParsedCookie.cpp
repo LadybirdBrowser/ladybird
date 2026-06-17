@@ -111,12 +111,8 @@ ErrorOr<ParsedCookie> parse_cookie(Cookie const& cookie)
     parsed_cookie.secure_attribute_present = cookie.secure;
     parsed_cookie.http_only_attribute_present = cookie.http_only;
 
-    if (!cookie.host_only) {
-        auto domain = cookie.domain.bytes_as_string_view();
-        if (domain.starts_with('.'))
-            domain = domain.substring_view(1);
-        parsed_cookie.domain = domain.to_ascii_lowercase_string();
-    }
+    if (!cookie.host_only)
+        TRY(on_domain_attribute(parsed_cookie, cookie.domain.bytes_as_string_view()));
 
     if (cookie.persistent)
         parsed_cookie.expiry_time_from_expires_attribute = cookie.expiry_time;
