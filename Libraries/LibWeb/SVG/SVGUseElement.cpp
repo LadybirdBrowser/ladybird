@@ -129,6 +129,15 @@ void SVGUseElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_
     }
 }
 
+void SVGUseElement::finalize()
+{
+    Base::finalize();
+
+    // A GC'ed "use" element may never run its removal steps. So, unlink it from the document's list of use elements
+    // here — to avoid destroying a still-linked list node.
+    unregister_for_referenced_element_changes();
+}
+
 void SVGUseElement::register_for_referenced_element_changes()
 {
     if (m_list_node.is_in_list())
