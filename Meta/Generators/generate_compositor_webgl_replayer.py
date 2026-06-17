@@ -152,7 +152,7 @@ def signature(function: dict, payload_used: bool) -> str:
     objects = "WebGLObjectMap& objects" if uses_objects else "WebGLObjectMap&"
     payload = "ReadonlyBytes payload" if payload_used else "ReadonlyBytes"
     return (
-        f"ErrorOr<void> replay_webgl_command(Web::WebGL::OpenGLContext& gl, {objects}, "
+        f"ErrorOr<void> replay_webgl_command(OpenGLContext& gl, {objects}, "
         f"Web::WebGL::Commands::{command_name(function)} {command}, {payload})"
     )
 
@@ -247,8 +247,7 @@ def sync_signature(function: dict, payload_used: bool, objects_used: bool) -> st
     objects = "WebGLObjectMap& objects" if objects_used else "WebGLObjectMap&"
     payload = "ReadonlyBytes payload" if payload_used else "ReadonlyBytes"
     return (
-        f"static ByteBuffer handle_one(Web::WebGL::OpenGLContext& gl, {objects}, "
-        f"SyncCalls::{name}::Request {request}, {payload})"
+        f"static ByteBuffer handle_one(OpenGLContext& gl, {objects}, SyncCalls::{name}::Request {request}, {payload})"
     )
 
 
@@ -266,7 +265,7 @@ namespace Compositor {
         if function["category"] not in ("command", "gen"):
             continue
         out.write(
-            f"ErrorOr<void> replay_webgl_command(Web::WebGL::OpenGLContext&, WebGLObjectMap&, "
+            f"ErrorOr<void> replay_webgl_command(OpenGLContext&, WebGLObjectMap&, "
             f"Web::WebGL::Commands::{command_name(function)} const&, ReadonlyBytes);\n"
         )
     out.write("""
@@ -277,17 +276,17 @@ namespace Compositor {
     for function in functions:
         if function["category"] == "custom" and is_wire_command(function):
             out.write(
-                f"ErrorOr<void> replay_webgl_command(Web::WebGL::OpenGLContext&, WebGLObjectMap&, "
+                f"ErrorOr<void> replay_webgl_command(OpenGLContext&, WebGLObjectMap&, "
                 f"Web::WebGL::Commands::{command_name(function)} const&, ReadonlyBytes);\n"
             )
     for function in functions:
         if is_wire_sync(function):
             out.write(
-                f"ErrorOr<ByteBuffer> handle_one(Web::WebGL::OpenGLContext&, WebGLObjectMap&, "
+                f"ErrorOr<ByteBuffer> handle_one(OpenGLContext&, WebGLObjectMap&, "
                 f"Web::WebGL::SyncCalls::{command_name(function)}::Request const&, ReadonlyBytes);\n"
             )
     out.write("""
-ErrorOr<ByteBuffer> handle_webgl_sync_call(Web::WebGL::OpenGLContext&, WebGLObjectMap&, ReadonlyBytes request);
+ErrorOr<ByteBuffer> handle_webgl_sync_call(OpenGLContext&, WebGLObjectMap&, ReadonlyBytes request);
 
 }
 """)
@@ -324,7 +323,7 @@ using namespace Web::WebGL;
         out.write(body.getvalue())
         out.write("}\n\n")
 
-    out.write("""ErrorOr<ByteBuffer> handle_webgl_sync_call(Web::WebGL::OpenGLContext& gl, WebGLObjectMap& objects, ReadonlyBytes request)
+    out.write("""ErrorOr<ByteBuffer> handle_webgl_sync_call(OpenGLContext& gl, WebGLObjectMap& objects, ReadonlyBytes request)
 {
     return WebGLSyncCall::dispatch_request(request, [&]<typename Call>(typename Call::Request const& call_request, ReadonlyBytes payload) -> ErrorOr<ByteBuffer> {
         return handle_one(gl, objects, call_request, payload);

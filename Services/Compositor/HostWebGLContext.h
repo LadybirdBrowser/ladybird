@@ -30,7 +30,7 @@ namespace Compositor {
 
 class HostWebGLContext {
 public:
-    static OwnPtr<HostWebGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>, Web::WebGL::OpenGLContext::WebGLVersion, Web::WebGL::OpenGLContext::DrawingBufferOptions, Gfx::IntSize initial_size);
+    static OwnPtr<HostWebGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>, OpenGLContext::WebGLVersion, OpenGLContext::DrawingBufferOptions, Gfx::IntSize initial_size);
 
     ErrorOr<void> execute_commands(ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const& bitmaps);
     ErrorOr<ByteBuffer> execute_sync_call(ReadonlyBytes request);
@@ -40,16 +40,16 @@ public:
     ErrorOr<NonnullRefPtr<Gfx::PaintingSurface>> prepare_for_compositing(bool preserve_drawing_buffer);
     RefPtr<Gfx::PaintingSurface> surface();
 
-    Web::WebGL::OpenGLContext& gl_context() { return *m_gl_context; }
+    OpenGLContext& gl_context() { return *m_gl_context; }
 
 private:
-    explicit HostWebGLContext(NonnullOwnPtr<Web::WebGL::OpenGLContext>);
+    explicit HostWebGLContext(NonnullOwnPtr<OpenGLContext>);
 
     ErrorOr<void> set_drawing_buffer_size(int width, int height);
     ErrorOr<void> tex_image2d_from_bitmap(Web::WebGL::Commands::TexImage2DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
     ErrorOr<void> tex_sub_image2d_from_bitmap(Web::WebGL::Commands::TexSubImage2DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
 
-    NonnullOwnPtr<Web::WebGL::OpenGLContext> m_gl_context;
+    NonnullOwnPtr<OpenGLContext> m_gl_context;
     WebGLObjectMap m_objects;
     bool m_needs_clear_before_next_frame { false };
 };

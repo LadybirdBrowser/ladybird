@@ -13,6 +13,7 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
+#include <LibWeb/WebGL/TextureUpload.h>
 #include <LibWeb/WebGL/WebGLCommandList.h>
 
 namespace Compositor {
@@ -21,17 +22,17 @@ using namespace Web::WebGL;
 
 static constexpr GLsizei max_webgl_string_list_entries = 16384;
 
-HostWebGLContext::HostWebGLContext(NonnullOwnPtr<Web::WebGL::OpenGLContext> gl_context)
+HostWebGLContext::HostWebGLContext(NonnullOwnPtr<OpenGLContext> gl_context)
     : m_gl_context(move(gl_context))
 {
 }
 
-OwnPtr<HostWebGLContext> HostWebGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, Web::WebGL::OpenGLContext::WebGLVersion version, Web::WebGL::OpenGLContext::DrawingBufferOptions options, Gfx::IntSize initial_size)
+OwnPtr<HostWebGLContext> HostWebGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, OpenGLContext::WebGLVersion version, OpenGLContext::DrawingBufferOptions options, Gfx::IntSize initial_size)
 {
     if (initial_size.width() < 1 || initial_size.width() > max_webgl_drawing_buffer_dimension
         || initial_size.height() < 1 || initial_size.height() > max_webgl_drawing_buffer_dimension)
         return {};
-    auto gl_context = Web::WebGL::OpenGLContext::create(skia_backend_context, version, options);
+    auto gl_context = OpenGLContext::create(skia_backend_context, version, options);
     if (!gl_context)
         return {};
     gl_context->set_size(initial_size);
@@ -207,7 +208,7 @@ ErrorOr<void> HostWebGLContext::set_drawing_buffer_size(int width, int height)
     return {};
 }
 
-ErrorOr<void> replay_webgl_command(Web::WebGL::OpenGLContext& gl, WebGLObjectMap& objects, Commands::ShaderSource const& command, ReadonlyBytes payload)
+ErrorOr<void> replay_webgl_command(OpenGLContext& gl, WebGLObjectMap& objects, Commands::ShaderSource const& command, ReadonlyBytes payload)
 {
     auto source_bytes = WebGLCommandList::resolve_string_span(payload, command.source);
     auto shader = objects.lookup(command.shader);
@@ -237,7 +238,7 @@ static ErrorOr<Vector<GLchar const*>> split_packed_strings(ReadonlyBytes bytes, 
     return strings;
 }
 
-ErrorOr<void> replay_webgl_command(Web::WebGL::OpenGLContext& gl, WebGLObjectMap& objects, Commands::TransformFeedbackVaryings const& command, ReadonlyBytes payload)
+ErrorOr<void> replay_webgl_command(OpenGLContext& gl, WebGLObjectMap& objects, Commands::TransformFeedbackVaryings const& command, ReadonlyBytes payload)
 {
     auto varyings_bytes = WebGLCommandList::resolve_data_span(payload, command.varyings);
     auto varyings = TRY(split_packed_strings(varyings_bytes, command.count));
@@ -246,9 +247,7 @@ ErrorOr<void> replay_webgl_command(Web::WebGL::OpenGLContext& gl, WebGLObjectMap
     return {};
 }
 
-// --- Wire-specified synchronous calls ------------------------------------------------
-
-ErrorOr<ByteBuffer> handle_one(Web::WebGL::OpenGLContext& gl, WebGLObjectMap&, SyncCalls::GetString::Request const& request, ReadonlyBytes)
+ErrorOr<ByteBuffer> handle_one(OpenGLContext& gl, WebGLObjectMap&, SyncCalls::GetString::Request const& request, ReadonlyBytes)
 {
     auto const* value = gl.get_string(request.name);
     static constexpr u8 empty_string[] { 0 };
@@ -261,7 +260,7 @@ ErrorOr<ByteBuffer> handle_one(Web::WebGL::OpenGLContext& gl, WebGLObjectMap&, S
     return WebGLSyncCall::encode_reply(reply, value_bytes);
 }
 
-ErrorOr<ByteBuffer> handle_one(Web::WebGL::OpenGLContext& gl, WebGLObjectMap&, SyncCalls::GetVertexAttribPointervRobustANGLE::Request const& request, ReadonlyBytes)
+ErrorOr<ByteBuffer> handle_one(OpenGLContext& gl, WebGLObjectMap&, SyncCalls::GetVertexAttribPointervRobustANGLE::Request const& request, ReadonlyBytes)
 {
     void* pointer = nullptr;
     GLsizei length = 0;
@@ -272,7 +271,7 @@ ErrorOr<ByteBuffer> handle_one(Web::WebGL::OpenGLContext& gl, WebGLObjectMap&, S
     return WebGLSyncCall::encode_reply(reply);
 }
 
-ErrorOr<ByteBuffer> handle_one(Web::WebGL::OpenGLContext& gl, WebGLObjectMap& objects, SyncCalls::GetUniformIndices::Request const& request, ReadonlyBytes payload)
+ErrorOr<ByteBuffer> handle_one(OpenGLContext& gl, WebGLObjectMap& objects, SyncCalls::GetUniformIndices::Request const& request, ReadonlyBytes payload)
 {
     auto names_bytes = WebGLCommandList::resolve_data_span(payload, request.uniform_names);
     auto names = TRY(split_packed_strings(names_bytes, request.uniform_count));

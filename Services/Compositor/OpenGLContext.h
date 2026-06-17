@@ -11,19 +11,15 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
-#include <LibGfx/BitmapExport.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
-#include <LibWeb/Export.h>
 #include <LibWeb/WebGL/GLFunctions.h>
 
-namespace Web::WebGL {
+namespace Compositor {
 
-WEB_API Optional<Gfx::ExportFormat> texture_export_format(GLenum format, GLenum type);
-
-class WEB_API OpenGLContext : public GLFunctions {
+class OpenGLContext : public Web::WebGL::GLFunctions {
 public:
-    using WebGLVersion = WebGL::WebGLVersion;
+    using WebGLVersion = Web::WebGL::WebGLVersion;
 
     struct DrawingBufferOptions {
         bool depth;

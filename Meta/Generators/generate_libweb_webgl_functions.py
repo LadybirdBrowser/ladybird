@@ -15,7 +15,7 @@ from libweb_webgl import method_signature
 from libweb_webgl import run_generator
 
 # Generates Web::WebGL::GLFunctions from GLFunctions.json: one member function per GL
-# entry point used by the WebGL implementation. This is the only place in LibWeb that is
+# entry point used by the host WebGL implementation. This is the only place that is
 # allowed to call GL entry points directly; everything above it goes through the methods
 # so the GL boundary stays in one generated, mechanically-verifiable layer.
 
@@ -32,12 +32,11 @@ extern "C" {
 }
 #include <GLES3/gl3.h>
 
-#include <LibWeb/Export.h>
 #include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
 
-class WEB_API GLFunctions {
+class GLFunctions {
 public:
 """)
 
