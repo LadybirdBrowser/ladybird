@@ -76,6 +76,8 @@ protected:
     void add_color_stops(Painting::GradientPaintStyle&) const;
 
 private:
+    virtual bool is_svg_gradient_element() const final { return true; }
+
     template<VoidFunction<SVGStopElement> Callback>
     void for_each_color_stop_impl(Callback const& callback, GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
     {
@@ -101,5 +103,12 @@ private:
     Optional<SpreadMethod> m_spread_method = {};
     Optional<Gfx::AffineTransform> m_gradient_transform = {};
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGGradientElement>() const { return is_svg_gradient_element(); }
 
 }
