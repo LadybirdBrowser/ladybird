@@ -101,11 +101,6 @@ ErrorOr<Message> Message::from_raw(ParseContext& ctx)
 
 ErrorOr<size_t> Message::to_raw(ByteBuffer& out) const
 {
-    // NOTE: This is minimally implemented to allow for sending queries,
-    //       server-side responses are not implemented yet.
-    VERIFY(header.answer_count == 0);
-    VERIFY(header.authority_count == 0);
-
     auto start_size = out.size();
 
     auto header_bytes = TRY(out.get_bytes_for_writing(sizeof(Header)));
@@ -113,6 +108,12 @@ ErrorOr<size_t> Message::to_raw(ByteBuffer& out) const
 
     for (size_t i = 0; i < header.question_count; i++)
         TRY(questions[i].to_raw(out));
+
+    for (size_t i = 0; i < header.answer_count; i++)
+        TRY(answers[i].to_raw(out));
+
+    for (size_t i = 0; i < header.authority_count; i++)
+        TRY(authorities[i].to_raw(out));
 
     for (size_t i = 0; i < header.additional_count; i++)
         TRY(additional_records[i].to_raw(out));
