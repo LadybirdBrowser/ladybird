@@ -1,0 +1,6 @@
+pointerover: target=left, related=null
+mouseover: target=left, related=null
+pointerout: target=left, related=right
+mouseout: target=left, related=right
+pointerover: target=right, related=left
+mouseover: target=right, related=left
