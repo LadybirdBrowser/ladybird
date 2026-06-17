@@ -13,7 +13,6 @@
 #include <AK/Types.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/Forward.h>
 #include <LibWeb/Compositor/Types.h>
@@ -39,8 +38,6 @@ public:
     void update_visual_context_tree(Painting::AccumulatedVisualContextTree);
     void update_video_frame(Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
     void clear_video_frame(Painting::VideoFrameResourceId);
-    void update_compositor_surface(Painting::CompositorSurfaceId, Gfx::SharedImage&&);
-    void clear_compositor_surface(Painting::CompositorSurfaceId);
     void update_scroll_state(Painting::ScrollStateSnapshot&&);
     void invalidate_wheel_event_listener_state(u64 generation);
     AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
@@ -79,8 +76,6 @@ public:
     virtual void update_visual_context_tree(CompositorContextId, Painting::AccumulatedVisualContextTree) = 0;
     virtual void update_video_frame(CompositorContextId, Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>) = 0;
     virtual void clear_video_frame(CompositorContextId, Painting::VideoFrameResourceId) = 0;
-    virtual void update_compositor_surface(CompositorContextId, Painting::CompositorSurfaceId, Gfx::SharedImage&&) = 0;
-    virtual void clear_compositor_surface(CompositorContextId, Painting::CompositorSurfaceId) = 0;
     virtual void update_scroll_state(CompositorContextId, Painting::ScrollStateSnapshot&&) = 0;
     virtual void invalidate_wheel_event_listener_state(CompositorContextId, u64 generation) = 0;
     virtual AsyncScrollEnqueueResult async_scroll_by(CompositorContextId, UniqueNodeID expected_document_id, Gfx::FloatPoint position,

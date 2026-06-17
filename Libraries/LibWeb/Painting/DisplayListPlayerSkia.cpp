@@ -7,6 +7,7 @@
 
 #define SK_SUPPORT_UNSPANNED_APIS
 
+#include <AK/TemporaryChange.h>
 #include <core/SkBitmap.h>
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
@@ -55,6 +56,25 @@ DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> ski
 
 DisplayListPlayerSkia::~DisplayListPlayerSkia()
 {
+}
+
+void DisplayListPlayerSkia::execute(
+    DisplayList const& display_list,
+    AccumulatedVisualContextTree const& visual_context_tree,
+    DisplayListResourceStorage const& resource_storage,
+    ScrollStateSnapshot const& scroll_state_snapshot,
+    RefPtr<Gfx::PaintingSurface> surface,
+    CanvasSurfaceRegistry const* canvas_surface_registry,
+    CompositorSurfaceMap const* compositor_surfaces)
+{
+    TemporaryChange compositor_surfaces_change { m_compositor_surfaces, compositor_surfaces };
+    DisplayListPlayer::execute(
+        display_list,
+        visual_context_tree,
+        resource_storage,
+        scroll_state_snapshot,
+        move(surface),
+        canvas_surface_registry);
 }
 
 static SkRRect to_skia_rrect(auto const& rect, Gfx::CornerRadii const& corner_radii)
@@ -207,7 +227,14 @@ void DisplayListPlayerSkia::play_command(FillRect const& command)
 
 void DisplayListPlayerSkia::play_command(DrawCompositorSurface const& command)
 {
-    auto image = resource_storage().skia_image_for_compositor_surface(command.surface_id, m_skia_backend_context);
+    if (!m_compositor_surfaces)
+        return;
+
+    auto compositor_surface = m_compositor_surfaces->get(command.surface_id);
+    if (!compositor_surface.has_value())
+        return;
+
+    auto image = compositor_surface.value()->sk_image_snapshot<sk_sp<SkImage>>();
     if (!image)
         return;
 

@@ -191,6 +191,7 @@ private:
     Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree;
     mutable Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree_for_compositing;
     Web::Painting::DisplayListResourceStorage m_display_list_resource_storage;
+    HashMap<Web::Painting::CompositorSurfaceId, NonnullRefPtr<Gfx::PaintingSurface>> m_compositor_surfaces;
     Web::Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;
 
