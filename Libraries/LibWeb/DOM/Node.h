@@ -155,6 +155,7 @@ public:
     virtual bool is_svg_g_element() const { return false; }
     virtual bool is_svg_foreign_object_element() const { return false; }
     virtual bool is_svg_gradient_element() const { return false; }
+    virtual bool is_svg_pattern_element() const { return false; }
 
     bool in_a_document_tree() const;
 

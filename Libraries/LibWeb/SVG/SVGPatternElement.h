@@ -56,6 +56,8 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    virtual bool is_svg_pattern_element() const final { return true; }
+
     GC::Ptr<SVGPatternElement const> linked_pattern(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const;
     GC::Ptr<SVGPatternElement const> pattern_content_element_impl(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const;
 
@@ -75,5 +77,12 @@ private:
     Optional<NumberPercentage> m_width;
     Optional<NumberPercentage> m_height;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGPatternElement>() const { return is_svg_pattern_element(); }
 
 }
