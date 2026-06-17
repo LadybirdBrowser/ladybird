@@ -30,29 +30,6 @@ static CookieStorageKey storage_key_for_cookie(HTTP::Cookie::Cookie const& cooki
     return { cookie.name, cookie.domain, cookie.path };
 }
 
-static HTTP::Cookie::ParsedCookie parsed_cookie_from_devtools_cookie(HTTP::Cookie::Cookie const& cookie)
-{
-    HTTP::Cookie::ParsedCookie parsed_cookie;
-    parsed_cookie.name = cookie.name;
-    parsed_cookie.value = cookie.value;
-    parsed_cookie.same_site_attribute = cookie.same_site;
-    parsed_cookie.path = cookie.path;
-    parsed_cookie.secure_attribute_present = cookie.secure;
-    parsed_cookie.http_only_attribute_present = cookie.http_only;
-
-    if (!cookie.host_only) {
-        auto domain = cookie.domain.bytes_as_string_view();
-        if (domain.starts_with('.'))
-            domain = domain.substring_view(1);
-        parsed_cookie.domain = domain.to_ascii_lowercase_string();
-    }
-
-    if (cookie.persistent)
-        parsed_cookie.expiry_time_from_expires_attribute = cookie.expiry_time;
-
-    return parsed_cookie;
-}
-
 ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database::Database& database)
 {
     Statements statements {};
@@ -452,7 +429,8 @@ void CookieJar::update_cookie(HTTP::Cookie::Cookie cookie)
 ErrorOr<void> CookieJar::set_cookie_from_devtools(URL::URL const& url, Optional<CookieStorageKey> old_key, HTTP::Cookie::Cookie cookie)
 {
     auto new_key = storage_key_for_cookie(cookie);
-    TRY(set_cookie(url, parsed_cookie_from_devtools_cookie(cookie), HTTP::Cookie::Source::Http));
+    auto parsed_cookie = TRY(HTTP::Cookie::parse_cookie(cookie));
+    TRY(set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http));
 
     if (old_key.has_value() && *old_key != new_key)
         delete_cookie(*old_key);

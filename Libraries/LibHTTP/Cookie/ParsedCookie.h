@@ -28,6 +28,7 @@ struct ParsedCookie {
 };
 
 Optional<ParsedCookie> parse_cookie(URL::URL const&, StringView cookie_string);
+ErrorOr<ParsedCookie> parse_cookie(Cookie const&);
 bool cookie_contains_invalid_control_character(StringView);
 Optional<UnixDateTime> parse_cookie_date(StringView);
 
