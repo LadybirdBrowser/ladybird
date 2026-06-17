@@ -377,6 +377,8 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         auto mask_rect_in_device_pixels = context.enclosing_device_rect(absolute_mask_rect);
         auto mask_rect = CSSPixelRect { {}, absolute_mask_rect.size() };
         auto resolved_mask = resolve_background_layers(mask_layers, paintable_box(), Color::Transparent, CSS::BackgroundBox::BorderBox, mask_rect, {});
+
+        // FIXME: Respect `image-rendering` here.
         paint_background(mask_painting_context, paintable_box(), CSS::ImageRendering::Auto, resolved_mask, {});
         masks.append({ { *mask_display_list, move(visual_context_tree) }, mask_rect_in_device_pixels.to_type<int>(), Gfx::MaskKind::Alpha });
     }

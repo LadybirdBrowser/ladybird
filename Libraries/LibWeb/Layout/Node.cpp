@@ -687,7 +687,9 @@ void NodeWithStyle::rebuild_image_observers()
     for (auto const& layer : computed_values().background_layers())
         add_observer_for(layer.background_image.ptr(), new_observers);
     add_observer_for(m_list_style_image.ptr(), new_observers);
-    add_observer_for(computed_values().mask_image().ptr(), new_observers);
+    for (auto const& layer : computed_values().mask_layers())
+        add_observer_for(layer.background_image.ptr(), new_observers);
+    // TODO: Observe border-image and other <image> accepting properties once we support them.
 
     m_image_observers = move(new_observers);
 }
@@ -958,7 +960,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_shape_rendering(computed_style.shape_rendering());
     computed_values.set_paint_order(computed_style.paint_order());
 
-    // FIXME: We should support SVG mask references in every mask layer rather than just using the first.
+    // FIXME: Remove this once we support URL values in mask_layers and can therefore use it in
+    //        `establishes_stacking_context()`
     auto const& mask_image = [&] -> CSS::StyleValue const& {
         auto const& value = computed_style.property(CSS::PropertyID::MaskImage);
 
