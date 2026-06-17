@@ -11,6 +11,7 @@
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Noncopyable.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
@@ -23,6 +24,11 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
+
+class SkImage;
+
+template<typename T>
+class sk_sp;
 
 namespace Web::Painting {
 
@@ -51,6 +57,8 @@ struct DisplayListVideoFrameResource {
     RefPtr<Media::VideoFrame const> frame;
 };
 
+struct DisplayListStoredImageFrameResource;
+
 struct DisplayListResource {
     DisplayListResource(NonnullRefPtr<DisplayList>, AccumulatedVisualContextTree);
     DisplayListResource(NonnullRefPtr<DisplayList const>, AccumulatedVisualContextTree);
@@ -74,10 +82,11 @@ struct DisplayListResourceTransaction {
 
 class WEB_API DisplayListResourceStorage {
     AK_MAKE_NONCOPYABLE(DisplayListResourceStorage);
-    AK_MAKE_DEFAULT_MOVABLE(DisplayListResourceStorage);
 
 public:
-    DisplayListResourceStorage() = default;
+    DisplayListResourceStorage();
+    DisplayListResourceStorage(DisplayListResourceStorage&&);
+    DisplayListResourceStorage& operator=(DisplayListResourceStorage&&);
     ~DisplayListResourceStorage();
 
     FontResourceId add_font(Gfx::Font const&);
@@ -101,21 +110,23 @@ public:
     void clear_compositor_surface(CompositorSurfaceId);
 
     Gfx::Font const& font(FontResourceId id) const { return *m_fonts.get(id.value()).value(); }
-    Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId id) const { return m_image_frames.get(id.value()).value(); }
+    Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId) const;
+    sk_sp<SkImage> skia_image_for_image_frame(ImageFrameResourceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
     RefPtr<Media::VideoFrame const> video_frame(VideoFrameResourceId id) const { return m_video_frames.get(id.value()).value(); }
     DisplayListResource const& display_list_resource(DisplayListResourceId id) const { return m_display_lists.get(id.value()).value(); }
     DisplayList const& display_list(DisplayListResourceId id) const { return *display_list_resource(id).display_list; }
     AccumulatedVisualContextTree const& display_list_visual_context_tree(DisplayListResourceId id) const { return display_list_resource(id).visual_context_tree; }
-    Optional<Gfx::DecodedImageFrame const&> compositor_surface(CompositorSurfaceId id) const { return m_compositor_surfaces.get(id.value()); }
+    Optional<Gfx::DecodedImageFrame const&> compositor_surface(CompositorSurfaceId) const;
+    sk_sp<SkImage> skia_image_for_compositor_surface(CompositorSurfaceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
 
 private:
     void collect_referenced_resources(ReadonlyBytes command_bytes, DisplayListResourceSet&) const;
 
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
-    HashMap<u64, Gfx::DecodedImageFrame> m_image_frames;
+    HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
     HashMap<u64, RefPtr<Media::VideoFrame const>> m_video_frames;
     HashMap<u64, DisplayListResource> m_display_lists;
-    HashMap<u64, Gfx::DecodedImageFrame> m_compositor_surfaces;
+    HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_compositor_surfaces;
 
     HashMap<u64, size_t> m_font_cache_reference_counts;
     HashMap<u64, size_t> m_image_frame_cache_reference_counts;

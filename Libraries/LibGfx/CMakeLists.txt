@@ -32,7 +32,6 @@ set(SOURCES
     ImageFormats/WebPSharedLossless.cpp
     ImageFormats/WebPWriter.cpp
     ImageFormats/WebPWriterLossless.cpp
-    DecodedImageFrameSkiaImageCache.cpp
     PaintStyle.cpp
     Painter.cpp
     PainterSkia.cpp

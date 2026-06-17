@@ -7,11 +7,51 @@
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SkiaBackendContext.h>
+#include <LibGfx/SkiaUtils.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 
+#include <core/SkImage.h>
+#include <gpu/ganesh/GrDirectContext.h>
+#include <gpu/ganesh/SkImageGanesh.h>
+
 namespace Web::Painting {
+
+struct DisplayListStoredImageFrameResource {
+    explicit DisplayListStoredImageFrameResource(Gfx::DecodedImageFrame frame)
+        : frame(move(frame))
+    {
+    }
+
+    Gfx::DecodedImageFrame frame;
+    mutable sk_sp<SkImage> skia_image;
+    mutable RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
+};
+
+static sk_sp<SkImage> create_skia_image(Gfx::DecodedImageFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    auto raster_image = Gfx::sk_image_from_bitmap(frame.bitmap(), frame.color_space());
+    auto* gr_context = skia_backend_context ? skia_backend_context->sk_context() : nullptr;
+    if (!gr_context)
+        return raster_image;
+
+    auto texture_image = SkImages::TextureFromImage(gr_context, raster_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
+    if (texture_image)
+        return texture_image;
+    return raster_image;
+}
+
+static sk_sp<SkImage> skia_image_for_stored_image_frame(DisplayListStoredImageFrameResource const& resource, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    if (resource.skia_image && resource.skia_backend_context.ptr() == skia_backend_context.ptr())
+        return resource.skia_image;
+
+    resource.skia_image = create_skia_image(resource.frame, skia_backend_context);
+    resource.skia_backend_context = skia_backend_context;
+    return resource.skia_image;
+}
 
 bool DisplayListResourceSet::is_empty() const
 {
@@ -51,6 +91,9 @@ DisplayListResource::DisplayListResource(DisplayList const& display_list, Accumu
 {
 }
 
+DisplayListResourceStorage::DisplayListResourceStorage() = default;
+DisplayListResourceStorage::DisplayListResourceStorage(DisplayListResourceStorage&&) = default;
+DisplayListResourceStorage& DisplayListResourceStorage::operator=(DisplayListResourceStorage&&) = default;
 DisplayListResourceStorage::~DisplayListResourceStorage() = default;
 
 FontResourceId DisplayListResourceStorage::add_font(Gfx::Font const& font)
@@ -63,7 +106,7 @@ FontResourceId DisplayListResourceStorage::add_font(Gfx::Font const& font)
 ImageFrameResourceId DisplayListResourceStorage::add_image_frame(Gfx::DecodedImageFrame const& frame)
 {
     auto id = frame.id();
-    m_image_frames.ensure(id, [&] { return frame; });
+    m_image_frames.ensure(id, [&] { return make<DisplayListStoredImageFrameResource>(frame); });
     return { id };
 }
 
@@ -96,7 +139,17 @@ void DisplayListResourceStorage::set_font(FontResourceId id, NonnullRefPtr<Gfx::
 
 void DisplayListResourceStorage::set_image_frame(ImageFrameResourceId id, Gfx::DecodedImageFrame frame)
 {
-    m_image_frames.set(id.value(), move(frame));
+    m_image_frames.set(id.value(), make<DisplayListStoredImageFrameResource>(move(frame)));
+}
+
+Gfx::DecodedImageFrame const& DisplayListResourceStorage::image_frame(ImageFrameResourceId id) const
+{
+    return m_image_frames.get(id.value()).value()->frame;
+}
+
+sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_image_frame(ImageFrameResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
+{
+    return skia_image_for_stored_image_frame(*m_image_frames.get(id.value()).value(), skia_backend_context);
 }
 
 static ReadonlyBytes inline_data(ReadonlyBytes payload, DisplayListDataSpan span)
@@ -286,7 +339,8 @@ void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resou
             && !m_font_cache_reference_counts.contains(id);
     });
     m_image_frames.remove_all_matching([&](auto id, auto const&) {
-        return !resource_set.image_frames.contains(ImageFrameResourceId { id })
+        auto image_frame_id = ImageFrameResourceId { id };
+        return !resource_set.image_frames.contains(image_frame_id)
             && !m_image_frame_cache_reference_counts.contains(id);
     });
     m_video_frames.remove_all_matching([&](auto id, auto const&) {
@@ -313,12 +367,28 @@ void DisplayListResourceStorage::clear_video_frame(VideoFrameResourceId frame_id
 void DisplayListResourceStorage::update_compositor_surface(CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
 {
     auto shared_image_buffer = Gfx::SharedImageBuffer::import_from_shared_image(move(shared_image));
-    m_compositor_surfaces.set(surface_id.value(), Gfx::DecodedImageFrame { *shared_image_buffer.bitmap() });
+    m_compositor_surfaces.set(surface_id.value(), make<DisplayListStoredImageFrameResource>(Gfx::DecodedImageFrame { *shared_image_buffer.bitmap() }));
 }
 
 void DisplayListResourceStorage::clear_compositor_surface(CompositorSurfaceId surface_id)
 {
     m_compositor_surfaces.remove(surface_id.value());
+}
+
+Optional<Gfx::DecodedImageFrame const&> DisplayListResourceStorage::compositor_surface(CompositorSurfaceId id) const
+{
+    auto frame = m_compositor_surfaces.get(id.value());
+    if (!frame.has_value())
+        return {};
+    return frame.value()->frame;
+}
+
+sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_compositor_surface(CompositorSurfaceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
+{
+    auto resource = m_compositor_surfaces.get(id.value());
+    if (!resource.has_value())
+        return nullptr;
+    return skia_image_for_stored_image_frame(*resource.value(), skia_backend_context);
 }
 
 }
