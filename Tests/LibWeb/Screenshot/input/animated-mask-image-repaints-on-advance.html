@@ -1,0 +1,50 @@
+<!doctype html>
+<meta name="fuzzy" content="maxDifference=0-13;totalPixels=0-1440" />
+<html class="reftest-wait">
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #target {
+            width: 160px;
+            height: 160px;
+            background: linear-gradient(90deg, red 0%, red 50%, green 50%, green 100%);
+            mask-repeat: no-repeat;
+            mask-size: 160px 160px;
+        }
+    </style>
+    <div id="target"></div>
+    <script>
+        const gifURL = "../data/animated-mask-image.gif";
+
+        document
+            .getElementById("target")
+            .style.setProperty("mask-image", `linear-gradient(transparent, transparent), url("${gifURL}")`);
+
+        const waitForAnimationToStart = () =>
+            new Promise(resolve => {
+                const wait = () => {
+                    if (internals.activeImageStyleValueAnimationCount() > 0) {
+                        resolve();
+                        return;
+                    }
+
+                    requestAnimationFrame(wait);
+                };
+
+                wait();
+            });
+
+        (async () => {
+            // Wait for the animation to start
+            await waitForAnimationToStart();
+
+            // Wait until the next frame
+            await new Promise(resolve => setTimeout(resolve, 600));
+
+            // Take a screenshot - the mask image should have been invalidated and repainted.
+            document.documentElement.classList.remove("reftest-wait");
+        })();
+    </script>
+</html>
