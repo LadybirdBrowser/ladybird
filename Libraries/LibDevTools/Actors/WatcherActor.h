@@ -36,10 +36,13 @@ private:
     StorageActor& local_storage_actor();
     StorageActor& session_storage_actor();
     void send_storage_resource_available_message(StorageActor&);
+    IndexedDBActor& indexed_db_actor();
+    void send_indexed_db_resource_available_message();
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<FrameActor> m_target;
     WeakPtr<CookiesActor> m_cookies;
+    WeakPtr<IndexedDBActor> m_indexed_db;
     WeakPtr<StorageActor> m_local_storage;
     WeakPtr<StorageActor> m_session_storage;
     WeakPtr<TargetConfigurationActor> m_target_configuration;
@@ -47,6 +50,7 @@ private:
     WeakPtr<NetworkParentActor> m_network_parent;
     bool m_is_watching_frame_targets { false };
     bool m_is_watching_cookie_resources { false };
+    bool m_is_watching_indexed_db_resources { false };
     bool m_is_watching_local_storage_resources { false };
     bool m_is_watching_session_storage_resources { false };
 };

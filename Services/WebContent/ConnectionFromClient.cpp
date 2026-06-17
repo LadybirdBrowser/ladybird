@@ -16,6 +16,7 @@
 #include <AK/QuickSort.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
+#include <LibDevTools/IndexedDBSerialization.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
@@ -1234,6 +1235,93 @@ void ConnectionFromClient::inspect_current_flexbox(u64 page_id, Web::UniqueNodeI
     }
 
     async_did_inspect_current_flexbox(page_id, "null"_string);
+}
+
+void ConnectionFromClient::inspect_indexed_database_storage(u64 page_id, u64 request_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* document = page->page().top_level_browsing_context().active_document();
+    if (!document) {
+        async_did_inspect_indexed_database(page_id, request_id, "{}"_string);
+        return;
+    }
+
+    async_did_inspect_indexed_database(page_id, request_id, DevTools::IndexedDB::serialize_storage(*document).serialized());
+}
+
+void ConnectionFromClient::inspect_indexed_database_objects(u64 page_id, u64 request_id, String host, JsonValue names, JsonValue options)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* document = page->page().top_level_browsing_context().active_document();
+    if (!document) {
+        async_did_inspect_indexed_database(page_id, request_id, "{}"_string);
+        return;
+    }
+
+    async_did_inspect_indexed_database(page_id, request_id, DevTools::IndexedDB::serialize_objects(*document, host, names, options).serialized());
+}
+
+static void send_indexed_database_operation_result(ConnectionFromClient& connection, u64 page_id, u64 request_id, ErrorOr<JsonObject> result)
+{
+    if (result.is_error()) {
+        JsonObject error;
+        error.set("error"sv, result.error().string_literal());
+        connection.async_did_inspect_indexed_database(page_id, request_id, error.serialized());
+        return;
+    }
+
+    connection.async_did_inspect_indexed_database(page_id, request_id, result.release_value().serialized());
+}
+
+void ConnectionFromClient::delete_indexed_database(u64 page_id, u64 request_id, String host, String name)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* document = page->page().top_level_browsing_context().active_document();
+    if (!document) {
+        async_did_inspect_indexed_database(page_id, request_id, "{}"_string);
+        return;
+    }
+
+    send_indexed_database_operation_result(*this, page_id, request_id, DevTools::IndexedDB::delete_database(*document, host, name));
+}
+
+void ConnectionFromClient::clear_indexed_database_object_store(u64 page_id, u64 request_id, String host, String name)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* document = page->page().top_level_browsing_context().active_document();
+    if (!document) {
+        async_did_inspect_indexed_database(page_id, request_id, "{}"_string);
+        return;
+    }
+
+    send_indexed_database_operation_result(*this, page_id, request_id, DevTools::IndexedDB::clear_object_store(*document, host, name));
+}
+
+void ConnectionFromClient::delete_indexed_database_record(u64 page_id, u64 request_id, String host, String name)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* document = page->page().top_level_browsing_context().active_document();
+    if (!document) {
+        async_did_inspect_indexed_database(page_id, request_id, "{}"_string);
+        return;
+    }
+
+    send_indexed_database_operation_result(*this, page_id, request_id, DevTools::IndexedDB::delete_record(*document, host, name));
 }
 
 void ConnectionFromClient::clear_inspected_dom_node(u64 page_id)

@@ -111,6 +111,8 @@ private:
     virtual void inspect_grid_layouts(u64 page_id, Web::UniqueNodeID root_node_id) override;
     virtual void inspect_current_grid(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void inspect_current_flexbox(u64 page_id, Web::UniqueNodeID node_id, bool only_look_at_parents) override;
+    virtual void inspect_indexed_database_storage(u64 page_id, u64 request_id) override;
+    virtual void inspect_indexed_database_objects(u64 page_id, u64 request_id, String host, JsonValue names, JsonValue options) override;
     virtual void clear_inspected_dom_node(u64 page_id) override;
     virtual void highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) override;
     virtual void highlight_flexbox(u64 page_id, Web::UniqueNodeID node_id, JsonValue options) override;

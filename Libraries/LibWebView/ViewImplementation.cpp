@@ -947,6 +947,37 @@ void ViewImplementation::inspect_current_flexbox(Web::UniqueNodeID node_id, bool
     client().async_inspect_current_flexbox(page_id(), node_id, only_look_at_parents);
 }
 
+void ViewImplementation::inspect_indexed_database_storage(DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
+{
+    auto request_id = m_next_indexed_database_inspection_request_id++;
+    m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
+    client().async_inspect_indexed_database_storage(page_id(), request_id);
+}
+
+void ViewImplementation::inspect_indexed_database_objects(String const& host, Optional<JsonArray> names, JsonObject options, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
+{
+    auto request_id = m_next_indexed_database_inspection_request_id++;
+    m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
+    if (names.has_value())
+        client().async_inspect_indexed_database_objects(page_id(), request_id, host, JsonValue { names.release_value() }, JsonValue { move(options) });
+    else
+        client().async_inspect_indexed_database_objects(page_id(), request_id, host, JsonValue {}, JsonValue { move(options) });
+}
+
+void ViewImplementation::did_receive_indexed_database_inspection(u64 request_id, JsonObject result)
+{
+    auto callback = m_pending_indexed_database_inspection_requests.take(request_id);
+    if (!callback.has_value())
+        return;
+
+    if (result.has_string("error"sv)) {
+        (*callback)(Error::from_string_literal("IndexedDB operation failed"));
+        return;
+    }
+
+    (*callback)(move(result));
+}
+
 void ViewImplementation::clear_inspected_dom_node()
 {
     client().async_clear_inspected_dom_node(page_id());

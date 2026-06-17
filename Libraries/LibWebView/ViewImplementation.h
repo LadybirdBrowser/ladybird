@@ -147,6 +147,9 @@ public:
     u64 add_storage_change_listener(DevTools::DevToolsDelegate::OnStorageChange);
     void remove_storage_change_listener(u64 listener_id);
 
+    void inspect_indexed_database_storage(DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete);
+    void inspect_indexed_database_objects(String const& host, Optional<JsonArray> names, JsonObject options, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete);
+
     ByteString selected_text();
     ByteString cut_selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
@@ -605,6 +608,9 @@ protected:
     HashMap<u64, DevTools::DevToolsDelegate::OnStorageChange> m_storage_change_listeners;
     u64 m_next_storage_change_listener_id { 1 };
 
+    HashMap<u64, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete> m_pending_indexed_database_inspection_requests;
+    u64 m_next_indexed_database_inspection_request_id { 1 };
+
     // FIXME: Reconcile this ID with `page_id`. The latter is only unique per WebContent connection, whereas the view ID
     //        is required to be globally unique for Firefox DevTools.
     u64 m_view_id { 0 };
@@ -619,6 +625,7 @@ protected:
     };
     void request_node_picker_hit_test(NodePickerRequestType, Web::DevicePixelPoint);
     void did_receive_node_picker_hit_test(u64 request_id, Web::UniqueNodeID);
+    void did_receive_indexed_database_inspection(u64 request_id, JsonObject);
 
     bool m_node_picker_active { false };
     Optional<Web::UniqueNodeID> m_node_picker_hovered_node_id;

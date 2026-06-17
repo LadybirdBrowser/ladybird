@@ -23,6 +23,7 @@ class DevToolsDelegate;
 class DevToolsServer;
 class FrameActor;
 class HighlighterActor;
+class IndexedDBActor;
 class InspectorActor;
 class LayoutInspectorActor;
 class NetworkEventActor;
