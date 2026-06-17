@@ -444,26 +444,42 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::parse)
     // 1. Let jsonString be ? ToString(text).
     auto json_string = TRY(text.to_string(vm));
 
-    // 2. Let unfiltered be ? ParseJSON(jsonString).
-    auto unfiltered = TRY(parse_json(vm, json_string));
+    // 2. Let parseResult be ? ParseJSON(jsonString).
+    // 3. Let unfiltered be parseResult.[[Value]].
+    // NB: We build the JSON Parse Record snapshot inline during parsing, but only
+    //     when a reviver is present and may observe the matched source text.
+    JSONParseRecord root_record;
+    auto unfiltered = TRY(parse_json(vm, json_string, reviver.is_function() ? &root_record : nullptr));
 
-    // 3. If IsCallable(reviver) is true, then
-    if (reviver.is_function()) {
-        // a. Let root be OrdinaryObjectCreate(%Object.prototype%).
-        auto root = Object::create(realm, realm.intrinsics().object_prototype());
+    // 4. If IsCallable(reviver) is false, return unfiltered.
+    if (!reviver.is_function())
+        return unfiltered;
 
-        // b. Let rootName be the empty String.
-        Utf16String root_name;
+    // 5. Let root be OrdinaryObjectCreate(%Object.prototype%).
+    auto root = Object::create(realm, realm.intrinsics().object_prototype());
 
-        // c. Perform ! CreateDataPropertyOrThrow(root, rootName, unfiltered).
-        MUST(root->create_data_property_or_throw(root_name, unfiltered));
+    // 6. Let rootName be the empty String.
+    Utf16String root_name;
 
-        // d. Return ? InternalizeJSONProperty(root, rootName, reviver).
-        return internalize_json_property(vm, root, root_name, reviver.as_function());
-    }
-    // 4. Else,
-    //     a. Return unfiltered.
-    return unfiltered;
+    // 7. Perform ! CreateDataPropertyOrThrow(root, rootName, unfiltered).
+    MUST(root->create_data_property_or_throw(root_name, unfiltered));
+
+    // 8. Let snapshot be CreateJSONParseRecord(parseResult.[[ParseNode]], rootName, unfiltered).
+    // NB: Keep every value referenced by the parse record snapshot rooted: the records
+    //     live in heap-allocated storage the GC does not scan, and the reviver may
+    //     detach the original values from the object graph while still running.
+    GC::RootVector<Value> kept_alive;
+    Function<void(JSONParseRecord const&)> keep_alive = [&](JSONParseRecord const& record) {
+        kept_alive.append(record.value);
+        for (auto const& element : record.elements)
+            keep_alive(element);
+        for (auto const& entry : record.entries)
+            keep_alive(entry);
+    };
+    keep_alive(root_record);
+
+    // 9. Return ? InternalizeJSONProperty(root, rootName, reviver, snapshot).
+    return internalize_json_property(vm, root, root_name, reviver.as_function(), &root_record);
 }
 
 // Unescape a JSON string, properly handling \uXXXX escape sequences including lone surrogates.
@@ -583,7 +599,14 @@ static ALWAYS_INLINE ThrowCompletionOr<void> ensure_simdjson_fully_parsed(VM& vm
     return {};
 }
 
-static ThrowCompletionOr<Value> parse_simdjson_value(VM&, simdjson::ondemand::value);
+static ThrowCompletionOr<Value> parse_simdjson_value(VM&, simdjson::ondemand::value, JSONParseRecord* record = nullptr);
+
+// The source text matched by a primitive parse node, used by JSON.parse revivers.
+static String json_token_source(std::string_view raw)
+{
+    StringView source { raw.data(), raw.size() };
+    return MUST(String::from_utf8(source.trim_whitespace()));
+}
 
 template<typename T>
 static ThrowCompletionOr<Value> parse_simdjson_number(VM& vm, T& value, StringView raw_sv)
@@ -646,7 +669,7 @@ static ThrowCompletionOr<Value> parse_simdjson_string(VM& vm, T& value)
 }
 
 template<typename T>
-static ThrowCompletionOr<Value> parse_simdjson_array(VM& vm, T& value)
+static ThrowCompletionOr<Value> parse_simdjson_array(VM& vm, T& value, JSONParseRecord* record = nullptr)
 {
     auto& realm = *vm.current_realm();
 
@@ -661,16 +684,21 @@ static ThrowCompletionOr<Value> parse_simdjson_array(VM& vm, T& value)
         simdjson::ondemand::value element_value;
         if (element.get(element_value))
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
-        auto parsed = TRY(parse_simdjson_value(vm, element_value));
+        JSONParseRecord element_record;
+        auto parsed = TRY(parse_simdjson_value(vm, element_value, record ? &element_record : nullptr));
         array->define_direct_property(index++, parsed, default_attributes);
+        if (record)
+            record->elements.append(move(element_record));
     }
 
     TRY(ensure_simdjson_fully_parsed(vm, value));
+    if (record)
+        record->value = array;
     return array;
 }
 
 template<typename T>
-static ThrowCompletionOr<Value> parse_simdjson_object(VM& vm, T& value)
+static ThrowCompletionOr<Value> parse_simdjson_object(VM& vm, T& value, JSONParseRecord* record = nullptr)
 {
     auto& realm = *vm.current_realm();
 
@@ -691,40 +719,74 @@ static ThrowCompletionOr<Value> parse_simdjson_object(VM& vm, T& value)
         simdjson::ondemand::value field_value;
         if (field.value().get(field_value))
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
-        auto parsed = TRY(parse_simdjson_value(vm, field_value));
-        object->define_direct_property(unescaped_key.release_value(), parsed, default_attributes);
+        auto key = unescaped_key.release_value();
+        JSONParseRecord entry_record;
+        auto parsed = TRY(parse_simdjson_value(vm, field_value, record ? &entry_record : nullptr));
+        object->define_direct_property(key, parsed, default_attributes);
+        if (record) {
+            entry_record.key = key;
+            // Duplicate keys keep the last value, matching object property semantics.
+            if (auto existing = record->entries.find_if([&](auto& entry) { return entry.key == key; }); existing != record->entries.end())
+                *existing = move(entry_record);
+            else
+                record->entries.append(move(entry_record));
+        }
     }
 
     TRY(ensure_simdjson_fully_parsed(vm, value));
+    if (record)
+        record->value = object;
     return object;
 }
 
-static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand::value value)
+static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand::value value, JSONParseRecord* record)
 {
     simdjson::ondemand::json_type type;
     if (value.type().get(type))
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
+    // NB: raw_json_token() must be captured before the value is consumed by the get_* calls below.
     switch (type) {
     case simdjson::ondemand::json_type::null:
+        if (record) {
+            record->value = js_null();
+            record->source = json_token_source(value.raw_json_token());
+        }
         return js_null();
     case simdjson::ondemand::json_type::boolean: {
+        auto token = value.raw_json_token();
         bool boolean_value;
         if (value.get_bool().get(boolean_value))
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        if (record) {
+            record->value = Value(boolean_value);
+            record->source = json_token_source(token);
+        }
         return Value(boolean_value);
     }
     case simdjson::ondemand::json_type::number: {
         auto raw = value.raw_json_token();
         StringView raw_sv { raw.data(), raw.size() };
-        return parse_simdjson_number(vm, value, raw_sv);
+        auto parsed = TRY(parse_simdjson_number(vm, value, raw_sv));
+        if (record) {
+            record->value = parsed;
+            record->source = json_token_source(raw);
+        }
+        return parsed;
     }
-    case simdjson::ondemand::json_type::string:
-        return parse_simdjson_string(vm, value);
+    case simdjson::ondemand::json_type::string: {
+        auto token = value.raw_json_token();
+        auto parsed = TRY(parse_simdjson_string(vm, value));
+        if (record) {
+            record->value = parsed;
+            record->source = json_token_source(token);
+        }
+        return parsed;
+    }
     case simdjson::ondemand::json_type::array:
-        return parse_simdjson_array(vm, value);
+        return parse_simdjson_array(vm, value, record);
     case simdjson::ondemand::json_type::object:
-        return parse_simdjson_object(vm, value);
+        return parse_simdjson_object(vm, value, record);
     case simdjson::ondemand::json_type::unknown:
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
     }
@@ -732,10 +794,16 @@ static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand:
     VERIFY_NOT_REACHED();
 }
 
-static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondemand::document& document)
+static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondemand::document& document, JSONParseRecord* record = nullptr)
 {
     simdjson::ondemand::json_type type;
     if (document.type().get(type))
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    // NB: raw_json_token() must be captured before the value is consumed by the get_* calls below.
+    std::string_view raw_token;
+    if ((type == simdjson::ondemand::json_type::boolean || type == simdjson::ondemand::json_type::number)
+        && document.raw_json_token().get(raw_token))
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     switch (type) {
@@ -744,6 +812,13 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondema
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
         if (!document.at_end())
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        if (record) {
+            std::string_view null_token;
+            if (document.raw_json_token().get(null_token))
+                return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+            record->value = js_null();
+            record->source = json_token_source(null_token);
+        }
         return js_null();
     }
     case simdjson::ondemand::json_type::boolean: {
@@ -752,23 +827,37 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondema
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
         if (!document.at_end())
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        if (record) {
+            record->value = Value(boolean_value);
+            record->source = json_token_source(raw_token);
+        }
         return Value(boolean_value);
     }
     case simdjson::ondemand::json_type::number: {
-        // Get raw token first in case get_double fails (e.g., overflow)
-        std::string_view raw;
-        if (document.raw_json_token().get(raw))
-            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
-        StringView raw_sv { raw.data(), raw.size() };
+        StringView raw_sv { raw_token.data(), raw_token.size() };
         auto trimmed = raw_sv.trim_whitespace();
-        return parse_simdjson_number(vm, document, trimmed);
+        auto parsed = TRY(parse_simdjson_number(vm, document, trimmed));
+        if (record) {
+            record->value = parsed;
+            record->source = json_token_source(raw_token);
+        }
+        return parsed;
     }
-    case simdjson::ondemand::json_type::string:
-        return parse_simdjson_string(vm, document);
+    case simdjson::ondemand::json_type::string: {
+        std::string_view string_token;
+        if (record && document.raw_json_token().get(string_token))
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        auto parsed = TRY(parse_simdjson_string(vm, document));
+        if (record) {
+            record->value = parsed;
+            record->source = json_token_source(string_token);
+        }
+        return parsed;
+    }
     case simdjson::ondemand::json_type::array:
-        return parse_simdjson_array(vm, document);
+        return parse_simdjson_array(vm, document, record);
     case simdjson::ondemand::json_type::object:
-        return parse_simdjson_object(vm, document);
+        return parse_simdjson_object(vm, document, record);
     case simdjson::ondemand::json_type::unknown:
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
     }
@@ -777,7 +866,7 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondema
 }
 
 // 25.5.1.1 ParseJSON ( text ), https://tc39.es/ecma262/#sec-ParseJSON
-ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, StringView text)
+ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, StringView text, JSONParseRecord* root_record)
 {
     // 1. If StringToCodePoints(text) is not a valid JSON text as specified in ECMA-404, throw a SyntaxError exception.
     // NB: Per ECMA-404, the BOM is not valid JSON whitespace. simdjson silently skips it, so we must reject it explicitly.
@@ -800,7 +889,7 @@ ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, StringView text)
     // 4. NOTE: The early error rules defined in 13.2.5.1 have special handling for the above invocation of ParseText.
     // 5. Assert: script is a Parse Node.
     // 6. Let result be ! Evaluation of script.
-    auto result = TRY(parse_simdjson_document(vm, document));
+    auto result = TRY(parse_simdjson_document(vm, document, root_record));
 
     // 7. NOTE: The PropertyDefinitionEvaluation semantics defined in 13.2.5.5 have special handling for the above evaluation.
     // 8. Assert: result is either a String, a Number, a Boolean, an Object that is defined by either an ArrayLiteral or an ObjectLiteral, or null.
@@ -809,35 +898,93 @@ ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, StringView text)
     return result;
 }
 
-// 25.5.1.1 InternalizeJSONProperty ( holder, name, reviver ), https://tc39.es/ecma262/#sec-internalizejsonproperty
-ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, Object* holder, PropertyKey const& name, FunctionObject& reviver)
+// 25.5.1.1 InternalizeJSONProperty ( holder, name, reviver, parseRecord ), https://tc39.es/ecma262/#sec-internalizejsonproperty
+ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, Object* holder, PropertyKey const& name, FunctionObject& reviver, JSONParseRecord const* parse_record)
 {
+    auto& realm = *vm.current_realm();
+
+    // 1. Let value be ? Get(holder, name).
     auto value = TRY(holder->get(name));
+
+    // 2. Let context be OrdinaryObjectCreate(%Object.prototype%).
+    auto context = Object::create(realm, realm.intrinsics().object_prototype());
+
+    // 3. If parseRecord is a JSON Parse Record and SameValue(parseRecord.[[Value]], value) is true, then
+    // NB: An empty List of records is represented as a null pointer here.
+    Vector<JSONParseRecord> const* element_records = nullptr;
+    Vector<JSONParseRecord> const* entry_records = nullptr;
+    if (parse_record && same_value(parse_record->value, value)) {
+        // a. If value is not an Object, then
+        if (!value.is_object()) {
+            // i. Let parseNode be parseRecord.[[ParseNode]].
+            // ii. Assert: parseNode is neither an ArrayLiteral Parse Node nor an ObjectLiteral Parse Node.
+            // iii. Let sourceText be the source text matched by parseNode.
+            // iv. Perform ! CreateDataPropertyOrThrow(context, "source", CodePointsToString(sourceText)).
+            // NB: We captured sourceText while parsing rather than from a retained parse node.
+            VERIFY(parse_record->source.has_value());
+            MUST(context->create_data_property_or_throw(vm.names.source, PrimitiveString::create(vm, *parse_record->source)));
+        }
+        // b. Let elementRecords be parseRecord.[[Elements]].
+        element_records = &parse_record->elements;
+        // c. Let entryRecords be parseRecord.[[Entries]].
+        entry_records = &parse_record->entries;
+    }
+    // 4. Else,
+    //     a. Let elementRecords be a new empty List.
+    //     b. Let entryRecords be a new empty List.
+
+    // 5. If value is an Object, then
     if (value.is_object()) {
+        // a. Let isArray be ? IsArray(value).
         auto is_array = TRY(value.is_array(vm));
 
         auto& value_object = value.as_object();
-        auto process_property = [&](PropertyKey const& key) -> ThrowCompletionOr<void> {
-            auto element = TRY(internalize_json_property(vm, &value_object, key, reviver));
-            if (element.is_undefined())
+        auto process_property = [&](PropertyKey const& key, JSONParseRecord const* child_record) -> ThrowCompletionOr<void> {
+            // i/ii/iii. Let newElement be ? InternalizeJSONProperty(value, propertyKey, reviver, elementRecord/entryRecord).
+            auto new_element = TRY(internalize_json_property(vm, &value_object, key, reviver, child_record));
+            // If newElement is undefined, perform ? value.[[Delete]](propertyKey).
+            if (new_element.is_undefined())
                 TRY(value_object.internal_delete(key));
+            // Else, perform ? CreateDataProperty(value, propertyKey, newElement).
             else
-                TRY(value_object.create_data_property(key, element));
+                TRY(value_object.create_data_property(key, new_element));
             return {};
         };
 
+        // b. If isArray is true, then
         if (is_array) {
+            // i. Let elementRecordsLength be the number of elements in elementRecords.
+            auto element_records_length = element_records ? element_records->size() : 0;
+            // ii. Let length be ? LengthOfArrayLike(value).
             auto length = TRY(length_of_array_like(vm, value_object));
-            for (size_t i = 0; i < length; ++i)
-                TRY(process_property(i));
-        } else {
-            auto property_list = TRY(value_object.enumerable_own_property_names(Object::PropertyKind::Key));
-            for (auto& property_key : property_list)
-                TRY(process_property(property_key.as_string().utf16_string()));
+            // iii-iv. Repeat, while index < length,
+            for (size_t index = 0; index < length; ++index) {
+                // 2. If index < elementRecordsLength, let elementRecord be elementRecords[index]; else let elementRecord be empty.
+                auto const* element_record = index < element_records_length ? &element_records->at(index) : nullptr;
+                TRY(process_property(index, element_record));
+            }
+        }
+        // c. Else,
+        else {
+            // i. Let keys be ? EnumerableOwnProperties(value, key).
+            auto keys = TRY(value_object.enumerable_own_property_names(Object::PropertyKind::Key));
+            // ii. For each String propertyKey of keys, do
+            for (auto& property_key : keys) {
+                auto key = property_key.as_string().utf16_string();
+                // 1. If there exists an element entry of entryRecords such that entry.[[Key]] is propertyKey,
+                //    let entryRecord be entry; else let entryRecord be empty.
+                JSONParseRecord const* entry_record = nullptr;
+                if (entry_records) {
+                    if (auto entry = entry_records->find_if([&](auto& entry) { return entry.key == key; }); entry != entry_records->end())
+                        entry_record = &*entry;
+                }
+                TRY(process_property(key, entry_record));
+            }
         }
     }
 
-    return TRY(call(vm, reviver, holder, PrimitiveString::create(vm, name.to_string()), value));
+    // 6. Return ? Call(reviver, holder, « name, value, context »).
+    return TRY(call(vm, reviver, holder, PrimitiveString::create(vm, name.to_string()), value, context));
 }
 
 // 1.3 JSON.rawJSON ( text ), https://tc39.es/proposal-json-parse-with-source/#sec-json.rawjson
