@@ -125,25 +125,25 @@ String CookieJar::get_cookie(URL::URL const& url, HTTP::Cookie::Source source)
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.7
-ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source)
+void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source)
 {
     // 1. A user agent MAY ignore a received cookie in its entirety. See Section 5.3.
 
     // 2. If cookie-name is empty and cookie-value is empty, abort this algorithm and ignore the cookie entirely.
     if (parsed_cookie.name.is_empty() && parsed_cookie.value.is_empty())
-        return Error::from_string_literal("Cookie name and value cannot both be empty");
+        return;
 
     // 3. If the cookie-name or the cookie-value contains a %x00-08 / %x0A-1F / %x7F character (CTL characters excluding
     //    HTAB), abort this algorithm and ignore the cookie entirely.
     if (HTTP::Cookie::cookie_contains_invalid_control_character(parsed_cookie.name))
-        return Error::from_string_literal("Cookie name contains an invalid control character");
+        return;
     if (HTTP::Cookie::cookie_contains_invalid_control_character(parsed_cookie.value))
-        return Error::from_string_literal("Cookie value contains an invalid control character");
+        return;
 
     // 4. If the sum of the lengths of cookie-name and cookie-value is more than 4096 octets, abort this algorithm and
     //    ignore the cookie entirely.
     if (parsed_cookie.name.byte_count() + parsed_cookie.value.byte_count() > 4096)
-        return Error::from_string_literal("Cookie name and value exceed the maximum size");
+        return;
 
     // 5. Create a new cookie with name cookie-name, value cookie-value. Set the creation-time and the last-access-time
     //    to the current date and time.
@@ -186,9 +186,8 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
         // 1. Let the domain-attribute be the attribute-value of the last attribute in the cookie-attribute-list with
         //    both an attribute-name of "Domain" and an attribute-value whose length is no more than 1024 octets. (Note
         //    that a leading %x2E ("."), if present, is ignored even though that character is not permitted.)
-        if (parsed_cookie.domain->byte_count() > 1024)
-            return Error::from_string_literal("Cookie host exceeds the maximum size");
-        domain_attribute = parsed_cookie.domain.value();
+        if (parsed_cookie.domain->byte_count() <= 1024)
+            domain_attribute = parsed_cookie.domain.value();
     }
     // Otherwise:
     else {
@@ -198,11 +197,11 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
     // 8. If the domain-attribute contains a character that is not in CHAR, abort this algorithm and ignore the cookie
     //    entirely.
     if (!domain_attribute.is_ascii())
-        return Error::from_string_literal("Cookie host must contain only ASCII characters");
+        return;
 
     auto request_host_canonical = HTTP::Cookie::canonicalize_domain(url);
     if (!request_host_canonical.has_value())
-        return Error::from_string_literal("Cookie URL host cannot be canonicalized");
+        return;
 
     // 9. If the user agent is configured to reject "public suffixes" and the domain-attribute is a public suffix:
     if (URL::PublicSuffixData::is_matching_public_suffix(domain_attribute, URL::PublicSuffixData::IncludeStarRule::Yes)) {
@@ -217,7 +216,7 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
         // Otherwise:
         else {
             // 1. Abort this algorithm and ignore the cookie entirely.
-            return Error::from_string_literal("Cookie host cannot be a public suffix");
+            return;
         }
     }
 
@@ -226,7 +225,7 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
         // 1. If request-host-canonical does not domain-match (see Section 5.1.3) the domain-attribute:
         if (!HTTP::Cookie::domain_matches(*request_host_canonical, domain_attribute)) {
             // 1. Abort this algorithm and ignore the cookie entirely.
-            return Error::from_string_literal("Cookie host does not match the current URL");
+            return;
         }
         // Otherwise:
         else {
@@ -251,11 +250,8 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
     //     an attribute-value whose length is no more than 1024 octets. Otherwise, set the cookie's path to the
     //     default-path of the request-uri.
     if (parsed_cookie.path.has_value()) {
-        if (!parsed_cookie.path->bytes_as_string_view().starts_with("/"sv))
-            return Error::from_string_literal("Cookie path must start with /");
-        if (parsed_cookie.path->byte_count() > 1024)
-            return Error::from_string_literal("Cookie path exceeds the maximum size");
-        cookie.path = parsed_cookie.path.value();
+        if (parsed_cookie.path->byte_count() <= 1024)
+            cookie.path = parsed_cookie.path.value();
     } else {
         cookie.path = HTTP::Cookie::default_path(url);
     }
@@ -267,7 +263,7 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
     // 13. If the request-uri does not denote a "secure" connection (as defined by the user agent), and the cookie's
     //     secure-only-flag is true, then abort these steps and ignore the cookie entirely.
     if (cookie.secure && url.scheme() != "https"sv)
-        return Error::from_string_literal("Secure cookies require an HTTPS URL");
+        return;
 
     // 14. If the cookie-attribute-list contains an attribute with an attribute-name of "HttpOnly", set the cookie's
     //     http-only-flag to true. Otherwise, set the cookie's http-only-flag to false.
@@ -276,7 +272,7 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
     // 15. If the cookie was received from a "non-HTTP" API and the cookie's http-only-flag is true, abort this
     //     algorithm and ignore the cookie entirely.
     if (source == HTTP::Cookie::Source::NonHttp && cookie.http_only)
-        return Error::from_string_literal("HTTP-only cookies cannot be set from this context");
+        return;
 
     // 16. If the cookie's secure-only-flag is false, and the request-uri does not denote a "secure" connection, then
     //     abort this algorithm and ignore the cookie entirely if the cookie store contains one or more cookies that
@@ -306,7 +302,7 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
         });
 
         if (ignore_cookie)
-            return Error::from_string_literal("An insecure cookie cannot overlay an existing secure cookie");
+            return;
     }
 
     // 17. If the cookie-attribute-list contains an attribute with an attribute-name of "SameSite", and an
@@ -334,7 +330,7 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
     // 19. If the cookie's "same-site-flag" is "None", abort this algorithm and ignore the cookie entirely unless the
     //     cookie's secure-only-flag is true.
     if (cookie.same_site == HTTP::Cookie::SameSite::None && !cookie.secure)
-        return Error::from_string_literal("SameSite=None cookies must be secure");
+        return;
 
     auto has_case_insensitive_prefix = [&](StringView value, StringView prefix) {
         if (value.length() < prefix.length())
@@ -347,22 +343,22 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
     // 20. If the cookie-name begins with a case-insensitive match for the string "__Secure-", abort this algorithm and
     //     ignore the cookie entirely unless the cookie's secure-only-flag is true.
     if (has_case_insensitive_prefix(cookie.name, "__Secure-"sv) && !cookie.secure)
-        return Error::from_string_literal("__Secure- cookies must be secure");
+        return;
 
     // 21. If the cookie-name begins with a case-insensitive match for the string "__Host-", abort this algorithm and
     //     ignore the cookie entirely unless the cookie meets all the following criteria:
     if (has_case_insensitive_prefix(cookie.name, "__Host-"sv)) {
         // 1. The cookie's secure-only-flag is true.
         if (!cookie.secure)
-            return Error::from_string_literal("__Host- cookies must be secure");
+            return;
 
         // 2. The cookie's host-only-flag is true.
         if (!cookie.host_only)
-            return Error::from_string_literal("__Host- cookies must be host-only");
+            return;
 
         // 3. The cookie-attribute-list contains an attribute with an attribute-name of "Path", and the cookie's path is /.
         if (parsed_cookie.path.has_value() && parsed_cookie.path != "/"sv)
-            return Error::from_string_literal("__Host- cookies must use path /");
+            return;
     }
 
     // 22. If the cookie-name is empty and either of the following conditions are true, abort this algorithm and ignore
@@ -370,11 +366,11 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
     if (cookie.name.is_empty()) {
         // * the cookie-value begins with a case-insensitive match for the string "__Secure-"
         if (has_case_insensitive_prefix(cookie.value, "__Secure-"sv))
-            return Error::from_string_literal("__Secure- cookies must have a name");
+            return;
 
         // * the cookie-value begins with a case-insensitive match for the string "__Host-"
         if (has_case_insensitive_prefix(cookie.value, "__Host-"sv))
-            return Error::from_string_literal("__Host- cookies must have a name");
+            return;
     }
 
     CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
@@ -389,7 +385,7 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
         // 2. If the newly-created cookie was received from a "non-HTTP" API and the old-cookie's http-only-flag is true,
         //    abort this algorithm and ignore the newly created cookie entirely.
         if (source == HTTP::Cookie::Source::NonHttp && old_cookie->http_only)
-            return Error::from_string_literal("HTTP-only cookies cannot be overwritten from this context");
+            return;
 
         // 3. Update the creation-time of the newly-created cookie to match the creation-time of the old-cookie.
         cookie.creation_time = old_cookie->creation_time;
@@ -402,7 +398,6 @@ ErrorOr<void> CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCoo
     m_transient_storage.set_cookie(move(key), move(cookie));
 
     m_transient_storage.purge_expired_cookies();
-    return {};
 }
 
 // This is based on store_cookie() below, however the whole ParsedCookie->Cookie conversion is skipped.
@@ -430,7 +425,7 @@ ErrorOr<void> CookieJar::set_cookie_from_devtools(URL::URL const& url, Optional<
 {
     auto new_key = storage_key_for_cookie(cookie);
     auto parsed_cookie = TRY(HTTP::Cookie::parse_cookie(cookie));
-    TRY(set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http));
+    set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http);
 
     if (old_key.has_value() && *old_key != new_key)
         delete_cookie(*old_key);
