@@ -23,6 +23,8 @@ class SVGUseElement final
     GC_DECLARE_ALLOCATOR(SVGUseElement);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~SVGUseElement() override = default;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
@@ -46,6 +48,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
     virtual void adopted_from(DOM::Document&) override;
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;

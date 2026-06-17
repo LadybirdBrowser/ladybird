@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // A "use" element connected to a document registers itself in that document's list of "use" elements. A GC'ed
+        // document is swept without running node-removal steps — so a "use" element must unlink itself from that list
+        // when it is finalized; otherwise, its intrusive list node is destroyed while still linked — and the engine
+        // aborts. Churn many throwaway documents that each hold a connected "use" element, drop them, and force a
+        // collection — so, a "use" element is swept while its document's list is still alive.
+        for (let i = 0; i < 256; i++) {
+            const doc = document.implementation.createHTMLDocument("");
+            doc.body.innerHTML = "<svg><use href='#x'></use></svg>";
+        }
+        internals.gc();
+        println("PASS");
+    });
+</script>
