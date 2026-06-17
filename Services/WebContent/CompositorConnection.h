@@ -16,7 +16,6 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibMedia/Forward.h>
@@ -45,8 +44,6 @@ public:
     void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot const&);
     void update_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const> const&);
     void clear_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId);
-    void update_compositor_surface(Web::Compositor::CompositorContextId, Web::Painting::CompositorSurfaceId, Gfx::SharedImage const&);
-    void clear_compositor_surface(Web::Compositor::CompositorContextId, Web::Painting::CompositorSurfaceId);
     Optional<Web::Painting::CanvasId> create_canvas_2d_context(Gfx::IntSize, bool alpha);
     void update_canvas_2d_commands(Web::Painting::CanvasId, Gfx::CanvasCommandList const&);
     void destroy_canvas_context(Web::Painting::CanvasId);

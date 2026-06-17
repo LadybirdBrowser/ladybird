@@ -13,7 +13,6 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
 #include <AK/Vector.h>
@@ -106,8 +105,6 @@ public:
     void retain_only(DisplayListResourceSet const&);
     void update_video_frame(VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
     void clear_video_frame(VideoFrameResourceId);
-    void update_compositor_surface(CompositorSurfaceId, Gfx::SharedImage&&);
-    void clear_compositor_surface(CompositorSurfaceId);
 
     Gfx::Font const& font(FontResourceId id) const { return *m_fonts.get(id.value()).value(); }
     Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId) const;
@@ -116,8 +113,6 @@ public:
     DisplayListResource const& display_list_resource(DisplayListResourceId id) const { return m_display_lists.get(id.value()).value(); }
     DisplayList const& display_list(DisplayListResourceId id) const { return *display_list_resource(id).display_list; }
     AccumulatedVisualContextTree const& display_list_visual_context_tree(DisplayListResourceId id) const { return display_list_resource(id).visual_context_tree; }
-    Optional<Gfx::DecodedImageFrame const&> compositor_surface(CompositorSurfaceId) const;
-    sk_sp<SkImage> skia_image_for_compositor_surface(CompositorSurfaceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
 
 private:
     void collect_referenced_resources(ReadonlyBytes command_bytes, DisplayListResourceSet&) const;
@@ -126,7 +121,6 @@ private:
     HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
     HashMap<u64, RefPtr<Media::VideoFrame const>> m_video_frames;
     HashMap<u64, DisplayListResource> m_display_lists;
-    HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_compositor_surfaces;
 
     HashMap<u64, size_t> m_font_cache_reference_counts;
     HashMap<u64, size_t> m_image_frame_cache_reference_counts;

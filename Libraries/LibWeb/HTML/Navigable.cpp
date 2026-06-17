@@ -3776,8 +3776,8 @@ void Navigable::clear_compositor_surface()
 {
     if (!m_compositor_surface_id.has_value())
         return;
-    if (auto parent = this->parent(); parent && parent->has_compositor_context())
-        parent->compositor_context().clear_compositor_surface(*m_compositor_surface_id);
+    if (has_compositor_context())
+        compositor_context().set_presentation_mode(Empty {});
     m_compositor_surface_id.clear();
 }
 

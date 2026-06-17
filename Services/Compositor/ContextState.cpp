@@ -13,6 +13,7 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibGfx/SharedImageBuffer.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 
@@ -260,12 +261,13 @@ void ContextState::clear_video_frame(Web::Painting::VideoFrameResourceId frame_i
 
 void ContextState::update_compositor_surface(Web::Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
 {
-    m_display_list_resource_storage.update_compositor_surface(surface_id, move(shared_image));
+    auto shared_image_buffer = Gfx::SharedImageBuffer::import_from_shared_image(move(shared_image));
+    m_compositor_surfaces.set(surface_id, Gfx::PaintingSurface::wrap_bitmap(*shared_image_buffer.bitmap()));
 }
 
 void ContextState::clear_compositor_surface(Web::Painting::CompositorSurfaceId surface_id)
 {
-    m_display_list_resource_storage.clear_compositor_surface(surface_id);
+    m_compositor_surfaces.remove(surface_id);
 }
 
 Gfx::SharedImage ContextState::snapshot_front_store()
@@ -879,7 +881,14 @@ Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_
 void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface)
 {
     VERIFY(m_display_list);
-    display_list_player.execute(*m_display_list, visual_context_tree_for_compositing(), m_display_list_resource_storage, m_scroll_state_snapshot, surface, &m_canvas_surface_registry);
+    display_list_player.execute(
+        *m_display_list,
+        visual_context_tree_for_compositing(),
+        m_display_list_resource_storage,
+        m_scroll_state_snapshot,
+        surface,
+        &m_canvas_surface_registry,
+        &m_compositor_surfaces);
     m_viewport_scrollbar_controller.paint(surface, display_list_player, m_scroll_state_snapshot);
 }
 

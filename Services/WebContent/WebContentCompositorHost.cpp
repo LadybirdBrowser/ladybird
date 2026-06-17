@@ -208,18 +208,6 @@ private:
             connection->clear_video_frame(context_id, frame_id);
     }
 
-    virtual void update_compositor_surface(Web::Compositor::CompositorContextId context_id, Web::Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image) override
-    {
-        if (auto* connection = compositor_connection())
-            connection->update_compositor_surface(context_id, surface_id, shared_image);
-    }
-
-    virtual void clear_compositor_surface(Web::Compositor::CompositorContextId context_id, Web::Painting::CompositorSurfaceId surface_id) override
-    {
-        if (auto* connection = compositor_connection())
-            connection->clear_compositor_surface(context_id, surface_id);
-    }
-
     virtual void update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot) override
     {
         if (auto* connection = compositor_connection())

@@ -6,7 +6,6 @@
 
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibMedia/VideoFrame.h>
@@ -362,33 +361,6 @@ void DisplayListResourceStorage::clear_video_frame(VideoFrameResourceId frame_id
 {
     if (m_video_frames.contains(frame_id.value()))
         m_video_frames.set(frame_id.value(), nullptr);
-}
-
-void DisplayListResourceStorage::update_compositor_surface(CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image)
-{
-    auto shared_image_buffer = Gfx::SharedImageBuffer::import_from_shared_image(move(shared_image));
-    m_compositor_surfaces.set(surface_id.value(), make<DisplayListStoredImageFrameResource>(Gfx::DecodedImageFrame { *shared_image_buffer.bitmap() }));
-}
-
-void DisplayListResourceStorage::clear_compositor_surface(CompositorSurfaceId surface_id)
-{
-    m_compositor_surfaces.remove(surface_id.value());
-}
-
-Optional<Gfx::DecodedImageFrame const&> DisplayListResourceStorage::compositor_surface(CompositorSurfaceId id) const
-{
-    auto frame = m_compositor_surfaces.get(id.value());
-    if (!frame.has_value())
-        return {};
-    return frame.value()->frame;
-}
-
-sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_compositor_surface(CompositorSurfaceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
-{
-    auto resource = m_compositor_surfaces.get(id.value());
-    if (!resource.has_value())
-        return nullptr;
-    return skia_image_for_stored_image_frame(*resource.value(), skia_backend_context);
 }
 
 }
