@@ -269,6 +269,12 @@ void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor,
         return;
 
     remove_from_use_element_that_reference_this();
+
+    // A <mask>, <clipPath>, or <pattern> referenced via url(#id) is laid out as a resource box attached to the
+    // referencing element's layout subtree. So it outlives this element's own DOM node. Rebuild the layout tree
+    // while this element is still alive — so those stale resource boxes are dropped before this node is collected.
+    if (id().has_value())
+        document().set_needs_full_layout_tree_update(true);
 }
 
 void SVGElement::remove_from_use_element_that_reference_this()

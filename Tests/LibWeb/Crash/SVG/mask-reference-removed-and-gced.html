@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<svg width="200" height="200">
+    <rect width="100" height="100" mask="url(#m)"/>
+</svg>
+<svg width="0" height="0">
+    <mask id="m"><rect width="100" height="100"/></mask>
+</svg>
+<script>
+    internals.dumpDisplayList();
+    document.getElementById("m").remove();
+    internals.dumpDisplayList();
+    internals.gc();
+    internals.dumpDisplayList();
+</script>
