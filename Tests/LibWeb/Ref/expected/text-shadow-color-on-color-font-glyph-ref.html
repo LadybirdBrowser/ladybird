@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>text-shadow uses the shadow color, not the glyph colors, for color-font glyphs</title>
+<style>
+    @font-face {
+        font-family: "COLRTest";
+        src: url("../data/fonts/COLR-palettes-test-font.ttf") format("truetype");
+    }
+    .glyph {
+        position: absolute;
+        margin: 0;
+        font: 100px "COLRTest";
+    }
+</style>
+<div class="glyph" style="left: 90px; top: 90px; filter: brightness(0);">A</div>
+<div class="glyph" style="left: 50px; top: 50px;">A</div>

@@ -555,6 +555,10 @@ void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
     auto blur_image_filter = SkImageFilters::Blur(command.blur_radius / 2, command.blur_radius / 2, nullptr);
     SkPaint blur_paint;
     blur_paint.setImageFilter(blur_image_filter);
+    // Skia paints color glyphs with their own colors, ignoring the paint color, so tint the shadow layer with a kSrcIn
+    // blend to force a flat silhouette in the shadow color. The glyphs are drawn opaquely below so the shadow color's
+    // alpha is applied exactly once.
+    blur_paint.setColorFilter(SkColorFilters::Blend(to_skia_color(command.color), SkBlendMode::kSrcIn));
     canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &blur_paint, nullptr, 0));
     play_command(DrawGlyphRun { .font_id = command.font_id,
         .glyphs = command.glyphs,
@@ -562,7 +566,7 @@ void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
         .glyph_bounding_rect = command.shadow_bounding_rect,
         .translation = command.draw_location + command.text_rect.location().to_type<float>(),
         .scale = command.scale,
-        .color = command.color });
+        .color = command.color.with_alpha(255) });
     canvas.restore();
 }
 
