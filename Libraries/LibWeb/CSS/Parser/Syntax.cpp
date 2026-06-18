@@ -29,6 +29,11 @@ String UniversalSyntaxNode::to_string() const
     return "*"_string;
 }
 
+bool UniversalSyntaxNode::equals(SyntaxNode const& other) const
+{
+    return other.type() == type();
+}
+
 void UniversalSyntaxNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}Universal\n", "", indent);
@@ -54,6 +59,15 @@ String TypeSyntaxNode::to_string() const
     return MUST(String::formatted("<{}>", m_type_name));
 }
 
+bool TypeSyntaxNode::equals(SyntaxNode const& other) const
+{
+    if (other.type() != type())
+        return false;
+    auto const& other_type = static_cast<TypeSyntaxNode const&>(other);
+    // No need to compare m_type_name, because it corresponds exactly to m_value_type.
+    return m_value_type == other_type.m_value_type;
+}
+
 void TypeSyntaxNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}Type: {}\n", "", indent, m_type_name);
@@ -71,6 +85,15 @@ IdentSyntaxNode::~IdentSyntaxNode() = default;
 String IdentSyntaxNode::to_string() const
 {
     return serialize_an_identifier(m_ident);
+}
+
+bool IdentSyntaxNode::equals(SyntaxNode const& other) const
+{
+    if (other.type() != type())
+        return false;
+    auto const& other_ident = static_cast<IdentSyntaxNode const&>(other);
+    return m_ident == other_ident.m_ident
+        && m_case_sensitivity == other_ident.m_case_sensitivity;
 }
 
 void IdentSyntaxNode::dump(StringBuilder& builder, int indent) const
@@ -91,6 +114,14 @@ String MultiplierSyntaxNode::to_string() const
     return MUST(String::formatted("{}+", m_child->to_string()));
 }
 
+bool MultiplierSyntaxNode::equals(SyntaxNode const& other) const
+{
+    if (other.type() != type())
+        return false;
+    auto const& other_multiplier = static_cast<MultiplierSyntaxNode const&>(other);
+    return m_child->equals(other_multiplier.child());
+}
+
 void MultiplierSyntaxNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}Multiplier:\n", "", indent);
@@ -108,6 +139,14 @@ CommaSeparatedMultiplierSyntaxNode::~CommaSeparatedMultiplierSyntaxNode() = defa
 String CommaSeparatedMultiplierSyntaxNode::to_string() const
 {
     return MUST(String::formatted("{}#", m_child->to_string()));
+}
+
+bool CommaSeparatedMultiplierSyntaxNode::equals(SyntaxNode const& other) const
+{
+    if (other.type() != type())
+        return false;
+    auto const& other_multiplier = static_cast<CommaSeparatedMultiplierSyntaxNode const&>(other);
+    return m_child->equals(other_multiplier.child());
 }
 
 void CommaSeparatedMultiplierSyntaxNode::dump(StringBuilder& builder, int indent) const
@@ -139,6 +178,20 @@ String AlternativesSyntaxNode::to_string() const
     }
 
     return builder.to_string_without_validation();
+}
+
+bool AlternativesSyntaxNode::equals(SyntaxNode const& other) const
+{
+    if (other.type() != type())
+        return false;
+    auto const& other_alternatives = static_cast<AlternativesSyntaxNode const&>(other);
+    if (m_children.size() != other_alternatives.m_children.size())
+        return false;
+    for (size_t i = 0; i < m_children.size(); ++i) {
+        if (!m_children[i]->equals(other_alternatives.m_children[i]))
+            return false;
+    }
+    return true;
 }
 
 void AlternativesSyntaxNode::dump(StringBuilder& builder, int indent) const
