@@ -58,5 +58,6 @@ struct MatchContext {
 };
 
 bool matches(CSS::Selector const&, DOM::AbstractElement const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope = {}, SelectorKind selector_kind = SelectorKind::Normal, GC::Ptr<DOM::Element const> anchor = nullptr);
+bool matches_originating_element_for_pseudo_element(CSS::Selector const&, CSS::PseudoElement, DOM::AbstractElement const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext&, GC::Ptr<DOM::ParentNode const> scope = {});
 
 }

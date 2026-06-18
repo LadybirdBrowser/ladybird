@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/PseudoClassBitmap.h>
+#include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Export.h>
 
@@ -72,12 +73,15 @@ public:
     bool is_animated_property_result_of_transition(PropertyID property_id) const;
     bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
     bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
+    bool has_pseudo_element_style(PseudoElement) const;
+    void set_has_pseudo_element_styles(u64);
     void set_property_important(PropertyID, Important);
     void set_property_inherited(PropertyID, Inherited);
     void set_animated_property_inherited(PropertyID, Inherited);
     void set_animated_property_result_of_transition(PropertyID, AnimatedPropertyResultOfTransition);
     void set_depends_on_viewport_metrics() { m_depends_on_viewport_metrics = true; }
     void set_font_metrics_depend_on_viewport_metrics() { m_font_metrics_depend_on_viewport_metrics = true; }
+    void set_has_pseudo_element_style(PseudoElement);
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value);
@@ -304,6 +308,7 @@ private:
     Display m_display_before_box_type_transformation { InitialValues::display() };
     bool m_depends_on_viewport_metrics { false };
     bool m_font_metrics_depend_on_viewport_metrics { false };
+    u64 m_pseudo_element_styles { 0 };
 
     RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;
     RefPtr<Gfx::Font const> m_cached_first_available_computed_font;

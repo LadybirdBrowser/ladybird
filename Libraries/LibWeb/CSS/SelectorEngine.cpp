@@ -1697,6 +1697,31 @@ bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, 
     return matches_compound_selector(selector, selector.compound_selectors().size() - 1, target, shadow_host, context, scope, selector_kind, anchor);
 }
 
+bool matches_originating_element_for_pseudo_element(CSS::Selector const& selector, CSS::PseudoElement pseudo_element, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
+{
+    VERIFY(!target.pseudo_element().has_value());
+
+    auto const& compound_selectors = selector.compound_selectors();
+    for (size_t i = compound_selectors.size(); i > 0; --i) {
+        auto const compound_index = i - 1;
+        auto const& compound_selector = compound_selectors[compound_index];
+        if (compound_selector.combinator != CSS::Selector::Combinator::PseudoElement)
+            continue;
+        if (compound_selector.simple_selectors.is_empty())
+            continue;
+        auto const& simple_selector = compound_selector.simple_selectors.first();
+        if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoElement)
+            continue;
+        if (simple_selector.pseudo_element().type() != pseudo_element)
+            continue;
+        if (compound_index == 0)
+            return false;
+        return matches_compound_selector(selector, compound_index - 1, target, shadow_host, context, scope, SelectorKind::Normal);
+    }
+
+    return false;
+}
+
 static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context)
 {
     if (should_block_shadow_host_matching(simple_selector, shadow_host, element))

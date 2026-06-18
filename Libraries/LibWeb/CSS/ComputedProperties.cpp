@@ -56,6 +56,8 @@
 
 namespace Web::CSS {
 
+static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u64) * 8);
+
 ComputedProperties::ComputedProperties() = default;
 
 ComputedProperties::~ComputedProperties() = default;
@@ -108,6 +110,20 @@ bool ComputedProperties::is_animated_property_result_of_transition(PropertyID pr
     return m_animated_property_result_of_transition[n / 8] & (1 << (n % 8));
 }
 
+bool ComputedProperties::has_pseudo_element_style(PseudoElement pseudo_element) const
+{
+    VERIFY(to_underlying(pseudo_element) < to_underlying(PseudoElement::KnownPseudoElementCount));
+    return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element));
+}
+
+void ComputedProperties::set_has_pseudo_element_styles(u64 pseudo_element_styles)
+{
+    constexpr auto known_pseudo_element_count = to_underlying(PseudoElement::KnownPseudoElementCount);
+    if constexpr (known_pseudo_element_count < sizeof(u64) * 8)
+        VERIFY((pseudo_element_styles >> known_pseudo_element_count) == 0);
+    m_pseudo_element_styles |= pseudo_element_styles;
+}
+
 void ComputedProperties::set_property_inherited(PropertyID property_id, Inherited inherited)
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
@@ -139,6 +155,12 @@ void ComputedProperties::set_animated_property_result_of_transition(PropertyID p
         m_animated_property_result_of_transition[n / 8] |= (1 << (n % 8));
     else
         m_animated_property_result_of_transition[n / 8] &= ~(1 << (n % 8));
+}
+
+void ComputedProperties::set_has_pseudo_element_style(PseudoElement pseudo_element)
+{
+    VERIFY(to_underlying(pseudo_element) < to_underlying(PseudoElement::KnownPseudoElementCount));
+    m_pseudo_element_styles |= 1ull << to_underlying(pseudo_element);
 }
 
 void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)

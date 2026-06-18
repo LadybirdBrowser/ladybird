@@ -178,6 +178,7 @@ private:
         Vector<ScopedMatchingRule> user_agent_rules;
         Vector<ScopedMatchingRule> user_rules;
         Vector<ContextMatchingRules> author_contexts;
+        u64 matching_pseudo_element_styles { 0 };
     };
 
     [[nodiscard]] MatchingRuleSet build_matching_rule_set(DOM::AbstractElement, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
@@ -193,7 +194,7 @@ private:
 
     [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedProperties const&) const;
 
-    [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules_from_context(DOM::AbstractElement, CascadeOrigin, GC::Ptr<DOM::ShadowRoot const>, Optional<FlyString const> qualified_layer_name = {}) const;
+    [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules_from_context(DOM::AbstractElement, CascadeOrigin, GC::Ptr<DOM::ShadowRoot const>, Optional<FlyString const> qualified_layer_name = {}, u64* matching_pseudo_element_styles = nullptr) const;
 
     void cascade_declarations(
         CascadedProperties&,
