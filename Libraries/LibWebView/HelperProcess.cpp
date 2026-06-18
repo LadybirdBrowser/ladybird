@@ -56,7 +56,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             if constexpr (requires { client->set_pid(pid_t {}); })
                 client->set_pid(process.pid());
 
-            if constexpr (requires { client->transport().set_peer_pid(0); } && !IsSame<ClientType, WebWorkerClient>) {
+            if constexpr (requires { client->transport().set_peer_pid(0); }) {
                 auto response = client->template send_sync<typename ClientType::InitTransport>(Core::System::getpid());
                 client->transport().set_peer_pid(response->peer_pid());
             }
