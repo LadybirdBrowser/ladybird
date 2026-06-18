@@ -105,12 +105,14 @@ void RuleCache::visit_edges(GC::Cell::Visitor& visitor)
     visit_map(rules_by_tag_name);
     visit_map(rules_by_attribute_name);
     visit_pseudo_class_buckets(rules_by_subject_pseudo_class);
+    visit_map(rules_by_ancestor_hash);
     for (auto& rules : rules_by_pseudo_element) {
         visit_map(rules.rules_by_id);
         visit_map(rules.rules_by_class);
         visit_map(rules.rules_by_tag_name);
         visit_map(rules.rules_by_attribute_name);
         visit_pseudo_class_buckets(rules.rules_by_subject_pseudo_class);
+        visit_map(rules.rules_by_ancestor_hash);
         visit_vector(rules.root_rules);
         visit_vector(rules.other_rules);
     }
@@ -551,11 +553,11 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                         continue;
                     if (selector.contains_pseudo_class(pseudo_class)) {
                         // For pseudo class rule caches we intentionally pass no pseudo-element, because we don't want to bucket pseudo class rules by pseudo-element type.
-                        rule_cache.pseudo_class_rule_cache[i]->add_rule(matching_rule, {}, contains_root_pseudo_class, SubjectPseudoClassBuckets::No);
+                        rule_cache.pseudo_class_rule_cache[i]->add_rule(matching_rule, {}, contains_root_pseudo_class, SubjectPseudoClassBuckets::No, AncestorHashBuckets::No);
                     }
                 }
 
-                matching_rule_cache.add_rule(matching_rule, selector.target_pseudo_element(), contains_root_pseudo_class, SubjectPseudoClassBuckets::Yes);
+                matching_rule_cache.add_rule(matching_rule, selector.target_pseudo_element(), contains_root_pseudo_class, SubjectPseudoClassBuckets::Yes, AncestorHashBuckets::Yes);
             }
             ++rule_index;
         });

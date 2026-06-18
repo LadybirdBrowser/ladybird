@@ -59,12 +59,18 @@ enum class SubjectPseudoClassBuckets {
     Yes,
 };
 
+enum class AncestorHashBuckets {
+    No,
+    Yes,
+};
+
 struct RuleCache {
     HashMap<FlyString, Vector<MatchingRule>> rules_by_id;
     HashMap<FlyString, Vector<MatchingRule>> rules_by_class;
     HashMap<FlyString, Vector<MatchingRule>> rules_by_tag_name;
     HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
     Array<Vector<MatchingRule>, to_underlying(PseudoClass::__Count)> rules_by_subject_pseudo_class;
+    HashMap<u32, Vector<MatchingRule>> rules_by_ancestor_hash;
     Vector<MatchingRule> root_rules;
     Vector<MatchingRule> slotted_rules;
     Vector<MatchingRule> part_rules;
@@ -76,6 +82,7 @@ struct RuleCache {
         HashMap<FlyString, Vector<MatchingRule>> rules_by_tag_name;
         HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
         Array<Vector<MatchingRule>, to_underlying(PseudoClass::__Count)> rules_by_subject_pseudo_class;
+        HashMap<u32, Vector<MatchingRule>> rules_by_ancestor_hash;
         Vector<MatchingRule> root_rules;
         Vector<MatchingRule> other_rules;
     };
@@ -83,8 +90,9 @@ struct RuleCache {
 
     HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
 
-    void add_rule(MatchingRule const&, Optional<PseudoElement>, bool contains_root_pseudo_class, SubjectPseudoClassBuckets);
-    void for_each_matching_rules(DOM::AbstractElement, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const;
+    void add_rule(MatchingRule const&, Optional<PseudoElement>, bool contains_root_pseudo_class, SubjectPseudoClassBuckets, AncestorHashBuckets);
+    void for_each_matching_rules(DOM::AbstractElement, Function<bool(u32)> const& may_contain_ancestor_hash, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const;
+    void for_each_matching_pseudo_element_rules(DOM::AbstractElement, Function<bool(u32)> const& may_contain_ancestor_hash, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const;
 
     void visit_edges(GC::Cell::Visitor&);
 };
