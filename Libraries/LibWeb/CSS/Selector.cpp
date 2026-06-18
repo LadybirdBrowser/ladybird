@@ -158,6 +158,32 @@ void Selector::collect_ancestor_hashes()
         Array<u32, 8>& ancestor_hashes;
         size_t& next_hash_index;
 
+        static bool contains_hash(Vector<u32> const& hashes, u32 hash)
+        {
+            for (auto existing_hash : hashes) {
+                if (existing_hash == hash)
+                    return true;
+            }
+            return false;
+        }
+
+        static void append_unique_hash(Vector<u32>& hashes, u32 hash)
+        {
+            if (!contains_hash(hashes, hash))
+                hashes.append(hash);
+        }
+
+        static void intersect_hashes(Vector<u32>& hashes, Vector<u32> const& other_hashes)
+        {
+            for (size_t i = 0; i < hashes.size();) {
+                if (contains_hash(other_hashes, hashes[i])) {
+                    ++i;
+                    continue;
+                }
+                hashes.remove(i);
+            }
+        }
+
         bool append_unique_hash(u32 hash)
         {
             if (next_hash_index >= ancestor_hashes.size())
@@ -170,28 +196,113 @@ void Selector::collect_ancestor_hashes()
             return false;
         }
 
-        bool append_hashes_from_simple_selector(SimpleSelector const& simple_selector)
+        Vector<u32> hashes_from_simple_selector(SimpleSelector const& simple_selector)
         {
+            Vector<u32> hashes;
             switch (simple_selector.type) {
             case SimpleSelector::Type::Id:
             case SimpleSelector::Type::Class:
-                return append_unique_hash(simple_selector.name().hash());
+                hashes.append(simple_selector.name().hash());
+                break;
             case SimpleSelector::Type::TagName:
-                return append_unique_hash(simple_selector.qualified_name().name.lowercase_name.hash());
+                hashes.append(simple_selector.qualified_name().name.lowercase_name.hash());
+                break;
             case SimpleSelector::Type::Attribute:
-                return append_unique_hash(simple_selector.attribute().qualified_name.name.lowercase_name.hash());
+                hashes.append(simple_selector.attribute().qualified_name.name.lowercase_name.hash());
+                break;
             case SimpleSelector::Type::PseudoClass: {
                 auto const& pseudo_class = simple_selector.pseudo_class();
                 if (pseudo_class.type != PseudoClass::Is && pseudo_class.type != PseudoClass::Where)
-                    return false;
-                if (pseudo_class.argument_selector_list.size() != 1)
-                    return false;
-                auto const& argument_selector = *pseudo_class.argument_selector_list.first();
-                return append_hashes_from_compound(argument_selector.compound_selectors().last());
+                    break;
+
+                // The selector's ancestor hashes are all mandatory. For :is()/:where(), only
+                // hashes required by every alternative can reject the selector without running it.
+                hashes = common_hashes_from_selector_list(pseudo_class.argument_selector_list);
+                break;
             }
             default:
-                return false;
+                break;
             }
+            return hashes;
+        }
+
+        Vector<u32> hashes_from_compound(CompoundSelector const& compound_selector)
+        {
+            Vector<u32> hashes;
+            for (auto const& simple_selector : compound_selector.simple_selectors) {
+                for (auto hash : hashes_from_simple_selector(simple_selector))
+                    append_unique_hash(hashes, hash);
+            }
+            return hashes;
+        }
+
+        Vector<u32> hashes_from_selector_matched_as_ancestor(Selector const& selector)
+        {
+            Vector<u32> hashes;
+            auto const& compound_selectors = selector.compound_selectors();
+            if (compound_selectors.is_empty())
+                return hashes;
+
+            // A selector-list pseudo-class in an ancestor compound matches that ancestor.
+            // The argument selector's rightmost compound is therefore on the subject's
+            // ancestor chain. After a sibling combinator, the sibling compound itself is
+            // not an ancestor, but compounds further left are shared ancestors.
+            for (auto hash : hashes_from_compound(compound_selectors.last()))
+                append_unique_hash(hashes, hash);
+
+            auto combinator_to_right = compound_selectors.last().combinator;
+            for (ssize_t i = static_cast<ssize_t>(compound_selectors.size()) - 2; i >= 0; --i) {
+                auto const& compound_selector = compound_selectors[i];
+
+                switch (combinator_to_right) {
+                case Combinator::Descendant:
+                case Combinator::ImmediateChild:
+                case Combinator::PseudoElement:
+                    for (auto hash : hashes_from_compound(compound_selector))
+                        append_unique_hash(hashes, hash);
+                    break;
+                case Combinator::NextSibling:
+                case Combinator::SubsequentSibling:
+                    break;
+                case Combinator::Column:
+                default:
+                    return hashes;
+                }
+
+                combinator_to_right = compound_selector.combinator;
+            }
+
+            return hashes;
+        }
+
+        Vector<u32> common_hashes_from_selector_list(SelectorList const& selector_list)
+        {
+            if (selector_list.is_empty())
+                return {};
+
+            Optional<Vector<u32>> common_hashes;
+            for (auto const& argument_selector : selector_list) {
+                auto hashes = hashes_from_selector_matched_as_ancestor(*argument_selector);
+                if (!common_hashes.has_value()) {
+                    common_hashes = move(hashes);
+                    continue;
+                }
+
+                intersect_hashes(common_hashes.value(), hashes);
+                if (common_hashes->is_empty())
+                    break;
+            }
+
+            return common_hashes.release_value();
+        }
+
+        bool append_hashes_from_simple_selector(SimpleSelector const& simple_selector)
+        {
+            for (auto hash : hashes_from_simple_selector(simple_selector)) {
+                if (append_unique_hash(hash))
+                    return true;
+            }
+            return false;
         }
 
         bool append_hashes_from_compound(CompoundSelector const& compound_selector)
