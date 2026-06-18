@@ -66,7 +66,6 @@ public:
     virtual void report_finished_handling_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] Web::EventResult event_was_handled) override { }
     virtual void request_frame() override { }
     virtual void request_file(Web::FileRequest) override { }
-    virtual Web::DisplayListPlayerType display_list_player_type() const override { return Web::DisplayListPlayerType::SkiaCPU; }
     virtual bool is_headless() const override { return true; }
 
 private:

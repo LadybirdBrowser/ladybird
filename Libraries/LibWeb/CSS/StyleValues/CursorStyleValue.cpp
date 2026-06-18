@@ -114,16 +114,10 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
         image.paint(paint_context, document, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto);
 
-        switch (document.page().client().display_list_player_type()) {
-        case DisplayListPlayerType::SkiaGPUIfAvailable:
-        case DisplayListPlayerType::SkiaCPU: {
-            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
-            Painting::DisplayListPlayerSkia display_list_player;
-            display_list_player.execute(*display_list, visual_context_tree, resource_storage, {}, painting_surface);
-            display_list_player.flush(*painting_surface);
-            break;
-        }
-        }
+        auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
+        Painting::DisplayListPlayerSkia display_list_player;
+        display_list_player.execute(*display_list, visual_context_tree, resource_storage, {}, painting_surface);
+        display_list_player.flush(*painting_surface);
     }
 
     // "If the values are unspecified, then the natural hotspot defined inside the image resource itself is used.

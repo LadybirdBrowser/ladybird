@@ -403,11 +403,6 @@ private:
     bool m_processing_fullscreen_operations { false };
 };
 
-enum class DisplayListPlayerType {
-    SkiaGPUIfAvailable,
-    SkiaCPU,
-};
-
 enum class ContextMenuForInputEventsTarget : u8 {
     No,
     Yes,
@@ -565,8 +560,6 @@ public:
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const&) { }
 
     virtual void received_message_from_web_ui([[maybe_unused]] String const& name, [[maybe_unused]] JS::Value data) { }
-
-    virtual DisplayListPlayerType display_list_player_type() const = 0;
 
     virtual bool is_headless() const = 0;
 

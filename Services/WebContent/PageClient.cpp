@@ -52,7 +52,6 @@
 
 namespace WebContent {
 
-static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
 static bool s_is_headless { false };
 static bool s_async_scrolling_enabled { false };
 static bool s_should_report_session_history_updates_in_test_mode { false };
@@ -66,11 +65,6 @@ static String serialize_dom_mutation_target(Web::DOM::Node const& target)
     target.serialize_tree_as_json(serializer);
     MUST(serializer.finish());
     return MUST(builder.to_string());
-}
-
-void PageClient::set_use_skia_painter(UseSkiaPainter use_skia_painter)
-{
-    s_use_skia_painter = use_skia_painter;
 }
 
 bool PageClient::is_headless() const
@@ -1233,18 +1227,6 @@ Vector<Web::CSS::StyleSheetIdentifier> PageClient::list_style_sheets() const
     });
 
     return results;
-}
-
-Web::DisplayListPlayerType PageClient::display_list_player_type() const
-{
-    switch (s_use_skia_painter) {
-    case UseSkiaPainter::GPUBackendIfAvailable:
-        return Web::DisplayListPlayerType::SkiaGPUIfAvailable;
-    case UseSkiaPainter::CPUBackend:
-        return Web::DisplayListPlayerType::SkiaCPU;
-    default:
-        VERIFY_NOT_REACHED();
-    }
 }
 
 void PageClient::ensure_compositor_host()

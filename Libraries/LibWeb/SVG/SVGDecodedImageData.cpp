@@ -213,17 +213,9 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     if (!display_list.has_value())
         return nullptr;
 
-    switch (m_page_client->display_list_player_type()) {
-    case DisplayListPlayerType::SkiaGPUIfAvailable:
-    case DisplayListPlayerType::SkiaCPU: {
-        Painting::DisplayListPlayerSkia display_list_player;
-        display_list_player.execute(*display_list->display_list, display_list->visual_context_tree, resource_storage, {}, surface);
-        display_list_player.flush(*surface);
-        break;
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    Painting::DisplayListPlayerSkia display_list_player;
+    display_list_player.execute(*display_list->display_list, display_list->visual_context_tree, resource_storage, {}, surface);
+    display_list_player.flush(*surface);
 
     m_cached_rendered_surfaces.set(size, *surface);
     return surface;

@@ -30,7 +30,6 @@ public:
     virtual void report_finished_handling_input_event(u64, Web::EventResult) override { }
     virtual void request_frame() override { }
     virtual void request_file(Web::FileRequest) override { }
-    virtual Web::DisplayListPlayerType display_list_player_type() const override { return Web::DisplayListPlayerType::SkiaCPU; }
     virtual bool is_headless() const override { return true; }
     virtual void visit_edges(Visitor& visitor) override
     {
