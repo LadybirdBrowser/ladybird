@@ -37,12 +37,6 @@ public:
 
     virtual u64 id() const override { return m_id; }
 
-    enum class UseSkiaPainter {
-        CPUBackend,
-        GPUBackendIfAvailable,
-    };
-    static void set_use_skia_painter(UseSkiaPainter);
-
     virtual bool is_headless() const override;
     static void set_is_headless(bool);
 
@@ -122,7 +116,6 @@ public:
     virtual double device_pixel_ratio() const override { return m_device_pixel_ratio; }
     virtual double device_pixels_per_css_pixel() const override { return m_device_pixel_ratio * m_zoom_level; }
 
-    virtual Web::DisplayListPlayerType display_list_player_type() const override;
     virtual bool supports_compositor() const override { return true; }
     virtual void ensure_compositor_host() override;
     virtual Web::Compositor::CompositorHost* compositor_host() override;
