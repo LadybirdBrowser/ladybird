@@ -95,7 +95,52 @@ public:
         return LEB128<ValueType> { result };
     }
 
+    ErrorOr<void> write_to_stream(Stream& stream) const
+    {
+        ErrorOr<void> result;
+        for_each_leb128_byte(m_value, [&](u8 byte) {
+            if (!result.is_error())
+                result = stream.write_value(byte);
+        });
+        return result;
+    }
+
+    template<typename Buffer>
+    static void append_to(Buffer& output, ValueType value)
+    {
+        for_each_leb128_byte(value, [&output](u8 byte) { output.append(byte); });
+    }
+
 private:
+    template<typename Callback>
+    static void for_each_leb128_byte(ValueType value, Callback&& callback)
+    requires(Unsigned<ValueType>)
+    {
+        do {
+            u8 byte = value & 0x7F;
+            value >>= 7;
+            if (value != 0)
+                byte |= 0x80; // More bytes follow.
+            callback(byte);
+        } while (value != 0);
+    }
+
+    template<typename Callback>
+    static void for_each_leb128_byte(ValueType value, Callback&& callback)
+    requires(Signed<ValueType>)
+    {
+        while (true) {
+            u8 byte = value & 0x7F;
+            value >>= 7; // Arithmetic shift; preserves the sign.
+            bool const sign_bit_set = (byte & 0x40) != 0;
+            if ((value == 0 && !sign_bit_set) || (value == -1 && sign_bit_set)) {
+                callback(byte);
+                return;
+            }
+            callback(static_cast<u8>(byte | 0x80));
+        }
+    }
+
     ValueType m_value { 0 };
 };
 

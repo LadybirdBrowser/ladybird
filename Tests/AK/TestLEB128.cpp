@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
+#include <AK/ByteBuffer.h>
 #include <AK/LEB128.h>
 #include <AK/MemoryStream.h>
 #include <AK/NumericLimits.h>
@@ -170,4 +172,46 @@ TEST_CASE(overflow_sizeof_output_signed)
         i64 out64 = MUST(stream.read_value<LEB128<i64>>());
         EXPECT_EQ(out64, NumericLimits<i32>::min());
     }
+}
+
+TEST_CASE(encode_round_trips)
+{
+    auto round_trip_unsigned = [](u64 value) {
+        AllocatingMemoryStream stream;
+        MUST(stream.write_value(LEB128<u64> { value }));
+        u64 decoded = MUST(stream.read_value<LEB128<u64>>());
+        EXPECT_EQ(decoded, value);
+    };
+    Array<u64, 10> unsigned_values { 0, 1, 0x7F, 0x80, 0xFF, 0x100, 300, 0x3FFF, 0x4000, NumericLimits<u64>::max() };
+    for (auto value : unsigned_values)
+        round_trip_unsigned(value);
+
+    auto round_trip_signed = [](i64 value) {
+        AllocatingMemoryStream stream;
+        MUST(stream.write_value(LEB128<i64> { value }));
+        i64 decoded = MUST(stream.read_value<LEB128<i64>>());
+        EXPECT_EQ(decoded, value);
+    };
+    Array<i64, 11> signed_values { 0, 1, -1, 63, 64, -64, -65, 1000, -1000, NumericLimits<i64>::min(), NumericLimits<i64>::max() };
+    for (auto value : signed_values)
+        round_trip_signed(value);
+}
+
+TEST_CASE(encode_unsigned_produces_canonical_bytes)
+{
+    auto expect_bytes = [](u64 value, ReadonlyBytes expected) {
+        AllocatingMemoryStream stream;
+        MUST(stream.write_value(LEB128<u64> { value }));
+        auto buffer = MUST(ByteBuffer::create_uninitialized(expected.size()));
+        MUST(stream.read_until_filled(buffer));
+        EXPECT_EQ(buffer.bytes(), expected);
+        EXPECT(stream.is_eof()); // Exactly expected.size() bytes were written.
+    };
+
+    Array<u8, 1> zero { 0x00 };
+    expect_bytes(0, zero);
+    Array<u8, 2> max_single_byte_value_plus_one { 0xFF, 0x01 };
+    expect_bytes(0xFF, max_single_byte_value_plus_one);
+    Array<u8, 2> three_hundred { 0xAC, 0x02 };
+    expect_bytes(300, three_hundred);
 }
