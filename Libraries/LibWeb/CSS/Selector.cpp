@@ -156,6 +156,11 @@ void Selector::collect_ancestor_hashes()
 
     size_t next_hash_index = 0;
     struct AncestorHashCollector {
+        enum class IncludeRightmostCompound : bool {
+            No,
+            Yes,
+        };
+
         Array<u32, 8>& ancestor_hashes;
         size_t& next_hash_index;
 
@@ -220,7 +225,7 @@ void Selector::collect_ancestor_hashes()
 
                 // The selector's ancestor hashes are all mandatory. For :is()/:where(), only
                 // hashes required by every alternative can reject the selector without running it.
-                hashes = common_hashes_from_selector_list(pseudo_class.argument_selector_list);
+                hashes = common_hashes_from_selector_list(pseudo_class.argument_selector_list, IncludeRightmostCompound::Yes);
                 break;
             }
             default:
@@ -239,19 +244,42 @@ void Selector::collect_ancestor_hashes()
             return hashes;
         }
 
-        Vector<u32> hashes_from_selector_matched_as_ancestor(Selector const& selector)
+        Vector<u32> hashes_from_subject_compound_selector_list_pseudo_classes(CompoundSelector const& compound_selector)
+        {
+            Vector<u32> hashes;
+            for (auto const& simple_selector : compound_selector.simple_selectors) {
+                if (simple_selector.type != SimpleSelector::Type::PseudoClass)
+                    continue;
+
+                auto const& pseudo_class = simple_selector.pseudo_class();
+                if (pseudo_class.type != PseudoClass::Is && pseudo_class.type != PseudoClass::Where)
+                    continue;
+
+                for (auto hash : common_hashes_from_selector_list(pseudo_class.argument_selector_list, IncludeRightmostCompound::No))
+                    append_unique_hash(hashes, hash);
+            }
+            return hashes;
+        }
+
+        Vector<u32> hashes_from_selector(Selector const& selector, IncludeRightmostCompound include_rightmost_compound)
         {
             Vector<u32> hashes;
             auto const& compound_selectors = selector.compound_selectors();
             if (compound_selectors.is_empty())
                 return hashes;
 
-            // A selector-list pseudo-class in an ancestor compound matches that ancestor.
-            // The argument selector's rightmost compound is therefore on the subject's
-            // ancestor chain. After a sibling combinator, the sibling compound itself is
-            // not an ancestor, but compounds further left are shared ancestors.
-            for (auto hash : hashes_from_compound(compound_selectors.last()))
-                append_unique_hash(hashes, hash);
+            if (include_rightmost_compound == IncludeRightmostCompound::Yes) {
+                // A selector-list pseudo-class in an ancestor compound matches that ancestor.
+                // The argument selector's rightmost compound is therefore on the subject's
+                // ancestor chain.
+                for (auto hash : hashes_from_compound(compound_selectors.last()))
+                    append_unique_hash(hashes, hash);
+            } else {
+                // A selector-list pseudo-class in the subject compound can still contain
+                // ancestor requirements inside its alternatives, e.g. `:is(.foo > .bar)`.
+                for (auto hash : hashes_from_subject_compound_selector_list_pseudo_classes(compound_selectors.last()))
+                    append_unique_hash(hashes, hash);
+            }
 
             auto combinator_to_right = compound_selectors.last().combinator;
             for (ssize_t i = static_cast<ssize_t>(compound_selectors.size()) - 2; i >= 0; --i) {
@@ -278,14 +306,14 @@ void Selector::collect_ancestor_hashes()
             return hashes;
         }
 
-        Vector<u32> common_hashes_from_selector_list(SelectorList const& selector_list)
+        Vector<u32> common_hashes_from_selector_list(SelectorList const& selector_list, IncludeRightmostCompound include_rightmost_compound)
         {
             if (selector_list.is_empty())
                 return {};
 
             Optional<Vector<u32>> common_hashes;
             for (auto const& argument_selector : selector_list) {
-                auto hashes = hashes_from_selector_matched_as_ancestor(*argument_selector);
+                auto hashes = hashes_from_selector(*argument_selector, include_rightmost_compound);
                 if (!common_hashes.has_value()) {
                     common_hashes = move(hashes);
                     continue;
@@ -318,6 +346,13 @@ void Selector::collect_ancestor_hashes()
         }
     };
     AncestorHashCollector ancestor_hash_collector { m_ancestor_hashes, next_hash_index };
+
+    for (auto hash : ancestor_hash_collector.hashes_from_subject_compound_selector_list_pseudo_classes(m_compound_selectors.last())) {
+        if (ancestor_hash_collector.append_unique_hash(hash)) {
+            m_can_use_ancestor_filter = (next_hash_index > 0);
+            return;
+        }
+    }
 
     // Walk from the compound immediately to the left of the subject toward the left.
     // The combinator that connects `i` to `i+1` is stored on `i+1`.
