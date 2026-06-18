@@ -23,5 +23,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [27,53 21.4375x16]
       PaintableWithLines (BlockContainer(anonymous)) [8,86 784x0]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x86] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x86] (z-index: auto)

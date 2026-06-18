@@ -490,5 +490,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x808]
           TextPaintable (GeneratedTextNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,800 784x0]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x808] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x808] (z-index: auto)

@@ -412,7 +412,7 @@ void StackingContext::dump(StringBuilder& builder, int indent) const
     for (int i = 0; i < indent; ++i)
         builder.append(' ');
     CSSPixelRect rect = paintable_box().absolute_rect();
-    builder.appendff("SC for {} {} [children: {}] (z-index: ", paintable_box().layout_node().debug_description(), rect, m_children.size());
+    builder.appendff("SC for {} {} (z-index: ", paintable_box().layout_node().debug_description(), rect);
 
     if (paintable_box().effective_z_index().has_value())
         builder.appendff("{}", paintable_box().effective_z_index().value());
@@ -424,7 +424,7 @@ void StackingContext::dump(StringBuilder& builder, int indent) const
         builder.append(", has_transform"sv);
 
     builder.append('\n');
-    for (auto& child : m_children)
+    for (auto const& child : m_children)
         child->dump(builder, indent + 1);
 }
 

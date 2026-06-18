@@ -21,7 +21,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<DIV>) [302,291 196x18]
           TextPaintable (TextNode<#text>)
 
-SC for Viewport<#document> [0,0 800x600] [children: 3] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x16] [children: 0] (z-index: auto)
- SC for BlockContainer(anonymous) [0,0 800x600] [children: 0] (z-index: auto)
- SC for BlockContainer<DIALOG>#d [299,289 202x22] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)
+ SC for BlockContainer(anonymous) [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<DIALOG>#d [299,289 202x22] (z-index: auto)
