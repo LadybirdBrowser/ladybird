@@ -15,7 +15,6 @@
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
-#include <LibGfx/SkiaBackendContext.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMain/Main.h>
@@ -145,7 +144,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool disable_site_isolation = false;
     bool enable_idl_tracing = false;
     bool enable_http_memory_cache = false;
-    bool force_cpu_painting = false;
     bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
     bool is_headless = false;
@@ -170,7 +168,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(enable_http_memory_cache, "Enable HTTP cache", "enable-http-memory-cache");
-    args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
@@ -209,14 +206,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         font_provider.set_name_but_fixme_should_create_custom_system_font_provider("FontConfig"_string);
     }
     font_provider.load_all_fonts_from_uri("resource://fonts"sv);
-
-    // Always use the CPU backend for tests, as the GPU backend is not deterministic
-    if (force_cpu_painting) {
-        WebContent::PageClient::set_use_skia_painter(WebContent::PageClient::UseSkiaPainter::CPUBackend);
-    } else {
-        Gfx::SkiaBackendContext::initialize_gpu_backend();
-        WebContent::PageClient::set_use_skia_painter(WebContent::PageClient::UseSkiaPainter::GPUBackendIfAvailable);
-    }
 
     WebContent::PageClient::set_is_headless(is_headless);
 
