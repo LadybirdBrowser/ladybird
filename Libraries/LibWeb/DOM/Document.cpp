@@ -8550,6 +8550,13 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
     }
 }
 
+void Document::set_needs_accumulated_visual_contexts_update(bool value)
+{
+    m_needs_accumulated_visual_contexts_update = value;
+    if (value)
+        set_needs_repaint(InvalidateDisplayList::No);
+}
+
 void Document::set_needs_to_record_display_list()
 {
     m_hit_test_display_list = nullptr;
