@@ -5,6 +5,7 @@
  */
 
 #include <LibSandbox/Seccomp.h>
+#include <asm/termbits.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/audit.h>
@@ -928,6 +929,15 @@ void SeccompPolicy::allow_file_descriptor_operations()
     append(SECCOMP_ALLOW);
     append(SECCOMP_LOAD_SYSCALL_NR);
     append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+
+#ifdef TCGETS2
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, TCGETS2, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+#endif
 }
 
 void SeccompPolicy::allow_process_creation()
