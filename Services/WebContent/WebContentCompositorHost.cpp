@@ -128,11 +128,11 @@ private:
         m_canvas_id.clear();
     }
 
-    virtual void update_commands(Gfx::CanvasCommandList const& commands) override
+    virtual void update_commands(Gfx::CanvasCommandList const& commands, bool commit) override
     {
         if (!m_canvas_id.has_value())
             return;
-        m_connection->update_canvas_2d_commands(*m_canvas_id, commands);
+        m_connection->update_canvas_2d_commands(*m_canvas_id, commands, commit);
     }
 
     virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const& rect) override

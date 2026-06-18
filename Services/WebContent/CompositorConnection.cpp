@@ -97,12 +97,12 @@ Optional<Web::Painting::CanvasId> CompositorConnection::create_canvas_2d_context
     return response->canvas_id();
 }
 
-void CompositorConnection::update_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands)
+void CompositorConnection::update_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands, bool commit)
 {
     if (!can_send_message_to_compositor())
         return;
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dCommands::static_encode(canvas_id, commands));
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dCommands::static_encode(canvas_id, commands, commit));
     if (post_message(encoded_message).is_error())
         did_lose_compositor();
 }

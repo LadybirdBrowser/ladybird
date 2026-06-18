@@ -46,7 +46,7 @@ private:
     virtual void update_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>) override;
     virtual void clear_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId) override;
     virtual Messages::CompositorWebContentServer::CreateCanvas2dContextResponse create_canvas_2d_context(Gfx::IntSize, bool) override;
-    virtual void update_canvas_2d_commands(Web::Painting::CanvasId, Gfx::CanvasCommandList) override;
+    virtual void update_canvas_2d_commands(Web::Painting::CanvasId, Gfx::CanvasCommandList, bool commit) override;
     virtual void destroy_canvas_context(Web::Painting::CanvasId) override;
     virtual Messages::CompositorWebContentServer::GetCanvasPixelsResponse get_canvas_pixels(Web::Painting::CanvasId, Gfx::IntRect) override;
 

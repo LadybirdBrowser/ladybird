@@ -46,7 +46,7 @@ public:
     void update_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const> const&);
     void clear_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId);
     Optional<Web::Painting::CanvasId> create_canvas_2d_context(Gfx::IntSize, bool alpha);
-    void update_canvas_2d_commands(Web::Painting::CanvasId, Gfx::CanvasCommandList const&);
+    void update_canvas_2d_commands(Web::Painting::CanvasId, Gfx::CanvasCommandList const&, bool commit);
     void destroy_canvas_context(Web::Painting::CanvasId);
     Gfx::ShareableBitmap get_canvas_pixels(Web::Painting::CanvasId, Gfx::IntRect);
     void invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId, u64 generation);
