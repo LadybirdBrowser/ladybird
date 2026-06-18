@@ -59,11 +59,20 @@ struct RuleCache {
     HashMap<FlyString, Vector<MatchingRule>> rules_by_class;
     HashMap<FlyString, Vector<MatchingRule>> rules_by_tag_name;
     HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
-    Array<Vector<MatchingRule>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)> rules_by_pseudo_element;
     Vector<MatchingRule> root_rules;
     Vector<MatchingRule> slotted_rules;
     Vector<MatchingRule> part_rules;
     Vector<MatchingRule> other_rules;
+
+    struct PseudoElementRules {
+        HashMap<FlyString, Vector<MatchingRule>> rules_by_id;
+        HashMap<FlyString, Vector<MatchingRule>> rules_by_class;
+        HashMap<FlyString, Vector<MatchingRule>> rules_by_tag_name;
+        HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
+        Vector<MatchingRule> root_rules;
+        Vector<MatchingRule> other_rules;
+    };
+    Array<PseudoElementRules, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)> rules_by_pseudo_element;
 
     HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
 

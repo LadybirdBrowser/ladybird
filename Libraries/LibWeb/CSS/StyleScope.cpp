@@ -101,7 +101,12 @@ void RuleCache::visit_edges(GC::Cell::Visitor& visitor)
     visit_map(rules_by_tag_name);
     visit_map(rules_by_attribute_name);
     for (auto& rules : rules_by_pseudo_element) {
-        visit_vector(rules);
+        visit_map(rules.rules_by_id);
+        visit_map(rules.rules_by_class);
+        visit_map(rules.rules_by_tag_name);
+        visit_map(rules.rules_by_attribute_name);
+        visit_vector(rules.root_rules);
+        visit_vector(rules.other_rules);
     }
     visit_vector(root_rules);
     visit_vector(slotted_rules);
