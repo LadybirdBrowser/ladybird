@@ -381,6 +381,42 @@ static u64 pseudo_element_style_bit(PseudoElement pseudo_element)
     return 1ull << to_underlying(pseudo_element);
 }
 
+template<typename RuleBuckets>
+static IterationDecision for_each_matching_rule_bucket(DOM::AbstractElement abstract_element, RuleBuckets const& rule_buckets, Function<IterationDecision(Vector<MatchingRule> const&)> const& callback)
+{
+    for (auto const& class_name : abstract_element.element().class_names()) {
+        if (auto it = rule_buckets.rules_by_class.find(class_name); it != rule_buckets.rules_by_class.end()) {
+            if (callback(it->value) == IterationDecision::Break)
+                return IterationDecision::Break;
+        }
+    }
+    if (auto id = abstract_element.element().id(); id.has_value()) {
+        if (auto it = rule_buckets.rules_by_id.find(id.value()); it != rule_buckets.rules_by_id.end()) {
+            if (callback(it->value) == IterationDecision::Break)
+                return IterationDecision::Break;
+        }
+    }
+    if (auto it = rule_buckets.rules_by_tag_name.find(abstract_element.element().lowercased_local_name()); it != rule_buckets.rules_by_tag_name.end()) {
+        if (callback(it->value) == IterationDecision::Break)
+            return IterationDecision::Break;
+    }
+
+    if (abstract_element.element().is_document_element()) {
+        if (callback(rule_buckets.root_rules) == IterationDecision::Break)
+            return IterationDecision::Break;
+    }
+
+    IterationDecision decision = IterationDecision::Continue;
+    abstract_element.element().for_each_attribute([&](auto& name, auto&) {
+        if (auto it = rule_buckets.rules_by_attribute_name.find(name); it != rule_buckets.rules_by_attribute_name.end())
+            decision = callback(it->value);
+    });
+    if (decision == IterationDecision::Break)
+        return IterationDecision::Break;
+
+    return callback(rule_buckets.other_rules);
+}
+
 Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_from_context(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, GC::Ptr<DOM::ShadowRoot const> context_shadow_root, Optional<FlyString const> qualified_layer_name, u64* matching_pseudo_element_styles) const
 {
     auto const& root_node = abstract_element.element().root();
@@ -475,8 +511,12 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
             return IterationDecision::Continue;
         });
         if (!abstract_element.pseudo_element().has_value() && matching_pseudo_element_styles) {
-            for (auto const& matching_rules : rule_cache.rules_by_pseudo_element)
-                add_rules_to_run(matching_rules, rule_root);
+            for (auto const& pseudo_element_rules : rule_cache.rules_by_pseudo_element) {
+                (void)for_each_matching_rule_bucket(abstract_element, pseudo_element_rules, [&](auto const& matching_rules) {
+                    add_rules_to_run(matching_rules, rule_root);
+                    return IterationDecision::Continue;
+                });
+            }
         }
     };
 
@@ -3767,41 +3807,22 @@ void StyleComputer::pop_ancestor(DOM::Element const& element)
     });
 }
 
-void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoElement> pseudo_element, bool contains_root_pseudo_class)
+template<typename RuleBuckets>
+static void add_rule_to_rule_buckets(RuleBuckets& rule_buckets, MatchingRule const& matching_rule, Selector::CompoundSelector const& bucket_compound_selector, bool contains_root_pseudo_class)
 {
-    if (matching_rule.slotted) {
-        slotted_rules.append(matching_rule);
-        return;
-    }
-    if (matching_rule.contains_part_pseudo_element) {
-        part_rules.append(matching_rule);
-        return;
-    }
     // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
     //       in the common case of div.foo or div#foo selectors.
     auto add_to_id_bucket = [&](FlyString const& name) {
-        rules_by_id.ensure(name).append(matching_rule);
+        rule_buckets.rules_by_id.ensure(name).append(matching_rule);
     };
 
     auto add_to_class_bucket = [&](FlyString const& name) {
-        rules_by_class.ensure(name).append(matching_rule);
+        rule_buckets.rules_by_class.ensure(name).append(matching_rule);
     };
 
     auto add_to_tag_name_bucket = [&](FlyString const& name) {
-        rules_by_tag_name.ensure(name).append(matching_rule);
+        rule_buckets.rules_by_tag_name.ensure(name).append(matching_rule);
     };
-
-    auto const& bucket_compound_selector = [&]() -> Selector::CompoundSelector const& {
-        if (matching_rule.contains_pseudo_element && pseudo_element.has_value()) {
-            // Normalized pseudo-element selectors end with a pseudo-element compound; bucket them
-            // by the originating element compound so `.foo::before` keeps using the `.foo` bucket.
-            for (auto const& compound_selector : matching_rule.selector.compound_selectors().in_reverse()) {
-                if (compound_selector.combinator != Selector::Combinator::PseudoElement)
-                    return compound_selector;
-            }
-        }
-        return matching_rule.selector.compound_selectors().last();
-    }();
 
     for (auto const& simple_selector : bucket_compound_selector.simple_selectors.in_reverse()) {
         if (simple_selector.type == Selector::SimpleSelector::Type::Id) {
@@ -3833,67 +3854,61 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoEleme
         }
     }
 
-    if (matching_rule.contains_pseudo_element && pseudo_element.has_value()) {
-        if (Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
-            rules_by_pseudo_element[to_underlying(pseudo_element.value())].append(matching_rule);
-        } else {
-            // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
-        }
-    } else if (contains_root_pseudo_class) {
-        root_rules.append(matching_rule);
+    if (contains_root_pseudo_class) {
+        rule_buckets.root_rules.append(matching_rule);
     } else {
-        for (auto const& simple_selector : matching_rule.selector.compound_selectors().last().simple_selectors) {
+        for (auto const& simple_selector : bucket_compound_selector.simple_selectors) {
             if (simple_selector.type == Selector::SimpleSelector::Type::Attribute) {
-                rules_by_attribute_name.ensure(simple_selector.attribute().qualified_name.name.lowercase_name).append(matching_rule);
+                rule_buckets.rules_by_attribute_name.ensure(simple_selector.attribute().qualified_name.name.lowercase_name).append(matching_rule);
                 return;
             }
         }
-        other_rules.append(matching_rule);
+        rule_buckets.other_rules.append(matching_rule);
     }
+}
+
+void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoElement> pseudo_element, bool contains_root_pseudo_class)
+{
+    if (matching_rule.slotted) {
+        slotted_rules.append(matching_rule);
+        return;
+    }
+    if (matching_rule.contains_part_pseudo_element) {
+        part_rules.append(matching_rule);
+        return;
+    }
+
+    if (matching_rule.contains_pseudo_element && pseudo_element.has_value()) {
+        if (Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
+            // Normalized pseudo-element selectors end with a pseudo-element compound; bucket them
+            // by the originating element compound so `.foo::before` keeps using the `.foo` bucket.
+            auto const& bucket_compound_selector = [&]() -> Selector::CompoundSelector const& {
+                for (auto const& compound_selector : matching_rule.selector.compound_selectors().in_reverse()) {
+                    if (compound_selector.combinator != Selector::Combinator::PseudoElement)
+                        return compound_selector;
+                }
+                return matching_rule.selector.compound_selectors().last();
+            }();
+            add_rule_to_rule_buckets(rules_by_pseudo_element[to_underlying(pseudo_element.value())], matching_rule, bucket_compound_selector, contains_root_pseudo_class);
+        }
+        return;
+    }
+
+    add_rule_to_rule_buckets(*this, matching_rule, matching_rule.selector.compound_selectors().last(), contains_root_pseudo_class);
 }
 
 void RuleCache::for_each_matching_rules(DOM::AbstractElement abstract_element, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const
 {
-    for (auto const& class_name : abstract_element.element().class_names()) {
-        if (auto it = rules_by_class.find(class_name); it != rules_by_class.end()) {
-            if (callback(it->value) == IterationDecision::Break)
-                return;
-        }
-    }
-    if (auto id = abstract_element.element().id(); id.has_value()) {
-        if (auto it = rules_by_id.find(id.value()); it != rules_by_id.end()) {
-            if (callback(it->value) == IterationDecision::Break)
-                return;
-        }
-    }
-    if (auto it = rules_by_tag_name.find(abstract_element.element().lowercased_local_name()); it != rules_by_tag_name.end()) {
-        if (callback(it->value) == IterationDecision::Break)
-            return;
-    }
     if (abstract_element.pseudo_element().has_value()) {
         if (Selector::PseudoElementSelector::is_known_pseudo_element_type(abstract_element.pseudo_element().value())) {
-            if (callback(rules_by_pseudo_element.at(to_underlying(abstract_element.pseudo_element().value()))) == IterationDecision::Break)
-                return;
+            (void)for_each_matching_rule_bucket(abstract_element, rules_by_pseudo_element.at(to_underlying(abstract_element.pseudo_element().value())), callback);
         } else {
             // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
         }
-    }
-
-    if (abstract_element.element().is_document_element()) {
-        if (callback(root_rules) == IterationDecision::Break)
-            return;
-    }
-
-    IterationDecision decision = IterationDecision::Continue;
-    abstract_element.element().for_each_attribute([&](auto& name, auto&) {
-        if (auto it = rules_by_attribute_name.find(name); it != rules_by_attribute_name.end()) {
-            decision = callback(it->value);
-        }
-    });
-    if (decision == IterationDecision::Break)
         return;
+    }
 
-    (void)callback(other_rules);
+    (void)for_each_matching_rule_bucket(abstract_element, *this, callback);
 }
 
 void StyleComputer::ScopedMatchingRule::visit_edges(GC::Cell::Visitor& visitor)

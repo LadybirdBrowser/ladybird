@@ -310,21 +310,29 @@ static bool has_rule_that_may_be_affected_by_mutation(StyleScope& style_scope, D
         }
     };
 
+    auto check_rule_map = [&](auto const& map) {
+        for (auto const& entry : map) {
+            check_rule_vector(entry.value);
+            if (may_be_affected)
+                return;
+        }
+    };
+
+    auto check_rule_buckets = [&](auto const& rule_buckets) {
+        check_rule_map(rule_buckets.rules_by_id);
+        check_rule_map(rule_buckets.rules_by_class);
+        check_rule_map(rule_buckets.rules_by_tag_name);
+        check_rule_map(rule_buckets.rules_by_attribute_name);
+        check_rule_vector(rule_buckets.root_rules);
+        check_rule_vector(rule_buckets.other_rules);
+    };
+
     auto const& has_rule_cache = style_scope.get_pseudo_class_rule_cache(PseudoClass::Has);
-    for (auto const& entry : has_rule_cache.rules_by_id)
-        check_rule_vector(entry.value);
-    for (auto const& entry : has_rule_cache.rules_by_class)
-        check_rule_vector(entry.value);
-    for (auto const& entry : has_rule_cache.rules_by_tag_name)
-        check_rule_vector(entry.value);
-    for (auto const& entry : has_rule_cache.rules_by_attribute_name)
-        check_rule_vector(entry.value);
+    check_rule_buckets(has_rule_cache);
     for (auto const& rules : has_rule_cache.rules_by_pseudo_element)
-        check_rule_vector(rules);
-    check_rule_vector(has_rule_cache.root_rules);
+        check_rule_buckets(rules);
     check_rule_vector(has_rule_cache.slotted_rules);
     check_rule_vector(has_rule_cache.part_rules);
-    check_rule_vector(has_rule_cache.other_rules);
 
     return !found_has_rule || may_be_affected;
 }
