@@ -39,6 +39,7 @@ flatpak_runtime_libs = [
     "curl",
     "dbus",
     "fontconfig",
+    "freetype",
     "harfbuzz",
     "libjpeg-turbo",
     "libproxy",

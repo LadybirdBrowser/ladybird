@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "48cfe1e0e928341709d97fc3d2eff10ad6262c96",
+  "builtin-baseline": "43ea817e84600347895efc196e2bb91162e9e679",
   "dependencies": [
     {
       "name": "angle",
@@ -313,6 +313,10 @@
       "version": "2.17.1#1"
     },
     {
+      "name": "freetype",
+      "version": "2.13.3#0"
+    },
+    {
       "name": "harfbuzz",
       "version": "10.2.0#0"
     },
@@ -322,7 +326,7 @@
     },
     {
       "name": "icu",
-      "version": "78.2#0"
+      "version": "78.3#1"
     },
     {
       "name": "libadwaita",
