@@ -22,7 +22,7 @@ class CSSPropertyRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSPropertyRule);
 
 public:
-    static GC::Ref<CSSPropertyRule> create(JS::Realm&, Utf16FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value);
+    static GC::Ref<CSSPropertyRule> create(JS::Realm&, Utf16FlyString name, FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
 
     virtual ~CSSPropertyRule() = default;
 
@@ -35,7 +35,7 @@ public:
     CustomPropertyRegistration to_registration() const;
 
 private:
-    CSSPropertyRule(JS::Realm&, Utf16FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value);
+    CSSPropertyRule(JS::Realm&, Utf16FlyString name, FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
 
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
@@ -43,6 +43,7 @@ private:
 
     Utf16FlyString m_name;
     FlyString m_syntax;
+    NonnullRefPtr<Parser::SyntaxNode> m_parsed_syntax;
     bool m_inherits;
     RefPtr<StyleValue const> m_initial_value;
 };

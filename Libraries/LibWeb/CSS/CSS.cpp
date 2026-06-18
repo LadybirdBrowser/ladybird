@@ -144,12 +144,12 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefini
     //    an initial value of parsed initial value, and an inherit flag of inherit flag.
     CustomPropertyRegistration registered_property {
         .property_name = property_name,
-        .syntax = definition.syntax,
+        .syntax = maybe_syntax.release_nonnull(),
         .inherit = definition.inherits,
         .initial_value = initial_value_maybe,
     };
     // Append registered property to property set.
-    property_set.set(registered_property.property_name, registered_property);
+    property_set.set(registered_property.property_name, move(registered_property));
     document.did_change_custom_property_registrations();
 
     return {};
