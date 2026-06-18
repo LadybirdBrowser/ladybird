@@ -26,15 +26,11 @@ public:
     virtual double raw_value() const override { return m_frequency.raw_value(); }
     virtual FlyString unit_name() const override { return m_frequency.unit_name(); }
 
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { m_frequency.serialize(builder, mode); }
 
-    bool equals(StyleValue const& other) const override
-    {
-        if (type() != other.type())
-            return false;
-        auto const& other_frequency = other.as_frequency();
-        return m_frequency == other_frequency.m_frequency;
-    }
+    bool equals(StyleValue const& other) const override;
 
     virtual bool is_computationally_independent() const override { return true; }
 

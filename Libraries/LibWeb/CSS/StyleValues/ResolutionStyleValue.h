@@ -23,17 +23,13 @@ public:
     virtual double raw_value() const override { return m_resolution.raw_value(); }
     virtual FlyString unit_name() const override { return m_resolution.unit_name(); }
 
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { m_resolution.serialize(builder, mode); }
 
     virtual bool is_computationally_independent() const override { return true; }
 
-    bool equals(StyleValue const& other) const override
-    {
-        if (type() != other.type())
-            return false;
-        auto const& other_resolution = other.as_resolution();
-        return m_resolution == other_resolution.m_resolution;
-    }
+    bool equals(StyleValue const& other) const override;
 
 private:
     explicit ResolutionStyleValue(Resolution resolution)
