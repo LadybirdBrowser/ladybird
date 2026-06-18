@@ -858,7 +858,6 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
     translate(Gfx::ColorRole::Button, QPalette::ColorRole::Button);
     translate(Gfx::ColorRole::ButtonText, QPalette::ColorRole::ButtonText);
     translate(Gfx::ColorRole::Selection, QPalette::ColorRole::Highlight);
-    translate(Gfx::ColorRole::SelectionText, QPalette::ColorRole::HighlightedText);
 
     palette.set_flag(Gfx::FlagRole::IsDark, is_using_dark_system_theme(widget));
 

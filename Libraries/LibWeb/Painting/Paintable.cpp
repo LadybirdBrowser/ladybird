@@ -302,20 +302,11 @@ Paintable::SelectionStyle Paintable::selection_style() const
     auto default_style_for_color_scheme = [&](CSS::PreferredColorScheme color_scheme, bool use_palette_for_normal_color_scheme = true) {
         auto palette = document().page().palette();
         auto palette_color_scheme = palette.is_dark() ? CSS::PreferredColorScheme::Dark : CSS::PreferredColorScheme::Light;
-        if (color_scheme == palette_color_scheme || use_palette_for_normal_color_scheme) {
-            return SelectionStyle {
-                CSS::SystemColor::transform_selection_background_color(palette.selection()),
-                palette.selection_text(),
-                {},
-                {},
-            };
-        }
+        if (color_scheme == palette_color_scheme || use_palette_for_normal_color_scheme)
+            return SelectionStyle { CSS::SystemColor::transform_selection_background_color(palette.selection()) };
 
         return SelectionStyle {
-            CSS::SystemColor::transform_selection_background_color(CSS::SystemColor::highlight(color_scheme)),
-            CSS::SystemColor::highlight_text(color_scheme),
-            {},
-            {},
+            CSS::SystemColor::transform_selection_background_color(CSS::SystemColor::highlight(color_scheme))
         };
     };
 

@@ -128,9 +128,9 @@ public:
     };
     struct SelectionStyle {
         Color background_color;
-        Optional<Color> text_color;
-        Optional<Vector<ShadowData>> text_shadow;
-        Optional<TextDecorationStyle> text_decoration;
+        Optional<Color> text_color {};
+        Optional<Vector<ShadowData>> text_shadow {};
+        Optional<TextDecorationStyle> text_decoration {};
 
         bool has_styling() const
         {
