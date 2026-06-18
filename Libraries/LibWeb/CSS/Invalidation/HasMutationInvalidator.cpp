@@ -54,9 +54,7 @@ static bool pending_has_invalidation_covers_all_child_list_mutation_features(Sty
     if (mutation_features.is_conservative)
         return true;
 
-    auto const* data = scope.m_rule_cache ? &scope.m_rule_cache->style_invalidation_data : nullptr;
-    if (!data)
-        return false;
+    auto const& data = scope.style_invalidation_data();
 
     if (!mutation_features.may_affect_sibling_relationships)
         return false;
@@ -69,15 +67,15 @@ static bool pending_has_invalidation_covers_all_child_list_mutation_features(Sty
         return true;
     };
 
-    if (!contains_all_keys(mutation_features.tag_names, data->tag_names_used_in_has_selectors))
+    if (!contains_all_keys(mutation_features.tag_names, data.tag_names_used_in_has_selectors))
         return false;
-    if (!contains_all_keys(mutation_features.ids, data->ids_used_in_has_selectors))
+    if (!contains_all_keys(mutation_features.ids, data.ids_used_in_has_selectors))
         return false;
-    if (!contains_all_keys(mutation_features.class_names, data->class_names_used_in_has_selectors))
+    if (!contains_all_keys(mutation_features.class_names, data.class_names_used_in_has_selectors))
         return false;
-    if (!contains_all_keys(mutation_features.attribute_names, data->attribute_names_used_in_has_selectors))
+    if (!contains_all_keys(mutation_features.attribute_names, data.attribute_names_used_in_has_selectors))
         return false;
-    if (!data->pseudo_classes_used_in_has_selectors.is_empty() && !mutation_features.may_affect_pseudo_classes)
+    if (!data.pseudo_classes_used_in_has_selectors.is_empty() && !mutation_features.may_affect_pseudo_classes)
         return false;
 
     return true;
@@ -85,8 +83,7 @@ static bool pending_has_invalidation_covers_all_child_list_mutation_features(Sty
 
 static bool scope_has_featureless_sensitive_has_selectors(StyleScope const& scope)
 {
-    auto const* data = scope.m_rule_cache ? &scope.m_rule_cache->style_invalidation_data : nullptr;
-    return data && data->has_selectors_sensitive_to_featureless_subtree_changes;
+    return scope.style_invalidation_data().has_selectors_sensitive_to_featureless_subtree_changes;
 }
 
 void invalidate_element_if_affected_by_has(DOM::Element& element, DescendantHasInvalidation descendant_has_invalidation)

@@ -128,7 +128,7 @@
             settle(anchor);
 
             const existing = mutationCase.before?.({ fixture, anchor, unrelated });
-            resetStyleCounters();
+            flushPendingStyleWork();
             const cleanup = mutationCase.mutate({ fixture, anchor, unrelated, existing });
             assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
             printPassWithCounters(`unrelated structural mutation skips :has walk: ${featureCase.name} / ${mutationCase.name}`);

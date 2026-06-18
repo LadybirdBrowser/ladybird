@@ -438,11 +438,11 @@ void CSSStyleSheet::for_each_owning_style_scope(Function<void(StyleScope&)> cons
     }
 }
 
-NonnullRefPtr<StyleCache> CSSStyleSheet::shared_single_constructed_sheet_style_cache(StyleScope& style_scope)
+NonnullRefPtr<StyleCache> CSSStyleSheet::shared_single_constructed_sheet_style_cache()
 {
     VERIFY(constructed());
     if (!m_shared_single_constructed_sheet_style_cache)
-        m_shared_single_constructed_sheet_style_cache = StyleCache::create_for_style_scope(style_scope);
+        m_shared_single_constructed_sheet_style_cache = StyleCache::create();
     return *m_shared_single_constructed_sheet_style_cache;
 }
 

@@ -598,9 +598,9 @@ void invalidate_style_for_stylesheet_change(DOM::Node& document_or_shadow_root, 
     }
 
     if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root)) {
-        shadow_root->style_scope().invalidate_rule_cache();
+        shadow_root->style_scope().invalidate_style_cache();
     } else {
-        document_or_shadow_root.document().style_scope().invalidate_rule_cache();
+        document_or_shadow_root.document().style_scope().invalidate_style_cache();
     }
 
     if (!document_or_shadow_root.is_shadow_root() && document_or_shadow_root.entire_subtree_needs_style_update()) {
@@ -648,7 +648,7 @@ void invalidate_owners_for_inserted_style_rule(CSSStyleSheet const& style_sheet,
         auto& style_scope = document_or_shadow_root->is_shadow_root()
             ? as<DOM::ShadowRoot>(*document_or_shadow_root).style_scope()
             : document_or_shadow_root->document().style_scope();
-        style_scope.invalidate_rule_cache();
+        style_scope.invalidate_style_cache();
 
         // A dirty shadow subtree can still need follow-up invalidation on the host side for :host(...) and
         // ::slotted(...) matches, so we don't skip shadow roots even when their entire subtree is already marked.
@@ -858,7 +858,7 @@ void invalidate_style_for_style_sheet_owners(CSSStyleSheet const& style_sheet, D
 {
     style_sheet.for_each_owning_style_scope([&](StyleScope& style_scope) {
         if (rule_cache_invalidation == ShouldInvalidateRuleCache::Yes)
-            style_scope.invalidate_rule_cache();
+            style_scope.invalidate_style_cache();
 
         style_scope.node().invalidate_style(reason);
 
@@ -912,7 +912,7 @@ void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sh
         auto& style_scope = document_or_shadow_root->is_shadow_root()
             ? as<DOM::ShadowRoot>(*document_or_shadow_root).style_scope()
             : document_or_shadow_root->document().style_scope();
-        style_scope.invalidate_rule_cache();
+        style_scope.invalidate_style_cache();
 
         if (!document_or_shadow_root->is_shadow_root() && document_or_shadow_root->entire_subtree_needs_style_update())
             continue;
