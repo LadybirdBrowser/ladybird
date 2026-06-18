@@ -15,7 +15,7 @@ namespace Web::CSS {
 //     convenient types (i.e. not just strings)
 struct FunctionParameterInternal {
     FlyString name;
-    NonnullOwnPtr<Parser::SyntaxNode> type;
+    NonnullRefPtr<Parser::SyntaxNode> type;
     Optional<Vector<Parser::ComponentValue>> default_value;
 
     void serialize(StringBuilder& builder) const;
@@ -36,7 +36,7 @@ class CSSFunctionRule : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSFunctionRule);
 
 public:
-    static GC::Ref<CSSFunctionRule> create(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
+    static GC::Ref<CSSFunctionRule> create(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
     virtual ~CSSFunctionRule() override = default;
 
     virtual void initialize(JS::Realm&) override;
@@ -48,11 +48,11 @@ public:
     String serialized() const override;
 
 private:
-    CSSFunctionRule(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
+    CSSFunctionRule(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
 
     FlyString m_name;
     Vector<FunctionParameterInternal> m_parameters;
-    NonnullOwnPtr<Parser::SyntaxNode> m_return_type;
+    NonnullRefPtr<Parser::SyntaxNode> m_return_type;
 };
 
 }

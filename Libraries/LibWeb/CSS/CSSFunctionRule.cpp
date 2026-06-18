@@ -89,12 +89,12 @@ void FunctionParameterInternal::serialize(StringBuilder& builder) const
     }
 }
 
-GC::Ref<CSSFunctionRule> CSSFunctionRule::create(JS::Realm& realm, CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type)
+GC::Ref<CSSFunctionRule> CSSFunctionRule::create(JS::Realm& realm, CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
 {
     return realm.create<CSSFunctionRule>(realm, rules, move(name), move(parameters), move(return_type));
 }
 
-CSSFunctionRule::CSSFunctionRule(JS::Realm& realm, CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type)
+CSSFunctionRule::CSSFunctionRule(JS::Realm& realm, CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
     : CSSGroupingRule(realm, rules, Type::Function)
     , m_name(move(name))
     , m_parameters(move(parameters))

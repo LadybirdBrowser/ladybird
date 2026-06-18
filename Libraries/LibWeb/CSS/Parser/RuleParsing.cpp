@@ -1521,7 +1521,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
     return font_feature_values_rule;
 }
 
-static OwnPtr<SyntaxNode> parse_css_type(TokenStream<ComponentValue>& tokens)
+static RefPtr<SyntaxNode> parse_css_type(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-mixins-1/#function-rule
     // <css-type> = <syntax-component> | <type()>
@@ -1607,7 +1607,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
         }
 
         // <css-type>?
-        NonnullOwnPtr<SyntaxNode> type = UniversalSyntaxNode::create();
+        NonnullRefPtr<SyntaxNode> type = UniversalSyntaxNode::create();
         if (auto maybe_type = parse_css_type(parameter_tokens))
             type = maybe_type.release_nonnull();
 
@@ -1656,7 +1656,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
     tokens.discard_whitespace();
 
-    NonnullOwnPtr<SyntaxNode> return_type = UniversalSyntaxNode::create();
+    NonnullRefPtr<SyntaxNode> return_type = UniversalSyntaxNode::create();
     if (tokens.next_token().is_ident("returns"sv)) {
         tokens.discard_a_token();
         tokens.discard_whitespace();

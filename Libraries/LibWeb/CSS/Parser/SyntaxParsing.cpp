@@ -20,7 +20,7 @@
 
 namespace Web::CSS::Parser {
 
-static OwnPtr<SyntaxNode> parse_syntax_single_component(TokenStream<ComponentValue>& tokens, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
+static RefPtr<SyntaxNode> parse_syntax_single_component(TokenStream<ComponentValue>& tokens, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     // <syntax-single-component> = '<' <syntax-type-name> '>' | <ident>
     // <syntax-type-name> = angle | color | custom-ident | image | integer
@@ -88,7 +88,7 @@ static Optional<char> parse_syntax_multiplier(TokenStream<ComponentValue>& token
     return {};
 }
 
-OwnPtr<SyntaxNode> parse_syntax_component(TokenStream<ComponentValue>& tokens, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
+RefPtr<SyntaxNode> parse_syntax_component(TokenStream<ComponentValue>& tokens, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     // <syntax-component> = <syntax-single-component> <syntax-multiplier>?
     //                    | '<' transform-list '>'
@@ -149,7 +149,7 @@ static Optional<char> parse_syntax_combinator(TokenStream<ComponentValue>& token
 }
 
 // https://drafts.csswg.org/css-values-5/#typedef-syntax
-OwnPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_values, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
+RefPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_values, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     // <syntax> = '*' | <syntax-component> [ <syntax-combinator> <syntax-component> ]* | <syntax-string>
     // <syntax-component> = <syntax-single-component> <syntax-multiplier>?
@@ -195,7 +195,7 @@ OwnPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_value
     auto first = parse_syntax_component(tokens, limit_single_component_ident_to_custom_ident);
     if (!first)
         return nullptr;
-    Vector<NonnullOwnPtr<SyntaxNode>> syntax_components;
+    Vector<NonnullRefPtr<SyntaxNode>> syntax_components;
     syntax_components.append(first.release_nonnull());
 
     tokens.discard_whitespace();
