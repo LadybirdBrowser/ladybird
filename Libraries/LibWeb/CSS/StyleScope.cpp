@@ -158,11 +158,12 @@ void StyleScope::invalidate_rule_cache()
 {
     invalidate_counter_style_cache();
     m_rule_cache = nullptr;
+}
 
-    // NOTE: We could be smarter about keeping the user rule cache, and style sheet.
-    //       Currently we are re-parsing the user style sheet every time we build the caches,
-    //       as it may have changed.
+void StyleScope::invalidate_user_style_sheet()
+{
     m_user_style_sheet = nullptr;
+    invalidate_rule_cache();
 }
 
 void StyleScope::build_user_style_sheet_if_needed()
