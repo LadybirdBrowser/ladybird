@@ -33,20 +33,6 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path)
     TRY(Sandbox::add_landlock_path_if_exists(paths, executable_path, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/proc/self"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/lib"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/lib64"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/usr/lib"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/usr/local/lib"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/glvnd"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/usr/share/glvnd"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/usr/share/drirc.d"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/usr/share/vulkan"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/dev/dri"sv, Sandbox::LandlockPath::Access::ReadWrite));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/sys"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    if (auto library_path = Core::Environment::get("LD_LIBRARY_PATH"sv); library_path.has_value()) {
-        for (auto path : library_path->split_view(':'))
-            TRY(Sandbox::add_landlock_path_if_exists(paths, path, Sandbox::LandlockPath::Access::ReadOnly));
-    }
     for (auto const& path : TRY(Gfx::FontDatabase::font_directories()))
         TRY(Sandbox::add_landlock_path_if_exists(paths, path, Sandbox::LandlockPath::Access::ReadOnly));
 
@@ -56,12 +42,6 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path)
         auto default_cranelift_compiler_path = LexicalPath::join(build_root, "bin/cranelift-compiler"sv).string();
         TRY(Sandbox::add_landlock_path_if_exists(paths, default_cranelift_compiler_path, Sandbox::LandlockPath::Access::ReadAndExecute));
     }
-
-    auto mesa_shader_cache_path = Core::Environment::get("MESA_SHADER_CACHE_DIR"sv)
-                                      .map([](auto path) { return path.to_byte_string(); })
-                                      .value_or_lazy_evaluated([] { return ByteString::formatted("{}/mesa_shader_cache", Core::StandardPaths::cache_directory()); });
-    TRY(Core::Directory::create(mesa_shader_cache_path, Core::Directory::CreateDirectories::Yes));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, mesa_shader_cache_path, Sandbox::LandlockPath::Access::ReadWrite));
 
     auto pulse_runtime_path = LexicalPath::join(TRY(Core::StandardPaths::runtime_directory()), "pulse"sv).string();
     TRY(Core::Directory::create(pulse_runtime_path, Core::Directory::CreateDirectories::Yes, 0700));
