@@ -10,12 +10,10 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/Optional.h>
 #include <AK/Types.h>
-#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Painting/DisplayListResourceIds.h>
 
 namespace Web::Compositor {
 
@@ -53,16 +51,6 @@ enum class AsyncScrollOperationTracking {
     Yes,
 };
 
-struct PublishToCompositorSurface {
-    CompositorContextId target_context_id;
-    Painting::CompositorSurfaceId surface_id;
-};
-
-struct PresentToClient {
-};
-
-using PresentationMode = Variant<Empty, PresentToClient, PublishToCompositorSurface>;
-
 }
 
 namespace IPC {
@@ -86,15 +74,5 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::AsyncScrollEnqueueResult const&);
 template<>
 WEB_API ErrorOr<Web::Compositor::AsyncScrollEnqueueResult> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::PublishToCompositorSurface const&);
-template<>
-WEB_API ErrorOr<Web::Compositor::PublishToCompositorSurface> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::PresentToClient const&);
-template<>
-WEB_API ErrorOr<Web::Compositor::PresentToClient> decode(Decoder&);
 
 }

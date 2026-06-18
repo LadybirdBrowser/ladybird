@@ -24,6 +24,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
@@ -38,7 +39,7 @@ class DisplayList;
     V(FillRect, fill_rect)                                                             \
     V(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)                    \
     V(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame)                \
-    V(DrawCompositorSurface, draw_compositor_surface)                                  \
+    V(DrawCompositedContext, draw_composited_context)                                  \
     V(DrawCanvas, draw_canvas)                                                         \
     V(DrawVideoFrame, draw_video_frame)                                                \
     V(Save, save)                                                                      \
@@ -188,12 +189,12 @@ struct DrawRepeatedDecodedImageFrame {
     void dump(StringBuilder&) const;
 };
 
-struct DrawCompositorSurface {
-    static constexpr StringView command_name = "DrawCompositorSurface"sv;
-    static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawCompositorSurface;
+struct DrawCompositedContext {
+    static constexpr StringView command_name = "DrawCompositedContext"sv;
+    static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawCompositedContext;
 
     Gfx::IntRect dst_rect;
-    CompositorSurfaceId surface_id;
+    Web::Compositor::CompositorContextId child_context_id;
     Gfx::ScalingMode scaling_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }

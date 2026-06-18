@@ -21,9 +21,14 @@ CompositorContextHandle::~CompositorContextHandle()
     m_host.destroy_context(m_context_id);
 }
 
-void CompositorContextHandle::set_presentation_mode(PresentationMode mode)
+void CompositorContextHandle::set_parent_context(Optional<CompositorContextId> parent_context_id)
 {
-    m_host.set_presentation_mode(m_context_id, move(mode));
+    m_host.set_parent_context(m_context_id, parent_context_id);
+}
+
+void CompositorContextHandle::stop_presenting_to_client()
+{
+    m_host.stop_presenting_to_client(m_context_id);
 }
 
 void CompositorContextHandle::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::AccumulatedVisualContextTree visual_context_tree, Painting::DisplayListResourceTransaction&& resource_transaction, Painting::ScrollStateSnapshot&& scroll_state_snapshot)

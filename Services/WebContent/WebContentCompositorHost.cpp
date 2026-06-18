@@ -178,10 +178,16 @@ private:
         m_client.did_destroy_compositor_context(context_id);
     }
 
-    virtual void set_presentation_mode(Web::Compositor::CompositorContextId context_id, Web::Compositor::PresentationMode mode) override
+    virtual void set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id) override
     {
         if (auto* connection = compositor_connection())
-            connection->set_presentation_mode(context_id, mode);
+            connection->set_parent_context(context_id, parent_context_id);
+    }
+
+    virtual void stop_presenting_to_client(Web::Compositor::CompositorContextId context_id) override
+    {
+        if (auto* connection = compositor_connection())
+            connection->stop_presenting_to_client(context_id);
     }
 
     virtual void update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot) override

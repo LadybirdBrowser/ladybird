@@ -37,7 +37,8 @@ class CompositorConnection final
 public:
     explicit CompositorConnection(NonnullOwnPtr<IPC::Transport>);
 
-    void set_presentation_mode(Web::Compositor::CompositorContextId, Web::Compositor::PresentationMode const&);
+    void set_parent_context(Web::Compositor::CompositorContextId, Optional<Web::Compositor::CompositorContextId>);
+    void stop_presenting_to_client(Web::Compositor::CompositorContextId);
     void destroy_context(Web::Compositor::CompositorContextId);
     void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList> const&, Web::Painting::AccumulatedVisualContextTree const&, Web::Painting::DisplayListResourceTransaction const&, Web::Painting::ScrollStateSnapshot const&);
     void update_visual_context_tree(Web::Compositor::CompositorContextId, Web::Painting::AccumulatedVisualContextTree const&);

@@ -271,10 +271,12 @@ public:
         VERIFY(m_compositor_context);
         return *m_compositor_context;
     }
+    Compositor::CompositorContextHandle const& compositor_context() const
+    {
+        VERIFY(m_compositor_context);
+        return *m_compositor_context;
+    }
     bool has_compositor_context() const { return m_compositor_context; }
-
-    Painting::CompositorSurfaceId compositor_surface_id() const;
-    bool has_compositor_surface_id() const { return m_compositor_surface_id.has_value(); }
 
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
@@ -319,7 +321,7 @@ private:
     void reset_cursor_blink_cycle();
 
     void scroll_offset_did_change();
-    void clear_compositor_surface();
+    void clear_parent_compositor_context();
     void destroy_compositor_context();
 
     void inform_the_navigation_api_about_aborting_navigation();
@@ -389,7 +391,6 @@ private:
     Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Painting::DisplayListResourceSet m_compositor_display_list_resources;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
-    Optional<Painting::CompositorSurfaceId> m_compositor_surface_id;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
 
     struct PendingAsyncScrollOperation {

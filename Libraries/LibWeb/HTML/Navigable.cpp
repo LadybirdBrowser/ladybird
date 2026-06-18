@@ -513,11 +513,7 @@ void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state
         m_should_show_caret_hit_test_debug_overlay = parent->m_should_show_caret_hit_test_debug_overlay;
     }
     if (parent && !m_is_svg_page && has_compositor_context() && parent->has_compositor_context()) {
-        m_compositor_surface_id = Painting::allocate_compositor_surface_id();
-        compositor_context().set_presentation_mode(Compositor::PublishToCompositorSurface {
-            .target_context_id = parent->compositor_context().id(),
-            .surface_id = *m_compositor_surface_id,
-        });
+        compositor_context().set_parent_context(parent->compositor_context().id());
     }
 
     // 6. Set the initial visibility state of documentState's document to navigable's traversable navigable's system visibility state.
@@ -3766,24 +3762,15 @@ void Navigable::set_has_session_history_entry_and_ready_for_navigation()
     process_pending_navigations();
 }
 
-Painting::CompositorSurfaceId Navigable::compositor_surface_id() const
+void Navigable::clear_parent_compositor_context()
 {
-    VERIFY(m_compositor_surface_id.has_value());
-    return *m_compositor_surface_id;
-}
-
-void Navigable::clear_compositor_surface()
-{
-    if (!m_compositor_surface_id.has_value())
-        return;
     if (has_compositor_context())
-        compositor_context().set_presentation_mode(Empty {});
-    m_compositor_surface_id.clear();
+        compositor_context().set_parent_context({});
 }
 
 void Navigable::destroy_compositor_context()
 {
-    clear_compositor_surface();
+    clear_parent_compositor_context();
     m_compositor_context.clear();
 }
 
@@ -3793,11 +3780,8 @@ void Navigable::repaint_after_compositor_process_reconnect()
 
     if (has_compositor_context()) {
         if (auto parent = this->parent();
-            parent && parent->has_compositor_context() && has_compositor_surface_id()) {
-            compositor_context().set_presentation_mode(Compositor::PublishToCompositorSurface {
-                .target_context_id = parent->compositor_context().id(),
-                .surface_id = *m_compositor_surface_id,
-            });
+            parent && parent->has_compositor_context()) {
+            compositor_context().set_parent_context(parent->compositor_context().id());
         }
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
@@ -3909,9 +3893,8 @@ void Navigable::paint_next_frame()
     if (is_top_level_traversable()) {
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() };
     } else {
-        // Nested navigables publish transparent bitmaps to their preconfigured compositor surface instead of filling
-        // the canvas for the UI process.
-        if (!m_compositor_surface_id.has_value())
+        // Nested navigables paint transparent bitmaps for their parent compositor context.
+        if (!parent() || !parent()->has_compositor_context())
             return;
     }
 

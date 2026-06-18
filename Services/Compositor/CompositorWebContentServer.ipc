@@ -1,4 +1,5 @@
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -19,7 +20,8 @@ endpoint CompositorWebContentServer
 {
     init_transport(int peer_pid) => (int compositor_pid)
 
-    set_presentation_mode(Web::Compositor::CompositorContextId context_id, Web::Compositor::PresentationMode presentation_mode) =|
+    set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id) =|
+    stop_presenting_to_client(Web::Compositor::CompositorContextId context_id) =|
     destroy_context(Web::Compositor::CompositorContextId context_id) =|
 
     update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction, Web::Painting::ScrollStateSnapshot scroll_state_snapshot) =|

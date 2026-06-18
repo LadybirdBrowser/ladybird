@@ -37,7 +37,8 @@ private:
     virtual void die() override;
 
     virtual Messages::CompositorWebContentServer::InitTransportResponse init_transport(int peer_pid) override;
-    virtual void set_presentation_mode(Web::Compositor::CompositorContextId, Web::Compositor::PresentationMode) override;
+    virtual void set_parent_context(Web::Compositor::CompositorContextId, Optional<Web::Compositor::CompositorContextId>) override;
+    virtual void stop_presenting_to_client(Web::Compositor::CompositorContextId) override;
     virtual void destroy_context(Web::Compositor::CompositorContextId) override;
     virtual void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::AccumulatedVisualContextTree, Web::Painting::DisplayListResourceTransaction, Web::Painting::ScrollStateSnapshot) override;
     virtual void update_visual_context_tree(Web::Compositor::CompositorContextId, Web::Painting::AccumulatedVisualContextTree) override;

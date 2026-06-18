@@ -77,7 +77,7 @@ public:
     void create_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&);
     void destroy_context(Web::Compositor::CompositorContextId);
 
-    void set_presentation_mode(Web::Compositor::CompositorContextId, Web::Compositor::PresentationMode);
+    void set_parent_context(Web::Compositor::CompositorContextId, Optional<Web::Compositor::CompositorContextId> parent_context_id);
     void stop_presenting_to_client(Web::Compositor::CompositorContextId);
     void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::AccumulatedVisualContextTree, Web::Painting::DisplayListResourceTransaction&&, Web::Painting::ScrollStateSnapshot&&);
     void update_visual_context_tree(Web::Compositor::CompositorContextId, Web::Painting::AccumulatedVisualContextTree);
@@ -117,12 +117,13 @@ private:
 
     ContextState* context_if_present(Web::Compositor::CompositorContextId);
     ContextState const* context_if_present(Web::Compositor::CompositorContextId) const;
-    void detach_from_parent_surface(Web::Compositor::CompositorContextId, ContextState&);
+    void clear_parent_context(ContextState&);
+    CompositedContextResolver resolver_for(Web::Compositor::CompositorContextId parent_context_id);
+    RefPtr<Gfx::PaintingSurface> resolve_composited_context(Web::Compositor::CompositorContextId parent_context_id, Web::Compositor::CompositorContextId child_context_id);
     void schedule_backing_store_shrink(Web::Compositor::CompositorContextId, ContextState&);
     void shrink_backing_stores_after_resize(Web::Compositor::CompositorContextId);
     void resize_backing_stores_if_needed(Web::Compositor::CompositorContextId, ContextState&);
     void present_current_frame(Web::Compositor::CompositorContextId, ContextState&);
-    void publish_to_parent_surface(ContextState&, Web::Compositor::PublishToCompositorSurface const&);
     bool apply_context_update_result(
         Web::Compositor::CompositorContextId,
         ContextState&,
@@ -135,7 +136,7 @@ private:
     void present_pending_frames_on_vsync(Optional<u64> display_id);
     void flush_descendant_surfaces_for_screenshot(Web::Compositor::CompositorContextId);
     bool present_subtree_for_screenshot(Web::Compositor::CompositorContextId);
-    void present_context_synchronously(ContextState&);
+    bool present_context_synchronously(Web::Compositor::CompositorContextId, ContextState&);
     void publish_backing_stores(Web::Compositor::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
     void did_finish_async_present(PendingAsyncPresent&);
     void cancel_pending_async_presents_for_context(Web::Compositor::CompositorContextId);

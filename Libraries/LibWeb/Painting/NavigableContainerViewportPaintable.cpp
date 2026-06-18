@@ -47,14 +47,14 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
 
         auto content_navigable = navigable_container.content_navigable();
         VERIFY(content_navigable);
-        if (content_navigable->has_been_destroyed() || !content_navigable->has_compositor_surface_id())
+        if (content_navigable->has_been_destroyed() || !content_navigable->has_compositor_context())
             return;
 
         context.display_list_recorder().save();
         context.display_list_recorder().add_clip_rect(clip_rect.to_type<int>());
-        context.display_list_recorder().draw_compositor_surface(
+        context.display_list_recorder().draw_composited_context(
             context.enclosing_device_rect(absolute_rect).to_type<int>(),
-            content_navigable->compositor_surface_id(),
+            content_navigable->compositor_context().id(),
             Gfx::ScalingMode::NearestNeighbor);
         context.display_list_recorder().restore();
 

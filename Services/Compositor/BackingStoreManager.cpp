@@ -164,6 +164,11 @@ bool BackingStoreManager::is_valid() const
     return m_backing_stores.is_valid();
 }
 
+RefPtr<Gfx::PaintingSurface> BackingStoreManager::front_store_if_present() const
+{
+    return m_backing_stores.front_store;
+}
+
 Gfx::PaintingSurface& BackingStoreManager::front_store()
 {
     VERIFY(m_backing_stores.front_store);

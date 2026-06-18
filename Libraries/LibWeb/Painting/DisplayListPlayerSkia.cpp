@@ -65,9 +65,9 @@ void DisplayListPlayerSkia::execute(
     ScrollStateSnapshot const& scroll_state_snapshot,
     RefPtr<Gfx::PaintingSurface> surface,
     CanvasSurfaceRegistry const* canvas_surface_registry,
-    CompositorSurfaceMap const* compositor_surfaces)
+    CompositedContextResolver const* composited_context_resolver)
 {
-    TemporaryChange compositor_surfaces_change { m_compositor_surfaces, compositor_surfaces };
+    TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
     DisplayListPlayer::execute(
         display_list,
         visual_context_tree,
@@ -225,16 +225,16 @@ void DisplayListPlayerSkia::play_command(FillRect const& command)
     canvas.drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawCompositorSurface const& command)
+void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
 {
-    if (!m_compositor_surfaces)
+    if (!m_composited_context_resolver)
         return;
 
-    auto compositor_surface = m_compositor_surfaces->get(command.surface_id);
-    if (!compositor_surface.has_value())
+    auto composited_context_surface = (*m_composited_context_resolver)(command.child_context_id);
+    if (!composited_context_surface)
         return;
 
-    auto image = compositor_surface.value()->sk_image_snapshot<sk_sp<SkImage>>();
+    auto image = composited_context_surface->sk_image_snapshot<sk_sp<SkImage>>();
     if (!image)
         return;
 
