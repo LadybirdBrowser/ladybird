@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
@@ -111,6 +112,8 @@ public:
     void console_peer_did_misbehave(char const* reason);
 
     Vector<Web::CSS::StyleSheetIdentifier> list_style_sheets() const;
+    Vector<Web::HTML::ScriptRegistry::Description> list_devtools_sources() const;
+    Optional<Web::HTML::ScriptRegistry::Content> devtools_source_content(Web::HTML::ScriptRegistry::Identifier const&) const;
 
     virtual double zoom_level() const override { return m_zoom_level; }
     virtual double device_pixel_ratio() const override { return m_device_pixel_ratio; }
@@ -242,6 +245,7 @@ private:
     virtual void page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String>, Vector<HTTP::Header> const&) override;
     virtual void page_did_receive_network_response_body(u64 request_id, ReadonlyBytes) override;
     virtual void page_did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const&) override;
+    virtual void page_did_register_javascript_source(Web::DOM::Document&, Web::HTML::ScriptRegistry::Description const&) override;
     virtual void page_did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage const&) override;
 
     void setup_palette();

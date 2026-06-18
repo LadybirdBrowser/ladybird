@@ -2394,6 +2394,57 @@ void Application::stop_listening_for_style_sheet_sources(DevTools::TabDescriptio
     view->on_received_style_sheet_source = nullptr;
 }
 
+void Application::retrieve_sources(DevTools::TabDescription const& description, OnSourcesReceived on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->retrieve_devtools_sources(move(on_complete));
+}
+
+void Application::retrieve_source(DevTools::TabDescription const& description, Web::HTML::ScriptRegistry::Identifier source_id, OnSourceReceived on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->on_received_devtools_source.set(source_id, [on_complete = move(on_complete)](Optional<Web::HTML::ScriptRegistry::Content> source) {
+        if (!source.has_value()) {
+            on_complete(Error::from_string_literal("Unable to locate source"));
+            return;
+        }
+
+        on_complete(source.release_value());
+    });
+
+    view->request_devtools_source(source_id);
+}
+
+void Application::listen_for_sources(DevTools::TabDescription const& description, OnSourceAvailable on_source_available) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+
+    view->on_devtools_source_available = [on_source_available = move(on_source_available)](Web::HTML::ScriptRegistry::Description source) {
+        on_source_available(move(source));
+    };
+}
+
+void Application::stop_listening_for_sources(DevTools::TabDescription const& description) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+
+    view->on_devtools_source_available = nullptr;
+}
+
 void Application::evaluate_javascript(DevTools::TabDescription const& description, String const& script, OnScriptEvaluationComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

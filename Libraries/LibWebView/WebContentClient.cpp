@@ -846,6 +846,32 @@ void WebContentClient::did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSh
     }
 }
 
+void WebContentClient::did_list_devtools_sources(u64 page_id, u64 request_id, Vector<Web::HTML::ScriptRegistry::Description> sources)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto handler = view->on_received_devtools_sources.take(request_id);
+        if (handler.has_value())
+            (*handler)(move(sources));
+    }
+}
+
+void WebContentClient::did_get_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id, Optional<Web::HTML::ScriptRegistry::Content> source)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto handler = view->on_received_devtools_source.take(source_id);
+        if (handler.has_value())
+            (*handler)(move(source));
+    }
+}
+
+void WebContentClient::did_add_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Description source)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_devtools_source_available)
+            view->on_devtools_source_available(move(source));
+    }
+}
+
 void WebContentClient::did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

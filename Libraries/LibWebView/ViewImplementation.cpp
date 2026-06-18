@@ -1017,6 +1017,18 @@ void ViewImplementation::did_receive_indexed_database_inspection(u64 request_id,
     (*callback)(move(result));
 }
 
+void ViewImplementation::retrieve_devtools_sources(DevTools::DevToolsDelegate::OnSourcesReceived on_complete)
+{
+    auto request_id = m_next_devtools_sources_request_id++;
+    on_received_devtools_sources.set(request_id, move(on_complete));
+    client().async_list_devtools_sources(page_id(), request_id);
+}
+
+void ViewImplementation::request_devtools_source(Web::HTML::ScriptRegistry::Identifier const& source_id)
+{
+    client().async_request_devtools_source(page_id(), source_id);
+}
+
 void ViewImplementation::clear_inspected_dom_node()
 {
     client().async_clear_inspected_dom_node(page_id());
