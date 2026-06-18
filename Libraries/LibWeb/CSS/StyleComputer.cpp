@@ -104,6 +104,18 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(StyleComputer);
 
+static void for_each_element_hash(DOM::Element const& element, auto callback)
+{
+    callback(ancestor_filter_hash_for_tag_name(element.local_name().ascii_case_insensitive_hash()));
+    if (element.id().has_value())
+        callback(ancestor_filter_hash_for_id(element.id().value().hash()));
+    for (auto const& class_ : element.class_names())
+        callback(ancestor_filter_hash_for_class(class_.hash()));
+    element.for_each_attribute([&](auto& attribute) {
+        callback(ancestor_filter_hash_for_attribute(attribute.name().ascii_case_insensitive_hash()));
+    });
+}
+
 static bool property_affects_font_metrics(PropertyID property_id)
 {
     return property_id == PropertyID::FontSize || property_id == PropertyID::LineHeight;
@@ -382,40 +394,146 @@ static u64 pseudo_element_style_bit(PseudoElement pseudo_element)
     return 1ull << to_underlying(pseudo_element);
 }
 
-template<typename RuleBuckets>
-static IterationDecision for_each_matching_rule_bucket(DOM::AbstractElement abstract_element, RuleBuckets const& rule_buckets, Function<IterationDecision(Vector<MatchingRule> const&)> const& callback)
+struct ParentFilterHashCollector {
+    static bool contains_hash(Vector<u32> const& hashes, u32 hash)
+    {
+        for (auto existing_hash : hashes) {
+            if (existing_hash == hash)
+                return true;
+        }
+        return false;
+    }
+
+    static void append_unique_hash(Vector<u32>& hashes, u32 hash)
+    {
+        if (!contains_hash(hashes, hash))
+            hashes.append(hash);
+    }
+
+    static void intersect_hashes(Vector<u32>& hashes, Vector<u32> const& other_hashes)
+    {
+        for (size_t i = 0; i < hashes.size();) {
+            if (contains_hash(other_hashes, hashes[i])) {
+                ++i;
+                continue;
+            }
+            hashes.remove(i);
+        }
+    }
+
+    static Vector<u32> hashes_from_simple_selector(Selector::SimpleSelector const& simple_selector)
+    {
+        Vector<u32> hashes;
+        switch (simple_selector.type) {
+        case Selector::SimpleSelector::Type::Id:
+            hashes.append(ancestor_filter_hash_for_id(simple_selector.name().hash()));
+            break;
+        case Selector::SimpleSelector::Type::Class:
+            hashes.append(ancestor_filter_hash_for_class(simple_selector.name().hash()));
+            break;
+        case Selector::SimpleSelector::Type::TagName:
+            hashes.append(ancestor_filter_hash_for_tag_name(simple_selector.qualified_name().name.lowercase_name.hash()));
+            break;
+        case Selector::SimpleSelector::Type::Attribute:
+            hashes.append(ancestor_filter_hash_for_attribute(simple_selector.attribute().qualified_name.name.lowercase_name.hash()));
+            break;
+        case Selector::SimpleSelector::Type::PseudoClass: {
+            auto const& pseudo_class = simple_selector.pseudo_class();
+            if (pseudo_class.type != PseudoClass::Is && pseudo_class.type != PseudoClass::Where)
+                break;
+
+            hashes = common_hashes_from_selector_list(pseudo_class.argument_selector_list);
+            break;
+        }
+        default:
+            break;
+        }
+        return hashes;
+    }
+
+    static Vector<u32> hashes_from_compound(Selector::CompoundSelector const& compound_selector)
+    {
+        Vector<u32> hashes;
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            for (auto hash : hashes_from_simple_selector(simple_selector))
+                append_unique_hash(hashes, hash);
+        }
+        return hashes;
+    }
+
+    static Vector<u32> hashes_from_selector_subject(Selector const& selector)
+    {
+        auto const& compound_selectors = selector.compound_selectors();
+        if (compound_selectors.is_empty())
+            return {};
+        return hashes_from_compound(compound_selectors.last());
+    }
+
+    static Vector<u32> common_hashes_from_selector_list(SelectorList const& selector_list)
+    {
+        if (selector_list.is_empty())
+            return {};
+
+        Optional<Vector<u32>> common_hashes;
+        for (auto const& argument_selector : selector_list) {
+            auto hashes = hashes_from_selector_subject(*argument_selector);
+            if (!common_hashes.has_value()) {
+                common_hashes = move(hashes);
+                continue;
+            }
+
+            intersect_hashes(common_hashes.value(), hashes);
+            if (common_hashes->is_empty())
+                break;
+        }
+
+        return common_hashes.release_value();
+    }
+};
+
+static Vector<u32> parent_filter_hashes_for_selector(Selector const& selector)
 {
-    for (auto const& class_name : abstract_element.element().class_names()) {
-        if (auto it = rule_buckets.rules_by_class.find(class_name); it != rule_buckets.rules_by_class.end()) {
-            if (callback(it->value) == IterationDecision::Break)
-                return IterationDecision::Break;
-        }
-    }
-    if (auto id = abstract_element.element().id(); id.has_value()) {
-        if (auto it = rule_buckets.rules_by_id.find(id.value()); it != rule_buckets.rules_by_id.end()) {
-            if (callback(it->value) == IterationDecision::Break)
-                return IterationDecision::Break;
-        }
-    }
-    if (auto it = rule_buckets.rules_by_tag_name.find(abstract_element.element().lowercased_local_name()); it != rule_buckets.rules_by_tag_name.end()) {
-        if (callback(it->value) == IterationDecision::Break)
-            return IterationDecision::Break;
-    }
+    if (selector.target_pseudo_element().has_value())
+        return {};
 
-    if (abstract_element.element().is_document_element()) {
-        if (callback(rule_buckets.root_rules) == IterationDecision::Break)
-            return IterationDecision::Break;
-    }
+    auto const& compound_selectors = selector.compound_selectors();
+    if (compound_selectors.size() < 2)
+        return {};
+    if (compound_selectors.last().combinator != Selector::Combinator::ImmediateChild)
+        return {};
 
-    IterationDecision decision = IterationDecision::Continue;
-    abstract_element.element().for_each_attribute([&](auto& name, auto&) {
-        if (auto it = rule_buckets.rules_by_attribute_name.find(name); it != rule_buckets.rules_by_attribute_name.end())
-            decision = callback(it->value);
+    // The compound immediately to the left of the subject must match the
+    // subject's parent. Only collect hashes that are required on that parent
+    // itself; ancestor requirements inside selector-list pseudos remain the
+    // job of the normal ancestor filter.
+    return ParentFilterHashCollector::hashes_from_compound(compound_selectors[compound_selectors.size() - 2]);
+}
+
+static bool parent_filter_may_contain_all(DOM::Element const& parent, Vector<u32> const& required_hashes)
+{
+    Vector<u32> parent_hashes;
+    for_each_element_hash(parent, [&](u32 hash) {
+        ParentFilterHashCollector::append_unique_hash(parent_hashes, hash);
     });
-    if (decision == IterationDecision::Break)
-        return IterationDecision::Break;
 
-    return callback(rule_buckets.other_rules);
+    for (auto hash : required_hashes) {
+        if (!ParentFilterHashCollector::contains_hash(parent_hashes, hash))
+            return false;
+    }
+    return true;
+}
+
+static bool should_reject_with_parent_filter(DOM::AbstractElement abstract_element, Selector const& selector)
+{
+    auto required_hashes = parent_filter_hashes_for_selector(selector);
+    if (required_hashes.is_empty())
+        return false;
+
+    auto parent = abstract_element.parent_element();
+    if (!parent)
+        return true;
+
+    return !parent_filter_may_contain_all(*parent, required_hashes);
 }
 
 Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_from_context(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, GC::Ptr<DOM::ShadowRoot const> context_shadow_root, Optional<FlyString const> qualified_layer_name, u64* matching_pseudo_element_styles) const
@@ -494,6 +612,8 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
 
         auto const& selector = rule_to_run.selector;
         if (selector.can_use_ancestor_filter() && should_reject_with_ancestor_filter(selector))
+            return;
+        if (should_reject_with_parent_filter(abstract_element, selector))
             return;
 
         rules_to_run.unchecked_append({
@@ -4056,18 +4176,6 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<
 
     // - Otherwise, the computed value of math-depth of the element is the inherited one.
     return IntegerStyleValue::create(inherited_math_depth);
-}
-
-static void for_each_element_hash(DOM::Element const& element, auto callback)
-{
-    callback(ancestor_filter_hash_for_tag_name(element.local_name().ascii_case_insensitive_hash()));
-    if (element.id().has_value())
-        callback(ancestor_filter_hash_for_id(element.id().value().hash()));
-    for (auto const& class_ : element.class_names())
-        callback(ancestor_filter_hash_for_class(class_.hash()));
-    element.for_each_attribute([&](auto& attribute) {
-        callback(ancestor_filter_hash_for_attribute(attribute.name().ascii_case_insensitive_hash()));
-    });
 }
 
 void StyleComputer::reset_ancestor_filter()
