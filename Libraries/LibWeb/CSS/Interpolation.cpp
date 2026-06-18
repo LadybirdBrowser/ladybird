@@ -100,7 +100,7 @@ static RefPtr<StyleValue const> interpolate_discrete(StyleValue const& from, Sty
     return delta >= 0.5f ? to : from;
 }
 
-static RefPtr<StyleValue const> interpolate_scale(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
+static RefPtr<StyleValue const> interpolate_scale(StyleValue const& a_from, StyleValue const& a_to, float delta)
 {
     if (a_from.to_keyword() == Keyword::None && a_to.to_keyword() == Keyword::None)
         return a_from;
@@ -113,26 +113,20 @@ static RefPtr<StyleValue const> interpolate_scale(DOM::Element& element, Calcula
     auto const& from_transform = from.as_transformation();
     auto const& to_transform = to.as_transformation();
 
-    auto interpolated_x = interpolate_value(element, calculation_context, from_transform.values()[0], to_transform.values()[0], delta, allow_discrete);
-    if (!interpolated_x)
-        return {};
-    auto interpolated_y = interpolate_value(element, calculation_context, from_transform.values()[1], to_transform.values()[1], delta, allow_discrete);
-    if (!interpolated_y)
-        return {};
-    RefPtr<StyleValue const> interpolated_z;
+    auto interpolated_x = interpolate_raw(number_from_style_value(from_transform.values()[0], 1), number_from_style_value(to_transform.values()[0], 1), delta, infinite_range);
+    auto interpolated_y = interpolate_raw(number_from_style_value(from_transform.values()[1], 1), number_from_style_value(to_transform.values()[1], 1), delta, infinite_range);
+    Optional<double> interpolated_z;
 
     if (from_transform.values().size() == 3 || to_transform.values().size() == 3) {
         static auto const& one_value = NumberStyleValue::create(1).leak_ref();
         auto from = from_transform.values().size() == 3 ? from_transform.values()[2] : ValueComparingNonnullRefPtr<StyleValue const> { one_value };
         auto to = to_transform.values().size() == 3 ? to_transform.values()[2] : ValueComparingNonnullRefPtr<StyleValue const> { one_value };
-        interpolated_z = interpolate_value(element, calculation_context, from, to, delta, allow_discrete);
-        if (!interpolated_z)
-            return {};
+        interpolated_z = interpolate_raw(number_from_style_value(from, 1), number_from_style_value(to, 1), delta, infinite_range);
     }
 
-    StyleValueVector new_values = { *interpolated_x, *interpolated_y };
-    if (interpolated_z)
-        new_values.append(*interpolated_z);
+    StyleValueVector new_values = { NumberStyleValue::create(interpolated_x), NumberStyleValue::create(interpolated_y) };
+    if (interpolated_z.has_value())
+        new_values.append(NumberStyleValue::create(interpolated_z.value()));
 
     return TransformationStyleValue::create(
         PropertyID::Scale,
@@ -766,7 +760,7 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
         }
 
         if (property_id == PropertyID::Scale) {
-            if (auto result = interpolate_scale(element, calculation_context, from, to, delta, allow_discrete))
+            if (auto result = interpolate_scale(from, to, delta))
                 return result;
             return interpolate_discrete(from, to, delta, allow_discrete);
         }
