@@ -130,7 +130,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     struct AttrUnit {
         FlyString name;
     };
-    Variant<Empty, NonnullOwnPtr<SyntaxNode>, RawStringKeyword, NumberKeyword, AttrUnit> syntax;
+    Variant<Empty, NonnullRefPtr<SyntaxNode>, RawStringKeyword, NumberKeyword, AttrUnit> syntax;
 
     auto failure = [&] -> Vector<ComponentValue> {
         // This is step 7, but defined here for convenience.
@@ -266,7 +266,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto substituted_values = substitute_arbitrary_substitution_functions(element, guarded_contexts, unsubstituted_values,
         SubstitutionContext { SubstitutionContext::DependencyType::Attribute, attribute_name.to_string() });
 
-    auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullOwnPtr<SyntaxNode>>());
+    auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullRefPtr<SyntaxNode>>());
     if (parsed_value->is_guaranteed_invalid())
         return failure();
     return mark_as_attr_tainted(parsed_value->tokenize());

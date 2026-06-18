@@ -34,10 +34,10 @@ void UniversalSyntaxNode::dump(StringBuilder& builder, int indent) const
     builder.appendff("{: >{}}Universal\n", "", indent);
 }
 
-NonnullOwnPtr<TypeSyntaxNode> TypeSyntaxNode::create(FlyString type_name)
+NonnullRefPtr<TypeSyntaxNode> TypeSyntaxNode::create(FlyString type_name)
 {
     auto value_type = value_type_from_string(type_name);
-    return adopt_own(*new TypeSyntaxNode(move(type_name), move(value_type)));
+    return adopt_ref(*new TypeSyntaxNode(move(type_name), move(value_type)));
 }
 
 TypeSyntaxNode::TypeSyntaxNode(FlyString type_name, Optional<ValueType> value_type)
@@ -78,7 +78,7 @@ void IdentSyntaxNode::dump(StringBuilder& builder, int indent) const
     builder.appendff("{: >{}}Ident: {}\n", "", indent, m_ident);
 }
 
-MultiplierSyntaxNode::MultiplierSyntaxNode(NonnullOwnPtr<SyntaxNode> child)
+MultiplierSyntaxNode::MultiplierSyntaxNode(NonnullRefPtr<SyntaxNode> child)
     : SyntaxNode(NodeType::Multiplier)
     , m_child(move(child))
 {
@@ -97,7 +97,7 @@ void MultiplierSyntaxNode::dump(StringBuilder& builder, int indent) const
     m_child->dump(builder, indent + 2);
 }
 
-CommaSeparatedMultiplierSyntaxNode::CommaSeparatedMultiplierSyntaxNode(NonnullOwnPtr<SyntaxNode> child)
+CommaSeparatedMultiplierSyntaxNode::CommaSeparatedMultiplierSyntaxNode(NonnullRefPtr<SyntaxNode> child)
     : SyntaxNode(NodeType::CommaSeparatedMultiplier)
     , m_child(move(child))
 {
@@ -116,7 +116,7 @@ void CommaSeparatedMultiplierSyntaxNode::dump(StringBuilder& builder, int indent
     m_child->dump(builder, indent + 2);
 }
 
-AlternativesSyntaxNode::AlternativesSyntaxNode(Vector<NonnullOwnPtr<SyntaxNode>> children)
+AlternativesSyntaxNode::AlternativesSyntaxNode(Vector<NonnullRefPtr<SyntaxNode>> children)
     : SyntaxNode(NodeType::Alternatives)
     , m_children(move(children))
 {

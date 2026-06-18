@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <LibWeb/Export.h>
@@ -15,7 +15,7 @@
 
 namespace Web::CSS::Parser {
 
-class WEB_API SyntaxNode {
+class WEB_API SyntaxNode : public RefCounted<SyntaxNode> {
 public:
     enum class NodeType : u8 {
         Universal,
@@ -46,9 +46,9 @@ private:
 // '*'
 class UniversalSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullOwnPtr<UniversalSyntaxNode> create()
+    static NonnullRefPtr<UniversalSyntaxNode> create()
     {
-        return adopt_own(*new UniversalSyntaxNode());
+        return adopt_ref(*new UniversalSyntaxNode());
     }
 
     virtual ~UniversalSyntaxNode() override;
@@ -62,9 +62,9 @@ private:
 // 'foo'
 class IdentSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullOwnPtr<IdentSyntaxNode> create(FlyString ident, CaseSensitivity case_sensitivity)
+    static NonnullRefPtr<IdentSyntaxNode> create(FlyString ident, CaseSensitivity case_sensitivity)
     {
-        return adopt_own(*new IdentSyntaxNode(move(ident), case_sensitivity));
+        return adopt_ref(*new IdentSyntaxNode(move(ident), case_sensitivity));
     }
 
     virtual ~IdentSyntaxNode() override;
@@ -83,7 +83,7 @@ private:
 // '<foo>'
 class TypeSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullOwnPtr<TypeSyntaxNode> create(FlyString type_name);
+    static NonnullRefPtr<TypeSyntaxNode> create(FlyString type_name);
     virtual ~TypeSyntaxNode() override;
 
     FlyString const& type_name() const { return m_type_name; }
@@ -101,9 +101,9 @@ private:
 // '+'
 class MultiplierSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullOwnPtr<MultiplierSyntaxNode> create(NonnullOwnPtr<SyntaxNode> child)
+    static NonnullRefPtr<MultiplierSyntaxNode> create(NonnullRefPtr<SyntaxNode> child)
     {
-        return adopt_own(*new MultiplierSyntaxNode(move(child)));
+        return adopt_ref(*new MultiplierSyntaxNode(move(child)));
     }
 
     virtual ~MultiplierSyntaxNode() override;
@@ -113,16 +113,16 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
-    MultiplierSyntaxNode(NonnullOwnPtr<SyntaxNode>);
-    NonnullOwnPtr<SyntaxNode> m_child;
+    MultiplierSyntaxNode(NonnullRefPtr<SyntaxNode>);
+    NonnullRefPtr<SyntaxNode> m_child;
 };
 
 // '#'
 class CommaSeparatedMultiplierSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullOwnPtr<CommaSeparatedMultiplierSyntaxNode> create(NonnullOwnPtr<SyntaxNode> child)
+    static NonnullRefPtr<CommaSeparatedMultiplierSyntaxNode> create(NonnullRefPtr<SyntaxNode> child)
     {
-        return adopt_own(*new CommaSeparatedMultiplierSyntaxNode(move(child)));
+        return adopt_ref(*new CommaSeparatedMultiplierSyntaxNode(move(child)));
     }
 
     virtual ~CommaSeparatedMultiplierSyntaxNode() override;
@@ -132,27 +132,27 @@ public:
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
-    CommaSeparatedMultiplierSyntaxNode(NonnullOwnPtr<SyntaxNode>);
-    NonnullOwnPtr<SyntaxNode> m_child;
+    CommaSeparatedMultiplierSyntaxNode(NonnullRefPtr<SyntaxNode>);
+    NonnullRefPtr<SyntaxNode> m_child;
 };
 
 // Options separated by '|'
 class AlternativesSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullOwnPtr<AlternativesSyntaxNode> create(Vector<NonnullOwnPtr<SyntaxNode>> children)
+    static NonnullRefPtr<AlternativesSyntaxNode> create(Vector<NonnullRefPtr<SyntaxNode>> children)
     {
-        return adopt_own(*new AlternativesSyntaxNode(move(children)));
+        return adopt_ref(*new AlternativesSyntaxNode(move(children)));
     }
 
     virtual ~AlternativesSyntaxNode() override;
-    ReadonlySpan<NonnullOwnPtr<SyntaxNode>> children() const { return m_children; }
+    ReadonlySpan<NonnullRefPtr<SyntaxNode>> children() const { return m_children; }
 
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
-    AlternativesSyntaxNode(Vector<NonnullOwnPtr<SyntaxNode>>);
-    Vector<NonnullOwnPtr<SyntaxNode>> m_children;
+    AlternativesSyntaxNode(Vector<NonnullRefPtr<SyntaxNode>>);
+    Vector<NonnullRefPtr<SyntaxNode>> m_children;
 };
 
 }

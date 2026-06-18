@@ -301,7 +301,7 @@ private:
     struct FunctionPrelude {
         FlyString name;
         Vector<FunctionParameterInternal> parameters;
-        NonnullOwnPtr<SyntaxNode> return_type;
+        NonnullRefPtr<SyntaxNode> return_type;
     };
     Optional<FunctionPrelude> parse_function_prelude(TokenStream<ComponentValue>&);
 
