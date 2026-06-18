@@ -9,6 +9,10 @@
         content: "hi";
         background-color: cyan;
     }
+    ::after {
+        content: "bye";
+        color: green;
+    }
 </style>
 <div id="foo"></div>
 <script>
@@ -16,6 +20,7 @@
         const foo = document.getElementById("foo");
         const style = getComputedStyle(foo);
         const beforeStyle = getComputedStyle(foo, "::before");
+        const afterStyle = getComputedStyle(foo, "::after");
         const propertyValues = [
             "color",
             "background-color",
@@ -28,5 +33,8 @@
         for (const property of propertyValues) {
             println(`  ${property}: ${beforeStyle.getPropertyValue(property)}`);
         }
+        println("#foo::after:");
+        println(`  content: ${afterStyle.getPropertyValue("content")}`);
+        println(`  color: ${afterStyle.getPropertyValue("color")}`);
     });
 </script>

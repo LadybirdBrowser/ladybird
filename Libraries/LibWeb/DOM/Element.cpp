@@ -977,17 +977,24 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
     return invalidation;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker)
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedProperties const* old_originating_style)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
     auto& style_computer = document().style_computer();
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
-    auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element) {
+    auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
+        auto pseudo_element_style = computed_properties(pseudo_element);
+        auto should_recompute = has_implicit_style
+            || pseudo_element_style
+            || (old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
+            || (m_computed_properties && m_computed_properties->has_pseudo_element_style(pseudo_element));
+        if (!should_recompute)
+            return;
+
         style_computer.push_ancestor(*this);
 
-        auto pseudo_element_style = computed_properties(pseudo_element);
         auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties);
 
         // TODO: Can we be smarter about invalidation?
@@ -1009,7 +1016,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     if (m_rendered_in_top_layer)
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
     if (had_list_marker || m_computed_properties->display().is_list_item())
-        recompute_pseudo_element_style(CSS::PseudoElement::Marker);
+        recompute_pseudo_element_style(CSS::PseudoElement::Marker, true);
 
     return invalidation;
 }
@@ -1072,6 +1079,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
             new_computed_properties->set_property(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Start));
     }
 
+    auto old_computed_properties = m_computed_properties;
     bool had_list_marker = false;
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -1115,7 +1123,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
         });
     }
 
-    invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker);
+    invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_properties.ptr());
 
     if (invalidation.is_none()) {
         counters.element_style_noop_recomputations++;
@@ -1188,7 +1196,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(Sch
     }
 
     bool did_change_custom_properties = false;
-    invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker);
+    invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, computed_properties.ptr());
 
     if (invalidation.is_none()) {
         counters.element_inherited_style_noop_recomputations++;
