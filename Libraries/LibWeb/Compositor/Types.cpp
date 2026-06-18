@@ -82,33 +82,4 @@ ErrorOr<Web::Compositor::AsyncScrollEnqueueResult> decode(Decoder& decoder)
     };
 }
 
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Compositor::PublishToCompositorSurface const& mode)
-{
-    TRY(encoder.encode(mode.target_context_id));
-    TRY(encoder.encode(mode.surface_id));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Compositor::PublishToCompositorSurface> decode(Decoder& decoder)
-{
-    return Web::Compositor::PublishToCompositorSurface {
-        .target_context_id = TRY(decoder.decode<Web::Compositor::CompositorContextId>()),
-        .surface_id = TRY(decoder.decode<Web::Painting::CompositorSurfaceId>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder&, Web::Compositor::PresentToClient const&)
-{
-    return {};
-}
-
-template<>
-ErrorOr<Web::Compositor::PresentToClient> decode(Decoder&)
-{
-    return Web::Compositor::PresentToClient {};
-}
-
 }

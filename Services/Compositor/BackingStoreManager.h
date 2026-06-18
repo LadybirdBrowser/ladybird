@@ -41,6 +41,7 @@ public:
     Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish);
 
     bool is_valid() const;
+    RefPtr<Gfx::PaintingSurface> front_store_if_present() const;
     Gfx::PaintingSurface& front_store();
     Gfx::PaintingSurface& back_store();
     i32 back_bitmap_id() const;

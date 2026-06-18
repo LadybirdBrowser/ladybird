@@ -24,11 +24,18 @@ void CompositorConnection::die()
     did_lose_compositor();
 }
 
-void CompositorConnection::set_presentation_mode(Web::Compositor::CompositorContextId context_id, Web::Compositor::PresentationMode const& presentation_mode)
+void CompositorConnection::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
 {
     if (!can_send_message_to_compositor())
         return;
-    async_set_presentation_mode(context_id, presentation_mode);
+    async_set_parent_context(context_id, parent_context_id);
+}
+
+void CompositorConnection::stop_presenting_to_client(Web::Compositor::CompositorContextId context_id)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    async_stop_presenting_to_client(context_id);
 }
 
 void CompositorConnection::destroy_context(Web::Compositor::CompositorContextId context_id)

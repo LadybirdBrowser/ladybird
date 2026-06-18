@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -20,7 +19,6 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
@@ -53,22 +51,13 @@ class DisplayListPlayerSkia;
 namespace Compositor {
 
 class CompositorStateWebContentClient;
+using CompositedContextResolver = Function<RefPtr<Gfx::PaintingSurface>(Web::Compositor::CompositorContextId)>;
 
 class ContextState {
     AK_MAKE_NONCOPYABLE(ContextState);
     AK_MAKE_NONMOVABLE(ContextState);
 
 public:
-    struct PublishedSurface {
-        Web::Compositor::CompositorContextId parent_context_id;
-        Web::Painting::CompositorSurfaceId surface_id;
-    };
-
-    struct ChildSurface {
-        Web::Painting::CompositorSurfaceId surface_id;
-        Web::Compositor::CompositorContextId child_context_id;
-    };
-
     struct AsyncScrollResult {
         Web::Compositor::AsyncScrollEnqueueResult enqueue_result;
         Optional<Gfx::IntRect> frame_to_present;
@@ -88,24 +77,17 @@ public:
     ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, Web::Painting::CanvasSurfaceRegistry const&, bool async_scrolling_enabled);
     ~ContextState();
 
-    static bool presentation_mode_presents_to_client(Web::Compositor::PresentationMode const&);
-
     bool is_owned_by(CompositorStateWebContentClient const&) const;
     void request_rendering_update();
     void dispatch_mouse_event_to_web_content(Web::MouseEvent const&);
 
-    bool presents_to_client() const { return presentation_mode_presents_to_client(m_presentation_mode); }
-    bool publishes_to_parent_surface() const { return m_presentation_mode.has<Web::Compositor::PublishToCompositorSurface>(); }
-    Web::Compositor::PresentationMode const& presentation_mode() const { return m_presentation_mode; }
-    void set_presentation_mode(Web::Compositor::PresentationMode);
+    bool presents_to_client() const { return m_presents_to_client; }
+    void stop_presenting_to_client();
     void did_stop_presenting_to_client_if_needed(bool was_presenting_to_client, bool will_present_to_client);
 
-    void set_published_surface(PublishedSurface);
-    Optional<PublishedSurface> take_published_surface();
-    void did_detach_from_parent_surface(Web::Compositor::CompositorContextId parent_context_id, Web::Painting::CompositorSurfaceId);
-    void attach_child_surface(Web::Painting::CompositorSurfaceId, Web::Compositor::CompositorContextId child_context_id);
-    Optional<Web::Compositor::CompositorContextId> take_child_context_for_surface(Web::Painting::CompositorSurfaceId);
-    Vector<ChildSurface> child_contexts() const;
+    void set_parent_context(Optional<Web::Compositor::CompositorContextId>);
+    Optional<Web::Compositor::CompositorContextId> parent_context_id() const { return m_parent_context_id; }
+    RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const { return m_latest_rendered_surface; }
 
     void apply_display_list_resource_transaction(Web::Painting::DisplayListResourceTransaction&&);
     void install_display_list_update(
@@ -116,9 +98,6 @@ public:
     void update_scroll_state(Web::Painting::ScrollStateSnapshot&&);
     void update_video_frame(Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
     void clear_video_frame(Web::Painting::VideoFrameResourceId);
-    void update_compositor_surface(Web::Painting::CompositorSurfaceId, Gfx::SharedImage&&);
-    void clear_compositor_surface(Web::Painting::CompositorSurfaceId);
-    Gfx::SharedImage snapshot_front_store();
 
     void invalidate_wheel_event_listener_state(u64 generation);
     ContextUpdateResult handle_mouse_event(Web::MouseEvent const&);
@@ -150,11 +129,11 @@ public:
     Optional<Gfx::IntRect> take_pending_present_frame_if_unblocked();
     bool needs_synchronous_present_for_screenshot() const;
     Optional<Gfx::IntRect> current_frame_rect_to_present() const;
-    Optional<PreparedFrame> prepare_frame(Web::Painting::DisplayListPlayerSkia&, Gfx::IntRect);
+    Optional<PreparedFrame> prepare_frame(Web::Painting::DisplayListPlayerSkia&, Gfx::IntRect, CompositedContextResolver const*);
     void did_submit_prepared_frame(Gfx::IntRect);
-    Optional<Web::Compositor::PublishToCompositorSurface> present_synchronously(Web::Painting::DisplayListPlayerSkia&);
+    bool present_synchronously(Web::Painting::DisplayListPlayerSkia&, CompositedContextResolver const*);
     bool can_paint_screenshot(Gfx::ShareableBitmap&) const;
-    void paint_screenshot(Web::Painting::DisplayListPlayerSkia&, Gfx::ShareableBitmap&);
+    void paint_screenshot(Web::Painting::DisplayListPlayerSkia&, Gfx::ShareableBitmap&, CompositedContextResolver const*);
     bool acknowledge_presented_bitmap(i32 bitmap_id);
     void did_finish_gpu_present(i32 bitmap_id);
 
@@ -176,24 +155,23 @@ private:
     bool is_present_blocked() const;
     bool can_render_frame() const;
     Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_compositing() const;
-    void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&);
+    void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*);
 
     CompositorStateWebContentClient& m_web_content_client;
     Web::Painting::CanvasSurfaceRegistry const& m_canvas_surface_registry;
     Optional<u64> m_page_id;
     bool const m_async_scrolling_enabled { true };
 
-    Web::Compositor::PresentationMode m_presentation_mode { Empty {} };
-    Optional<PublishedSurface> m_published_surface;
-    HashMap<Web::Painting::CompositorSurfaceId, Web::Compositor::CompositorContextId> m_child_contexts_by_surface_id;
+    bool m_presents_to_client { false };
+    Optional<Web::Compositor::CompositorContextId> m_parent_context_id;
 
     RefPtr<Web::Painting::DisplayList const> m_display_list;
     Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree;
     mutable Optional<Web::Painting::AccumulatedVisualContextTree> m_visual_context_tree_for_compositing;
     Web::Painting::DisplayListResourceStorage m_display_list_resource_storage;
-    HashMap<Web::Painting::CompositorSurfaceId, NonnullRefPtr<Gfx::PaintingSurface>> m_compositor_surfaces;
     Web::Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;
+    RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;
 
     Web::Compositor::AsyncScrollTree m_async_scroll_tree;
     ViewportScrollbarController m_viewport_scrollbar_controller;

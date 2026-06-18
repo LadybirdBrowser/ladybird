@@ -12,6 +12,6 @@ SaveLayer@0
   CompositorMainThreadWheelEventRegion@1 rect=[0,0 120x80]
   Save@1
     AddClipRect@1 rect=[0,0 120x80]
-    DrawCompositorSurface@1 dst_rect=[0,0 120x80]
+    DrawCompositedContext@1 dst_rect=[0,0 120x80]
   Restore@1
 Restore@0

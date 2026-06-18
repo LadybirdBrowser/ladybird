@@ -32,7 +32,8 @@ public:
     ~CompositorContextHandle();
 
     CompositorContextId id() const { return m_context_id; }
-    void set_presentation_mode(PresentationMode);
+    void set_parent_context(Optional<CompositorContextId>);
+    void stop_presenting_to_client();
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
     void update_visual_context_tree(Painting::AccumulatedVisualContextTree);
@@ -70,7 +71,8 @@ public:
     virtual RefPtr<HTML::RemoteCanvas2DTransport> create_canvas_2d_transport() = 0;
 
     virtual void destroy_context(CompositorContextId) = 0;
-    virtual void set_presentation_mode(CompositorContextId, PresentationMode) = 0;
+    virtual void set_parent_context(CompositorContextId, Optional<CompositorContextId>) = 0;
+    virtual void stop_presenting_to_client(CompositorContextId) = 0;
 
     virtual void update_display_list(CompositorContextId, NonnullRefPtr<Painting::DisplayList>, Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&) = 0;
     virtual void update_visual_context_tree(CompositorContextId, Painting::AccumulatedVisualContextTree) = 0;

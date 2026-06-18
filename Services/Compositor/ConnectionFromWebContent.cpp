@@ -64,10 +64,16 @@ void ConnectionFromWebContent::verify_context_is_owned_by_this_connection(Web::C
     VERIFY_NOT_REACHED();
 }
 
-void ConnectionFromWebContent::set_presentation_mode(Web::Compositor::CompositorContextId context_id, Web::Compositor::PresentationMode presentation_mode)
+void ConnectionFromWebContent::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
 {
     verify_context_is_owned_by_this_connection(context_id);
-    m_compositor_state->set_presentation_mode(context_id, move(presentation_mode));
+    m_compositor_state->set_parent_context(context_id, parent_context_id);
+}
+
+void ConnectionFromWebContent::stop_presenting_to_client(Web::Compositor::CompositorContextId context_id)
+{
+    verify_context_is_owned_by_this_connection(context_id);
+    m_compositor_state->stop_presenting_to_client(context_id);
 }
 
 void ConnectionFromWebContent::destroy_context(Web::Compositor::CompositorContextId context_id)
