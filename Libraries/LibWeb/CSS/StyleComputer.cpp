@@ -25,6 +25,7 @@
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/CSS/AncestorFilter.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
@@ -3787,13 +3788,13 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<
 
 static void for_each_element_hash(DOM::Element const& element, auto callback)
 {
-    callback(element.local_name().ascii_case_insensitive_hash());
+    callback(ancestor_filter_hash_for_tag_name(element.local_name().ascii_case_insensitive_hash()));
     if (element.id().has_value())
-        callback(element.id().value().hash());
+        callback(ancestor_filter_hash_for_id(element.id().value().hash()));
     for (auto const& class_ : element.class_names())
-        callback(class_.hash());
+        callback(ancestor_filter_hash_for_class(class_.hash()));
     element.for_each_attribute([&](auto& attribute) {
-        callback(attribute.name().ascii_case_insensitive_hash());
+        callback(ancestor_filter_hash_for_attribute(attribute.name().ascii_case_insensitive_hash()));
     });
 }
 
