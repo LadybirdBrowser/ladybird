@@ -57,7 +57,6 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path)
     policy.allow_file_descriptor_operations();
     policy.allow_process_creation();
     policy.allow_ipc();
-    policy.allow_gpu_device_operations();
     policy.allow_common_runtime();
     policy.allow_executable_memory_mappings();
     TRY(policy.install());
