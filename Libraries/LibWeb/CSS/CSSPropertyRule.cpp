@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2024, Alex Ungurianu <alex@ungurianu.com>
- * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,15 +15,16 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPropertyRule);
 
-GC::Ref<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, Utf16FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
+GC::Ref<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, Utf16FlyString name, FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value)
 {
-    return realm.create<CSSPropertyRule>(realm, move(name), move(syntax), inherits, move(initial_value));
+    return realm.create<CSSPropertyRule>(realm, move(name), move(syntax), move(parsed_syntax), inherits, move(initial_value));
 }
 
-CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, Utf16FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
+CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, Utf16FlyString name, FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value)
     : CSSRule(realm, Type::Property)
     , m_name(move(name))
     , m_syntax(move(syntax))
+    , m_parsed_syntax(move(parsed_syntax))
     , m_inherits(inherits)
     , m_initial_value(move(initial_value))
 {
@@ -46,7 +47,7 @@ CustomPropertyRegistration CSSPropertyRule::to_registration() const
 {
     return CustomPropertyRegistration {
         .property_name = m_name,
-        .syntax = m_syntax.to_string(),
+        .syntax = m_parsed_syntax,
         .inherit = m_inherits,
         .initial_value = m_initial_value,
     };
@@ -102,7 +103,8 @@ void CSSPropertyRule::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("Name: {}\n", name());
 
     dump_indent(builder, indent_levels + 1);
-    builder.appendff("Syntax: {}\n", syntax());
+    builder.appendff("Syntax: `{}`\n", syntax());
+    m_parsed_syntax->dump(builder, indent_levels + 2);
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Inherits: {}\n", inherits());

@@ -8,6 +8,7 @@
 
 #include <AK/RefPtr.h>
 #include <AK/Utf16FlyString.h>
+#include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Forward.h>
 
@@ -21,7 +22,9 @@ struct CustomPropertyRegistration {
     Utf16FlyString property_name;
 
     // - a syntax (a syntax string)
-    String syntax;
+    //   NB: Spec actually wants this to be a parsed value, and that's what's most useful to us.
+    //       See https://drafts.css-houdini.org/css-properties-values-api/#register-a-custom-property
+    NonnullRefPtr<Parser::SyntaxNode> syntax;
 
     // - an inherit flag (a boolean)
     bool inherit;
@@ -36,7 +39,7 @@ inline bool operator==(CustomPropertyRegistration const& a, CustomPropertyRegist
 {
     if (a.property_name != b.property_name)
         return false;
-    if (a.syntax != b.syntax)
+    if (a.syntax.ptr() != b.syntax.ptr() && !a.syntax->equals(*b.syntax))
         return false;
     if (a.inherit != b.inherit)
         return false;
