@@ -8,6 +8,7 @@
 #include "Selector.h"
 #include <AK/GenericShorthands.h>
 #include <AK/NeverDestroyed.h>
+#include <LibWeb/CSS/AncestorFilter.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -201,14 +202,16 @@ void Selector::collect_ancestor_hashes()
             Vector<u32> hashes;
             switch (simple_selector.type) {
             case SimpleSelector::Type::Id:
+                hashes.append(ancestor_filter_hash_for_id(simple_selector.name().hash()));
+                break;
             case SimpleSelector::Type::Class:
-                hashes.append(simple_selector.name().hash());
+                hashes.append(ancestor_filter_hash_for_class(simple_selector.name().hash()));
                 break;
             case SimpleSelector::Type::TagName:
-                hashes.append(simple_selector.qualified_name().name.lowercase_name.hash());
+                hashes.append(ancestor_filter_hash_for_tag_name(simple_selector.qualified_name().name.lowercase_name.hash()));
                 break;
             case SimpleSelector::Type::Attribute:
-                hashes.append(simple_selector.attribute().qualified_name.name.lowercase_name.hash());
+                hashes.append(ancestor_filter_hash_for_attribute(simple_selector.attribute().qualified_name.name.lowercase_name.hash()));
                 break;
             case SimpleSelector::Type::PseudoClass: {
                 auto const& pseudo_class = simple_selector.pseudo_class();
