@@ -32,6 +32,7 @@ public:
     virtual String to_string() const = 0;
 
     virtual bool equals(SyntaxNode const& other) const = 0;
+    virtual bool contains_value_type(ValueType) const = 0;
     bool operator==(SyntaxNode const& other) const
     {
         return this->equals(other);
@@ -61,6 +62,7 @@ public:
     virtual ~UniversalSyntaxNode() override;
     virtual String to_string() const override;
     virtual bool equals(SyntaxNode const& other) const override;
+    virtual bool contains_value_type(ValueType) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -81,6 +83,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool equals(SyntaxNode const& other) const override;
+    virtual bool contains_value_type(ValueType) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -100,6 +103,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool equals(SyntaxNode const& other) const override;
+    virtual bool contains_value_type(ValueType) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -121,6 +125,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool equals(SyntaxNode const& other) const override;
+    virtual bool contains_value_type(ValueType) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -141,6 +146,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool equals(SyntaxNode const& other) const override;
+    virtual bool contains_value_type(ValueType) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -161,6 +167,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool equals(SyntaxNode const& other) const override;
+    virtual bool contains_value_type(ValueType) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
