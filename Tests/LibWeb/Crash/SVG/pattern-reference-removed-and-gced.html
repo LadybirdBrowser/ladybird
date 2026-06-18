@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<svg width="200" height="200">
+    <rect width="100" height="100" fill="url(#p)"/>
+</svg>
+<svg width="0" height="0">
+    <pattern id="p" width="10" height="10"><rect width="5" height="5"/></pattern>
+</svg>
+<script>
+    internals.dumpDisplayList();
+    document.getElementById("p").remove();
+    internals.dumpDisplayList();
+    internals.gc();
+    internals.dumpDisplayList();
+</script>
