@@ -10,5 +10,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableBox (Box<BODY>) [9,9 782x53.984375]
       ImagePaintable (ImageBox<IMG>) [10,10 68.65625x51.984375]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [1,1 798x69.984375] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x69.984375] (z-index: auto)

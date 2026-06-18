@@ -10,5 +10,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<MAIN>) [8,8 300x200]
         PaintableWithLines (BlockContainer<ARTICLE>) [8,8 300x200]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 400x400] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 400x400] (z-index: auto)

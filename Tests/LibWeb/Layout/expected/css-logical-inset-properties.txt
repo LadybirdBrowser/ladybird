@@ -11,5 +11,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<DIV>.two-props) [59,109 400x200]
       PaintableWithLines (BlockContainer<DIV>.four-props) [109,209 250x150]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [1,1 798x0] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x0] (z-index: auto)

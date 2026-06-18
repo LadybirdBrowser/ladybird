@@ -60,5 +60,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         SVGPathPaintable (SVGTextBox<text>) [19.265625,288.953125 110.5x17.515625]
         SVGPathPaintable (SVGTextBox<text>) [19.3125,350.953125 126.59375x15.46875]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x416] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x416] (z-index: auto)

@@ -2,4 +2,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
 
-SC for Viewport<#document> [0,0 800x600] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)

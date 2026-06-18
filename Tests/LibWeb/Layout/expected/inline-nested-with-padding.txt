@@ -55,5 +55,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (InlineNode<SPAN>.c) [10,50 26.953125x78]
             TextPaintable (TextNode<#text>)
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x106] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x106] (z-index: auto)

@@ -897,5 +897,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 831.75x1760
         PaintableWithLines (BlockContainer(anonymous)) [2,1748.375 827.75x0]
       PaintableWithLines (BlockContainer(anonymous)) [0,1760.375 831.75x0]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x1760.375] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1760.375] (z-index: auto)

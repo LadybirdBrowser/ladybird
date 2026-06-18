@@ -80,5 +80,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           NavigableContainerViewportPaintable (NavigableContainerViewport<IFRAME>) [13,253 20x20]
           NavigableContainerViewportPaintable (NavigableContainerViewport<IFRAME>) [13,283 20x20]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x16] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)

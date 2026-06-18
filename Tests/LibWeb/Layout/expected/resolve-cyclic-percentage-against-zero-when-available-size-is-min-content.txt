@@ -38,5 +38,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1254]
         ImagePaintable (ImageBox<IMG>) [11,841 402x402]
       PaintableWithLines (BlockContainer(anonymous)) [10,1244 780x0]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [1,1 798x1252] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x1252] (z-index: auto)

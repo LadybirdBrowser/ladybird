@@ -14,5 +14,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         TextPaintable (TextNode<#text>)
       PaintableBox (Box<DIV>.grid) [8,8 362.890625x50]
 
-SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x66] [children: 0] (z-index: auto)
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x66] (z-index: auto)
