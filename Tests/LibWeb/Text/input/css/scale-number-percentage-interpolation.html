@@ -1,0 +1,20 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function sample(from, to) {
+            const animation = target.animate({ scale: [from, to] }, 1000);
+            animation.pause();
+            animation.currentTime = 500;
+            println(`${from} -> ${to}: ${getComputedStyle(target).scale}`);
+            animation.cancel();
+        }
+
+        // Each of the following pairs of values should interpolate to "1.5" at the halfway point
+        sample("100%", "200%");
+        sample("1", "200%");
+        sample("100%", "2");
+        sample("none", "200%");
+    });
+</script>
