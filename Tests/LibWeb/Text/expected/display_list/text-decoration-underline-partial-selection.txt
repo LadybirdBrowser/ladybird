@@ -18,7 +18,7 @@ SaveLayer@0
   DrawLine@1 from=[57,70] to=[67,70] color=rgb(0, 0, 0) thickness=10
   Save@1
     AddClipRect@1 rect=[69,-17 47x100]
-    DrawGlyphRun@1 rect=[8,8 169x50] translation=[8,62.984375] color=rgb(255, 255, 255)
+    DrawGlyphRun@1 rect=[8,8 169x50] translation=[8,62.984375] color=rgb(0, 0, 0)
   Restore@1
   DrawLine@1 from=[109,70] to=[116,70] color=rgb(0, 0, 0) thickness=10
   Save@1
