@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-625000">
+<html class="reftest-wait">
+<canvas id="canvas"></canvas>
+<video id="video" src="../../Assets/test-webm.webm"></video>
+<script>
+    addEventListener('load', () => {
+        video.currentTime = 5;
+        video.addEventListener('seeked', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>
