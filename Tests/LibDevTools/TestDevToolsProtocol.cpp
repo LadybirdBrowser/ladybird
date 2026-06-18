@@ -2142,7 +2142,14 @@ TEST_CASE(target_bootstrap_and_lifetime)
     EXPECT_EQ(session->delegate.listen_for_network_events_call_count, 1u);
     EXPECT_EQ(session->delegate.retrieve_style_sheets_call_count, 1u);
 
-    EXPECT_EQ(client.request(actor_from(target, "actor"sv), "detach"sv).get_string("from"sv).value(), actor_from(target, "actor"sv));
+    auto target_actor = actor_from(target, "actor"sv);
+    auto frames = client.request(target_actor, "listFrames"sv).get_array("frames"sv).release_value();
+    EXPECT_EQ(frames.size(), 1u);
+    EXPECT_EQ(frames.at(0).as_object().get_string("title"sv).value(), "Fixture page"sv);
+    EXPECT_EQ(frames.at(0).as_object().get_string("url"sv).value(), "https://example.test/"sv);
+    EXPECT(client.request(target_actor, "listWorkers"sv).get_array("workers"sv)->is_empty());
+
+    EXPECT_EQ(client.request(target_actor, "detach"sv).get_string("from"sv).value(), target_actor);
     EXPECT_EQ(session->delegate.stop_listening_for_console_messages_call_count, 1u);
     EXPECT_EQ(session->delegate.stop_listening_for_dom_mutations_call_count, 1u);
     EXPECT_EQ(session->delegate.clear_highlighted_dom_node_call_count, 1u);
