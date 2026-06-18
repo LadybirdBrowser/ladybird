@@ -1,0 +1,25 @@
+<!doctype html>
+<html class="reftest-wait">
+    <style>
+        div {
+            width: 100px;
+            height: 100px;
+            background-color: green;
+            margin-bottom: 20px;
+        }
+    </style>
+    <div id="scaled" style="scale: 2"></div>
+    <div id="translated" style="translate: 10px"></div>
+    <div id="rotated" style="rotate: 45deg"></div>
+    <script>
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                scaled.style = "";
+                translated.style = "";
+                rotated.style = "";
+
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    </script>
+</html>
