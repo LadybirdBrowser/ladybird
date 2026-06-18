@@ -858,7 +858,7 @@ void Page::invalidate_user_style()
 
     auto invalidate_document = [](DOM::Document& document) {
         document.invalidate_content_blocker_style_sheet();
-        document.style_scope().invalidate_rule_cache();
+        document.style_scope().invalidate_user_style_sheet();
         document.for_each_shadow_root([](auto& shadow_root) {
             shadow_root.invalidate_style(DOM::StyleInvalidationReason::StyleSheetReplace);
         });

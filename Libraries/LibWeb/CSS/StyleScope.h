@@ -120,6 +120,7 @@ public:
 
     [[nodiscard]] bool has_valid_rule_cache() const { return m_rule_cache; }
     void invalidate_rule_cache();
+    void invalidate_user_style_sheet();
 
     [[nodiscard]] RuleCache const& get_pseudo_class_rule_cache(PseudoClass) const;
 
