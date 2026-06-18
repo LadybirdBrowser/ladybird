@@ -3047,7 +3047,39 @@ struct SimplifiedSelectorForBucketing {
     FlyString name;
 };
 
-static Optional<SimplifiedSelectorForBucketing> is_roundabout_selector_bucketable_as_something_simpler(CSS::Selector::SimpleSelector const& simple_selector)
+static Optional<SimplifiedSelectorForBucketing> bucket_for_is_or_where_selector(CSS::Selector::SimpleSelector const&);
+
+static Optional<SimplifiedSelectorForBucketing> bucket_for_compound_selector(CSS::Selector::CompoundSelector const& compound_selector)
+{
+    Optional<SimplifiedSelectorForBucketing> attribute_bucket;
+    for (auto const& simple_selector : compound_selector.simple_selectors.in_reverse()) {
+        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Class
+            || simple_selector.type == CSS::Selector::SimpleSelector::Type::Id) {
+            return SimplifiedSelectorForBucketing { simple_selector.type, simple_selector.name() };
+        }
+
+        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
+            return SimplifiedSelectorForBucketing { simple_selector.type, simple_selector.qualified_name().name.lowercase_name };
+        }
+
+        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Attribute) {
+            if (!attribute_bucket.has_value())
+                attribute_bucket = SimplifiedSelectorForBucketing { simple_selector.type, simple_selector.attribute().qualified_name.name.lowercase_name };
+            continue;
+        }
+
+        if (auto bucket = bucket_for_is_or_where_selector(simple_selector); bucket.has_value()) {
+            if (bucket->type != CSS::Selector::SimpleSelector::Type::Attribute)
+                return bucket;
+            if (!attribute_bucket.has_value())
+                attribute_bucket = bucket.release_value();
+        }
+    }
+
+    return attribute_bucket;
+}
+
+static Optional<SimplifiedSelectorForBucketing> bucket_for_is_or_where_selector(CSS::Selector::SimpleSelector const& simple_selector)
 {
     if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoClass)
         return {};
@@ -3060,22 +3092,7 @@ static Optional<SimplifiedSelectorForBucketing> is_roundabout_selector_bucketabl
         return {};
 
     auto const& argument_selector = *simple_selector.pseudo_class().argument_selector_list.first();
-
-    auto const& compound_selector = argument_selector.compound_selectors().last();
-    if (compound_selector.simple_selectors.size() != 1)
-        return {};
-
-    auto const& inner_simple_selector = compound_selector.simple_selectors.first();
-    if (inner_simple_selector.type == CSS::Selector::SimpleSelector::Type::Class
-        || inner_simple_selector.type == CSS::Selector::SimpleSelector::Type::Id) {
-        return SimplifiedSelectorForBucketing { inner_simple_selector.type, inner_simple_selector.name() };
-    }
-
-    if (inner_simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
-        return SimplifiedSelectorForBucketing { inner_simple_selector.type, inner_simple_selector.qualified_name().name.lowercase_name };
-    }
-
-    return {};
+    return bucket_for_compound_selector(argument_selector.compound_selectors().last());
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(DOM::AbstractElement abstract_element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
@@ -3824,6 +3841,10 @@ static void add_rule_to_rule_buckets(RuleBuckets& rule_buckets, MatchingRule con
         rule_buckets.rules_by_tag_name.ensure(name).append(matching_rule);
     };
 
+    auto add_to_attribute_bucket = [&](FlyString const& name) {
+        rule_buckets.rules_by_attribute_name.ensure(name).append(matching_rule);
+    };
+
     for (auto const& simple_selector : bucket_compound_selector.simple_selectors.in_reverse()) {
         if (simple_selector.type == Selector::SimpleSelector::Type::Id) {
             add_to_id_bucket(simple_selector.name());
@@ -3837,8 +3858,9 @@ static void add_rule_to_rule_buckets(RuleBuckets& rule_buckets, MatchingRule con
             add_to_tag_name_bucket(simple_selector.qualified_name().name.lowercase_name);
             return;
         }
-        // NOTE: Selectors like `:is/where(.foo)` and `:is/where(.foo .bar)` are bucketed as class selectors for `foo` and `bar` respectively.
-        if (auto simplified = is_roundabout_selector_bucketable_as_something_simpler(simple_selector); simplified.has_value()) {
+        // NOTE: Single-argument :is()/:where() selectors can be bucketed by a mandatory
+        //       id, class, tag, or attribute in their rightmost compound selector.
+        if (auto simplified = bucket_for_is_or_where_selector(simple_selector); simplified.has_value()) {
             if (simplified->type == Selector::SimpleSelector::Type::TagName) {
                 add_to_tag_name_bucket(simplified->name);
                 return;
@@ -3851,6 +3873,10 @@ static void add_rule_to_rule_buckets(RuleBuckets& rule_buckets, MatchingRule con
                 add_to_id_bucket(simplified->name);
                 return;
             }
+            if (simplified->type == Selector::SimpleSelector::Type::Attribute) {
+                add_to_attribute_bucket(simplified->name);
+                return;
+            }
         }
     }
 
@@ -3859,7 +3885,7 @@ static void add_rule_to_rule_buckets(RuleBuckets& rule_buckets, MatchingRule con
     } else {
         for (auto const& simple_selector : bucket_compound_selector.simple_selectors) {
             if (simple_selector.type == Selector::SimpleSelector::Type::Attribute) {
-                rule_buckets.rules_by_attribute_name.ensure(simple_selector.attribute().qualified_name.name.lowercase_name).append(matching_rule);
+                add_to_attribute_bucket(simple_selector.attribute().qualified_name.name.lowercase_name);
                 return;
             }
         }
