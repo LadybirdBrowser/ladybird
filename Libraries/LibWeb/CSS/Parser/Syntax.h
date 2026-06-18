@@ -30,6 +30,13 @@ public:
 
     virtual ~SyntaxNode() = default;
     virtual String to_string() const = 0;
+
+    virtual bool equals(SyntaxNode const& other) const = 0;
+    bool operator==(SyntaxNode const& other) const
+    {
+        return this->equals(other);
+    }
+
     virtual void dump(StringBuilder&, int indent) const = 0;
     String dump() const;
 
@@ -53,6 +60,7 @@ public:
 
     virtual ~UniversalSyntaxNode() override;
     virtual String to_string() const override;
+    virtual bool equals(SyntaxNode const& other) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -72,6 +80,7 @@ public:
     CaseSensitivity case_sensitivity() const { return m_case_sensitivity; }
 
     virtual String to_string() const override;
+    virtual bool equals(SyntaxNode const& other) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -90,6 +99,7 @@ public:
     Optional<ValueType> const& value_type() const { return m_value_type; }
 
     virtual String to_string() const override;
+    virtual bool equals(SyntaxNode const& other) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -110,6 +120,7 @@ public:
     SyntaxNode const& child() const { return *m_child; }
 
     virtual String to_string() const override;
+    virtual bool equals(SyntaxNode const& other) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -129,6 +140,7 @@ public:
     SyntaxNode const& child() const { return *m_child; }
 
     virtual String to_string() const override;
+    virtual bool equals(SyntaxNode const& other) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
@@ -148,6 +160,7 @@ public:
     ReadonlySpan<NonnullRefPtr<SyntaxNode>> children() const { return m_children; }
 
     virtual String to_string() const override;
+    virtual bool equals(SyntaxNode const& other) const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
