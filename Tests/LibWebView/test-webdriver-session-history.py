@@ -951,76 +951,99 @@ def expect_ui_session_history(
     expected_ignoring_web_content_updates_until_seed=None,
     expected_reseed_after_current_history_load=None,
 ):
-    snapshot = session_history(webdriver_port, session_id)
-    ui = snapshot["ui"]
-    if (
-        history_entry_urls(ui) == expected_entry_urls
-        and history_used_steps(ui) == expected_used_steps
-        and ui["currentUsedStepIndex"] == expected_current_used_step_index
-        and ui["backButtonEnabled"] is expected_back_enabled
-        and ui["forwardButtonEnabled"] is expected_forward_enabled
-        and (expect_web_content_matches_ui is None or ui["webContentHistoryMatchesUI"] is expect_web_content_matches_ui)
-        and (
-            expected_web_content_known_used_steps is None
-            or history_step_values(ui["webContentKnownUsedSteps"]) == expected_web_content_known_used_steps
+    def ui_history_matches(ui):
+        return (
+            history_entry_urls(ui) == expected_entry_urls
+            and history_used_steps(ui) == expected_used_steps
+            and ui["currentUsedStepIndex"] == expected_current_used_step_index
+            and ui["backButtonEnabled"] is expected_back_enabled
+            and ui["forwardButtonEnabled"] is expected_forward_enabled
+            and (
+                expect_web_content_matches_ui is None
+                or ui["webContentHistoryMatchesUI"] is expect_web_content_matches_ui
+            )
+            and (
+                expected_web_content_known_used_steps is None
+                or history_step_values(ui["webContentKnownUsedSteps"]) == expected_web_content_known_used_steps
+            )
+            and (
+                expected_web_content_current_step is None
+                or ui["webContentCurrentStep"] == expected_web_content_current_step
+            )
+            and (
+                expected_web_content_current_step is None
+                or history_current_step(ui["webContentKnownUsedSteps"]) == expected_web_content_current_step
+            )
+            and (
+                expected_waiting_to_seed_web_content is None
+                or ui["waitingToSeedWebContent"] is expected_waiting_to_seed_web_content
+            )
+            and (
+                expected_waiting_for_web_content_seed_ack is None
+                or ui["waitingForWebContentSeedAck"] is expected_waiting_for_web_content_seed_ack
+            )
+            and (
+                expected_ignoring_web_content_updates_until_seed is None
+                or ui["ignoringWebContentUpdatesUntilSeed"] is expected_ignoring_web_content_updates_until_seed
+            )
+            and (
+                expected_reseed_after_current_history_load is None
+                or ui["reseedAfterCurrentHistoryLoad"] is expected_reseed_after_current_history_load
+            )
         )
-        and (
-            expected_web_content_current_step is None
-            or ui["webContentCurrentStep"] == expected_web_content_current_step
+
+    def web_content_matches_ui(snapshot):
+        ui = snapshot["ui"]
+        web_content = snapshot["webContent"]
+        return not (
+            ui["waitingToSeedWebContent"]
+            or ui["waitingForWebContentSeedAck"]
+            or ui["ignoringWebContentUpdatesUntilSeed"]
+            or ui["reseedAfterCurrentHistoryLoad"]
+            or ui["pendingWebContentHistoryStepAfterFallbackLoad"] is not None
+            or ui["pendingSessionHistoryNavigation"] is not None
+            or ui["pendingSessionHistoryTraversal"] is not None
+            or comparable_history(ui) != comparable_history(web_content)
         )
-        and (
-            expected_web_content_current_step is None
-            or history_current_step(ui["webContentKnownUsedSteps"]) == expected_web_content_current_step
+
+    def raise_ui_mismatch(snapshot):
+        raise AssertionError(
+            f"Expected {label} UI history to be entries={expected_entry_urls}, usedSteps={expected_used_steps}, "
+            f"currentUsedStepIndex={expected_current_used_step_index}, back={expected_back_enabled}, "
+            f"forward={expected_forward_enabled}, webContentMatchesUI={expect_web_content_matches_ui}, "
+            f"webContentKnownUsedSteps={expected_web_content_known_used_steps}, "
+            f"webContentCurrentStep={expected_web_content_current_step}, "
+            f"waitingToSeedWebContent={expected_waiting_to_seed_web_content}, "
+            f"waitingForWebContentSeedAck={expected_waiting_for_web_content_seed_ack}, "
+            f"ignoringWebContentUpdatesUntilSeed={expected_ignoring_web_content_updates_until_seed}; "
+            f"reseedAfterCurrentHistoryLoad={expected_reseed_after_current_history_load}; "
+            f"got {summarize_history_snapshot(snapshot)}\n" + "\n".join(log)
         )
-        and (
-            expected_waiting_to_seed_web_content is None
-            or ui["waitingToSeedWebContent"] is expected_waiting_to_seed_web_content
-        )
-        and (
-            expected_waiting_for_web_content_seed_ack is None
-            or ui["waitingForWebContentSeedAck"] is expected_waiting_for_web_content_seed_ack
-        )
-        and (
-            expected_ignoring_web_content_updates_until_seed is None
-            or ui["ignoringWebContentUpdatesUntilSeed"] is expected_ignoring_web_content_updates_until_seed
-        )
-        and (
-            expected_reseed_after_current_history_load is None
-            or ui["reseedAfterCurrentHistoryLoad"] is expected_reseed_after_current_history_load
-        )
-    ):
-        if expect_web_content_matches_ui:
-            web_content = snapshot["webContent"]
-            if (
-                ui["waitingToSeedWebContent"]
-                or ui["waitingForWebContentSeedAck"]
-                or ui["ignoringWebContentUpdatesUntilSeed"]
-                or ui["reseedAfterCurrentHistoryLoad"]
-                or ui["pendingWebContentHistoryStepAfterFallbackLoad"] is not None
-                or ui["pendingSessionHistoryNavigation"] is not None
-                or ui["pendingSessionHistoryTraversal"] is not None
-                or comparable_history(ui) != comparable_history(web_content)
-            ):
+
+    if expect_web_content_matches_ui:
+        deadline = time.monotonic() + EVENT_TIMEOUT_SECONDS
+        while True:
+            snapshot = session_history(webdriver_port, session_id)
+            if ui_history_matches(snapshot["ui"]) and web_content_matches_ui(snapshot):
+                break
+            if time.monotonic() >= deadline:
+                if not ui_history_matches(snapshot["ui"]):
+                    raise_ui_mismatch(snapshot)
                 raise AssertionError(
                     f"Expected {label} WebContent history to match UI, got {summarize_history_snapshot(snapshot)}\n"
                     + "\n".join(log)
                 )
+            time.sleep(0.05)
 
         log.append(f"{label} history: {summarize_history_snapshot(snapshot)}")
         return snapshot
 
-    raise AssertionError(
-        f"Expected {label} UI history to be entries={expected_entry_urls}, usedSteps={expected_used_steps}, "
-        f"currentUsedStepIndex={expected_current_used_step_index}, back={expected_back_enabled}, "
-        f"forward={expected_forward_enabled}, webContentMatchesUI={expect_web_content_matches_ui}, "
-        f"webContentKnownUsedSteps={expected_web_content_known_used_steps}, "
-        f"webContentCurrentStep={expected_web_content_current_step}, "
-        f"waitingToSeedWebContent={expected_waiting_to_seed_web_content}, "
-        f"waitingForWebContentSeedAck={expected_waiting_for_web_content_seed_ack}, "
-        f"ignoringWebContentUpdatesUntilSeed={expected_ignoring_web_content_updates_until_seed}; "
-        f"reseedAfterCurrentHistoryLoad={expected_reseed_after_current_history_load}; "
-        f"got {summarize_history_snapshot(snapshot)}\n" + "\n".join(log)
-    )
+    snapshot = session_history(webdriver_port, session_id)
+    if not ui_history_matches(snapshot["ui"]):
+        raise_ui_mismatch(snapshot)
+
+    log.append(f"{label} history: {summarize_history_snapshot(snapshot)}")
+    return snapshot
 
 
 def wait_for_ui_session_history(
