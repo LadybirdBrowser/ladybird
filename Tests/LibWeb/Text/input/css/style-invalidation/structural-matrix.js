@@ -309,6 +309,11 @@ function runCase({
     )
         return;
 
+    if (!runCase.didFlushInitialDocumentStyle) {
+        flushPendingStyleWork();
+        runCase.didFlushInitialDocumentStyle = true;
+    }
+
     const testName = `${suite}: ${scope}: ${name}`;
     const { cleanup, fixture, subject, target } = buildFixture(scope, selector, pseudoElement, fixtureOptions);
     try {

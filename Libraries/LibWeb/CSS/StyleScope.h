@@ -80,18 +80,25 @@ struct RuleCaches {
     void visit_edges(GC::Cell::Visitor&);
 };
 
-struct StyleCache : public RefCounted<StyleCache> {
-    static NonnullRefPtr<StyleCache> create();
-    static NonnullRefPtr<StyleCache> create_for_style_scope(StyleScope&);
+struct StyleRuleCache {
+    StyleRuleCache();
 
     Vector<FlyString> qualified_layer_names_in_order;
     SelectorInsights selector_insights;
     Array<OwnPtr<RuleCache>, to_underlying(PseudoClass::__Count)> pseudo_class_rule_cache;
-    StyleInvalidationData style_invalidation_data;
     RuleCaches author_rule_cache;
     RuleCaches user_rule_cache;
     RuleCaches user_agent_rule_cache;
     bool has_size_container_queries { false };
+
+    void visit_edges(GC::Cell::Visitor&);
+};
+
+struct StyleCache : public RefCounted<StyleCache> {
+    static NonnullRefPtr<StyleCache> create();
+
+    OwnPtr<StyleRuleCache> rule_cache;
+    OwnPtr<StyleInvalidationData> style_invalidation_data;
 
     void visit_edges(GC::Cell::Visitor&);
 };
@@ -114,12 +121,15 @@ public:
     DOM::Node& node() const { return m_node; }
     DOM::Document& document() const;
 
-    RuleCaches const& author_rule_cache() const { return m_rule_cache->author_rule_cache; }
-    RuleCaches const& user_rule_cache() const { return m_rule_cache->user_rule_cache; }
-    RuleCaches const& user_agent_rule_cache() const { return m_rule_cache->user_agent_rule_cache; }
+    RuleCaches const& author_rule_cache() const { return rule_cache().author_rule_cache; }
+    RuleCaches const& user_rule_cache() const { return rule_cache().user_rule_cache; }
+    RuleCaches const& user_agent_rule_cache() const { return rule_cache().user_agent_rule_cache; }
 
-    [[nodiscard]] bool has_valid_rule_cache() const { return m_rule_cache; }
-    void invalidate_rule_cache();
+    [[nodiscard]] StyleRuleCache const& rule_cache() const;
+    [[nodiscard]] StyleInvalidationData const& style_invalidation_data() const;
+    [[nodiscard]] bool has_valid_rule_cache() const { return m_style_cache && m_style_cache->rule_cache; }
+    [[nodiscard]] bool has_valid_style_invalidation_data() const { return m_style_cache && m_style_cache->style_invalidation_data; }
+    void invalidate_style_cache();
     void invalidate_user_style_sheet();
 
     [[nodiscard]] RuleCache const& get_pseudo_class_rule_cache(PseudoClass) const;
@@ -129,15 +139,19 @@ public:
     static Optional<StyleSheetIdentifier> user_agent_style_sheet_identifier(CSS::CSSStyleSheet const&);
     void build_user_style_sheet_if_needed();
 
-    void make_rule_cache_for_cascade_origin(CascadeOrigin, StyleCache&);
+    void make_rule_cache_for_cascade_origin(CascadeOrigin, StyleRuleCache&);
+    void build_style_invalidation_data_for_cascade_origin(CascadeOrigin, StyleInvalidationData&);
 
     void build_rule_cache();
     void build_rule_cache_if_needed() const;
-    void populate_rule_cache(StyleCache&);
+    void build_style_invalidation_data();
+    void build_style_invalidation_data_if_needed() const;
+    void populate_rule_cache(StyleRuleCache&);
+    void populate_style_invalidation_data(StyleInvalidationData&);
 
     static void collect_selector_insights(Selector const&, SelectorInsights&);
 
-    void build_qualified_layer_names_cache(StyleCache&);
+    void build_qualified_layer_names_cache(StyleRuleCache&);
 
     [[nodiscard]] bool may_have_has_selectors() const;
     [[nodiscard]] bool may_have_user_has_selectors() const;
@@ -163,7 +177,10 @@ public:
 
     void visit_edges(GC::Cell::Visitor&);
 
-    RefPtr<StyleCache> m_rule_cache;
+    StyleCache& ensure_style_cache();
+    StyleCache& ensure_style_cache() const;
+
+    RefPtr<StyleCache> m_style_cache;
 
     GC::Ptr<CSSStyleSheet> m_user_style_sheet;
 
