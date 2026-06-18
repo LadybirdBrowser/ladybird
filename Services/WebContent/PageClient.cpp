@@ -28,6 +28,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationType.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -1240,6 +1241,56 @@ Vector<Web::CSS::StyleSheetIdentifier> PageClient::list_style_sheets() const
     });
 
     return results;
+}
+
+static Web::HTML::ScriptRegistry::Description exported_devtools_source_description(Web::DOM::Document const& document, Web::HTML::ScriptRegistry::Description description)
+{
+    description.id.document_id = document.unique_id();
+    return description;
+}
+
+static void append_devtools_sources_for_document(Vector<Web::HTML::ScriptRegistry::Description>& results, Web::DOM::Document const& document)
+{
+    for (auto const& source : document.script_registry().scripts()) {
+        auto description = exported_devtools_source_description(document, source.value.description);
+        results.append(move(description));
+    }
+
+    for (auto const& navigable : document.descendant_navigables()) {
+        auto content_document = navigable->active_document();
+        if (!content_document)
+            continue;
+        append_devtools_sources_for_document(results, *content_document);
+    }
+}
+
+Vector<Web::HTML::ScriptRegistry::Description> PageClient::list_devtools_sources() const
+{
+    Vector<Web::HTML::ScriptRegistry::Description> results;
+
+    auto const* document = page().top_level_browsing_context().active_document();
+    if (document)
+        append_devtools_sources_for_document(results, *document);
+
+    return results;
+}
+
+Optional<Web::HTML::ScriptRegistry::Content> PageClient::devtools_source_content(Web::HTML::ScriptRegistry::Identifier const& source_id) const
+{
+    auto* node = Web::DOM::Node::from_unique_id(source_id.document_id);
+    auto* document = as_if<Web::DOM::Document>(node);
+    if (!document)
+        return {};
+
+    return document->script_registry().script_content(source_id.script_id, document->source());
+}
+
+void PageClient::page_did_register_javascript_source(Web::DOM::Document& document, Web::HTML::ScriptRegistry::Description const& source)
+{
+    if (!has_devtools_client())
+        return;
+
+    client().async_did_add_devtools_source(m_id, exported_devtools_source_description(document, source));
 }
 
 void PageClient::ensure_compositor_host()

@@ -1533,6 +1533,24 @@ void ConnectionFromClient::request_style_sheet_source(u64 page_id, Web::CSS::Sty
     }
 }
 
+void ConnectionFromClient::list_devtools_sources(u64 page_id, u64 request_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    async_did_list_devtools_sources(page_id, request_id, page->list_devtools_sources());
+}
+
+void ConnectionFromClient::request_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    async_did_get_devtools_source(page_id, source_id, page->devtools_source_content(source_id));
+}
+
 void ConnectionFromClient::set_listen_for_dom_mutations(u64 page_id, bool listen_for_dom_mutations)
 {
     auto page = this->page(page_id);

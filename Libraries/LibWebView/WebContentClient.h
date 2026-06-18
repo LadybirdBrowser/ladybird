@@ -28,6 +28,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/WebViewHints.h>
@@ -136,6 +137,9 @@ private:
     virtual void did_get_dom_node_html(u64 page_id, String html) override;
     virtual void did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> stylesheets) override;
     virtual void did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL, String source) override;
+    virtual void did_list_devtools_sources(u64 page_id, u64 request_id, Vector<Web::HTML::ScriptRegistry::Description> sources) override;
+    virtual void did_get_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id, Optional<Web::HTML::ScriptRegistry::Content> source) override;
+    virtual void did_add_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Description source) override;
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) override;
     virtual void did_get_internal_page_info(u64 page_id, PageInfoType, Optional<Core::AnonymousBuffer>) override;
     virtual void did_execute_js_console_input(u64 page_id, JsonValue) override;

@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
@@ -102,6 +103,8 @@ endpoint WebContentServer
 
     list_style_sheets(u64 page_id) =|
     request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) =|
+    list_devtools_sources(u64 page_id, u64 request_id) =|
+    request_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id) =|
 
     set_listen_for_dom_mutations(u64 page_id, bool listen_for_dom_mutations) =|
     did_connect_devtools_client(u64 page_id) =|

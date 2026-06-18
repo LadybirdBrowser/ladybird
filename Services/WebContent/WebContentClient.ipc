@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/EventResult.h>
+#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <LibWebView/Attribute.h>
@@ -88,6 +89,9 @@ endpoint WebContentClient
 
     did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> style_sheets) =|
     did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL base_url, String source) =|
+    did_list_devtools_sources(u64 page_id, u64 request_id, Vector<Web::HTML::ScriptRegistry::Description> sources) =|
+    did_get_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id, Optional<Web::HTML::ScriptRegistry::Content> source) =|
+    did_add_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Description source) =|
 
     did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) =|
 

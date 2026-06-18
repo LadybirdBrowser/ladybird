@@ -37,6 +37,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -186,6 +187,8 @@ public:
     void inspect_grid_layouts(Web::UniqueNodeID root_node_id);
     void inspect_current_grid(Web::UniqueNodeID node_id);
     void inspect_current_flexbox(Web::UniqueNodeID node_id, bool only_look_at_parents);
+    void retrieve_devtools_sources(DevTools::DevToolsDelegate::OnSourcesReceived);
+    void request_devtools_source(Web::HTML::ScriptRegistry::Identifier const&);
     void clear_inspected_dom_node();
 
     void highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element);
@@ -330,6 +333,9 @@ public:
     Function<void(String)> on_received_dom_node_html;
     Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
     Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
+    HashMap<u64, DevTools::DevToolsDelegate::OnSourcesReceived> on_received_devtools_sources;
+    HashMap<Web::HTML::ScriptRegistry::Identifier, Function<void(Optional<Web::HTML::ScriptRegistry::Content>)>> on_received_devtools_source;
+    Function<void(Web::HTML::ScriptRegistry::Description)> on_devtools_source_available;
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(ConsoleOutput)> on_console_message;
     Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ByteBuffer, Optional<String>)> on_network_request_started;
@@ -615,6 +621,7 @@ protected:
 
     HashMap<u64, DevTools::DevToolsDelegate::OnStorageChange> m_storage_change_listeners;
     u64 m_next_storage_change_listener_id { 1 };
+    u64 m_next_devtools_sources_request_id { 1 };
 
     HashMap<u64, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete> m_pending_indexed_database_inspection_requests;
     u64 m_next_indexed_database_inspection_request_id { 1 };
