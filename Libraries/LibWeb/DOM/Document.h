@@ -918,7 +918,7 @@ public:
     void record_full_style_invalidation() const;
     static void set_style_invalidation_counter_dump_interval(Optional<u64>);
 
-    void set_needs_accumulated_visual_contexts_update(bool value) { m_needs_accumulated_visual_contexts_update = value; }
+    void set_needs_accumulated_visual_contexts_update(bool);
     bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
 
     virtual JS::Value named_item_value(FlyString const& name) const override;
