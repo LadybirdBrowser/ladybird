@@ -877,15 +877,9 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_box_shadow(computed_style.box_shadow(*this));
 
-    if (auto rotate_value = computed_style.rotate())
-        computed_values.set_rotate(rotate_value.release_nonnull());
-
-    if (auto translate_value = computed_style.translate())
-        computed_values.set_translate(translate_value.release_nonnull());
-
-    if (auto scale_value = computed_style.scale())
-        computed_values.set_scale(scale_value.release_nonnull());
-
+    computed_values.set_rotate(computed_style.rotate());
+    computed_values.set_translate(computed_style.translate());
+    computed_values.set_scale(computed_style.scale());
     computed_values.set_transformations(computed_style.transformations());
     computed_values.set_transform_box(computed_style.transform_box());
     computed_values.set_transform_origin(computed_style.transform_origin());

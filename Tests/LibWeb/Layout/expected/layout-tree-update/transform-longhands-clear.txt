@@ -1,0 +1,26 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 368 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 340 0+0+20] children: not-inline
+      BlockContainer <div#scaled> at [8,8] [0+0+0 100 0+0+684] [0+0+0 100 0+0+20] children: not-inline
+      BlockContainer <(anonymous)> at [8,128] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div#translated> at [8,128] [0+0+0 100 0+0+684] [0+0+0 100 0+0+20] children: not-inline
+      BlockContainer <(anonymous)> at [8,248] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div#rotated> at [8,248] [0+0+0 100 0+0+684] [0+0+0 100 0+0+20] children: not-inline
+      BlockContainer <(anonymous)> at [8,368] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x368]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x340]
+      PaintableWithLines (BlockContainer<DIV>#scaled) [8,8 100x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,128 784x0]
+      PaintableWithLines (BlockContainer<DIV>#translated) [8,128 100x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,248 784x0]
+      PaintableWithLines (BlockContainer<DIV>#rotated) [8,248 100x100]
+      PaintableWithLines (BlockContainer(anonymous)) [8,368 784x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x368] (z-index: auto)
