@@ -243,6 +243,8 @@ private:
     CSSPixelRect m_viewport_rect;
 
     mutable Vector<ScopedMatchingRule> m_rules_to_run_scratch;
+    mutable Vector<u64> m_seen_multi_bucket_rule_generations;
+    mutable u64 m_multi_bucket_rule_generation { 0 };
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
     OwnPtr<SelectorEngine::HasResultCache> m_has_result_cache;

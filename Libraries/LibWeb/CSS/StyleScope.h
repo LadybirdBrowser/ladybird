@@ -41,6 +41,7 @@ struct MatchingRule {
     size_t rule_index { 0 };
 
     u32 specificity { 0 };
+    u32 multi_bucket_rule_index { 0 };
     CascadeOrigin cascade_origin;
     bool contains_pseudo_element { false };
     bool slotted { false };
@@ -89,6 +90,8 @@ struct RuleCache {
     Array<PseudoElementRules, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)> rules_by_pseudo_element;
 
     HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
+
+    u32 next_multi_bucket_rule_index { 0 };
 
     void add_rule(MatchingRule const&, Optional<PseudoElement>, bool contains_root_pseudo_class, SubjectPseudoClassBuckets, AncestorHashBuckets);
     void for_each_matching_rules(DOM::AbstractElement, Function<bool(u32)> const& may_contain_ancestor_hash, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const;

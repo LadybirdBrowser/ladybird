@@ -437,6 +437,36 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
         rules_to_run.clear_with_capacity();
     };
 
+    // Multi-bucketed pseudo-element rules can be reached through more than one
+    // originating-element key, e.g. `:is(.foo, .bar)::before` on an element with
+    // both classes. Use a generation stamp instead of a per-element HashSet so
+    // duplicate suppression stays an indexed load/store in the hot path.
+    u64 multi_bucket_rule_generation = 0;
+    auto next_multi_bucket_rule_generation = [&]() {
+        ++m_multi_bucket_rule_generation;
+        if (m_multi_bucket_rule_generation == 0) {
+            for (auto& generation : m_seen_multi_bucket_rule_generations)
+                generation = 0;
+            ++m_multi_bucket_rule_generation;
+        }
+        return m_multi_bucket_rule_generation;
+    };
+    auto was_multi_bucket_rule_seen = [&](MatchingRule const& rule) {
+        if (rule.multi_bucket_rule_index == 0)
+            return false;
+
+        if (multi_bucket_rule_generation == 0)
+            multi_bucket_rule_generation = next_multi_bucket_rule_generation();
+
+        auto const index = static_cast<size_t>(rule.multi_bucket_rule_index - 1);
+        if (m_seen_multi_bucket_rule_generations.size() <= index)
+            m_seen_multi_bucket_rule_generations.resize(index + 1);
+        if (m_seen_multi_bucket_rule_generations[index] == multi_bucket_rule_generation)
+            return true;
+        m_seen_multi_bucket_rule_generations[index] = multi_bucket_rule_generation;
+        return false;
+    };
+
     auto add_rule_to_run = [&](MatchingRule const& rule_to_run, GC::Ptr<DOM::ShadowRoot const> rule_root) {
         // FIXME: This needs to be revised when adding support for the ::shadow selector, as it needs to cross shadow boundaries.
         auto from_user_agent_or_user_stylesheet = rule_to_run.cascade_origin == CascadeOrigin::UserAgent || rule_to_run.cascade_origin == CascadeOrigin::User;
@@ -484,6 +514,8 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
             //        a query for a different pseudo-element type.
             auto queried_pseudo_element = *abstract_element.pseudo_element();
             for (auto const& rule : rules) {
+                if (was_multi_bucket_rule_seen(rule))
+                    continue;
                 auto const& target_pseudo_element = rule.selector.target_pseudo_element();
                 if (target_pseudo_element != queried_pseudo_element)
                     continue;
@@ -493,6 +525,8 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
             }
         } else {
             for (auto const& rule : rules) {
+                if (was_multi_bucket_rule_seen(rule))
+                    continue;
                 if (!filter_namespace_rule(element_namespace_uri, rule))
                     continue;
                 if (rule.selector.target_pseudo_element().has_value()) {
@@ -507,6 +541,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
     };
 
     auto add_rules_from_cache = [&](RuleCache const& rule_cache, GC::Ptr<DOM::ShadowRoot const> rule_root) {
+        multi_bucket_rule_generation = next_multi_bucket_rule_generation();
         Function<bool(u32)> may_contain_ancestor_hash = [&](u32 hash) { return m_ancestor_filter->may_contain(hash); };
         rule_cache.for_each_matching_rules(abstract_element, may_contain_ancestor_hash, [&](auto const& matching_rules) {
             add_rules_to_run(matching_rules, rule_root);
@@ -3048,7 +3083,22 @@ struct SimplifiedSelectorForBucketing {
 };
 
 static Optional<SimplifiedSelectorForBucketing> bucket_for_is_or_where_selector(CSS::Selector::SimpleSelector const&);
+static Optional<Vector<SimplifiedSelectorForBucketing>> buckets_for_is_or_where_selector(CSS::Selector::SimpleSelector const&);
 static Optional<PseudoClass> subject_pseudo_class_bucket_for_is_or_where_selector(CSS::Selector::SimpleSelector const&);
+
+static bool simplified_selectors_for_bucketing_are_equal(SimplifiedSelectorForBucketing const& a, SimplifiedSelectorForBucketing const& b)
+{
+    return a.type == b.type && a.name == b.name;
+}
+
+static void append_unique_simplified_selector_for_bucketing(Vector<SimplifiedSelectorForBucketing>& buckets, SimplifiedSelectorForBucketing bucket)
+{
+    for (auto const& existing_bucket : buckets) {
+        if (simplified_selectors_for_bucketing_are_equal(existing_bucket, bucket))
+            return;
+    }
+    buckets.append(move(bucket));
+}
 
 static bool subject_pseudo_class_is_bucketable(PseudoClass pseudo_class)
 {
@@ -3193,6 +3243,32 @@ static Optional<SimplifiedSelectorForBucketing> bucket_for_is_or_where_selector(
             return {};
     }
     return common_bucket;
+}
+
+static Optional<Vector<SimplifiedSelectorForBucketing>> buckets_for_is_or_where_selector(CSS::Selector::SimpleSelector const& simple_selector)
+{
+    if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoClass)
+        return {};
+
+    if (simple_selector.pseudo_class().type != CSS::PseudoClass::Is
+        && simple_selector.pseudo_class().type != CSS::PseudoClass::Where)
+        return {};
+
+    auto const& selector_list = simple_selector.pseudo_class().argument_selector_list;
+    if (selector_list.is_empty())
+        return {};
+
+    Vector<SimplifiedSelectorForBucketing> buckets;
+    for (auto const& argument_selector : selector_list) {
+        auto bucket = bucket_for_compound_selector(argument_selector->compound_selectors().last());
+        if (!bucket.has_value())
+            return {};
+        append_unique_simplified_selector_for_bucketing(buckets, bucket.release_value());
+    }
+
+    if (buckets.size() < 2)
+        return {};
+    return buckets;
 }
 
 static Optional<PseudoClass> subject_pseudo_class_bucket_for_is_or_where_selector(CSS::Selector::SimpleSelector const& simple_selector)
@@ -4017,6 +4093,55 @@ void StyleComputer::pop_ancestor(DOM::Element const& element)
 }
 
 template<typename RuleBuckets>
+static void add_rule_to_simplified_selector_bucket(RuleBuckets& rule_buckets, MatchingRule const& matching_rule, SimplifiedSelectorForBucketing const& bucket)
+{
+    if (bucket.type == Selector::SimpleSelector::Type::Id) {
+        rule_buckets.rules_by_id.ensure(bucket.name).append(matching_rule);
+        return;
+    }
+    if (bucket.type == Selector::SimpleSelector::Type::Class) {
+        rule_buckets.rules_by_class.ensure(bucket.name).append(matching_rule);
+        return;
+    }
+    if (bucket.type == Selector::SimpleSelector::Type::TagName) {
+        rule_buckets.rules_by_tag_name.ensure(bucket.name).append(matching_rule);
+        return;
+    }
+    if (bucket.type == Selector::SimpleSelector::Type::Attribute) {
+        rule_buckets.rules_by_attribute_name.ensure(bucket.name).append(matching_rule);
+        return;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+template<typename RuleBuckets>
+static bool add_rule_to_multiple_is_or_where_buckets(RuleBuckets& rule_buckets, MatchingRule const& matching_rule, Selector::CompoundSelector const& bucket_compound_selector, u32& next_multi_bucket_rule_index)
+{
+    // Pseudo-element style discovery walks originating-element buckets while
+    // computing the originating element's style. If a pseudo selector would
+    // otherwise fall into `other`, split `:is()`/`:where()` alternatives across
+    // their cheap subject buckets so we avoid trying the rule for every element.
+    Optional<Vector<SimplifiedSelectorForBucketing>> buckets;
+    for (auto const& simple_selector : bucket_compound_selector.simple_selectors.in_reverse()) {
+        auto candidate_buckets = buckets_for_is_or_where_selector(simple_selector);
+        if (!candidate_buckets.has_value())
+            continue;
+        buckets = candidate_buckets.release_value();
+        break;
+    }
+
+    if (!buckets.has_value())
+        return false;
+
+    VERIFY(next_multi_bucket_rule_index < NumericLimits<u32>::max());
+    auto multi_bucket_matching_rule = matching_rule;
+    multi_bucket_matching_rule.multi_bucket_rule_index = ++next_multi_bucket_rule_index;
+    for (auto const& bucket : *buckets)
+        add_rule_to_simplified_selector_bucket(rule_buckets, multi_bucket_matching_rule, bucket);
+    return true;
+}
+
+template<typename RuleBuckets>
 static void add_rule_to_rule_buckets(RuleBuckets& rule_buckets, MatchingRule const& matching_rule, Selector::CompoundSelector const& bucket_compound_selector, bool contains_root_pseudo_class, SubjectPseudoClassBuckets subject_pseudo_class_buckets, AncestorHashBuckets ancestor_hash_buckets)
 {
     // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
@@ -4211,6 +4336,12 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoEleme
                 }
                 return matching_rule.selector.compound_selectors().last();
             }();
+            if (!contains_root_pseudo_class
+                && !bucket_for_compound_selector(bucket_compound_selector).has_value()
+                && (subject_pseudo_class_buckets == SubjectPseudoClassBuckets::No || !subject_pseudo_class_bucket_for_compound_selector(bucket_compound_selector).has_value())
+                && add_rule_to_multiple_is_or_where_buckets(rules_by_pseudo_element[to_underlying(pseudo_element.value())], matching_rule, bucket_compound_selector, next_multi_bucket_rule_index)) {
+                return;
+            }
             add_rule_to_rule_buckets(rules_by_pseudo_element[to_underlying(pseudo_element.value())], matching_rule, bucket_compound_selector, contains_root_pseudo_class, subject_pseudo_class_buckets, ancestor_hash_buckets);
         }
         return;
