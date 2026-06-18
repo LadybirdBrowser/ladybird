@@ -154,39 +154,56 @@ void Selector::collect_ancestor_hashes()
     }
 
     size_t next_hash_index = 0;
-    auto append_unique_hash = [&](u32 hash) -> bool {
-        if (next_hash_index >= m_ancestor_hashes.size())
-            return true;
-        for (size_t i = 0; i < next_hash_index; ++i) {
-            if (m_ancestor_hashes[i] == hash)
-                return false;
-        }
-        m_ancestor_hashes[next_hash_index++] = hash;
-        return false;
-    };
+    struct AncestorHashCollector {
+        Array<u32, 8>& ancestor_hashes;
+        size_t& next_hash_index;
 
-    auto append_hashes_from_compound = [&](CompoundSelector const& compound_selector) {
-        for (auto const& simple_selector : compound_selector.simple_selectors) {
+        bool append_unique_hash(u32 hash)
+        {
+            if (next_hash_index >= ancestor_hashes.size())
+                return true;
+            for (size_t i = 0; i < next_hash_index; ++i) {
+                if (ancestor_hashes[i] == hash)
+                    return false;
+            }
+            ancestor_hashes[next_hash_index++] = hash;
+            return false;
+        }
+
+        bool append_hashes_from_simple_selector(SimpleSelector const& simple_selector)
+        {
             switch (simple_selector.type) {
             case SimpleSelector::Type::Id:
             case SimpleSelector::Type::Class:
-                if (append_unique_hash(simple_selector.name().hash()))
-                    return true;
-                break;
+                return append_unique_hash(simple_selector.name().hash());
             case SimpleSelector::Type::TagName:
-                if (append_unique_hash(simple_selector.qualified_name().name.lowercase_name.hash()))
-                    return true;
-                break;
+                return append_unique_hash(simple_selector.qualified_name().name.lowercase_name.hash());
             case SimpleSelector::Type::Attribute:
-                if (append_unique_hash(simple_selector.attribute().qualified_name.name.lowercase_name.hash()))
-                    return true;
-                break;
+                return append_unique_hash(simple_selector.attribute().qualified_name.name.lowercase_name.hash());
+            case SimpleSelector::Type::PseudoClass: {
+                auto const& pseudo_class = simple_selector.pseudo_class();
+                if (pseudo_class.type != PseudoClass::Is && pseudo_class.type != PseudoClass::Where)
+                    return false;
+                if (pseudo_class.argument_selector_list.size() != 1)
+                    return false;
+                auto const& argument_selector = *pseudo_class.argument_selector_list.first();
+                return append_hashes_from_compound(argument_selector.compound_selectors().last());
+            }
             default:
-                break;
+                return false;
             }
         }
-        return false;
+
+        bool append_hashes_from_compound(CompoundSelector const& compound_selector)
+        {
+            for (auto const& simple_selector : compound_selector.simple_selectors) {
+                if (append_hashes_from_simple_selector(simple_selector))
+                    return true;
+            }
+            return false;
+        }
     };
+    AncestorHashCollector ancestor_hash_collector { m_ancestor_hashes, next_hash_index };
 
     // Walk from the compound immediately to the left of the subject toward the left.
     // The combinator that connects `i` to `i+1` is stored on `i+1`.
@@ -204,7 +221,7 @@ void Selector::collect_ancestor_hashes()
         case Combinator::PseudoElement:
             // This compound is on the ancestor axis (directly, as the originating element for a pseudo-element,
             // or as a shared ancestor past a sibling boundary).
-            if (append_hashes_from_compound(compound_selector)) {
+            if (ancestor_hash_collector.append_hashes_from_compound(compound_selector)) {
                 m_can_use_ancestor_filter = (next_hash_index > 0);
                 return;
             }
