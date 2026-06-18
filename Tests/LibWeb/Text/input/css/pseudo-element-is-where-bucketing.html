@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    :is(.foo, .bar)::before {
+        content: "class";
+        color: rgb(0, 128, 0);
+    }
+
+    :where(.ancestor > .target, [data-alt])::after {
+        content: "complex";
+        color: rgb(0, 0, 255);
+    }
+</style>
+<div id="foo" class="foo"></div>
+<div id="bar" class="bar"></div>
+<div id="both" class="foo bar"></div>
+<div class="ancestor"><div id="complex" class="target"></div></div>
+<div id="attribute" data-alt></div>
+<script>
+    test(() => {
+        for (const id of ["foo", "bar", "both"]) {
+            const style = getComputedStyle(document.getElementById(id), "::before");
+            println(`${id}::before content: ${style.content}`);
+            println(`${id}::before color: ${style.color}`);
+        }
+
+        for (const id of ["complex", "attribute"]) {
+            const style = getComputedStyle(document.getElementById(id), "::after");
+            println(`${id}::after content: ${style.content}`);
+            println(`${id}::after color: ${style.color}`);
+        }
+    });
+</script>

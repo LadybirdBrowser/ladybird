@@ -1,0 +1,10 @@
+foo::before content: "class"
+foo::before color: rgb(0, 128, 0)
+bar::before content: "class"
+bar::before color: rgb(0, 128, 0)
+both::before content: "class"
+both::before color: rgb(0, 128, 0)
+complex::after content: "complex"
+complex::after color: rgb(0, 0, 255)
+attribute::after content: "complex"
+attribute::after color: rgb(0, 0, 255)
