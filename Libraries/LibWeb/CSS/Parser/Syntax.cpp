@@ -34,6 +34,11 @@ bool UniversalSyntaxNode::equals(SyntaxNode const& other) const
     return other.type() == type();
 }
 
+bool UniversalSyntaxNode::contains_value_type(ValueType) const
+{
+    return false;
+}
+
 void UniversalSyntaxNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}Universal\n", "", indent);
@@ -68,6 +73,11 @@ bool TypeSyntaxNode::equals(SyntaxNode const& other) const
     return m_value_type == other_type.m_value_type;
 }
 
+bool TypeSyntaxNode::contains_value_type(ValueType value_type) const
+{
+    return m_value_type == value_type;
+}
+
 void TypeSyntaxNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}Type: {}\n", "", indent, m_type_name);
@@ -96,6 +106,11 @@ bool IdentSyntaxNode::equals(SyntaxNode const& other) const
         && m_case_sensitivity == other_ident.m_case_sensitivity;
 }
 
+bool IdentSyntaxNode::contains_value_type(ValueType) const
+{
+    return false;
+}
+
 void IdentSyntaxNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}Ident: {}\n", "", indent, m_ident);
@@ -120,6 +135,11 @@ bool MultiplierSyntaxNode::equals(SyntaxNode const& other) const
         return false;
     auto const& other_multiplier = static_cast<MultiplierSyntaxNode const&>(other);
     return m_child->equals(other_multiplier.child());
+}
+
+bool MultiplierSyntaxNode::contains_value_type(ValueType value_type) const
+{
+    return m_child->contains_value_type(value_type);
 }
 
 void MultiplierSyntaxNode::dump(StringBuilder& builder, int indent) const
@@ -147,6 +167,11 @@ bool CommaSeparatedMultiplierSyntaxNode::equals(SyntaxNode const& other) const
         return false;
     auto const& other_multiplier = static_cast<CommaSeparatedMultiplierSyntaxNode const&>(other);
     return m_child->equals(other_multiplier.child());
+}
+
+bool CommaSeparatedMultiplierSyntaxNode::contains_value_type(ValueType value_type) const
+{
+    return m_child->contains_value_type(value_type);
 }
 
 void CommaSeparatedMultiplierSyntaxNode::dump(StringBuilder& builder, int indent) const
@@ -192,6 +217,15 @@ bool AlternativesSyntaxNode::equals(SyntaxNode const& other) const
             return false;
     }
     return true;
+}
+
+bool AlternativesSyntaxNode::contains_value_type(ValueType value_type) const
+{
+    for (auto const& child : m_children) {
+        if (child->contains_value_type(value_type))
+            return true;
+    }
+    return false;
 }
 
 void AlternativesSyntaxNode::dump(StringBuilder& builder, int indent) const
