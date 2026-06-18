@@ -185,7 +185,6 @@ bool Font::is_emoji_font() const
         }();
 
         m_is_emoji_font = (name_contains_emoji && !looks_like_text) || (has_any_color && !looks_like_text) ? TriState::True : TriState::False;
-        return false;
     }
 
     return m_is_emoji_font == TriState::True;
