@@ -241,7 +241,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
                     .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
                 });
                 did_draw(destination_rect);
-                flush_recorded_commands();
+                flush_recorded_commands(CommitCommands::No);
 
                 // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
                 if (image_is_not_origin_clean(image))
@@ -289,7 +289,7 @@ Gfx::CanvasCommandList* CanvasRenderingContext2D::canvas_command_list()
     if (!has_backing_storage())
         return nullptr;
     if (m_commands.size() >= max_pending_canvas_commands)
-        flush_recorded_commands();
+        flush_recorded_commands(CommitCommands::No);
     return &m_commands;
 }
 
@@ -315,20 +315,30 @@ bool CanvasRenderingContext2D::ensure_remote_canvas_context()
     return true;
 }
 
-void CanvasRenderingContext2D::flush_recorded_commands()
+void CanvasRenderingContext2D::flush_recorded_commands(CommitCommands commit)
 {
-    if (m_commands.is_empty() || !m_transport)
+    if (!m_transport)
         return;
 
+    bool const should_commit = commit == CommitCommands::Yes;
+    if (m_commands.is_empty()) {
+        if (!should_commit || !m_has_uncommitted_remote_commands)
+            return;
+        m_transport->update_commands(m_commands, true);
+        m_has_uncommitted_remote_commands = false;
+        return;
+    }
+
     auto commands = move(m_commands);
-    m_transport->update_commands(commands);
+    m_transport->update_commands(commands, should_commit);
+    m_has_uncommitted_remote_commands = !should_commit;
 }
 
 RefPtr<Gfx::Bitmap> CanvasRenderingContext2D::read_pixels(Gfx::IntRect const& rect)
 {
     if (!has_backing_storage())
         return nullptr;
-    flush_recorded_commands();
+    flush_recorded_commands(CommitCommands::No);
     return m_transport->read_back_pixels(rect);
 }
 
@@ -342,7 +352,7 @@ void CanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
 
 void CanvasRenderingContext2D::prepare_for_compositing()
 {
-    flush_recorded_commands();
+    flush_recorded_commands(CommitCommands::Yes);
 }
 
 Optional<Painting::CanvasId> CanvasRenderingContext2D::canvas_id() const
@@ -413,6 +423,7 @@ void CanvasRenderingContext2D::ensure_backing_storage()
 void CanvasRenderingContext2D::discard_backing_storage()
 {
     m_commands = {};
+    m_has_uncommitted_remote_commands = false;
     if (m_transport) {
         m_transport->destroy_context();
         m_transport = nullptr;

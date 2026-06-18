@@ -32,7 +32,7 @@ endpoint CompositorWebContentServer
     clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id) =|
 
     create_canvas_2d_context(Gfx::IntSize size, bool alpha) => (bool success, Web::Painting::CanvasId canvas_id)
-    update_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList commands) =|
+    update_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList commands, bool commit) =|
     destroy_canvas_context(Web::Painting::CanvasId canvas_id) =|
     get_canvas_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect rect) => (Gfx::ShareableBitmap pixels)
 

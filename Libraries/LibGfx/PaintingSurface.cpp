@@ -9,7 +9,11 @@
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/SkiaUtils.h>
 
+#include <core/SkCanvas.h>
 #include <core/SkColorSpace.h>
+#include <core/SkImage.h>
+#include <core/SkPaint.h>
+#include <core/SkRect.h>
 #include <core/SkSurface.h>
 #include <gpu/ganesh/GrBackendSurface.h>
 #include <gpu/ganesh/GrDirectContext.h>
@@ -176,6 +180,25 @@ void PaintingSurface::write_from_bitmap(Bitmap const& bitmap)
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
     m_impl->surface->writePixels(pixmap, 0, 0);
+}
+
+void PaintingSurface::copy_from_surface(PaintingSurface& source)
+{
+    source.flush();
+
+    auto image = source.m_impl->surface->makeImageSnapshot();
+    if (!image)
+        return;
+
+    SkPaint paint;
+    paint.setBlendMode(SkBlendMode::kSrc);
+    canvas().drawImageRect(
+        image.get(),
+        SkRect::MakeIWH(image->width(), image->height()),
+        SkRect::MakeIWH(size().width(), size().height()),
+        SkSamplingOptions {},
+        &paint,
+        SkCanvas::kStrict_SrcRectConstraint);
 }
 
 IntSize PaintingSurface::size() const

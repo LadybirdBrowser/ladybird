@@ -45,11 +45,27 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
     return player;
 }
 
-Gfx::CanvasCommandPlayer& CanvasHost::as_2d(Context& context)
+static void copy_surface_contents(Gfx::PaintingSurface& source, Gfx::PaintingSurface& destination)
 {
-    auto* player = context.get_pointer<Canvas2DContext>();
-    VERIFY(player);
-    return **player;
+    destination.copy_from_surface(source);
+}
+
+static NonnullRefPtr<Gfx::PaintingSurface> create_presented_canvas_surface(Gfx::PaintingSurface& source)
+{
+    auto surface = Gfx::PaintingSurface::create_with_size(
+        source.size(),
+        Gfx::BitmapFormat::BGRA8888,
+        Gfx::AlphaType::Premultiplied,
+        source.skia_backend_context());
+    copy_surface_contents(source, *surface);
+    return surface;
+}
+
+CanvasHost::Canvas2DContext& CanvasHost::as_2d(Context& context)
+{
+    auto* canvas_context = context.get_pointer<Canvas2DContext>();
+    VERIFY(canvas_context);
+    return *canvas_context;
 }
 
 HostWebGLContext& CanvasHost::as_webgl(Context& context)
@@ -61,12 +77,17 @@ HostWebGLContext& CanvasHost::as_webgl(Context& context)
 
 Optional<Web::Painting::CanvasId> CanvasHost::create_2d_context(Gfx::IntSize size, bool alpha)
 {
-    auto context = create_2d_command_player(size, alpha);
-    if (!context)
+    auto command_player = create_2d_command_player(size, alpha);
+    if (!command_player)
         return {};
 
-    auto canvas_id = m_canvas_surface_registry.create_canvas_surface(context->surface());
-    m_contexts.set(canvas_id, context.release_nonnull());
+    auto presented_surface = create_presented_canvas_surface(command_player->surface());
+    auto canvas_id = m_canvas_surface_registry.create_canvas_surface(presented_surface);
+    Canvas2DContext context {
+        .command_player = command_player.release_nonnull(),
+        .presented_surface = move(presented_surface),
+    };
+    m_contexts.set(canvas_id, move(context));
     return canvas_id;
 }
 
@@ -104,11 +125,26 @@ CanvasHost::Context* CanvasHost::context(Web::Painting::CanvasId canvas_id)
     return &it->value;
 }
 
-void CanvasHost::execute_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands)
+void CanvasHost::present_canvas_2d_context(Web::Painting::CanvasId canvas_id, Canvas2DContext& context)
+{
+    copy_surface_contents(context.command_player->surface(), context.presented_surface);
+    m_canvas_surface_registry.set_canvas_surface(canvas_id, context.presented_surface);
+    context.has_uncommitted_commands = false;
+}
+
+void CanvasHost::execute_canvas_2d_commands(Web::Painting::CanvasId canvas_id, Gfx::CanvasCommandList const& commands, bool commit)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
-    as_2d(*context).play(commands);
+
+    auto& canvas_context = as_2d(*context);
+    if (!commands.is_empty()) {
+        canvas_context.command_player->play(commands);
+        canvas_context.has_uncommitted_commands = true;
+    }
+
+    if (commit && canvas_context.has_uncommitted_commands)
+        present_canvas_2d_context(canvas_id, canvas_context);
 }
 
 void CanvasHost::execute_webgl_commands(Web::Painting::CanvasId canvas_id, ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
@@ -174,8 +210,8 @@ Gfx::ShareableBitmap CanvasHost::read_back_pixels(Web::Painting::CanvasId canvas
         return {};
 
     return context->visit(
-        [rect](Canvas2DContext& player) {
-            return read_back_surface(player->surface(), rect);
+        [rect](Canvas2DContext& canvas_context) {
+            return read_back_surface(canvas_context.command_player->surface(), rect);
         },
         [rect](WebGLContext& webgl_context) {
             return webgl_context->read_back_drawing_buffer(rect);
