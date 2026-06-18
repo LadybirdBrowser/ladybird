@@ -1,0 +1,13 @@
+diff --git a/source/configure b/source/configure
+index d1b5812..1dfbf59 100755
+--- a/source/configure
++++ b/source/configure
+@@ -8063,7 +8063,7 @@ fi
+ 
+ 
+ 
+-if test "$tools" = true || test "$cross_compiling" = "yes"; then
++if true; then
+   DATA_TRUE=
+   U_HAVE_DATA=1
+ else

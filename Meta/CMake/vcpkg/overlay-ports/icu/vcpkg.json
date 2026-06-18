@@ -1,0 +1,31 @@
+{
+  "name": "icu",
+  "version": "78.3",
+  "port-version": 1,
+  "description": "Mature and widely used Unicode and localization library.",
+  "homepage": "https://icu.unicode.org/home",
+  "license": "ICU",
+  "dependencies": [
+    {
+      "name": "icu",
+      "host": true,
+      "features": [
+        "tools"
+      ]
+    },
+    {
+      "name": "vcpkg-cmake-get-vars",
+      "host": true
+    },
+    {
+      "name": "vcpkg-make",
+      "host": true
+    }
+  ],
+  "features": {
+    "tools": {
+      "description": "Build tools",
+      "supports": "!uwp"
+    }
+  }
+}

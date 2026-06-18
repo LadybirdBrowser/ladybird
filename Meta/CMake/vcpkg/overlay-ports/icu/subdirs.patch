@@ -1,0 +1,25 @@
+diff --git a/source/extra/Makefile.in b/source/extra/Makefile.in
+index 2e48dba..3bbae74 100644
+--- a/source/extra/Makefile.in
++++ b/source/extra/Makefile.in
+@@ -23,7 +23,7 @@ subdir = extra
+ ## Files to remove for 'make clean'
+ CLEANFILES = *~
+ 
+-SUBDIRS = scrptrun uconv
++SUBDIRS =          uconv
+ 
+ ## List of phony targets
+ .PHONY : all all-local all-recursive install install-local		\
+diff --git a/source/tools/Makefile.in b/source/tools/Makefile.in
+index e0896f1..d009382 100644
+--- a/source/tools/Makefile.in
++++ b/source/tools/Makefile.in
+@@ -20,7 +20,6 @@ gencnval gensprep icuinfo genccode gencmn icupkg pkgdata \
+ gentest gennorm2 gencfu gendict icuexportdata
+ 
+ ifneq (@platform_make_fragment_name@,mh-cygwin-msvc)
+-SUBDIRS += escapesrc
+ endif
+ 
+ ## List of phony targets

@@ -1,0 +1,22 @@
+diff --git a/source/configure b/source/configure
+index abcdef1..1234567 100755
+--- a/source/configure
++++ b/source/configure
+@@ -9534,7 +9534,7 @@ else
+     then
+         echo "Spawning Python to generate data/rules.mk..."
+         PYTHONPATH="$srcdir/python" \
+-            $PYTHON -m icutools.databuilder \
++            "$PYTHON" -m icutools.databuilder \
+             --mode gnumake \
+             --seqmode parallel \
+             --src_dir "$srcdir/data" \
+@@ -9550,7 +9550,7 @@ else
+     fi
+     echo "Spawning Python to generate test/testdata/rules.mk..."
+     PYTHONPATH="$srcdir/python" \
+-        $PYTHON -m icutools.databuilder \
++        "$PYTHON" -m icutools.databuilder \
+         --mode gnumake \
+         --seqmode parallel \
+         --src_dir "$srcdir/test/testdata" \

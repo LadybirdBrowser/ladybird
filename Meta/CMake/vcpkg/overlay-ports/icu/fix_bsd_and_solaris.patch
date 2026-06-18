@@ -1,0 +1,19 @@
+diff --git a/source/configure b/source/configure
+index d1b5812..7b93221 100755
+--- a/source/configure
++++ b/source/configure
+@@ -7008,12 +7008,12 @@ printf %s "checking for genccode assembly... " >&6; }
+ # Check to see if genccode can generate simple assembly.
+ GENCCODE_ASSEMBLY=
+ case "${host}" in
+-*-linux*|*-kfreebsd*-gnu*|i*86-*-*bsd*|i*86-pc-gnu)
++*-linux*|*-kfreebsd*-gnu*|*86*-*bsd*|*86*-pc-gnu)
+     if test "$GCC" = yes; then
+         # We're using gcc, and the simple -a gcc command line works for genccode
+         GENCCODE_ASSEMBLY="-a gcc"
+     fi ;;
+-i*86-*-solaris*)
++*86*-solaris*)
+     if test "$GCC" = yes; then
+         # When using gcc, look if we're also using GNU as.
+         # When using GNU as, the simple -a gcc command line works for genccode.
