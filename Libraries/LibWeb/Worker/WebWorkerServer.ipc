@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 
 endpoint WebWorkerServer {
+    init_transport(int peer_pid) => (int peer_pid)
 
     connect_to_request_server(IPC::TransportHandle handle) =|
     connect_to_image_decoder(IPC::TransportHandle handle) =|

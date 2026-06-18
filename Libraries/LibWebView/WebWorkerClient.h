@@ -26,6 +26,8 @@ class WEBVIEW_API WebWorkerClient final
     C_OBJECT_ABSTRACT(WebWorkerClient);
 
 public:
+    using InitTransport = Messages::WebWorkerServer::InitTransport;
+
     explicit WebWorkerClient(NonnullOwnPtr<IPC::Transport>, Web::HTML::WorkerAgentId agent_id);
     ~WebWorkerClient();
 

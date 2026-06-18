@@ -30,6 +30,7 @@ public:
 
     virtual void die() override;
 
+    virtual Messages::WebWorkerServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual void close_worker() override;
 
     void request_file(Web::FileRequest);
