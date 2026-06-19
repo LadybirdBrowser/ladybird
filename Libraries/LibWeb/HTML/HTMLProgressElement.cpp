@@ -95,7 +95,7 @@ void HTMLProgressElement::inserted()
     create_shadow_tree_if_needed();
 }
 
-void HTMLProgressElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLProgressElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

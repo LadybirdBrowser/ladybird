@@ -294,7 +294,7 @@ void SVGElement::remove_from_use_element_that_reference_this()
     }
 }
 
-void SVGElement::adjust_computed_style(CSS::ComputedProperties& computed_properties)
+void SVGElement::adjust_computed_style(CSS::ComputedProperties::Builder& computed_properties)
 {
     Base::adjust_computed_style(computed_properties);
 

@@ -24,7 +24,7 @@ public:
     virtual ~HTMLIFrameElement() override;
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
-    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
 
     // ^EventTarget
     virtual bool is_focusable() const override

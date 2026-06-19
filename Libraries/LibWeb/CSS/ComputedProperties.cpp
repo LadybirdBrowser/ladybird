@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/TypeCasts.h>
 #include <LibCore/DirIterator.h>
@@ -58,112 +59,247 @@ namespace Web::CSS {
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u64) * 8);
 
-ComputedProperties::ComputedProperties() = default;
+static size_t property_bitmap_index(PropertyID property_id)
+{
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+    return to_underlying(property_id) - to_underlying(first_longhand_property_id);
+}
+
+ComputedProperties::Builder::Builder()
+    : m_data(adopt_ref(*new Data))
+    , m_style(adopt_ref(*new ComputedProperties(m_data, false, false)))
+{
+}
+
+ComputedProperties::Builder::Builder(ComputedProperties const& style)
+    : Builder()
+{
+    m_data->property_values = style.data().property_values;
+    m_data->property_important = style.data().property_important;
+    m_data->property_inherited = style.data().property_inherited;
+    m_data->display_before_box_type_transformation = style.data().display_before_box_type_transformation;
+    m_data->pseudo_element_styles = style.data().pseudo_element_styles;
+    m_data->line_height = style.data().line_height;
+    m_data->inheritance_dependent_specified_values = style.data().inheritance_dependent_specified_values;
+    m_data->raw_cascaded_font_size = style.data().raw_cascaded_font_size;
+    m_depends_on_viewport_metrics = style.depends_on_viewport_metrics();
+    m_font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics();
+    m_style->m_depends_on_viewport_metrics = m_depends_on_viewport_metrics;
+    m_style->m_font_metrics_depend_on_viewport_metrics = m_font_metrics_depend_on_viewport_metrics;
+    if (style.m_animated_properties)
+        m_style->m_animated_properties = adopt_ref(*new AnimatedProperties(*style.m_animated_properties));
+}
+
+NonnullRefPtr<ComputedProperties> ComputedProperties::Builder::build() &&
+{
+    m_style->m_depends_on_viewport_metrics = m_depends_on_viewport_metrics;
+    m_style->m_font_metrics_depend_on_viewport_metrics = m_font_metrics_depend_on_viewport_metrics;
+    return move(m_style);
+}
+
+ComputedProperties::Builder ComputedProperties::create_builder()
+{
+    return Builder {};
+}
+
+ComputedProperties::Builder ComputedProperties::create_builder_with_base_values_from(ComputedProperties const& style)
+{
+    return Builder { style };
+}
+
+NonnullRefPtr<ComputedProperties> ComputedProperties::create(Builder&& builder)
+{
+    return move(builder).build();
+}
+
+AnimatedProperties::AnimatedProperties(AnimatedProperties const& other)
+    : m_has_property(other.m_has_property)
+    , m_property_inherited(other.m_property_inherited)
+    , m_property_result_of_transition(other.m_property_result_of_transition)
+    , m_values(other.m_values)
+{
+}
+
+ComputedProperties::ComputedProperties(NonnullRefPtr<Data const> data, bool depends_on_viewport_metrics, bool font_metrics_depend_on_viewport_metrics)
+    : m_data(move(data))
+    , m_depends_on_viewport_metrics(depends_on_viewport_metrics)
+    , m_font_metrics_depend_on_viewport_metrics(font_metrics_depend_on_viewport_metrics)
+{
+}
 
 ComputedProperties::~ComputedProperties() = default;
 
-NonnullRefPtr<ComputedProperties> ComputedProperties::create()
+AnimatedProperties const& ComputedProperties::animated_properties() const
 {
-    return adopt_ref(*new ComputedProperties);
+    static NeverDestroyed<AnimatedProperties> empty_animated_properties;
+    if (!m_animated_properties)
+        return *empty_animated_properties;
+    return *m_animated_properties;
+}
+
+AnimatedProperties& ComputedProperties::mutable_animated_properties()
+{
+    if (!m_animated_properties)
+        m_animated_properties = adopt_ref(*new AnimatedProperties);
+    if (m_animated_properties->ref_count() > 1)
+        m_animated_properties = adopt_ref(*new AnimatedProperties(*m_animated_properties));
+    return *m_animated_properties;
+}
+
+bool AnimatedProperties::has_property(PropertyID property_id) const
+{
+    return m_has_property.get(property_bitmap_index(property_id));
+}
+
+bool AnimatedProperties::is_property_inherited(PropertyID property_id) const
+{
+    return m_property_inherited.get(property_bitmap_index(property_id));
+}
+
+bool AnimatedProperties::is_property_result_of_transition(PropertyID property_id) const
+{
+    return m_property_result_of_transition.get(property_bitmap_index(property_id));
+}
+
+StyleValue const& AnimatedProperties::property(PropertyID property_id) const
+{
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+    VERIFY(has_property(property_id));
+
+    auto animated_value = m_values.get(property_id);
+    VERIFY(animated_value.has_value());
+    return *animated_value.value();
+}
+
+void AnimatedProperties::set_property_inherited(PropertyID property_id, ComputedProperties::Inherited inherited)
+{
+    m_property_inherited.set(property_bitmap_index(property_id), inherited == ComputedProperties::Inherited::Yes);
+}
+
+void AnimatedProperties::set_property_result_of_transition(PropertyID property_id, AnimatedPropertyResultOfTransition animated_value_result_of_transition)
+{
+    m_property_result_of_transition.set(property_bitmap_index(property_id), animated_value_result_of_transition == AnimatedPropertyResultOfTransition::Yes);
+}
+
+void AnimatedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition animated_property_result_of_transition, ComputedProperties::Inherited inherited)
+{
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+
+    m_values.set(id, move(value));
+
+    m_has_property.set(property_bitmap_index(id), true);
+
+    set_property_inherited(id, inherited);
+    set_property_result_of_transition(id, animated_property_result_of_transition);
+}
+
+void AnimatedProperties::remove_property(PropertyID id)
+{
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+
+    m_values.remove(id);
+
+    m_has_property.set(property_bitmap_index(id), false);
+    set_property_inherited(id, ComputedProperties::Inherited::No);
+    set_property_result_of_transition(id, AnimatedPropertyResultOfTransition::No);
+}
+
+void AnimatedProperties::reset_non_inherited_properties()
+{
+    for (auto property_id : m_values.keys()) {
+        if (!is_property_inherited(property_id))
+            remove_property(property_id);
+    }
 }
 
 bool ComputedProperties::is_property_important(PropertyID property_id) const
 {
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-
-    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
-    return m_property_important[n / 8] & (1 << (n % 8));
+    return data().property_important.get(property_bitmap_index(property_id));
 }
 
-void ComputedProperties::set_property_important(PropertyID property_id, Important important)
+void ComputedProperties::Builder::set_property_important(PropertyID property_id, Important important)
 {
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-
-    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
-    if (important == Important::Yes)
-        m_property_important[n / 8] |= (1 << (n % 8));
-    else
-        m_property_important[n / 8] &= ~(1 << (n % 8));
+    data().property_important.set(property_bitmap_index(property_id), important == Important::Yes);
 }
 
 bool ComputedProperties::is_property_inherited(PropertyID property_id) const
 {
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+    return data().property_inherited.get(property_bitmap_index(property_id));
+}
 
-    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
-    return m_property_inherited[n / 8] & (1 << (n % 8));
+HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& ComputedProperties::animated_property_values() const
+{
+    return animated_properties().values();
+}
+
+RefPtr<AnimatedProperties const> ComputedProperties::animated_properties_snapshot() const
+{
+    return m_animated_properties;
+}
+
+bool ComputedProperties::has_animated_property(PropertyID property_id) const
+{
+    return animated_properties().has_property(property_id);
 }
 
 bool ComputedProperties::is_animated_property_inherited(PropertyID property_id) const
 {
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-
-    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
-    return m_animated_property_inherited[n / 8] & (1 << (n % 8));
+    return animated_properties().is_property_inherited(property_id);
 }
 
 bool ComputedProperties::is_animated_property_result_of_transition(PropertyID property_id) const
 {
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-
-    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
-    return m_animated_property_result_of_transition[n / 8] & (1 << (n % 8));
+    return animated_properties().is_property_result_of_transition(property_id);
 }
 
 bool ComputedProperties::has_pseudo_element_style(PseudoElement pseudo_element) const
 {
     VERIFY(to_underlying(pseudo_element) < to_underlying(PseudoElement::KnownPseudoElementCount));
-    return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element));
+    return data().pseudo_element_styles & (1ull << to_underlying(pseudo_element));
 }
 
-void ComputedProperties::set_has_pseudo_element_styles(u64 pseudo_element_styles)
+void ComputedProperties::Builder::set_has_pseudo_element_styles(u64 pseudo_element_styles)
 {
     constexpr auto known_pseudo_element_count = to_underlying(PseudoElement::KnownPseudoElementCount);
     if constexpr (known_pseudo_element_count < sizeof(u64) * 8)
         VERIFY((pseudo_element_styles >> known_pseudo_element_count) == 0);
-    m_pseudo_element_styles |= pseudo_element_styles;
+    data().pseudo_element_styles |= pseudo_element_styles;
 }
 
-void ComputedProperties::set_property_inherited(PropertyID property_id, Inherited inherited)
+void ComputedProperties::Builder::set_property_inherited(PropertyID property_id, Inherited inherited)
 {
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-
-    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
-    if (inherited == Inherited::Yes)
-        m_property_inherited[n / 8] |= (1 << (n % 8));
-    else
-        m_property_inherited[n / 8] &= ~(1 << (n % 8));
+    data().property_inherited.set(property_bitmap_index(property_id), inherited == Inherited::Yes);
 }
 
-void ComputedProperties::set_animated_property_inherited(PropertyID property_id, Inherited inherited)
+void ComputedProperties::Builder::set_depends_on_viewport_metrics()
 {
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-
-    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
-    if (inherited == Inherited::Yes)
-        m_animated_property_inherited[n / 8] |= (1 << (n % 8));
-    else
-        m_animated_property_inherited[n / 8] &= ~(1 << (n % 8));
+    m_depends_on_viewport_metrics = true;
+    m_style->m_depends_on_viewport_metrics = true;
 }
 
-void ComputedProperties::set_animated_property_result_of_transition(PropertyID property_id, AnimatedPropertyResultOfTransition animated_value_result_of_transition)
+void ComputedProperties::Builder::set_font_metrics_depend_on_viewport_metrics()
 {
-    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-
-    size_t n = to_underlying(property_id) - to_underlying(first_longhand_property_id);
-    if (animated_value_result_of_transition == AnimatedPropertyResultOfTransition::Yes)
-        m_animated_property_result_of_transition[n / 8] |= (1 << (n % 8));
-    else
-        m_animated_property_result_of_transition[n / 8] &= ~(1 << (n % 8));
+    m_font_metrics_depend_on_viewport_metrics = true;
+    m_style->m_font_metrics_depend_on_viewport_metrics = true;
 }
 
-void ComputedProperties::set_has_pseudo_element_style(PseudoElement pseudo_element)
+void ComputedProperties::set_depends_on_viewport_metrics(Badge<StyleComputer>)
+{
+    m_depends_on_viewport_metrics = true;
+}
+
+void ComputedProperties::set_font_metrics_depend_on_viewport_metrics(Badge<StyleComputer>)
+{
+    m_font_metrics_depend_on_viewport_metrics = true;
+}
+
+void ComputedProperties::Builder::set_has_pseudo_element_style(PseudoElement pseudo_element)
 {
     VERIFY(to_underlying(pseudo_element) < to_underlying(PseudoElement::KnownPseudoElementCount));
-    m_pseudo_element_styles |= 1ull << to_underlying(pseudo_element);
+    data().pseudo_element_styles |= 1ull << to_underlying(pseudo_element);
 }
 
-void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
+void ComputedProperties::Builder::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
 {
     VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
 
@@ -177,56 +313,97 @@ static bool property_affects_computed_font_list(PropertyID id)
     return first_is_one_of(id, PropertyID::FontFamily, PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontVariationSettings);
 }
 
-void ComputedProperties::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value)
+void ComputedProperties::Builder::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value)
 {
     VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
 
-    m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
+    data().property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
 
     if (property_affects_computed_font_list(id))
-        clear_computed_font_list_cache();
+        style().clear_computed_font_list_cache();
 }
 
-void ComputedProperties::revert_property(PropertyID id, ComputedProperties const& style_for_revert)
+void ComputedProperties::Builder::revert_property(PropertyID id, ComputedProperties const& style_for_revert)
 {
     VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
 
-    m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = style_for_revert.m_property_values[to_underlying(id) - to_underlying(first_longhand_property_id)];
+    data().property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = style_for_revert.data().property_values[to_underlying(id) - to_underlying(first_longhand_property_id)];
     set_property_important(id, style_for_revert.is_property_important(id) ? Important::Yes : Important::No);
     set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
+
+    if (property_affects_computed_font_list(id))
+        style().clear_computed_font_list_cache();
 }
 
 Display ComputedProperties::display_before_box_type_transformation() const
 {
-    return m_display_before_box_type_transformation;
+    return data().display_before_box_type_transformation;
 }
 
-void ComputedProperties::set_display_before_box_type_transformation(Display value)
+void ComputedProperties::Builder::set_display_before_box_type_transformation(Display value)
 {
-    m_display_before_box_type_transformation = value;
+    data().display_before_box_type_transformation = value;
 }
 
-void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition animated_property_result_of_transition, Inherited inherited)
+void ComputedProperties::set_animated_property_internal(PropertyID id, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition animated_property_result_of_transition, Inherited inherited)
 {
-    m_animated_property_values.set(id, move(value));
-    set_animated_property_inherited(id, inherited);
-    set_animated_property_result_of_transition(id, animated_property_result_of_transition);
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+
+    mutable_animated_properties().set_property(id, move(value), animated_property_result_of_transition, inherited);
 
     if (property_affects_computed_font_list(id))
         clear_computed_font_list_cache();
 }
 
-void ComputedProperties::remove_animated_property(PropertyID id)
+void ComputedProperties::set_animated_property(Badge<StyleComputer>, PropertyID id, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition animated_property_result_of_transition, Inherited inherited)
 {
-    m_animated_property_values.remove(id);
+    set_animated_property_internal(id, move(value), animated_property_result_of_transition, inherited);
+}
+
+void ComputedProperties::set_animated_property(Badge<DOM::Element>, PropertyID id, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition animated_property_result_of_transition, Inherited inherited)
+{
+    set_animated_property_internal(id, move(value), animated_property_result_of_transition, inherited);
+}
+
+void ComputedProperties::remove_animated_property(Badge<DOM::Element>, PropertyID id)
+{
+    if (!has_animated_property(id))
+        return;
+
+    bool should_clear_computed_font_list_cache = property_affects_computed_font_list(id);
+    auto& animated_properties = mutable_animated_properties();
+    animated_properties.remove_property(id);
+    if (animated_properties.is_empty())
+        m_animated_properties = nullptr;
+
+    if (should_clear_computed_font_list_cache)
+        clear_computed_font_list_cache();
 }
 
 void ComputedProperties::reset_non_inherited_animated_properties(Badge<Animations::KeyframeEffect>)
 {
-    for (auto property_id : m_animated_property_values.keys()) {
-        if (!is_animated_property_inherited(property_id))
-            m_animated_property_values.remove(property_id);
+    bool has_non_inherited_property = false;
+    bool should_clear_computed_font_list_cache = false;
+    for (auto const& property : animated_property_values()) {
+        if (is_animated_property_inherited(property.key))
+            continue;
+        has_non_inherited_property = true;
+        if (property_affects_computed_font_list(property.key)) {
+            should_clear_computed_font_list_cache = true;
+            break;
+        }
     }
+
+    if (!has_non_inherited_property)
+        return;
+
+    auto& animated_properties = mutable_animated_properties();
+    animated_properties.reset_non_inherited_properties();
+    if (animated_properties.is_empty())
+        m_animated_properties = nullptr;
+
+    if (should_clear_computed_font_list_cache)
+        clear_computed_font_list_cache();
 }
 
 StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnimationsApplied return_animated_value) const
@@ -234,14 +411,14 @@ StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnima
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
 
     // Important properties override animated but not transitioned properties
-    if (!m_animated_property_values.is_empty() && return_animated_value == WithAnimationsApplied::Yes
+    if (return_animated_value == WithAnimationsApplied::Yes
+        && has_animated_property(property_id)
         && (!is_property_important(property_id) || is_animated_property_result_of_transition(property_id))) {
-        if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
-            return *animated_value.value();
+        return animated_properties().property(property_id);
     }
 
     // By the time we call this method, the property should have been assigned
-    return *m_property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
+    return *data().property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
 }
 
 Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(PropertyID id) const
@@ -1017,9 +1194,9 @@ Positioning ComputedProperties::position() const
 
 bool ComputedProperties::operator==(ComputedProperties const& other) const
 {
-    for (size_t i = 0; i < m_property_values.size(); ++i) {
-        auto const& my_style = m_property_values[i];
-        auto const& other_style = other.m_property_values[i];
+    for (size_t i = 0; i < data().property_values.size(); ++i) {
+        auto const& my_style = data().property_values[i];
+        auto const& other_style = other.data().property_values[i];
         if (!my_style) {
             if (other_style)
                 return false;
@@ -2052,7 +2229,7 @@ Optional<FlyString> ComputedProperties::view_transition_name() const
     return {};
 }
 
-Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations(DOM::AbstractElement const& abstract_element) const
+Vector<AnimationProperties> ComputedProperties::animations(DOM::AbstractElement const& abstract_element) const
 {
     auto const& animation_name_values = property(PropertyID::AnimationName).as_value_list().values();
 
@@ -2435,7 +2612,7 @@ WillChange ComputedProperties::will_change() const
 ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedProperties::computed_font_list(FontComputer const& font_computer) const
 {
     if (!m_cached_computed_font_list) {
-        const_cast<ComputedProperties*>(this)->m_cached_computed_font_list = font_computer.compute_font_for_style_values(property(PropertyID::FontFamily), font_size(), font_slope(), font_weight(), font_width(), font_optical_sizing(), font_variation_settings(), font_feature_data());
+        m_cached_computed_font_list = font_computer.compute_font_for_style_values(property(PropertyID::FontFamily), font_size(), font_slope(), font_weight(), font_width(), font_optical_sizing(), font_variation_settings(), font_feature_data());
         VERIFY(!m_cached_computed_font_list->is_empty());
     }
 
@@ -2447,7 +2624,7 @@ ValueComparingNonnullRefPtr<Gfx::Font const> ComputedProperties::first_available
     if (!m_cached_first_available_computed_font) {
         // https://drafts.csswg.org/css-fonts/#first-available-font
         // First font for which the character U+0020 (space) is not excluded by a unicode-range
-        const_cast<ComputedProperties*>(this)->m_cached_first_available_computed_font = computed_font_list(font_computer)->font_for_code_point(' ');
+        m_cached_first_available_computed_font = computed_font_list(font_computer)->font_for_code_point(' ');
     }
 
     return *m_cached_first_available_computed_font;

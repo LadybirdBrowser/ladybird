@@ -1006,7 +1006,17 @@ static Optional<CSS::EasingFunction> resolve_keyframe_easing(CSS::StyleValue con
     return {};
 }
 
+void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties::Builder& builder) const
+{
+    collect_animation_into(abstract_element, effect, builder.style(), &builder);
+}
+
 void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties) const
+{
+    collect_animation_into(abstract_element, effect, computed_properties, nullptr);
+}
+
+void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties, ComputedProperties::Builder* builder) const
 {
     auto animation = effect->associated_animation();
     if (!animation)
@@ -1083,7 +1093,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     }
 
     // FIXME: Follow https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes in whatever the right place is.
-    auto compute_keyframe_values = [&computed_properties, &abstract_element, this](auto const& keyframe_values) {
+    auto compute_keyframe_values = [&computed_properties, &abstract_element, builder, this](auto const& keyframe_values) {
         HashMap<PropertyID, RefPtr<StyleValue const>> result;
         HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
         AK::FixedBitmap<number_of_longhand_properties> property_is_set_by_use_initial(false);
@@ -1215,9 +1225,15 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             computation_context.reset_viewport_metric_dependency_tracking();
             result.set(property_id, compute_value_of_property(property_id, *style_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel()));
             if (computation_context.depends_on_viewport_metrics()) {
-                computed_properties.set_depends_on_viewport_metrics();
-                if (property_affects_font_metrics(property_id))
-                    computed_properties.set_font_metrics_depend_on_viewport_metrics();
+                if (builder) {
+                    builder->set_depends_on_viewport_metrics();
+                    if (property_affects_font_metrics(property_id))
+                        builder->set_font_metrics_depend_on_viewport_metrics();
+                } else {
+                    computed_properties.set_depends_on_viewport_metrics(Badge<StyleComputer> {});
+                    if (property_affects_font_metrics(property_id))
+                        computed_properties.set_font_metrics_depend_on_viewport_metrics(Badge<StyleComputer> {});
+                }
             }
         }
 
@@ -1253,7 +1269,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
         if (!resolved_end_property) {
             if (resolved_start_property) {
-                computed_properties.set_animated_property(it.key, *resolved_start_property, is_result_of_transition);
+                computed_properties.set_animated_property(Badge<StyleComputer> {}, it.key, *resolved_start_property, is_result_of_transition);
                 dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(it.key), resolved_start_property->to_string(SerializationMode::Normal));
             }
             continue;
@@ -1283,11 +1299,11 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
         if (auto next_value = interpolate_property(*effect->target(), it.key, *start, *end, progress_in_keyframe, AllowDiscrete::Yes)) {
             dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal), next_value->to_string(SerializationMode::Normal));
-            computed_properties.set_animated_property(it.key, *next_value, is_result_of_transition);
+            computed_properties.set_animated_property(Badge<StyleComputer> {}, it.key, *next_value, is_result_of_transition);
         } else {
             // If interpolate_property() fails, the element should not be rendered
             dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(SerializationMode::Normal), end->to_string(SerializationMode::Normal));
-            computed_properties.set_animated_property(PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), is_result_of_transition);
+            computed_properties.set_animated_property(Badge<StyleComputer> {}, PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), is_result_of_transition);
         }
     }
 }
@@ -1431,8 +1447,10 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
-void StyleComputer::start_needed_transitions(ComputedProperties const& previous_style, ComputedProperties& new_style, DOM::AbstractElement abstract_element) const
+void StyleComputer::start_needed_transitions(ComputedProperties const& previous_style, ComputedProperties::Builder& new_style_builder, DOM::AbstractElement abstract_element) const
 {
+    auto& new_style = new_style_builder.style();
+
     // https://drafts.csswg.org/css-transitions/#transition-combined-duration
     auto combined_duration = [](Animations::Animatable::TransitionAttributes const& transition_attributes) {
         // Define the combined duration of the transition as the sum of max(matching transition duration, 0s) and the matching transition delay.
@@ -1468,7 +1486,7 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
             auto transition = CSSTransition::start_a_transition(abstract_element, property_id,
                 document().transition_generation(), delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             // Immediately set the property's value to the transition's current value, to prevent single-frame jumps.
-            collect_animation_into(abstract_element, as<Animations::KeyframeEffect>(*transition->effect()), new_style);
+            collect_animation_into(abstract_element, as<Animations::KeyframeEffect>(*transition->effect()), new_style_builder);
         };
 
         // 1. If all of the following are true:
@@ -2257,6 +2275,9 @@ Optional<StyleComputer::AnimatedInheritValue> StyleComputer::get_animated_inheri
     if (!parent_element.has_value() || !parent_element->computed_properties())
         return {};
 
+    if (!parent_element->computed_properties()->has_animated_property(property_id))
+        return {};
+
     if (auto animated_value = parent_element->computed_properties()->animated_property_values().get(property_id); animated_value.has_value())
         return AnimatedInheritValue {
             .value = *animated_value.value(),
@@ -2349,9 +2370,10 @@ static bool line_height_value_depends_on_computed_font_size(StyleValue const& va
         || (value.is_calculated() && value.as_calculated().contains_percentage());
 }
 
-void StyleComputer::compute_property_values(ComputedProperties& style, Optional<DOM::AbstractElement> abstract_element) const
+void StyleComputer::compute_property_values(ComputedProperties::Builder& builder, Optional<DOM::AbstractElement> abstract_element) const
 {
     VERIFY(computation_context_cache_is_empty());
+    auto& style = builder.style();
     // NOTE: This doesn't necessarily return the specified value if we have already computed this property but that
     //       doesn't matter as a computed value is always valid as a specified value.
     Function<NonnullRefPtr<StyleValue const>(PropertyID)> const get_property_specified_value = [&](auto property_id) -> NonnullRefPtr<StyleValue const> {
@@ -2367,19 +2389,19 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
         computation_context.reset_viewport_metric_dependency_tracking();
         auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
         if (computation_context.depends_on_viewport_metrics()) {
-            style.set_depends_on_viewport_metrics();
+            builder.set_depends_on_viewport_metrics();
             if (property_affects_font_metrics(property_id))
-                style.set_font_metrics_depend_on_viewport_metrics();
+                builder.set_font_metrics_depend_on_viewport_metrics();
         }
 
-        style.set_property_without_modifying_flags(property_id, computed_value);
+        builder.set_property_without_modifying_flags(property_id, computed_value);
     }
 
     clear_computation_context_caches();
 
     if (abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element())) {
         m_root_element_font_metrics = calculate_root_element_font_metrics(style);
-        m_root_element_font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics();
+        m_root_element_font_metrics_depend_on_viewport_metrics = builder.font_metrics_depend_on_viewport_metrics();
     }
 }
 
@@ -2490,8 +2512,9 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
     VERIFY_NOT_REACHED();
 }
 
-void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style) const
+void StyleComputer::resolve_effective_overflow_values(ComputedProperties::Builder& builder) const
 {
+    auto& style = builder.style();
     // https://www.w3.org/TR/css-overflow-3/#overflow-control
     // The visible/clip values of overflow compute to auto/hidden (respectively) if one of overflow-x or
     // overflow-y is neither visible nor clip.
@@ -2501,18 +2524,19 @@ void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style)
     auto overflow_y_is_visible_or_clip = overflow_y == Overflow::Visible || overflow_y == Overflow::Clip;
     if (!overflow_x_is_visible_or_clip || !overflow_y_is_visible_or_clip) {
         if (overflow_x == CSS::Overflow::Visible)
-            style.set_property(CSS::PropertyID::OverflowX, KeywordStyleValue::create(Keyword::Auto));
+            builder.set_property(CSS::PropertyID::OverflowX, KeywordStyleValue::create(Keyword::Auto));
         if (overflow_x == CSS::Overflow::Clip)
-            style.set_property(CSS::PropertyID::OverflowX, KeywordStyleValue::create(Keyword::Hidden));
+            builder.set_property(CSS::PropertyID::OverflowX, KeywordStyleValue::create(Keyword::Hidden));
         if (overflow_y == CSS::Overflow::Visible)
-            style.set_property(CSS::PropertyID::OverflowY, KeywordStyleValue::create(Keyword::Auto));
+            builder.set_property(CSS::PropertyID::OverflowY, KeywordStyleValue::create(Keyword::Auto));
         if (overflow_y == CSS::Overflow::Clip)
-            style.set_property(CSS::PropertyID::OverflowY, KeywordStyleValue::create(Keyword::Hidden));
+            builder.set_property(CSS::PropertyID::OverflowY, KeywordStyleValue::create(Keyword::Hidden));
     }
 }
 
-static void compute_text_align(ComputedProperties& style, DOM::AbstractElement abstract_element)
+static void compute_text_align(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element)
 {
+    auto& style = builder.style();
     auto text_align_keyword = style.property(PropertyID::TextAlign).to_keyword();
 
     // https://drafts.csswg.org/css-text-4/#valdef-text-align-match-parent
@@ -2526,25 +2550,25 @@ static void compute_text_align(ComputedProperties& style, DOM::AbstractElement a
             switch (parent_text_align.to_keyword()) {
             case Keyword::Start:
                 if (parent_direction == Direction::Ltr) {
-                    style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
+                    builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
                 } else {
-                    style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
+                    builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
                 }
                 break;
 
             case Keyword::End:
                 if (parent_direction == Direction::Ltr) {
-                    style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
+                    builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Right));
                 } else {
-                    style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
+                    builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Left));
                 }
                 break;
 
             default:
-                style.set_property(PropertyID::TextAlign, parent_text_align);
+                builder.set_property(PropertyID::TextAlign, parent_text_align);
             }
         } else {
-            style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Start));
+            builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Start));
         }
     }
 
@@ -2555,11 +2579,11 @@ static void compute_text_align(ComputedProperties& style, DOM::AbstractElement a
         if (parent_element.has_value() && parent_element->computed_properties()) {
             auto const& parent_text_align = parent_element->computed_properties()->property(PropertyID::TextAlign);
             if (parent_text_align.to_keyword() != Keyword::Start) {
-                style.set_property(PropertyID::TextAlign, parent_text_align, ComputedProperties::Inherited::Yes);
+                builder.set_property(PropertyID::TextAlign, parent_text_align, ComputedProperties::Inherited::Yes);
                 return;
             }
         }
-        style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Center));
+        builder.set_property(PropertyID::TextAlign, KeywordStyleValue::create(Keyword::Center));
     }
 }
 
@@ -2601,8 +2625,9 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
 }
 
 // https://drafts.csswg.org/css-display/#transformations
-void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM::AbstractElement abstract_element) const
+void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element) const
 {
+    auto& style = builder.style();
     // 2.7. Automatic Box Type Transformations
 
     // Some layout effects require blockification or inlinification of the box type,
@@ -2611,7 +2636,7 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
 
     auto display = style.display();
 
-    style.set_display_before_box_type_transformation(display);
+    builder.set_display_before_box_type_transformation(display);
 
     if (display.is_none() || (display.is_contents() && !abstract_element.element().is_document_element()))
         return;
@@ -2619,7 +2644,7 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
     // https://drafts.csswg.org/css-display/#root
     // The root element’s display type is always blockified, and its principal box always establishes an independent formatting context.
     if (abstract_element.element().is_document_element() && !display.is_block_outside()) {
-        style.set_property(PropertyID::Display, DisplayStyleValue::create(Display::from_short(Display::Short::Block)));
+        builder.set_property(PropertyID::Display, DisplayStyleValue::create(Display::from_short(Display::Short::Block)));
         return;
     }
 
@@ -2645,7 +2670,7 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
     // https://www.w3.org/TR/CSS2/visuren.html#dis-pos-flo
     // If 'position' has the value 'absolute' or 'fixed', [...] 'float' is set to 'none'
     if (style.position() == Positioning::Absolute || style.position() == Positioning::Fixed)
-        style.set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
+        builder.set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
 
     switch (required_box_type_transformation(style, abstract_element)) {
     case BoxTypeTransformation::None:
@@ -2694,22 +2719,22 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
     }
 
     if (new_display != display)
-        style.set_property(PropertyID::Display, DisplayStyleValue::create(new_display));
+        builder.set_property(PropertyID::Display, DisplayStyleValue::create(new_display));
 }
 
 NonnullRefPtr<ComputedProperties> StyleComputer::create_document_style() const
 {
-    auto style = CSS::ComputedProperties::create();
+    auto builder = CSS::ComputedProperties::create_builder();
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<PropertyID>(i);
-        style->set_property(property_id, property_initial_value(property_id));
+        builder.set_property(property_id, property_initial_value(property_id));
     }
 
-    compute_property_values(style, {});
-    style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
-    style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
-    style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
-    return style;
+    compute_property_values(builder, {});
+    builder.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
+    builder.set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
+    builder.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
+    return CSS::ComputedProperties::create(move(builder));
 }
 
 NonnullRefPtr<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
@@ -2762,10 +2787,11 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         else
             abstract_element_for_pseudo_element.set_inheritance_override(host_element);
 
-        auto style = compute_style(abstract_element_for_pseudo_element);
+        auto inherited_pseudo_element_style = compute_style(abstract_element_for_pseudo_element);
+        auto builder = ComputedProperties::create_builder_with_base_values_from(*inherited_pseudo_element_style);
 
-        abstract_element.element().adjust_computed_style(style);
-        return style;
+        abstract_element.element().adjust_computed_style(builder);
+        return ComputedProperties::create(move(builder));
     }
 
     ScopeGuard guard { [&abstract_element]() { abstract_element.element().set_needs_style_update(false); } };
@@ -2871,8 +2897,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         }
     }
 
-    auto computed_properties = compute_properties(abstract_element, cascaded_properties);
-    computed_properties->set_has_pseudo_element_styles(matching_rule_set.matching_pseudo_element_styles);
+    auto computed_properties = compute_properties(abstract_element, cascaded_properties, matching_rule_set.matching_pseudo_element_styles);
 
     if (did_change_custom_properties.has_value()) {
         auto new_custom_property_data = abstract_element.custom_property_data();
@@ -3001,32 +3026,34 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
     return CSS::LengthStyleValue::create(CSS::Length::make_px(current_size_in_px));
 }
 
-NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties) const
+NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles) const
 {
     VERIFY(computation_context_cache_is_empty());
 
-    auto computed_style = CSS::ComputedProperties::create();
+    auto builder = CSS::ComputedProperties::create_builder();
+    auto& computed_style = builder.style();
+    builder.set_has_pseudo_element_styles(matching_pseudo_element_styles);
 
     bool recascaded_font_size_depends_on_viewport_metrics = false;
     auto new_font_size = recascade_font_size_if_needed(abstract_element, cascaded_properties, recascaded_font_size_depends_on_viewport_metrics);
     if (new_font_size) {
-        computed_style->set_property(PropertyID::FontSize, *new_font_size, ComputedProperties::Inherited::No, Important::No);
+        builder.set_property(PropertyID::FontSize, *new_font_size, ComputedProperties::Inherited::No, Important::No);
         if (recascaded_font_size_depends_on_viewport_metrics) {
-            computed_style->set_depends_on_viewport_metrics();
-            computed_style->set_font_metrics_depend_on_viewport_metrics();
+            builder.set_depends_on_viewport_metrics();
+            builder.set_font_metrics_depend_on_viewport_metrics();
         }
     }
 
     auto const& computed_properties_to_inherit_from = abstract_element.element_to_inherit_style_from().map([](auto const& element) { return element.computed_properties(); }).value_or(nullptr);
 
     Function<NonnullRefPtr<StyleValue const>(PropertyID)> const get_property_specified_value = [&](auto property_id) -> NonnullRefPtr<StyleValue const> {
-        return computed_style->property(property_id);
+        return computed_style.property(property_id);
     };
 
     auto const device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel();
 
     auto const compute_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> const& style_value, bool& depends_on_viewport_metrics) {
-        auto const& computation_context = get_computation_context_for_property(property_id, *computed_style, abstract_element);
+        auto const& computation_context = get_computation_context_for_property(property_id, computed_style, abstract_element);
         computation_context.reset_viewport_metric_dependency_tracking();
         auto computed_value = compute_value_of_property(property_id, style_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
         if (computation_context.depends_on_viewport_metrics())
@@ -3037,7 +3064,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     Optional<LogicalAliasMappingContext> logical_alias_mapping_context;
     auto const get_logical_alias_mapping_context = [&]() {
         if (!logical_alias_mapping_context.has_value())
-            logical_alias_mapping_context = LogicalAliasMappingContext { computed_style->writing_mode(), computed_style->direction() };
+            logical_alias_mapping_context = LogicalAliasMappingContext { computed_style.writing_mode(), computed_style.direction() };
 
         return *logical_alias_mapping_context;
     };
@@ -3074,7 +3101,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
         if (auto cascaded_style_property = cascaded_properties.style_property(cascaded_property_id); cascaded_style_property.has_value()) {
             if (cascaded_style_property->important == Important::Yes)
-                computed_style->set_property_important(property_id, Important::Yes);
+                builder.set_property_important(property_id, Important::Yes);
             value = cascaded_style_property->value;
             requires_computation = property_requires_computation_with_cascaded_value(property_id);
 
@@ -3082,7 +3109,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             // font-size when font-family is monospace.
             // See the recascade_font_size_if_needed() function for further details.
             if (property_id == PropertyID::FontSize)
-                computed_style->set_raw_cascaded_font_size(*cascaded_style_property->value);
+                builder.set_raw_cascaded_font_size(*cascaded_style_property->value);
         }
 
         // NOTE: We've already handled font-size above.
@@ -3109,21 +3136,25 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                 if (auto* parent = abstract_element.element().parent(); parent && is<DOM::ShadowRoot>(*parent))
                     parent->set_children_may_depend_on_non_inherited_property_inheritance();
             }
-            computed_style->set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
+            builder.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
             value = computed_properties_to_inherit_from->property(inherited_property_id, ComputedProperties::WithAnimationsApplied::No);
             requires_computation = property_requires_computation_with_inherited_value(property_id);
             if (property_affects_font_metrics(inherited_property_id) && computed_properties_to_inherit_from->font_metrics_depend_on_viewport_metrics())
-                computed_style->set_font_metrics_depend_on_viewport_metrics();
+                builder.set_font_metrics_depend_on_viewport_metrics();
 
             // FIXME: Do we need to recompute animated inherited values?
-            if (auto animated_value = computed_properties_to_inherit_from->animated_property_values().get(inherited_property_id); animated_value.has_value())
-                computed_style->set_animated_property(
+            if (computed_properties_to_inherit_from->has_animated_property(inherited_property_id)) {
+                auto animated_value = computed_properties_to_inherit_from->animated_property_values().get(inherited_property_id);
+                VERIFY(animated_value.has_value());
+                computed_style.set_animated_property(
+                    Badge<StyleComputer> {},
                     property_id,
                     *animated_value.value(),
                     computed_properties_to_inherit_from->is_animated_property_result_of_transition(inherited_property_id)
                         ? AnimatedPropertyResultOfTransition::Yes
                         : AnimatedPropertyResultOfTransition::No,
                     ComputedProperties::Inherited::Yes);
+            }
         }
 
         if (!value || value->is_initial() || value->is_unset() || (should_inherit && !computed_properties_to_inherit_from)) {
@@ -3138,7 +3169,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             || (property_id == PropertyID::FontSize && font_size_value_depends_on_inherited_font_size(*value))
             || (property_id == PropertyID::LineHeight && line_height_value_depends_on_computed_font_size(*value));
         if (depends_on_inherited_info)
-            computed_style->add_inheritance_dependent_specified_value(property_id, *value);
+            builder.add_inheritance_dependent_specified_value(property_id, *value);
 
         // NB: We compute using the inherited (physical) property to avoid having to add cases for all the logical
         //     alias properties in `compute_value_of_property`
@@ -3147,16 +3178,16 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             ? compute_property(inherited_property_id, value.release_nonnull(), depends_on_viewport_metrics)
             : value.release_nonnull();
         if (depends_on_viewport_metrics) {
-            computed_style->set_depends_on_viewport_metrics();
+            builder.set_depends_on_viewport_metrics();
             if (property_affects_font_metrics(inherited_property_id))
-                computed_style->set_font_metrics_depend_on_viewport_metrics();
+                builder.set_font_metrics_depend_on_viewport_metrics();
         }
-        computed_style->set_property_without_modifying_flags(property_id, move(computed_value));
+        builder.set_property_without_modifying_flags(property_id, move(computed_value));
     }
 
     if (is<HTML::HTMLHtmlElement>(abstract_element.element())) {
         m_root_element_font_metrics = calculate_root_element_font_metrics(computed_style);
-        m_root_element_font_metrics_depend_on_viewport_metrics = computed_style->font_metrics_depend_on_viewport_metrics();
+        m_root_element_font_metrics_depend_on_viewport_metrics = builder.font_metrics_depend_on_viewport_metrics();
     }
 
     // Compute the value of custom properties
@@ -3177,30 +3208,30 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
                 auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
                 if (keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element())
-                    collect_animation_into(abstract_element, keyframe_effect, computed_style);
+                    collect_animation_into(abstract_element, keyframe_effect, builder);
             }
         }
     }
 
     // Run automatic box type transformations
-    transform_box_type_if_needed(computed_style, abstract_element);
+    transform_box_type_if_needed(builder, abstract_element);
 
     // Apply any property-specific computed value logic
-    resolve_effective_overflow_values(computed_style);
-    compute_text_align(computed_style, abstract_element);
+    resolve_effective_overflow_values(builder);
+    compute_text_align(builder, abstract_element);
 
     // Let the element adjust computed style
     if (!abstract_element.pseudo_element().has_value())
-        abstract_element.element().adjust_computed_style(computed_style);
+        abstract_element.element().adjust_computed_style(builder);
 
     // Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(computed_style, abstract_element);
     if (auto previous_style = abstract_element.computed_properties()) {
-        start_needed_transitions(*previous_style, computed_style, abstract_element);
+        start_needed_transitions(*previous_style, builder, abstract_element);
     }
 
-    return computed_style;
+    return CSS::ComputedProperties::create(move(builder));
 }
 
 struct SimplifiedSelectorForBucketing {

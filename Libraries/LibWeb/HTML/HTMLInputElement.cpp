@@ -178,7 +178,7 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::ComputedPropertie
     }
 }
 
-void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     if (type_state() == TypeAttributeState::Hidden || type_state() == TypeAttributeState::SubmitButton || type_state() == TypeAttributeState::Button || type_state() == TypeAttributeState::ResetButton || type_state() == TypeAttributeState::ImageButton || type_state() == TypeAttributeState::Checkbox || type_state() == TypeAttributeState::RadioButton)
         return;

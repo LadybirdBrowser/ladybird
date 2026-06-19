@@ -79,7 +79,7 @@ void HTMLEmbedElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
     });
 }
 
-void HTMLEmbedElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLEmbedElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

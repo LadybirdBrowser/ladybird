@@ -49,6 +49,17 @@ void HTMLTableElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_t_bodies);
 }
 
+void HTMLTableElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
+{
+    Base::adjust_computed_style(style);
+
+    // Tables must not inherit -libweb-* values for text-align.
+    // FIXME: Find the spec for this.
+    auto text_align = style.style().text_align();
+    if (text_align == CSS::TextAlign::LibwebLeft || text_align == CSS::TextAlign::LibwebCenter || text_align == CSS::TextAlign::LibwebRight)
+        style.set_property(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Start));
+}
+
 static unsigned parse_border(StringView value)
 {
     return value.to_number<unsigned>().value_or(0);

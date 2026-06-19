@@ -128,10 +128,11 @@ public:
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
 
     void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&) const;
+    void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties::Builder&) const;
 
-    [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&) const;
+    [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles) const;
 
-    void compute_property_values(ComputedProperties&, Optional<DOM::AbstractElement>) const;
+    void compute_property_values(ComputedProperties::Builder&, Optional<DOM::AbstractElement>) const;
     void process_animation_definitions(ComputedProperties const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element) const;
 
     [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
@@ -185,10 +186,11 @@ private:
 
     [[nodiscard]] RefPtr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&) const;
     [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, bool did_match_any_pseudo_element_rules, ComputeStyleMode, MatchingRuleSet const&) const;
+    void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&, ComputedProperties::Builder*) const;
     void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
-    void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::AbstractElement) const;
-    void resolve_effective_overflow_values(ComputedProperties&) const;
-    void transform_box_type_if_needed(ComputedProperties&, DOM::AbstractElement) const;
+    void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties::Builder& new_style, DOM::AbstractElement) const;
+    void resolve_effective_overflow_values(ComputedProperties::Builder&) const;
+    void transform_box_type_if_needed(ComputedProperties::Builder&, DOM::AbstractElement) const;
 
     [[nodiscard]] CSSPixelRect viewport_rect() const { return m_viewport_rect; }
 

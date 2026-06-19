@@ -248,7 +248,7 @@ RefPtr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::ComputedProperti
     return make_ref_counted<Layout::CanvasBox>(document(), *this, style);
 }
 
-void HTMLCanvasElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLCanvasElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

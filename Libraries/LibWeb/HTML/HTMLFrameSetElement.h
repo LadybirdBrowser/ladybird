@@ -26,7 +26,7 @@ private:
 
     virtual bool is_html_frameset_element() const override { return true; }
 
-    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
 
     virtual void initialize(JS::Realm&) override;
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;

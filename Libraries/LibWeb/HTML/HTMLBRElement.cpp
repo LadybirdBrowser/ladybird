@@ -58,7 +58,7 @@ void HTMLBRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
     });
 }
 
-void HTMLBRElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLBRElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

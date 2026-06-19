@@ -137,7 +137,7 @@ void HTMLMediaElement::finalize()
     document().page().unregister_media_element({}, unique_id());
 }
 
-void HTMLMediaElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLMediaElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

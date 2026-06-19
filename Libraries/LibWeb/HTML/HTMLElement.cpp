@@ -1158,7 +1158,7 @@ void HTMLElement::set_popover(Optional<String> value)
         remove_attribute(HTML::AttributeNames::popover);
 }
 
-void HTMLElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (local_name() == HTML::TagNames::wbr) {

@@ -46,7 +46,7 @@ RefPtr<Layout::Node> HTMLIFrameElement::create_layout_node(CSS::ComputedProperti
     return make_ref_counted<Layout::NavigableContainerViewport>(document(), *this, style);
 }
 
-void HTMLIFrameElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLIFrameElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())
