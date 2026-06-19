@@ -248,6 +248,7 @@ static void initialize_native_control(WebView::Action& action, GSimpleAction* ga
         break;
     case WebView::ActionID::DumpLayoutTree:
     case WebView::ActionID::DumpPaintTree:
+    case WebView::ActionID::DumpSiteIsolationProcessTree:
     case WebView::ActionID::DumpDisplayList:
         set_icon("view-list-symbolic");
         break;
