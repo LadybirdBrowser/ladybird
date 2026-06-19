@@ -1061,6 +1061,32 @@ void SeccompPolicy::allow_executable_memory_mappings()
     append(SECCOMP_LOAD_SYSCALL_NR);
 }
 
+void SeccompPolicy::allow_writable_executable_memory_mappings()
+{
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mmap, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, PROT_WRITE | PROT_EXEC));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, PROT_WRITE | PROT_EXEC, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+
+#ifdef __NR_mmap2
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mmap2, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, PROT_WRITE | PROT_EXEC));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, PROT_WRITE | PROT_EXEC, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mprotect, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, PROT_WRITE | PROT_EXEC));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, PROT_WRITE | PROT_EXEC, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+}
+
 void SeccompPolicy::allow_threads()
 {
 #ifdef __NR_clone
