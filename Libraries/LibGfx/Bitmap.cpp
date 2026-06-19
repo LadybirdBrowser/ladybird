@@ -138,6 +138,9 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_anonymous_buffer(BitmapFormat
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_with_anonymous_buffer size overflow");
 
+    if (buffer.size() < size_in_bytes(minimum_pitch(size.width(), format), size.height()))
+        return Error::from_string_literal("Gfx::Bitmap::create_with_anonymous_buffer buffer too small for size");
+
     return adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, move(buffer), size));
 }
 
@@ -145,6 +148,9 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_raw_data(BitmapFormat format,
 {
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_with_raw_data size overflow");
+
+    if (raw_data.size() < size_in_bytes(minimum_pitch(size.width(), format), size.height()))
+        return Error::from_string_literal("Gfx::Bitmap::create_with_raw_data data too small for size");
 
     auto backing_store = TRY(Bitmap::allocate_backing_store(format, size, InitializeBackingStore::No));
     raw_data.copy_to(Bytes { backing_store.data, backing_store.size_in_bytes });
