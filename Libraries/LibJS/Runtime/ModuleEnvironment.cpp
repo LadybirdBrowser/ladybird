@@ -74,10 +74,8 @@ ThrowCompletionOr<void> ModuleEnvironment::create_import_binding(Utf16FlyString 
     // FIXME: I don't know what this means or how to check it.
 
     // 3. Create an immutable indirect binding in envRec for N that references M and N2 as its target binding and record that the binding is initialized.
-    // Note: We use the fact that the binding is in this list as it being initialized.
-    m_indirect_bindings.append({ move(name),
-        module,
-        move(binding_name) });
+    // Note: We use the fact that the binding is in this map as it being initialized.
+    m_indirect_bindings.set(move(name), IndirectBinding { module, move(binding_name) });
 
     // 4. Return unused.
     return {};
@@ -85,13 +83,11 @@ ThrowCompletionOr<void> ModuleEnvironment::create_import_binding(Utf16FlyString 
 
 ModuleEnvironment::IndirectBinding const* ModuleEnvironment::get_indirect_binding(Utf16FlyString const& name) const
 {
-    auto binding_or_end = m_indirect_bindings.find_if([&](IndirectBinding const& binding) {
-        return binding.name == name;
-    });
-    if (binding_or_end.is_end())
+    auto it = m_indirect_bindings.find(name);
+    if (it == m_indirect_bindings.end())
         return nullptr;
 
-    return &(*binding_or_end);
+    return &it->value;
 }
 
 Optional<ModuleEnvironment::BindingAndIndex> ModuleEnvironment::find_binding_and_index(Utf16FlyString const& name) const
@@ -131,14 +127,14 @@ Optional<ModuleEnvironment::BindingAndIndex> ModuleEnvironment::find_binding_and
 size_t ModuleEnvironment::external_memory_size() const
 {
     auto size = DeclarativeEnvironment::external_memory_size();
-    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_indirect_bindings));
+    size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_indirect_bindings));
     return size;
 }
 
 void ModuleEnvironment::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    for (auto& indirect_binding : m_indirect_bindings)
+    for (auto& [_, indirect_binding] : m_indirect_bindings)
         visitor.visit(indirect_binding.module);
 }
 
