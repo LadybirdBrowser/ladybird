@@ -513,6 +513,7 @@ TextNode::ChunkList const& TextNode::chunks_for_layout(bool should_wrap_lines, b
         .should_respect_linebreaks = should_respect_linebreaks,
         .white_space_collapse = computed_values.white_space_collapse(),
         .word_break = computed_values.word_break(),
+        .font_variant_emoji = computed_values.font_variant_emoji(),
         .font_cascade_list = computed_values.font_list(),
     };
 
@@ -558,6 +559,7 @@ TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, Utf16View cons
     , m_grapheme_segmenter(grapheme_segmenter)
     , m_line_segmenter(line_segmenter)
     , m_word_break(word_break)
+    , m_font_variant_emoji(text_node.computed_values().font_variant_emoji())
 {
     m_should_collapse_whitespace = first_is_one_of(text_node.computed_values().white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
 }
@@ -778,7 +780,22 @@ Gfx::EmojiPresentationResult TextNode::ChunkIterator::emoji_presentation_at(size
     if (next_offset < m_view.length_in_code_units())
         next_code_point = m_view.code_point_at(next_offset);
 
-    return Gfx::emoji_presentation_for_code_point(code_point, next_code_point);
+    auto default_presentation = Gfx::emoji_presentation_for_code_point(code_point, next_code_point);
+
+    if (default_presentation.forced == Gfx::ForcedPresentation::Yes || !Unicode::code_point_has_emoji_property(code_point))
+        return default_presentation;
+
+    switch (m_font_variant_emoji) {
+    case CSS::FontVariantEmoji::Text:
+        return { Gfx::EmojiPresentation::Text, Gfx::ForcedPresentation::Yes };
+    case CSS::FontVariantEmoji::Emoji:
+        return { Gfx::EmojiPresentation::Emoji, Gfx::ForcedPresentation::Yes };
+    case CSS::FontVariantEmoji::Unicode:
+        return { default_presentation.presentation, Gfx::ForcedPresentation::Yes };
+    case CSS::FontVariantEmoji::Normal:
+        return default_presentation;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()

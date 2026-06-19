@@ -83,6 +83,7 @@ public:
         Unicode::Segmenter& m_grapheme_segmenter;
         Unicode::Segmenter& m_line_segmenter;
         CSS::WordBreak m_word_break;
+        CSS::FontVariantEmoji m_font_variant_emoji;
         size_t m_current_index { 0 };
 
         Vector<Chunk> m_peek_queue;
@@ -130,6 +131,7 @@ private:
         bool should_respect_linebreaks { false };
         CSS::WhiteSpaceCollapse white_space_collapse { CSS::WhiteSpaceCollapse::Collapse };
         CSS::WordBreak word_break { CSS::WordBreak::Normal };
+        CSS::FontVariantEmoji font_variant_emoji { CSS::FontVariantEmoji::Normal };
         RefPtr<Gfx::FontCascadeList const> font_cascade_list;
 
         bool operator==(ChunkCacheKey const&) const = default;
