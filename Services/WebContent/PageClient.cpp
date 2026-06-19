@@ -937,6 +937,11 @@ String PageClient::page_did_request_ui_process_session_history_for_testing()
     return client().did_request_ui_process_session_history_for_testing(m_id);
 }
 
+String PageClient::dump_site_isolation_process_tree_for_testing()
+{
+    return client().did_request_site_isolation_process_tree_for_testing(m_id);
+}
+
 String PageClient::page_did_update_session_history_and_request_ui_process_session_history_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index)
 {
     return client().did_update_session_history_and_request_ui_process_session_history_for_testing(m_id, entries, used_steps, current_used_step_index);

@@ -114,6 +114,7 @@ public:
     String dump_gc_graph();
     String dump_session_history();
     String dump_ui_process_session_history();
+    String dump_site_isolation_process_tree();
     GC::Ref<WebIDL::Promise> flush_session_history_traversal_queue();
     void clobber_next_navigation_with_a_traversal();
 

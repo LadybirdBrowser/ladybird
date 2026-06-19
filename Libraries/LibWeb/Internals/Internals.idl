@@ -103,6 +103,7 @@ interface Internals {
     DOMString dumpGCGraph();
     DOMString dumpSessionHistory();
     DOMString dumpUIProcessSessionHistory();
+    DOMString dumpSiteIsolationProcessTree();
     Promise<undefined> flushSessionHistoryTraversalQueue();
 
     // Test-only: deterministically reproduce the navigation-vs-traversal race in Navigable::begin_navigation by

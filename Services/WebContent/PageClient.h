@@ -153,6 +153,7 @@ private:
     virtual void page_did_commit_child_frame_navigation(String const& frame_id, URL::URL const&) override;
     virtual void page_did_destroy_child_frame(String const& frame_id) override;
     virtual Optional<Web::Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(String const&) const override;
+    virtual String dump_site_isolation_process_tree_for_testing() override;
     virtual Gfx::Palette palette() const override;
     virtual Web::DevicePixelRect screen_rect() const override { return m_all_screen_rects[m_main_screen_index]; }
     virtual size_t screen_count() const override { return m_all_screen_rects.size(); }

@@ -452,6 +452,7 @@ public:
     virtual void page_did_commit_child_frame_navigation(String const&, URL::URL const&) { }
     virtual void page_did_destroy_child_frame(String const&) { }
     virtual Optional<Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(String const&) const { return {}; }
+    virtual String dump_site_isolation_process_tree_for_testing() { return {}; }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;
     virtual double zoom_level() const = 0;

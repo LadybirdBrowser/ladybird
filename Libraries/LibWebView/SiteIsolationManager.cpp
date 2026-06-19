@@ -6,6 +6,8 @@
 
 #include <LibWebView/SiteIsolationManager.h>
 
+#include <AK/QuickSort.h>
+#include <AK/StringBuilder.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/ViewImplementation.h>
@@ -169,6 +171,68 @@ void SiteIsolationManager::remove_all_pages_for_client(WebContentClient& client)
 
     for (auto page_id : page_ids)
         remove_page(page_id);
+}
+
+String SiteIsolationManager::dump_process_tree(WebContentClient& client, u64 page_id) const
+{
+    StringBuilder builder;
+    Vector<WebContentClient const*> processes;
+
+    auto process_index = [&](WebContentClient const& process) -> size_t {
+        for (size_t i = 0; i < processes.size(); ++i) {
+            if (processes[i] == &process)
+                return i;
+        }
+        processes.append(&process);
+        return processes.size() - 1;
+    };
+
+    auto sorted_child_frame_ids = [&](u64 page_id, Optional<StringView> parent_frame_id) {
+        Vector<String> child_frame_ids;
+        auto child_frames = m_child_frames.get(page_id);
+        if (!child_frames.has_value())
+            return child_frame_ids;
+
+        for (auto const& child_frame_entry : *child_frames) {
+            auto const& child_frame = child_frame_entry.value;
+            auto is_child_of_parent_frame = parent_frame_id.has_value()
+                ? child_frame.parent_frame_id == *parent_frame_id
+                : !child_frames->contains(child_frame.parent_frame_id);
+            if (is_child_of_parent_frame)
+                child_frame_ids.append(child_frame_entry.key);
+        }
+
+        quick_sort(child_frame_ids);
+        return child_frame_ids;
+    };
+
+    Function<void(WebContentClient&, u64, Optional<StringView>, size_t)> dump_frame_tree;
+    dump_frame_tree = [&](WebContentClient& current_client, u64 current_page_id, Optional<StringView> parent_frame_id, size_t depth) {
+        auto child_frames = m_child_frames.get(current_page_id);
+        if (!child_frames.has_value())
+            return;
+
+        auto child_frame_ids = sorted_child_frame_ids(current_page_id, parent_frame_id);
+        for (size_t i = 0; i < child_frame_ids.size(); ++i) {
+            auto child_frame = child_frames->get(child_frame_ids[i]);
+            VERIFY(child_frame.has_value());
+
+            builder.append_repeated(' ', depth * 2);
+            builder.appendff("iframe#{}: {}", i, child_frame->is_remote() ? "remote"sv : "local"sv);
+            if (child_frame->is_remote())
+                builder.appendff(" WebContent#{}", process_index(*child_frame->remote_client));
+            builder.append('\n');
+
+            if (child_frame->is_remote())
+                dump_frame_tree(*child_frame->remote_client, child_frame->remote_page_id, {}, depth + 1);
+            else
+                dump_frame_tree(current_client, current_page_id, child_frame_ids[i].bytes_as_string_view(), depth + 1);
+        }
+    };
+
+    builder.appendff("WebContent#{}\n", process_index(client));
+    dump_frame_tree(client, page_id, {}, 1);
+    return builder.to_string_without_validation();
 }
 
 bool SiteIsolationManager::has_matching_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const& url, ChildFrameOwner target_owner) const

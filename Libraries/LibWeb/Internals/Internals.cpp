@@ -729,6 +729,11 @@ String Internals::dump_ui_process_session_history()
     return document.page().client().page_did_request_ui_process_session_history_for_testing();
 }
 
+String Internals::dump_site_isolation_process_tree()
+{
+    return window().associated_document().page().client().dump_site_isolation_process_tree_for_testing();
+}
+
 GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
 {
     auto& realm = this->realm();
