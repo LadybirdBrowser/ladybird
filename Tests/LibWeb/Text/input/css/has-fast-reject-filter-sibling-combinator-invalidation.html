@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    #anchor:has(.missing) { --unused: 1; }
+    #anchor:has(.a + .b) { --match: 1; }
+</style>
+<script src="../include.js"></script>
+<div id="anchor"><span class="a"></span></div>
+<script>
+    test(() => {
+        const anchor = document.getElementById("anchor");
+        println(`initial match: ${getComputedStyle(anchor).getPropertyValue("--match").trim() === "1"}`);
+
+        const b = document.createElement("span");
+        b.className = "b";
+        anchor.appendChild(b);
+
+        println(`match after adding sibling: ${getComputedStyle(anchor).getPropertyValue("--match").trim() === "1"}`);
+    });
+</script>

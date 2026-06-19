@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/HashMap.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/DOM/Element.h>
@@ -43,6 +44,43 @@ struct HasResultCacheKeyTraits : Traits<HasResultCacheKey> {
 
 using HasResultCache = HashMap<HasResultCacheKey, HasMatchResult, HasResultCacheKeyTraits>;
 
+enum class HasFastRejectFilterTraversalType : u8 {
+    Children,
+    Descendants,
+};
+
+struct HasFastRejectFilterKey {
+    GC::Ptr<DOM::Element const> element;
+    HasFastRejectFilterTraversalType traversal_type;
+
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        visitor.visit(element);
+    }
+
+    bool operator==(HasFastRejectFilterKey const&) const = default;
+};
+
+struct HasFastRejectFilterKeyTraits : Traits<HasFastRejectFilterKey> {
+    static unsigned hash(HasFastRejectFilterKey const& key)
+    {
+        return pair_int_hash(ptr_hash(key.element.ptr()), to_underlying(key.traversal_type));
+    }
+};
+
+struct HasFastRejectFilter {
+    static constexpr size_t bucket_count = 64;
+
+    bool seen_once { false };
+    bool populated { false };
+    Array<u64, bucket_count> buckets {};
+
+    void add(u32 hash);
+    [[nodiscard]] bool may_contain(u32 hash) const;
+};
+
+using HasFastRejectFilterCache = HashMap<HasFastRejectFilterKey, HasFastRejectFilter, HasFastRejectFilterKeyTraits>;
+
 struct MatchContext {
     GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule {};
     GC::Ptr<DOM::Element const> subject {};
@@ -55,6 +93,7 @@ struct MatchContext {
     // by matches_has_pseudo_class with a ScopeGuard.
     bool inside_has_argument_match { false };
     HasResultCache* has_result_cache { nullptr };
+    HasFastRejectFilterCache* has_fast_reject_filter_cache { nullptr };
 };
 
 bool matches(CSS::Selector const&, DOM::AbstractElement const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope = {}, SelectorKind selector_kind = SelectorKind::Normal, GC::Ptr<DOM::Element const> anchor = nullptr);

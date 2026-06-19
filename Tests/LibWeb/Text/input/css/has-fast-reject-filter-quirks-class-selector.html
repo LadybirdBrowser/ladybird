@@ -1,0 +1,13 @@
+<!DOCTYPE quirks>
+<style>
+    body:has(.missing) { --missing: 1; }
+    body:has(.FOO) { --match: 1; }
+</style>
+<script src="../include.js"></script>
+<div class="foo"></div>
+<script>
+    test(() => {
+        println(`Quirks mode: ${document.compatMode}`);
+        println(`:has() matches case-insensitive class selector after cached miss: ${getComputedStyle(document.body).getPropertyValue("--match").trim() === "1"}`);
+    });
+</script>

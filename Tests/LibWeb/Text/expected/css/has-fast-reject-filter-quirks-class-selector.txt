@@ -1,0 +1,2 @@
+Quirks mode: BackCompat
+:has() matches case-insensitive class selector after cached miss: true

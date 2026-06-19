@@ -6,6 +6,7 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <LibWeb/CSS/AncestorFilter.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Keyword.h>
@@ -39,8 +40,205 @@
 
 namespace Web::SelectorEngine {
 
+static u32 salted_tag_name_hash(FlyString const& tag_name)
+{
+    return CSS::ancestor_filter_hash_for_tag_name(tag_name.ascii_case_insensitive_hash());
+}
+
+static u32 salted_id_hash(FlyString const& id)
+{
+    return CSS::ancestor_filter_hash_for_id(id.hash());
+}
+
+static u32 salted_class_hash(FlyString const& class_name)
+{
+    return CSS::ancestor_filter_hash_for_class(class_name.hash());
+}
+
+static u32 salted_attribute_hash(FlyString const& attribute_name)
+{
+    return CSS::ancestor_filter_hash_for_attribute(attribute_name.ascii_case_insensitive_hash());
+}
+
+void HasFastRejectFilter::add(u32 hash)
+{
+    auto const first_bit = hash & 4095;
+    auto const second_bit = (hash >> 16) & 4095;
+    buckets[first_bit / 64] |= 1ull << (first_bit % 64);
+    buckets[second_bit / 64] |= 1ull << (second_bit % 64);
+}
+
+bool HasFastRejectFilter::may_contain(u32 hash) const
+{
+    auto const first_bit = hash & 4095;
+    auto const second_bit = (hash >> 16) & 4095;
+    return (buckets[first_bit / 64] & (1ull << (first_bit % 64)))
+        && (buckets[second_bit / 64] & (1ull << (second_bit % 64)));
+}
+
 static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
 static bool fast_matches_compound_selector(CSS::Selector::CompoundSelector const& compound_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
+
+static bool is_excluded_attribute_for_has_filter(FlyString const& name)
+{
+    return name == HTML::AttributeNames::class_
+        || name == HTML::AttributeNames::id
+        || name == HTML::AttributeNames::style;
+}
+
+static void add_element_identifier_hashes(HasFastRejectFilter& filter, DOM::Element const& element, MatchContext const& context)
+{
+    filter.add(salted_tag_name_hash(element.local_name()));
+    if (element.id().has_value())
+        filter.add(salted_id_hash(element.id().value()));
+    for (auto const& class_name : element.class_names())
+        filter.add(salted_class_hash(class_name));
+    element.for_each_attribute([&](auto const& attribute) {
+        auto const& name = attribute.name();
+        if (is_excluded_attribute_for_has_filter(name))
+            return;
+        filter.add(salted_attribute_hash(name));
+    });
+
+    if (context.inside_has_argument_match && context.collect_per_element_selector_involvement_metadata)
+        const_cast<DOM::Element&>(element).set_in_has_scope(true);
+}
+
+static void populate_has_fast_reject_filter(HasFastRejectFilter& filter, DOM::Element const& anchor, HasFastRejectFilterTraversalType traversal_type, MatchContext const& context)
+{
+    // This intentionally mirrors the traversal scope that a matching :has()
+    // argument would inspect. The filter is only populated on the second
+    // :has() check for the same anchor/scope, so one subtree walk can reject
+    // several later arguments without penalizing the single-check case.
+    switch (traversal_type) {
+    case HasFastRejectFilterTraversalType::Children:
+        anchor.for_each_child([&](DOM::Node const& child) {
+            if (child.is_element())
+                add_element_identifier_hashes(filter, static_cast<DOM::Element const&>(child), context);
+            return IterationDecision::Continue;
+        });
+        break;
+    case HasFastRejectFilterTraversalType::Descendants:
+        anchor.for_each_in_subtree([&](DOM::Node const& descendant) {
+            if (descendant.is_element())
+                add_element_identifier_hashes(filter, static_cast<DOM::Element const&>(descendant), context);
+            return TraversalDecision::Continue;
+        });
+        break;
+    }
+    filter.populated = true;
+}
+
+static void collect_has_fast_reject_hashes(CSS::Selector::SimpleSelector const& simple_selector, Vector<u32>& hashes, bool in_quirks_mode)
+{
+    switch (simple_selector.type) {
+    case CSS::Selector::SimpleSelector::Type::TagName:
+        hashes.append(salted_tag_name_hash(simple_selector.qualified_name().name.lowercase_name));
+        break;
+    case CSS::Selector::SimpleSelector::Type::Id:
+        hashes.append(salted_id_hash(simple_selector.name()));
+        break;
+    case CSS::Selector::SimpleSelector::Type::Class:
+        if (in_quirks_mode)
+            break;
+        hashes.append(salted_class_hash(simple_selector.name()));
+        break;
+    case CSS::Selector::SimpleSelector::Type::Attribute: {
+        auto const& name = simple_selector.attribute().qualified_name.name.lowercase_name;
+        if (!is_excluded_attribute_for_has_filter(name))
+            hashes.append(salted_attribute_hash(name));
+        break;
+    }
+    case CSS::Selector::SimpleSelector::Type::Universal:
+    case CSS::Selector::SimpleSelector::Type::PseudoClass:
+    case CSS::Selector::SimpleSelector::Type::PseudoElement:
+    case CSS::Selector::SimpleSelector::Type::Nesting:
+    case CSS::Selector::SimpleSelector::Type::Invalid:
+        break;
+    }
+}
+
+static Vector<u32> collect_has_fast_reject_hashes(CSS::Selector const& selector, bool in_quirks_mode)
+{
+    Vector<u32> hashes;
+    for (auto const& compound_selector : selector.compound_selectors()) {
+        for (auto const& simple_selector : compound_selector.simple_selectors)
+            collect_has_fast_reject_hashes(simple_selector, hashes, in_quirks_mode);
+    }
+    return hashes;
+}
+
+static Optional<HasFastRejectFilterTraversalType> has_fast_reject_filter_traversal_type(CSS::Selector const& selector)
+{
+    if (selector.compound_selectors().is_empty())
+        return {};
+
+    switch (selector.compound_selectors().first().combinator) {
+    case CSS::Selector::Combinator::ImmediateChild:
+        if (selector.compound_selectors().size() == 1)
+            return HasFastRejectFilterTraversalType::Children;
+        // The argument can still contain later descendant combinators, e.g.
+        // `:has(> .wrapper .hit)`. Since we collect hashes from the whole
+        // relative selector, use the descendant scope so nested requirements
+        // do not cause false rejections.
+        return HasFastRejectFilterTraversalType::Descendants;
+    case CSS::Selector::Combinator::Descendant:
+        return HasFastRejectFilterTraversalType::Descendants;
+    case CSS::Selector::Combinator::None:
+    case CSS::Selector::Combinator::NextSibling:
+    case CSS::Selector::Combinator::SubsequentSibling:
+    case CSS::Selector::Combinator::Column:
+    case CSS::Selector::Combinator::PseudoElement:
+        return {};
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static bool selector_contains_sibling_combinator(CSS::Selector const& selector)
+{
+    for (auto const& compound_selector : selector.compound_selectors()) {
+        if (compound_selector.combinator == CSS::Selector::Combinator::NextSibling
+            || compound_selector.combinator == CSS::Selector::Combinator::SubsequentSibling) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool should_reject_with_has_fast_reject_filter(CSS::Selector const& selector, DOM::Element const& anchor, MatchContext& context)
+{
+    if (!context.has_fast_reject_filter_cache)
+        return false;
+
+    if (context.collect_per_element_selector_involvement_metadata && selector_contains_sibling_combinator(selector))
+        return false;
+
+    auto traversal_type = has_fast_reject_filter_traversal_type(selector);
+    if (!traversal_type.has_value())
+        return false;
+
+    auto hashes = collect_has_fast_reject_hashes(selector, anchor.document().in_quirks_mode());
+    if (hashes.is_empty())
+        return false;
+
+    HasFastRejectFilterKey key {
+        .element = &anchor,
+        .traversal_type = *traversal_type,
+    };
+    auto& filter = context.has_fast_reject_filter_cache->ensure(key);
+    if (!filter.seen_once) {
+        filter.seen_once = true;
+        return false;
+    }
+    if (!filter.populated)
+        populate_has_fast_reject_filter(filter, anchor, *traversal_type, context);
+
+    for (auto hash : hashes) {
+        if (!filter.may_contain(hash))
+            return true;
+    }
+    return false;
+}
 
 static CSS::Selector::SimpleSelector const* simple_has_child_tag_selector(CSS::Selector const& selector)
 {
@@ -349,7 +547,9 @@ static inline bool matches_has_pseudo_class(CSS::Selector const& selector, DOM::
     ScopeGuard restore_inside_has = [&] { context.inside_has_argument_match = saved_inside_has; };
 
     bool result;
-    if (context.collect_per_element_selector_involvement_metadata) {
+    if (should_reject_with_has_fast_reject_filter(selector, anchor, context)) {
+        result = false;
+    } else if (context.collect_per_element_selector_involvement_metadata) {
         result = matches_relative_selector(selector, 0, anchor, shadow_host, context, anchor, scope);
     } else if (auto const* simple_selector = simple_has_child_tag_selector(selector)) {
         result = matches_has_child_tag_fast_path(*simple_selector, anchor, shadow_host, context);
