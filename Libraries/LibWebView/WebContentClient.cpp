@@ -321,6 +321,13 @@ bool WebContentClient::send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPo
 
 bool WebContentClient::handle_mouse_event_in_compositor(u64 page_id, Web::MouseEvent const& event)
 {
+    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(page_id, event.position); target.has_value()) {
+        auto translated_event = event.clone_without_browser_data();
+        translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
+        translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
+        return target->remote_client->handle_mouse_event_in_compositor(target->remote_page_id, translated_event);
+    }
+
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
     auto handled = Application::the().handle_mouse_event_in_compositor(compositor_context_id_for_page(page_id), event);
@@ -343,6 +350,14 @@ bool WebContentClient::handle_pinch_event_in_compositor(u64 page_id, Web::PinchE
 
 void WebContentClient::dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const& event)
 {
+    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(page_id, event.position); target.has_value()) {
+        auto translated_event = event.clone_without_browser_data();
+        translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
+        translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
+        target->remote_client->dispatch_mouse_event_to_web_content(target->remote_page_id, translated_event);
+        return;
+    }
+
     auto context_id = compositor_context_id_for_page(page_id);
     if (Application::the().dispatch_mouse_event_to_web_content(context_id, event))
         return;
@@ -1507,8 +1522,12 @@ void WebContentClient::did_request_select_dropdown(u64 page_id, Gfx::IntPoint co
 
 void WebContentClient::did_finish_handling_input_event(u64 page_id, Web::EventResult event_result)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->did_finish_handling_input_event({}, event_result);
+        return;
+    }
+
+    SiteIsolationManager::the().remote_child_frame_did_finish_handling_input_event(*this, page_id, event_result);
 }
 
 void WebContentClient::did_update_input_caret_rect(u64 page_id, Optional<Web::DevicePixelRect> rect)

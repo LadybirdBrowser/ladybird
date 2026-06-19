@@ -97,6 +97,29 @@ void SiteIsolationManager::did_destroy_child_frame(WebContentClient& parent_clie
         m_child_frames.remove(page_id);
 }
 
+Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager::remote_child_frame_input_target_at(u64 page_id, Web::DevicePixelPoint position) const
+{
+    auto child_frames = m_child_frames.get(page_id);
+    if (!child_frames.has_value())
+        return {};
+
+    for (auto const& child_frame_entry : *child_frames) {
+        auto const& child_frame = child_frame_entry.value;
+        if (!child_frame.is_remote() || !child_frame.viewport_rect.has_value())
+            continue;
+        if (!child_frame.viewport_rect->contains(position))
+            continue;
+
+        return RemoteChildFrameInputTarget {
+            .remote_client = child_frame.remote_client,
+            .remote_page_id = child_frame.remote_page_id,
+            .viewport_rect = *child_frame.viewport_rect,
+        };
+    }
+
+    return {};
+}
+
 bool SiteIsolationManager::remote_child_frame_did_finish_loading(WebContentClient& remote_client, u64 remote_page_id, URL::URL const& url)
 {
     auto parent_frame = parent_frame_for_remote_page(remote_client, remote_page_id);
@@ -117,6 +140,16 @@ bool SiteIsolationManager::remote_child_frame_did_commit_navigation(WebContentCl
 
     parent_frame->child_frame->last_committed_url = url;
     parent_frame->child_frame->pending_navigation.clear();
+    return true;
+}
+
+bool SiteIsolationManager::remote_child_frame_did_finish_handling_input_event(WebContentClient& remote_client, u64 remote_page_id, Web::EventResult event_result)
+{
+    auto parent_frame = parent_frame_for_remote_page(remote_client, remote_page_id);
+    if (!parent_frame.has_value())
+        return false;
+
+    parent_frame->parent_client->did_finish_handling_input_event(parent_frame->page_id, event_result);
     return true;
 }
 
