@@ -1,5 +1,6 @@
 const enableVerticalTabs = document.querySelector("#enable-vertical-tabs");
 const verticalTabsExpandOnHover = document.querySelector("#vertical-tabs-expand-on-hover");
+const verticalTabsPosition = document.querySelector("#vertical-tabs-position");
 
 let TAB_SETTINGS = {};
 
@@ -12,6 +13,7 @@ const loadFeatures = features => {
 
 const updateVerticalTabsDependentSettings = () => {
     verticalTabsExpandOnHover.parentElement.classList.toggle("hidden", !enableVerticalTabs.checked);
+    verticalTabsPosition.parentElement.classList.toggle("hidden", !enableVerticalTabs.checked);
 };
 
 const loadSettings = settings => {
@@ -19,18 +21,32 @@ const loadSettings = settings => {
 
     enableVerticalTabs.checked = !!TAB_SETTINGS.verticalTabsEnabled;
     verticalTabsExpandOnHover.checked = !!TAB_SETTINGS.verticalTabsExpandOnHover;
+    verticalTabsPosition.value = TAB_SETTINGS.verticalTabsPosition || "left";
     updateVerticalTabsDependentSettings();
 };
 
-function addChangeHandler(input, name) {
+function saveTabSettings() {
+    ladybird.sendMessage("setTabSettings", TAB_SETTINGS);
+}
+
+function addCheckboxChangeHandler(input, name) {
     input.addEventListener("change", () => {
         TAB_SETTINGS[name] = input.checked;
-        ladybird.sendMessage("setTabSettings", TAB_SETTINGS);
+        updateVerticalTabsDependentSettings();
+        saveTabSettings();
     });
 }
 
-addChangeHandler(enableVerticalTabs, "verticalTabsEnabled");
-addChangeHandler(verticalTabsExpandOnHover, "verticalTabsExpandOnHover");
+function addSelectChangeHandler(input, name) {
+    input.addEventListener("change", () => {
+        TAB_SETTINGS[name] = input.value;
+        saveTabSettings();
+    });
+}
+
+addCheckboxChangeHandler(enableVerticalTabs, "verticalTabsEnabled");
+addCheckboxChangeHandler(verticalTabsExpandOnHover, "verticalTabsExpandOnHover");
+addSelectChangeHandler(verticalTabsPosition, "verticalTabsPosition");
 
 document.addEventListener("WebUIMessage", event => {
     if (event.detail.name === "loadFeatures") {

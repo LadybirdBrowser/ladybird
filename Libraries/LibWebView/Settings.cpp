@@ -27,6 +27,7 @@ static constexpr auto TAB_SETTINGS_KEY = "tabs"sv;
 static constexpr auto VERTICAL_TABS_ENABLED_KEY = "verticalTabsEnabled"sv;
 static constexpr auto VERTICAL_TABS_EXPANDED_KEY = "verticalTabsExpanded"sv;
 static constexpr auto VERTICAL_TABS_EXPAND_ON_HOVER_KEY = "verticalTabsExpandOnHover"sv;
+static constexpr auto VERTICAL_TABS_POSITION_KEY = "verticalTabsPosition"sv;
 static constexpr auto VERTICAL_TABS_EXPANDED_WIDTH_KEY = "verticalTabsExpandedWidth"sv;
 
 static constexpr auto SHOW_MENU_BAR_KEY = "showMenuBar"sv;
@@ -116,6 +117,26 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
 ReadonlySpan<ConfigVariableDefinition const> config_variable_definitions()
 {
     return CONFIG_VARIABLE_DEFINITIONS;
+}
+
+static StringView vertical_tabs_position_to_string(VerticalTabsPosition position)
+{
+    switch (position) {
+    case VerticalTabsPosition::Left:
+        return "left"sv;
+    case VerticalTabsPosition::Right:
+        return "right"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static Optional<VerticalTabsPosition> vertical_tabs_position_from_string(StringView position)
+{
+    if (position == "left"sv)
+        return VerticalTabsPosition::Left;
+    if (position == "right"sv)
+        return VerticalTabsPosition::Right;
+    return {};
 }
 
 Optional<ConfigVariableID> config_variable_id_from_name(StringView name)
@@ -307,6 +328,7 @@ JsonValue Settings::serialize_json() const
     tab_settings.set(VERTICAL_TABS_ENABLED_KEY, m_tab_settings.vertical_tabs_enabled);
     tab_settings.set(VERTICAL_TABS_EXPANDED_KEY, m_tab_settings.vertical_tabs_expanded);
     tab_settings.set(VERTICAL_TABS_EXPAND_ON_HOVER_KEY, m_tab_settings.vertical_tabs_expand_on_hover);
+    tab_settings.set(VERTICAL_TABS_POSITION_KEY, vertical_tabs_position_to_string(m_tab_settings.vertical_tabs_position));
     if (m_tab_settings.vertical_tabs_expanded_width.has_value())
         tab_settings.set(VERTICAL_TABS_EXPANDED_WIDTH_KEY, *m_tab_settings.vertical_tabs_expanded_width);
     settings.set(TAB_SETTINGS_KEY, move(tab_settings));
@@ -441,6 +463,10 @@ TabSettings Settings::parse_tab_settings(JsonValue const& settings)
         tab_settings.vertical_tabs_expanded = *vertical_tabs_expanded;
     if (auto vertical_tabs_expand_on_hover = settings.as_object().get_bool(VERTICAL_TABS_EXPAND_ON_HOVER_KEY); vertical_tabs_expand_on_hover.has_value())
         tab_settings.vertical_tabs_expand_on_hover = *vertical_tabs_expand_on_hover;
+    if (auto vertical_tabs_position = settings.as_object().get_string(VERTICAL_TABS_POSITION_KEY); vertical_tabs_position.has_value()) {
+        if (auto parsed_position = vertical_tabs_position_from_string(*vertical_tabs_position); parsed_position.has_value())
+            tab_settings.vertical_tabs_position = *parsed_position;
+    }
     if (auto vertical_tabs_expanded_width = settings.as_object().get_integer<u16>(VERTICAL_TABS_EXPANDED_WIDTH_KEY); vertical_tabs_expanded_width.has_value())
         tab_settings.vertical_tabs_expanded_width = *vertical_tabs_expanded_width;
 

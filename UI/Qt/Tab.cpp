@@ -250,7 +250,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     auto* navigation_button_layout = new QHBoxLayout(navigation_button_cluster);
     navigation_button_layout->setSpacing(2);
     navigation_button_layout->setContentsMargins(0, 0, 0, 0);
-    navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_toggle_vertical_tabs_expanded_action));
+    m_left_toggle_vertical_tabs_expanded_button = create_toolbar_button(*navigation_button_cluster, *m_toggle_vertical_tabs_expanded_action);
+    navigation_button_layout->addWidget(m_left_toggle_vertical_tabs_expanded_button);
     m_sidebar_toggle_navigation_spacer = new QSpacerItem(0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
     navigation_button_layout->addItem(m_sidebar_toggle_navigation_spacer);
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_back_action, view(), -1));
@@ -273,6 +274,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
     location_edit_layout->addWidget(m_location_edit);
     toolbar_layout->addWidget(location_edit_container, 1);
+    m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
+    toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignTop);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
     if (use_right_custom_window_controls()) {
         toolbar_layout->addWidget(m_toolbar_window_controls_separator, 0, Qt::AlignVCenter);
@@ -624,9 +627,22 @@ void Tab::set_window(BrowserWindow& window)
 
 void Tab::set_vertical_tabs_enabled(bool enabled)
 {
+    m_vertical_tabs_enabled = enabled;
     m_toolbar->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
     if (m_sidebar_toggle_navigation_spacer)
         m_sidebar_toggle_navigation_spacer->changeSize(enabled ? TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+    update_vertical_tabs_toolbar_button_placement();
+    m_toolbar->layout()->invalidate();
+}
+
+void Tab::set_vertical_tabs_position(WebView::VerticalTabsPosition position)
+{
+    if (m_vertical_tabs_position == position)
+        return;
+
+    m_vertical_tabs_position = position;
+    recreate_toolbar_icons();
+    update_vertical_tabs_toolbar_button_placement();
     m_toolbar->layout()->invalidate();
 }
 
@@ -739,6 +755,18 @@ void Tab::show_menu_bar_changed()
     update_hamburger_menu();
 }
 
+void Tab::tab_settings_changed()
+{
+    auto const& tab_settings = WebView::Application::settings().tab_settings();
+    m_vertical_tabs_enabled = tab_settings.vertical_tabs_enabled;
+    m_vertical_tabs_position = tab_settings.vertical_tabs_position;
+    if (m_sidebar_toggle_navigation_spacer)
+        m_sidebar_toggle_navigation_spacer->changeSize(m_vertical_tabs_enabled ? TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+    recreate_toolbar_icons();
+    update_vertical_tabs_toolbar_button_placement();
+    m_toolbar->layout()->invalidate();
+}
+
 void Tab::config_variable_changed(WebView::ConfigVariableID variable)
 {
     if (variable == WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle)
@@ -835,11 +863,11 @@ void Tab::update_chrome_style()
 
 void Tab::recreate_toolbar_icons()
 {
-    m_toggle_vertical_tabs_expanded_action->setIcon(create_chrome_icon(
-        WebView::Application::settings().tab_settings().vertical_tabs_expanded
-            ? ChromeIcon::VerticalTabBarCollapse
-            : ChromeIcon::VerticalTabBarExpand,
-        palette()));
+    auto vertical_tabs_are_expanded = WebView::Application::settings().tab_settings().vertical_tabs_expanded;
+    auto vertical_tabs_icon = m_vertical_tabs_position == WebView::VerticalTabsPosition::Right
+        ? (vertical_tabs_are_expanded ? ChromeIcon::VerticalTabBarCollapseRight : ChromeIcon::VerticalTabBarExpandRight)
+        : (vertical_tabs_are_expanded ? ChromeIcon::VerticalTabBarCollapse : ChromeIcon::VerticalTabBarExpand);
+    m_toggle_vertical_tabs_expanded_action->setIcon(create_chrome_icon(vertical_tabs_icon, palette()));
     m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
     m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
@@ -850,6 +878,17 @@ void Tab::recreate_toolbar_icons()
         auto icon = view().toggle_bookmark_action().engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star;
         action->setIcon(create_chrome_icon(icon, palette()));
     }
+}
+
+void Tab::update_vertical_tabs_toolbar_button_placement()
+{
+    auto show_left_button = m_vertical_tabs_enabled && m_vertical_tabs_position == WebView::VerticalTabsPosition::Left;
+    auto show_right_button = m_vertical_tabs_enabled && m_vertical_tabs_position == WebView::VerticalTabsPosition::Right;
+
+    if (m_left_toggle_vertical_tabs_expanded_button)
+        m_left_toggle_vertical_tabs_expanded_button->setVisible(show_left_button);
+    if (m_right_toggle_vertical_tabs_expanded_button)
+        m_right_toggle_vertical_tabs_expanded_button->setVisible(show_right_button);
 }
 
 void Tab::show_find_in_page()

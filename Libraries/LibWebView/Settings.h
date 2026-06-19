@@ -23,10 +23,16 @@
 
 namespace WebView {
 
+enum class VerticalTabsPosition : u8 {
+    Left,
+    Right,
+};
+
 struct TabSettings {
     bool vertical_tabs_enabled { false };
     bool vertical_tabs_expanded { true };
     bool vertical_tabs_expand_on_hover { false };
+    VerticalTabsPosition vertical_tabs_position { VerticalTabsPosition::Left };
     Optional<u16> vertical_tabs_expanded_width;
 };
 

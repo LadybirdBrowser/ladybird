@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/TypeCasts.h>
+#include <LibWebView/Settings.h>
 
 #include <QPointer>
 #include <QPushButton>
@@ -56,6 +57,7 @@ public:
 
     TabLayout tab_layout() const { return m_tab_layout; }
     void set_tab_layout(TabLayout);
+    void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void refresh_tab_layout();
     void recreate_icons();
 
@@ -97,6 +99,7 @@ private:
     QRect visual_tab_rect(int index) const;
     int tab_index_at(QPoint const&) const;
     QSize vertical_size_hint(int tab_count) const;
+    bool vertical_tabs_are_on_right() const;
 
     int max_vertical_scroll_offset() const;
     void set_vertical_scroll_offset(int);
@@ -108,6 +111,7 @@ private:
     QPointer<TabWidget> m_tab_widget;
 
     TabLayout m_tab_layout { TabLayout::Horizontal };
+    WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };
     int m_available_width { 0 };
     int m_hovered_tab_index { -1 };
     int m_hover_animation_tab_index { -1 };
@@ -160,6 +164,7 @@ public:
     void set_vertical_tabs_enabled(bool);
     void set_vertical_tabs_expanded(bool);
     void set_vertical_tabs_expand_on_hover(bool);
+    void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void update_tab_button_visibility();
 
 signals:
@@ -180,6 +185,7 @@ private:
     bool vertical_tabs_effectively_expanded() const;
     bool can_expand_vertical_tabs_on_hover() const;
     bool cursor_is_over_vertical_tabs() const;
+    bool vertical_tabs_are_on_right() const;
     int vertical_tabs_layout_width() const;
     bool should_show_window_controls_in_tab_toolbar() const;
 
@@ -239,6 +245,7 @@ private:
     bool m_vertical_tabs_enabled { false };
     bool m_vertical_tabs_expanded { true };
     bool m_vertical_tabs_expand_on_hover { false };
+    WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };
     bool m_vertical_tabs_hover_expanded { false };
     bool m_is_resizing_vertical_tabs { false };
     bool m_is_updating_chrome_style { false };
