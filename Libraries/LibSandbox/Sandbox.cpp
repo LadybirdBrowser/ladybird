@@ -504,14 +504,6 @@ ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> paths
 
     return {};
 }
-
-ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<StringView> readable_paths)
-{
-    Vector<LandlockPath> paths;
-    for (auto readable_path : readable_paths)
-        TRY(paths.try_append({ readable_path.to_byte_string(), LandlockPath::Access::ReadOnly }));
-    return restrict_filesystem_with_landlock(paths.span());
-}
 #endif
 
 }
