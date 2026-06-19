@@ -506,7 +506,7 @@ void HTMLScriptElement::prepare_script()
         if (m_script_type == ScriptType::Classic) {
             // 1. Let script be the result of creating a classic script using source text, settings object, base URL, and options.
             // FIXME: Pass options.
-            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text_utf8, settings_object, base_url, m_source_line_number);
+            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text_utf8, settings_object, base_url, m_source_line_number, ClassicScript::MutedErrors::No, ScriptRegistry::IsInlineSource::Yes);
 
             // 2. Mark as ready el given script.
             mark_as_ready(Result(move(script)));
@@ -529,7 +529,7 @@ void HTMLScriptElement::prepare_script()
 
             // 2. Fetch an inline module script graph, given source text, base URL, settings object, options, and with the following steps given result:
             // FIXME: Pass options
-            fetch_inline_module_script_graph(realm(), m_document->url().to_byte_string(), source_text.utf16_view(), base_url, document().relevant_settings_object(), steps);
+            fetch_inline_module_script_graph(realm(), m_document->url().to_byte_string(), source_text.utf16_view(), base_url, document().relevant_settings_object(), m_source_line_number, steps);
         }
         // -> "importmap"
         else if (m_script_type == ScriptType::ImportMap) {

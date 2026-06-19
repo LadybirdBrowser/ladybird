@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -18,8 +19,18 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ClassicScript);
 
+static void register_source(ClassicScript& script, ScriptRegistry::IsInlineSource is_inline_source, size_t source_line_number)
+{
+    auto* script_record = script.script_record();
+    if (!script_record || !script_record->cached_executable())
+        return;
+
+    auto const& source_code = script_record->cached_executable()->source_code;
+    register_javascript_source(script, source_code, is_inline_source, source_line_number);
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-classic-script
-GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView source, EnvironmentSettingsObject& settings, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors)
+GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView source, EnvironmentSettingsObject& settings, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors, ScriptRegistry::IsInlineSource is_inline_source)
 {
     auto& vm = settings.vm();
 
@@ -68,6 +79,7 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView sou
 
     // 12. Set script's record to result.
     script->m_script_record = *result.release_value();
+    register_source(*script, is_inline_source, source_line_number);
 
     // 13. Return script.
     return script;
@@ -102,6 +114,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename
     }
 
     script->m_script_record = *result.release_value();
+    register_source(*script, ScriptRegistry::IsInlineSource::No, 1);
 
     return script;
 }
@@ -135,6 +148,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
     }
 
     script->m_script_record = *result.release_value();
+    register_source(*script, ScriptRegistry::IsInlineSource::No, 1);
 
     return script;
 }
@@ -168,6 +182,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString file
     }
 
     script->m_script_record = *result.release_value();
+    register_source(*script, ScriptRegistry::IsInlineSource::No, 1);
 
     return script;
 }
