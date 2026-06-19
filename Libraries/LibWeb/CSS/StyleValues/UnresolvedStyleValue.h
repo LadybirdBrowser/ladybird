@@ -31,6 +31,7 @@ public:
 
     Vector<Parser::ComponentValue> values() const;
     bool contains_arbitrary_substitution_function() const { return m_substitution_functions_presence.has_any(); }
+    bool contains_attr_tainted_values() const { return m_contains_attr_tainted_values; }
     bool includes_attr_function() const { return m_substitution_functions_presence.attr; }
     bool includes_inherit_function() const { return m_substitution_functions_presence.inherit; }
     bool includes_if_function() const { return m_substitution_functions_presence.if_; }
