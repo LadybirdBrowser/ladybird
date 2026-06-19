@@ -18,4 +18,5 @@ target_link_libraries(BenchmarkJPEGLoader PRIVATE LibImageDecoders)
 target_link_libraries(TestImageDecoder PRIVATE LibImageDecoders)
 target_link_libraries(TestImageWriter PRIVATE LibImageDecoders)
 
+ladybird_test(TestShareableBitmap.cpp LibGfx LIBS LibGfx LibIPC)
 ladybird_test(TestYUVData.cpp LibGfx LIBS LibGfx skia)
