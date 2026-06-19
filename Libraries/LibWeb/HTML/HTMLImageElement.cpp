@@ -290,7 +290,7 @@ RefPtr<Layout::Node> HTMLImageElement::create_layout_node(CSS::ComputedPropertie
     return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
 }
 
-void HTMLImageElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLImageElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

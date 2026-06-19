@@ -30,7 +30,7 @@ public:
 
     virtual bool is_html_select_element() const final { return true; }
 
-    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
 
     WebIDL::UnsignedLong size() const;
     void set_size(WebIDL::UnsignedLong);

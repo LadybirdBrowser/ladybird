@@ -32,6 +32,7 @@
             <div id="root-font-target"></div>
             <div id="animated-font-source"><div id="animated-inherited-font-target"></div></div>
             <div id="pending-outline-animation-target"></div>
+            <div id="post-style-animation-target"></div>
             <script>
                 function pauseHalfway(animation) {
                     animation.pause();
@@ -70,6 +71,7 @@
         const animatedFontSource = child.document.getElementById("animated-font-source");
         const animatedInheritedFontTarget = child.document.getElementById("animated-inherited-font-target");
         const pendingOutlineAnimationTarget = child.document.getElementById("pending-outline-animation-target");
+        const postStyleAnimationTarget = child.document.getElementById("post-style-animation-target");
 
         child.internals.updateStyle();
         println(`initial viewport animated width: ${child.getComputedStyle(viewportTarget).width}`);
@@ -77,6 +79,15 @@
         println(`initial root-font animated width: ${child.getComputedStyle(rootFontTarget).width}`);
         println(`initial animated font size: ${child.getComputedStyle(animatedFontSource).fontSize}`);
         println(`initial animated inherited-font width: ${child.getComputedStyle(animatedInheritedFontTarget).width}`);
+
+        const postStyleAnimation = postStyleAnimationTarget.animate([{ width: "10vw" }, { width: "20vw" }], {
+            duration: 1000,
+            fill: "both",
+        });
+        postStyleAnimation.pause();
+        postStyleAnimation.currentTime = 500;
+        child.internals.updateStyle();
+        println(`initial post-style animated width: ${child.getComputedStyle(postStyleAnimationTarget).width}`);
 
         const pendingOutlineAnimation = pendingOutlineAnimationTarget.animate([{ outlineWidth: "10vw" }, { outlineWidth: "20vw" }], {
             duration: 1000,
@@ -101,6 +112,7 @@
         println(`resized root-font animated width: ${child.getComputedStyle(rootFontTarget).width}`);
         println(`resized animated font size: ${child.getComputedStyle(animatedFontSource).fontSize}`);
         println(`resized animated inherited-font width: ${child.getComputedStyle(animatedInheritedFontTarget).width}`);
+        println(`resized post-style animated width: ${child.getComputedStyle(postStyleAnimationTarget).width}`);
         println(`full invalidations: ${counters.fullStyleInvalidations}`);
         println(`style recomputations bounded: ${counters.elementStyleRecomputations < elementCount}`);
 

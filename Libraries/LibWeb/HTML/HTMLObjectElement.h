@@ -64,7 +64,7 @@ private:
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
-    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
 
     bool has_ancestor_media_element_or_object_element_not_showing_fallback_content() const;
 

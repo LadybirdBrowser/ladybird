@@ -20,7 +20,7 @@ public:
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
-    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
 
 private:
     virtual bool is_html_br_element() const override { return true; }

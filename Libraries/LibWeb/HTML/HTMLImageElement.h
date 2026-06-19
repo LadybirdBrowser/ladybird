@@ -128,7 +128,7 @@ private:
     virtual bool supports_dimension_attributes() const override { return true; }
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
-    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
 
     virtual void did_set_viewport_rect(CSSPixelRect const&) override;
 

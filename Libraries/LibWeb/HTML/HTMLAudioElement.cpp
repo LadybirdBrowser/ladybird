@@ -28,7 +28,7 @@ void HTMLAudioElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void HTMLAudioElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLAudioElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     Base::adjust_computed_style(style);
 

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Animations/Animation.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/CSSAnimationProperties.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
@@ -27,7 +27,7 @@ public:
     virtual Animations::AnimationClass animation_class() const override;
     virtual int class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
 
-    void apply_css_properties(ComputedProperties::AnimationProperties const&);
+    void apply_css_properties(AnimationProperties const&);
 
     EasingFunction const& default_easing() const { return m_default_easing; }
 

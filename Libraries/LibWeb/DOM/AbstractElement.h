@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibGC/Cell.h>
-#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/Forward.h>
 

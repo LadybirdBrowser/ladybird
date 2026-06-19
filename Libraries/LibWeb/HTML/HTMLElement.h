@@ -206,13 +206,13 @@ protected:
 
     [[nodiscard]] Utf16String get_the_text_steps();
 
+    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
+
 private:
     virtual bool is_html_element() const final { return true; }
 
     // ^FormAssociatedElement
     virtual HTMLElement& form_associated_element_to_html_element() override { return *this; }
-
-    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }

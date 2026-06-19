@@ -15,6 +15,12 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/EasingFunction.h>
 
+namespace Web::CSS {
+
+class AnimatedProperties;
+
+}
+
 namespace Web::Animations {
 
 enum class AnimationDirection {
@@ -29,11 +35,17 @@ Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming 
 // This object lives for the duration of an animation update, and is used to store per-element data about animated CSS properties.
 struct AnimationUpdateContext {
     struct ElementData {
-        using PropertyMap = HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>>;
-        PropertyMap animated_properties_before_update;
+        ElementData();
+        ElementData(RefPtr<CSS::AnimatedProperties const>, RefPtr<CSS::ComputedProperties>);
+        ElementData(ElementData&&);
+        ElementData& operator=(ElementData&&);
+        ~ElementData();
+
+        RefPtr<CSS::AnimatedProperties const> animated_properties_before_update;
         RefPtr<CSS::ComputedProperties> target_style;
     };
 
+    AnimationUpdateContext();
     ~AnimationUpdateContext();
 
     // NOTE: This is lazily populated by KeyframeEffects as their respective animations are applied to an element.

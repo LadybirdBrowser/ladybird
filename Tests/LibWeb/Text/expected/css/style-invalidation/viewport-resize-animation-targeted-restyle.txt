@@ -3,11 +3,13 @@ initial inherited-font animated width: 45px
 initial root-font animated width: 45px
 initial animated font size: 45px
 initial animated inherited-font width: 67.5px
+initial post-style animated width: 45px
 targeted pending animated outline width: 75px
 resized viewport animated width: 75px
 resized inherited-font animated width: 75px
 resized root-font animated width: 75px
 resized animated font size: 75px
 resized animated inherited-font width: 112.5px
+resized post-style animated width: 75px
 full invalidations: 0
 style recomputations bounded: true

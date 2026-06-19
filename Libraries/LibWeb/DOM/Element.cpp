@@ -21,6 +21,7 @@
 #include <LibURL/Parser.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
+#include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Bindings/Element.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -1071,14 +1072,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     auto& style_computer = document().style_computer();
     auto new_computed_properties = style_computer.compute_style({ *this }, did_change_custom_properties);
 
-    // Tables must not inherit -libweb-* values for text-align.
-    // FIXME: Find the spec for this.
-    if (is<HTML::HTMLTableElement>(*this)) {
-        auto text_align = new_computed_properties->text_align();
-        if (text_align == CSS::TextAlign::LibwebLeft || text_align == CSS::TextAlign::LibwebCenter || text_align == CSS::TextAlign::LibwebRight)
-            new_computed_properties->set_property(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Start));
-    }
-
     auto old_computed_properties = m_computed_properties;
     bool had_list_marker = false;
 
@@ -1140,63 +1133,81 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(Sch
     auto& counters = document().style_invalidation_counters();
     counters.element_inherited_style_recomputations++;
 
-    auto computed_properties = this->computed_properties();
-    VERIFY(computed_properties);
-    auto had_list_marker = computed_properties->display().is_list_item();
+    auto old_computed_properties = this->computed_properties();
+    VERIFY(old_computed_properties);
+    auto computed_properties_builder = CSS::ComputedProperties::create_builder_with_base_values_from(*old_computed_properties);
+    auto& new_computed_properties = computed_properties_builder.style();
+    auto had_list_marker = old_computed_properties->display().is_list_item();
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
     HashMap<size_t, RefPtr<CSS::StyleValue const>> property_values_affected_by_inherited_style;
 
-    for (auto const& [property_id, specified_value] : computed_properties->inheritance_dependent_specified_values()) {
-        RefPtr old_value = computed_properties->property(property_id);
-        computed_properties->set_property_without_modifying_flags(property_id, specified_value);
+    for (auto const& [property_id, specified_value] : old_computed_properties->inheritance_dependent_specified_values()) {
+        RefPtr old_value = old_computed_properties->property(property_id);
+        computed_properties_builder.set_property_without_modifying_flags(property_id, specified_value);
         property_values_affected_by_inherited_style.set(to_underlying(property_id), old_value);
     }
 
+    bool did_update_animated_properties = false;
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
-        RefPtr old_value = computed_properties->property(property_id);
+        RefPtr old_value = old_computed_properties->property(property_id);
 
-        if (!computed_properties->is_property_inherited(property_id))
+        if (!new_computed_properties.is_property_inherited(property_id))
             continue;
 
-        if (computed_properties->is_animated_property_inherited(property_id) || !computed_properties->animated_property_values().contains(property_id)) {
-            if (auto new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, { *this }); new_animated_value.has_value())
-                computed_properties->set_animated_property(property_id, new_animated_value->value, new_animated_value->is_result_of_transition, CSS::ComputedProperties::Inherited::Yes);
-            else if (computed_properties->animated_property_values().contains(property_id))
-                computed_properties->remove_animated_property(property_id);
+        if (new_computed_properties.is_animated_property_inherited(property_id) || !new_computed_properties.has_animated_property(property_id)) {
+            RefPtr<CSS::StyleValue const> old_animated_value;
+            if (old_computed_properties->has_animated_property(property_id)) {
+                auto animated_value = old_computed_properties->animated_property_values().get(property_id);
+                VERIFY(animated_value.has_value());
+                old_animated_value = *animated_value.value();
+            }
+            if (auto new_animated_value = CSS::StyleComputer::get_animated_inherit_value(property_id, { *this }); new_animated_value.has_value()) {
+                if (!old_animated_value
+                    || style_value_changed(*old_animated_value, *new_animated_value->value)
+                    || old_computed_properties->is_animated_property_result_of_transition(property_id) != (new_animated_value->is_result_of_transition == CSS::AnimatedPropertyResultOfTransition::Yes)
+                    || !old_computed_properties->is_animated_property_inherited(property_id))
+                    did_update_animated_properties = true;
+                new_computed_properties.set_animated_property(Badge<DOM::Element> {}, property_id, new_animated_value->value, new_animated_value->is_result_of_transition, CSS::ComputedProperties::Inherited::Yes);
+            } else if (old_animated_value) {
+                did_update_animated_properties = true;
+                new_computed_properties.remove_animated_property(Badge<DOM::Element> {}, property_id);
+            }
         }
 
         RefPtr new_value = CSS::StyleComputer::get_non_animated_inherit_value(property_id, { *this });
-        computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
-        if (style_value_changed(*old_value, computed_properties->property(property_id)))
+        computed_properties_builder.set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
+        if (style_value_changed(*old_value, new_computed_properties.property(property_id)))
             invalidation.inherited_style_changed = true;
-        invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &computed_properties->property(property_id));
+        invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &new_computed_properties.property(property_id));
     }
 
     if (schedule_animation_update == ScheduleAnimationUpdate::Yes && has_relevant_animations())
         document().set_needs_animated_style_update();
 
-    if (invalidation.is_none() && property_values_affected_by_inherited_style.is_empty()) {
+    if (invalidation.is_none() && property_values_affected_by_inherited_style.is_empty() && !did_update_animated_properties) {
         counters.element_inherited_style_noop_recomputations++;
         return invalidation;
     }
 
     AbstractElement abstract_element { *this };
 
-    document().style_computer().compute_property_values(*computed_properties, abstract_element);
+    document().style_computer().compute_property_values(computed_properties_builder, abstract_element);
 
     for (auto const& [property_id_value, old_value] : property_values_affected_by_inherited_style) {
         auto property_id = static_cast<CSS::PropertyID>(property_id_value);
-        auto const& new_value = computed_properties->property(property_id);
+        auto const& new_value = new_computed_properties.property(property_id);
         if (CSS::is_inherited_property(property_id) && style_value_changed(*old_value, new_value))
             invalidation.inherited_style_changed = true;
         invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &new_value);
     }
 
+    m_computed_properties = CSS::ComputedProperties::create(move(computed_properties_builder));
+
     bool did_change_custom_properties = false;
-    invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, computed_properties.ptr());
+    invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_properties.ptr());
 
     if (invalidation.is_none()) {
         counters.element_inherited_style_noop_recomputations++;
@@ -3665,7 +3676,7 @@ size_t Element::attribute_list_size() const
     return m_attributes ? m_attributes->length() : 0;
 }
 
-RefPtr<CSS::ComputedProperties> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type)
+RefPtr<CSS::ComputedProperties const> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type) const
 {
     if (pseudo_element_type.has_value()) {
         if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
@@ -3675,14 +3686,23 @@ RefPtr<CSS::ComputedProperties> Element::computed_properties(Optional<CSS::Pseud
     return m_computed_properties;
 }
 
-RefPtr<CSS::ComputedProperties const> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type) const
+void Element::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const& badge, Optional<CSS::PseudoElement> pseudo_element_type, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
 {
+    DOM::AbstractElement abstract_element { *this, pseudo_element_type };
     if (pseudo_element_type.has_value()) {
         if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
-            return pseudo_element->computed_properties();
-        return {};
+            pseudo_element->update_animated_properties(badge, abstract_element, effect, context);
+        return;
     }
-    return m_computed_properties;
+
+    update_animated_properties_for_abstract_element(badge, abstract_element, effect, context);
+}
+
+void Element::update_animated_properties_for_abstract_element(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
+{
+    if (!m_computed_properties)
+        return;
+    effect.update_computed_properties_for_style(context, abstract_element, *m_computed_properties);
 }
 
 void Element::set_computed_properties(Optional<CSS::PseudoElement> pseudo_element_type, RefPtr<CSS::ComputedProperties> style)

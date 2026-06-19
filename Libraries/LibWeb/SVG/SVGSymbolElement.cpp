@@ -35,7 +35,7 @@ void SVGSymbolElement::visit_edges(Cell::Visitor& visitor)
     SVGFitToViewBox::visit_edges(visitor);
 }
 
-void SVGSymbolElement::adjust_computed_style(CSS::ComputedProperties& computed_properties)
+void SVGSymbolElement::adjust_computed_style(CSS::ComputedProperties::Builder& computed_properties)
 {
     Base::adjust_computed_style(computed_properties);
 

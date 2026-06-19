@@ -514,7 +514,6 @@ RefPtr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element&
                 element,
                 *pseudo_element_style);
             list_box->set_marker(list_item_marker);
-            element.set_computed_properties(CSS::PseudoElement::Marker, pseudo_element_style);
             element.set_synthetic_pseudo_element_node({}, CSS::PseudoElement::Marker, list_item_marker);
             list_box->prepend_child(*list_item_marker);
             return list_item_marker;
@@ -877,7 +876,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     }
 
     auto& style_computer = document.style_computer();
-    RefPtr<CSS::ComputedProperties> style;
+    RefPtr<CSS::ComputedProperties const> style;
     CSS::Display display;
 
     if (!should_create_layout_node) {

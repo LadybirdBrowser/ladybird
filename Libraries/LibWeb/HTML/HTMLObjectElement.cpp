@@ -221,7 +221,7 @@ RefPtr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::ComputedProperti
     return nullptr;
 }
 
-void HTMLObjectElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLObjectElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

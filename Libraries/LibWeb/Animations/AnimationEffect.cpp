@@ -31,6 +31,22 @@ namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(AnimationEffect);
 
+AnimationUpdateContext::ElementData::ElementData() = default;
+
+AnimationUpdateContext::ElementData::ElementData(RefPtr<CSS::AnimatedProperties const> animated_properties_before_update, RefPtr<CSS::ComputedProperties> target_style)
+    : animated_properties_before_update(move(animated_properties_before_update))
+    , target_style(move(target_style))
+{
+}
+
+AnimationUpdateContext::ElementData::ElementData(ElementData&&) = default;
+
+AnimationUpdateContext::ElementData& AnimationUpdateContext::ElementData::operator=(ElementData&&) = default;
+
+AnimationUpdateContext::ElementData::~ElementData() = default;
+
+AnimationUpdateContext::AnimationUpdateContext() = default;
+
 Bindings::FillMode css_fill_mode_to_bindings_fill_mode(CSS::AnimationFillMode mode)
 {
     switch (mode) {
@@ -787,20 +803,34 @@ void AnimationEffect::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_associated_animation);
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_for_animated_properties(HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& old_properties, HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& new_properties)
+static CSS::StyleValue const* animated_property_value(CSS::AnimatedProperties const* properties, CSS::PropertyID property_id)
+{
+    if (!properties)
+        return nullptr;
+    auto value = properties->values().get(property_id);
+    if (!value.has_value())
+        return nullptr;
+    return value.value();
+}
+
+static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_for_animated_properties(CSS::AnimatedProperties const* old_properties, CSS::AnimatedProperties const* new_properties)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
     auto old_and_new_properties = MUST(Bitmap::create(CSS::number_of_longhand_properties, 0));
-    for (auto const& [property_id, _] : old_properties)
-        old_and_new_properties.set(to_underlying(property_id) - to_underlying(CSS::first_longhand_property_id), 1);
-    for (auto const& [property_id, _] : new_properties)
-        old_and_new_properties.set(to_underlying(property_id) - to_underlying(CSS::first_longhand_property_id), 1);
+    if (old_properties) {
+        for (auto const& [property_id, _] : old_properties->values())
+            old_and_new_properties.set(to_underlying(property_id) - to_underlying(CSS::first_longhand_property_id), 1);
+    }
+    if (new_properties) {
+        for (auto const& [property_id, _] : new_properties->values())
+            old_and_new_properties.set(to_underlying(property_id) - to_underlying(CSS::first_longhand_property_id), 1);
+    }
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         if (!old_and_new_properties.get(i - to_underlying(CSS::first_longhand_property_id)))
             continue;
         auto property_id = static_cast<CSS::PropertyID>(i);
-        auto const* old_value = old_properties.get(property_id).value_or({});
-        auto const* new_value = new_properties.get(property_id).value_or({});
+        auto const* old_value = animated_property_value(old_properties, property_id);
+        auto const* new_value = animated_property_value(new_properties, property_id);
         if (!old_value && !new_value)
             continue;
         auto property_invalidation = compute_property_invalidation(property_id, old_value, new_value);
@@ -819,7 +849,8 @@ AnimationUpdateContext::~AnimationUpdateContext()
             continue;
         auto& element = it.key;
         GC::Ref<DOM::Element> target = element.element();
-        auto invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update, style->animated_property_values());
+        auto animated_properties_after_update = style->animated_properties_snapshot();
+        auto invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update.ptr(), animated_properties_after_update.ptr());
 
         if (invalidation.is_none())
             continue;

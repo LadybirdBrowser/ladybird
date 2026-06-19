@@ -31,7 +31,7 @@ void HTMLButtonElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void HTMLButtonElement::adjust_computed_style(CSS::ComputedProperties& style)
+void HTMLButtonElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
 {
     // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
     // If the computed value of 'display' is 'inline-grid', 'grid', 'inline-flex', 'flex', 'none', or 'contents', then behave as the computed value.
