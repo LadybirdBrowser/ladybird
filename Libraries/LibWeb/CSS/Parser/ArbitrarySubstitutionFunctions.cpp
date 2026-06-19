@@ -440,8 +440,12 @@ static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& eleme
         result = { ComponentValue { GuaranteedInvalidValue {} } };
     } else {
         // Look up the value of the custom property
-        auto& custom_property_name = name_token.token().ident();
-        auto custom_property_value = StyleComputer::compute_value_of_custom_property(element, Utf16FlyString::from_utf8(custom_property_name), guarded_contexts);
+        auto custom_property_name = Utf16FlyString::from_utf8(name_token.token().ident());
+        RefPtr<StyleValue const> custom_property_value;
+        if (auto const* computed_style = replacement_context.computed_style_for_custom_property_resolution)
+            custom_property_value = element.document().style_computer().compute_value_of_custom_property(*computed_style, element, custom_property_name, guarded_contexts);
+        else
+            custom_property_value = StyleComputer::compute_value_of_custom_property(element, custom_property_name, guarded_contexts);
         result = custom_property_value->tokenize();
     }
 

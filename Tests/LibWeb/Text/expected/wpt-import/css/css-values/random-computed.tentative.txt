@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 150 tests
 
-127 Pass
-23 Fail
+128 Pass
+22 Fail
 Pass	Property scale value 'random(1, 11)'
 Pass	Property scale value 'random(--foo, 2, 12)'
 Pass	Property scale value 'random(--foo element-shared, 3, 13)'
@@ -95,7 +95,7 @@ Fail	Property border-image-slice value 'random(10%, 30%)'
 Pass	Property background-color value 'rgb(225, 215, 0, random(30%, 10%))'
 Pass	Property font-size value 'random(30%, 10%)'
 Pass	Property font-size value 'random(10px * 10% / 1%, 0%)'
-Fail	Property --percent value 'random(10%, 30%)'
+Pass	Property --percent value 'random(10%, 30%)'
 Pass	Property width value 'random(fixed random(1, 2), 10px, 100px)'
 Pass	Property translate value 'random(fixed random(-2, -1), 10%, 100%)'
 Pass	Property color value 'rgb(random(30, 10) random(60, 10) random(90, 10))'
