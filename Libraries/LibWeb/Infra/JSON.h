@@ -7,6 +7,10 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/HashMap.h>
+#include <AK/String.h>
+#include <AK/Types.h>
+#include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
