@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+20 Pass
+8 Fail
+Pass	chunk of type undefined should error the stream for deflate
+Pass	chunk of type null should error the stream for deflate
+Pass	chunk of type numeric should error the stream for deflate
+Pass	chunk of type object, not BufferSource should error the stream for deflate
+Pass	chunk of type array should error the stream for deflate
+Fail	chunk of type SharedArrayBuffer should error the stream for deflate
+Fail	chunk of type shared Uint8Array should error the stream for deflate
+Pass	chunk of type undefined should error the stream for deflate-raw
+Pass	chunk of type null should error the stream for deflate-raw
+Pass	chunk of type numeric should error the stream for deflate-raw
+Pass	chunk of type object, not BufferSource should error the stream for deflate-raw
+Pass	chunk of type array should error the stream for deflate-raw
+Fail	chunk of type SharedArrayBuffer should error the stream for deflate-raw
+Fail	chunk of type shared Uint8Array should error the stream for deflate-raw
+Pass	chunk of type undefined should error the stream for gzip
+Pass	chunk of type null should error the stream for gzip
+Pass	chunk of type numeric should error the stream for gzip
+Pass	chunk of type object, not BufferSource should error the stream for gzip
+Pass	chunk of type array should error the stream for gzip
+Fail	chunk of type SharedArrayBuffer should error the stream for gzip
+Fail	chunk of type shared Uint8Array should error the stream for gzip
+Pass	chunk of type undefined should error the stream for brotli
+Pass	chunk of type null should error the stream for brotli
+Pass	chunk of type numeric should error the stream for brotli
+Pass	chunk of type object, not BufferSource should error the stream for brotli
+Pass	chunk of type array should error the stream for brotli
+Fail	chunk of type SharedArrayBuffer should error the stream for brotli
+Fail	chunk of type shared Uint8Array should error the stream for brotli

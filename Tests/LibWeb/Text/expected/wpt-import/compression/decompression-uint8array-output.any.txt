@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	decompressing deflate output should give Uint8Array chunks
+Pass	decompressing gzip output should give Uint8Array chunks
+Pass	decompressing deflate-raw output should give Uint8Array chunks
+Pass	decompressing brotli output should give Uint8Array chunks

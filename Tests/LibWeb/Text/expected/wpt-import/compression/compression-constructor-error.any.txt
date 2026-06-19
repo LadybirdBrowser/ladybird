@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	"a" should cause the constructor to throw
+Pass	no input should cause the constructor to throw
+Pass	non-string input should cause the constructor to throw
