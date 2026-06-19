@@ -235,6 +235,34 @@ String SiteIsolationManager::dump_process_tree(WebContentClient& client, u64 pag
     return builder.to_string_without_validation();
 }
 
+HashMap<pid_t, pid_t> SiteIsolationManager::remote_frame_process_embedders() const
+{
+    HashMap<pid_t, pid_t> embedders;
+
+    for (auto const& page_child_frames : m_child_frames) {
+        WebContentClient* embedder_client = nullptr;
+        WebContentClient::for_each_client([&](auto& client) {
+            if (!client_owns_page(client, page_child_frames.key))
+                return IterationDecision::Continue;
+
+            embedder_client = &client;
+            return IterationDecision::Break;
+        });
+        if (!embedder_client)
+            continue;
+
+        for (auto const& child_frame_entry : page_child_frames.value) {
+            auto const& child_frame = child_frame_entry.value;
+            if (!child_frame.is_remote())
+                continue;
+
+            embedders.set(child_frame.remote_client->pid(), embedder_client->pid());
+        }
+    }
+
+    return embedders;
+}
+
 bool SiteIsolationManager::has_matching_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const& url, ChildFrameOwner target_owner) const
 {
     auto child_frame = this->child_frame(page_id, frame_id);
