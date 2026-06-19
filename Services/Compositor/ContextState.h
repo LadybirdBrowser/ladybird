@@ -127,7 +127,7 @@ public:
     bool has_pending_present_frame_scheduled_on(Optional<u64> display_id) const;
     bool can_schedule_pending_present_frame_if_unblocked() const;
     Optional<Gfx::IntRect> take_pending_present_frame_if_unblocked();
-    bool needs_synchronous_present_for_screenshot() const;
+    bool needs_rasterization() const;
     Optional<Gfx::IntRect> current_frame_rect_to_present() const;
     Optional<PreparedFrame> prepare_frame(Web::Painting::DisplayListPlayerSkia&, Gfx::IntRect, CompositedContextResolver const*);
     void did_submit_prepared_frame(Gfx::IntRect);

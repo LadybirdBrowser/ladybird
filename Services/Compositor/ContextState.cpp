@@ -547,9 +547,10 @@ Optional<Gfx::IntRect> ContextState::take_pending_present_frame_if_unblocked()
     return m_pending_present_frame.release_value();
 }
 
-bool ContextState::needs_synchronous_present_for_screenshot() const
+bool ContextState::needs_rasterization() const
 {
-    return m_pending_present_frame.has_value() || m_pending_present_frame_scheduled;
+    return m_pending_present_frame.has_value()
+        || (!m_latest_rendered_surface && m_presented_frame.has_value());
 }
 
 Optional<Gfx::IntRect> ContextState::current_frame_rect_to_present() const
