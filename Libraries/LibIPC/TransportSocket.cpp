@@ -21,6 +21,13 @@
 
 namespace IPC {
 
+Atomic<u32> TransportSocket::s_eof_drain_window_for_test_ms { 0 };
+
+void TransportSocket::set_eof_drain_window_for_test(u32 milliseconds)
+{
+    s_eof_drain_window_for_test_ms.store(milliseconds, AK::MemoryOrder::memory_order_relaxed);
+}
+
 ErrorOr<NonnullOwnPtr<TransportSocket>> TransportSocket::from_socket(NonnullOwnPtr<Core::LocalSocket> socket)
 {
     return make<TransportSocket>(move(socket));
@@ -415,6 +422,13 @@ void TransportSocket::read_incoming_messages()
         }
         for (auto const& fd : received_fds) {
             m_unprocessed_attachments.enqueue(Attachment::from_fd(fd));
+        }
+    }
+
+    if (m_peer_eof) {
+        if (auto window_ms = s_eof_drain_window_for_test_ms.load(AK::MemoryOrder::memory_order_relaxed); window_ms != 0) {
+            notify_read_available();
+            (void)Core::System::sleep_ms(window_ms);
         }
     }
 
