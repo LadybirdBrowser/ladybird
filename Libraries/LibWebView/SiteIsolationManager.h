@@ -70,6 +70,7 @@ public:
     void remove_page(u64 page_id);
     void remove_all_pages_for_client(WebContentClient&);
     String dump_process_tree(WebContentClient&, u64 page_id) const;
+    HashMap<pid_t, pid_t> remote_frame_process_embedders() const;
 
     bool has_matching_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const&, ChildFrameOwner) const;
     void record_pending_child_frame_navigation(u64 page_id, StringView frame_id, URL::URL const&, ChildFrameOwner, Optional<u64> remote_page_id = {});

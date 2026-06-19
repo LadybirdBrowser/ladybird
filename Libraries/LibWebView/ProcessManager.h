@@ -8,7 +8,6 @@
 
 #include <AK/Function.h>
 #include <AK/HashMap.h>
-#include <AK/JsonValue.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <LibCore/EventLoop.h>
@@ -32,6 +31,7 @@ public:
 
     void add_process(Process&&);
     void for_each_process(Function<void(Process&)>);
+    void for_each_process_statistics(Function<void(Process&, Core::Platform::ProcessInfo const&)>);
     Optional<Process> remove_process(pid_t);
     Optional<Process&> find_process(pid_t);
     void cancel_forced_exit(pid_t);
@@ -42,7 +42,6 @@ public:
 #endif
 
     void update_all_process_statistics();
-    JsonValue serialize_json();
 
     Function<void(Process&)> on_process_added; // test-web
     Function<void(Process&&, Optional<int> exit_status)> on_process_exited;

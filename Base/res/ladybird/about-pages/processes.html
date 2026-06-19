@@ -81,6 +81,11 @@
             tbody tr:hover {
                 background-color: var(--table-row-hover);
             }
+
+            td.process-name {
+                --process-depth: 0;
+                padding-left: calc(4px + var(--process-depth) * 20px);
+            }
         </style>
     </head>
     <body>
@@ -140,7 +145,7 @@
 
                 const multiplier = window.sortDirection === Direction.ascending ? 1 : -1;
 
-                window.processes.sort((lhs, rhs) => {
+                const compareProcesses = (lhs, rhs) => {
                     const lhsValue = lhs[window.sortKey];
                     const rhsValue = rhs[window.sortKey];
 
@@ -149,24 +154,64 @@
                     }
 
                     return multiplier * (lhsValue - rhsValue);
-                });
+                };
 
                 let oldTable = document.getElementById("process-table");
 
                 let newTable = document.createElement("tbody");
                 newTable.setAttribute("id", "process-table");
 
-                const insertColumn = (row, value) => {
+                const insertColumn = (row, value, className) => {
                     let column = row.insertCell();
+                    if (className) {
+                        column.className = className;
+                    }
                     column.innerText = value;
+                    return column;
                 };
 
+                const processesByPID = new Map();
                 window.processes.forEach(process => {
+                    processesByPID.set(process.pid, process);
+                });
+
+                const childProcessesByEmbedderPID = new Map();
+                const rootProcesses = [];
+                window.processes.forEach(process => {
+                    if (process.embedderPID !== undefined && processesByPID.has(process.embedderPID)) {
+                        let childProcesses = childProcessesByEmbedderPID.get(process.embedderPID);
+                        if (!childProcesses) {
+                            childProcesses = [];
+                            childProcessesByEmbedderPID.set(process.embedderPID, childProcesses);
+                        }
+                        childProcesses.push(process);
+                    } else {
+                        rootProcesses.push(process);
+                    }
+                });
+
+                const insertProcess = (process, depth) => {
                     let row = newTable.insertRow();
-                    insertColumn(row, process.name);
+                    let nameColumn = insertColumn(row, process.name, "process-name");
+                    nameColumn.style.setProperty("--process-depth", depth);
                     insertColumn(row, process.pid);
                     insertColumn(row, cpuFormatter.format(process.cpu));
                     insertColumn(row, memoryFormatter.formatBytes(process.memory));
+
+                    const childProcesses = childProcessesByEmbedderPID.get(process.pid);
+                    if (!childProcesses) {
+                        return;
+                    }
+
+                    childProcesses.sort(compareProcesses);
+                    childProcesses.forEach(childProcess => {
+                        insertProcess(childProcess, depth + 1);
+                    });
+                };
+
+                rootProcesses.sort(compareProcesses);
+                rootProcesses.forEach(process => {
+                    insertProcess(process, 0);
                 });
 
                 oldTable.parentNode.replaceChild(newTable, oldTable);
