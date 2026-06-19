@@ -14,7 +14,7 @@ jobs:
     if: github.repository == 'LadybirdBrowser/ladybird'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0
       - uses: fregante/setup-git-user@v2

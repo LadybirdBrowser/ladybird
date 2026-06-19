@@ -27,7 +27,7 @@ jobs:
         os: [macos-14]
 
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
 
       - name: Set Up Environment
         id: 'setup'
