@@ -203,7 +203,9 @@ intptr_t TransportSocket::io_thread_loop()
 
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
     if (!m_is_being_transferred.load(AK::MemoryOrder::memory_order_acquire)) {
+        Sync::MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
+        m_incoming_eof = true;
         m_incoming_cv.broadcast();
         notify_read_available();
     }
@@ -515,14 +517,15 @@ void TransportSocket::read_incoming_messages()
         m_unprocessed_bytes.clear();
     }
 
-    if (!batch.is_empty()) {
+    bool const peer_eof = m_peer_eof;
+    if (!batch.is_empty() || peer_eof) {
         Sync::MutexLocker locker(m_incoming_mutex);
-        m_incoming_messages.extend(move(batch));
-        m_incoming_cv.broadcast();
-        notify_read_available();
-    }
-
-    if (m_peer_eof) {
+        if (!batch.is_empty())
+            m_incoming_messages.extend(move(batch));
+        // Publish EOF only after the final batch is appended — under the same lock the consumer drains with — so that a
+        // consumer which observes EOF has also taken every message that arrived before it.
+        if (peer_eof)
+            m_incoming_eof = true;
         m_incoming_cv.broadcast();
         notify_read_available();
     }
@@ -531,13 +534,15 @@ void TransportSocket::read_incoming_messages()
 TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)
 {
     Vector<NonnullOwnPtr<Message>> messages;
+    bool eof;
     {
         Sync::MutexLocker locker(m_incoming_mutex);
         messages = move(m_incoming_messages);
+        eof = m_incoming_eof;
     }
     for (auto& message : messages)
         callback(move(*message));
-    return m_peer_eof ? ShouldShutdown::Yes : ShouldShutdown::No;
+    return eof ? ShouldShutdown::Yes : ShouldShutdown::No;
 }
 
 ErrorOr<TransportHandle> TransportSocket::release_for_transfer()

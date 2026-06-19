@@ -134,6 +134,9 @@ private:
     Sync::Mutex m_incoming_mutex;
     Sync::ConditionVariable m_incoming_cv { m_incoming_mutex };
     Vector<NonnullOwnPtr<Message>> m_incoming_messages;
+    // Consumer-visible EOF, guarded by m_incoming_mutex. Distinct from m_peer_eof. This is set only after the final
+    // batch of messages have been parsed and appended to m_incoming_messages under the same lock.
+    bool m_incoming_eof { false };
 
     RefPtr<AutoCloseFileDescriptor> m_wakeup_io_thread_read_fd;
     RefPtr<AutoCloseFileDescriptor> m_wakeup_io_thread_write_fd;
