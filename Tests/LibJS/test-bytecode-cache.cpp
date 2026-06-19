@@ -75,14 +75,14 @@ TEST_CASE(lazy_source_code_decoding_replaces_single_trailing_utf16_byte)
     EXPECT_EQ(source_code->source_text_from_offsets(0, 1).to_utf8(), "\xef\xbf\xbd"sv);
 }
 
-TEST_CASE(lazy_source_code_decoding_uses_pdfdocencoding_mapping)
+TEST_CASE(lazy_source_code_decoding_uses_windows1252_mapping)
 {
-    auto source_data = Vector<u8> { 0x18, 'A' };
+    auto source_data = Vector<u8> { 0x80, 'A' };
     auto source_bytes = TRY_OR_FAIL(Core::ImmutableBytes::copy(source_data.span()));
-    auto source_code = JS::SourceCode::create("test.js"_string, 2, "PDFDocEncoding"_string, move(source_bytes));
+    auto source_code = JS::SourceCode::create("test.js"_string, 2, "windows-1252"_string, move(source_bytes));
 
-    EXPECT_EQ(source_code->source_text_from_offsets(0, 1).to_utf8(), "\xcb\x98"sv);
-    EXPECT_EQ(source_code->code().to_utf8(), "\xcb\x98"
+    EXPECT_EQ(source_code->source_text_from_offsets(0, 1).to_utf8(), "\xe2\x82\xac"sv);
+    EXPECT_EQ(source_code->code().to_utf8(), "\xe2\x82\xac"
                                              "A"sv);
 }
 

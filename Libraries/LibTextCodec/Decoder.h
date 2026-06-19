@@ -87,13 +87,6 @@ public:
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
 };
 
-class TEXTCODEC_API PDFDocEncodingDecoder final : public Decoder {
-public:
-    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
-    virtual bool validate(StringView) override { return true; }
-    virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
-};
-
 class TEXTCODEC_API XUserDefinedDecoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
