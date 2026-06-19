@@ -142,6 +142,10 @@ private:
     virtual bool is_connection_open() const override;
     virtual Web::NavigationProcessDecision decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget) const override;
     virtual void request_new_process_for_navigation(URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior) override;
+    virtual void page_did_create_child_frame(String const& parent_frame_id, String const& frame_id) override;
+    virtual void page_did_update_child_frame_viewport(String const& frame_id, Web::CSSPixelRect) override;
+    virtual void page_did_commit_child_frame_navigation(String const& frame_id, URL::URL const&) override;
+    virtual void page_did_destroy_child_frame(String const& frame_id) override;
     virtual Gfx::Palette palette() const override;
     virtual Web::DevicePixelRect screen_rect() const override { return m_all_screen_rects[m_main_screen_index]; }
     virtual size_t screen_count() const override { return m_all_screen_rects.size(); }

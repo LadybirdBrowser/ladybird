@@ -193,6 +193,26 @@ void PageClient::request_new_process_for_navigation(URL::URL const& url, Variant
     client().async_did_request_new_process_for_navigation(m_id, url, move(document_resource), history_handling);
 }
 
+void PageClient::page_did_create_child_frame(String const& parent_frame_id, String const& frame_id)
+{
+    client().async_did_create_child_frame(m_id, parent_frame_id, frame_id);
+}
+
+void PageClient::page_did_update_child_frame_viewport(String const& frame_id, Web::CSSPixelRect viewport_rect)
+{
+    client().async_did_update_child_frame_viewport(m_id, frame_id, page().css_to_device_rect(viewport_rect), page().client().device_pixel_ratio());
+}
+
+void PageClient::page_did_commit_child_frame_navigation(String const& frame_id, URL::URL const& url)
+{
+    client().async_did_commit_child_frame_navigation(m_id, frame_id, url);
+}
+
+void PageClient::page_did_destroy_child_frame(String const& frame_id)
+{
+    client().async_did_destroy_child_frame(m_id, frame_id);
+}
+
 Gfx::Palette PageClient::palette() const
 {
     return Gfx::Palette(*m_palette_impl);

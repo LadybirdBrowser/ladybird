@@ -371,6 +371,9 @@ Navigable::~Navigable() = default;
 
 void Navigable::set_has_been_destroyed()
 {
+    if (!m_has_been_destroyed && parent())
+        page().client().page_did_destroy_child_frame(id());
+
     cancel_hover_update_after_async_scroll();
     destroy_compositor_context();
     m_has_been_destroyed = true;

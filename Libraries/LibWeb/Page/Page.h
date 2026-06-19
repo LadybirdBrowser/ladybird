@@ -444,6 +444,10 @@ public:
         return NavigationProcessDecision::Local;
     }
     virtual void request_new_process_for_navigation(URL::URL const&, Variant<Empty, String, HTML::POSTResource>, Bindings::NavigationHistoryBehavior) { }
+    virtual void page_did_create_child_frame(String const&, String const&) { }
+    virtual void page_did_update_child_frame_viewport(String const&, CSSPixelRect) { }
+    virtual void page_did_commit_child_frame_navigation(String const&, URL::URL const&) { }
+    virtual void page_did_destroy_child_frame(String const&) { }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;
     virtual double zoom_level() const = 0;
