@@ -92,7 +92,7 @@ private:
     SandboxingFlagSet m_iframe_sandboxing_flag_set {};
 };
 
-void run_iframe_load_event_steps(HTML::HTMLIFrameElement&);
+WEB_API void run_iframe_load_event_steps(HTML::HTMLIFrameElement&);
 
 ReferrerPolicy::ReferrerPolicy determine_iframe_element_referrer_policy(GC::Ptr<DOM::Element> embedder);
 

@@ -31,6 +31,7 @@
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -175,12 +176,12 @@ bool PageClient::is_connection_open() const
     return client().is_open();
 }
 
-Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target) const
+Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target, Optional<String> frame_id) const
 {
     if (target != Web::NavigationTarget::TopLevel)
-        return Web::NavigationProcessDecision::Local;
+        return client().decide_navigation_process(m_id, move(frame_id), current_url, target_url, target);
 
-    return WebView::is_url_suitable_for_same_process_navigation(current_url, target_url)
+    return WebView::is_url_suitable_for_same_process_navigation(current_url, target_url, Web::NavigationTarget::TopLevel)
         ? Web::NavigationProcessDecision::Local
         : Web::NavigationProcessDecision::Remote;
 }
@@ -191,6 +192,11 @@ void PageClient::request_new_process_for_navigation(URL::URL const& url, Variant
         m_webdriver->page_did_start_window_replacement({}, page().top_level_traversable()->window_handle());
 
     client().async_did_request_new_process_for_navigation(m_id, url, move(document_resource), history_handling);
+}
+
+void PageClient::request_new_process_for_child_frame_navigation(String const& frame_id, URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+{
+    client().async_did_request_new_process_for_child_frame_navigation(m_id, frame_id, url, move(document_resource), history_handling);
 }
 
 void PageClient::page_did_create_child_frame(String const& parent_frame_id, String const& frame_id)
@@ -210,7 +216,44 @@ void PageClient::page_did_commit_child_frame_navigation(String const& frame_id, 
 
 void PageClient::page_did_destroy_child_frame(String const& frame_id)
 {
+    m_remote_child_frame_compositor_contexts.remove(frame_id);
     client().async_did_destroy_child_frame(m_id, frame_id);
+}
+
+void PageClient::set_remote_child_frame_compositor_context(String frame_id, Optional<Web::Compositor::CompositorContextId> context_id)
+{
+    if (context_id.has_value())
+        m_remote_child_frame_compositor_contexts.set(move(frame_id), *context_id);
+    else
+        m_remote_child_frame_compositor_contexts.remove(frame_id);
+    request_frame();
+}
+
+Optional<Web::Compositor::CompositorContextId> PageClient::compositor_context_id_for_remote_child_frame(String const& frame_id) const
+{
+    return m_remote_child_frame_compositor_contexts.get(frame_id);
+}
+
+void PageClient::run_iframe_load_event_steps(String const& frame_id)
+{
+    auto active_document = page().top_level_traversable()->active_document();
+    if (!active_document)
+        return;
+
+    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
+        if (navigable->id() != frame_id)
+            continue;
+
+        auto container = GC::make_root(navigable->container());
+        if (!container || !is<Web::HTML::HTMLIFrameElement>(*container))
+            return;
+
+        container->queue_an_element_task(Web::HTML::Task::Source::DOMManipulation, [container] {
+            Web::HTML::run_iframe_load_event_steps(as<Web::HTML::HTMLIFrameElement>(*container));
+        });
+        container->document().schedule_html_parser_end_check();
+        return;
+    }
 }
 
 Gfx::Palette PageClient::palette() const

@@ -167,7 +167,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Set site isolation mode. Mode may be 'disable' or 'top-level' (default).",
+        .help_string = "Set site isolation mode. Mode may be 'disable', 'top-level' (default), or 'iframe'.",
         .long_name = "site-isolation",
         .value_name = "mode",
         .accept_value = [&](StringView value) {

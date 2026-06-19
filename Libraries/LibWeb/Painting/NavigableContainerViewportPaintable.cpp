@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
@@ -40,18 +41,26 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         auto const& navigable_container = this->navigable_container();
         auto content_navigable = navigable_container.content_navigable();
         VERIFY(content_navigable);
-        if (content_navigable->has_been_destroyed() || !content_navigable->has_compositor_context())
+        if (content_navigable->has_been_destroyed())
             return;
 
-        auto* hosted_document = const_cast<DOM::Document*>(navigable_container.content_document_without_origin_check());
-        if (hosted_document && hosted_document->is_render_blocked())
-            return;
+        auto context_id = document().page().client().compositor_context_id_for_remote_child_frame(content_navigable->id());
+        if (!context_id.has_value()) {
+            if (!content_navigable->has_compositor_context())
+                return;
+
+            auto* hosted_document = const_cast<DOM::Document*>(navigable_container.content_document_without_origin_check());
+            if (hosted_document && hosted_document->is_render_blocked())
+                return;
+
+            context_id = content_navigable->compositor_context().id();
+        }
 
         context.display_list_recorder().save();
         context.display_list_recorder().add_clip_rect(clip_rect.to_type<int>());
         context.display_list_recorder().draw_composited_context(
             context.enclosing_device_rect(absolute_rect).to_type<int>(),
-            content_navigable->compositor_context().id(),
+            *context_id,
             Gfx::ScalingMode::NearestNeighbor);
         context.display_list_recorder().restore();
 

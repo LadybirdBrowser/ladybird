@@ -439,15 +439,18 @@ public:
     virtual NavigationProcessDecision decide_navigation_process(
         [[maybe_unused]] URL::URL const& current_url,
         [[maybe_unused]] URL::URL const& target_url,
-        [[maybe_unused]] NavigationTarget target = NavigationTarget::TopLevel) const
+        [[maybe_unused]] NavigationTarget target = NavigationTarget::TopLevel,
+        [[maybe_unused]] Optional<String> frame_id = {}) const
     {
         return NavigationProcessDecision::Local;
     }
     virtual void request_new_process_for_navigation(URL::URL const&, Variant<Empty, String, HTML::POSTResource>, Bindings::NavigationHistoryBehavior) { }
+    virtual void request_new_process_for_child_frame_navigation(String const&, URL::URL const&, Variant<Empty, String, HTML::POSTResource>, Bindings::NavigationHistoryBehavior) { }
     virtual void page_did_create_child_frame(String const&, String const&) { }
     virtual void page_did_update_child_frame_viewport(String const&, CSSPixelRect) { }
     virtual void page_did_commit_child_frame_navigation(String const&, URL::URL const&) { }
     virtual void page_did_destroy_child_frame(String const&) { }
+    virtual Optional<Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(String const&) const { return {}; }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;
     virtual double zoom_level() const = 0;

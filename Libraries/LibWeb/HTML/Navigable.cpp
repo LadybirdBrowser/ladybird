@@ -2320,11 +2320,27 @@ void Navigable::begin_navigation(NavigateParams params)
                 }
 
                 // AD-HOC: If we are not able to continue in this process, request a new process from the UI.
-                if (is_top_level_traversable()
-                    && active_browsing_context()->page().client().decide_navigation_process(this->active_document()->url(), url, NavigationTarget::TopLevel) == NavigationProcessDecision::Remote) {
-                    active_browsing_context()->page().client().request_new_process_for_navigation(url, document_resource, history_handling);
+                auto& page_client = active_browsing_context()->page().client();
+                auto is_top_level_navigation = is_top_level_traversable();
+                auto target = is_top_level_navigation ? NavigationTarget::TopLevel : NavigationTarget::IFrame;
+                auto frame_id = is_top_level_navigation ? Optional<String> {} : Optional<String> { id() };
+                auto process_decision = page_client.decide_navigation_process(this->active_document()->url(), url, target, move(frame_id));
+                if (process_decision == NavigationProcessDecision::Remote && is_top_level_navigation) {
+                    page_client.request_new_process_for_navigation(url, document_resource, history_handling);
                     set_delaying_load_events(false);
                     return;
+                }
+                if (process_decision == NavigationProcessDecision::Remote) {
+                    if (has_compositor_context())
+                        compositor_context().set_parent_context({});
+                    page_client.request_new_process_for_child_frame_navigation(id(), url, document_resource, history_handling);
+                    set_delaying_load_events(false);
+                    return;
+                }
+                if (!is_top_level_navigation) {
+                    if (auto parent = this->parent();
+                        parent && has_compositor_context() && parent->has_compositor_context())
+                        compositor_context().set_parent_context(parent->compositor_context().id());
                 }
 
                 // AD-HOC: Tell the UI that we started loading.
