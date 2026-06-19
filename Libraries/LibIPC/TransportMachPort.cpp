@@ -179,7 +179,16 @@ void TransportMachPort::wake_io_thread()
     mach_msg(&header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, sizeof(header), 0, MACH_PORT_NULL, 0, MACH_PORT_NULL);
 }
 
-void TransportMachPort::notify_read_available()
+bool TransportMachPort::schedule_read_notification_if_needed_locked()
+{
+    if (m_read_notification_pending)
+        return false;
+
+    m_read_notification_pending = true;
+    return true;
+}
+
+void TransportMachPort::write_read_notification_byte()
 {
     if (!m_notify_hook_write_fd)
         return;
@@ -190,12 +199,15 @@ void TransportMachPort::notify_read_available()
 
 void TransportMachPort::mark_peer_eof()
 {
+    bool should_write_notification = false;
     {
         Sync::MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
+        should_write_notification = schedule_read_notification_if_needed_locked();
     }
     m_incoming_cv.broadcast();
-    notify_read_available();
+    if (should_write_notification)
+        write_read_notification_byte();
 }
 
 intptr_t TransportMachPort::io_thread_loop()
@@ -415,12 +427,17 @@ void TransportMachPort::process_received_message(u8* buffer)
     if (message->bytes.is_empty() && message->attachments.is_empty())
         return;
 
+    bool should_write_notification = false;
     {
         Sync::MutexLocker locker(m_incoming_mutex);
+        auto const was_empty = m_incoming_messages.is_empty();
         m_incoming_messages.append(move(message));
+        if (was_empty)
+            should_write_notification = schedule_read_notification_if_needed_locked();
     }
     m_incoming_cv.signal();
-    notify_read_available();
+    if (should_write_notification)
+        write_read_notification_byte();
 }
 
 void TransportMachPort::set_up_read_hook(Function<void()> hook)
@@ -430,15 +447,22 @@ void TransportMachPort::set_up_read_hook(Function<void()> hook)
     m_read_hook_notifier->on_activation = [this] {
         char buf[64];
         (void)Core::System::read(m_notify_hook_read_fd->value(), { buf, sizeof(buf) });
+        {
+            Sync::MutexLocker locker(m_incoming_mutex);
+            m_read_notification_pending = false;
+        }
         if (m_on_read_hook)
             m_on_read_hook();
     };
 
+    bool should_write_notification = false;
     {
         Sync::MutexLocker locker(m_incoming_mutex);
-        if (!m_incoming_messages.is_empty())
-            notify_read_available();
+        if (!m_incoming_messages.is_empty() || m_peer_eof)
+            should_write_notification = schedule_read_notification_if_needed_locked();
     }
+    if (should_write_notification)
+        write_read_notification_byte();
 }
 
 bool TransportMachPort::is_open() const
