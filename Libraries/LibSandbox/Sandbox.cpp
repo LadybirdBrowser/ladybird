@@ -71,15 +71,14 @@ ErrorOr<void> add_landlock_path_if_exists(Vector<LandlockPath>& paths, StringVie
         return Error::from_syscall("stat"sv, errno);
     }
 
-    if (!S_ISDIR(statbuf.st_mode))
-        path_bytes = LexicalPath::dirname(path_bytes);
+    bool is_directory = S_ISDIR(statbuf.st_mode);
 
     for (auto const& existing_path : paths) {
         if (existing_path.access == access && existing_path.path == path_bytes)
             return {};
     }
 
-    TRY(paths.try_append({ move(path_bytes), access }));
+    TRY(paths.try_append({ move(path_bytes), access, is_directory }));
     return {};
 }
 #endif
@@ -471,25 +470,44 @@ ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> paths
         };
 
         landlock_path_beneath_attr path_beneath {};
-        path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_READ_DIR;
-        if (landlock_path.access == LandlockPath::Access::ReadAndExecute)
-            path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_EXECUTE;
-        if (landlock_path.access == LandlockPath::Access::ReadWrite) {
-            path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_WRITE_FILE
-                | LANDLOCK_ACCESS_FS_REMOVE_DIR
-                | LANDLOCK_ACCESS_FS_REMOVE_FILE
-                | LANDLOCK_ACCESS_FS_MAKE_DIR
-                | LANDLOCK_ACCESS_FS_MAKE_REG
-                | LANDLOCK_ACCESS_FS_MAKE_SOCK
-                | LANDLOCK_ACCESS_FS_MAKE_FIFO;
-#        ifdef LANDLOCK_ACCESS_FS_REFER
-            if (landlock_abi >= 2)
-                path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_REFER;
-#        endif
+        switch (landlock_path.access) {
+        case LandlockPath::Access::ReadOnly: {
+            path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE;
+
+            if (landlock_path.is_directory)
+                path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_READ_DIR;
+            break;
+        }
+        case LandlockPath::Access::ReadAndExecute: {
+            path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_EXECUTE;
+
+            if (landlock_path.is_directory)
+                path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_READ_DIR;
+            break;
+        }
+        case LandlockPath::Access::ReadWrite: {
+            path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_WRITE_FILE;
+
 #        ifdef LANDLOCK_ACCESS_FS_TRUNCATE
             if (landlock_abi >= 3)
                 path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_TRUNCATE;
 #        endif
+
+            if (landlock_path.is_directory) {
+                path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_REMOVE_DIR
+                    | LANDLOCK_ACCESS_FS_REMOVE_FILE
+                    | LANDLOCK_ACCESS_FS_MAKE_DIR
+                    | LANDLOCK_ACCESS_FS_MAKE_REG
+                    | LANDLOCK_ACCESS_FS_MAKE_SOCK
+                    | LANDLOCK_ACCESS_FS_MAKE_FIFO;
+
+#        ifdef LANDLOCK_ACCESS_FS_REFER
+                if (landlock_abi >= 2)
+                    path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_REFER;
+#        endif
+            }
+            break;
+        }
         }
         path_beneath.parent_fd = path_fd;
         if (syscall(__NR_landlock_add_rule, ruleset_fd, LANDLOCK_RULE_PATH_BENEATH, &path_beneath, 0) < 0)

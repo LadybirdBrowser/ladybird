@@ -25,6 +25,7 @@ struct LandlockPath {
 
     ByteString path;
     Access access { Access::ReadOnly };
+    bool is_directory { false };
 };
 #endif
 
