@@ -31,9 +31,11 @@
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/EventResult.h>
+#include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/SiteIsolationManager.h>
@@ -51,6 +53,7 @@ class WEBVIEW_API WebContentClient final
 
 public:
     using InitTransport = Messages::WebContentServer::InitTransport;
+    using ChildFrameOwner = SiteIsolationManager::ChildFrameOwner;
     using ChildFrameHost = SiteIsolationManager::ChildFrameHost;
 
     template<CallableAs<IterationDecision, WebContentClient&> Callback>
@@ -71,6 +74,8 @@ public:
     void request_close(u64 page_id);
 
     void web_ui_disconnected(Badge<WebUI>);
+    void register_embedded_page(u64 page_id);
+    void unregister_embedded_page(u64 page_id);
 
     bool has_views() const { return !m_views.is_empty(); }
 
@@ -97,6 +102,8 @@ public:
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
 
 private:
+    friend class SiteIsolationManager;
+
     void maybe_record_history_visit_for_current_load(u64 page_id, URL::URL const&, Optional<String> title, StringView reason);
     void close_server_if_unused();
     bool forget_compositor_context(Web::Compositor::CompositorContextId);
@@ -106,7 +113,9 @@ private:
 
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
+    virtual Messages::WebContentClient::DecideNavigationProcessResponse decide_navigation_process(u64 page_id, Optional<String> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget) override;
     virtual void did_request_new_process_for_navigation(u64 page_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) override;
+    virtual void did_request_new_process_for_child_frame_navigation(u64 page_id, String frame_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) override;
     virtual void did_create_child_frame(u64 page_id, String parent_frame_id, String frame_id) override;
     virtual void did_update_child_frame_viewport(u64 page_id, String frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
     virtual void did_commit_child_frame_navigation(u64 page_id, String frame_id, URL::URL url) override;
@@ -239,6 +248,7 @@ private:
     void remember_compositor_context(Web::Compositor::CompositorContextId, Optional<u64> page_id);
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
+    HashTable<u64> m_embedded_pages;
     HashTable<u64> m_detached_pages_pending_close;
     HashMap<Web::Compositor::CompositorContextId, Optional<u64>> m_compositor_contexts;
     HashMap<u64, String> m_history_recorded_urls_for_current_load;

@@ -95,6 +95,11 @@ public:
 #endif
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
+    struct ChildFrameWebContentProcess {
+        NonnullRefPtr<WebContentClient> client;
+        u64 page_id { 0 };
+    };
+    ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process();
     u64 allocate_page_id();
     Web::Compositor::CompositorContextId allocate_compositor_context_id();
     ErrorOr<void> connect_web_content_to_compositor(WebContentClient&);

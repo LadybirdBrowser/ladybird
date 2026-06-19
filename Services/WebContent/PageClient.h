@@ -128,6 +128,8 @@ public:
     void send_current_needs_beforeunload_check();
     void wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
     void did_complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
+    void run_iframe_load_event_steps(String const& frame_id);
+    void set_remote_child_frame_compositor_context(String, Optional<Web::Compositor::CompositorContextId>);
     void clear_pending_dom_mutations();
     void did_delete_all_cookies(u64 request_id);
 
@@ -143,12 +145,14 @@ private:
 
     // ^PageClient
     virtual bool is_connection_open() const override;
-    virtual Web::NavigationProcessDecision decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget) const override;
+    virtual Web::NavigationProcessDecision decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget, Optional<String> frame_id) const override;
     virtual void request_new_process_for_navigation(URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior) override;
+    virtual void request_new_process_for_child_frame_navigation(String const& frame_id, URL::URL const&, Variant<Empty, String, Web::HTML::POSTResource>, Web::Bindings::NavigationHistoryBehavior) override;
     virtual void page_did_create_child_frame(String const& parent_frame_id, String const& frame_id) override;
     virtual void page_did_update_child_frame_viewport(String const& frame_id, Web::CSSPixelRect) override;
     virtual void page_did_commit_child_frame_navigation(String const& frame_id, URL::URL const&) override;
     virtual void page_did_destroy_child_frame(String const& frame_id) override;
+    virtual Optional<Web::Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(String const&) const override;
     virtual Gfx::Palette palette() const override;
     virtual Web::DevicePixelRect screen_rect() const override { return m_all_screen_rects[m_main_screen_index]; }
     virtual size_t screen_count() const override { return m_all_screen_rects.size(); }
@@ -289,6 +293,7 @@ private:
     RefPtr<Core::Timer> m_frame_timer;
     Optional<double> m_last_frame_dispatch_time;
     Queue<PendingDOMMutation> m_pending_dom_mutations;
+    HashMap<String, Web::Compositor::CompositorContextId> m_remote_child_frame_compositor_contexts;
 
     u64 m_devtools_client_count { 0 };
 };

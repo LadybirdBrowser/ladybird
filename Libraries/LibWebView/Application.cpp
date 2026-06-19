@@ -267,7 +267,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Set site isolation mode. Mode may be 'disable' or 'top-level' (default).",
+        .help_string = "Set site isolation mode. Mode may be 'disable', 'top-level' (default), or 'iframe'.",
         .long_name = "site-isolation",
         .value_name = "mode",
         .accept_value = [&](StringView value) {
@@ -716,6 +716,16 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
 
     launch_spare_web_content_process();
     return create_web_content_client(view, allocate_page_id());
+}
+
+ErrorOr<Application::ChildFrameWebContentProcess> Application::launch_child_frame_web_content_process()
+{
+    auto page_id = allocate_page_id();
+    auto client = TRY(create_web_content_client({}, page_id));
+    return ChildFrameWebContentProcess {
+        .client = move(client),
+        .page_id = page_id,
+    };
 }
 
 void Application::launch_spare_web_content_process()
