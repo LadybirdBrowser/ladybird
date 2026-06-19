@@ -21,6 +21,7 @@ struct CodePointFallbackKey {
     u16 weight { 0 };
     u16 width { 0 };
     u8 slope { 0 };
+    bool prefer_color_emoji { false };
 
     bool operator==(CodePointFallbackKey const&) const = default;
 
@@ -28,7 +29,7 @@ struct CodePointFallbackKey {
     {
         return pair_int_hash(
             pair_int_hash(code_point, weight),
-            pair_int_hash(width, slope));
+            pair_int_hash(pair_int_hash(width, slope), prefer_color_emoji));
     }
 };
 
@@ -47,7 +48,7 @@ public:
     SystemFontProvider& install_system_font_provider(NonnullOwnPtr<SystemFontProvider>);
 
     RefPtr<Gfx::Font> get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {});
-    RefPtr<Gfx::Font> get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope);
+    RefPtr<Gfx::Font> get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji);
     void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
     [[nodiscard]] StringView system_font_provider_name() const;
 

@@ -655,26 +655,25 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
         font_list->add(*default_font);
     }
 
-    // Add emoji and symbol fonts
-    for (auto font_name : Platform::FontPlugin::the().symbol_font_names()) {
-        if (auto other_font_list = find_font(font_name)) {
-            font_list->extend(*other_font_list);
-        }
-    }
-
     // The default font is already included in the font list, but we explicitly set it
     // as the last-resort font. This ensures that if none of the specified fonts contain
     // the requested code point, there is still a font available to provide a fallback glyph.
     font_list->set_last_resort_font(*default_font);
 
-    if (!Platform::FontPlugin::the().is_layout_test_mode()) {
-        font_list->set_system_font_fallback_callback([](u32 code_point, Gfx::Font const& reference_font) -> RefPtr<Gfx::Font const> {
+    if (Platform::FontPlugin::the().is_layout_test_mode()) {
+        for (auto font_name : Platform::FontPlugin::the().symbol_font_names()) {
+            if (auto other_font_list = find_font(font_name))
+                font_list->extend_fallback(*other_font_list);
+        }
+    } else {
+        font_list->set_system_font_fallback_callback([](u32 code_point, Gfx::EmojiPresentation presentation, Gfx::Font const& reference_font) -> RefPtr<Gfx::Font const> {
             return Gfx::FontDatabase::the().get_font_for_code_point(
                 code_point,
                 reference_font.point_size(),
                 reference_font.weight(),
                 reference_font.typeface().width(),
-                reference_font.slope());
+                reference_font.slope(),
+                presentation == Gfx::EmojiPresentation::Emoji);
         });
     }
 

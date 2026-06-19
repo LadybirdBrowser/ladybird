@@ -5,8 +5,23 @@
  */
 
 #include <LibGfx/FontCascadeList.h>
+#include <LibUnicode/CharacterTypes.h>
 
 namespace Gfx {
+
+EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Optional<u32> next_code_point)
+{
+    // VARIATION SELECTOR-16 (emoji)
+    if (next_code_point == 0xFE0Fu)
+        return { EmojiPresentation::Emoji, ForcedPresentation::Yes };
+    // VARIATION SELECTOR-15 (text)
+    if (next_code_point == 0xFE0Eu)
+        return { EmojiPresentation::Text, ForcedPresentation::Yes };
+
+    if (Unicode::code_point_has_emoji_presentation_property(code_point))
+        return { EmojiPresentation::Emoji, ForcedPresentation::No };
+    return { EmojiPresentation::Text, ForcedPresentation::No };
+}
 
 void FontCascadeList::add(NonnullRefPtr<Font const> font)
 {
@@ -58,7 +73,12 @@ void FontCascadeList::extend(FontCascadeList const& other)
     m_pending_faces.extend(other.m_pending_faces);
 }
 
-Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, TriggerPendingLoads trigger_pending_loads) const
+void FontCascadeList::extend_fallback(FontCascadeList const& other)
+{
+    m_fallback_fonts.extend(other.m_fonts);
+}
+
+Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, TriggerPendingLoads trigger_pending_loads, EmojiPresentationResult emoji_presentation) const
 {
     // Only the text-shaping paths pass TriggerPendingLoads::Yes. Probes that don't
     // lead to a glyph being drawn (the U+0020 check used to compute first-available-
@@ -80,36 +100,67 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, TriggerPen
         });
     }
 
-    if (code_point < m_ascii_cache.size()) {
+    auto use_ascii_cache = code_point < m_ascii_cache.size() && emoji_presentation.presentation == EmojiPresentation::Text && emoji_presentation.forced == ForcedPresentation::No;
+    if (use_ascii_cache) {
         if (auto const* cached = m_ascii_cache[code_point])
             return *cached;
     }
 
     auto cache_and_return = [&](Font const& font) -> Font const& {
-        if (code_point < m_ascii_cache.size())
+        if (use_ascii_cache)
             m_ascii_cache[code_point] = &font;
         return font;
     };
 
-    for (auto const& entry : m_fonts) {
-        if (entry.range_data.has_value()) {
-            if (!entry.range_data->enclosing_range.contains(code_point))
-                continue;
-            for (auto const& range : entry.range_data->unicode_ranges) {
-                if (range.contains(code_point) && entry.font->contains_glyph(code_point))
-                    return cache_and_return(*entry.font);
-            }
-        } else if (entry.font->contains_glyph(code_point)) {
-            return cache_and_return(*entry.font);
+    auto presentation_matches = [wants_emoji = emoji_presentation.presentation == EmojiPresentation::Emoji](Font const& font) {
+        return font.is_emoji_font() == wants_emoji;
+    };
+
+    auto entry_contains_glyph = [code_point](Entry const& entry) {
+        if (!entry.range_data.has_value())
+            return entry.font->contains_glyph(code_point);
+        if (!entry.range_data->enclosing_range.contains(code_point))
+            return false;
+        for (auto const& range : entry.range_data->unicode_ranges) {
+            if (range.contains(code_point) && entry.font->contains_glyph(code_point))
+                return true;
         }
+        return false;
+    };
+
+    Font const* author_glyph_match = nullptr;
+    for (auto const& entry : m_fonts) {
+        if (!entry_contains_glyph(entry))
+            continue;
+        if (emoji_presentation.forced == ForcedPresentation::No || presentation_matches(*entry.font))
+            return cache_and_return(*entry.font);
+        if (!author_glyph_match)
+            author_glyph_match = entry.font.ptr();
+    }
+
+    Font const* fallback_glyph_match = nullptr;
+    for (auto const& entry : m_fallback_fonts) {
+        if (!entry_contains_glyph(entry))
+            continue;
+        if (presentation_matches(*entry.font))
+            return cache_and_return(*entry.font);
+        if (!fallback_glyph_match)
+            fallback_glyph_match = entry.font.ptr();
     }
 
     if (m_system_font_fallback_callback) {
-        if (auto fallback = m_system_font_fallback_callback(code_point, first())) {
-            m_fonts.append({ fallback.release_nonnull(), {} });
-            return cache_and_return(*m_fonts.last().font);
+        if (auto fallback = m_system_font_fallback_callback(code_point, emoji_presentation.presentation, first())) {
+            if (presentation_matches(*fallback) || (!author_glyph_match && !fallback_glyph_match)) {
+                m_fallback_fonts.append({ fallback.release_nonnull(), {} });
+                return cache_and_return(*m_fallback_fonts.last().font);
+            }
         }
     }
+
+    if (author_glyph_match)
+        return cache_and_return(*author_glyph_match);
+    if (fallback_glyph_match)
+        return cache_and_return(*fallback_glyph_match);
 
     return cache_and_return(*m_last_resort_font);
 }
