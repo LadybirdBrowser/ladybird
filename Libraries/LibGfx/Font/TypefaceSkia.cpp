@@ -305,12 +305,15 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::match_family_style(StringView family
     return typeface_from_skia_typeface(move(skia_typeface));
 }
 
-ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope)
+ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
     SkFontStyle style(weight, width, slope_to_skia_slant(slope));
 
+    // The "und-Zsye" language tag steers the font matcher towards a color emoji font. Without it, a text-presentation
+    // font is preferred for emoji-capable code points.
+    char const* emoji_locale[] = { "und-Zsye" };
     auto skia_typeface = font_manager().matchFamilyStyleCharacter(
-        nullptr, style, nullptr, 0, code_point);
+        nullptr, style, prefer_color_emoji ? emoji_locale : nullptr, prefer_color_emoji ? 1 : 0, code_point);
 
     if (!skia_typeface)
         return RefPtr<TypefaceSkia> {};

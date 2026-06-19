@@ -52,15 +52,8 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
     m_default_fixed_width_font = Gfx::FontDatabase::the().get(default_fixed_width_font_name, 12.0, 400, Gfx::FontWidth::Normal, 0);
     VERIFY(m_default_fixed_width_font);
 
-    if (is_layout_test_mode) {
+    if (is_layout_test_mode)
         m_symbol_font_names = { "Noto Emoji"_fly_string };
-    } else {
-#ifdef AK_OS_MACOS
-        m_symbol_font_names = { "Apple Color Emoji"_fly_string, "Apple Symbols"_fly_string };
-#else
-        m_symbol_font_names = { "Noto Color Emoji"_fly_string, "Noto Sans Symbols"_fly_string };
-#endif
-    }
 }
 
 FontPlugin::~FontPlugin() = default;

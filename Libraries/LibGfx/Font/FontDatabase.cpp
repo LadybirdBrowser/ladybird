@@ -50,11 +50,11 @@ RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, u
     return m_system_font_provider->get_font(family, point_size, weight, width, slope, font_variation_settings, shape_features);
 }
 
-RefPtr<Gfx::Font> FontDatabase::get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope)
+RefPtr<Gfx::Font> FontDatabase::get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
-    CodePointFallbackKey key { code_point, weight, width, slope };
+    CodePointFallbackKey key { code_point, weight, width, slope, prefer_color_emoji };
     auto& entry = m_code_point_fallback_cache.ensure(key, [&]() -> CodePointFallbackEntry {
-        auto typeface_or_error = TypefaceSkia::find_typeface_for_code_point(code_point, weight, width, slope);
+        auto typeface_or_error = TypefaceSkia::find_typeface_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
         if (typeface_or_error.is_error() || !typeface_or_error.value())
             return { {}, nullptr };
 

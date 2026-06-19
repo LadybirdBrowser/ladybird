@@ -72,6 +72,7 @@ public:
 
         [[nodiscard]] bool is_at_line_break_opportunity() const;
         [[nodiscard]] Gfx::Font const& font_for_space(size_t at_index, u32 space_code_point) const;
+        [[nodiscard]] Gfx::EmojiPresentationResult emoji_presentation_at(size_t code_unit_offset, u32 code_point) const;
 
         bool const m_should_wrap_lines;
         bool const m_should_respect_linebreaks;

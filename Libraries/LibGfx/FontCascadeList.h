@@ -14,9 +14,26 @@
 
 namespace Gfx {
 
+enum class EmojiPresentation : u8 {
+    Text,
+    Emoji,
+};
+
+enum class ForcedPresentation : u8 {
+    No,
+    Yes,
+};
+
+struct EmojiPresentationResult {
+    EmojiPresentation presentation { EmojiPresentation::Text };
+    ForcedPresentation forced { ForcedPresentation::No };
+};
+
+EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Optional<u32> next_code_point);
+
 class FontCascadeList : public RefCounted<FontCascadeList> {
 public:
-    using SystemFontFallbackCallback = Function<RefPtr<Font const>(u32, Font const&)>;
+    using SystemFontFallbackCallback = Function<RefPtr<Font const>(u32, EmojiPresentation, Font const&)>;
 
     static NonnullRefPtr<FontCascadeList> create()
     {
@@ -42,6 +59,8 @@ public:
 
     void extend(FontCascadeList const& other);
 
+    void extend_fallback(FontCascadeList const& other);
+
     // A pending-face fetch should only be initiated for codepoints that are actually
     // being shaped into glyph runs. Callers that merely probe the cascade (e.g. the
     // U+0020 check in "first available font" metrics) pass No so that probing does
@@ -50,7 +69,7 @@ public:
         No,
         Yes,
     };
-    Gfx::Font const& font_for_code_point(u32 code_point, TriggerPendingLoads = TriggerPendingLoads::No) const;
+    Gfx::Font const& font_for_code_point(u32 code_point, TriggerPendingLoads = TriggerPendingLoads::No, EmojiPresentationResult = {}) const;
 
     bool equals(FontCascadeList const& other) const;
 
@@ -99,6 +118,7 @@ public:
 private:
     RefPtr<Font const> m_last_resort_font;
     mutable Vector<Entry> m_fonts;
+    mutable Vector<Entry> m_fallback_fonts;
     mutable Vector<NonnullRefPtr<PendingFace>> m_pending_faces;
     SystemFontFallbackCallback m_system_font_fallback_callback;
 
