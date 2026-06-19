@@ -176,9 +176,14 @@ bool PageClient::is_connection_open() const
     return client().is_open();
 }
 
-bool PageClient::is_url_suitable_for_same_process_navigation(URL::URL const& current_url, URL::URL const& target_url) const
+Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target) const
 {
-    return WebView::is_url_suitable_for_same_process_navigation(current_url, target_url);
+    if (target != Web::NavigationTarget::TopLevel)
+        return Web::NavigationProcessDecision::Local;
+
+    return WebView::is_url_suitable_for_same_process_navigation(current_url, target_url)
+        ? Web::NavigationProcessDecision::Local
+        : Web::NavigationProcessDecision::Remote;
 }
 
 void PageClient::request_new_process_for_navigation(URL::URL const& url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
