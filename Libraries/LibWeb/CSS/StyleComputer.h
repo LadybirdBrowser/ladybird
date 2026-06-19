@@ -229,6 +229,7 @@ private:
     mutable Optional<ComputationContext> m_cached_font_computation_context;
     mutable Optional<ComputationContext> m_cached_line_height_computation_context;
     mutable Optional<ComputationContext> m_cached_generic_computation_context;
+    ComputationContext make_computation_context_for_property(PropertyID, ComputedProperties const&, Optional<DOM::AbstractElement>) const;
     ComputationContext const& get_computation_context_for_property(PropertyID, ComputedProperties const&, Optional<DOM::AbstractElement>) const;
     void clear_computation_context_caches() const
     {
