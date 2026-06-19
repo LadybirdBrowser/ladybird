@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
@@ -152,6 +153,14 @@ public:
     virtual void retrieve_style_sheet_source(TabDescription const&, Web::CSS::StyleSheetIdentifier const&) const { }
     virtual void listen_for_style_sheet_sources(TabDescription const&, OnStyleSheetSourceReceived) const { }
     virtual void stop_listening_for_style_sheet_sources(TabDescription const&) const { }
+
+    using OnSourcesReceived = Function<void(ErrorOr<Vector<Web::HTML::ScriptRegistry::Description>>)>;
+    using OnSourceReceived = Function<void(ErrorOr<Web::HTML::ScriptRegistry::Content>)>;
+    using OnSourceAvailable = Function<void(Web::HTML::ScriptRegistry::Description)>;
+    virtual void retrieve_sources(TabDescription const&, OnSourcesReceived) const { }
+    virtual void retrieve_source(TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnSourceReceived) const { }
+    virtual void listen_for_sources(TabDescription const&, OnSourceAvailable) const { }
+    virtual void stop_listening_for_sources(TabDescription const&) const { }
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String const&, OnScriptEvaluationComplete) const { }

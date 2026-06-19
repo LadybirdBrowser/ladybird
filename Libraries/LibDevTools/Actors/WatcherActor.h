@@ -8,6 +8,7 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/Forward.h>
 
 namespace DevTools {
@@ -33,6 +34,10 @@ private:
     void send_frame_target_destroyed_message(FrameActor&);
     CookiesActor& cookies_actor();
     void send_cookies_resource_available_message();
+    void start_watching_source_resources();
+    void stop_watching_source_resources();
+    void send_source_resource_available_message();
+    void send_source_resource_available_message(Web::HTML::ScriptRegistry::Description const&);
     StorageActor& local_storage_actor();
     StorageActor& session_storage_actor();
     void send_storage_resource_available_message(StorageActor&);
@@ -45,6 +50,7 @@ private:
     WeakPtr<IndexedDBActor> m_indexed_db;
     WeakPtr<StorageActor> m_local_storage;
     WeakPtr<StorageActor> m_session_storage;
+    WeakPtr<ThreadActor> m_thread;
     WeakPtr<TargetConfigurationActor> m_target_configuration;
     WeakPtr<ThreadConfigurationActor> m_thread_configuration;
     WeakPtr<NetworkParentActor> m_network_parent;
@@ -53,6 +59,7 @@ private:
     bool m_is_watching_indexed_db_resources { false };
     bool m_is_watching_local_storage_resources { false };
     bool m_is_watching_session_storage_resources { false };
+    bool m_is_watching_source_resources { false };
 };
 
 }

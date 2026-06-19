@@ -20,6 +20,7 @@ set(SOURCES
     Actors/PreferenceActor.cpp
     Actors/ProcessActor.cpp
     Actors/RootActor.cpp
+    Actors/SourceActor.cpp
     Actors/StyleRuleActor.cpp
     Actors/StyleSheetsActor.cpp
     Actors/StorageActor.cpp

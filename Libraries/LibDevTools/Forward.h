@@ -34,6 +34,7 @@ class ParentAccessibilityActor;
 class PreferenceActor;
 class ProcessActor;
 class RootActor;
+class SourceActor;
 class StyleRuleActor;
 class StyleSheetsActor;
 class StorageActor;
