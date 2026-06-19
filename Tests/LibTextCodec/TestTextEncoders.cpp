@@ -161,7 +161,7 @@ TEST_CASE(test_windows1252_encoder)
     Vector<u8> processed_bytes;
     MUST(encoder.process(
         Utf8View(test_string),
-        [&](u8 byte) { dbgln("{}", processed_bytes.size()); return processed_bytes.try_append(byte); },
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
         [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
     EXPECT(processed_bytes.size() == 20);
     for (u8 i = 0; i < 15; i++) {
