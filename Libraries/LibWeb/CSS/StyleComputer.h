@@ -248,6 +248,7 @@ private:
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
     OwnPtr<SelectorEngine::HasResultCache> m_has_result_cache;
+    OwnPtr<SelectorEngine::HasFastRejectFilterCache> m_has_fast_reject_filter_cache;
 };
 
 inline bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const

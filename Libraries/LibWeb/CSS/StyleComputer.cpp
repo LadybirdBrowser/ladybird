@@ -164,6 +164,8 @@ void StyleComputer::visit_edges(Visitor& visitor)
     visitor.visit(m_document);
     if (m_has_result_cache)
         visitor.visit(*m_has_result_cache);
+    if (m_has_fast_reject_filter_cache)
+        visitor.visit(*m_has_fast_reject_filter_cache);
 
     if (m_cached_font_computation_context.has_value())
         m_cached_font_computation_context->visit_edges(visitor);
@@ -705,8 +707,9 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
     // (for :host::part() within the shadow DOM's own stylesheet).
     if (shadow_root && (abstract_element.pseudo_element().has_value() || !abstract_element.element().part_names().is_empty())) {
         if (context_shadow_root == shadow_root) {
-            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, shadow_root))
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, shadow_root)) {
                 add_rules_to_run(rule_cache->part_rules, shadow_root);
+            }
         }
         for (auto* part_shadow_root = abstract_element.element().first_flat_tree_ancestor_of_type<DOM::ShadowRoot>();
             part_shadow_root;
@@ -714,12 +717,14 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
 
             if (context_shadow_root != part_shadow_root)
                 continue;
-            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, part_shadow_root))
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, part_shadow_root)) {
                 add_rules_to_run(rule_cache->part_rules, part_shadow_root);
+            }
         }
         if (!context_shadow_root) {
-            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr))
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr)) {
                 add_rules_to_run(rule_cache->part_rules, nullptr);
+            }
         }
     }
 
@@ -750,6 +755,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
             .rule_shadow_root = rule_root,
             .collect_per_element_selector_involvement_metadata = true,
             .has_result_cache = m_has_result_cache.ptr(),
+            .has_fast_reject_filter_cache = m_has_fast_reject_filter_cache.ptr(),
         };
         if (!abstract_element.pseudo_element().has_value() && matching_pseudo_element_styles) {
             if (auto pseudo_element = selector.target_pseudo_element(); pseudo_element.has_value()) {
@@ -4189,6 +4195,11 @@ void StyleComputer::reset_has_result_cache()
         m_has_result_cache = make<SelectorEngine::HasResultCache>();
     else
         m_has_result_cache->clear();
+
+    if (!m_has_fast_reject_filter_cache)
+        m_has_fast_reject_filter_cache = make<SelectorEngine::HasFastRejectFilterCache>();
+    else
+        m_has_fast_reject_filter_cache->clear();
 }
 
 void StyleComputer::push_ancestor(DOM::Element const& element)
@@ -4382,8 +4393,9 @@ static IterationDecision for_each_matching_rule_bucket(DOM::AbstractElement abst
 
     IterationDecision decision = IterationDecision::Continue;
     abstract_element.element().for_each_attribute([&](auto& name, auto&) {
-        if (auto it = rule_buckets.rules_by_attribute_name.find(name); it != rule_buckets.rules_by_attribute_name.end())
+        if (auto it = rule_buckets.rules_by_attribute_name.find(name); it != rule_buckets.rules_by_attribute_name.end()) {
             decision = callback(it->value);
+        }
     });
     if (decision == IterationDecision::Break)
         return IterationDecision::Break;
