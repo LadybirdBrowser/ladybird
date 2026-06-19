@@ -70,6 +70,9 @@ ErrorOr<void> apply_sandbox()
     policy.allow_gpu_device_operations();
     policy.allow_common_runtime();
     policy.allow_executable_memory_mappings();
+    // Some GPU drivers allocate writable executable code heaps lazily after
+    // context creation, including while handling WebGL commands.
+    policy.allow_writable_executable_memory_mappings();
     TRY(policy.install());
 
     return {};
