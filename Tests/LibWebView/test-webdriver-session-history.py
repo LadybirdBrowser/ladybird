@@ -3223,10 +3223,23 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
                 f"got {script_beforeunload_setup}\n" + "\n".join(log)
             )
         execute_script(webdriver_port, session_id, "history.back(); return location.href;")
-        script_blocked_back_state = execute_script(
+
+        def script_back_canceled_by_beforeunload(result):
+            return (
+                isinstance(result, list)
+                and len(result) == 2
+                and result[0] == url_b
+                and isinstance(result[1], int)
+                and result[1] >= 1
+            )
+
+        script_blocked_back_state = wait_for_script_result(
             webdriver_port,
             session_id,
+            "blocked script-initiated cross-site history.back() from /b",
             "return [location.href, window.scriptBeforeUnloadCount];",
+            script_back_canceled_by_beforeunload,
+            log,
         )
         if script_blocked_back_state != [url_b, 1]:
             raise AssertionError(
