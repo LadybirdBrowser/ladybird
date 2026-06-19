@@ -27,11 +27,8 @@ WebIDL::ExceptionOr<JS::Value> parse_json_string_to_javascript_value(JS::Realm& 
 // https://infra.spec.whatwg.org/#parse-json-bytes-to-a-javascript-value
 WebIDL::ExceptionOr<JS::Value> parse_json_bytes_to_javascript_value(JS::Realm& realm, ReadonlyBytes bytes)
 {
-    auto& vm = realm.vm();
-
     // 1. Let string be the result of running UTF-8 decode on bytes.
-    TextCodec::UTF8Decoder decoder;
-    auto string = TRY_OR_THROW_OOM(vm, decoder.to_utf8(bytes));
+    auto string = String::from_utf8_with_replacement_character(bytes, String::WithBOMHandling::Yes);
 
     // 2. Return the result of parsing a JSON string to an Infra value given string.
     return parse_json_string_to_javascript_value(realm, string);
