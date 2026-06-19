@@ -33,16 +33,13 @@ static Vector<u32> process_code_points(TextCodec::Decoder& decoder, StringView i
 
 TEST_CASE(test_utf8_decode)
 {
-    auto decoder = TextCodec::UTF8Decoder();
+    auto& decoder = decoder_for("UTF-8"sv);
     // Bytes for U+1F600 GRINNING FACE
     auto test_string = "\xf0\x9f\x98\x80"sv;
 
     EXPECT(decoder.validate(test_string));
 
-    Vector<u32> processed_code_points;
-    MUST(decoder.process(test_string, [&](u32 code_point) {
-        return processed_code_points.try_append(code_point);
-    }));
+    auto processed_code_points = process_code_points(decoder, test_string);
     EXPECT(processed_code_points.size() == 1);
     EXPECT(processed_code_points[0] == 0x1F600);
 
@@ -51,7 +48,7 @@ TEST_CASE(test_utf8_decode)
 
 TEST_CASE(test_utf8_process_code_points)
 {
-    auto decoder = TextCodec::UTF8Decoder();
+    auto& decoder = decoder_for("UTF-8"sv);
     auto test_string = "A\xf0\x9f\x98\x80"sv;
 
     EXPECT_EQ(process_code_points(decoder, test_string), (Vector<u32> { 0x41, 0x1F600 }));
@@ -59,7 +56,7 @@ TEST_CASE(test_utf8_process_code_points)
 
 TEST_CASE(test_utf8_process_code_points_replaces_surrogates)
 {
-    auto decoder = TextCodec::UTF8Decoder();
+    auto& decoder = decoder_for("UTF-8"sv);
     auto utf8_encoded_surrogate_bytes = Vector<u8> { 0xed, 0xa0, 0x80 };
     auto utf8_encoded_surrogate = StringView(bytes(utf8_encoded_surrogate_bytes));
 
@@ -70,7 +67,7 @@ TEST_CASE(test_utf8_process_code_points_replaces_surrogates)
 
 TEST_CASE(test_utf8_process_code_points_replaces_truncated_tail_as_single_error)
 {
-    auto decoder = TextCodec::UTF8Decoder();
+    auto& decoder = decoder_for("UTF-8"sv);
     auto truncated_tail_bytes = Vector<u8> { 0xf0, 0x9f, 0x98 };
     auto truncated_tail = StringView(bytes(truncated_tail_bytes));
 
@@ -81,7 +78,7 @@ TEST_CASE(test_utf8_process_code_points_replaces_truncated_tail_as_single_error)
 
 TEST_CASE(test_utf8_process_code_points_replaces_overlong_sequences)
 {
-    auto decoder = TextCodec::UTF8Decoder();
+    auto& decoder = decoder_for("UTF-8"sv);
     auto overlong_null_bytes = Vector<u8> { 0xc0, 0x80 };
     auto overlong_null = StringView(bytes(overlong_null_bytes));
 
@@ -92,7 +89,7 @@ TEST_CASE(test_utf8_process_code_points_replaces_overlong_sequences)
 
 TEST_CASE(test_utf8_process_code_points_restores_invalid_second_byte)
 {
-    auto decoder = TextCodec::UTF8Decoder();
+    auto& decoder = decoder_for("UTF-8"sv);
     auto overlong_three_byte_sequence_bytes = Vector<u8> { 0xe0, 0x80, 0x80 };
     auto overlong_three_byte_sequence = StringView(bytes(overlong_three_byte_sequence_bytes));
     auto out_of_range_four_byte_sequence_bytes = Vector<u8> { 0xf4, 0x90, 0x80, 0x80 };
@@ -109,7 +106,7 @@ TEST_CASE(test_utf8_process_code_points_restores_invalid_second_byte)
 
 TEST_CASE(test_utf16be_decode)
 {
-    auto decoder = TextCodec::UTF16BEDecoder();
+    auto& decoder = decoder_for("UTF-16BE"sv);
     // This is the output of `python3 -c "print('säk😀'.encode('utf-16be'))"`.
     auto test_string = "\x00s\x00\xe4\x00k\xd8=\xde\x00"sv;
 
@@ -120,7 +117,7 @@ TEST_CASE(test_utf16be_decode)
 
 TEST_CASE(test_utf16be_process_code_points)
 {
-    auto decoder = TextCodec::UTF16BEDecoder();
+    auto& decoder = decoder_for("UTF-16BE"sv);
 
     EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xfe, 0xff, 0x00, 'A', 0xd8, 0x3d, 0xde, 0x00 }))), (Vector<u32> { 0x41, 0x1F600 }));
     EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xd8, 0x3d, 0x00, 'A', 0xde, 0x00 }))), (Vector<u32> { 0xfffd, 0x41, 0xfffd }));
@@ -241,7 +238,7 @@ TEST_CASE(test_streaming_decoder_shift_jis_tail)
 
 TEST_CASE(test_utf16le_decode)
 {
-    auto decoder = TextCodec::UTF16LEDecoder();
+    auto& decoder = decoder_for("UTF-16LE"sv);
     // This is the output of `python3 -c "print('säk😀'.encode('utf-16le'))"`.
     auto test_string = "s\x00\xe4\x00k\x00=\xd8\x00\xde"sv;
 
@@ -252,7 +249,7 @@ TEST_CASE(test_utf16le_decode)
 
 TEST_CASE(test_utf16le_process_code_points)
 {
-    auto decoder = TextCodec::UTF16LEDecoder();
+    auto& decoder = decoder_for("UTF-16LE"sv);
 
     EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xff, 0xfe, 'A', 0x00, 0x3d, 0xd8, 0x00, 0xde }))), (Vector<u32> { 0x41, 0x1F600 }));
     EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0x3d, 0xd8, 'A', 0x00, 0x00, 0xde }))), (Vector<u32> { 0xfffd, 0x41, 0xfffd }));

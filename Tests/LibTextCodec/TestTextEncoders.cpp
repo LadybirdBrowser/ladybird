@@ -9,7 +9,7 @@
 
 TEST_CASE(test_utf8_encode)
 {
-    TextCodec::UTF8Encoder encoder;
+    auto& encoder = TextCodec::encoder_for_exact_name("UTF-8"sv).value();
     // Unicode character U+1F600 GRINNING FACE
     auto test_string = "\U0001F600"sv;
 
@@ -27,7 +27,7 @@ TEST_CASE(test_utf8_encode)
 
 TEST_CASE(test_euc_jp_encoder)
 {
-    TextCodec::EUCJPEncoder encoder;
+    auto& encoder = TextCodec::encoder_for_exact_name("EUC-JP"sv).value();
     // U+A5 Yen Sign
     // U+3088 Hiragana Letter Yo
     // U+30C4 Katakana Letter Tu
@@ -48,7 +48,7 @@ TEST_CASE(test_euc_jp_encoder)
 
 TEST_CASE(test_iso_2022_jp_encoder)
 {
-    TextCodec::ISO2022JPEncoder encoder;
+    auto& encoder = TextCodec::encoder_for_exact_name("ISO-2022-JP"sv).value();
     // U+A5 Yen Sign
     // U+3088 Hiragana Letter Yo
     // U+30C4 Katakana Letter Tu
@@ -78,7 +78,7 @@ TEST_CASE(test_iso_2022_jp_encoder)
 
 TEST_CASE(test_shift_jis_encoder)
 {
-    TextCodec::ShiftJISEncoder encoder;
+    auto& encoder = TextCodec::encoder_for_exact_name("Shift_JIS"sv).value();
     // U+A5 Yen Sign
     // U+3088 Hiragana Letter Yo
     // U+30C4 Katakana Letter Tu
@@ -99,7 +99,7 @@ TEST_CASE(test_shift_jis_encoder)
 
 TEST_CASE(test_euc_kr_encoder)
 {
-    TextCodec::EUCKREncoder encoder;
+    auto& encoder = TextCodec::encoder_for_exact_name("EUC-KR"sv).value();
     // U+B29F Hangul Syllable Neulh
     // U+7C97 CJK Unified Ideograph-7C97
     auto test_string = "\U0000B29F\U00007C97"sv;
@@ -118,7 +118,7 @@ TEST_CASE(test_euc_kr_encoder)
 
 TEST_CASE(test_big5_encoder)
 {
-    TextCodec::Big5Encoder encoder;
+    auto& encoder = TextCodec::encoder_for_exact_name("Big5"sv).value();
     // U+A7 Section Sign
     // U+70D7 CJK Unified Ideograph-70D7
     auto test_string = "\U000000A7\U000070D7"sv;
@@ -137,7 +137,7 @@ TEST_CASE(test_big5_encoder)
 
 TEST_CASE(test_gb18030_encoder)
 {
-    TextCodec::GB18030Encoder encoder;
+    auto& encoder = TextCodec::encoder_for_exact_name("gb18030"sv).value();
     // U+20AC Euro Sign
     // U+E4C5 Private Use Area
     auto test_string = "\U000020AC\U0000E4C5"sv;
@@ -156,10 +156,10 @@ TEST_CASE(test_gb18030_encoder)
 
 TEST_CASE(test_windows1252_encoder)
 {
-    auto encoder = TextCodec::encoder_for_exact_name("windows-1252"sv);
+    auto& encoder = TextCodec::encoder_for_exact_name("windows-1252"sv).value();
     auto test_string = "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏfoo€"sv;
     Vector<u8> processed_bytes;
-    MUST(encoder.value().process(
+    MUST(encoder.process(
         Utf8View(test_string),
         [&](u8 byte) { dbgln("{}", processed_bytes.size()); return processed_bytes.try_append(byte); },
         [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
