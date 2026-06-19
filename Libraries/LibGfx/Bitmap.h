@@ -38,7 +38,6 @@ enum class BitmapFormat {
 inline bool is_valid_bitmap_format(u32 const format)
 {
     switch (format) {
-    case static_cast<u32>(BitmapFormat::Invalid):
     case static_cast<u32>(BitmapFormat::BGRx8888):
     case static_cast<u32>(BitmapFormat::RGBx8888):
     case static_cast<u32>(BitmapFormat::BGRA8888):
