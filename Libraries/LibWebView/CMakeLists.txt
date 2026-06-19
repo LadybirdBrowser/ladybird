@@ -24,6 +24,7 @@ set(SOURCES
     SessionHistory.cpp
     Settings.cpp
     SiteIsolation.cpp
+    SiteIsolationManager.cpp
     SourceHighlighter.cpp
     StorageJar.cpp
     URL.cpp

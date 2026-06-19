@@ -336,12 +336,17 @@ protected:
 
 private:
     struct CachedPaintData;
+    enum class InvalidateDescendantGeometry {
+        No,
+        Yes,
+    };
 
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
     void acquire_cache_references_for_cached_commands(ReadonlyBytes) const;
     void release_cache_references_for_cached_commands(ReadonlyBytes) const;
+    void invalidate_absolute_geometry_cache(InvalidateDescendantGeometry);
 
     RefPtr<StackingContext> m_stacking_context;
 

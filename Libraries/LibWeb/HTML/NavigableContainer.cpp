@@ -106,6 +106,8 @@ void NavigableContainer::create_new_child_navigable()
     // 9. Set element's content navigable to navigable.
     m_content_navigable = navigable;
 
+    page.client().page_did_create_child_frame(parent_navigable->id(), navigable->id());
+
     // 10. Let historyEntry be navigable's active session history entry.
     auto history_entry = navigable->active_session_history_entry();
 

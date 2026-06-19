@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
@@ -42,8 +43,11 @@ void NavigableContainerViewport::did_set_content_size()
 {
     ReplacedBox::did_set_content_size();
 
-    if (dom_node().content_navigable())
-        dom_node().content_navigable()->set_viewport_size(paintable_box()->content_size());
+    if (auto content_navigable = dom_node().content_navigable()) {
+        auto content_size = paintable_box()->content_size();
+        content_navigable->set_viewport_size(content_size);
+        document().page().client().page_did_update_child_frame_viewport(content_navigable->id(), paintable_box()->absolute_rect());
+    }
 }
 
 RefPtr<Painting::Paintable> NavigableContainerViewport::create_paintable() const

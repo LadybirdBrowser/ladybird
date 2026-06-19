@@ -36,6 +36,7 @@
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/SiteIsolationManager.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
 
@@ -50,6 +51,7 @@ class WEBVIEW_API WebContentClient final
 
 public:
     using InitTransport = Messages::WebContentServer::InitTransport;
+    using ChildFrameHost = SiteIsolationManager::ChildFrameHost;
 
     template<CallableAs<IterationDecision, WebContentClient&> Callback>
     static void for_each_client(Callback callback);
@@ -86,6 +88,10 @@ public:
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
     void did_present_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
     void did_present_bitmap(u64 page_id, Gfx::IntRect, i32 bitmap_id);
+    Optional<ChildFrameHost const&> child_frame(u64 page_id, StringView frame_id) const;
+
+    template<CallableAs<IterationDecision, String const&, ChildFrameHost const&> Callback>
+    void for_each_child_frame(u64 page_id, Callback callback) const;
 
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
@@ -101,6 +107,10 @@ private:
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
     virtual void did_request_new_process_for_navigation(u64 page_id, URL::URL url, Variant<Empty, String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling) override;
+    virtual void did_create_child_frame(u64 page_id, String parent_frame_id, String frame_id) override;
+    virtual void did_update_child_frame_viewport(u64 page_id, String frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
+    virtual void did_commit_child_frame_navigation(u64 page_id, String frame_id, URL::URL url) override;
+    virtual void did_destroy_child_frame(u64 page_id, String frame_id) override;
     virtual void did_start_webdriver_navigation(u64 page_id, URL::URL url) override;
     virtual void did_finish_loading(u64 page_id, URL::URL) override;
     virtual void did_request_refresh(u64 page_id) override;
@@ -250,6 +260,12 @@ void WebContentClient::for_each_client(Callback callback)
         if (callback(*it) == IterationDecision::Break)
             return;
     }
+}
+
+template<CallableAs<IterationDecision, String const&, WebContentClient::ChildFrameHost const&> Callback>
+void WebContentClient::for_each_child_frame(u64 page_id, Callback callback) const
+{
+    SiteIsolationManager::the().for_each_child_frame(page_id, move(callback));
 }
 
 }

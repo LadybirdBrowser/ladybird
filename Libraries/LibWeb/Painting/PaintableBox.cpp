@@ -542,9 +542,7 @@ void PaintableBox::reset_for_relayout()
     m_containing_line_box_data.clear();
     m_sticky_insets = nullptr;
 
-    m_absolute_rect.clear();
-    m_absolute_padding_box_rect.clear();
-    m_absolute_border_box_rect.clear();
+    invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
 
     m_enclosing_scroll_frame_index = {};
     m_own_scroll_frame_index = {};
@@ -685,16 +683,36 @@ void PaintableBox::scroll_into_view(CSSPixelRect rect)
 
 void PaintableBox::set_offset(CSSPixelPoint offset)
 {
+    if (m_offset == offset)
+        return;
+
     m_offset = offset;
+    invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::Yes);
 }
 
 void PaintableBox::set_content_size(CSSPixelSize size)
 {
     auto old_size = m_content_size;
     m_content_size = size;
+    invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
     if (auto layout_box = as_if<Layout::Box>(layout_node()))
         layout_box->did_set_content_size();
     invalidate_descendant_styles_for_container_query_size_change(*this, old_size, size);
+}
+
+void PaintableBox::invalidate_absolute_geometry_cache(InvalidateDescendantGeometry invalidate_descendants)
+{
+    m_absolute_rect.clear();
+    m_absolute_padding_box_rect.clear();
+    m_absolute_border_box_rect.clear();
+
+    if (invalidate_descendants == InvalidateDescendantGeometry::No)
+        return;
+
+    for_each_child_of_type<PaintableBox>([](auto& child) {
+        child.invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::Yes);
+        return IterationDecision::Continue;
+    });
 }
 
 void PaintableBox::set_fragmentation_state(FragmentationState fragmentation_state)

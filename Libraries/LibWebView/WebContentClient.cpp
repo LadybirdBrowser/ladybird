@@ -23,6 +23,7 @@
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -160,6 +161,7 @@ void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 void WebContentClient::unregister_view(u64 page_id)
 {
     forget_compositor_context(Web::Compositor::compositor_context_id_for_page(page_id));
+    SiteIsolationManager::the().remove_page(page_id);
 
     // A page that still needs a beforeunload check is not a detached
     // background close. It is being closed without waiting for WebContent,
@@ -269,6 +271,8 @@ void WebContentClient::notify_compositor_process_reconnected(Badge<Application>)
 void WebContentClient::notify_all_views_of_crash()
 {
     destroy_all_compositor_contexts();
+    for (auto const& [page_id, view] : m_views)
+        SiteIsolationManager::the().remove_page(page_id);
 
     // Collect view IDs first, then use deferred_invoke to handle crashes safely
     // (avoids signal handler deadlock and allows views to be looked up by ID
@@ -358,6 +362,31 @@ void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->create_new_process_for_cross_site_navigation(url, move(document_resource), history_handling);
+}
+
+void WebContentClient::did_create_child_frame(u64 page_id, String parent_frame_id, String frame_id)
+{
+    SiteIsolationManager::the().did_create_child_frame(page_id, move(parent_frame_id), move(frame_id));
+}
+
+void WebContentClient::did_update_child_frame_viewport(u64 page_id, String frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
+{
+    SiteIsolationManager::the().did_update_child_frame_viewport(page_id, move(frame_id), viewport_rect, device_pixel_ratio);
+}
+
+void WebContentClient::did_commit_child_frame_navigation(u64 page_id, String frame_id, URL::URL url)
+{
+    SiteIsolationManager::the().did_commit_child_frame_navigation(page_id, move(frame_id), move(url));
+}
+
+void WebContentClient::did_destroy_child_frame(u64 page_id, String frame_id)
+{
+    SiteIsolationManager::the().did_destroy_child_frame(page_id, frame_id);
+}
+
+Optional<WebContentClient::ChildFrameHost const&> WebContentClient::child_frame(u64 page_id, StringView frame_id) const
+{
+    return SiteIsolationManager::the().child_frame(page_id, frame_id);
 }
 
 void WebContentClient::did_start_webdriver_navigation(u64 page_id, URL::URL url)
@@ -1161,6 +1190,7 @@ void WebContentClient::did_request_activate_tab(u64 page_id)
 void WebContentClient::did_close_browsing_context(u64 page_id)
 {
     m_detached_pages_pending_close.remove(page_id);
+    SiteIsolationManager::the().remove_page(page_id);
 
     if (auto view = m_views.get(page_id); view.has_value()) {
         if ((*view)->on_close)
