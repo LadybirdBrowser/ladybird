@@ -40,11 +40,12 @@ WatcherActor::WatcherActor(DevToolsServer& devtools, String name, WeakPtr<TabAct
 
 WatcherActor::~WatcherActor()
 {
-    if (!m_is_watching_frame_targets)
-        return;
+    stop_watching_source_resources();
 
-    if (auto tab = m_tab.strong_ref())
-        devtools().delegate().did_disconnect_devtools_client(tab->description());
+    if (m_is_watching_frame_targets) {
+        if (auto tab = m_tab.strong_ref())
+            devtools().delegate().did_disconnect_devtools_client(tab->description());
+    }
 }
 
 void WatcherActor::handle_message(Message const& message)
@@ -96,11 +97,23 @@ void WatcherActor::handle_message(Message const& message)
         bool should_send_indexed_db_resources = false;
         bool should_send_local_storage_resources = false;
         bool should_send_session_storage_resources = false;
+        bool should_send_source_resources = false;
         if constexpr (DEVTOOLS_DEBUG) {
             for (auto const& resource_type : resource_types->values()) {
                 if (!resource_type.is_string())
                     continue;
-                if (!first_is_one_of(resource_type.as_string(), "console-message"sv, "cookies"sv, "indexed-db"sv, "local-storage"sv, "session-storage"sv))
+                if (!first_is_one_of(resource_type.as_string(),
+                        "console-message"sv,
+                        "cookies"sv,
+                        "document-event"sv,
+                        "error-message"sv,
+                        "indexed-db"sv,
+                        "jstracer-state"sv,
+                        "jstracer-trace"sv,
+                        "local-storage"sv,
+                        "session-storage"sv,
+                        "source"sv,
+                        "thread-state"sv))
                     dbgln("Unrecognized `watchResources` resource type: '{}'", resource_type.as_string());
             }
         }
@@ -119,6 +132,18 @@ void WatcherActor::handle_message(Message const& message)
             } else if (resource_type.as_string() == "session-storage"sv) {
                 m_is_watching_session_storage_resources = true;
                 should_send_session_storage_resources = true;
+            } else if (resource_type.as_string() == "source"sv) {
+                start_watching_source_resources();
+                should_send_source_resources = true;
+            } else if (first_is_one_of(resource_type.as_string(),
+                           "document-event"sv,
+                           "error-message"sv,
+                           "jstracer-state"sv,
+                           "jstracer-trace"sv,
+                           "thread-state"sv)) {
+                // These resource types are part of Firefox's Debugger startup sequence. Ladybird either sends them from
+                // FrameActor when they happen, or does not produce them yet, so watching them only needs to opt out of
+                // Firefox's legacy listeners.
             }
         }
 
@@ -131,6 +156,8 @@ void WatcherActor::handle_message(Message const& message)
             send_storage_resource_available_message(local_storage_actor());
         if (should_send_session_storage_resources)
             send_storage_resource_available_message(session_storage_actor());
+        if (should_send_source_resources)
+            send_source_resource_available_message();
         return;
     }
 
@@ -169,11 +196,11 @@ JsonObject WatcherActor::serialize_description() const
     resources.set("css-message"sv, false);
     resources.set("css-registered-properties"sv, false);
     resources.set("document-event"sv, true);
-    resources.set("error-message"sv, false);
+    resources.set("error-message"sv, true);
     resources.set("extension-storage"sv, false);
     resources.set("indexed-db"sv, true);
-    resources.set("jstracer-state"sv, false);
-    resources.set("jstracer-trace"sv, false);
+    resources.set("jstracer-state"sv, true);
+    resources.set("jstracer-trace"sv, true);
     resources.set("last-private-context-exit"sv, false);
     resources.set("local-storage"sv, true);
     resources.set("network-event"sv, true);
@@ -182,9 +209,9 @@ JsonObject WatcherActor::serialize_description() const
     resources.set("reflow"sv, false);
     resources.set("server-sent-event"sv, false);
     resources.set("session-storage"sv, true);
-    resources.set("source"sv, false);
+    resources.set("source"sv, true);
     resources.set("stylesheet"sv, false);
-    resources.set("thread-state"sv, false);
+    resources.set("thread-state"sv, true);
     resources.set("websocket"sv, false);
 
     JsonObject description;
@@ -204,11 +231,12 @@ FrameActor& WatcherActor::create_frame_target()
     auto& console = devtools().register_actor<ConsoleActor>(m_tab);
     auto& style_sheets = devtools().register_actor<StyleSheetsActor>(m_tab);
     auto& inspector = devtools().register_actor<InspectorActor>(m_tab, style_sheets);
-    auto& thread = devtools().register_actor<ThreadActor>();
+    auto& thread = devtools().register_actor<ThreadActor>(m_tab);
     auto& accessibility = devtools().register_actor<AccessibilityActor>(m_tab);
 
     auto& target = devtools().register_actor<FrameActor>(m_tab, make_weak_ptr<WatcherActor>(), css_properties, console, inspector, style_sheets, thread, accessibility);
     m_target = target;
+    m_thread = thread;
     return target;
 }
 
@@ -240,6 +268,8 @@ void WatcherActor::switch_frame_target(FrameActor& previous_target, String const
         send_storage_resource_available_message(local_storage_actor());
     if (m_is_watching_session_storage_resources)
         send_storage_resource_available_message(session_storage_actor());
+    if (m_is_watching_source_resources)
+        send_source_resource_available_message();
 }
 
 void WatcherActor::send_frame_target_available_message(FrameActor& target)
@@ -297,6 +327,49 @@ void WatcherActor::send_cookies_resource_available_message()
     message.set("type"sv, "resources-available-array"sv);
     message.set("array"sv, move(array));
     send_message(move(message));
+}
+
+void WatcherActor::send_source_resource_available_message()
+{
+    if (auto target = m_target.strong_ref())
+        target->send_source_resource_available_message();
+}
+
+void WatcherActor::start_watching_source_resources()
+{
+    if (m_is_watching_source_resources)
+        return;
+
+    m_is_watching_source_resources = true;
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    devtools().delegate().listen_for_sources(tab->description(), [weak_this = make_weak_ptr<WatcherActor>()](auto source) mutable {
+        auto self = weak_this.strong_ref();
+        if (!self)
+            return;
+        self->send_source_resource_available_message(source);
+    });
+}
+
+void WatcherActor::stop_watching_source_resources()
+{
+    if (!m_is_watching_source_resources)
+        return;
+
+    m_is_watching_source_resources = false;
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    devtools().delegate().stop_listening_for_sources(tab->description());
+}
+
+void WatcherActor::send_source_resource_available_message(Web::HTML::ScriptRegistry::Description const& source)
+{
+    if (auto target = m_target.strong_ref())
+        target->send_source_resource_available_message(source);
 }
 
 StorageActor& WatcherActor::local_storage_actor()

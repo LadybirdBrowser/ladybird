@@ -22,7 +22,7 @@ NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, String name
     auto actor = adopt_ref(*new RootActor(devtools, move(name)));
 
     JsonObject traits;
-    traits.set("sources"sv, false);
+    traits.set("sources"sv, true);
     traits.set("highlightable"sv, true);
     traits.set("customHighlighters"sv, true);
     traits.set("networkMonitor"sv, true);

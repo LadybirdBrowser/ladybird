@@ -1132,6 +1132,46 @@ public:
 
     virtual void stop_listening_for_style_sheet_sources(DevTools::TabDescription const&) const override { ++stop_listening_for_style_sheet_sources_call_count; }
 
+    virtual void retrieve_sources(DevTools::TabDescription const&, OnSourcesReceived callback) const override
+    {
+        ++retrieve_sources_call_count;
+        callback(Vector<Web::HTML::ScriptRegistry::Description> { fixture_source });
+    }
+
+    virtual void retrieve_source(DevTools::TabDescription const&, Web::HTML::ScriptRegistry::Identifier source_id, OnSourceReceived callback) const override
+    {
+        ++retrieve_source_call_count;
+        if (source_id == fixture_live_source.id) {
+            callback(Web::HTML::ScriptRegistry::Content {
+                .content_type = fixture_live_source.content_type,
+                .text = "console.log('live source');"_string,
+            });
+            return;
+        }
+
+        if (source_id != fixture_source.id) {
+            callback(Error::from_string_literal("Source not found"));
+            return;
+        }
+
+        callback(Web::HTML::ScriptRegistry::Content {
+            .content_type = fixture_source.content_type,
+            .text = "console.log('hello from source');"_string,
+        });
+    }
+
+    virtual void listen_for_sources(DevTools::TabDescription const&, OnSourceAvailable callback) const override
+    {
+        ++listen_for_sources_call_count;
+        on_source_available = move(callback);
+    }
+
+    virtual void stop_listening_for_sources(DevTools::TabDescription const&) const override
+    {
+        ++stop_listening_for_sources_call_count;
+        on_source_available = nullptr;
+    }
+
     virtual void listen_for_console_messages(DevTools::TabDescription const&, OnConsoleMessage callback) const override
     {
         ++listen_for_console_messages_call_count;
@@ -1327,6 +1367,28 @@ public:
     mutable Vector<HTTP::Cookie::Cookie> fixture_cookies;
     mutable Vector<DevTools::DevToolsDelegate::StorageItem> fixture_local_storage_items;
     mutable Vector<DevTools::DevToolsDelegate::StorageItem> fixture_session_storage_items;
+    mutable Web::HTML::ScriptRegistry::Description fixture_source {
+        .id = { .document_id = 1, .script_id = 1 },
+        .url = {},
+        .display_url = "https://example.test/app.js"_string,
+        .introduction_type = "scriptElement"_string,
+        .content_type = "text/javascript"_string,
+        .is_inline_source = false,
+        .source_start_line = 1,
+        .source_start_column = 0,
+        .source_length = 33,
+    };
+    mutable Web::HTML::ScriptRegistry::Description fixture_live_source {
+        .id = { .document_id = 1, .script_id = 2 },
+        .url = {},
+        .display_url = "https://example.test/live.js"_string,
+        .introduction_type = "scriptElement"_string,
+        .content_type = "text/javascript"_string,
+        .is_inline_source = false,
+        .source_start_line = 1,
+        .source_start_column = 0,
+        .source_length = 31,
+    };
 
     mutable size_t inspect_tab_call_count { 0 };
     mutable size_t cookies_call_count { 0 };
@@ -1389,6 +1451,11 @@ public:
     mutable size_t retrieve_style_sheet_source_call_count { 0 };
     mutable size_t listen_for_style_sheet_sources_call_count { 0 };
     mutable size_t stop_listening_for_style_sheet_sources_call_count { 0 };
+    mutable size_t retrieve_sources_call_count { 0 };
+    mutable size_t retrieve_source_call_count { 0 };
+    mutable size_t listen_for_sources_call_count { 0 };
+    mutable size_t stop_listening_for_sources_call_count { 0 };
+    mutable DevTools::DevToolsDelegate::OnSourceAvailable on_source_available;
     mutable size_t listen_for_console_messages_call_count { 0 };
     mutable size_t stop_listening_for_console_messages_call_count { 0 };
     mutable size_t listen_for_network_events_call_count { 0 };
@@ -1638,6 +1705,16 @@ static size_t style_rule_actor_count(DevTools::DevToolsServer const& server)
     return count;
 }
 
+static size_t source_actor_count(DevTools::DevToolsServer const& server)
+{
+    size_t count = 0;
+    for (auto const& actor : server.actor_registry()) {
+        if (actor.key.bytes_as_string_view().contains("-source"sv))
+            ++count;
+    }
+    return count;
+}
+
 static JsonObject get_frame_target(ProtocolClient& client, StringView tab_actor)
 {
     auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
@@ -1671,7 +1748,7 @@ static String query_selector(ProtocolClient& client, StringView walker_actor, St
     return client.request(move(request)).get_object("node"sv)->get_string("actor"sv).release_value();
 }
 
-static JsonObject read_resource(ProtocolClient& client, StringView resource_type, StringView packet_type = "resources-available-array"sv)
+static JsonObject read_resource(ProtocolClient& client, StringView resource_type, StringView packet_type = "resources-available-array"sv, StringView expected_sender = {})
 {
     while (true) {
         auto message = client.read_message();
@@ -1687,6 +1764,8 @@ static JsonObject read_resource(ProtocolClient& client, StringView resource_type
                 continue;
             if (!entry.as_array().at(0).is_string() || entry.as_array().at(0).as_string() != resource_type)
                 continue;
+            if (!expected_sender.is_empty())
+                EXPECT_EQ(message.get_string("from"sv).value(), expected_sender);
             auto const& resources = entry.as_array().at(1).as_array();
             VERIFY(!resources.is_empty());
             return resources.at(0).as_object();
@@ -2209,6 +2288,111 @@ TEST_CASE(storage_cookie_resource)
     EXPECT_EQ(objects.get_integer<size_t>("offset"sv).value(), 0u);
     EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 0u);
     EXPECT(objects.get_array("data"sv)->is_empty());
+}
+
+TEST_CASE(source_resources)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_response = client.request(tab_actor, "getWatcher"sv);
+    auto watcher_actor = actor_from(watcher_response, "actor"sv);
+    auto resources = watcher_response.get_object("traits"sv)->get_object("resources"sv).release_value();
+    EXPECT(resources.get_bool("source"sv).value());
+    EXPECT(resources.get_bool("document-event"sv).value());
+    EXPECT(resources.get_bool("error-message"sv).value());
+    EXPECT(resources.get_bool("jstracer-state"sv).value());
+    EXPECT(resources.get_bool("jstracer-trace"sv).value());
+    EXPECT(resources.get_bool("thread-state"sv).value());
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    EXPECT_EQ(client.request(move(watch_targets)).get_string("from"sv).value(), watcher_actor);
+
+    auto target = read_packet_with_type(client, "target-available-form"sv).get_object("target"sv).release_value();
+    auto target_actor = actor_from(target, "actor"sv);
+    auto thread_actor = actor_from(target, "threadActor"sv);
+
+    JsonObject attach;
+    attach.set("to"sv, thread_actor);
+    attach.set("type"sv, "attach"sv);
+    JsonObject options;
+    attach.set("options"sv, move(options));
+    EXPECT_EQ(client.request(move(attach)).get_string("from"sv).value(), thread_actor);
+
+    auto watch_resource_type = [&](StringView resource_type) {
+        JsonObject watch_resources;
+        watch_resources.set("to"sv, watcher_actor);
+        watch_resources.set("type"sv, "watchResources"sv);
+        JsonArray resource_types;
+        resource_types.must_append(resource_type);
+        watch_resources.set("resourceTypes"sv, move(resource_types));
+        EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+    };
+
+    watch_resource_type("thread-state"sv);
+    watch_resource_type("error-message"sv);
+    watch_resource_type("document-event"sv);
+    watch_resource_type("jstracer-state"sv);
+    watch_resource_type("jstracer-trace"sv);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("source"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+
+    auto source_resource = read_resource(client, "source"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(source_resource.get_string("url"sv).value(), "https://example.test/app.js"sv);
+    EXPECT_EQ(source_resource.get_bool("isBlackBoxed"sv).value(), false);
+    EXPECT_EQ(source_resource.get_integer<u64>("browsingContextID"sv).value(), 1u);
+    EXPECT_EQ(source_resource.get_integer<u64>("innerWindowId"sv).value(), 1u);
+    EXPECT_EQ(source_resource.get_string("resourceId"sv).value(), "source-1-1-1"sv);
+    EXPECT_EQ(source_resource.get_string("introductionType"sv).value(), "scriptElement"sv);
+    EXPECT_EQ(source_resource.get_bool("isInlineSource"sv).value(), false);
+    EXPECT_EQ(source_resource.get_integer<u32>("sourceStartLine"sv).value(), 1u);
+    EXPECT_EQ(source_resource.get_integer<u32>("sourceStartColumn"sv).value(), 0u);
+    auto source_actor = actor_from(source_resource, "actor"sv);
+
+    auto sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources.size(), 1u);
+    EXPECT_EQ(sources.at(0).as_object().get_string("actor"sv).value(), source_actor);
+    EXPECT_EQ(source_actor_count(*session->server), 1u);
+
+    auto source = client.request(source_actor, "source"sv);
+    EXPECT_EQ(source.get_string("contentType"sv).value(), "text/javascript"sv);
+    EXPECT_EQ(source.get_string("source"sv).value(), "console.log('hello from source');"sv);
+    EXPECT_EQ(session->delegate.retrieve_sources_call_count, 2u);
+    EXPECT_EQ(session->delegate.retrieve_source_call_count, 1u);
+    EXPECT_EQ(session->delegate.listen_for_sources_call_count, 1u);
+    VERIFY(session->delegate.on_source_available);
+
+    session->delegate.on_source_available(session->delegate.fixture_live_source);
+    auto live_source_resource = read_resource(client, "source"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(live_source_resource.get_string("url"sv).value(), "https://example.test/live.js"sv);
+    EXPECT_EQ(live_source_resource.get_integer<u64>("browsingContextID"sv).value(), 1u);
+    EXPECT_EQ(live_source_resource.get_integer<u64>("innerWindowId"sv).value(), 1u);
+    EXPECT_EQ(live_source_resource.get_string("resourceId"sv).value(), "source-1-1-2"sv);
+    auto live_source_actor = actor_from(live_source_resource, "actor"sv);
+    EXPECT_EQ(source_actor_count(*session->server), 2u);
+
+    auto live_source = client.request(live_source_actor, "source"sv);
+    EXPECT_EQ(live_source.get_string("contentType"sv).value(), "text/javascript"sv);
+    EXPECT_EQ(live_source.get_string("source"sv).value(), "console.log('live source');"sv);
+    EXPECT_EQ(session->delegate.retrieve_source_call_count, 2u);
+
+    sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources.size(), 1u);
+    spin_until(session->loop, [&] {
+        return source_actor_count(*session->server) == 1u
+            && !session->server->actor_registry().contains(live_source_actor);
+    });
 }
 
 TEST_CASE(storage_web_storage_resources)
