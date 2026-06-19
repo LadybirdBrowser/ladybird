@@ -150,6 +150,7 @@ private:
     X(Clamp)                                \
     X(Sum)                                  \
     X(Product)                              \
+    X(Progress)                             \
     X(Negate)                               \
     X(Invert)                               \
     X(Abs)                                  \
@@ -217,6 +218,7 @@ public:
         case Type::Atan:
         case Type::Atan2:
         case Type::Pow:
+        case Type::Progress:
         case Type::Sqrt:
         case Type::Hypot:
         case Type::Log:
@@ -333,6 +335,32 @@ public:
 private:
     ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode const>>, Optional<NumericType>);
     Vector<NonnullRefPtr<CalculationNode const>> m_values;
+};
+
+class ProgressCalculationNode final : public CalculationNode {
+public:
+    static NonnullRefPtr<ProgressCalculationNode const> create(bool no_clamp, NonnullRefPtr<CalculationNode const> value, NonnullRefPtr<CalculationNode const> start_value, NonnullRefPtr<CalculationNode const> end_value);
+    ~ProgressCalculationNode();
+
+    virtual bool contains_percentage() const override;
+    virtual NonnullRefPtr<CalculationNode const> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override;
+    virtual Optional<CalculatedStyleValue::CalculationResult> run_operation_if_possible(CalculationContext const&, CalculationResolutionContext const&) const override;
+
+    virtual Vector<NonnullRefPtr<CalculationNode const>> children() const override { return { { m_value, m_start_value, m_end_value } }; }
+
+    virtual void dump(StringBuilder&, int indent) const override;
+    virtual bool equals(CalculationNode const&) const override;
+    virtual bool is_computationally_independent() const override;
+
+    bool no_clamp() const { return m_no_clamp; }
+
+private:
+    ProgressCalculationNode(bool no_clamp, NonnullRefPtr<CalculationNode const> value, NonnullRefPtr<CalculationNode const> start_value, NonnullRefPtr<CalculationNode const> end_value, Optional<NumericType> numeric_type);
+
+    bool m_no_clamp;
+    NonnullRefPtr<CalculationNode const> m_value;
+    NonnullRefPtr<CalculationNode const> m_start_value;
+    NonnullRefPtr<CalculationNode const> m_end_value;
 };
 
 class NegateCalculationNode final : public CalculationNode {

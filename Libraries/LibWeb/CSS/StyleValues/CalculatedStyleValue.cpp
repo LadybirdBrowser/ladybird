@@ -320,7 +320,7 @@ static void serialize_a_math_function(StringBuilder& builder, CalculationNode co
     //    Concatenate all of the results using ", " (comma followed by space), then append the result to s.
 
     // Spec issue: https://github.com/w3c/csswg-drafts/issues/11783
-    //             The three AD-HOCs in this step are mentioned there.
+    //             The four AD-HOCs in this step are mentioned there.
     // AD-HOC: Numeric nodes have no children and should serialize directly.
     // AD-HOC: calc-operator nodes should also serialize directly, instead of separating their children by commas.#
     if (fn.type() == CalculationNode::Type::Numeric || fn.is_calc_operator_node()) {
@@ -334,6 +334,14 @@ static void serialize_a_math_function(StringBuilder& builder, CalculationNode co
             builder.append(CSS::to_string(rounding_strategy));
             first = false;
         }
+
+        // AD-HOC: For `progress()` we serialize 'no-clamp' separately since it's not a calculation node and shouldn't
+        //         be followed by a comma.
+        if (fn.type() == CalculationNode::Type::Progress) {
+            if (static_cast<ProgressCalculationNode const&>(fn).no_clamp())
+                builder.append("no-clamp "sv);
+        }
+
         for (auto const& child : fn.children()) {
             if (!first)
                 builder.append(", "sv);
@@ -612,6 +620,8 @@ StringView CalculationNode::name() const
         return "atan2"sv;
     case Type::Pow:
         return "pow"sv;
+    case Type::Progress:
+        return "progress"sv;
     case Type::Sqrt:
         return "sqrt"sv;
     case Type::Hypot:
@@ -1002,6 +1012,113 @@ GC::Ptr<CSSNumericValue> ProductCalculationNode::reify(JS::Realm& realm) const
     if (!reified_children)
         return nullptr;
     return CSSMathProduct::create(realm, numeric_type().value(), reified_children.as_nonnull());
+}
+
+NonnullRefPtr<ProgressCalculationNode const> ProgressCalculationNode::create(bool no_clamp, NonnullRefPtr<CalculationNode const> value, NonnullRefPtr<CalculationNode const> start_value, NonnullRefPtr<CalculationNode const> end_value)
+{
+    // https://drafts.csswg.org/css-values-5/#progress
+    // The result of progress() is a <number> made consistent with the consistent type of its arguments
+    auto numeric_type = NumericType {}.made_consistent_with(add_the_types({ value, start_value, end_value }).value()).value();
+
+    return adopt_ref(*new (nothrow) ProgressCalculationNode(no_clamp, move(value), move(start_value), move(end_value), numeric_type));
+}
+
+ProgressCalculationNode::ProgressCalculationNode(bool no_clamp, NonnullRefPtr<CalculationNode const> value, NonnullRefPtr<CalculationNode const> start_value, NonnullRefPtr<CalculationNode const> end_value, Optional<NumericType> numeric_type)
+    : CalculationNode(Type::Progress, numeric_type)
+    , m_no_clamp(no_clamp)
+    , m_value(move(value))
+    , m_start_value(move(start_value))
+    , m_end_value(move(end_value))
+{
+}
+
+ProgressCalculationNode::~ProgressCalculationNode() = default;
+
+bool ProgressCalculationNode::contains_percentage() const
+{
+    return m_value->contains_percentage()
+        || m_start_value->contains_percentage()
+        || m_end_value->contains_percentage();
+}
+
+NonnullRefPtr<CalculationNode const> ProgressCalculationNode::with_simplified_children(CalculationContext const& calculation_context, CalculationResolutionContext const& calculation_resolution_context) const
+{
+    auto simplified_value = simplify_a_calculation_tree(m_value, calculation_context, calculation_resolution_context);
+    auto simplified_start_value = simplify_a_calculation_tree(m_start_value, calculation_context, calculation_resolution_context);
+    auto simplified_end_value = simplify_a_calculation_tree(m_end_value, calculation_context, calculation_resolution_context);
+
+    if (simplified_value == m_value && simplified_start_value == m_start_value && simplified_end_value == m_end_value)
+        return *this;
+
+    return create(m_no_clamp, move(simplified_value), move(simplified_start_value), move(simplified_end_value));
+}
+
+Optional<CalculatedStyleValue::CalculationResult> ProgressCalculationNode::run_operation_if_possible(CalculationContext const& context, CalculationResolutionContext const& resolution_context) const
+{
+    auto maybe_value = try_get_value_with_canonical_unit(*m_value, context, resolution_context);
+    auto maybe_start_value = try_get_value_with_canonical_unit(*m_start_value, context, resolution_context);
+    auto maybe_end_value = try_get_value_with_canonical_unit(*m_end_value, context, resolution_context);
+
+    if (!maybe_value.has_value() || !maybe_start_value.has_value() || !maybe_end_value.has_value())
+        return {};
+
+    // https://drafts.csswg.org/css-values-5/#calculate-a-progress-function
+    // If the progress start value and progress end value are different values
+    if (maybe_start_value != maybe_end_value) {
+        // (progress value - progress start value) / (progress end value - progress start value), clamped to the [0,1] range if no-clamp is not specified.
+        auto progress = (maybe_value->value() - maybe_start_value->value()) / (maybe_end_value->value() - maybe_start_value->value());
+
+        if (!m_no_clamp)
+            progress = clamp(progress, 0.0, 1.0);
+
+        return CalculatedStyleValue::CalculationResult { progress, numeric_type() };
+    }
+
+    // If the progress start value and progress end value are the same value
+    {
+        // 0 if no-clamp is not specified.
+        if (!m_no_clamp)
+            return CalculatedStyleValue::CalculationResult { 0.0, numeric_type() };
+
+        // Otherwise, 0, -∞, or +∞, depending on whether progress value is equal to, less than, or greater than the shared value.
+        if (maybe_value->value() == maybe_start_value->value())
+            return CalculatedStyleValue::CalculationResult { 0.0, numeric_type() };
+        if (maybe_value->value() < maybe_start_value->value())
+            return CalculatedStyleValue::CalculationResult { -AK::Infinity<double>, numeric_type() };
+
+        return CalculatedStyleValue::CalculationResult { AK::Infinity<double>, numeric_type() };
+    }
+}
+
+void ProgressCalculationNode::dump(StringBuilder& builder, int indent) const
+{
+    builder.appendff("{: >{}}PROGRESS (no-clamp: {})\n", "", indent, m_no_clamp);
+    m_value->dump(builder, indent + 2);
+    m_start_value->dump(builder, indent + 2);
+    m_end_value->dump(builder, indent + 2);
+}
+
+bool ProgressCalculationNode::equals(CalculationNode const& other) const
+{
+    if (this == &other)
+        return true;
+
+    if (type() != other.type())
+        return false;
+
+    auto const& other_progress = static_cast<ProgressCalculationNode const&>(other);
+
+    return m_no_clamp == other_progress.m_no_clamp
+        && m_value->equals(other_progress.m_value)
+        && m_start_value->equals(other_progress.m_start_value)
+        && m_end_value->equals(other_progress.m_end_value);
+}
+
+bool ProgressCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent()
+        && m_start_value->is_computationally_independent()
+        && m_end_value->is_computationally_independent();
 }
 
 NonnullRefPtr<NegateCalculationNode const> NegateCalculationNode::create(NonnullRefPtr<CalculationNode const> value)

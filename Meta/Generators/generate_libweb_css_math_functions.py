@@ -124,6 +124,15 @@ static Optional<RoundingStrategy> parse_rounding_strategy(TokenStream<ComponentV
 RefPtr<CalculationNode const> Parser::parse_math_function(Function const& function, CalculationContext const& context)
 {
     TokenStream stream { function.value };
+
+    // AD-HOC: `progress()`'s `no-clamp` argument that isn't comma separated like the other arguments, so we need to
+    //         parse it first.
+    bool progress_function_no_clamp = false;
+    if (function.name.equals_ignoring_ascii_case("progress"sv)) {
+        if (auto keyword = parse_specific_keyword_value(stream, { { Keyword::NoClamp } }))
+            progress_function_no_clamp = true;
+    }
+
     auto arguments = parse_a_comma_separated_list_of_component_values(stream);
     auto const& percentages_resolve_as = context.percentages_resolve_as;
 """)
@@ -393,6 +402,11 @@ RefPtr<CalculationNode const> Parser::parse_math_function(Function const& functi
 """)
             # Generate the call to the constructor
             out.write(f"        return {name_titlecase}CalculationNode::create(")
+            if name == "progress":
+                out.write("progress_function_no_clamp")
+                if parameters:
+                    out.write(", ")
+
             for parameter_index, parameter in enumerate(parameters):
                 parameter_type_string = parameter["type"]
                 if parameter_type_string == "<rounding-strategy>":

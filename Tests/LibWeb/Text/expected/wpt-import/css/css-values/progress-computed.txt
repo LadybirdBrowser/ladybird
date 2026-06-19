@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 23 tests
+
+23 Pass
+Pass	progress(1, 0, 1) should be used-value-equivalent to 1
+Pass	progress(progress(1, 0, 1), progress(0px, 0px, 1px), progress(1deg, 0deg, 1deg)) should be used-value-equivalent to 1
+Pass	progress(sign(-10px) * 10px, (10px - 10px), 10px * progress(1deg, 0deg, 1deg)) should be used-value-equivalent to 0
+Pass	calc(progress(100px, 0px, 50px) * 10px + 100px) should be used-value-equivalent to 110px
+Pass	calc(progress(100, 0, sign(50px))) should be used-value-equivalent to 1
+Pass	calc(progress(abs(5%), hypot(3%, 4%), 10%)) should be used-value-equivalent to 0
+Pass	progress(50em, 10em, 110em) should be used-value-equivalent to 0.4
+Pass	progress(1000em, 10em, 110em) should be used-value-equivalent to 1
+Pass	scale(progress(50em, 10rem, 110em)) should be used-value-equivalent to scale(1)
+Pass	scale(progress(1000em, 10rem, 110em)) should be used-value-equivalent to scale(1)
+Pass	scale(progress(0em, 0rem, 0em)) should be used-value-equivalent to scale(0)
+Pass	scale(progress(sign(1em - 1rem) * 1ex, 0rem, 0em)) should be used-value-equivalent to scale(0)
+Pass	calc(progress(1, 0, 1) * 10px) should be used-value-equivalent to 10px
+Pass	calc(progress(1, 0, 1) * 1s) should be used-value-equivalent to 1s
+Pass	calc(progress(1, 0, 1) * 1deg) should be used-value-equivalent to 1deg
+Pass	calc(progress(sign(1001em - 10lh * progress(100px, 2rex, 10ex)) * 10em, 2rem, 12em) / 2) should be used-value-equivalent to 0.4
+Pass	calc(progress(sign(1001em - 10lh * progress(100px, 2rex, 10ex)) * 20em, 2rem, 12em) * 10) should be used-value-equivalent to 10
+Pass	calc(progress(sign(1001em - 10lh * progress(100px, 2rex, 10ex)) * 20em, 2rem, 12em) * 30) should be used-value-equivalent to 30
+Pass	calc(progress(sign(1001em - 10lh * progress(100px, 2rex, 10ex)) * 20em, 2rem, 12em) / 4) should be used-value-equivalent to 0.25
+Pass	calc(progress(sign(1001em - 10lh * progress(100px, 2rex, 10ex)) * 20em, 2rem, 12em) * 4) should be used-value-equivalent to 4
+Pass	calc(progress(sign(1001em - 10lh * progress(100px, 2rex, 10ex)) * 20em, 2rem, 12em) * 2) should be used-value-equivalent to 2
+Pass	rotate3d(progress(21em, 1rem, 11em), progress(21em, 1rem, 11em), progress(21em, 1rem, 11em), calc(progress(11em, 1rem, 11em) * 2deg)) should be used-value-equivalent to rotate3d(2, 2, 2, 2deg)
+Pass	calc(50% - 0px * clamp(0, progress(0cqw, 0px, 0px), 1)) should be used-value-equivalent to 50px

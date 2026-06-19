@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function printProperty(property, value) {
+        const element = document.createElement("div");
+        document.body.append(element);
+        element.style[property] = value;
+        println(`specified: ${element.style[property]}`);
+        println(`computed: ${getComputedStyle(element)[property]}`);
+        element.remove();
+    }
+
+    test(() => {
+        // Should produce negative numbers
+        printProperty("z-index", "progress(no-clamp -100px, 0px, 100px)");
+
+        // Should produce numbers greater than 1
+        printProperty("z-index", "progress(no-clamp 200px, 0px, 100px)");
+
+        // Should serialize correctly when not resolvable at parse time
+        printProperty("z-index", "progress(no-clamp 1em, 0px, 100px)");
+
+        // Should produce the expected values when the start and end values are the same
+        printProperty("z-index", "progress(no-clamp 0px, 1px, 1px)"); // -infinity
+        printProperty("z-index", "progress(no-clamp 1px, 1px, 1px)"); // 0
+        printProperty("z-index", "progress(no-clamp 2px, 1px, 1px)"); // +infinity
+    });
+</script>
