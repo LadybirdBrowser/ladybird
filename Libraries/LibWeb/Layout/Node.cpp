@@ -821,7 +821,12 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_overflow_x(computed_style.overflow_x());
     computed_values.set_overflow_y(computed_style.overflow_y());
     computed_values.set_content_visibility(computed_style.content_visibility());
-    computed_values.set_cursor(computed_style.cursor());
+    auto cursor = computed_style.cursor();
+    for (auto const& cursor_data : cursor) {
+        if (auto const* cursor_style_value = cursor_data.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
+            const_cast<CSS::AbstractImageStyleValue&>((*cursor_style_value)->image()).load_any_resources(*this);
+    }
+    computed_values.set_cursor(move(cursor));
     computed_values.set_image_rendering(computed_style.image_rendering());
     computed_values.set_pointer_events(computed_style.pointer_events());
     computed_values.set_text_decoration_line(computed_style.text_decoration_line());
