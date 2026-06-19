@@ -140,10 +140,7 @@ public:
 // Preserves incomplete trailing decoder tokens when callers provide input in chunks.
 class TEXTCODEC_API StreamingDecoder final {
 public:
-    explicit StreamingDecoder(Decoder& decoder)
-        : m_decoder(decoder)
-    {
-    }
+    explicit StreamingDecoder(StringView encoding);
 
     ErrorOr<String> to_utf8(ReadonlyBytes);
     ErrorOr<String> finish();
