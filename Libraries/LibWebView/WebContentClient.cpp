@@ -872,6 +872,15 @@ void WebContentClient::did_add_devtools_source(u64 page_id, Web::HTML::ScriptReg
     }
 }
 
+void WebContentClient::did_resolve_dom_node_url(u64 page_id, u64 request_id, String resolved_url)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto handler = view->on_resolved_dom_node_url.take(request_id);
+        if (handler.has_value())
+            (*handler)(move(resolved_url));
+    }
+}
+
 void WebContentClient::did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

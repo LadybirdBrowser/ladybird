@@ -130,6 +130,7 @@ private:
     virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) override;
     virtual void list_devtools_sources(u64 page_id, u64 request_id) override;
     virtual void request_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id) override;
+    virtual void resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) override;
 
     virtual void set_listen_for_dom_mutations(u64 page_id, bool) override;
     virtual void did_connect_devtools_client(u64 page_id) override;

@@ -78,6 +78,35 @@ void InspectorActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "resolveRelativeURL"sv) {
+        auto url = get_required_parameter<String>(message, "url"sv);
+        if (!url.has_value())
+            return;
+
+        Optional<Web::UniqueNodeID> node_id;
+        if (auto node_actor = message.data.get_string("node"sv); node_actor.has_value()) {
+            auto dom_node = WalkerActor::dom_node_for(m_walker, *node_actor);
+            if (!dom_node.has_value()) {
+                send_unknown_actor_error(message, *node_actor);
+                return;
+            }
+
+            node_id = dom_node->identifier.id;
+        }
+
+        if (auto tab = m_tab.strong_ref()) {
+            devtools().delegate().resolve_dom_node_url(tab->description(), node_id, *url,
+                async_handler<InspectorActor>(message, [](auto&, auto resolved_url, auto& response) {
+                    response.set("value"sv, move(resolved_url));
+                }));
+        } else {
+            response.set("value"sv, url.release_value());
+            send_response(message, move(response));
+        }
+
+        return;
+    }
+
     send_unrecognized_packet_type_error(message);
 }
 
