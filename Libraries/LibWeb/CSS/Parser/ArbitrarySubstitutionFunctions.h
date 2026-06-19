@@ -39,6 +39,10 @@ private:
     Vector<SubstitutionContext&> m_contexts;
 };
 
+struct ArbitrarySubstitutionReplacementContext {
+    ComputedProperties const* computed_style_for_custom_property_resolution { nullptr };
+};
+
 enum class ArbitrarySubstitutionFunction : u8 {
     Attr,
     Env,
@@ -50,7 +54,7 @@ enum class ArbitrarySubstitutionFunction : u8 {
 
 bool contains_guaranteed_invalid_value(ReadonlySpan<ComponentValue>);
 
-[[nodiscard]] Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::AbstractElement&, GuardedSubstitutionContexts&, ReadonlySpan<ComponentValue>, Optional<SubstitutionContext> = {});
+[[nodiscard]] Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::AbstractElement&, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, ReadonlySpan<ComponentValue>, Optional<SubstitutionContext> = {});
 
 using DeclarationValueList = Vector<ReadonlySpan<ComponentValue>>;
 
@@ -64,6 +68,6 @@ using ArbitrarySubstitutionFunctionArguments = Variant<DeclarationValueList, IfA
 // The returned argument spans borrow from the input component value list.
 [[nodiscard]] Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction, ReadonlySpan<ComponentValue>);
 
-[[nodiscard]] Vector<ComponentValue> replace_an_arbitrary_substitution_function(DOM::AbstractElement&, GuardedSubstitutionContexts&, ArbitrarySubstitutionFunction, ArbitrarySubstitutionFunctionArguments const&);
+[[nodiscard]] Vector<ComponentValue> replace_an_arbitrary_substitution_function(DOM::AbstractElement&, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, ArbitrarySubstitutionFunction, ArbitrarySubstitutionFunctionArguments const&);
 
 }
