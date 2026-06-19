@@ -12,6 +12,7 @@
       "name": "angle",
       "platform": "linux | windows | android | bsd"
     },
+    "brotli",
     {
       "name": "cpptrace",
       "platform": "linux | windows | osx"
@@ -271,6 +272,10 @@
     {
       "name": "angle",
       "version": "chromium_7258#0"
+    },
+    {
+      "name": "brotli",
+      "version": "1.2.0#0"
     },
     {
       "name": "cpptrace",

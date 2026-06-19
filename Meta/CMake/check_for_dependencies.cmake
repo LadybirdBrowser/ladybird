@@ -80,6 +80,14 @@ find_package(SQLite3 REQUIRED)
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 
+find_package(unofficial-brotli CONFIG)
+if(unofficial-brotli_FOUND)
+    set(BROTLI_TARGETS unofficial::brotli::brotlienc unofficial::brotli::brotlidec)
+else()
+    pkg_check_modules(BROTLI REQUIRED IMPORTED_TARGET libbrotlienc libbrotlidec libbrotlicommon)
+    set(BROTLI_TARGETS PkgConfig::BROTLI)
+endif()
+
 pkg_check_modules(LIBPSL REQUIRED IMPORTED_TARGET libpsl)
 pkg_check_modules(libtommath REQUIRED IMPORTED_TARGET libtommath)
 

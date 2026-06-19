@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompress/Brotli.h>
 #include <LibCompress/Deflate.h>
 #include <LibCompress/Gzip.h>
 #include <LibCompress/Zlib.h>
@@ -31,6 +32,8 @@ WebIDL::ExceptionOr<GC::Ref<CompressionStream>> CompressionStream::construct_imp
 
     auto compressor = [&, input_stream = MaybeOwned<Stream> { *input_stream }]() mutable -> ErrorOr<Compressor> {
         switch (format) {
+        case Bindings::CompressionFormat::Brotli:
+            return TRY(Compress::BrotliCompressor::create(move(input_stream)));
         case Bindings::CompressionFormat::Deflate:
             return TRY(Compress::ZlibCompressor::create(move(input_stream)));
         case Bindings::CompressionFormat::DeflateRaw:

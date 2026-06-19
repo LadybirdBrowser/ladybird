@@ -1,3 +1,4 @@
 format=deflate: Well hello friends!
 format=deflate-raw: Well hello friends!
 format=gzip: Well hello friends!
+format=brotli: Well hello friends!
