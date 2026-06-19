@@ -201,6 +201,28 @@ runs:
       shell: bash
       run: echo "${GITHUB_WORKSPACE}/${{ steps.wasm-tools.outputs.name }}" >> "$GITHUB_PATH"
 
+    - name: 'Cache cargo registry'
+      uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cargo/registry
+          /opt/cargo/registry
+        key: cargo-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Libraries/LibJS/Flap/Cargo.lock') }}
+        restore-keys: |
+          cargo-registry-${{ runner.os }}-
+
+    - name: 'Fetch cargo dependencies'
+      shell: bash
+      run: |
+        # Fetch every crate in both lockfiles, so the registry cache saved at the end of the job is complete no matter
+        # which job saves it first, or which crates that job builds. Builds of older commits run this action from
+        # master, so skip any manifest that the checkout doesn't have.
+        for manifest in Cargo.toml Libraries/LibJS/Flap/Cargo.toml; do
+          if [ -f "${manifest}" ]; then
+            cargo fetch --locked --manifest-path "${manifest}"
+          fi
+        done
+
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
       shell: bash
