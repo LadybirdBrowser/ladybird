@@ -72,7 +72,7 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
 
     // FIXME: WebDriver does not yet handle the WebContent process switch brought by site isolation.
     if (!Core::Environment::has("LADYBIRD_WEBDRIVER_ENABLE_SITE_ISOLATION"sv))
-        arguments.append("--disable-site-isolation"sv);
+        arguments.append("--site-isolation=disable"sv);
 
     arguments.append("about:blank"sv);
     return arguments;

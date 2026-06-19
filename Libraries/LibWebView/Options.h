@@ -12,6 +12,7 @@
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWebView/ProcessType.h>
+#include <LibWebView/SiteIsolation.h>
 
 namespace WebView {
 
@@ -135,11 +136,6 @@ enum class EnableMemoryHTTPCache {
     Yes,
 };
 
-enum class DisableSiteIsolation {
-    No,
-    Yes,
-};
-
 enum class ExposeExperimentalInterfaces {
     No,
     Yes,
@@ -190,7 +186,7 @@ struct WebContentOptions {
     Optional<StringView> user_agent_preset {};
     IsTestMode is_test_mode { IsTestMode::No };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
-    DisableSiteIsolation disable_site_isolation { DisableSiteIsolation::No };
+    SiteIsolationMode site_isolation_mode { SiteIsolationMode::TopLevel };
     EnableIDLTracing enable_idl_tracing { EnableIDLTracing::No };
     EnableMemoryHTTPCache enable_http_memory_cache { EnableMemoryHTTPCache::No };
     ExposeExperimentalInterfaces expose_experimental_interfaces { ExposeExperimentalInterfaces::No };

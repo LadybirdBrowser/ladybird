@@ -36,6 +36,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/ProcessType.h>
+#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
@@ -188,7 +189,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool enable_test_mode = false;
     bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
-    bool disable_site_isolation = false;
+    auto site_isolation_mode = SiteIsolationMode::TopLevel;
     bool enable_idl_tracing = false;
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
@@ -264,7 +265,20 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 #endif
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
-    args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Set site isolation mode. Mode may be 'disable' or 'top-level' (default).",
+        .long_name = "site-isolation",
+        .value_name = "mode",
+        .accept_value = [&](StringView value) {
+            auto parsed_mode = site_isolation_mode_from_string(value);
+            if (!parsed_mode.has_value())
+                return false;
+
+            site_isolation_mode = *parsed_mode;
+            return true;
+        },
+    });
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
@@ -373,7 +387,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
     if (debug_process_types.contains_slow(ProcessType::WebContent))
-        disable_site_isolation = true;
+        site_isolation_mode = SiteIsolationMode::Disabled;
 
     m_browser_options = {
         .urls = sanitize_urls(raw_urls),
@@ -425,7 +439,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .user_agent_preset = move(user_agent_preset),
         .is_test_mode = enable_test_mode ? IsTestMode::Yes : IsTestMode::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
-        .disable_site_isolation = disable_site_isolation ? DisableSiteIsolation::Yes : DisableSiteIsolation::No,
+        .site_isolation_mode = site_isolation_mode,
         .enable_idl_tracing = enable_idl_tracing ? EnableIDLTracing::Yes : EnableIDLTracing::No,
         .enable_http_memory_cache = disable_http_memory_cache ? EnableMemoryHTTPCache::No : EnableMemoryHTTPCache::Yes,
         .expose_experimental_interfaces = expose_experimental_interfaces ? ExposeExperimentalInterfaces::Yes : ExposeExperimentalInterfaces::No,
@@ -452,6 +466,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     if (m_web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         URL::set_file_scheme_urls_have_tuple_origins();
+
+    set_site_isolation_mode(m_web_content_options.site_isolation_mode);
 
     if (auto result = load_content_blocker_lists(); result.is_error()) {
         warnln("\033[31;1mUnable to load all content blocker lists:\033[0m {}", result.error());

@@ -100,8 +100,7 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(u64
         arguments.append("--test-mode"sv);
     if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
         arguments.append("--log-all-js-exceptions"sv);
-    if (web_content_options.disable_site_isolation == WebView::DisableSiteIsolation::Yes)
-        arguments.append("--disable-site-isolation"sv);
+    arguments.append(ByteString::formatted("--site-isolation={}", WebView::site_isolation_mode_to_string(web_content_options.site_isolation_mode)));
     if (web_content_options.enable_idl_tracing == WebView::EnableIDLTracing::Yes)
         arguments.append("--enable-idl-tracing"sv);
     if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
