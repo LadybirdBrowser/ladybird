@@ -1574,6 +1574,11 @@ Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse 
     return { "{}"_string };
 }
 
+Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse WebContentClient::did_request_site_isolation_process_tree_for_testing(u64 page_id)
+{
+    return { SiteIsolationManager::the().dump_process_tree(*this, page_id) };
+}
+
 Messages::WebContentClient::DidUpdateSessionHistoryAndRequestUiProcessSessionHistoryForTestingResponse WebContentClient::did_update_session_history_and_request_ui_process_session_history_for_testing(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

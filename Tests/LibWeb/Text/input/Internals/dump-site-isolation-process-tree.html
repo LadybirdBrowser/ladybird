@@ -1,0 +1,11 @@
+<!doctype html>
+<script src="../include.js"></script>
+<iframe srcdoc="<p>child</p>"></iframe>
+<script>
+    asyncTest(done => {
+        addEventListener("load", () => {
+            println(internals.dumpSiteIsolationProcessTree());
+            done();
+        });
+    });
+</script>
