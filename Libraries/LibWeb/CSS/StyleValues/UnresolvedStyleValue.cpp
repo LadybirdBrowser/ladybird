@@ -55,7 +55,6 @@ StringView UnresolvedStyleValue::comparison_text() const
 ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<String> original_source_text, SourceTextMode source_text_mode, bool contains_attr_tainted_values)
 {
     auto has_original_source_text = original_source_text.has_value();
-    auto serialized_values = serialize_a_series_of_component_values(values);
     auto source_text = [&] {
         if (has_original_source_text)
             return MUST(original_source_text.release_value().trim_ascii_whitespace());
@@ -65,7 +64,9 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 
         return source_text_from_component_values(values, source_text_mode);
     }();
-    auto value_comparison_text = has_original_source_text ? MUST(serialized_values.trim_ascii_whitespace()) : String {};
+    // NB: The comparison text is a normalized serialization, only used when we have separate original source text.
+    //     Don't pay for serializing it otherwise.
+    auto value_comparison_text = has_original_source_text ? MUST(serialize_a_series_of_component_values(values).trim_ascii_whitespace()) : String {};
     return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(source_text), move(value_comparison_text), substitution_presence, contains_attr_tainted_values));
 }
 
