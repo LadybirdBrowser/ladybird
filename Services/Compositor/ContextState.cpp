@@ -473,7 +473,7 @@ Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scro
 void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     m_viewport_size = viewport_size;
-    auto is_page_presentation_context = m_page_id.has_value();
+    auto is_page_presentation_context = m_page_id.has_value() && !m_parent_context_id.has_value();
     m_window_resize_in_progress = is_page_presentation_context
         ? window_resize_in_progress
         : Web::Compositor::WindowResizingInProgress::No;

@@ -122,6 +122,18 @@ void ConnectionFromClient::initialize(u64 initial_page_id)
     m_page_host->initialize(initial_page_id);
 }
 
+void ConnectionFromClient::set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto& compositor_context = page->page().top_level_traversable()->compositor_context();
+    if (parent_context_id.has_value())
+        compositor_context.stop_presenting_to_client();
+    compositor_context.set_parent_context(parent_context_id);
+}
+
 Optional<PageClient&> ConnectionFromClient::page(u64 index, SourceLocation location)
 {
     if (auto page = m_page_host->page(index); page.has_value())
