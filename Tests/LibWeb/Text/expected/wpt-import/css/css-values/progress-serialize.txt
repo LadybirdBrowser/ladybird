@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 34 tests
+
+34 Pass
+Pass	'progress(100px, 0px, 100px)' as a specified value should serialize as 'calc(1)'.
+Pass	'scale(progress(100px, 0px, 100px))' as a specified value should serialize as 'scale(calc(1))'.
+Pass	'progress(100px, 0px, 100px)' as a computed value should serialize as '1'.
+Pass	'scale(progress(100px, 0px, 100px))' as a computed value should serialize as 'matrix(1, 0, 0, 1, 0, 0)'.
+Pass	'progress(10em, 0px, 10em)' as a specified value should serialize as 'progress(10em, 0px, 10em)'.
+Pass	'scale(progress(10em, 0px, 10em))' as a specified value should serialize as 'scale(progress(10em, 0px, 10em))'.
+Pass	'progress(10em, 0px, 10em)' as a computed value should serialize as '1'.
+Pass	'scale(progress(10em, 0px, 10em))' as a computed value should serialize as 'matrix(1, 0, 0, 1, 0, 0)'.
+Pass	'progress(10em, 0px, 10rem)' as a specified value should serialize as 'progress(10em, 0px, 10rem)'.
+Pass	'scale(progress(10em, 0px, 10rem))' as a specified value should serialize as 'scale(progress(10em, 0px, 10rem))'.
+Pass	'progress(10em, 0px, 10rem)' as a computed value should serialize as '1'.
+Pass	'scale(progress(10em, 0px, 10rem))' as a computed value should serialize as 'matrix(1, 0, 0, 1, 0, 0)'.
+Pass	'progress(100px, (10px - 10px), 100px)' as a specified value should serialize as 'calc(1)'.
+Pass	'scale(progress(100px, (10px - 10px), 100px))' as a specified value should serialize as 'scale(calc(1))'.
+Pass	'progress(100px, (10px - 10px), 100px)' as a computed value should serialize as '1'.
+Pass	'scale(progress(100px, (10px - 10px), 100px))' as a computed value should serialize as 'matrix(1, 0, 0, 1, 0, 0)'.
+Pass	'progress(1%, (10% - 10%), 100%)' as a specified value should serialize as 'calc(0.01)'.
+Pass	'scale(progress(1%, (10% - 10%), 100%))' as a specified value should serialize as 'scale(calc(0.01))'.
+Pass	'progress(1%, (10% - 10%), 100%)' as a computed value should serialize as '0.01'.
+Pass	'scale(progress(1%, (10% - 10%), 100%))' as a computed value should serialize as 'matrix(0.01, 0, 0, 0.01, 0, 0)'.
+Pass	'calc(0.5 * progress(100px, 0px, 100px))' as a specified value should serialize as 'calc(0.5)'.
+Pass	'scale(calc(0.5 * progress(100px, 0px, 100px)))' as a specified value should serialize as 'scale(calc(0.5))'.
+Pass	'calc(0.5 * progress(100px, 0px, 100px))' as a computed value should serialize as '0.5'.
+Pass	'scale(calc(0.5 * progress(100px, 0px, 100px)))' as a computed value should serialize as 'matrix(0.5, 0, 0, 0.5, 0, 0)'.
+Pass	'calc(0.5 * progress(200px, 0px, 100px))' as a specified value should serialize as 'calc(0.5)'.
+Pass	'scale(calc(0.5 * progress(200px, 0px, 100px)))' as a specified value should serialize as 'scale(calc(0.5))'.
+Pass	'calc(0.5 * progress(200px, 0px, 100px))' as a computed value should serialize as '0.5'.
+Pass	'scale(calc(0.5 * progress(200px, 0px, 100px)))' as a computed value should serialize as 'matrix(0.5, 0, 0, 0.5, 0, 0)'.
+Pass	'calc(0.5 * progress(-100px, 0px, 100px))' as a specified value should serialize as 'calc(0)'.
+Pass	'scale(calc(0.5 * progress(-100px, 0px, 100px)))' as a specified value should serialize as 'scale(calc(0))'.
+Pass	'calc(0.5 * progress(-100px, 0px, 100px))' as a computed value should serialize as '0'.
+Pass	'scale(calc(0.5 * progress(-100px, 0px, 100px)))' as a computed value should serialize as 'matrix(0, 0, 0, 0, 0, 0)'.
+Pass	'calc(50px * progress(100px, 0px, 100px))' as a specified value should serialize as 'calc(50px)'.
+Pass	'calc(1px * progress(abs(10%), (10% - 10%), 100% / 10))' as a computed value should serialize as '1px'.

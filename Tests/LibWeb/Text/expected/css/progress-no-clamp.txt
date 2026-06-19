@@ -1,0 +1,12 @@
+specified: calc(-1)
+computed: -1
+specified: calc(2)
+computed: 2
+specified: progress(no-clamp 1em, 0px, 100px)
+computed: 0
+specified: calc(-infinity)
+computed: -2147483648
+specified: calc(0)
+computed: 0
+specified: calc(infinity)
+computed: 2147483647

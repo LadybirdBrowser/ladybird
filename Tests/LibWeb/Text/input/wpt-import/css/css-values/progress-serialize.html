@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#progress">
+<link rel="author" title="sakhapov@chromuim.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/serialize-testcommon.js"></script>
+<div id=target></div>
+<script>
+function test_serialization(t,s,c) {
+    test_specified_serialization('opacity', t, s);
+    test_specified_serialization('transform', `scale(${t})`, `scale(${s})`);
+    test_computed_serialization('opacity', t, c);
+    test_computed_serialization('transform', `scale(${t})`, `matrix(${c}, 0, 0, ${c}, 0, 0)`);
+}
+
+test_serialization(
+    'progress(100px, 0px, 100px)',
+    'calc(1)',
+    '1',
+);
+test_serialization(
+    'progress(10em, 0px, 10em)',
+    'progress(10em, 0px, 10em)',
+    '1',
+);
+test_serialization(
+    'progress(10em, 0px, 10rem)',
+    'progress(10em, 0px, 10rem)',
+    '1',
+);
+test_serialization(
+    'progress(100px, (10px - 10px), 100px)',
+    'calc(1)',
+    '1',
+);
+test_serialization(
+    'progress(1%, (10% - 10%), 100%)',
+    'calc(0.01)',
+    '0.01',
+);
+test_serialization(
+    'calc(0.5 * progress(100px, 0px, 100px))',
+    'calc(0.5)',
+    '0.5'
+);
+test_serialization(
+    'calc(0.5 * progress(200px, 0px, 100px))',
+    'calc(0.5)',
+    '0.5'
+);
+test_serialization(
+    'calc(0.5 * progress(-100px, 0px, 100px))',
+    'calc(0)',
+    '0'
+);
+test_specified_serialization(
+    'width',
+    'calc(50px * progress(100px, 0px, 100px))',
+    'calc(50px)'
+);
+test_computed_serialization(
+    'width',
+    'calc(1px * progress(abs(10%), (10% - 10%), 100% / 10))',
+    '1px',
+);
+</script>

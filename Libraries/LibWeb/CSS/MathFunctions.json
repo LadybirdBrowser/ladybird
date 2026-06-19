@@ -168,6 +168,27 @@
       }
     ]
   },
+  "progress": {
+    "parameter-validation": "consistent",
+    "__comment": "`no-clamp` is implemented ad-hoc in the parser since it's unusual in that it isn't comma separated",
+    "parameters": [
+      {
+        "name": "value",
+        "type": "<number>|<dimension>|<percentage>",
+        "required": true
+      },
+      {
+        "name": "start-value",
+        "type": "<number>|<dimension>|<percentage>",
+        "required": true
+      },
+      {
+        "name": "end-value",
+        "type": "<number>|<dimension>|<percentage>",
+        "required": true
+      }
+    ]
+  },
   "random": {
     "parameter-validation": "consistent",
     "parameters": [

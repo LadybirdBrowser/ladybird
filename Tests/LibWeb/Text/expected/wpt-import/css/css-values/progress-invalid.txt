@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 27 tests
+
+27 Pass
+Pass	e.style['opacity'] = "progress()" should not set the property value
+Pass	e.style['opacity'] = "progress( )" should not set the property value
+Pass	e.style['opacity'] = "progress(,)" should not set the property value
+Pass	e.style['opacity'] = "progress(1, )" should not set the property value
+Pass	e.style['opacity'] = "progress(1)" should not set the property value
+Pass	e.style['opacity'] = "progress(50%, 0)" should not set the property value
+Pass	e.style['opacity'] = "progress(0, 1,)" should not set the property value
+Pass	e.style['opacity'] = "progress(from,)" should not set the property value
+Pass	e.style['opacity'] = "progress(from 1, 0)" should not set the property value
+Pass	e.style['opacity'] = "progress(from 1, 0 1)" should not set the property value
+Pass	e.style['opacity'] = "progress(from 1 0)" should not set the property value
+Pass	e.style['opacity'] = "progress(0,, 0)" should not set the property value
+Pass	e.style['opacity'] = "progress(to,,,,)" should not set the property value
+Pass	e.style['opacity'] = "progress(0,,, 10,, 200)" should not set the property value
+Pass	e.style['opacity'] = "progress(0,,, 10,,, 200)" should not set the property value
+Pass	e.style['opacity'] = "progress(0,, 10,, 200)" should not set the property value
+Pass	e.style['opacity'] = "progress(0 from 10 to 200)" should not set the property value
+Pass	e.style['opacity'] = "progress(5%, 0, 8" should not set the property value
+Pass	e.style['opacity'] = "progress(5%, 0deg, 8deg" should not set the property value
+Pass	e.style['opacity'] = "progress(5, 0deg, 8deg" should not set the property value
+Pass	e.style['opacity'] = "progress(5, 0%, 8deg" should not set the property value
+Pass	e.style['opacity'] = "progress(5, 0%, sign(10px)" should not set the property value
+Pass	e.style['opacity'] = "progress(5%, 0px, 10px" should not set the property value
+Pass	e.style['letter-spacing'] = "calc(1px * progress(10deg, 0, 10))" should not set the property value
+Pass	e.style['letter-spacing'] = "calc(1px * progress(10, 0px, 10))" should not set the property value
+Pass	e.style['opacity'] = "progress(10px * 10px, 10px * 10px, 10px * 10px)" should not set the property value
+Pass	e.style['opacity'] = "progress(10px, 10px * 10px, 10px * 10px)" should not set the property value
