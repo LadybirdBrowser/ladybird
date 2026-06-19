@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/Environment.h>
@@ -35,7 +36,6 @@ private:
     virtual size_t external_memory_size() const override;
 
     struct IndirectBinding {
-        Utf16FlyString name;
         GC::Ptr<Module> module;
         Utf16FlyString binding_name;
     };
@@ -43,8 +43,7 @@ private:
 
     virtual Optional<BindingAndIndex> find_binding_and_index(Utf16FlyString const& name) const override;
 
-    // FIXME: Since we always access this via the name this could be a map.
-    Vector<IndirectBinding> m_indirect_bindings;
+    HashMap<Utf16FlyString, IndirectBinding> m_indirect_bindings;
 };
 
 }
