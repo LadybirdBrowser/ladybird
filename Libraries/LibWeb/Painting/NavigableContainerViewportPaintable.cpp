@@ -38,16 +38,13 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         ScopedCornerRadiusClip corner_clip { context, clip_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
         auto const& navigable_container = this->navigable_container();
-        auto* hosted_document = const_cast<DOM::Document*>(navigable_container.content_document_without_origin_check());
-        if (!hosted_document)
-            return;
-
-        if (hosted_document->is_render_blocked())
-            return;
-
         auto content_navigable = navigable_container.content_navigable();
         VERIFY(content_navigable);
         if (content_navigable->has_been_destroyed() || !content_navigable->has_compositor_context())
+            return;
+
+        auto* hosted_document = const_cast<DOM::Document*>(navigable_container.content_document_without_origin_check());
+        if (hosted_document && hosted_document->is_render_blocked())
             return;
 
         context.display_list_recorder().save();

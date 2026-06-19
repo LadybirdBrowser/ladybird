@@ -6,6 +6,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
@@ -57,6 +58,7 @@ endpoint WebContentServer
     load_html(u64 page_id, ByteString html) =|
     load_html_with_url(u64 page_id, ByteString html, URL::URL url) =|
     reload(u64 page_id) =|
+    set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id) =|
     traverse_the_history_by_delta(u64 page_id, i32 delta) =|
     traverse_the_history_to_step(u64 page_id, i32 step) =|
     check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step) =|
