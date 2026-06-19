@@ -66,7 +66,7 @@ ErrorOr<int> service_main(int ipc_socket)
     // Currently site isolation doesn't work on Android since everything is running
     // in the same process. It would require an entire redesign of this port
     // in order to make it work. For now, it's better to just disable it.
-    WebView::disable_site_isolation();
+    WebView::set_site_isolation_mode(WebView::SiteIsolationMode::Disabled);
 
     auto maybe_content_blocker_error = load_content_blockers();
     if (maybe_content_blocker_error.is_error())
