@@ -390,7 +390,7 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
     // FIXME: 3. If url is not an absolute URL or is not an absolute URL with fragment or not a local scheme, return error with error code invalid argument.
 
     auto const& current_url = current_top_level_browsing_context()->active_document()->url();
-    auto will_replace_web_content_process = !current_top_level_browsing_context()->page().client().is_url_suitable_for_same_process_navigation(current_url, url.value());
+    auto will_replace_web_content_process = current_top_level_browsing_context()->page().client().decide_navigation_process(current_url, url.value(), Web::NavigationTarget::TopLevel) == Web::NavigationProcessDecision::Remote;
 
     // 4. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, url = move(url), will_replace_web_content_process]() {
@@ -568,7 +568,7 @@ Messages::WebDriverClient::LoadUrlFromUiResponse WebDriverConnection::load_url_f
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload has an invalid `url`"sv);
 
     auto const& current_url = current_top_level_browsing_context()->active_document()->url();
-    auto will_replace_web_content_process = !current_top_level_browsing_context()->page().client().is_url_suitable_for_same_process_navigation(current_url, *url);
+    auto will_replace_web_content_process = current_top_level_browsing_context()->page().client().decide_navigation_process(current_url, *url, Web::NavigationTarget::TopLevel) == Web::NavigationProcessDecision::Remote;
 
     auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
     auto response = page_client.request_webdriver_load_url_from_ui(*url);

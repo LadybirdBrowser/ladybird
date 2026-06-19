@@ -415,6 +415,16 @@ enum class HistoryTraversalPrecheck : u8 {
     SourceDocumentSandboxingAlreadyDone,
 };
 
+enum class NavigationTarget : u8 {
+    TopLevel,
+    IFrame,
+};
+
+enum class NavigationProcessDecision : u8 {
+    Local,
+    Remote,
+};
+
 class PageClient : public JS::Cell {
     GC_CELL(PageClient, JS::Cell);
 
@@ -425,7 +435,14 @@ public:
     virtual bool is_connection_open() const = 0;
     virtual bool has_focus() const { return true; }
     virtual bool has_active_devtools_client() const { return false; }
-    virtual bool is_url_suitable_for_same_process_navigation([[maybe_unused]] URL::URL const& current_url, [[maybe_unused]] URL::URL const& target_url) const { return true; }
+    // In Ladybird, Remote currently implies replacing the WebContent process.
+    virtual NavigationProcessDecision decide_navigation_process(
+        [[maybe_unused]] URL::URL const& current_url,
+        [[maybe_unused]] URL::URL const& target_url,
+        [[maybe_unused]] NavigationTarget target = NavigationTarget::TopLevel) const
+    {
+        return NavigationProcessDecision::Local;
+    }
     virtual void request_new_process_for_navigation(URL::URL const&, Variant<Empty, String, HTML::POSTResource>, Bindings::NavigationHistoryBehavior) { }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;

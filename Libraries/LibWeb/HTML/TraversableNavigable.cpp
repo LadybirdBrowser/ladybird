@@ -2237,7 +2237,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
                 target_top_level_entry = entry;
             }
 
-            if (target_top_level_entry && current_session_history_entry() && !page().client().is_url_suitable_for_same_process_navigation(current_session_history_entry()->url(), target_top_level_entry->url())) {
+            if (target_top_level_entry && current_session_history_entry() && page().client().decide_navigation_process(current_session_history_entry()->url(), target_top_level_entry->url(), NavigationTarget::TopLevel) == NavigationProcessDecision::Remote) {
                 run_the_history_step_prechecks(target_step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, Navigable::NavigationAPIAbortBehavior::Abort,
                     GC::create_function(heap(), [this, delta, signal](HistoryStepResult result, int, Navigable::NavigationAPIAbortBehavior) {
                         if (result == HistoryStepResult::Applied)

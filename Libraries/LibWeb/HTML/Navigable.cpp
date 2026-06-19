@@ -2317,7 +2317,8 @@ void Navigable::begin_navigation(NavigateParams params)
                 }
 
                 // AD-HOC: If we are not able to continue in this process, request a new process from the UI.
-                if (is_top_level_traversable() && !active_browsing_context()->page().client().is_url_suitable_for_same_process_navigation(this->active_document()->url(), url)) {
+                if (is_top_level_traversable()
+                    && active_browsing_context()->page().client().decide_navigation_process(this->active_document()->url(), url, NavigationTarget::TopLevel) == NavigationProcessDecision::Remote) {
                     active_browsing_context()->page().client().request_new_process_for_navigation(url, document_resource, history_handling);
                     set_delaying_load_events(false);
                     return;
