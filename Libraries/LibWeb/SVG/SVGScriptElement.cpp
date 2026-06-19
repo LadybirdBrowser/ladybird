@@ -159,7 +159,7 @@ void SVGScriptElement::process_the_script_element()
     // 3. The 'script' element's "already processed" flag is set to true.
     m_already_processed = true;
     m_script = HTML::ClassicScript::create(m_document->url().basename(), script_content,
-        HTML::relevant_settings_object(*this), m_document->base_url(), m_source_line_number);
+        HTML::relevant_settings_object(*this), m_document->base_url(), m_source_line_number, HTML::ClassicScript::MutedErrors::No, HTML::ScriptRegistry::IsInlineSource::Yes);
     execute_script();
 }
 

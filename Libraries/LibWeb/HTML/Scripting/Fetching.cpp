@@ -1356,10 +1356,10 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-an-inline-module-script-graph
-void fetch_inline_module_script_graph(JS::Realm& realm, ByteString const& filename, Utf16View source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, OnFetchScriptComplete on_complete)
+void fetch_inline_module_script_graph(JS::Realm& realm, ByteString const& filename, Utf16View source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, size_t source_line_number, OnFetchScriptComplete on_complete)
 {
     // 1. Let script be the result of creating a JavaScript module script using sourceText, settingsObject, baseURL, and options.
-    auto script = ModuleScript::create_a_javascript_module_script(filename, source_text, settings_object, base_url).release_value_but_fixme_should_propagate_errors();
+    auto script = ModuleScript::create_a_javascript_module_script(filename, source_text, settings_object, base_url, source_line_number, ScriptRegistry::IsInlineSource::Yes).release_value_but_fixme_should_propagate_errors();
 
     // 2. Fetch the descendants of and link script, given settingsObject, "script", and onComplete.
     fetch_descendants_of_and_link_a_module_script(realm, *script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);

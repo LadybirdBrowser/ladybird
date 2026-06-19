@@ -839,6 +839,7 @@ class PreloadEntry;
 struct PreloadKey;
 class PromiseRejectionEvent;
 class RadioNodeList;
+class ScriptRegistry;
 class SelectedFile;
 class SessionHistoryEntry;
 class SharedResourceRequest;
