@@ -1,0 +1,1 @@
+Inner background color is: rgb(0, 128, 0)

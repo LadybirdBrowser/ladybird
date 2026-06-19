@@ -33,7 +33,11 @@ struct CustomPropertyRegistration {
     //   NB: Spec actually wants this to be a parsed value, and that's what's most useful to us.
     //       See https://drafts.css-houdini.org/css-properties-values-api/#register-a-custom-property
     RefPtr<StyleValue const> initial_value;
+    RefPtr<StyleValue const> computed_initial_value { nullptr };
 };
+
+NonnullRefPtr<StyleValue const> compute_registered_custom_property_value(CustomPropertyRegistration const&, NonnullRefPtr<StyleValue const>, ComputationContext const&);
+NonnullRefPtr<StyleValue const> compute_registered_custom_property_initial_value(DOM::Document const&, CustomPropertyRegistration const&);
 
 inline bool operator==(CustomPropertyRegistration const& a, CustomPropertyRegistration const& b)
 {

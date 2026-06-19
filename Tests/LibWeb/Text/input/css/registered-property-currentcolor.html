@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --color-prop {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: red;
+    }
+
+    #container {
+        color: orange;
+        --color-prop: currentColor;
+    }
+
+    #inner {
+        color: green;
+        background-color: var(--color-prop);
+
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="container">
+    <div id="inner"></div>
+</div>
+<script>
+    test(() => {
+        println(`Inner background color is: ${getComputedStyle(inner).backgroundColor}`);
+    });
+</script>

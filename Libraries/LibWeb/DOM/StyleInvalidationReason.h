@@ -19,6 +19,7 @@ namespace Web::DOM {
     X(CSSStylePropertiesSetPropertyStyleValue)      \
     X(CSSStylePropertiesTextChange)                 \
     X(CustomElementStateChange)                     \
+    X(CustomPropertyRegistrationChange)             \
     X(CustomStateSetChange)                         \
     X(EditingInsertion)                             \
     X(EditingDeletion)                              \
