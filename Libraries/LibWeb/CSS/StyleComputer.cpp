@@ -2405,7 +2405,7 @@ void StyleComputer::compute_property_values(ComputedProperties::Builder& builder
     }
 }
 
-ComputationContext const& StyleComputer::get_computation_context_for_property(PropertyID property_id, ComputedProperties const& style, Optional<DOM::AbstractElement> abstract_element) const
+ComputationContext StyleComputer::make_computation_context_for_property(PropertyID property_id, ComputedProperties const& style, Optional<DOM::AbstractElement> abstract_element) const
 {
     auto subject_inline_axis_is_horizontal = [&]() {
         if (!abstract_element.has_value())
@@ -2440,76 +2440,101 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
     case PropertyID::FontWidth:
     case PropertyID::MathDepth:
     case PropertyID::TextRendering: {
-        if (!m_cached_font_computation_context.has_value()) {
-            auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
-            auto length_resolution_context = inheritance_parent.has_value()
-                ? Length::ResolutionContext::for_element(inheritance_parent.value())
-                : Length::ResolutionContext::for_document(m_document);
-            length_resolution_context.subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal;
-            length_resolution_context.subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr;
+        auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
+        auto length_resolution_context = inheritance_parent.has_value()
+            ? Length::ResolutionContext::for_element(inheritance_parent.value())
+            : Length::ResolutionContext::for_document(m_document);
+        length_resolution_context.subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal;
+        length_resolution_context.subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr;
 
-            m_cached_font_computation_context = {
-                .length_resolution_context = length_resolution_context,
-                .abstract_element = abstract_element
-            };
-        }
-
-        return m_cached_font_computation_context.value();
+        return {
+            .length_resolution_context = length_resolution_context,
+            .abstract_element = abstract_element
+        };
     }
     case PropertyID::LineHeight: {
-        if (!m_cached_line_height_computation_context.has_value()) {
-            auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
+        auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
 
-            auto line_height_font_metrics = Length::FontMetrics {
-                style.font_size(),
-                style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-                inheritance_parent.has_value() ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height()
-            };
+        auto line_height_font_metrics = Length::FontMetrics {
+            style.font_size(),
+            style.first_available_computed_font(document().font_computer())->pixel_metrics(),
+            inheritance_parent.has_value() ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height()
+        };
 
-            m_cached_line_height_computation_context = {
-                .length_resolution_context = {
-                    .viewport_rect = viewport_rect(),
-                    .font_metrics = line_height_font_metrics,
-                    .root_font_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element()
-                        ? line_height_font_metrics
-                        : m_root_element_font_metrics,
-                    .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
-                    .root_font_metrics_depend_on_viewport_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element()
-                        ? style.font_metrics_depend_on_viewport_metrics()
-                        : m_root_element_font_metrics_depend_on_viewport_metrics,
-                    .subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal,
-                    .subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr,
-                },
-                .abstract_element = abstract_element
-            };
-        }
-
-        return m_cached_line_height_computation_context.value();
+        return {
+            .length_resolution_context = {
+                .viewport_rect = viewport_rect(),
+                .font_metrics = line_height_font_metrics,
+                .root_font_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element()
+                    ? line_height_font_metrics
+                    : m_root_element_font_metrics,
+                .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
+                .root_font_metrics_depend_on_viewport_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element()
+                    ? style.font_metrics_depend_on_viewport_metrics()
+                    : m_root_element_font_metrics_depend_on_viewport_metrics,
+                .subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal,
+                .subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr,
+            },
+            .abstract_element = abstract_element
+        };
     }
     default: {
-        if (!m_cached_generic_computation_context.has_value()) {
-            m_cached_generic_computation_context = {
-                .length_resolution_context = {
-                    .viewport_rect = viewport_rect(),
-                    .font_metrics = {
-                        style.font_size(),
-                        style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-                        style.line_height() },
-                    .root_font_metrics = m_root_element_font_metrics,
-                    .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
-                    .root_font_metrics_depend_on_viewport_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element() ? style.font_metrics_depend_on_viewport_metrics() : m_root_element_font_metrics_depend_on_viewport_metrics,
-                    .subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal,
-                    .subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr,
-                },
-                .abstract_element = abstract_element,
-                .color_scheme = style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes())
-            };
-        }
-        return m_cached_generic_computation_context.value();
+        return {
+            .length_resolution_context = {
+                .viewport_rect = viewport_rect(),
+                .font_metrics = {
+                    style.font_size(),
+                    style.first_available_computed_font(document().font_computer())->pixel_metrics(),
+                    style.line_height() },
+                .root_font_metrics = m_root_element_font_metrics,
+                .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
+                .root_font_metrics_depend_on_viewport_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element() ? style.font_metrics_depend_on_viewport_metrics() : m_root_element_font_metrics_depend_on_viewport_metrics,
+                .subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal,
+                .subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr,
+            },
+            .abstract_element = abstract_element,
+            .color_scheme = style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes())
+        };
     }
     }
 
     VERIFY_NOT_REACHED();
+}
+
+ComputationContext const& StyleComputer::get_computation_context_for_property(PropertyID property_id, ComputedProperties const& style, Optional<DOM::AbstractElement> abstract_element) const
+{
+    switch (property_id) {
+    case PropertyID::ColorScheme:
+    case PropertyID::FontFamily:
+    case PropertyID::FontFeatureSettings:
+    case PropertyID::FontKerning:
+    case PropertyID::FontOpticalSizing:
+    case PropertyID::FontSize:
+    case PropertyID::FontStyle:
+    case PropertyID::FontVariantAlternates:
+    case PropertyID::FontVariantCaps:
+    case PropertyID::FontVariantEastAsian:
+    case PropertyID::FontVariantEmoji:
+    case PropertyID::FontVariantLigatures:
+    case PropertyID::FontVariantNumeric:
+    case PropertyID::FontVariantPosition:
+    case PropertyID::FontVariationSettings:
+    case PropertyID::FontWeight:
+    case PropertyID::FontWidth:
+    case PropertyID::MathDepth:
+    case PropertyID::TextRendering:
+        if (!m_cached_font_computation_context.has_value())
+            m_cached_font_computation_context = make_computation_context_for_property(property_id, style, abstract_element);
+        return m_cached_font_computation_context.value();
+    case PropertyID::LineHeight:
+        if (!m_cached_line_height_computation_context.has_value())
+            m_cached_line_height_computation_context = make_computation_context_for_property(property_id, style, abstract_element);
+        return m_cached_line_height_computation_context.value();
+    default:
+        if (!m_cached_generic_computation_context.has_value())
+            m_cached_generic_computation_context = make_computation_context_for_property(property_id, style, abstract_element);
+        return m_cached_generic_computation_context.value();
+    }
 }
 
 void StyleComputer::resolve_effective_overflow_values(ComputedProperties::Builder& builder) const
