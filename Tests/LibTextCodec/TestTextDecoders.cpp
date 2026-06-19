@@ -127,8 +127,7 @@ TEST_CASE(test_utf16be_process_code_points)
 
 TEST_CASE(test_streaming_decoder_utf8_mid_sequence)
 {
-    auto& decoder = decoder_for("UTF-8"sv);
-    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv };
 
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 'a', 0xc3 }))), "a"sv);
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xa9, 'b' }))), "éb"sv);
@@ -138,7 +137,7 @@ TEST_CASE(test_streaming_decoder_utf8_mid_sequence)
 TEST_CASE(test_streaming_decoder_finishes_incomplete_sequence)
 {
     auto& decoder = decoder_for("UTF-8"sv);
-    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv };
 
     auto incomplete_sequence = Vector<u8> { 0xc3 };
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes(incomplete_sequence))), ""sv);
@@ -147,21 +146,18 @@ TEST_CASE(test_streaming_decoder_finishes_incomplete_sequence)
 
 TEST_CASE(test_streaming_decoder_utf8_invalid_second_byte_tail)
 {
-    auto& decoder = decoder_for("UTF-8"sv);
-
-    auto streaming_decoder_for_overlong_three_byte_sequence = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder_for_overlong_three_byte_sequence = TextCodec::StreamingDecoder { "UTF-8"sv };
     EXPECT_EQ(MUST(streaming_decoder_for_overlong_three_byte_sequence.to_utf8(bytes({ 0xe0, 0x80 }))), "\xef\xbf\xbd\xef\xbf\xbd"sv);
     EXPECT_EQ(MUST(streaming_decoder_for_overlong_three_byte_sequence.finish()), ""sv);
 
-    auto streaming_decoder_for_out_of_range_four_byte_sequence = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder_for_out_of_range_four_byte_sequence = TextCodec::StreamingDecoder { "UTF-8"sv };
     EXPECT_EQ(MUST(streaming_decoder_for_out_of_range_four_byte_sequence.to_utf8(bytes({ 0xf4, 0x90 }))), "\xef\xbf\xbd\xef\xbf\xbd"sv);
     EXPECT_EQ(MUST(streaming_decoder_for_out_of_range_four_byte_sequence.finish()), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_utf8_valid_second_byte_tail)
 {
-    auto& decoder = decoder_for("UTF-8"sv);
-    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv };
 
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xe0, 0xa0 }))), ""sv);
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x80 }))), "\xe0\xa0\x80"sv);
@@ -170,8 +166,7 @@ TEST_CASE(test_streaming_decoder_utf8_valid_second_byte_tail)
 
 TEST_CASE(test_streaming_decoder_utf16_odd_byte)
 {
-    auto& decoder = decoder_for("UTF-16LE"sv);
-    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-16LE"sv };
 
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x41, 0x00, 0x42 }))), "A"sv);
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x00 }))), "B"sv);
@@ -180,8 +175,7 @@ TEST_CASE(test_streaming_decoder_utf16_odd_byte)
 
 TEST_CASE(test_streaming_decoder_utf16_surrogate_pair_split)
 {
-    auto& decoder = decoder_for("UTF-16BE"sv);
-    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-16BE"sv };
 
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x00, 0x41, 0xd8, 0x3d }))), "A"sv);
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xde, 0x00 }))), "😀"sv);
@@ -191,7 +185,7 @@ TEST_CASE(test_streaming_decoder_utf16_surrogate_pair_split)
 TEST_CASE(test_streaming_decoder_gb18030_four_byte_tail)
 {
     auto& decoder = decoder_for("gb18030"sv);
-    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder = TextCodec::StreamingDecoder { "gb18030"sv };
     auto gb18030_sequence = Vector<u8> { 0x81, 0x30, 0x81, 0x30 };
 
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 'a', 0x81, 0x30, 0x81 }))), "a"sv);
@@ -202,13 +196,13 @@ TEST_CASE(test_streaming_decoder_gb18030_four_byte_tail)
 TEST_CASE(test_streaming_decoder_big5_overlapping_trail)
 {
     auto& decoder = decoder_for("Big5"sv);
-    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder = TextCodec::StreamingDecoder { "Big5"sv };
     auto big5_sequence = Vector<u8> { 0xa4, 0xa4 };
 
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes(big5_sequence))), MUST(decoder.to_utf8(StringView(bytes(big5_sequence)))));
     EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
 
-    auto streaming_decoder_for_split_input = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder_for_split_input = TextCodec::StreamingDecoder { "Big5"sv };
     EXPECT_EQ(MUST(streaming_decoder_for_split_input.to_utf8(bytes({ 0xa4 }))), ""sv);
     EXPECT_EQ(MUST(streaming_decoder_for_split_input.to_utf8(bytes({ 0xa4 }))), MUST(decoder.to_utf8(StringView(bytes(big5_sequence)))));
     EXPECT_EQ(MUST(streaming_decoder_for_split_input.finish()), ""sv);
@@ -217,7 +211,7 @@ TEST_CASE(test_streaming_decoder_big5_overlapping_trail)
 TEST_CASE(test_streaming_decoder_euc_jp_three_byte_tail)
 {
     auto& decoder = decoder_for("EUC-JP"sv);
-    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder = TextCodec::StreamingDecoder { "EUC-JP"sv };
     auto euc_jp_sequence = Vector<u8> { 0x8f, 0xa2, 0xaf };
 
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x8f, 0xa2 }))), ""sv);
@@ -228,7 +222,7 @@ TEST_CASE(test_streaming_decoder_euc_jp_three_byte_tail)
 TEST_CASE(test_streaming_decoder_shift_jis_tail)
 {
     auto& decoder = decoder_for("Shift_JIS"sv);
-    auto streaming_decoder = TextCodec::StreamingDecoder { decoder };
+    auto streaming_decoder = TextCodec::StreamingDecoder { "Shift_JIS"sv };
     auto shift_jis_sequence = Vector<u8> { 0x82, 0xa0 };
 
     EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x82 }))), ""sv);

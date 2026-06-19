@@ -66,12 +66,9 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
         : run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type);
     dbgln_if(HTML_PARSER_DEBUG, "The incremental HTML parser selected encoding '{}'", encoding);
 
-    auto decoder = TextCodec::decoder_for(encoding);
-    VERIFY(decoder.has_value());
-
     auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
     VERIFY(standardized_encoding.has_value());
-    m_decoder = make<TextCodec::StreamingDecoder>(decoder.value());
+    m_decoder = make<TextCodec::StreamingDecoder>(standardized_encoding.value());
 
     // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
     // The document's character encoding must immediately be set to the value returned from this

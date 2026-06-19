@@ -703,6 +703,11 @@ size_t ISO2022JPDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
     return 0;
 }
 
+StreamingDecoder::StreamingDecoder(StringView encoding)
+    : m_decoder(decoder_for(encoding).value())
+{
+}
+
 ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
 {
     ReadonlyBytes bytes;
