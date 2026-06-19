@@ -24,72 +24,6 @@ namespace Web::Encoding {
 
 GC_DEFINE_ALLOCATOR(TextDecoderStream);
 
-static bool is_utf8_continuation_byte(u8 byte)
-{
-    return (byte & 0xc0) == 0x80;
-}
-
-static bool is_utf8_second_byte_in_range(u8 lead, u8 byte)
-{
-    if (!is_utf8_continuation_byte(byte))
-        return false;
-    if (lead == 0xe0)
-        return byte >= 0xa0;
-    if (lead == 0xed)
-        return byte <= 0x9f;
-    if (lead == 0xf0)
-        return byte >= 0x90;
-    if (lead == 0xf4)
-        return byte <= 0x8f;
-    return true;
-}
-
-// Returns the largest prefix length of `bytes` that can be safely decoded as UTF-8 without splitting an in-progress
-// multi-byte sequence. The remainder (if any) is held over for the next chunk.
-static size_t find_utf8_safe_decode_boundary(ReadonlyBytes bytes)
-{
-    // A valid UTF-8 sequence is at most 4 bytes long, so we never need to look back more than 3 continuation bytes
-    // to find the leading byte of the trailing sequence.
-    size_t scan = 0;
-    while (scan < bytes.size() && scan < 4) {
-        size_t pos = bytes.size() - scan - 1;
-        u8 byte = bytes[pos];
-
-        // Continuation byte (10xxxxxx): keep walking back to find the leading byte.
-        if (is_utf8_continuation_byte(byte)) {
-            ++scan;
-            continue;
-        }
-
-        // ASCII byte (0xxxxxxx): the trailing sequence ends here and is complete.
-        if ((byte & 0x80) == 0)
-            return pos + 1;
-
-        // Multi-byte leading byte. If it's a recognized leading byte and the buffer doesn't yet hold the full
-        // sequence, cut before it so the next chunk can complete it. Otherwise (recognized and complete, or
-        // unrecognized so it'll just become a replacement character) include all bytes up to the end.
-        size_t expected_length = 0;
-        if (byte >= 0xc2 && byte <= 0xdf)
-            expected_length = 2;
-        else if (byte >= 0xe0 && byte <= 0xef)
-            expected_length = 3;
-        else if (byte >= 0xf0 && byte <= 0xf4)
-            expected_length = 4;
-        else
-            return bytes.size();
-        if (bytes.size() - pos >= 2 && !is_utf8_second_byte_in_range(byte, bytes[pos + 1]))
-            return bytes.size();
-        if (bytes.size() - pos >= expected_length)
-            return bytes.size();
-        return pos;
-    }
-
-    // No leading byte found within the last 4 bytes. Either the buffer is shorter than that, or it ends with 4
-    // continuation bytes (malformed UTF-8). Either way, decode everything; the decoder will produce replacement
-    // characters as needed.
-    return bytes.size();
-}
-
 // https://encoding.spec.whatwg.org/#dom-textdecoderstream
 WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(JS::Realm& realm, FlyString label, Bindings::TextDecoderOptions const& options)
 {
@@ -151,6 +85,7 @@ TextDecoderStream::TextDecoderStream(JS::Realm& realm, GC::Ref<Streams::Transfor
     : Bindings::PlatformObject(realm)
     , Streams::GenericTransformStreamMixin(transform)
     , TextDecoderCommonMixin(decoder, move(encoding), error_mode, ignore_bom)
+    , m_streaming_decoder(make<TextCodec::StreamingDecoder>(m_encoding))
 {
 }
 
@@ -183,24 +118,8 @@ WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Value 
     if (buffer_or_error.is_error())
         return WebIDL::OperationError::create(realm, "Failed to copy bytes from BufferSource"_utf16);
     auto buffer = buffer_or_error.release_value();
-    m_io_queue.append(buffer.bytes());
 
-    // NB: Only decode the prefix of m_io_queue that doesn't end mid-multi-byte-sequence; the remainder is held over
-    //     for the next chunk so we don't emit spurious replacement characters at chunk boundaries. We currently only
-    //     do this boundary search for UTF-8; the underlying decoders for other encodings are stateless across calls
-    //     so for those we just decode whatever's in the queue and don't carry anything over.
-    auto safe_length = (m_encoding == "utf-8"_fly_string)
-        ? find_utf8_safe_decode_boundary(m_io_queue.bytes())
-        : m_io_queue.size();
-    if (safe_length == 0)
-        return {};
-
-    auto decoded = TRY_OR_THROW_OOM(vm, m_decoder.to_utf8(StringView { m_io_queue.data(), safe_length }));
-
-    auto remaining = m_io_queue.size() - safe_length;
-    if (remaining > 0)
-        memmove(m_io_queue.data(), m_io_queue.data() + safe_length, remaining);
-    m_io_queue.resize(remaining);
+    auto decoded = TRY_OR_THROW_OOM(vm, m_streaming_decoder->to_utf8(buffer.bytes()));
 
     // 3-4. Run "processing an item" until the input is exhausted, accumulating the output, then enqueue any non-empty
     //      result. If processing returns error, throw a TypeError.
@@ -211,17 +130,7 @@ WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Value 
 WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue()
 {
     // 1-3. Drain decoder's I/O queue and run "processing an item" to completion.
-
-    // NB: For UTF-8, anything still in the I/O queue here is exactly the trailing partial sequence that
-    //     decode_and_enqueue_chunk held back at the safe boundary. The WHATWG UTF-8 decoder emits a single replacement
-    //     character for the whole incomplete sequence, so emit exactly one rather than letting the underlying decoder
-    //     produce one per stray byte.
-    String decoded;
-    if (!m_io_queue.is_empty()) {
-        decoded = "\xEF\xBF\xBD"_string;
-        m_io_queue.clear();
-    }
-
+    auto decoded = TRY_OR_THROW_OOM(vm(), m_streaming_decoder->finish());
     return enqueue_decoded_output(decoded);
 }
 

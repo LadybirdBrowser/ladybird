@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
+#include <AK/OwnPtr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Encoding/TextDecoder.h>
 #include <LibWeb/Encoding/TextDecoderCommon.h>
@@ -38,9 +38,7 @@ private:
     WebIDL::ExceptionOr<void> enqueue_decoded_output(String const&);
 
     // https://encoding.spec.whatwg.org/#textdecodercommon-i-o-queue
-    // NB: We accumulate input bytes that have been pushed to the I/O queue but not yet decoded, so that a multi-byte
-    //     sequence which is split across chunks can be reassembled.
-    ByteBuffer m_io_queue;
+    NonnullOwnPtr<TextCodec::StreamingDecoder> m_streaming_decoder;
 };
 
 }

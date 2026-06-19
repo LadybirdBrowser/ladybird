@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 87 tests
 
-70 Pass
-17 Fail
+72 Pass
+15 Fail
 Pass	Invalid Unicode input is replaced: utf-8
 Pass	Invalid Unicode input is replaced: utf-16le
 Pass	Invalid Unicode input is replaced: utf-16be
@@ -25,8 +25,8 @@ Pass	Fast path misdetection: windows-1257
 Pass	Fast path misdetection: windows-1258
 Pass	Fast path misdetection: latin1
 Pass	Fast path misdetection: ascii
-Fail	utf-16le does not produce more chars than truncated
-Fail	utf-16be does not produce more chars than truncated
+Pass	utf-16le does not produce more chars than truncated
+Pass	utf-16be does not produce more chars than truncated
 Pass	windows-1252 maps bytes outside of latin1: windows-1252
 Pass	windows-1252 maps bytes outside of latin1: latin1
 Pass	windows-1252 maps bytes outside of latin1: ascii
