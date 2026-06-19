@@ -82,6 +82,7 @@ public:
     QWidget* toolbar_container() const { return m_toolbar_container; }
 
     void set_vertical_tabs_enabled(bool);
+    void set_vertical_tabs_position(WebView::VerticalTabsPosition);
     void set_window(BrowserWindow&);
     void set_toolbar_container_in_tab_layout(bool);
     void set_toolbar_window_controls_visible(bool);
@@ -104,10 +105,12 @@ private:
     virtual void resizeEvent(QResizeEvent*) override;
     virtual bool event(QEvent*) override;
 
+    virtual void tab_settings_changed() override;
     virtual void show_menu_bar_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     void recreate_toolbar_icons();
+    void update_vertical_tabs_toolbar_button_placement();
     void connect_hamburger_menu();
     void update_hamburger_menu();
     void update_chrome_style();
@@ -122,6 +125,8 @@ private:
     QWidget* m_toolbar_window_controls { nullptr };
     QSpacerItem* m_toolbar_window_controls_spacer { nullptr };
     QSpacerItem* m_sidebar_toggle_navigation_spacer { nullptr };
+    QToolButton* m_left_toggle_vertical_tabs_expanded_button { nullptr };
+    QToolButton* m_right_toggle_vertical_tabs_expanded_button { nullptr };
     WindowControlButton* m_minimize_window_button { nullptr };
     WindowControlButton* m_maximize_window_button { nullptr };
     WindowControlButton* m_close_window_button { nullptr };
@@ -137,6 +142,8 @@ private:
     QTimer* m_loading_animation_timer { nullptr };
     bool m_is_loading { false };
     bool m_is_updating_chrome_style { false };
+    bool m_vertical_tabs_enabled { false };
+    WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };
     int m_loading_animation_frame { 0 };
 
     QMenu* m_context_menu { nullptr };

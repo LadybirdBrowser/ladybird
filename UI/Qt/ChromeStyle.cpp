@@ -786,12 +786,24 @@ QWidget#LadybirdTabStrip {{
 QWidget#LadybirdVerticalTabBar {{
     color: {4};
     background: {0};
+    border: 0;
     border-right: 1px solid {8};
+}}
+
+QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"] {{
+    border-right: 0;
+    border-left: 1px solid {8};
 }}
 
 QWidget#LadybirdVerticalTabBar[hovered="true"],
 QWidget#LadybirdVerticalTabBar[active="true"] {{
     border-right: 1px solid {9};
+}}
+
+QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"][hovered="true"],
+QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"][active="true"] {{
+    border-right: 0;
+    border-left: 1px solid {9};
 }}
 
 QWidget#LadybirdVerticalTabsResizeHandle {{

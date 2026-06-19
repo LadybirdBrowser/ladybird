@@ -507,6 +507,7 @@ void BrowserWindow::update_tabs_display()
     m_tabs_container->set_vertical_tabs_enabled(settings.vertical_tabs_enabled);
     m_tabs_container->set_vertical_tabs_expanded(settings.vertical_tabs_expanded);
     m_tabs_container->set_vertical_tabs_expand_on_hover(settings.vertical_tabs_expand_on_hover);
+    m_tabs_container->set_vertical_tabs_position(settings.vertical_tabs_position);
 }
 
 void BrowserWindow::rebuild_bookmarks_menu()
