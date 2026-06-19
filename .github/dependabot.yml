@@ -3,7 +3,9 @@ version: 2
 
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
