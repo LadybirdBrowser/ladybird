@@ -130,13 +130,12 @@ private:
         ContextState::ContextUpdateResult const&);
     void present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect);
     void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect);
+    void schedule_pending_present_frame(Web::Compositor::CompositorContextId, ContextState&);
     void schedule_pending_present_frame_on_vsync(Web::Compositor::CompositorContextId, ContextState&);
+    void schedule_containing_context_present(ContextState&);
     void schedule_pending_present_frame_if_unblocked(Web::Compositor::CompositorContextId, ContextState&);
     VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
     void present_pending_frames_on_vsync(Optional<u64> display_id);
-    void flush_descendant_surfaces_for_screenshot(Web::Compositor::CompositorContextId);
-    bool present_subtree_for_screenshot(Web::Compositor::CompositorContextId);
-    bool present_context_synchronously(Web::Compositor::CompositorContextId, ContextState&);
     void publish_backing_stores(Web::Compositor::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
     void did_finish_async_present(PendingAsyncPresent&);
     void cancel_pending_async_presents_for_context(Web::Compositor::CompositorContextId);
