@@ -494,7 +494,8 @@ ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> paths
 #        endif
 
             if (landlock_path.is_directory) {
-                path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_REMOVE_DIR
+                path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_READ_DIR
+                    | LANDLOCK_ACCESS_FS_REMOVE_DIR
                     | LANDLOCK_ACCESS_FS_REMOVE_FILE
                     | LANDLOCK_ACCESS_FS_MAKE_DIR
                     | LANDLOCK_ACCESS_FS_MAKE_REG
