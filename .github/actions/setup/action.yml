@@ -116,7 +116,7 @@ runs:
 
     - name: 'Resolve wasm-tools release'
       id: 'wasm-tools'
-      if: ${{ inputs.type == 'build' }}
+      if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
       shell: bash
       run: |
         VERSION=1.243.0
@@ -139,14 +139,14 @@ runs:
 
     - name: 'Cache wasm-tools'
       id: 'wasm-tools-cache'
-      if: ${{ inputs.type == 'build' }}
+      if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
       uses: actions/cache@v4
       with:
         path: ${{ github.workspace }}/${{ steps.wasm-tools.outputs.name }}
         key: ${{ steps.wasm-tools.outputs.name }}
 
     - name: 'Install wasm-tools'
-      if: ${{ inputs.type == 'build' && steps.wasm-tools-cache.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.type == 'build' && inputs.os != 'Linux' && steps.wasm-tools-cache.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         FILENAME="${{ steps.wasm-tools.outputs.filename }}"
@@ -172,7 +172,7 @@ runs:
         rm "${FILENAME}"
 
     - name: 'Add wasm-tools to PATH'
-      if: ${{ inputs.type == 'build' }}
+      if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
       shell: bash
       run: echo "${GITHUB_WORKSPACE}/${{ steps.wasm-tools.outputs.name }}" >> "$GITHUB_PATH"
 
