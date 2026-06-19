@@ -16,6 +16,50 @@
 
 namespace IPC {
 
+static constexpr size_t INLINE_MESSAGE_MAX_SIZE = 4096;
+
+struct InlinePayloadHeader {
+    u32 payload_size { 0 };
+};
+
+static size_t round_mach_message_size(size_t size)
+{
+    constexpr size_t alignment = sizeof(natural_t);
+    return ((size + alignment - 1) / alignment) * alignment;
+}
+
+static size_t mach_message_size_for_inline_payload(size_t payload_size, size_t port_count)
+{
+    size_t message_size = sizeof(mach_msg_header_t) + sizeof(InlinePayloadHeader) + payload_size;
+    if (port_count > 0) {
+        message_size += sizeof(mach_msg_body_t);
+        message_size += port_count * sizeof(mach_msg_port_descriptor_t);
+    }
+    return round_mach_message_size(message_size);
+}
+
+static size_t mach_message_size_for_out_of_line_payload(size_t port_count)
+{
+    return round_mach_message_size(sizeof(mach_msg_header_t)
+        + sizeof(mach_msg_body_t)
+        + (port_count * sizeof(mach_msg_port_descriptor_t))
+        + sizeof(mach_msg_ool_descriptor_t));
+}
+
+static ReceivedMessageBytes inline_payload_bytes(u8 const* payload, size_t payload_region_size)
+{
+    VERIFY(payload_region_size >= sizeof(InlinePayloadHeader));
+
+    InlinePayloadHeader payload_header;
+    __builtin_memcpy(&payload_header, payload, sizeof(payload_header));
+
+    VERIFY(payload_header.payload_size <= payload_region_size - sizeof(InlinePayloadHeader));
+
+    Vector<u8> bytes;
+    MUST(bytes.try_append(payload + sizeof(InlinePayloadHeader), payload_header.payload_size));
+    return ReceivedMessageBytes::from_vector(move(bytes));
+}
+
 static void set_mach_port_queue_limit(mach_port_t port)
 {
     mach_port_limits_t limits { .mpl_qlimit = MACH_PORT_QLIMIT_MAX };
@@ -25,13 +69,10 @@ static void set_mach_port_queue_limit(mach_port_t port)
         reinterpret_cast<mach_port_info_t>(&limits), MACH_PORT_LIMITS_INFO_COUNT);
 }
 
-static ErrorOr<Attachment> attachment_from_descriptor(mach_msg_port_descriptor_t const& descriptor)
+static Attachment attachment_from_descriptor(mach_msg_port_descriptor_t const& descriptor)
 {
-    if (descriptor.type != MACH_MSG_PORT_DESCRIPTOR)
-        return Error::from_string_literal("Invalid Mach message descriptor type");
-
-    if (!MACH_PORT_VALID(descriptor.name))
-        return Error::from_string_literal("Invalid Mach port descriptor name");
+    VERIFY(descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
+    VERIFY(MACH_PORT_VALID(descriptor.name));
 
     switch (descriptor.disposition) {
     case MACH_MSG_TYPE_MOVE_SEND:
@@ -47,7 +88,7 @@ static ErrorOr<Attachment> attachment_from_descriptor(mach_msg_port_descriptor_t
             Core::MachPort::adopt_right(descriptor.name, Core::MachPort::PortRight::SendOnce),
             Core::MachPort::MessageRight::MoveSendOnce);
     default:
-        return Error::from_string_literal("Invalid Mach port descriptor disposition");
+        VERIFY_NOT_REACHED();
     }
 }
 
@@ -222,6 +263,7 @@ intptr_t TransportMachPort::io_thread_loop()
         case MACH_NOTIFY_SEND_ONCE:
             continue;
         case IPC_DATA_MESSAGE_ID:
+        case IPC_INLINE_DATA_MESSAGE_ID:
             process_received_message(buffer.data());
             continue;
         default:
@@ -242,44 +284,71 @@ void TransportMachPort::send_mach_message(PendingMessage& msg)
     auto const& bytes = msg.bytes;
     auto& attachments = msg.attachments;
     size_t port_count = attachments.size();
-    size_t total_desc_count = port_count + 1; // +1 for OOL payload
 
-    size_t msg_size = sizeof(mach_msg_header_t)
-        + sizeof(mach_msg_body_t)
-        + (port_count * sizeof(mach_msg_port_descriptor_t))
-        + sizeof(mach_msg_ool_descriptor_t);
+    auto inline_msg_size = mach_message_size_for_inline_payload(bytes.size(), port_count);
+    bool send_payload_inline = inline_msg_size <= INLINE_MESSAGE_MAX_SIZE;
+    auto msg_size = send_payload_inline ? inline_msg_size : mach_message_size_for_out_of_line_payload(port_count);
 
     if (m_send_buffer.size() < msg_size)
         m_send_buffer.resize(msg_size);
 
     auto* header = reinterpret_cast<mach_msg_header_t*>(m_send_buffer.data());
-    header->msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0) | MACH_MSGH_BITS_COMPLEX;
+    header->msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
     header->msgh_size = msg_size;
     header->msgh_remote_port = m_send_port.port();
     header->msgh_local_port = MACH_PORT_NULL;
-    header->msgh_id = IPC_DATA_MESSAGE_ID;
+    header->msgh_id = send_payload_inline ? IPC_INLINE_DATA_MESSAGE_ID : IPC_DATA_MESSAGE_ID;
 
-    auto* body = reinterpret_cast<mach_msg_body_t*>(header + 1);
-    body->msgh_descriptor_count = total_desc_count;
+    u8* inline_payload = nullptr;
+    if (port_count > 0 || !send_payload_inline) {
+        header->msgh_bits |= MACH_MSGH_BITS_COMPLEX;
 
-    auto* desc_ptr = reinterpret_cast<mach_msg_port_descriptor_t*>(body + 1);
-    for (size_t i = 0; i < port_count; ++i) {
-        auto disposition = static_cast<mach_msg_type_name_t>(attachments[i].message_right());
-        auto port = attachments[i].release_mach_port();
-        desc_ptr[i].name = port.release();
-        desc_ptr[i].disposition = disposition;
-        desc_ptr[i].type = MACH_MSG_PORT_DESCRIPTOR;
+        auto* body = reinterpret_cast<mach_msg_body_t*>(header + 1);
+        body->msgh_descriptor_count = port_count + (send_payload_inline ? 0 : 1);
+
+        auto* desc_ptr = reinterpret_cast<mach_msg_port_descriptor_t*>(body + 1);
+        for (size_t i = 0; i < port_count; ++i) {
+            auto disposition = static_cast<mach_msg_type_name_t>(attachments[i].message_right());
+            auto port = attachments[i].release_mach_port();
+            desc_ptr[i].name = port.release();
+            desc_ptr[i].disposition = disposition;
+            desc_ptr[i].type = MACH_MSG_PORT_DESCRIPTOR;
+        }
+
+        if (send_payload_inline) {
+            inline_payload = reinterpret_cast<u8*>(&desc_ptr[port_count]);
+        } else {
+            auto* ool_desc = reinterpret_cast<mach_msg_ool_descriptor_t*>(&desc_ptr[port_count]);
+            ool_desc->address = const_cast<void*>(static_cast<void const*>(bytes.data()));
+            ool_desc->size = bytes.size();
+            ool_desc->deallocate = false;
+            ool_desc->copy = MACH_MSG_VIRTUAL_COPY;
+            ool_desc->type = MACH_MSG_OOL_DESCRIPTOR;
+        }
+    } else {
+        inline_payload = reinterpret_cast<u8*>(header + 1);
     }
 
-    auto* ool_desc = reinterpret_cast<mach_msg_ool_descriptor_t*>(&desc_ptr[port_count]);
-    ool_desc->address = const_cast<void*>(static_cast<void const*>(bytes.data()));
-    ool_desc->size = bytes.size();
-    ool_desc->deallocate = false;
-    ool_desc->copy = MACH_MSG_VIRTUAL_COPY;
-    ool_desc->type = MACH_MSG_OOL_DESCRIPTOR;
+    if (send_payload_inline) {
+        VERIFY(inline_payload);
 
-    // Send one complex Mach message: port descriptors for attachments and one out-of-line region for the byte
-    // payload. This keeps right transfer atomic and lets the kernel use virtual-copy for the payload.
+        InlinePayloadHeader payload_header { static_cast<u32>(bytes.size()) };
+        VERIFY(static_cast<size_t>(payload_header.payload_size) == bytes.size());
+
+        __builtin_memcpy(inline_payload, &payload_header, sizeof(payload_header));
+        if (!bytes.is_empty())
+            __builtin_memcpy(inline_payload + sizeof(payload_header), bytes.data(), bytes.size());
+
+        auto used_size = static_cast<size_t>(inline_payload - m_send_buffer.data())
+            + sizeof(payload_header)
+            + bytes.size();
+        VERIFY(used_size <= msg_size);
+        if (used_size < msg_size)
+            __builtin_memset(m_send_buffer.data() + used_size, 0, msg_size - used_size);
+    }
+
+    // Send one Mach message so attachment right transfer stays atomic with the serialized IPC payload.
+    // Small payloads are copied inline to avoid allocating a VM region for the out-of-line descriptor path.
     auto const ret = mach_msg(header, MACH_SEND_MSG, msg_size, 0, MACH_PORT_NULL, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
     if (ret != KERN_SUCCESS) {
         dbgln("TransportMachPort: send failed: {} (send_port={:x})", mach_error_string(ret), m_send_port.port());
@@ -290,29 +359,58 @@ void TransportMachPort::send_mach_message(PendingMessage& msg)
 void TransportMachPort::process_received_message(u8* buffer)
 {
     auto* header = reinterpret_cast<mach_msg_header_t*>(buffer);
-    VERIFY(header->msgh_bits & MACH_MSGH_BITS_COMPLEX);
-    auto* body = reinterpret_cast<mach_msg_body_t*>(header + 1);
-    VERIFY(body->msgh_descriptor_count > 0);
-    auto attachment_count = body->msgh_descriptor_count - 1;
-    auto* descriptors = reinterpret_cast<mach_msg_port_descriptor_t*>(body + 1);
-    auto const* payload = reinterpret_cast<mach_msg_ool_descriptor_t const*>(&descriptors[attachment_count]);
-
-    VERIFY(payload->type == MACH_MSG_OOL_DESCRIPTOR);
-    auto payload_bytes = ReceivedMessageBytes::adopt_vm_region(payload->address, payload->size);
-
     auto message = make<Message>();
-    for (unsigned int i = 0; i < attachment_count; ++i) {
-        auto attachment = attachment_from_descriptor(descriptors[i]);
-        if (attachment.is_error()) {
-            dbgln("TransportMachPort: dropping message with invalid port descriptor {} of {}: {} (name={:x}, disposition={}, type={})",
-                i + 1, attachment_count, attachment.error(), descriptors[i].name, descriptors[i].disposition, descriptors[i].type);
-            mark_peer_eof();
-            return;
-        }
-        message->attachments.enqueue(attachment.release_value());
-    }
 
-    message->bytes = move(payload_bytes);
+    if (header->msgh_id == IPC_INLINE_DATA_MESSAGE_ID) {
+        VERIFY(header->msgh_size >= sizeof(mach_msg_header_t) + sizeof(InlinePayloadHeader));
+
+        u8 const* payload = nullptr;
+        size_t payload_region_size = 0;
+        mach_msg_size_t attachment_count = 0;
+        mach_msg_port_descriptor_t const* descriptors = nullptr;
+
+        if (header->msgh_bits & MACH_MSGH_BITS_COMPLEX) {
+            auto* body = reinterpret_cast<mach_msg_body_t*>(header + 1);
+            attachment_count = body->msgh_descriptor_count;
+            descriptors = reinterpret_cast<mach_msg_port_descriptor_t*>(body + 1);
+
+            size_t size_with_descriptors = sizeof(mach_msg_header_t)
+                + sizeof(mach_msg_body_t)
+                + (attachment_count * sizeof(mach_msg_port_descriptor_t));
+            VERIFY(size_with_descriptors <= header->msgh_size);
+
+            payload = buffer + size_with_descriptors;
+            payload_region_size = header->msgh_size - size_with_descriptors;
+        } else {
+            payload = reinterpret_cast<u8 const*>(header + 1);
+            payload_region_size = header->msgh_size - sizeof(mach_msg_header_t);
+        }
+
+        for (mach_msg_size_t i = 0; i < attachment_count; ++i) {
+            auto attachment = attachment_from_descriptor(descriptors[i]);
+            message->attachments.enqueue(move(attachment));
+        }
+
+        message->bytes = inline_payload_bytes(payload, payload_region_size);
+    } else {
+        VERIFY(header->msgh_id == IPC_DATA_MESSAGE_ID);
+        VERIFY(header->msgh_bits & MACH_MSGH_BITS_COMPLEX);
+        auto* body = reinterpret_cast<mach_msg_body_t*>(header + 1);
+        VERIFY(body->msgh_descriptor_count > 0);
+        auto attachment_count = body->msgh_descriptor_count - 1;
+        auto* descriptors = reinterpret_cast<mach_msg_port_descriptor_t*>(body + 1);
+        auto const* payload = reinterpret_cast<mach_msg_ool_descriptor_t const*>(&descriptors[attachment_count]);
+
+        VERIFY(payload->type == MACH_MSG_OOL_DESCRIPTOR);
+        auto payload_bytes = ReceivedMessageBytes::adopt_vm_region(payload->address, payload->size);
+
+        for (unsigned int i = 0; i < attachment_count; ++i) {
+            auto attachment = attachment_from_descriptor(descriptors[i]);
+            message->attachments.enqueue(move(attachment));
+        }
+
+        message->bytes = move(payload_bytes);
+    }
 
     if (message->bytes.is_empty() && message->attachments.is_empty())
         return;
