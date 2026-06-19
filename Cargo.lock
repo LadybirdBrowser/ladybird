@@ -728,6 +728,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "libtextcodec_rust"
+version = "0.1.0"
+dependencies = [
+ "cbindgen",
+ "encoding_rs",
+]
+
+[[package]]
 name = "libunicode_rust"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,16 @@
+[package]
+name = "libtextcodec_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+encoding_rs = "0.8.35"
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[lints]
+workspace = true

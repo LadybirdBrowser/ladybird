@@ -7,14 +7,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/BinarySearch.h>
-#include <AK/CharacterTypes.h>
 #include <AK/StringBuilder.h>
-#include <AK/UnicodeUtils.h>
-#include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibTextCodec/LookupTables.h>
+#include <RustFFI.h>
 
 namespace TextCodec {
 
@@ -22,48 +18,190 @@ static constexpr u32 replacement_code_point = 0xfffd;
 
 namespace {
 
-Latin1Decoder s_latin1_decoder;
+enum class RemoveBOM {
+    No,
+    Yes,
+};
+
+class RustDecoder final : public Decoder {
+public:
+    explicit RustDecoder(StringView encoding)
+        : m_encoding(encoding)
+    {
+    }
+
+    virtual bool validate(StringView input) override;
+    virtual ErrorOr<String> to_utf8(StringView input) override;
+    virtual ErrorOr<size_t> length_in_utf16_code_units(StringView input) override;
+
+private:
+    virtual ErrorOr<void> process(StringView input, Function<ErrorOr<void>(u32)> on_code_point) override;
+
+    StringView m_encoding;
+};
+
+class UTF8Decoder final : public Decoder {
+public:
+    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
+    virtual bool validate(StringView) override;
+    virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
+};
+
+class UTF16BEDecoder final : public Decoder {
+public:
+    virtual bool validate(StringView) override;
+    virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
+
+private:
+    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override;
+};
+
+class UTF16LEDecoder final : public Decoder {
+public:
+    virtual bool validate(StringView) override;
+    virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
+
+private:
+    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override;
+};
+
+class Latin1Decoder final : public Decoder {
+public:
+    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
+    virtual bool validate(StringView) override { return true; }
+    virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
+};
+
 UTF8Decoder s_utf8_decoder;
 UTF16BEDecoder s_utf16be_decoder;
 UTF16LEDecoder s_utf16le_decoder;
-XUserDefinedDecoder s_x_user_defined_decoder;
-GB18030Decoder s_gb18030_decoder;
-Big5Decoder s_big5_decoder;
-EUCJPDecoder s_euc_jp_decoder;
-ISO2022JPDecoder s_iso_2022_jp_decoder;
-ShiftJISDecoder s_shift_jis_decoder;
-EUCKRDecoder s_euc_kr_decoder;
-ReplacementDecoder s_replacement_decoder;
+Latin1Decoder s_latin1_decoder;
 
-// s_{encoding}_index is generated from https://encoding.spec.whatwg.org/indexes.json
-// Found separately in https://encoding.spec.whatwg.org/index-{encoding}.txt
-SingleByteDecoder s_ibm866_decoder { s_ibm866_index };
-SingleByteDecoder s_latin2_decoder { s_iso_8859_2_index };
-SingleByteDecoder s_latin3_decoder { s_iso_8859_3_index };
-SingleByteDecoder s_latin4_decoder { s_iso_8859_4_index };
-SingleByteDecoder s_latin_cyrillic_decoder { s_iso_8859_5_index };
-SingleByteDecoder s_latin_arabic_decoder { s_iso_8859_6_index };
-SingleByteDecoder s_latin_greek_decoder { s_iso_8859_7_index };
-SingleByteDecoder s_latin_hebrew_decoder { s_iso_8859_8_index };
-SingleByteDecoder s_latin6_decoder { s_iso_8859_10_index };
-SingleByteDecoder s_latin7_decoder { s_iso_8859_13_index };
-SingleByteDecoder s_latin8_decoder { s_iso_8859_14_index };
-SingleByteDecoder s_latin9_decoder { s_iso_8859_15_index };
-SingleByteDecoder s_latin10_decoder { s_iso_8859_16_index };
-SingleByteDecoder s_centraleurope_decoder { s_windows_1250_index };
-SingleByteDecoder s_cyrillic_decoder { s_windows_1251_index };
-SingleByteDecoder s_hebrew_decoder { s_windows_1255_index };
-SingleByteDecoder s_koi8r_decoder { s_koi8_r_index };
-SingleByteDecoder s_koi8u_decoder { s_koi8_u_index };
-SingleByteDecoder s_mac_roman_decoder { s_macintosh_index };
-SingleByteDecoder s_windows874_decoder { s_windows_874_index };
-SingleByteDecoder s_windows1252_decoder { s_windows_1252_index };
-SingleByteDecoder s_windows1253_decoder { s_windows_1253_index };
-SingleByteDecoder s_turkish_decoder { s_windows_1254_index };
-SingleByteDecoder s_windows1256_decoder { s_windows_1256_index };
-SingleByteDecoder s_windows1257_decoder { s_windows_1257_index };
-SingleByteDecoder s_windows1258_decoder { s_windows_1258_index };
-SingleByteDecoder s_mac_cyrillic_decoder { s_x_mac_cyrillic_index };
+RustDecoder s_gb18030_decoder { "gb18030"sv };
+RustDecoder s_big5_decoder { "Big5"sv };
+RustDecoder s_euc_jp_decoder { "EUC-JP"sv };
+RustDecoder s_iso_2022_jp_decoder { "ISO-2022-JP"sv };
+RustDecoder s_shift_jis_decoder { "Shift_JIS"sv };
+RustDecoder s_euc_kr_decoder { "EUC-KR"sv };
+RustDecoder s_ibm866_decoder { "IBM866"sv };
+RustDecoder s_latin2_decoder { "ISO-8859-2"sv };
+RustDecoder s_latin3_decoder { "ISO-8859-3"sv };
+RustDecoder s_latin4_decoder { "ISO-8859-4"sv };
+RustDecoder s_latin_cyrillic_decoder { "ISO-8859-5"sv };
+RustDecoder s_latin_arabic_decoder { "ISO-8859-6"sv };
+RustDecoder s_latin_greek_decoder { "ISO-8859-7"sv };
+RustDecoder s_latin_hebrew_decoder { "ISO-8859-8"sv };
+RustDecoder s_latin6_decoder { "ISO-8859-10"sv };
+RustDecoder s_latin7_decoder { "ISO-8859-13"sv };
+RustDecoder s_latin8_decoder { "ISO-8859-14"sv };
+RustDecoder s_latin9_decoder { "ISO-8859-15"sv };
+RustDecoder s_latin10_decoder { "ISO-8859-16"sv };
+RustDecoder s_centraleurope_decoder { "windows-1250"sv };
+RustDecoder s_cyrillic_decoder { "windows-1251"sv };
+RustDecoder s_hebrew_decoder { "windows-1255"sv };
+RustDecoder s_koi8r_decoder { "KOI8-R"sv };
+RustDecoder s_koi8u_decoder { "KOI8-U"sv };
+RustDecoder s_mac_roman_decoder { "macintosh"sv };
+RustDecoder s_windows874_decoder { "windows-874"sv };
+RustDecoder s_windows1252_decoder { "windows-1252"sv };
+RustDecoder s_windows1253_decoder { "windows-1253"sv };
+RustDecoder s_turkish_decoder { "windows-1254"sv };
+RustDecoder s_windows1256_decoder { "windows-1256"sv };
+RustDecoder s_windows1257_decoder { "windows-1257"sv };
+RustDecoder s_windows1258_decoder { "windows-1258"sv };
+RustDecoder s_mac_cyrillic_decoder { "x-mac-cyrillic"sv };
+RustDecoder s_x_user_defined_decoder { "x-user-defined"sv };
+RustDecoder s_replacement_decoder { "replacement"sv };
+
+struct DecodeContext {
+    StringBuilder builder;
+    ErrorOr<void> result {};
+};
+
+static void append_decoded_bytes(void* context, u8 const* data, size_t length)
+{
+    auto& decode_context = *static_cast<DecodeContext*>(context);
+    if (decode_context.result.is_error())
+        return;
+    decode_context.result = decode_context.builder.try_append(StringView { data, length });
+}
+
+ErrorOr<String> rust_decode_to_utf8(StringView encoding, StringView input, RemoveBOM remove_bom)
+{
+    DecodeContext context { .builder = StringBuilder(input.length()) };
+    auto succeeded = FFI::textcodec_rust_decode_to_utf8(
+        reinterpret_cast<u8 const*>(encoding.characters_without_null_termination()),
+        encoding.length(),
+        reinterpret_cast<u8 const*>(input.characters_without_null_termination()),
+        input.length(),
+        remove_bom == RemoveBOM::Yes,
+        &context,
+        append_decoded_bytes);
+    if (!succeeded)
+        return Error::from_errno(EINVAL);
+    TRY(context.result);
+    return context.builder.to_string_without_validation();
+}
+
+ErrorOr<void> rust_process(StringView encoding, StringView input, RemoveBOM remove_bom, Function<ErrorOr<void>(u32)> on_code_point)
+{
+    auto utf8 = TRY(rust_decode_to_utf8(encoding, input, remove_bom));
+    for (auto code_point : Utf8View { utf8 })
+        TRY(on_code_point(code_point));
+    return {};
+}
+
+bool rust_validate(StringView encoding, StringView input, RemoveBOM remove_bom)
+{
+    return FFI::textcodec_rust_validate(
+        reinterpret_cast<u8 const*>(encoding.characters_without_null_termination()),
+        encoding.length(),
+        reinterpret_cast<u8 const*>(input.characters_without_null_termination()),
+        input.length(),
+        remove_bom == RemoveBOM::Yes);
+}
+
+ErrorOr<size_t> rust_length_in_utf16_code_units(StringView encoding, StringView input, RemoveBOM remove_bom)
+{
+    auto utf8 = TRY(rust_decode_to_utf8(encoding, input, remove_bom));
+    size_t length = 0;
+    for (auto code_point : Utf8View { utf8 })
+        length += code_point <= 0xffff ? 1 : 2;
+    return length;
+}
+
+Optional<StringView> get_static_encoding_name_from_rust(StringView label)
+{
+    u8 const* encoding_name = nullptr;
+    size_t encoding_name_length = 0;
+    auto succeeded = FFI::textcodec_rust_get_standardized_encoding(
+        reinterpret_cast<u8 const*>(label.characters_without_null_termination()),
+        label.length(),
+        &encoding_name,
+        &encoding_name_length);
+    if (!succeeded)
+        return {};
+    return StringView { encoding_name, encoding_name_length };
+}
+
+ErrorOr<String> rust_streaming_decode_to_utf8(FFI::TextCodecRustStreamingDecoder* decoder, ReadonlyBytes input, bool last)
+{
+    DecodeContext context { .builder = StringBuilder(input.size()) };
+    auto succeeded = FFI::textcodec_rust_streaming_decoder_decode_to_utf8(
+        decoder,
+        input.data(),
+        input.size(),
+        last,
+        &context,
+        append_decoded_bytes);
+    if (!succeeded)
+        return Error::from_errno(EINVAL);
+    TRY(context.result);
+    return context.builder.to_string_without_validation();
+}
 
 }
 
@@ -155,103 +293,17 @@ Optional<Decoder&> decoder_for_exact_name(StringView encoding)
         return s_mac_cyrillic_decoder;
     if (encoding.equals_ignoring_ascii_case("x-user-defined"sv))
         return s_x_user_defined_decoder;
+
     dbgln("TextCodec: No decoder implemented for encoding '{}'", encoding);
     return {};
 }
 
-// https://encoding.spec.whatwg.org/#concept-encoding-get
 Optional<StringView> get_standardized_encoding(StringView encoding)
 {
-    // 1. Remove any leading and trailing ASCII whitespace from label.
-    // https://infra.spec.whatwg.org/#ascii-whitespace: ASCII whitespace is U+0009 TAB, U+000A LF, U+000C FF, U+000D CR, or U+0020 SPACE.
-    encoding = encoding.trim("\t\n\f\r "sv);
-
-    // 2. If label is an ASCII case-insensitive match for any of the labels listed in the table below, then return the corresponding encoding; otherwise return failure.
-    if (encoding.is_one_of_ignoring_ascii_case("unicode-1-1-utf-8"sv, "unicode11utf8"sv, "unicode20utf8"sv, "utf-8"sv, "utf8"sv, "x-unicode20utf8"sv))
-        return "UTF-8"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("866"sv, "cp866"sv, "csibm866"sv, "ibm866"sv))
-        return "IBM866"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csisolatin2"sv, "iso-8859-2"sv, "iso-ir-101"sv, "iso8859-2"sv, "iso88592"sv, "iso_8859-2"sv, "iso_8859-2:1987"sv, "l2"sv, "latin2"sv))
-        return "ISO-8859-2"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csisolatin3"sv, "iso-8859-3"sv, "iso-ir-109"sv, "iso8859-3"sv, "iso88593"sv, "iso_8859-3"sv, "iso_8859-3:1988"sv, "l3"sv, "latin3"sv))
-        return "ISO-8859-3"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csisolatin4"sv, "iso-8859-4"sv, "iso-ir-110"sv, "iso8859-4"sv, "iso88594"sv, "iso_8859-4"sv, "iso_8859-4:1988"sv, "l4"sv, "latin4"sv))
-        return "ISO-8859-4"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csisolatincyrillic"sv, "cyrillic"sv, "iso-8859-5"sv, "iso-ir-144"sv, "iso8859-5"sv, "iso88595"sv, "iso_8859-5"sv, "iso_8859-5:1988"sv))
-        return "ISO-8859-5"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("arabic"sv, "asmo-708"sv, "csiso88596e"sv, "csiso88596i"sv, "csisolatinarabic"sv, "ecma-114"sv, "iso-8859-6"sv, "iso-8859-6-e"sv, "iso-8859-6-i"sv, "iso-ir-127"sv, "iso8859-6"sv, "iso88596"sv, "iso_8859-6"sv, "iso_8859-6:1987"sv))
-        return "ISO-8859-6"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csisolatingreek"sv, "ecma-118"sv, "elot_928"sv, "greek"sv, "greek8"sv, "iso-8859-7"sv, "iso-ir-126"sv, "iso8859-7"sv, "iso88597"sv, "iso_8859-7"sv, "iso_8859-7:1987"sv, "sun_eu_greek"sv))
-        return "ISO-8859-7"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csiso88598e"sv, "csisolatinhebrew"sv, "hebrew"sv, "iso-8859-8"sv, "iso-8859-8-e"sv, "iso-ir-138"sv, "iso8859-8"sv, "iso88598"sv, "iso_8859-8"sv, "iso_8859-8:1988"sv, "visual"sv))
-        return "ISO-8859-8"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csiso88598i"sv, "iso-8859-8-i"sv, "logical"sv))
-        return "ISO-8859-8-I"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csisolatin6"sv, "iso-8859-10"sv, "iso-ir-157"sv, "iso8859-10"sv, "iso885910"sv, "l6"sv, "latin6"sv))
-        return "ISO-8859-10"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("iso-8859-13"sv, "iso8859-13"sv, "iso885913"sv))
-        return "ISO-8859-13"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("iso-8859-14"sv, "iso8859-14"sv, "iso885914"sv))
-        return "ISO-8859-14"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csisolatin9"sv, "iso-8859-15"sv, "iso8859-15"sv, "iso885915"sv, "iso_8859-15"sv, "l9"sv))
-        return "ISO-8859-15"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("iso-8859-16"sv))
-        return "ISO-8859-16"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cskoi8r"sv, "koi"sv, "koi8"sv, "koi8-r"sv, "koi8_r"sv))
-        return "KOI8-R"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("koi8-ru"sv, "koi8-u"sv))
-        return "KOI8-U"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csmacintosh"sv, "mac"sv, "macintosh"sv, "x-mac-roman"sv))
-        return "macintosh"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("dos-874"sv, "iso-8859-11"sv, "iso8859-11"sv, "iso885911"sv, "tis-620"sv, "windows-874"sv))
-        return "windows-874"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cp1250"sv, "windows-1250"sv, "x-cp1250"sv))
-        return "windows-1250"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cp1251"sv, "windows-1251"sv, "x-cp1251"sv))
-        return "windows-1251"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("ansi_x3.4-1968"sv, "ascii"sv, "cp1252"sv, "cp819"sv, "csisolatin1"sv, "ibm819"sv, "iso-8859-1"sv, "iso-ir-100"sv, "iso8859-1"sv, "iso88591"sv, "iso_8859-1"sv, "iso_8859-1:1987"sv, "l1"sv, "latin1"sv, "us-ascii"sv, "windows-1252"sv, "x-cp1252"sv))
-        return "windows-1252"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cp1253"sv, "windows-1253"sv, "x-cp1253"sv))
-        return "windows-1253"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cp1254"sv, "csisolatin5"sv, "iso-8859-9"sv, "iso-ir-148"sv, "iso8859-9"sv, "iso88599"sv, "iso_8859-9"sv, "iso_8859-9:1989"sv, "l5"sv, "latin5"sv, "windows-1254"sv, "x-cp1254"sv))
-        return "windows-1254"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cp1255"sv, "windows-1255"sv, "x-cp1255"sv))
-        return "windows-1255"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cp1256"sv, "windows-1256"sv, "x-cp1256"sv))
-        return "windows-1256"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cp1257"sv, "windows-1257"sv, "x-cp1257"sv))
-        return "windows-1257"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cp1258"sv, "windows-1258"sv, "x-cp1258"sv))
-        return "windows-1258"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("x-mac-cyrillic"sv, "x-mac-ukrainian"sv))
-        return "x-mac-cyrillic"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("koi8-r"sv, "koi8r"sv))
-        return "koi8-r"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("chinese"sv, "csgb2312"sv, "csiso58gb231280"sv, "gb2312"sv, "gb_2312"sv, "gb_2312-80"sv, "gbk"sv, "iso-ir-58"sv, "x-gbk"sv))
-        return "GBK"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("gb18030"sv))
-        return "gb18030"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("big5"sv, "big5-hkscs"sv, "cn-big5"sv, "csbig5"sv, "x-x-big5"sv))
-        return "Big5"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cseucpkdfmtjapanese"sv, "euc-jp"sv, "x-euc-jp"sv))
-        return "EUC-JP"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csiso2022jp"sv, "iso-2022-jp"sv))
-        return "ISO-2022-JP"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csshiftjis"sv, "ms932"sv, "ms_kanji"sv, "shift-jis"sv, "shift_jis"sv, "sjis"sv, "windows-31j"sv, "x-sjis"sv))
-        return "Shift_JIS"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("cseuckr"sv, "csksc56011987"sv, "euc-kr"sv, "iso-ir-149"sv, "korean"sv, "ks_c_5601-1987"sv, "ks_c_5601-1989"sv, "ksc5601"sv, "ksc_5601"sv, "windows-949"sv))
-        return "EUC-KR"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csiso2022kr"sv, "hz-gb-2312"sv, "iso-2022-cn"sv, "iso-2022-cn-ext"sv, "iso-2022-kr"sv, "replacement"sv))
-        return "replacement"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("unicodefffe"sv, "utf-16be"sv))
-        return "UTF-16BE"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("csunicode"sv, "iso-10646-ucs-2"sv, "ucs-2"sv, "unicode"sv, "unicodefeff"sv, "utf-16"sv, "utf-16le"sv))
-        return "UTF-16LE"sv;
-    if (encoding.is_one_of_ignoring_ascii_case("x-user-defined"sv))
-        return "x-user-defined"sv;
-
-    dbgln("TextCodec: Unrecognized encoding: {}", encoding);
-    return {};
+    auto standardized_encoding = get_static_encoding_name_from_rust(encoding);
+    if (!standardized_encoding.has_value())
+        dbgln("TextCodec: Unrecognized encoding: {}", encoding);
+    return standardized_encoding;
 }
 
 // https://encoding.spec.whatwg.org/#bom-sniff
@@ -377,660 +429,30 @@ ErrorOr<void> Decoder::process_code_points(StringView input, Function<ErrorOr<vo
     return process(input, move(on_code_point));
 }
 
-// Tail-length helpers for chunked decoding. Each returns the number of trailing bytes that must
-// be buffered until more input arrives, because they form an incomplete trailing sequence per the
-// Encoding Standard's decoder handler byte ranges.
-// https://encoding.spec.whatwg.org/#interface-textdecoder
-
-static bool is_utf8_continuation_byte(u8 byte)
+bool RustDecoder::validate(StringView input)
 {
-    return (byte & 0xc0) == 0x80;
+    return rust_validate(m_encoding, input, RemoveBOM::No);
 }
 
-static bool is_utf8_second_byte_in_range(u8 lead, u8 byte)
+ErrorOr<String> RustDecoder::to_utf8(StringView input)
 {
-    if (!is_utf8_continuation_byte(byte))
-        return false;
-
-    if (lead == 0xe0)
-        return byte >= 0xa0;
-    if (lead == 0xed)
-        return byte <= 0x9f;
-    if (lead == 0xf0)
-        return byte >= 0x90;
-    if (lead == 0xf4)
-        return byte <= 0x8f;
-    return true;
+    return rust_decode_to_utf8(m_encoding, input, RemoveBOM::No);
 }
 
-static Optional<size_t> utf8_sequence_length(u8 lead)
+ErrorOr<size_t> RustDecoder::length_in_utf16_code_units(StringView input)
 {
-    if (lead <= 0x7f)
-        return 1;
-    if (lead >= 0xc2 && lead <= 0xdf)
-        return 2;
-    if (lead >= 0xe0 && lead <= 0xef)
-        return 3;
-    if (lead >= 0xf0 && lead <= 0xf4)
-        return 4;
-    return {};
+    return rust_length_in_utf16_code_units(m_encoding, input, RemoveBOM::No);
 }
 
-size_t UTF8Decoder::incomplete_tail_length(ReadonlyBytes bytes) const
+ErrorOr<void> RustDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    // The longest UTF-8 sequence is 4 bytes, so the lead of any incomplete trailing sequence is
-    // at most 3 positions before the end. Scan backward to find the lead and decide.
-    auto max_back = min(bytes.size(), 4uz);
-    for (size_t back = 0; back < max_back; ++back) {
-        auto byte = bytes[bytes.size() - 1 - back];
-        if (is_utf8_continuation_byte(byte))
-            continue;
-
-        auto seq_len = utf8_sequence_length(byte);
-        size_t seen = back + 1;
-        if (!seq_len.has_value() || *seq_len <= seen)
-            return 0;
-        if (seen >= 2 && !is_utf8_second_byte_in_range(byte, bytes[bytes.size() - back]))
-            return 0;
-        return seen;
-    }
-    return 0;
-}
-
-static size_t incomplete_utf16_tail_length(ReadonlyBytes bytes, bool big_endian)
-{
-    if (bytes.size() % 2 != 0)
-        return 1;
-    if (bytes.size() < 2)
-        return 0;
-
-    auto high = bytes[bytes.size() - 2];
-    auto low = bytes[bytes.size() - 1];
-    u16 code_unit = big_endian
-        ? (static_cast<u16>(high) << 8) | low
-        : (static_cast<u16>(low) << 8) | high;
-    if (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit))
-        return 2;
-    return 0;
-}
-
-size_t UTF16BEDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
-{
-    return incomplete_utf16_tail_length(bytes, true);
-}
-
-size_t UTF16LEDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
-{
-    return incomplete_utf16_tail_length(bytes, false);
-}
-
-static bool is_gb18030_lead_byte(u8 byte)
-{
-    return byte >= 0x81 && byte <= 0xfe;
-}
-
-static bool is_gb18030_two_byte_trail(u8 byte)
-{
-    return (byte >= 0x40 && byte <= 0x7e) || (byte >= 0x80 && byte <= 0xfe);
-}
-
-size_t GB18030Decoder::incomplete_tail_length(ReadonlyBytes bytes) const
-{
-    for (size_t i = 0; i < bytes.size();) {
-        auto byte = bytes[i];
-        if (byte <= 0x80) {
-            ++i;
-            continue;
-        }
-
-        if (!is_gb18030_lead_byte(byte)) {
-            ++i;
-            continue;
-        }
-
-        if (i + 1 >= bytes.size())
-            return bytes.size() - i;
-
-        auto second = bytes[i + 1];
-        if (is_ascii_digit(second)) {
-            if (i + 2 >= bytes.size())
-                return bytes.size() - i;
-
-            auto third = bytes[i + 2];
-            if (is_gb18030_lead_byte(third)) {
-                if (i + 3 >= bytes.size())
-                    return bytes.size() - i;
-
-                auto fourth = bytes[i + 3];
-                if (is_ascii_digit(fourth)) {
-                    i += 4;
-                    continue;
-                }
-            }
-
-            ++i;
-            continue;
-        }
-
-        if (is_gb18030_two_byte_trail(second)) {
-            i += 2;
-            continue;
-        }
-
-        ++i;
-    }
-
-    return 0;
-}
-
-static bool is_big5_lead_byte(u8 byte)
-{
-    return byte >= 0x81 && byte <= 0xfe;
-}
-
-static bool is_big5_trail_byte(u8 byte)
-{
-    return (byte >= 0x40 && byte <= 0x7e) || (byte >= 0xa1 && byte <= 0xfe);
-}
-
-size_t Big5Decoder::incomplete_tail_length(ReadonlyBytes bytes) const
-{
-    for (size_t i = 0; i < bytes.size();) {
-        auto byte = bytes[i];
-        if (byte <= 0x7f) {
-            ++i;
-            continue;
-        }
-
-        if (!is_big5_lead_byte(byte)) {
-            ++i;
-            continue;
-        }
-
-        if (i + 1 >= bytes.size())
-            return bytes.size() - i;
-
-        if (is_big5_trail_byte(bytes[i + 1]))
-            i += 2;
-        else
-            ++i;
-    }
-
-    return 0;
-}
-
-static bool is_euc_jp_lead_byte(u8 byte)
-{
-    return byte == 0x8e || byte == 0x8f || (byte >= 0xa1 && byte <= 0xfe);
-}
-
-static bool is_euc_jp_trail_byte(u8 byte)
-{
-    return byte >= 0xa1 && byte <= 0xfe;
-}
-
-size_t EUCJPDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
-{
-    for (size_t i = 0; i < bytes.size();) {
-        auto byte = bytes[i];
-        if (byte <= 0x7f) {
-            ++i;
-            continue;
-        }
-
-        if (!is_euc_jp_lead_byte(byte)) {
-            ++i;
-            continue;
-        }
-
-        if (byte == 0x8f) {
-            if (i + 1 >= bytes.size())
-                return bytes.size() - i;
-            if (!is_euc_jp_trail_byte(bytes[i + 1])) {
-                ++i;
-                continue;
-            }
-            if (i + 2 >= bytes.size())
-                return bytes.size() - i;
-            if (is_euc_jp_trail_byte(bytes[i + 2]))
-                i += 3;
-            else
-                i += 2;
-            continue;
-        }
-
-        if (i + 1 >= bytes.size())
-            return bytes.size() - i;
-
-        if (byte == 0x8e) {
-            if (bytes[i + 1] >= 0xa1 && bytes[i + 1] <= 0xdf)
-                i += 2;
-            else
-                ++i;
-            continue;
-        }
-
-        if (is_euc_jp_trail_byte(bytes[i + 1]))
-            i += 2;
-        else
-            ++i;
-    }
-
-    return 0;
-}
-
-static bool is_shift_jis_lead_byte(u8 byte)
-{
-    return (byte >= 0x81 && byte <= 0x9f) || (byte >= 0xe0 && byte <= 0xfc);
-}
-
-static bool is_shift_jis_trail_byte(u8 byte)
-{
-    return (byte >= 0x40 && byte <= 0x7e) || (byte >= 0x80 && byte <= 0xfc);
-}
-
-size_t ShiftJISDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
-{
-    for (size_t i = 0; i < bytes.size();) {
-        auto byte = bytes[i];
-        if (byte <= 0x80 || (byte >= 0xa1 && byte <= 0xdf)) {
-            ++i;
-            continue;
-        }
-
-        if (!is_shift_jis_lead_byte(byte)) {
-            ++i;
-            continue;
-        }
-
-        if (i + 1 >= bytes.size())
-            return bytes.size() - i;
-
-        if (is_shift_jis_trail_byte(bytes[i + 1]))
-            i += 2;
-        else
-            ++i;
-    }
-
-    return 0;
-}
-
-static bool is_euc_kr_lead_byte(u8 byte)
-{
-    return byte >= 0x81 && byte <= 0xfe;
-}
-
-static bool is_euc_kr_trail_byte(u8 byte)
-{
-    return byte >= 0x41 && byte <= 0xfe;
-}
-
-size_t EUCKRDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
-{
-    for (size_t i = 0; i < bytes.size();) {
-        auto byte = bytes[i];
-        if (byte <= 0x7f) {
-            ++i;
-            continue;
-        }
-
-        if (!is_euc_kr_lead_byte(byte)) {
-            ++i;
-            continue;
-        }
-
-        if (i + 1 >= bytes.size())
-            return bytes.size() - i;
-
-        if (is_euc_kr_trail_byte(bytes[i + 1]))
-            i += 2;
-        else
-            ++i;
-    }
-
-    return 0;
-}
-
-size_t ISO2022JPDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
-{
-    if (bytes.is_empty())
-        return 0;
-
-    if (bytes[bytes.size() - 1] == 0x1b)
-        return 1;
-    if (bytes.size() >= 2 && bytes[bytes.size() - 2] == 0x1b && (bytes[bytes.size() - 1] == 0x24 || bytes[bytes.size() - 1] == 0x28))
-        return 2;
-    return 0;
-}
-
-StreamingDecoder::StreamingDecoder(StringView encoding)
-    : m_decoder(decoder_for(encoding).value())
-{
-}
-
-ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
-{
-    ReadonlyBytes bytes;
-    if (m_pending_input.is_empty()) {
-        bytes = input;
-    } else {
-        TRY(m_pending_input.try_append(input));
-        bytes = m_pending_input.bytes();
-    }
-
-    auto tail_length = m_decoder.incomplete_tail_length(bytes);
-    auto decoded = TRY(m_decoder.to_utf8(StringView(bytes.slice(0, bytes.size() - tail_length))));
-
-    if (tail_length == 0)
-        m_pending_input.clear();
-    else
-        m_pending_input = TRY(ByteBuffer::copy(bytes.slice(bytes.size() - tail_length, tail_length)));
-    return decoded;
-}
-
-ErrorOr<String> StreamingDecoder::finish()
-{
-    auto decoded = TRY(m_decoder.to_utf8(StringView(m_pending_input.bytes())));
-    m_pending_input.clear();
-    return decoded;
-}
-
-static ErrorOr<void> process_utf8_with_replacement_character(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
-{
-    auto bytes = input.bytes();
-
-    for (size_t i = 0; i < bytes.size();) {
-        auto byte = bytes[i];
-        if (byte <= 0x7f) {
-            TRY(on_code_point(byte));
-            ++i;
-            continue;
-        }
-
-        size_t sequence_length = 0;
-        u32 code_point = 0;
-        u32 minimum_code_point = 0;
-
-        if (byte >= 0xc2 && byte <= 0xdf) {
-            sequence_length = 2;
-            code_point = byte & 0x1f;
-            minimum_code_point = 0x80;
-        } else if (byte >= 0xe0 && byte <= 0xef) {
-            sequence_length = 3;
-            code_point = byte & 0x0f;
-            minimum_code_point = 0x800;
-        } else if (byte >= 0xf0 && byte <= 0xf4) {
-            sequence_length = 4;
-            code_point = byte & 0x07;
-            minimum_code_point = 0x10000;
-        } else {
-            TRY(on_code_point(replacement_code_point));
-            ++i;
-            continue;
-        }
-
-        if (i + 1 < bytes.size() && !is_utf8_second_byte_in_range(byte, bytes[i + 1])) {
-            TRY(on_code_point(replacement_code_point));
-            ++i;
-            continue;
-        }
-
-        if (i + sequence_length > bytes.size()) {
-            TRY(on_code_point(replacement_code_point));
-            i = bytes.size();
-            continue;
-        }
-
-        Optional<size_t> invalid_continuation_offset;
-        for (size_t offset = 1; offset < sequence_length; ++offset) {
-            auto continuation_byte = bytes[i + offset];
-            if (!is_utf8_continuation_byte(continuation_byte)) {
-                invalid_continuation_offset = offset;
-                break;
-            }
-            code_point <<= 6;
-            code_point |= continuation_byte & 0x3f;
-        }
-
-        if (invalid_continuation_offset.has_value()) {
-            TRY(on_code_point(replacement_code_point));
-            i += *invalid_continuation_offset;
-            continue;
-        }
-
-        if (code_point < minimum_code_point || code_point > 0x10ffff) {
-            TRY(on_code_point(replacement_code_point));
-            ++i;
-            continue;
-        }
-
-        if (is_unicode_surrogate(code_point)) {
-            TRY(on_code_point(replacement_code_point));
-            ++i;
-            continue;
-        }
-
-        TRY(on_code_point(code_point));
-        i += sequence_length;
-    }
-
-    return {};
-}
-
-static size_t utf8_length_in_utf16_code_units_with_replacement_character(StringView input)
-{
-    auto bytes = input.bytes();
-    size_t length = 0;
-
-    for (size_t i = 0; i < bytes.size();) {
-        auto byte = bytes[i];
-        if (byte <= 0x7f) {
-            ++length;
-            ++i;
-            continue;
-        }
-
-        size_t sequence_length = 0;
-        u32 code_point = 0;
-        u32 minimum_code_point = 0;
-
-        if (byte >= 0xc2 && byte <= 0xdf) {
-            sequence_length = 2;
-            code_point = byte & 0x1f;
-            minimum_code_point = 0x80;
-        } else if (byte >= 0xe0 && byte <= 0xef) {
-            sequence_length = 3;
-            code_point = byte & 0x0f;
-            minimum_code_point = 0x800;
-        } else if (byte >= 0xf0 && byte <= 0xf4) {
-            sequence_length = 4;
-            code_point = byte & 0x07;
-            minimum_code_point = 0x10000;
-        } else {
-            ++length;
-            ++i;
-            continue;
-        }
-
-        if (i + 1 < bytes.size() && !is_utf8_second_byte_in_range(byte, bytes[i + 1])) {
-            ++length;
-            ++i;
-            continue;
-        }
-
-        if (i + sequence_length > bytes.size()) {
-            ++length;
-            i = bytes.size();
-            continue;
-        }
-
-        Optional<size_t> invalid_continuation_offset;
-        for (size_t offset = 1; offset < sequence_length; ++offset) {
-            auto continuation_byte = bytes[i + offset];
-            if (!is_utf8_continuation_byte(continuation_byte)) {
-                invalid_continuation_offset = offset;
-                break;
-            }
-            code_point <<= 6;
-            code_point |= continuation_byte & 0x3f;
-        }
-
-        if (invalid_continuation_offset.has_value()) {
-            ++length;
-            i += *invalid_continuation_offset;
-            continue;
-        }
-
-        if (code_point < minimum_code_point || code_point > 0x10ffff || is_unicode_surrogate(code_point)) {
-            ++length;
-            ++i;
-            continue;
-        }
-
-        length += code_point <= 0xffff ? 1 : 2;
-        i += sequence_length;
-    }
-
-    return length;
-}
-
-ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
-{
-    return process_utf8_with_replacement_character(input, move(on_code_point));
-}
-
-bool UTF8Decoder::validate(StringView input)
-{
-    return Utf8View(input).validate(AllowLonelySurrogates::No);
-}
-
-ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
-{
-    if (auto bytes = input.bytes(); bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
-        input = input.substring_view(3);
-
-    StringBuilder builder(input.length());
-    TRY(process_utf8_with_replacement_character(input, [&](auto code_point) {
-        return builder.try_append_code_point(code_point);
-    }));
-    return builder.to_string_without_validation();
-}
-
-ErrorOr<size_t> UTF8Decoder::length_in_utf16_code_units(StringView input)
-{
-    if (auto bytes = input.bytes(); bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
-        input = input.substring_view(3);
-
-    return utf8_length_in_utf16_code_units_with_replacement_character(input);
-}
-
-bool UTF16BEDecoder::validate(StringView input)
-{
-    if (input.bytes().size() % 2 != 0)
-        return false;
-    return AK::validate_utf16_be(input.bytes());
-}
-
-static size_t utf16_length_in_utf16_code_units(StringView input, bool big_endian)
-{
-    auto bytes = input.bytes();
-    if (bytes.size() >= 2) {
-        if ((big_endian && bytes[0] == 0xFE && bytes[1] == 0xFF)
-            || (!big_endian && bytes[0] == 0xFF && bytes[1] == 0xFE))
-            bytes = bytes.slice(2);
-    }
-
-    return (bytes.size() + 1) / 2;
-}
-
-static ErrorOr<void> process_utf16(StringView input, bool big_endian, Function<ErrorOr<void>(u32)> on_code_point)
-{
-    auto bytes = input.bytes();
-    if (bytes.size() >= 2) {
-        if ((big_endian && bytes[0] == 0xFE && bytes[1] == 0xFF)
-            || (!big_endian && bytes[0] == 0xFF && bytes[1] == 0xFE))
-            bytes = bytes.slice(2);
-    }
-
-    auto read_code_unit = [&](size_t offset) {
-        return big_endian
-            ? (static_cast<u16>(bytes[offset]) << 8) | bytes[offset + 1]
-            : (static_cast<u16>(bytes[offset + 1]) << 8) | bytes[offset];
-    };
-
-    for (size_t i = 0; i + 1 < bytes.size(); i += 2) {
-        auto code_unit = read_code_unit(i);
-        if (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit)) {
-            if (i + 3 < bytes.size()) {
-                auto low_surrogate = read_code_unit(i + 2);
-                if (AK::UnicodeUtils::is_utf16_low_surrogate(low_surrogate)) {
-                    TRY(on_code_point(AK::UnicodeUtils::decode_utf16_surrogate_pair(code_unit, low_surrogate)));
-                    i += 2;
-                    continue;
-                }
-            }
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        if (AK::UnicodeUtils::is_utf16_low_surrogate(code_unit)) {
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        TRY(on_code_point(code_unit));
-    }
-
-    if (bytes.size() % 2 != 0)
-        TRY(on_code_point(replacement_code_point));
-
-    return {};
-}
-
-ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
-{
-    return process_utf16(input, true, move(on_code_point));
-}
-
-ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
-{
-    return Decoder::to_utf8(input);
-}
-
-ErrorOr<size_t> UTF16BEDecoder::length_in_utf16_code_units(StringView input)
-{
-    return utf16_length_in_utf16_code_units(input, true);
-}
-
-bool UTF16LEDecoder::validate(StringView input)
-{
-    if (input.bytes().size() % 2 != 0)
-        return false;
-    return AK::validate_utf16_le(input.bytes());
-}
-
-ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
-{
-    return process_utf16(input, false, move(on_code_point));
-}
-
-ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
-{
-    return Decoder::to_utf8(input);
-}
-
-ErrorOr<size_t> UTF16LEDecoder::length_in_utf16_code_units(StringView input)
-{
-    return utf16_length_in_utf16_code_units(input, false);
+    return rust_process(m_encoding, input, RemoveBOM::No, move(on_code_point));
 }
 
 ErrorOr<void> Latin1Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    for (u8 ch : input) {
-        // Latin1 is the same as the first 256 Unicode code_points, so no mapping is needed, just utf-8 encoding.
+    for (u8 ch : input)
         TRY(on_code_point(ch));
-    }
-
     return {};
 }
 
@@ -1039,821 +461,88 @@ ErrorOr<size_t> Latin1Decoder::length_in_utf16_code_units(StringView input)
     return input.length();
 }
 
-// https://encoding.spec.whatwg.org/#x-user-defined-decoder
-ErrorOr<void> XUserDefinedDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+StreamingDecoder::StreamingDecoder(StringView encoding)
 {
-    auto convert_x_user_defined_to_utf8 = [](u8 ch) -> u32 {
-        // 2. If byte is an ASCII byte, return a code point whose value is byte.
-        // https://infra.spec.whatwg.org/#ascii-byte
-        // An ASCII byte is a byte in the range 0x00 (NUL) to 0x7F (DEL), inclusive.
-        // NOTE: This doesn't check for ch >= 0x00, as that would always be true due to being unsigned.
-        if (ch <= 0x7f)
-            return ch;
-
-        // 3. Return a code point whose value is 0xF780 + byte − 0x80.
-        return 0xF780 + ch - 0x80;
-    };
-
-    for (auto ch : input) {
-        TRY(on_code_point(convert_x_user_defined_to_utf8(ch)));
-    }
-
-    // 1. If byte is end-of-queue, return finished.
-
-    return {};
+    m_decoder = FFI::textcodec_rust_streaming_decoder_new(
+        reinterpret_cast<u8 const*>(encoding.characters_without_null_termination()),
+        encoding.length(),
+        true);
+    VERIFY(m_decoder);
 }
 
-ErrorOr<size_t> XUserDefinedDecoder::length_in_utf16_code_units(StringView input)
+StreamingDecoder::~StreamingDecoder()
 {
-    return input.length();
+    FFI::textcodec_rust_streaming_decoder_free(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder));
 }
 
-// https://encoding.spec.whatwg.org/#single-byte-decoder
-template<Integral ArrayType>
-ErrorOr<void> SingleByteDecoder<ArrayType>::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
 {
-    for (u8 const byte : input) {
-        if (byte < 0x80) {
-            // 2. If byte is an ASCII byte, return a code point whose value is byte.
-            TRY(on_code_point(byte));
-        } else {
-            // 3. Let code point be the index code point for byte − 0x80 in index single-byte.
-            auto code_point = m_translation_table[byte - 0x80];
-
-            // 4. If code point is null, return error.
-            // NOTE: Error is communicated with 0xFFFD
-
-            // 5. Return a code point whose value is code point.
-            TRY(on_code_point(code_point));
-        }
-    }
-    // 1. If byte is end-of-queue, return finished.
-    return {};
+    return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, false);
 }
 
-template<Integral ArrayType>
-ErrorOr<size_t> SingleByteDecoder<ArrayType>::length_in_utf16_code_units(StringView input)
+ErrorOr<String> StreamingDecoder::finish()
 {
-    return input.length();
+    return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), {}, true);
 }
 
-// https://encoding.spec.whatwg.org/#index-gb18030-ranges-code-point
-static Optional<u32> index_gb18030_ranges_code_point(u32 pointer)
+ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    // 1. If pointer is greater than 39419 and less than 189000, or pointer is greater than 1237575, return null.
-    if ((pointer > 39419 && pointer < 189000) || pointer > 1237575)
-        return {};
-
-    // 2. If pointer is 7457, return code point U+E7C7.
-    if (pointer == 7457)
-        return 0xE7C7;
-
-    // 3. Let offset be the last pointer in index gb18030 ranges that is less than or equal to pointer and let code point offset be its corresponding code point.
-    size_t last_index;
-    binary_search(s_gb18030_ranges, pointer, &last_index, [](auto const pointer, auto const& entry) {
-        return pointer - entry.pointer;
-    });
-    auto offset = s_gb18030_ranges[last_index].pointer;
-    auto code_point_offset = s_gb18030_ranges[last_index].code_point;
-
-    // 4. Return a code point whose value is code point offset + pointer − offset.
-    return code_point_offset + pointer - offset;
+    return rust_process("UTF-8"sv, input, RemoveBOM::No, move(on_code_point));
 }
 
-// https://encoding.spec.whatwg.org/#gb18030-decoder
-ErrorOr<void> GB18030Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+bool UTF8Decoder::validate(StringView input)
 {
-    // gb18030’s decoder has an associated gb18030 first, gb18030 second, and gb18030 third (all initially 0x00).
-    u8 first = 0x00;
-    u8 second = 0x00;
-    u8 third = 0x00;
-
-    // gb18030’s decoder’s handler, given ioQueue and byte, runs these steps:
-    size_t index = 0;
-    while (true) {
-        // 1. If byte is end-of-queue and gb18030 first, gb18030 second, and gb18030 third are 0x00, return finished.
-        if (index >= input.length() && first == 0x00 && second == 0x00 && third == 0x00)
-            return {};
-
-        // 2. If byte is end-of-queue, and gb18030 first, gb18030 second, or gb18030 third is not 0x00, set gb18030 first, gb18030 second, and gb18030 third to 0x00, and return error.
-        if (index >= input.length() && (first != 0x00 || second != 0x00 || third != 0x00)) {
-            first = 0x00;
-            second = 0x00;
-            third = 0x00;
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        u8 const byte = input[index++];
-        // 3. If gb18030 third is not 0x00, then:
-        if (third != 0x00) {
-            // 1. If byte is not in the range 0x30 to 0x39, inclusive, then:
-            if (byte < 0x30 || byte > 0x39) {
-                // 1. Restore « gb18030 second, gb18030 third, byte » to ioQueue.
-                index -= 3;
-
-                // 2. Set gb18030 first, gb18030 second, and gb18030 third to 0x00.
-                first = 0x00;
-                second = 0x00;
-                third = 0x00;
-
-                // 3. Return error.
-                TRY(on_code_point(replacement_code_point));
-                continue;
-            }
-
-            // 2. Let code point be the index gb18030 ranges code point for ((gb18030 first − 0x81) × (10 × 126 × 10)) + ((gb18030 second − 0x30) × (10 × 126)) + ((gb18030 third − 0x81) × 10) + byte − 0x30.
-            auto code_point = index_gb18030_ranges_code_point(((first - 0x81) * (10 * 126 * 10)) + ((second - 0x30) * (10 * 126)) + ((third - 0x81) * 10) + byte - 0x30);
-
-            // 3. Set gb18030 first, gb18030 second, and gb18030 third to 0x00.
-            first = 0x00;
-            second = 0x00;
-            third = 0x00;
-
-            // 4. If code point is null, return error.
-            if (!code_point.has_value()) {
-                TRY(on_code_point(replacement_code_point));
-                continue;
-            }
-
-            // 5. Return a code point whose value is code point.
-            TRY(on_code_point(code_point.value()));
-            continue;
-        }
-
-        // 4. If gb18030 second is not 0x00, then:
-        if (second != 0x00) {
-            // 1. If byte is in the range 0x81 to 0xFE, inclusive, set gb18030 third to byte and return continue.
-            if (byte >= 0x81 && byte <= 0xFE) {
-                third = byte;
-                continue;
-            }
-
-            // 2. Restore « gb18030 second, byte » to ioQueue, set gb18030 first and gb18030 second to 0x00, and return error.
-            index -= 2;
-            first = 0x00;
-            second = 0x00;
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 5. If gb18030 first is not 0x00, then:
-        if (first != 0x00) {
-            // 1. If byte is in the range 0x30 to 0x39, inclusive, set gb18030 second to byte and return continue.
-            if (byte >= 0x30 && byte <= 0x39) {
-                second = byte;
-                continue;
-            }
-
-            // 2. Let lead be gb18030 first, let pointer be null, and set gb18030 first to 0x00.
-            auto lead = first;
-            Optional<u32> pointer;
-            first = 0x00;
-
-            // 3. Let offset be 0x40 if byte is less than 0x7F, otherwise 0x41.
-            u8 const offset = byte < 0x7F ? 0x40 : 0x41;
-
-            // 4. If byte is in the range 0x40 to 0x7E, inclusive, or 0x80 to 0xFE, inclusive, set pointer to (lead − 0x81) × 190 + (byte − offset).
-            if ((byte >= 0x40 && byte <= 0x7E) || (byte >= 0x80 && byte <= 0xFE))
-                pointer = (lead - 0x81) * 190 + (byte - offset);
-
-            // 5. Let code point be null if pointer is null, otherwise the index code point for pointer in index gb18030.
-            auto code_point = pointer.has_value() ? index_gb18030_code_point(pointer.value()) : Optional<u32> {};
-
-            // 6. If code point is non-null, return a code point whose value is code point.
-            if (code_point.has_value()) {
-                TRY(on_code_point(code_point.value()));
-                continue;
-            }
-
-            // 7. If byte is an ASCII byte, restore byte to ioQueue.
-            if (byte <= 0x7F)
-                index--;
-
-            // 8. Return error.
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 6. If byte is an ASCII byte, return a code point whose value is byte.
-        if (byte <= 0x7F) {
-            TRY(on_code_point(byte));
-            continue;
-        }
-
-        // 7. If byte is 0x80, return code point U+20AC.
-        if (byte == 0x80) {
-            TRY(on_code_point(0x20AC));
-            continue;
-        }
-
-        // 8. If byte is in the range 0x81 to 0xFE, inclusive, set gb18030 first to byte and return continue.
-        if (byte >= 0x81 && byte <= 0xFE) {
-            first = byte;
-            continue;
-        }
-
-        // 9. Return error.
-        TRY(on_code_point(replacement_code_point));
-    }
+    return rust_validate("UTF-8"sv, input, RemoveBOM::No);
 }
 
-// https://encoding.spec.whatwg.org/#big5-decoder
-ErrorOr<void> Big5Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
 {
-    // Big5’s decoder has an associated Big5 lead (initially 0x00).
-    u8 big5_lead = 0x00;
-
-    // Big5’s decoder’s handler, given ioQueue and byte, runs these steps:
-    size_t index = 0;
-    while (true) {
-        // 1. If byte is end-of-queue and Big5 lead is not 0x00, set Big5 lead to 0x00 and return error.
-        if (index >= input.length() && big5_lead != 0x00) {
-            big5_lead = 0x00;
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 2. If byte is end-of-queue and Big5 lead is 0x00, return finished.
-        if (index >= input.length() && big5_lead == 0x00)
-            return {};
-
-        u8 const byte = input[index++];
-
-        // 3. If Big5 lead is not 0x00, let lead be Big5 lead, let pointer be null, set Big5 lead to 0x00, and then:
-        if (big5_lead != 0x00) {
-            auto lead = big5_lead;
-            Optional<u32> pointer;
-            big5_lead = 0x00;
-
-            // 1. Let offset be 0x40 if byte is less than 0x7F, otherwise 0x62.
-            u8 const offset = byte < 0x7F ? 0x40 : 0x62;
-
-            // 2. If byte is in the range 0x40 to 0x7E, inclusive, or 0xA1 to 0xFE, inclusive, set pointer to (lead − 0x81) × 157 + (byte − offset).
-            if ((byte >= 0x40 && byte <= 0x7E) || (byte >= 0xA1 && byte <= 0xFE))
-                pointer = (lead - 0x81) * 157 + (byte - offset);
-
-            // 3. If there is a row in the table below whose first column is pointer, return the two code points listed in its second column (the third column is irrelevant):
-            if (pointer.has_value() && pointer.value() == 1133) {
-                TRY(on_code_point(0x00CA));
-                TRY(on_code_point(0x0304));
-                continue;
-            }
-            if (pointer.has_value() && pointer.value() == 1135) {
-                TRY(on_code_point(0x00CA));
-                TRY(on_code_point(0x030C));
-                continue;
-            }
-            if (pointer.has_value() && pointer.value() == 1164) {
-                TRY(on_code_point(0x00EA));
-                TRY(on_code_point(0x0304));
-                continue;
-            }
-            if (pointer.has_value() && pointer.value() == 1166) {
-                TRY(on_code_point(0x00EA));
-                TRY(on_code_point(0x030C));
-                continue;
-            }
-
-            // 4. Let code point be null if pointer is null, otherwise the index code point for pointer in index Big5.
-            auto code_pointer = pointer.has_value() ? index_big5_code_point(pointer.value()) : Optional<u32> {};
-
-            // 5. If code point is non-null, return a code point whose value is code point.
-            if (code_pointer.has_value()) {
-                TRY(on_code_point(code_pointer.value()));
-                continue;
-            }
-
-            // 6. If byte is an ASCII byte, restore byte to ioQueue.
-            if (byte <= 0x7F)
-                index--;
-
-            // 7. Return error.
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 4. If byte is an ASCII byte, return a code point whose value is byte.
-        if (byte <= 0x7F) {
-            TRY(on_code_point(byte));
-            continue;
-        }
-
-        // 5. If byte is in the range 0x81 to 0xFE, inclusive, set Big5 lead to byte and return continue.
-        if (byte >= 0x81 && byte <= 0xFE) {
-            big5_lead = byte;
-            continue;
-        }
-
-        // 6. Return error
-        TRY(on_code_point(replacement_code_point));
-    }
+    return rust_decode_to_utf8("UTF-8"sv, input, RemoveBOM::Yes);
 }
 
-// https://encoding.spec.whatwg.org/#euc-jp-decoder
-ErrorOr<void> EUCJPDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+ErrorOr<size_t> UTF8Decoder::length_in_utf16_code_units(StringView input)
 {
-    // EUC-JP’s decoder has an associated EUC-JP jis0212 (initially false) and EUC-JP lead (initially 0x00).
-    bool jis0212 = false;
-    u8 euc_jp_lead = 0x00;
-
-    // EUC-JP’s decoder’s handler, given ioQueue and byte, runs these steps:
-    size_t index = 0;
-    while (true) {
-        // 1. If byte is end-of-queue and EUC-JP lead is not 0x00, set EUC-JP lead to 0x00, and return error.
-        if (index >= input.length() && euc_jp_lead != 0x00) {
-            euc_jp_lead = 0x00;
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 2. If byte is end-of-queue and EUC-JP lead is 0x00, return finished.
-        if (index >= input.length() && euc_jp_lead == 0x00)
-            return {};
-
-        u8 const byte = input[index++];
-
-        // 3. If EUC-JP lead is 0x8E and byte is in the range 0xA1 to 0xDF, inclusive, set EUC-JP lead to 0x00 and return a code point whose value is 0xFF61 − 0xA1 + byte.
-        if (euc_jp_lead == 0x8E && byte >= 0xA1 && byte <= 0xDF) {
-            euc_jp_lead = 0x00;
-            TRY(on_code_point(0xFF61 - 0xA1 + byte));
-            continue;
-        }
-
-        // 4. If EUC-JP lead is 0x8F and byte is in the range 0xA1 to 0xFE, inclusive, set EUC-JP jis0212 to true, set EUC-JP lead to byte, and return continue.
-        if (euc_jp_lead == 0x8F && byte >= 0xA1 && byte <= 0xFE) {
-            jis0212 = true;
-            euc_jp_lead = byte;
-            continue;
-        }
-
-        // 5. If EUC-JP lead is not 0x00, let lead be EUC-JP lead, set EUC-JP lead to 0x00, and then:
-        if (euc_jp_lead != 0x00) {
-            auto lead = euc_jp_lead;
-            euc_jp_lead = 0x00;
-
-            // 1. Let code point be null.
-            Optional<u32> code_point;
-
-            // 2. If lead and byte are both in the range 0xA1 to 0xFE, inclusive, then set code point to the index code point for (lead − 0xA1) × 94 + byte − 0xA1 in index jis0208 if EUC-JP jis0212 is false and in index jis0212 otherwise.
-            if (lead >= 0xA1 && lead <= 0xFE && byte >= 0xA1 && byte <= 0xFE) {
-                auto pointer = (lead - 0xA1) * 94 + byte - 0xA1;
-                code_point = jis0212 ? index_jis0212_code_point(pointer) : index_jis0208_code_point(pointer);
-            }
-
-            // 3. Set EUC-JP jis0212 to false.
-            jis0212 = false;
-
-            // 4. If code point is non-null, return a code point whose value is code point.
-            if (code_point.has_value()) {
-                TRY(on_code_point(code_point.value()));
-                continue;
-            }
-
-            // 5. If byte is an ASCII byte, restore byte to ioQueue.
-            if (byte <= 0x7F)
-                index--;
-
-            // 6. Return error.
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 6. If byte is an ASCII byte, return a code point whose value is byte.
-        if (byte <= 0x7F) {
-            TRY(on_code_point(byte));
-            continue;
-        }
-
-        // 7. If byte is 0x8E, 0x8F, or in the range 0xA1 to 0xFE, inclusive, set EUC-JP lead to byte and return continue.
-        if (byte == 0x8E || byte == 0x8F || (byte >= 0xA1 && byte <= 0xFE)) {
-            euc_jp_lead = byte;
-            continue;
-        }
-
-        // 8. Return error.
-        TRY(on_code_point(replacement_code_point));
-    }
+    return rust_length_in_utf16_code_units("UTF-8"sv, input, RemoveBOM::Yes);
 }
 
-enum class ISO2022JPState {
-    ASCII,
-    Roman,
-    Katakana,
-    LeadByte,
-    TrailByte,
-    EscapeStart,
-    Escape,
-};
-
-// https://encoding.spec.whatwg.org/#iso-2022-jp-decoder
-ErrorOr<void> ISO2022JPDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+bool UTF16BEDecoder::validate(StringView input)
 {
-    // ISO-2022-JP’s decoder has an associated ISO-2022-JP decoder state (initially ASCII), ISO-2022-JP decoder output state (initially ASCII), ISO-2022-JP lead (initially 0x00), and ISO-2022-JP output (initially false).
-    auto decoder_state = ISO2022JPState::ASCII;
-    auto output_state = ISO2022JPState::ASCII;
-    u8 iso2022_jp_lead = 0x00;
-    bool iso2022_jp_output = false;
-
-    size_t index = 0;
-    while (true) {
-        Optional<u8> byte;
-        if (index < input.length())
-            byte = input[index++];
-
-        // ISO-2022-JP’s decoder’s handler, given ioQueue and byte, runs these steps, switching on ISO-2022-JP decoder state:
-        switch (decoder_state) {
-        case ISO2022JPState::ASCII:
-            // Based on byte:
-            // 0x1B: Set ISO-2022-JP decoder state to escape start and return continue.
-            if (byte == 0x1B) {
-                decoder_state = ISO2022JPState::EscapeStart;
-                continue;
-            }
-
-            // 0x00 to 0x7F, excluding 0x0E, 0x0F, and 0x1B: Set ISO-2022-JP output to false and return a code point whose value is byte.
-            if (byte.has_value() && byte.value() <= 0x7F && byte != 0x0E && byte != 0x0F) {
-                iso2022_jp_output = false;
-                TRY(on_code_point(byte.value()));
-                continue;
-            }
-
-            // end-of-queue: Return finished.
-            if (!byte.has_value())
-                return {};
-
-            // Otherwise: Set ISO-2022-JP output to false and return error.
-            iso2022_jp_output = false;
-            TRY(on_code_point(replacement_code_point));
-            break;
-        case ISO2022JPState::Roman:
-            // Based on byte:
-            // 0x1B: Set ISO-2022-JP decoder state to escape start and return continue.
-            if (byte == 0x1B) {
-                decoder_state = ISO2022JPState::EscapeStart;
-                continue;
-            }
-
-            // 0x5C: Set ISO-2022-JP output to false and return code point U+00A5.
-            if (byte == 0x5C) {
-                iso2022_jp_output = false;
-                TRY(on_code_point(0x00A5));
-                continue;
-            }
-
-            // 0x7E: Set ISO-2022-JP output to false and return code point U+203E.
-            if (byte == 0x7E) {
-                iso2022_jp_output = false;
-                TRY(on_code_point(0x203E));
-                continue;
-            }
-
-            // 0x00 to 0x7F, excluding 0x0E, 0x0F, 0x1B, 0x5C, and 0x7E: Set ISO-2022-JP output to false and return a code point whose value is byte.
-            if (byte.has_value() && byte.value() <= 0x7F && byte != 0x0E && byte != 0x0F) {
-                iso2022_jp_output = false;
-                TRY(on_code_point(byte.value()));
-                continue;
-            }
-
-            // end-of-queue: Return finished.
-            if (!byte.has_value())
-                return {};
-
-            // Otherwise: Set ISO-2022-JP output to false and return error.
-            iso2022_jp_output = false;
-            TRY(on_code_point(replacement_code_point));
-            break;
-        case ISO2022JPState::Katakana:
-            // Based on byte:
-            // 0x1B: Set ISO-2022-JP decoder state to escape start and return continue.
-            if (byte == 0x1B) {
-                decoder_state = ISO2022JPState::EscapeStart;
-                continue;
-            }
-
-            // 0x21 to 0x5F: Set ISO-2022-JP output to false and return a code point whose value is 0xFF61 − 0x21 + byte.
-            if (byte.has_value() && byte.value() >= 0x21 && byte.value() <= 0x5F) {
-                iso2022_jp_output = false;
-                TRY(on_code_point(0xFF61 - 0x21 + byte.value()));
-                continue;
-            }
-
-            // end-of-queue: Return finished.
-            if (!byte.has_value())
-                return {};
-
-            // Otherwise: Set ISO-2022-JP output to false and return error.
-            iso2022_jp_output = false;
-            TRY(on_code_point(replacement_code_point));
-            break;
-        case ISO2022JPState::LeadByte:
-            // Based on byte:
-            // 0x1B: Set ISO-2022-JP decoder state to escape start and return continue.
-            if (byte == 0x1B) {
-                decoder_state = ISO2022JPState::EscapeStart;
-                continue;
-            }
-
-            // 0x21 to 0x7E: Set ISO-2022-JP output to false, ISO-2022-JP lead to byte, ISO-2022-JP decoder state to trail byte, and return continue.
-            if (byte.has_value() && byte.value() >= 0x21 && byte.value() <= 0x7E) {
-                iso2022_jp_output = false;
-                iso2022_jp_lead = byte.value();
-                decoder_state = ISO2022JPState::TrailByte;
-                continue;
-            }
-
-            // end-of-queue: Return finished.
-            if (!byte.has_value())
-                return {};
-
-            // Otherwise: Set ISO-2022-JP output to false and return error.
-            iso2022_jp_output = false;
-            TRY(on_code_point(replacement_code_point));
-            break;
-        case ISO2022JPState::TrailByte:
-            // Based on byte:
-
-            // 0x1B: Set ISO-2022-JP decoder state to escape start and return error.
-            if (byte == 0x1B) {
-                decoder_state = ISO2022JPState::EscapeStart;
-                TRY(on_code_point(replacement_code_point));
-                continue;
-            }
-
-            // 0x21 to 0x7E:
-            if (byte.has_value() && byte.value() >= 0x21 && byte.value() <= 0x7E) {
-                // 1. Set the ISO-2022-JP decoder state to lead byte.
-                decoder_state = ISO2022JPState::LeadByte;
-
-                // 2. Let pointer be (ISO-2022-JP lead − 0x21) × 94 + byte − 0x21.
-                u32 pointer = (iso2022_jp_lead - 0x21) * 94 + byte.value() - 0x21;
-
-                // 3. Let code point be the index code point for pointer in index jis0208.
-                auto code_point = index_jis0208_code_point(pointer);
-
-                // 4. If code point is null, return error.
-                if (!code_point.has_value()) {
-                    TRY(on_code_point(replacement_code_point));
-                    continue;
-                }
-
-                // 5. Return a code point whose value is code point.
-                TRY(on_code_point(code_point.value()));
-                continue;
-            }
-
-            // end-of-queue: Set the ISO-2022-JP decoder state to lead byte and return error.
-            if (!byte.has_value()) {
-                decoder_state = ISO2022JPState::LeadByte;
-                TRY(on_code_point(replacement_code_point));
-                continue;
-            }
-
-            // Otherwise: Set ISO-2022-JP decoder state to lead byte and return error.
-            decoder_state = ISO2022JPState::LeadByte;
-            TRY(on_code_point(replacement_code_point));
-            break;
-        case ISO2022JPState::EscapeStart:
-            // 1. If byte is either 0x24 or 0x28, set ISO-2022-JP lead to byte, ISO-2022-JP decoder state to escape, and return continue.
-            if (byte == 0x24 || byte == 0x28) {
-                iso2022_jp_lead = byte.value();
-                decoder_state = ISO2022JPState::Escape;
-                continue;
-            }
-
-            // 2. If byte is not end-of-queue, then restore byte to ioQueue.
-            if (byte.has_value())
-                index--;
-
-            // 3. Set ISO-2022-JP output to false, ISO-2022-JP decoder state to ISO-2022-JP decoder output state, and return error.
-            iso2022_jp_output = false;
-            decoder_state = output_state;
-            TRY(on_code_point(replacement_code_point));
-            break;
-        case ISO2022JPState::Escape: {
-            // 1. Let lead be ISO-2022-JP lead and set ISO-2022-JP lead to 0x00.
-            auto lead = iso2022_jp_lead;
-            iso2022_jp_lead = 0x00;
-
-            // 2. Let state be null.
-            Optional<ISO2022JPState> state;
-
-            // 3. If lead is 0x28 and byte is 0x42, set state to ASCII.
-            if (lead == 0x28 && byte == 0x42)
-                state = ISO2022JPState::ASCII;
-
-            // 4. If lead is 0x28 and byte is 0x4A, set state to Roman.
-            if (lead == 0x28 && byte == 0x4A)
-                state = ISO2022JPState::Roman;
-
-            // 5. If lead is 0x28 and byte is 0x49, set state to katakana.
-            if (lead == 0x28 && byte == 0x49)
-                state = ISO2022JPState::Katakana;
-
-            // 6. If lead is 0x24 and byte is either 0x40 or 0x42, set state to lead byte.
-            if (lead == 0x24 && (byte == 0x40 || byte == 0x42))
-                state = ISO2022JPState::LeadByte;
-
-            // 7. If state is non-null, then:
-            if (state.has_value()) {
-                // 1. Set ISO-2022-JP decoder state and ISO-2022-JP decoder output state to state.
-                decoder_state = state.value();
-                output_state = state.value();
-
-                // 2. Let output be the value of ISO-2022-JP output.
-                auto output = iso2022_jp_output;
-
-                // 3. Set ISO-2022-JP output to true.
-                iso2022_jp_output = true;
-
-                // 4. Return continue, if output is false, and error otherwise.
-                if (output)
-                    TRY(on_code_point(replacement_code_point));
-                continue;
-            }
-
-            // 8. If byte is end-of-queue, then restore lead to ioQueue; otherwise, restore « lead, byte » to ioQueue.
-            index -= byte.has_value() ? 2 : 1;
-
-            // 9. Set ISO-2022-JP output to false, ISO-2022-JP decoder state to ISO-2022-JP decoder output state and return error.
-            iso2022_jp_output = false;
-            decoder_state = output_state;
-            TRY(on_code_point(replacement_code_point));
-            break;
-        }
-        }
-    }
+    return rust_validate("UTF-16BE"sv, input, RemoveBOM::No);
 }
 
-// https://encoding.spec.whatwg.org/#shift_jis-decoder
-ErrorOr<void> ShiftJISDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    // Shift_JIS’s decoder has an associated Shift_JIS lead (initially 0x00).
-    u8 shift_jis_lead = 0x00;
-
-    // Shift_JIS’s decoder’s handler, given ioQueue and byte, runs these steps:
-    size_t index = 0;
-    while (true) {
-        // 1. If byte is end-of-queue and Shift_JIS lead is not 0x00, set Shift_JIS lead to 0x00 and return error.
-        if (index >= input.length() && shift_jis_lead != 0x00) {
-            shift_jis_lead = 0x00;
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 2. If byte is end-of-queue and Shift_JIS lead is 0x00, return finished.
-        if (index >= input.length() && shift_jis_lead == 0x00)
-            return {};
-
-        u8 const byte = input[index++];
-
-        // 3. If Shift_JIS lead is not 0x00, let lead be Shift_JIS lead, let pointer be null, set Shift_JIS lead to 0x00, and then:
-        if (shift_jis_lead != 0x00) {
-            auto lead = shift_jis_lead;
-            Optional<u32> pointer;
-            shift_jis_lead = 0x00;
-
-            // 1. Let offset be 0x40 if byte is less than 0x7F, otherwise 0x41.
-            u8 const offset = byte < 0x7F ? 0x40 : 0x41;
-
-            // 2. Let lead offset be 0x81 if lead is less than 0xA0, otherwise 0xC1.
-            u8 const lead_offset = lead < 0xA0 ? 0x81 : 0xC1;
-
-            // 3. If byte is in the range 0x40 to 0x7E, inclusive, or 0x80 to 0xFC, inclusive, set pointer to (lead − lead offset) × 188 + byte − offset.
-            if ((byte >= 0x40 && byte <= 0x7E) || (byte >= 0x80 && byte <= 0xFC))
-                pointer = (lead - lead_offset) * 188 + byte - offset;
-
-            // 4. If pointer is in the range 8836 to 10715, inclusive, return a code point whose value is 0xE000 − 8836 + pointer.
-            if (pointer.has_value() && pointer.value() >= 8836 && pointer.value() <= 10715) {
-                TRY(on_code_point(0xE000 - 8836 + pointer.value()));
-                continue;
-            }
-
-            // 5. Let code point be null if pointer is null, otherwise the index code point for pointer in index jis0208.
-            auto code_point = pointer.has_value() ? index_jis0208_code_point(pointer.value()) : Optional<u32> {};
-
-            // 6. If code point is non-null, return a code point whose value is code point.
-            if (code_point.has_value()) {
-                TRY(on_code_point(code_point.value()));
-                continue;
-            }
-
-            // 7. If byte is an ASCII byte, restore byte to ioQueue.
-            if (byte <= 0x7F)
-                index--;
-
-            // 8. Return error.
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 4. If byte is an ASCII byte or 0x80, return a code point whose value is byte.
-        if (byte <= 0x80) {
-            TRY(on_code_point(byte));
-            continue;
-        }
-
-        // 5. If byte is in the range 0xA1 to 0xDF, inclusive, return a code point whose value is 0xFF61 − 0xA1 + byte.
-        if (byte >= 0xA1 && byte <= 0xDF) {
-            TRY(on_code_point(0xFF61 - 0xA1 + byte));
-            continue;
-        }
-
-        // 6. If byte is in the range 0x81 to 0x9F, inclusive, or 0xE0 to 0xFC, inclusive, set Shift_JIS lead to byte and return continue.
-        if ((byte >= 0x81 && byte <= 0x9F) || (byte >= 0xE0 && byte <= 0xFC)) {
-            shift_jis_lead = byte;
-            continue;
-        }
-
-        // 7. Return error.
-        TRY(on_code_point(replacement_code_point));
-    }
+    return rust_process("UTF-16BE"sv, input, RemoveBOM::Yes, move(on_code_point));
 }
 
-// https://encoding.spec.whatwg.org/#euc-kr-decoder
-ErrorOr<void> EUCKRDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
 {
-    // EUC-KR’s decoder has an associated EUC-KR lead (initially 0x00).
-    u8 euc_kr_lead = 0x00;
-
-    // EUC-KR’s decoder’s handler, given ioQueue and byte, runs these steps:
-    size_t index = 0;
-    while (true) {
-        // 1. If byte is end-of-queue and EUC-KR lead is not 0x00, set EUC-KR lead to 0x00 and return error.
-        if (index >= input.length() && euc_kr_lead != 0x00) {
-            euc_kr_lead = 0x00;
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 2. If byte is end-of-queue and EUC-KR lead is 0x00, return finished.
-        if (index >= input.length() && euc_kr_lead == 0x00)
-            return {};
-
-        u8 const byte = input[index++];
-
-        // 3. If EUC-KR lead is not 0x00, let lead be EUC-KR lead, let pointer be null, set EUC-KR lead to 0x00, and then:
-        if (euc_kr_lead != 0x00) {
-            auto lead = euc_kr_lead;
-            Optional<u32> pointer;
-            euc_kr_lead = 0x00;
-
-            // 1. If byte is in the range 0x41 to 0xFE, inclusive, set pointer to (lead − 0x81) × 190 + (byte − 0x41).
-            if (byte >= 0x41 && byte <= 0xFE)
-                pointer = (lead - 0x81) * 190 + (byte - 0x41);
-
-            // 2. Let code point be null if pointer is null, otherwise the index code point for pointer in index EUC-KR.
-            auto code_point = pointer.has_value() ? index_euc_kr_code_point(pointer.value()) : Optional<u32> {};
-
-            // 3. If code point is non-null, return a code point whose value is code point.
-            if (code_point.has_value()) {
-                TRY(on_code_point(code_point.value()));
-                continue;
-            }
-
-            // 4. If byte is an ASCII byte, restore byte to ioQueue.
-            if (byte <= 0x7F)
-                index--;
-
-            // 5. Return error.
-            TRY(on_code_point(replacement_code_point));
-            continue;
-        }
-
-        // 4. If byte is an ASCII byte, return a code point whose value is byte.
-        if (byte <= 0x7F) {
-            TRY(on_code_point(byte));
-            continue;
-        }
-
-        // 5. If byte is in the range 0x81 to 0xFE, inclusive, set EUC-KR lead to byte and return continue.
-        if (byte >= 0x81 && byte <= 0xFE) {
-            euc_kr_lead = byte;
-            continue;
-        }
-
-        // 6. Return error.
-        TRY(on_code_point(replacement_code_point));
-    }
+    return rust_decode_to_utf8("UTF-16BE"sv, input, RemoveBOM::Yes);
 }
 
-// https://encoding.spec.whatwg.org/#replacement-decoder
-ErrorOr<void> ReplacementDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+ErrorOr<size_t> UTF16BEDecoder::length_in_utf16_code_units(StringView input)
 {
-    // replacement’s decoder has an associated replacement error returned (initially false).
-    // replacement’s decoder’s handler, given ioQueue and byte, runs these steps:
-    // 1. If byte is end-of-queue, return finished.
-    // 2. If replacement error returned is false, set replacement error returned to true and return error.
-    // 3. Return finished.
-
-    if (!input.is_empty())
-        return on_code_point(replacement_code_point);
-    return {};
+    return rust_length_in_utf16_code_units("UTF-16BE"sv, input, RemoveBOM::Yes);
 }
 
-ErrorOr<size_t> ReplacementDecoder::length_in_utf16_code_units(StringView input)
+bool UTF16LEDecoder::validate(StringView input)
 {
-    return input.is_empty() ? 0 : 1;
+    return rust_validate("UTF-16LE"sv, input, RemoveBOM::No);
+}
+
+ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
+{
+    return rust_process("UTF-16LE"sv, input, RemoveBOM::Yes, move(on_code_point));
+}
+
+ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
+{
+    return rust_decode_to_utf8("UTF-16LE"sv, input, RemoveBOM::Yes);
+}
+
+ErrorOr<size_t> UTF16LEDecoder::length_in_utf16_code_units(StringView input)
+{
+    return rust_length_in_utf16_code_units("UTF-16LE"sv, input, RemoveBOM::Yes);
 }
 
 // https://infra.spec.whatwg.org/#isomorphic-decode

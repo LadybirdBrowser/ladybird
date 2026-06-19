@@ -3,6 +3,7 @@ members = [
     "Libraries/LibGfx/Rust",
     "Libraries/LibJS/Rust",
     "Libraries/LibRegex/Rust",
+    "Libraries/LibTextCodec/Rust",
     "Libraries/LibUnicode/Rust",
     "Libraries/LibURL/Rust",
     "Libraries/LibWasm/Rust",
