@@ -11,7 +11,6 @@
 #include <AK/StringUtils.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
-#include <LibTextCodec/Encoder.h>
 #include <LibURL/Parser.h>
 #include <LibURL/RustFFI.h>
 #include <LibURL/RustIntegration.h>
@@ -477,29 +476,6 @@ Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, U
     if (!did_succeed)
         return {};
     return result;
-}
-
-}
-
-namespace URL::FFI {
-
-extern "C" bool textcodec_rust_encode(u8 const* encoding, size_t encoding_length, u8 const* input, size_t input_length, void* ctx, FfiByteFn on_byte, FfiCodePointFn on_error)
-{
-    auto encoder = TextCodec::encoder_for(StringView { encoding, encoding_length });
-    if (!encoder.has_value())
-        return false;
-
-    auto result = encoder->process(
-        Utf8View { StringView { input, input_length } },
-        [&](u8 byte) -> ErrorOr<void> {
-            on_byte(ctx, byte);
-            return {};
-        },
-        [&](u32 error) -> ErrorOr<void> {
-            on_error(ctx, error);
-            return {};
-        });
-    return !result.is_error();
 }
 
 }

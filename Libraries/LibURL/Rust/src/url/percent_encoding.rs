@@ -177,10 +177,7 @@ pub(super) fn percent_encode_after_encoding(
             result.push_str("%3B");
         }
     });
-    assert!(
-        did_succeed,
-        "TextCodec::encode should succeed for a valid output encoding"
-    );
+    assert!(did_succeed, "encoding_rs should encode any valid output encoding");
 
     // 6. Return output.
     result
