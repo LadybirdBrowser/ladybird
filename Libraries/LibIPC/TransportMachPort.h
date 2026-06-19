@@ -67,6 +67,7 @@ public:
 
 private:
     static constexpr unsigned int IPC_DATA_MESSAGE_ID = 0x4950C001;
+    static constexpr unsigned int IPC_INLINE_DATA_MESSAGE_ID = 0x4950C002;
     static constexpr unsigned int IPC_WAKEUP_MESSAGE_ID = 0x4950C003;
 
     struct PendingMessage {
