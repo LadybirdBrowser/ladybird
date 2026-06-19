@@ -2445,6 +2445,17 @@ void Application::stop_listening_for_sources(DevTools::TabDescription const& des
     view->on_devtools_source_available = nullptr;
 }
 
+void Application::resolve_dom_node_url(DevTools::TabDescription const& description, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(url);
+        return;
+    }
+
+    view->resolve_dom_node_url(node_id, url, move(on_complete));
+}
+
 void Application::evaluate_javascript(DevTools::TabDescription const& description, String const& script, OnScriptEvaluationComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

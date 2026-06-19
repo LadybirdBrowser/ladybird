@@ -147,6 +147,9 @@ public:
     virtual void clone_dom_node(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
     virtual void remove_dom_node(TabDescription const&, Web::UniqueNodeID, OnDOMNodeEditComplete) const { }
 
+    using OnResolvedURLReceived = Function<void(ErrorOr<String>)>;
+    virtual void resolve_dom_node_url(TabDescription const&, Optional<Web::UniqueNodeID>, String const&, OnResolvedURLReceived) const { }
+
     using OnStyleSheetsReceived = Function<void(ErrorOr<Vector<Web::CSS::StyleSheetIdentifier>>)>;
     using OnStyleSheetSourceReceived = Function<void(Web::CSS::StyleSheetIdentifier const&, String)>;
     virtual void retrieve_style_sheets(TabDescription const&, OnStyleSheetsReceived) const { }

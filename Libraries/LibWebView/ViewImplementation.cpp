@@ -1029,6 +1029,13 @@ void ViewImplementation::request_devtools_source(Web::HTML::ScriptRegistry::Iden
     client().async_request_devtools_source(page_id(), source_id);
 }
 
+void ViewImplementation::resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived on_complete)
+{
+    auto request_id = m_next_resolve_dom_node_url_request_id++;
+    on_resolved_dom_node_url.set(request_id, move(on_complete));
+    client().async_resolve_dom_node_url(page_id(), request_id, node_id, url);
+}
+
 void ViewImplementation::clear_inspected_dom_node()
 {
     client().async_clear_inspected_dom_node(page_id());

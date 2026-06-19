@@ -92,6 +92,7 @@ endpoint WebContentClient
     did_list_devtools_sources(u64 page_id, u64 request_id, Vector<Web::HTML::ScriptRegistry::Description> sources) =|
     did_get_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id, Optional<Web::HTML::ScriptRegistry::Content> source) =|
     did_add_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Description source) =|
+    did_resolve_dom_node_url(u64 page_id, u64 request_id, String resolved_url) =|
 
     did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) =|
 
