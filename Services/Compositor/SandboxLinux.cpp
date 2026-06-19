@@ -39,6 +39,20 @@ ErrorOr<void> apply_sandbox()
             TRY(Sandbox::add_landlock_path_if_exists(paths, path, Sandbox::LandlockPath::Access::ReadOnly));
     }
 
+    TRY(Sandbox::add_landlock_path_if_exists(paths, "/dev/nvidiactl"sv, Sandbox::LandlockPath::Access::ReadWrite));
+
+    // NB: Add all of the primary nvidia device files (e.g. /dev/nvidia0, /dev/nvidia1, etc).
+    auto flags = static_cast<Core::DirIterator::Flags>(Core::DirIterator::SkipDots | Core::DirIterator::NoStat);
+    TRY(Core::Directory::for_each_entry("/dev"sv, flags, [&](Core::DirectoryEntry const& entry, Core::Directory const&) -> ErrorOr<IterationDecision> {
+        if (entry.name.starts_with("nvidia"sv)) {
+            auto suffix = entry.name.substring_view(6);
+            if (!suffix.is_empty() && all_of(suffix, is_ascii_digit))
+                TRY(Sandbox::add_landlock_path_if_exists(paths, TRY(String::formatted("/dev/{}", entry.name)), Sandbox::LandlockPath::Access::ReadWrite));
+        }
+
+        return IterationDecision::Continue;
+    }));
+
     auto mesa_shader_cache_path = Core::Environment::get("MESA_SHADER_CACHE_DIR"sv)
                                       .map([](auto path) { return path.to_byte_string(); })
                                       .value_or_lazy_evaluated([] { return ByteString::formatted("{}/mesa_shader_cache", Core::StandardPaths::cache_directory()); });
