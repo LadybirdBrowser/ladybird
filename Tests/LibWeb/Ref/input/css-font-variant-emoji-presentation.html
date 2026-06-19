@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-font-variant-emoji-presentation-ref.html">
+<style>
+    @font-face {
+        font-family: ColorEmojiFont;
+        src: url("../data/fonts/NotoColorEmoji-Regular_subset.ttf");
+    }
+    @font-face {
+        font-family: MonoEmojiFont;
+        src: url("../data/fonts/NotoEmoji-Regular_subset.ttf");
+    }
+    div { font: 48px ColorEmojiFont, MonoEmojiFont; }
+</style>
+<div style="font-variant-emoji: unicode">&#x2139;</div>
+<div style="font-variant-emoji: emoji">&#x2139;</div>
+<div style="font-variant-emoji: unicode">&#x1fae8;</div>
+<div style="font-variant-emoji: text">&#x1fae8;</div>
