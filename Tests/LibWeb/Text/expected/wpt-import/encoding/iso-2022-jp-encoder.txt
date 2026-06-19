@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+8 Pass
+4 Fail
+Pass	iso-2022-jp encoder: very basic
+Pass	iso-2022-jp encoder: basics
+Pass	iso-2022-jp encoder: Katakana
+Pass	iso-2022-jp encoder: jis0208
+Pass	iso-2022-jp encoder: SO/SI ESC
+Pass	iso-2022-jp encoder: Roman SO/SI ESC
+Pass	iso-2022-jp encoder: Katakana SO/SI ESC
+Pass	iso-2022-jp encoder: jis0208 SO/SI ESC
+Fail	iso-2022-jp encoder: U+FFFD
+Fail	iso-2022-jp encoder: Roman U+FFFD
+Fail	iso-2022-jp encoder: Katakana U+FFFD
+Fail	iso-2022-jp encoder: jis0208 U+FFFD
