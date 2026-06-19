@@ -59,10 +59,8 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
 {
     auto const& image = *m_properties.image;
     auto const& document = layout_node.document();
-    if (!image.is_paintable(document)) {
-        const_cast<AbstractImageStyleValue&>(image).load_any_resources(const_cast<DOM::Document&>(layout_node.document()));
+    if (!image.is_paintable(document))
         return {};
-    }
 
     auto const& current_color = layout_node.computed_values().color();
 

@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -689,6 +690,10 @@ void NodeWithStyle::rebuild_image_observers()
     add_observer_for(m_list_style_image.ptr(), new_observers);
     for (auto const& layer : computed_values().mask_layers())
         add_observer_for(layer.background_image.ptr(), new_observers);
+    for (auto const& cursor : computed_values().cursor()) {
+        if (auto const* cursor_style_value = cursor.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
+            add_observer_for(&(*cursor_style_value)->image(), new_observers);
+    }
     // TODO: Observe border-image and other <image> accepting properties once we support them.
 
     m_image_observers = move(new_observers);

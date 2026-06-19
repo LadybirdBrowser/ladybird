@@ -25,6 +25,8 @@ public:
     }
     virtual ~CursorStyleValue() override = default;
 
+    AbstractImageStyleValue const& image() const { return *m_properties.image; }
+
     Optional<Gfx::ImageCursor> make_image_cursor(Layout::NodeWithStyle const&) const;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
