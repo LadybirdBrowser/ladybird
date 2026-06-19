@@ -4,43 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::ffi::c_void;
+use encoding_rs::EncoderResult;
+use encoding_rs::Encoding;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EncodeItem {
     Byte(u8),
     Error(u32),
-}
-
-type FfiByteFn = unsafe extern "C" fn(*mut c_void, u8);
-type FfiCodePointFn = unsafe extern "C" fn(*mut c_void, u32);
-
-unsafe extern "C" {
-    fn textcodec_rust_encode(
-        encoding: *const u8,
-        encoding_length: usize,
-        input: *const u8,
-        input_length: usize,
-        ctx: *mut c_void,
-        on_byte: FfiByteFn,
-        on_error: FfiCodePointFn,
-    ) -> bool;
-}
-
-struct EncodeCallbacks<'a> {
-    on_item: &'a mut dyn FnMut(EncodeItem),
-}
-
-unsafe extern "C" fn on_encode_byte_with_callbacks(ctx: *mut c_void, byte: u8) {
-    // SAFETY: `ctx` was set to `addr_of_mut!(callbacks)` in `encode_into`.
-    let callbacks = unsafe { &mut *(ctx as *mut EncodeCallbacks<'_>) };
-    (callbacks.on_item)(EncodeItem::Byte(byte));
-}
-
-unsafe extern "C" fn on_encode_error_with_callbacks(ctx: *mut c_void, error: u32) {
-    // SAFETY: `ctx` was set to `addr_of_mut!(callbacks)` in `encode_into`.
-    let callbacks = unsafe { &mut *(ctx as *mut EncodeCallbacks<'_>) };
-    (callbacks.on_item)(EncodeItem::Error(error));
 }
 
 // https://encoding.spec.whatwg.org/#get-an-output-encoding
@@ -58,18 +28,30 @@ pub(crate) fn get_output_encoding(encoding: &str) -> &str {
 }
 
 pub(crate) fn encode_into(encoding: &str, input: &str, mut on_item: impl FnMut(EncodeItem)) -> bool {
-    let mut callbacks = EncodeCallbacks { on_item: &mut on_item };
+    let Some(encoding) = Encoding::for_label(encoding.as_bytes()) else {
+        return false;
+    };
 
-    // SAFETY: `encoding`, `input`, and `callbacks` are valid for the duration of the call.
-    unsafe {
-        textcodec_rust_encode(
-            encoding.as_ptr(),
-            encoding.len(),
-            input.as_ptr(),
-            input.len(),
-            std::ptr::addr_of_mut!(callbacks) as *mut c_void,
-            on_encode_byte_with_callbacks,
-            on_encode_error_with_callbacks,
-        )
+    let mut encoder = encoding.new_encoder();
+    let mut total_read = 0usize;
+    let Some(output_capacity) = encoder.max_buffer_length_from_utf8_without_replacement(input.len()) else {
+        return false;
+    };
+    let mut output = Vec::with_capacity(output_capacity);
+
+    loop {
+        let (result, read) =
+            encoder.encode_from_utf8_to_vec_without_replacement(&input[total_read..], &mut output, true);
+        total_read += read;
+
+        for byte in output.drain(..) {
+            on_item(EncodeItem::Byte(byte));
+        }
+
+        match result {
+            EncoderResult::InputEmpty => return true,
+            EncoderResult::OutputFull => return false,
+            EncoderResult::Unmappable(unmappable) => on_item(EncodeItem::Error(unmappable as u32)),
+        }
     }
 }

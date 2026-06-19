@@ -741,6 +741,7 @@ name = "liburl_rust"
 version = "0.1.0"
 dependencies = [
  "cbindgen",
+ "encoding_rs",
  "libregex_rust",
  "libunicode_rust",
 ]
