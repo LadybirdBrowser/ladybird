@@ -24,7 +24,7 @@ public:
 
     void paint_all_phases(DisplayListRecordingContext&);
     void initialize_async_scrolling_metadata_recording(DisplayListRecordingContext&);
-    void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext&, HTML::Navigable&, Gfx::IntRect viewport_rect);
+    void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext&, HTML::LocalNavigable&, Gfx::IntRect viewport_rect);
     void build_stacking_context_tree_if_needed();
 
     void assign_scroll_frames();

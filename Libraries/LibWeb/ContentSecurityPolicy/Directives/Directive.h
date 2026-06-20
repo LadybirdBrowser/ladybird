@@ -84,7 +84,7 @@ public:
     //    a response, a navigable, a check type string ("source" or "response"), and a policy as arguments, and is
     //    executed during § 4.2.5 Should navigation response to navigation request of type in target be blocked by
     //    Content Security Policy?. It returns "Allowed" unless otherwise specified.
-    virtual Result navigation_response_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<HTML::Navigable const>, CheckType, GC::Ref<Policy const>) const { return Result::Allowed; }
+    virtual Result navigation_response_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<HTML::LocalNavigable const>, CheckType, GC::Ref<Policy const>) const { return Result::Allowed; }
 
     // https://w3c.github.io/webappsec-csp/#directive-webrtc-pre-connect-check
     // 7. A webrtc pre-connect check, which takes a policy, and is executed during § 4.3.1 Should RTC connections be

@@ -270,7 +270,7 @@ public:
     Optional<String> node_value() const;
     WebIDL::ExceptionOr<void> set_node_value(Optional<String> const&);
 
-    GC::Ptr<HTML::Navigable> navigable() const;
+    GC::Ptr<HTML::LocalNavigable> navigable() const;
 
     Document& document() { return *m_document; }
     Document const& document() const { return *m_document; }

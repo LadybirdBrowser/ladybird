@@ -13,7 +13,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 
@@ -25,7 +25,7 @@ FrameAncestorsDirective::FrameAncestorsDirective(String name, Vector<String> val
 }
 
 // https://w3c.github.io/webappsec-csp/#frame-ancestors-navigation-response
-Directive::Result FrameAncestorsDirective::navigation_response_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Fetch::Infrastructure::Response const> navigation_response, GC::Ref<HTML::Navigable const> target, CheckType check_type, GC::Ref<Policy const> policy) const
+Directive::Result FrameAncestorsDirective::navigation_response_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Fetch::Infrastructure::Response const> navigation_response, GC::Ref<HTML::LocalNavigable const> target, CheckType check_type, GC::Ref<Policy const> policy) const
 {
     // 1. If navigation response’s URL is local, return "Allowed".
     VERIFY(navigation_response->url().has_value());

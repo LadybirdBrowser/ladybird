@@ -41,9 +41,9 @@ static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<String>>&
 }
 
 // https://w3c.github.io/webdriver/#dfn-navigable-seen-nodes-map
-static HashMap<GC::RawPtr<HTML::Navigable>, HashTable<String>>& navigable_seen_nodes_map()
+static HashMap<GC::RawPtr<HTML::LocalNavigable>, HashTable<String>>& navigable_seen_nodes_map()
 {
-    static NeverDestroyed<HashMap<GC::RawPtr<HTML::Navigable>, HashTable<String>>> map;
+    static NeverDestroyed<HashMap<GC::RawPtr<HTML::LocalNavigable>, HashTable<String>>> map;
     return *map;
 }
 

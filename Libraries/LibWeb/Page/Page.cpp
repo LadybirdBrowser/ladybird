@@ -98,19 +98,19 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     });
 }
 
-HTML::Navigable& Page::focused_navigable()
+HTML::LocalNavigable& Page::focused_navigable()
 {
     if (m_focused_navigable)
         return *m_focused_navigable;
     return top_level_traversable();
 }
 
-void Page::set_focused_navigable(Badge<EventHandler>, HTML::Navigable& navigable)
+void Page::set_focused_navigable(Badge<EventHandler>, HTML::LocalNavigable& navigable)
 {
     m_focused_navigable = navigable;
 }
 
-void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::Navigable& navigable)
+void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable& navigable)
 {
     if (&navigable == m_focused_navigable.ptr())
         m_focused_navigable = nullptr;
@@ -158,7 +158,7 @@ void Page::load_html(StringView html, URL::URL const& url)
     response->header_list()->append({ "Content-Type"sv, "text/html"sv });
     response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, html_string.bytes()));
 
-    HTML::Navigable::NavigateParams params { .url = url,
+    HTML::LocalNavigable::NavigateParams params { .url = url,
         .source_document = *document,
         .response = response,
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI };

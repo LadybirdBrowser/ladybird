@@ -16,7 +16,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DocumentState.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -44,7 +44,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     page->set_is_scripting_enabled(false);
     page_client->m_svg_page = page.ptr();
     page->set_top_level_traversable(Web::HTML::TraversableNavigable::create_a_new_top_level_traversable(*page, nullptr, {}));
-    GC::Ref<HTML::Navigable> navigable = page->top_level_traversable();
+    GC::Ref<HTML::LocalNavigable> navigable = page->top_level_traversable();
     auto response = Fetch::Infrastructure::Response::create(navigable->vm());
     response->url_list().append(url);
     auto origin = URL::Origin::create_opaque();
@@ -64,7 +64,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
         OptionalNone {},
         HTML::UserNavigationInvolvement::None);
 
-    // FIXME: Use Navigable::navigate() instead of manually replacing the navigable's document.
+    // FIXME: Use LocalNavigable::navigate() instead of manually replacing the navigable's document.
     auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::XML, "image/svg+xml"_string, navigation_params));
     navigable->set_ongoing_navigation({});
     navigable->active_document()->destroy();

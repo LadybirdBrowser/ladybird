@@ -33,7 +33,7 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -69,7 +69,7 @@ namespace Web {
     if (auto event_result = (expression); event_result == EventResult::Cancelled) \
         return event_result;
 
-EventHandler::EventHandler(Badge<HTML::Navigable>, HTML::Navigable& navigable)
+EventHandler::EventHandler(Badge<HTML::LocalNavigable>, HTML::LocalNavigable& navigable)
     : m_navigable(navigable)
     , m_drag_and_drop_event_handler(make<DragAndDropEventHandler>())
 {
@@ -515,7 +515,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
             // FIXME: Currently cannot spawn a new top-level browsing context for new tab operations, because the
             //        new top-level browsing context would be in another process. To fix this, there needs to be
             //        some way to be able to communicate with browsing contexts in remote WebContent processes, and
-            //        then step 8 of this algorithm needs to be implemented in Navigable::choose_a_navigable:
+            //        then step 8 of this algorithm needs to be implemented in LocalNavigable::choose_a_navigable:
             //        https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
             run_activation_behavior(*node, button, modifiers);
         }
@@ -1325,7 +1325,7 @@ static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(D
     return target_ranges;
 }
 
-EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Navigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
+EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::LocalNavigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
 {
     GC::Ptr<DOM::Document> document = navigable.active_document();
     if (!document)
@@ -1351,7 +1351,7 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
     return target->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
 }
 
-EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable& navigable, Variant<u32, Utf16String> code_point_or_string)
+EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::LocalNavigable& navigable, Variant<u32, Utf16String> code_point_or_string)
 {
     auto document = navigable.active_document();
     if (!document)

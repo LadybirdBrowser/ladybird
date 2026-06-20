@@ -33,7 +33,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -1184,7 +1184,7 @@ void PageClient::did_connect_devtools_client()
     if (!was_first_devtools_client)
         return;
 
-    for (auto& navigable : Web::HTML::all_navigables()) {
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (&navigable->page() != &page())
             continue;
         if (auto active_document = navigable->active_document())
@@ -1200,7 +1200,7 @@ void PageClient::did_disconnect_devtools_client()
     if (has_devtools_client())
         return;
 
-    for (auto& navigable : Web::HTML::all_navigables()) {
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (&navigable->page() != &page())
             continue;
         if (auto active_document = navigable->active_document())

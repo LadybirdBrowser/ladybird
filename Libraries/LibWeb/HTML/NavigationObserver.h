@@ -28,13 +28,13 @@ public:
     void set_ongoing_navigation_changed(Function<void()>);
 
 private:
-    NavigationObserver(JS::Realm&, Navigable&);
+    NavigationObserver(JS::Realm&, LocalNavigable&);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
     IntrusiveListNode<NavigationObserver> m_list_node;
-    GC::Ref<Navigable> m_navigable;
+    GC::Ref<LocalNavigable> m_navigable;
     GC::Ptr<GC::Function<void()>> m_navigation_complete;
     GC::Ptr<GC::Function<void()>> m_ongoing_navigation_changed;
 

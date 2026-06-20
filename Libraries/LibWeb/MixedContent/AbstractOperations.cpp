@@ -7,7 +7,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>

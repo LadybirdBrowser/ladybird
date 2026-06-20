@@ -83,7 +83,7 @@ public:
 
     bool visible_for_hit_testing() const;
 
-    GC::Ptr<HTML::Navigable> navigable() const;
+    GC::Ptr<HTML::LocalNavigable> navigable() const;
 
     virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
 

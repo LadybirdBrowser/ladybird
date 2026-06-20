@@ -30,7 +30,7 @@
 namespace Web {
 
 struct AsyncScrollOperation {
-    GC::Ptr<HTML::Navigable> navigable;
+    GC::Ptr<HTML::LocalNavigable> navigable;
     Compositor::AsyncScrollOperationID operation_id { 0 };
 };
 
@@ -38,7 +38,7 @@ class WEB_API EventHandler {
     friend class AutoScrollHandler;
 
 public:
-    EventHandler(Badge<HTML::Navigable>, HTML::Navigable&);
+    EventHandler(Badge<HTML::LocalNavigable>, HTML::LocalNavigable&);
     ~EventHandler();
 
     void visit_edges(JS::Cell::Visitor& visitor) const;
@@ -81,8 +81,8 @@ public:
 private:
     bool should_ignore_device_input_event() const;
 
-    EventResult fire_keyboard_event(FlyString const& event_name, HTML::Navigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
-    [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable&, Variant<u32, Utf16String> code_point_or_string);
+    EventResult fire_keyboard_event(FlyString const& event_name, HTML::LocalNavigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    [[nodiscard]] EventResult input_event(FlyString const& event_name, FlyString const& input_type, HTML::LocalNavigable&, Variant<u32, Utf16String> code_point_or_string);
 
     EventResult focus_next_element();
     EventResult focus_previous_element();
@@ -151,7 +151,7 @@ private:
     RefPtr<Painting::PaintableBox const> paint_root() const;
     Unicode::Segmenter& word_segmenter();
 
-    GC::Ref<HTML::Navigable> m_navigable;
+    GC::Ref<HTML::LocalNavigable> m_navigable;
 
     SelectionMode m_selection_mode { SelectionMode::None };
     InputEventsTarget* m_mouse_selection_target { nullptr };

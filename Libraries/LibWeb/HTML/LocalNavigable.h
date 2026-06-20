@@ -60,30 +60,30 @@ struct TargetSnapshotParams {
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#navigable
-class WEB_API Navigable : public JS::Cell {
-    GC_CELL(Navigable, JS::Cell);
-    GC_DECLARE_ALLOCATOR(Navigable);
+class WEB_API LocalNavigable : public JS::Cell {
+    GC_CELL(LocalNavigable, JS::Cell);
+    GC_DECLARE_ALLOCATOR(LocalNavigable);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    virtual ~Navigable() override;
+    virtual ~LocalNavigable() override;
 
     using NullOrError = Optional<String>;
     using NavigationParamsVariant = Variant<NullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
-    void initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document);
+    void initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document);
 
     void register_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
     void unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
 
-    Vector<GC::Root<Navigable>> child_navigables() const;
+    Vector<GC::Root<LocalNavigable>> child_navigables() const;
 
     virtual bool is_traversable() const { return false; }
 
     String const& id() const { return m_id; }
-    GC::Ptr<Navigable> parent() const { return m_parent; }
-    bool is_ancestor_of(GC::Ref<Navigable>) const;
+    GC::Ptr<LocalNavigable> parent() const { return m_parent; }
+    bool is_ancestor_of(GC::Ref<LocalNavigable>) const;
 
     bool is_closing() const { return m_closing; }
     void set_closing(bool value) { m_closing = value; }
@@ -133,13 +133,13 @@ public:
     [[nodiscard]] bool is_focused() const;
 
     struct ChosenNavigable {
-        GC::Ptr<Navigable> navigable;
+        GC::Ptr<LocalNavigable> navigable;
         WindowType window_type;
     };
 
     ChosenNavigable choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab = ActivateTab::Yes, Optional<TokenizedFeature::Map const&> window_features = {});
 
-    GC::Ptr<Navigable> find_a_navigable_by_target_name(StringView name);
+    GC::Ptr<LocalNavigable> find_a_navigable_by_target_name(StringView name);
 
     enum class Traversal {
         Tag
@@ -200,14 +200,14 @@ public:
 
     GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, String navigation_id);
 
-    bool allowed_by_sandboxing_to_navigate(Navigable const& target, SourceSnapshotParams const&);
+    bool allowed_by_sandboxing_to_navigate(LocalNavigable const& target, SourceSnapshotParams const&);
 
     void reload(Optional<SerializationRecord> navigation_api_state = {}, UserNavigationInvolvement = UserNavigationInvolvement::None);
 
     // https://github.com/whatwg/html/issues/9690
     [[nodiscard]] bool has_been_destroyed() const { return m_has_been_destroyed; }
     void set_has_been_destroyed();
-    void remove_from_all_navigables();
+    void remove_from_all_local_navigables();
 
     CSSPixelPoint to_top_level_position(CSSPixelPoint);
     CSSPixelRect to_top_level_rect(CSSPixelRect const&);
@@ -295,7 +295,7 @@ public:
     void reset_zoom();
 
 protected:
-    explicit Navigable(
+    explicit LocalNavigable(
         GC::Ref<Page>,
         bool is_svg_page,
         Compositor::PagePresentationRegistration = Compositor::PagePresentationRegistration::No);
@@ -335,7 +335,7 @@ private:
     String m_id;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-parent
-    GC::Ptr<Navigable> m_parent;
+    GC::Ptr<LocalNavigable> m_parent;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-current-history-entry
     RefPtr<SessionHistoryEntry> m_current_session_history_entry;
@@ -407,7 +407,7 @@ struct PopulateSessionHistoryEntryDocumentOutput final : public JS::Cell {
 public:
     GC::Ptr<DOM::Document> document;
 
-    Navigable::NavigationParamsVariant navigation_params { Navigable::NullOrError {} };
+    LocalNavigable::NavigationParamsVariant navigation_params { LocalNavigable::NullOrError {} };
     bool save_extra_document_state = true;
 
     Optional<URL::URL> redirected_url;
@@ -421,12 +421,12 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 };
 
-WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
+WEB_API HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables();
 
 Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
-    Navigable& parent_navigable, Navigable& child_navigable, SessionHistoryEntry& history_entry);
+    LocalNavigable& parent_navigable, LocalNavigable& child_navigable, SessionHistoryEntry& history_entry);
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<SerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
 
 }

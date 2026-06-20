@@ -30,7 +30,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/ImageBox.h>
@@ -543,7 +543,7 @@ bool Node::establishes_stacking_context() const
     return computed_values.opacity() < 1.0f || will_change_property(CSS::PropertyID::Opacity);
 }
 
-GC::Ptr<HTML::Navigable> Node::navigable() const
+GC::Ptr<HTML::LocalNavigable> Node::navigable() const
 {
     return document().navigable();
 }

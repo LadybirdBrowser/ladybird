@@ -23,7 +23,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
     GC::Ref<Fetch::Infrastructure::Response> navigation_response,
     GC::Ref<PolicyList> response_csp_list,
     Directives::Directive::NavigationType navigation_type,
-    GC::Ref<HTML::Navigable> target);
+    GC::Ref<HTML::LocalNavigable> target);
 
 Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by_content_security_policy(JS::Realm&, GC::Ref<DOM::Element> element, Directives::Directive::InlineType type, String const& source);
 JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Realm& realm, ReadonlySpan<Utf16String> parameter_strings, Utf16View body_string, Utf16View code_string, JS::CompilationType compilation_type, ReadonlySpan<JS::Value> parameter_args, JS::Value body_arg);

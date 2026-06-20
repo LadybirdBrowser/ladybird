@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 
 namespace Web::HTML {
@@ -12,7 +12,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueue);
 GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
-GC::Ref<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<HTML::Navigable> target_navigable)
+GC::Ref<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<HTML::LocalNavigable> target_navigable)
 {
     return vm.heap().allocate<SessionHistoryTraversalQueueEntry>(steps, target_navigable);
 }
@@ -54,7 +54,7 @@ void SessionHistoryTraversalQueue::append(GC::Ref<SessionHistoryTraversalSteps> 
     schedule_processing();
 }
 
-void SessionHistoryTraversalQueue::append_sync(GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<Navigable> target_navigable)
+void SessionHistoryTraversalQueue::append_sync(GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<LocalNavigable> target_navigable)
 {
     m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
     schedule_processing();
@@ -72,7 +72,7 @@ void SessionHistoryTraversalQueue::schedule_processing()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
-GC::Ptr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueue::first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<GC::Ref<Navigable>> const& set)
+GC::Ptr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueue::first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<GC::Ref<LocalNavigable>> const& set)
 {
     auto index = m_queue.find_first_index_if([&set](auto const& entry) -> bool {
         auto target_navigable = entry->target_navigable();

@@ -11,7 +11,7 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Path.h>
 #include <LibWeb/CSS/Sizing.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>

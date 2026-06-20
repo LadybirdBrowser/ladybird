@@ -16,7 +16,7 @@
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
@@ -53,7 +53,7 @@ void NavigableContainer::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_content_navigable);
 }
 
-GC::Ptr<NavigableContainer> NavigableContainer::navigable_container_with_content_navigable(GC::Ref<Navigable> navigable)
+GC::Ptr<NavigableContainer> NavigableContainer::navigable_container_with_content_navigable(GC::Ref<LocalNavigable> navigable)
 {
     for (auto* navigable_container : all_instances()) {
         if (navigable_container->content_navigable() == navigable)
@@ -98,7 +98,7 @@ void NavigableContainer::create_new_child_navigable()
     document_state->set_about_base_url(document->about_base_url());
 
     // 7. Let navigable be a new navigable.
-    GC::Ref<Navigable> navigable = *heap().allocate<Navigable>(page, false);
+    GC::Ref<LocalNavigable> navigable = *heap().allocate<LocalNavigable>(page, false);
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
     navigable->initialize_navigable(document_state, parent_navigable, *document);
@@ -229,7 +229,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     //         about:blank URL update. Without this, the URL update creates a state machine that clobbers the
     //         navigable's ongoing_navigation, causing the real navigation to be dropped when its populate completion
     //         callback checks ongoing_navigation != navigation_id. Non-blank src navigations must still be processed
-    //         here, and will be queued by Navigable::navigate() until the child navigable is ready for navigation.
+    //         here, and will be queued by LocalNavigable::navigate() until the child navigable is ready for navigation.
     if (url_matches_about_blank(url) && initial_insertion == InitialInsertion::Yes
         && (m_content_navigable->has_pending_navigations()
             || !m_content_navigable->ongoing_navigation().has<Empty>())) {
@@ -309,7 +309,7 @@ void NavigableContainer::destroy_the_child_navigable()
     // AD-HOC: Clear the navigable's "is delaying load events" flag.
     //         This removes the DocumentLoadEventDelayer on the parent document that was
     //         created when the navigable started loading (navigate algorithm step 15).
-    //         Without this, the delayer lingers until GC collects the Navigable, which can
+    //         Without this, the delayer lingers until GC collects the LocalNavigable, which can
     //         block the parent document's load event indefinitely.
     navigable->set_delaying_load_events(false);
 
@@ -328,7 +328,7 @@ void NavigableContainer::destroy_the_child_navigable()
         document().schedule_html_parser_end_check();
 
         // Not in the spec:
-        navigable->remove_from_all_navigables();
+        navigable->remove_from_all_local_navigables();
 
         // 6. Let parentDocState be container's node navigable's active session history entry's document state.
         auto parent_doc_state = this->navigable()->active_session_history_entry()->document_state();

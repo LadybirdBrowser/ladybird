@@ -18,7 +18,7 @@ class FrameAncestorsDirective final : public Directive {
 public:
     virtual ~FrameAncestorsDirective() = default;
 
-    virtual Result navigation_response_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<HTML::Navigable const>, CheckType, GC::Ref<Policy const>) const override;
+    virtual Result navigation_response_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<HTML::LocalNavigable const>, CheckType, GC::Ref<Policy const>) const override;
 
 private:
     FrameAncestorsDirective(String name, Vector<String> value);

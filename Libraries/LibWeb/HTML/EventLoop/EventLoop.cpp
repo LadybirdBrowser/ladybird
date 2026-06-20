@@ -207,7 +207,7 @@ void EventLoop::queue_task_to_update_the_rendering()
     }
 
     // 3. For each navigable that has a rendering opportunity, queue a global task on the rendering task source given navigable's active window to update the rendering:
-    for (auto& navigable : all_navigables()) {
+    for (auto& navigable : all_local_navigables()) {
         if (!navigable->is_traversable())
             continue;
         if (!navigable->has_a_rendering_opportunity())

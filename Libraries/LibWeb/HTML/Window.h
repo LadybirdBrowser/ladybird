@@ -106,7 +106,7 @@ public:
     BrowsingContext const* browsing_context() const;
     BrowsingContext* browsing_context();
 
-    GC::Ptr<Navigable> navigable() const;
+    GC::Ptr<LocalNavigable> navigable() const;
 
     void append_resolved_module(SpecifierResolution resolution) { m_resolved_module_set.append(move(resolution)); }
     Vector<SpecifierResolution> const& resolved_module_set() const { return m_resolved_module_set; }
@@ -114,7 +114,7 @@ public:
     WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> window_open_steps(StringView url, StringView target, StringView features);
 
     struct OpenedWindow {
-        GC::Ptr<Navigable> navigable;
+        GC::Ptr<LocalNavigable> navigable;
         TokenizedFeature::NoOpener no_opener { TokenizedFeature::NoOpener::No };
         WindowType window_type { WindowType::ExistingOrNone };
     };
@@ -259,7 +259,7 @@ public:
     static void set_internals_object_exposed(bool);
     static bool is_internals_object_exposed();
 
-    [[nodiscard]] OrderedHashMap<FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
+    [[nodiscard]] OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> document_tree_child_navigable_target_name_property_set();
 
     [[nodiscard]] Vector<FlyString> supported_property_names() const override;
     [[nodiscard]] JS::Value named_item_value(FlyString const&) const override;
@@ -287,7 +287,7 @@ private:
     void invoke_idle_callbacks();
 
     struct [[nodiscard]] NamedObjects {
-        Vector<GC::Ref<Navigable>> navigables;
+        Vector<GC::Ref<LocalNavigable>> navigables;
         Vector<GC::Ref<DOM::Element>> elements;
     };
     NamedObjects named_objects(StringView name);

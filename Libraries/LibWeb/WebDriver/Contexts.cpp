@@ -44,9 +44,9 @@ JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
     return object;
 }
 
-static GC::Ptr<HTML::Navigable> find_navigable_with_handle(StringView handle, bool should_be_top_level)
+static GC::Ptr<HTML::LocalNavigable> find_navigable_with_handle(StringView handle, bool should_be_top_level)
 {
-    for (auto navigable : Web::HTML::all_navigables()) {
+    for (auto navigable : Web::HTML::all_local_navigables()) {
         if (navigable->is_top_level_traversable() != should_be_top_level)
             continue;
 
