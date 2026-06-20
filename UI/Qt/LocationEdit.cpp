@@ -253,6 +253,10 @@ LocationEdit::LocationEdit(QWidget* parent)
     update_location_icon();
 
     m_autocomplete->on_query_complete = [this](auto suggestions, WebView::AutocompleteResultKind result_kind) {
+        if (!hasFocus())
+            return;
+
+        auto query = current_query();
         int selected_row = -1;
         if (!m_autocomplete_query_without_inline.isNull() && text() == m_autocomplete_query_without_inline)
             selected_row = 0;
@@ -263,10 +267,22 @@ LocationEdit::LocationEdit(QWidget* parent)
         // Intermediate updates are triggered on every keystroke and would
         // cause visible flicker in the suggestion list.
         // Only final results are used to refresh the UI.
-        if (result_kind == WebView::AutocompleteResultKind::Intermediate && m_autocomplete->is_visible())
+        bool should_activate_pending_query = !m_pending_autocomplete_activation_query.isNull()
+            && m_pending_autocomplete_activation_query == query;
+        if (result_kind == WebView::AutocompleteResultKind::Intermediate && m_autocomplete->is_visible() && !should_activate_pending_query)
             return;
 
+        m_autocomplete_popup_query = query;
         m_autocomplete->show_with_suggestions(AK::move(suggestions), selected_row);
+        if (should_activate_pending_query) {
+            auto selected = m_autocomplete->selected_suggestion();
+            if (result_kind == WebView::AutocompleteResultKind::Final
+                || (selected.has_value() && qstring_from_ak_string(*selected) != query)) {
+                m_pending_autocomplete_activation_query = QString();
+                m_should_skip_autocomplete_cancel_on_focus_out = true;
+                activate_selected_autocomplete_suggestion();
+            }
+        }
     };
 
     connect(m_autocomplete, &Autocomplete::suggestion_activated, this, [this](QString const& text) {
@@ -285,6 +301,8 @@ LocationEdit::LocationEdit(QWidget* parent)
     connect(m_autocomplete, &Autocomplete::did_close, this, [this] {
         m_current_inline_autocomplete_suggestion.clear();
         if (!m_autocomplete_query_without_inline.isNull()) {
+            if (hasSelectedText())
+                restore_query();
             m_autocomplete_query_without_inline = QString();
             return;
         }
@@ -317,6 +335,8 @@ LocationEdit::LocationEdit(QWidget* parent)
             m_has_user_edited_hidden_url = true;
 
         auto query = current_query();
+        if (!m_pending_autocomplete_activation_query.isNull() && m_pending_autocomplete_activation_query != query)
+            m_pending_autocomplete_activation_query = QString();
 
         if (m_should_suppress_inline_autocomplete_on_next_change) {
             m_suppressed_inline_autocomplete_query = query;
@@ -394,6 +414,7 @@ void LocationEdit::show_autocomplete()
         return;
 
     auto query = text();
+    m_autocomplete_popup_query = QString();
     m_autocomplete_query_without_inline = query;
     m_autocomplete->query_autocomplete_engine(ak_string_from_qstring(query));
 }
@@ -439,8 +460,18 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
 
     animate_focus_glow(0);
 
+    if (hasSelectedText()) {
+        auto query = current_query();
+        m_is_applying_inline_autocomplete = true;
+        setText(query);
+        setCursorPosition(query.length());
+        m_is_applying_inline_autocomplete = false;
+    }
+
+    auto should_cancel_pending_query = !m_should_skip_autocomplete_cancel_on_focus_out;
     reset_autocomplete_state();
-    m_autocomplete->cancel_pending_query();
+    if (should_cancel_pending_query)
+        m_autocomplete->cancel_pending_query();
     m_autocomplete->close();
     m_should_show_full_url_on_mouse_release = false;
 
@@ -501,15 +532,17 @@ void LocationEdit::keyPressEvent(QKeyEvent* event)
     }
 
     if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) && m_autocomplete->is_visible()) {
-        if (auto selected = m_autocomplete->selected_suggestion(); selected.has_value()) {
-            m_is_applying_inline_autocomplete = true;
-            setText(qstring_from_ak_string(*selected));
-            m_is_applying_inline_autocomplete = false;
+        auto query = current_query();
+        if (m_autocomplete_popup_query == query) {
+            activate_selected_autocomplete_suggestion();
+            event->accept();
+            return;
+        } else {
+            m_pending_autocomplete_activation_query = query;
+            m_autocomplete->query_autocomplete_engine(ak_string_from_qstring(query));
+            event->accept();
+            return;
         }
-        m_autocomplete->close();
-        emit returnPressed();
-        event->accept();
-        return;
     }
 
     if (should_suppress_inline_autocomplete_for_key(event))
@@ -1075,6 +1108,17 @@ void LocationEdit::apply_inline_autocomplete_text(QString const& inline_text, QS
     m_is_applying_inline_autocomplete = false;
 }
 
+void LocationEdit::activate_selected_autocomplete_suggestion()
+{
+    if (auto selected = m_autocomplete->selected_suggestion(); selected.has_value()) {
+        m_is_applying_inline_autocomplete = true;
+        setText(qstring_from_ak_string(*selected));
+        m_is_applying_inline_autocomplete = false;
+    }
+    m_autocomplete->close();
+    emit returnPressed();
+}
+
 void LocationEdit::restore_query()
 {
     if (!hasFocus())
@@ -1092,8 +1136,11 @@ void LocationEdit::restore_query()
 
 void LocationEdit::reset_autocomplete_state()
 {
+    m_autocomplete_popup_query = QString();
     m_autocomplete_query_without_inline = QString();
     m_current_inline_autocomplete_suggestion.clear();
+    m_should_skip_autocomplete_cancel_on_focus_out = false;
+    m_pending_autocomplete_activation_query = QString();
     m_suppressed_inline_autocomplete_query = QString();
     m_should_suppress_inline_autocomplete_on_next_change = false;
 }
