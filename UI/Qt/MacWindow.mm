@@ -66,6 +66,11 @@ namespace Ladybird {
 
 static NSEvent* s_latest_window_drag_event;
 
+static bool is_window_drag_on_gesture_enabled()
+{
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"NSWindowShouldDragOnGesture"];
+}
+
 static bool is_appkit_event_type(QByteArray const& event_type)
 {
     return event_type == QByteArrayLiteral("NSEvent")
@@ -86,6 +91,25 @@ static bool is_window_drag_event(NSEvent* event)
     }
 }
 
+static bool should_start_window_drag_for_gesture(NSEvent* event)
+{
+    if (!event || event.type != NSEventTypeLeftMouseDown)
+        return false;
+
+    if (!is_window_drag_on_gesture_enabled())
+        return false;
+
+    auto modifier_flags = event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask;
+    if ((modifier_flags & (NSEventModifierFlagCommand | NSEventModifierFlagControl)) != (NSEventModifierFlagCommand | NSEventModifierFlagControl))
+        return false;
+
+    auto* window = event.window;
+    if (!window || !window.isMovable || (window.styleMask & NSWindowStyleMaskFullScreen))
+        return false;
+
+    return true;
+}
+
 class LadybirdAppKitEventCaptureFilter final : public QAbstractNativeEventFilter {
 public:
     virtual bool nativeEventFilter(QByteArray const& event_type, void* message, qintptr*) override
@@ -94,6 +118,11 @@ public:
             return false;
 
         auto* event = static_cast<NSEvent*>(message);
+        if (should_start_window_drag_for_gesture(event)) {
+            [event.window performWindowDragWithEvent:event];
+            return true;
+        }
+
         if (!is_window_drag_event(event))
             return false;
 
