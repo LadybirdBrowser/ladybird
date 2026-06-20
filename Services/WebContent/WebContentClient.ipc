@@ -20,7 +20,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/FileFilter.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>

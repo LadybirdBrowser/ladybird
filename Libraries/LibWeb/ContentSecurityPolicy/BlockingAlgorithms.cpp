@@ -321,7 +321,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
     GC::Ref<Fetch::Infrastructure::Response> navigation_response,
     GC::Ref<PolicyList> response_csp_list,
     Directives::Directive::NavigationType navigation_type,
-    GC::Ref<HTML::Navigable> target)
+    GC::Ref<HTML::LocalNavigable> target)
 {
     // 1. Let result be "Allowed".
     auto result = Directives::Directive::Result::Allowed;

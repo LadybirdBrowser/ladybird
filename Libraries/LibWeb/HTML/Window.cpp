@@ -725,7 +725,7 @@ BrowsingContext* Window::browsing_context()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#window-navigable
-GC::Ptr<Navigable> Window::navigable() const
+GC::Ptr<LocalNavigable> Window::navigable() const
 {
     // A Window's navigable is the navigable whose active document is the Window's associated Document's, or null if there is no such navigable.
     return m_associated_document->navigable();
@@ -1865,7 +1865,7 @@ GC::Ref<CustomElementRegistry> Window::custom_elements()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#document-tree-child-navigable-target-name-property-set
-OrderedHashMap<FlyString, GC::Ref<Navigable>> Window::document_tree_child_navigable_target_name_property_set()
+OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> Window::document_tree_child_navigable_target_name_property_set()
 {
     // The document-tree child navigable target name property set of a Window object window is the return value of running these steps:
 
@@ -1873,7 +1873,7 @@ OrderedHashMap<FlyString, GC::Ref<Navigable>> Window::document_tree_child_naviga
     auto children = associated_document().document_tree_child_navigables();
 
     // 2. Let firstNamedChildren be an empty ordered set.
-    OrderedHashMap<FlyString, GC::Ref<Navigable>> first_named_children;
+    OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> first_named_children;
 
     // 3. For each navigable of children:
     for (auto const& navigable : children) {
@@ -1893,7 +1893,7 @@ OrderedHashMap<FlyString, GC::Ref<Navigable>> Window::document_tree_child_naviga
     }
 
     // 4. Let names be an empty ordered set.
-    OrderedHashMap<FlyString, GC::Ref<Navigable>> names;
+    OrderedHashMap<FlyString, GC::Ref<LocalNavigable>> names;
 
     // 5. For each navigable of firstNamedChildren:
     for (auto const& [name, navigable] : first_named_children) {

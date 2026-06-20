@@ -7,7 +7,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
@@ -70,7 +70,7 @@ static CSSPixelPoint compute_auto_scroll_speed(CSSPixelPoint mouse, CSSPixelRect
     };
 }
 
-AutoScrollHandler::AutoScrollHandler(HTML::Navigable& navigable, DOM::Element& container)
+AutoScrollHandler::AutoScrollHandler(HTML::LocalNavigable& navigable, DOM::Element& container)
     : m_navigable(navigable)
     , m_container_element(container)
 {

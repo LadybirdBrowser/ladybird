@@ -40,7 +40,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationObserver.h>
@@ -75,7 +75,7 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(Navigable);
+GC_DEFINE_ALLOCATOR(LocalNavigable);
 
 struct NavigationParamsFetchStateHolder : public JS::Cell {
     GC_CELL(NavigationParamsFetchStateHolder, JS::Cell);
@@ -120,7 +120,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints;
 
     GC::Ref<Fetch::Infrastructure::Request> request;
-    GC::Ptr<Navigable> navigable;
+    GC::Ptr<LocalNavigable> navigable;
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
     TargetSnapshotParams target_snapshot_params;
     Optional<String> navigation_id;
@@ -175,7 +175,7 @@ struct InternalNavigationResult final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(InternalNavigationResult);
 
 public:
-    Navigable::NavigationParamsVariant navigation_params { Navigable::NullOrError {} };
+    LocalNavigable::NavigationParamsVariant navigation_params { LocalNavigable::NullOrError {} };
 
     // Redirect mutations (only set by fetch path)
     Optional<URL::URL> redirected_url;
@@ -250,14 +250,14 @@ void PopulateSessionHistoryEntryDocumentOutput::visit_edges(Cell::Visitor& visit
     visitor.visit(navigation_params);
 }
 
-HashTable<GC::RawRef<Navigable>>& all_navigables()
+HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables()
 {
-    static NeverDestroyed<HashTable<GC::RawRef<Navigable>>> set;
+    static NeverDestroyed<HashTable<GC::RawRef<LocalNavigable>>> set;
     return *set;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-static Vector<NonnullRefPtr<SessionHistoryEntry>>* get_session_history_entries_if_present(TraversableNavigable& traversable, Navigable const& navigable)
+static Vector<NonnullRefPtr<SessionHistoryEntry>>* get_session_history_entries_if_present(TraversableNavigable& traversable, LocalNavigable const& navigable)
 {
     // 4. Let docStates be an empty ordered set of document states.
     Vector<RefPtr<DocumentState>> doc_states;
@@ -286,7 +286,7 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>>* get_session_history_entries_i
 }
 
 Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
-    Navigable& parent_navigable, Navigable& child_navigable, SessionHistoryEntry& history_entry)
+    LocalNavigable& parent_navigable, LocalNavigable& child_navigable, SessionHistoryEntry& history_entry)
 {
     VERIFY(child_navigable.parent() == &parent_navigable);
 
@@ -309,7 +309,7 @@ Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navi
 }
 
 static Vector<NonnullRefPtr<SessionHistoryEntry>>*
-recreate_missing_nested_history_for_live_child_navigable(TraversableNavigable& traversable, Navigable& navigable)
+recreate_missing_nested_history_for_live_child_navigable(TraversableNavigable& traversable, LocalNavigable& navigable)
 {
     VERIFY(&navigable != &traversable);
 
@@ -329,10 +329,10 @@ recreate_missing_nested_history_for_live_child_navigable(TraversableNavigable& t
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#child-navigable
-Vector<GC::Root<Navigable>> Navigable::child_navigables() const
+Vector<GC::Root<LocalNavigable>> LocalNavigable::child_navigables() const
 {
-    Vector<GC::Root<Navigable>> results;
-    for (auto& entry : all_navigables()) {
+    Vector<GC::Root<LocalNavigable>> results;
+    for (auto& entry : all_local_navigables()) {
         if (entry->current_session_history_entry()->step() == SessionHistoryEntry::Pending::Tag)
             continue;
         if (entry->parent() == this)
@@ -342,7 +342,7 @@ Vector<GC::Root<Navigable>> Navigable::child_navigables() const
     return results;
 }
 
-bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
+bool LocalNavigable::is_ancestor_of(GC::Ref<LocalNavigable> other) const
 {
     for (auto ancestor = other->parent(); ancestor; ancestor = ancestor->parent()) {
         if (ancestor == this)
@@ -351,7 +351,7 @@ bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
     return false;
 }
 
-Navigable::Navigable(
+LocalNavigable::LocalNavigable(
     GC::Ref<Page> page,
     bool is_svg_page,
     Compositor::PagePresentationRegistration page_presentation_registration)
@@ -359,7 +359,7 @@ Navigable::Navigable(
     , m_event_handler({}, *this)
     , m_is_svg_page(is_svg_page)
 {
-    all_navigables().set(*this);
+    all_local_navigables().set(*this);
 
     if (!m_is_svg_page && page->has_compositor_host()) {
         auto context_id = page->client().allocate_compositor_context_id(page_presentation_registration);
@@ -367,9 +367,9 @@ Navigable::Navigable(
     }
 }
 
-Navigable::~Navigable() = default;
+LocalNavigable::~LocalNavigable() = default;
 
-void Navigable::set_has_been_destroyed()
+void LocalNavigable::set_has_been_destroyed()
 {
     if (!m_has_been_destroyed && parent())
         page().client().page_did_destroy_child_frame(id());
@@ -380,7 +380,7 @@ void Navigable::set_has_been_destroyed()
     resolve_all_pending_async_scroll_operations();
 }
 
-void Navigable::remove_from_all_navigables()
+void LocalNavigable::remove_from_all_local_navigables()
 {
     cancel_hover_update_after_async_scroll();
     destroy_compositor_context();
@@ -388,18 +388,18 @@ void Navigable::remove_from_all_navigables()
 
     if (m_active_document)
         m_active_document->set_navigable(nullptr);
-    all_navigables().remove(*this);
+    all_local_navigables().remove(*this);
 }
 
-void Navigable::finalize()
+void LocalNavigable::finalize()
 {
     cancel_hover_update_after_async_scroll();
     destroy_compositor_context();
-    all_navigables().remove(*this);
+    all_local_navigables().remove(*this);
     Base::finalize();
 }
 
-void Navigable::visit_edges(Cell::Visitor& visitor)
+void LocalNavigable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_page);
@@ -417,7 +417,7 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(async_scroll_operation.promise);
 }
 
-void Navigable::NavigateParams::visit_edges(Cell::Visitor& visitor)
+void LocalNavigable::NavigateParams::visit_edges(Cell::Visitor& visitor)
 {
     visitor.visit(response);
     visitor.visit(source_document);
@@ -431,7 +431,7 @@ void Navigable::NavigateParams::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
-bool Navigable::is_script_closable()
+bool LocalNavigable::is_script_closable()
 {
     // A navigable is script-closable if it is a top-level traversable, and any of the following are true:
     // - its is created by web content is true; or
@@ -443,7 +443,7 @@ bool Navigable::is_script_closable()
         || get_session_history_entries().size() == 1;
 }
 
-void Navigable::set_delaying_load_events(bool value)
+void LocalNavigable::set_delaying_load_events(bool value)
 {
     if (value) {
         auto document = container_document();
@@ -454,44 +454,44 @@ void Navigable::set_delaying_load_events(bool value)
     }
 }
 
-void Navigable::set_navigation_load_event_guard(DOM::Document& parent_doc)
+void LocalNavigable::set_navigation_load_event_guard(DOM::Document& parent_doc)
 {
     m_navigation_load_event_guard.emplace(parent_doc);
 }
 
-void Navigable::clear_navigation_load_event_guard()
+void LocalNavigable::clear_navigation_load_event_guard()
 {
     m_navigation_load_event_guard.clear();
 }
 
-RefPtr<SessionHistoryEntry> Navigable::active_session_history_entry() const
+RefPtr<SessionHistoryEntry> LocalNavigable::active_session_history_entry() const
 {
     return m_active_session_history_entry;
 }
 
-void Navigable::set_active_session_history_entry(RefPtr<SessionHistoryEntry> entry)
+void LocalNavigable::set_active_session_history_entry(RefPtr<SessionHistoryEntry> entry)
 {
     m_active_session_history_entry = move(entry);
 }
 
-RefPtr<SessionHistoryEntry> Navigable::current_session_history_entry() const
+RefPtr<SessionHistoryEntry> LocalNavigable::current_session_history_entry() const
 {
     return m_current_session_history_entry;
 }
 
-void Navigable::set_current_session_history_entry(RefPtr<SessionHistoryEntry> entry)
+void LocalNavigable::set_current_session_history_entry(RefPtr<SessionHistoryEntry> entry)
 {
     m_current_session_history_entry = move(entry);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
-void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document)
+void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document)
 {
     static int next_id = 0;
     m_id = String::number(next_id++);
 
     // 1. Assert: documentState's document is non-null.
-    // NOTE: DocumentState no longer owns the document; it is passed separately and owned by the Navigable.
+    // NOTE: DocumentState no longer owns the document; it is passed separately and owned by the LocalNavigable.
 
     // 2. Let entry be a new session history entry, with
     auto entry = SessionHistoryEntry::create();
@@ -543,7 +543,7 @@ static RefPtr<SessionHistoryEntry> get_the_target_history_entry_from_entries(
     return result;
 }
 
-RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_step) const
+RefPtr<SessionHistoryEntry> LocalNavigable::get_the_target_history_entry(int target_step) const
 {
     // 1. Let entries be the result of getting session history entries for navigable.
     auto& entries = get_session_history_entries();
@@ -551,7 +551,7 @@ RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_s
     return get_the_target_history_entry_from_entries(entries, target_step);
 }
 
-RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry_if_present(int target_step) const
+RefPtr<SessionHistoryEntry> LocalNavigable::get_the_target_history_entry_if_present(int target_step) const
 {
     auto traversable = traversable_navigable();
     Vector<NonnullRefPtr<SessionHistoryEntry>>* entries = nullptr;
@@ -570,7 +570,7 @@ RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry_if_present(i
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
-void Navigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
+void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
 {
     // 1. Save persisted state to the navigable's active session history entry.
     save_persisted_state_to_active_session_history_entry();
@@ -624,7 +624,7 @@ void Navigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Re
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#save-persisted-state
-void Navigable::save_persisted_state_to_active_session_history_entry()
+void LocalNavigable::save_persisted_state_to_active_session_history_entry()
 {
     auto entry = active_session_history_entry();
     if (!entry)
@@ -640,7 +640,7 @@ void Navigable::save_persisted_state_to_active_session_history_entry()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-persisted-user-state
-void Navigable::restore_persisted_state_from_session_history_entry(SessionHistoryEntry const& entry)
+void LocalNavigable::restore_persisted_state_from_session_history_entry(SessionHistoryEntry const& entry)
 {
     // 1. If entry's scroll restoration mode is "auto", and entry's document's relevant global object's navigation
     //    API's suppress normal scroll restoration during ongoing navigation is false, then restore scroll position
@@ -657,7 +657,7 @@ void Navigable::restore_persisted_state_from_session_history_entry(SessionHistor
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-scroll-position-data
-void Navigable::restore_scroll_position_data(SessionHistoryEntry const& entry)
+void LocalNavigable::restore_scroll_position_data(SessionHistoryEntry const& entry)
 {
     auto const& scroll_position_data = entry.scroll_position_data();
     if (!scroll_position_data.viewport_scroll_position.has_value())
@@ -669,20 +669,20 @@ void Navigable::restore_scroll_position_data(SessionHistoryEntry const& entry)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
-GC::Ptr<DOM::Document> Navigable::active_document() const
+GC::Ptr<DOM::Document> LocalNavigable::active_document() const
 {
     // A navigable's active document is its active session history entry's document.
     return m_active_document;
 }
 
-Optional<UniqueNodeID> Navigable::active_document_id() const
+Optional<UniqueNodeID> LocalNavigable::active_document_id() const
 {
     if (!m_active_document)
         return {};
     return m_active_document->unique_id();
 }
 
-void Navigable::set_active_document(GC::Ptr<DOM::Document> document)
+void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
 {
     if (m_active_document && m_active_document != document) {
         // The pending post-scroll hover refresh belongs to the outgoing document; drop it.
@@ -702,7 +702,7 @@ void Navigable::set_active_document(GC::Ptr<DOM::Document> document)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
-GC::Ptr<BrowsingContext> Navigable::active_browsing_context()
+GC::Ptr<BrowsingContext> LocalNavigable::active_browsing_context()
 {
     // A navigable's active browsing context is its active document's browsing context.
     // If this navigable is a traversable navigable, then its active browsing context will be a top-level browsing context.
@@ -712,7 +712,7 @@ GC::Ptr<BrowsingContext> Navigable::active_browsing_context()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-wp
-GC::Ptr<HTML::WindowProxy> Navigable::active_window_proxy()
+GC::Ptr<HTML::WindowProxy> LocalNavigable::active_window_proxy()
 {
     // A navigable's active WindowProxy is its active browsing context's associated WindowProxy.
     if (auto browsing_context = active_browsing_context())
@@ -721,7 +721,7 @@ GC::Ptr<HTML::WindowProxy> Navigable::active_window_proxy()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-window
-GC::Ptr<HTML::Window> Navigable::active_window()
+GC::Ptr<HTML::Window> LocalNavigable::active_window()
 {
     // A navigable's active window is its active WindowProxy's [[Window]].
     if (auto window_proxy = active_window_proxy())
@@ -730,21 +730,21 @@ GC::Ptr<HTML::Window> Navigable::active_window()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-target
-String Navigable::target_name() const
+String LocalNavigable::target_name() const
 {
     // A navigable's target name is its active session history entry's document state's navigable target name.
     return active_session_history_entry()->document_state()->navigable_target_name();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container
-GC::Ptr<NavigableContainer> Navigable::container() const
+GC::Ptr<NavigableContainer> LocalNavigable::container() const
 {
     // The container of a navigable navigable is the navigable container whose nested navigable is navigable, or null if there is no such element.
-    return NavigableContainer::navigable_container_with_content_navigable(const_cast<Navigable&>(*this));
+    return NavigableContainer::navigable_container_with_content_navigable(const_cast<LocalNavigable&>(*this));
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document
-GC::Ptr<DOM::Document> Navigable::container_document() const
+GC::Ptr<DOM::Document> LocalNavigable::container_document() const
 {
     auto container = this->container();
 
@@ -757,10 +757,10 @@ GC::Ptr<DOM::Document> Navigable::container_document() const
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-traversable
-GC::Ptr<TraversableNavigable> Navigable::traversable_navigable() const
+GC::Ptr<TraversableNavigable> LocalNavigable::traversable_navigable() const
 {
     // 1. Let navigable be inputNavigable.
-    auto navigable = const_cast<Navigable*>(this);
+    auto navigable = const_cast<LocalNavigable*>(this);
 
     // 2. While navigable is not a traversable navigable, set navigable to navigable's parent.
     while (navigable && !is<TraversableNavigable>(*navigable))
@@ -771,7 +771,7 @@ GC::Ptr<TraversableNavigable> Navigable::traversable_navigable() const
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-top
-GC::Ptr<TraversableNavigable> Navigable::top_level_traversable()
+GC::Ptr<TraversableNavigable> LocalNavigable::top_level_traversable()
 {
     // 1. Let navigable be inputNavigable.
     auto navigable = this;
@@ -785,7 +785,7 @@ GC::Ptr<TraversableNavigable> Navigable::top_level_traversable()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#set-the-ongoing-navigation
-void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation, NavigationAPIAbortBehavior navigation_api_abort_behavior)
+void LocalNavigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation, NavigationAPIAbortBehavior navigation_api_abort_behavior)
 {
     // 1. If navigable's ongoing navigation is equal to newValue, then return.
     if (m_ongoing_navigation == ongoing_navigation)
@@ -811,14 +811,14 @@ void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing
         process_pending_navigations();
 }
 
-void Navigable::queue_pending_navigation(NavigateParams params, PendingNavigationBehavior behavior)
+void LocalNavigable::queue_pending_navigation(NavigateParams params, PendingNavigationBehavior behavior)
 {
     if (behavior == PendingNavigationBehavior::Replace)
         m_pending_navigations.clear();
     m_pending_navigations.append(move(params));
 }
 
-void Navigable::process_pending_navigations()
+void LocalNavigable::process_pending_navigations()
 {
     while (!m_pending_navigations.is_empty()) {
         auto navigation_params = m_pending_navigations.take_first();
@@ -827,10 +827,10 @@ void Navigable::process_pending_navigations()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
-Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
+LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
 {
     // 1. Let chosen be null.
-    GC::Ptr<Navigable> chosen = nullptr;
+    GC::Ptr<LocalNavigable> chosen = nullptr;
 
     // 2. Let windowType be "existing or none".
     auto window_type = WindowType::ExistingOrNone;
@@ -916,7 +916,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             if (!name.equals_ignoring_ascii_case("_blank"sv))
                 target_name = MUST(String::from_utf8(name));
 
-            auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](GC::Ptr<BrowsingContext> opener) -> GC::Ref<Navigable> {
+            auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalNavigable> {
                 auto hints = WebViewHints::from_tokenised_features(window_features.value_or({}), traversable_navigable()->page());
                 auto [page, window_handle] = traversable_navigable()->page().client().page_did_request_new_web_view(activate_tab, hints, no_opener);
                 auto traversable = TraversableNavigable::create_a_new_top_level_traversable(*page, opener, target_name);
@@ -969,7 +969,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#find-a-navigable-by-target-name
-GC::Ptr<Navigable> Navigable::find_a_navigable_by_target_name(StringView name)
+GC::Ptr<LocalNavigable> LocalNavigable::find_a_navigable_by_target_name(StringView name)
 {
     // 1. Let currentDocument be currentNavigable's active document.
     auto& current_document = *active_document();
@@ -1036,7 +1036,7 @@ GC::Ptr<Navigable> Navigable::find_a_navigable_by_target_name(StringView name)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-Vector<NonnullRefPtr<SessionHistoryEntry>>& Navigable::get_session_history_entries() const
+Vector<NonnullRefPtr<SessionHistoryEntry>>& LocalNavigable::get_session_history_entries() const
 {
     // 1. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
@@ -1154,7 +1154,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     Optional<URL::Origin> const& origin,
     Variant<SerializedPolicyContainer, DocumentState::Client> const& history_policy_container_variant,
     Optional<URL::URL> const& about_base_url,
-    GC::Ptr<Navigable> navigable,
+    GC::Ptr<LocalNavigable> navigable,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
     Optional<String> navigation_id)
@@ -1365,7 +1365,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
                 if (state_holder->navigable->ongoing_navigation() != *state_holder->navigation_id) {
                     state_holder->fetch_controller->abort(realm, {});
                     auto result = realm.heap().allocate<InternalNavigationResult>();
-                    result->navigation_params = Navigable::NullOrError {};
+                    result->navigation_params = LocalNavigable::NullOrError {};
                     top_level_completion_steps->function()(*result);
                     return;
                 }
@@ -1474,7 +1474,7 @@ static void create_navigation_params_by_fetching(
     String navigable_target_name,
     bool reload_pending,
     bool ever_populated,
-    GC::Ptr<Navigable> navigable,
+    GC::Ptr<LocalNavigable> navigable,
     GC::Ref<SourceSnapshotParams> source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
@@ -1683,7 +1683,7 @@ static void create_navigation_params_by_fetching(
         }
 
         if (state_holder->location_url.is_error() || (state_holder->location_url.value().has_value() && Fetch::Infrastructure::is_fetch_scheme(state_holder->location_url.value().value().scheme()))) {
-            result->navigation_params = Navigable::NullOrError {};
+            result->navigation_params = LocalNavigable::NullOrError {};
             completion_steps->function()(*result);
             return;
         }
@@ -1745,7 +1745,7 @@ static void create_navigation_params_by_fetching(
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#populating-a-session-history-entry
-void Navigable::populate_session_history_entry_document(
+void LocalNavigable::populate_session_history_entry_document(
     URL::URL url,
     Variant<Empty, String, POSTResource> document_resource,
     Fetch::Infrastructure::Request::ReferrerType request_referrer,
@@ -2010,7 +2010,7 @@ static Bindings::NavigationHistoryBehavior determine_history_handling_for_naviga
     return history_handling;
 }
 
-WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
+WebIDL::ExceptionOr<void> LocalNavigable::navigate(NavigateParams params)
 {
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window())
@@ -2067,12 +2067,12 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 // Test-only: armed via Internals.clobberNextNavigationWithATraversal(). Consumed by the next call to begin_navigation,
 // which simulates a concurrent session-history traversal interrupting the unload check.
 static bool s_clobber_next_navigation_with_a_traversal = false;
-void Navigable::clobber_next_navigation_with_a_traversal_for_testing()
+void LocalNavigable::clobber_next_navigation_with_a_traversal_for_testing()
 {
     s_clobber_next_navigation_with_a_traversal = true;
 }
 
-void Navigable::begin_navigation(NavigateParams params)
+void LocalNavigable::begin_navigation(NavigateParams params)
 {
     // AD-HOC: Not in the spec but we should not navigate a navigable that has been destroyed.
     //         This can happen when a session history traversal step for creating a child navigable
@@ -2128,7 +2128,7 @@ void Navigable::begin_navigation(NavigateParams params)
         // VERIFY(user_involvement != UserNavigationInvolvement::BrowserUI);
 
         // 2. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams:
-        // NB: This step is handled in Navigable::navigate()
+        // NB: This step is handled in LocalNavigable::navigate()
 
         // 3. Set initiatorOriginSnapshot to sourceDocument's origin.
         initiator_origin_snapshot = source_document->origin();
@@ -2138,7 +2138,7 @@ void Navigable::begin_navigation(NavigateParams params)
     }
 
     // 5. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then:
-    // NOTE: This step is handled in Navigable::navigate()
+    // NOTE: This step is handled in LocalNavigable::navigate()
 
     // 7. Let navigationId be the result of generating a random UUID.
     auto navigation_id = Crypto::generate_random_uuid();
@@ -2391,7 +2391,7 @@ void Navigable::begin_navigation(NavigateParams params)
                 history_entry->set_document_state(document_state);
 
                 // 7. Let navigationParams be null.
-                NavigationParamsVariant navigation_params = Navigable::NullOrError {};
+                NavigationParamsVariant navigation_params = LocalNavigable::NullOrError {};
 
                 // 8. If response is non-null:
                 if (response) {
@@ -2515,7 +2515,7 @@ void Navigable::begin_navigation(NavigateParams params)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid
-void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id)
+void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id)
 {
     // 1. Let navigation be navigable's active window's navigation API.
     VERIFY(active_window());
@@ -2613,7 +2613,7 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#evaluate-a-javascript:-url
-GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, UserNavigationInvolvement user_involvement, String navigation_id)
+GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, UserNavigationInvolvement user_involvement, String navigation_id)
 {
     auto& vm = this->vm();
     VERIFY(active_window());
@@ -2722,7 +2722,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams> source_snapshot_params, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion initial_insertion, String navigation_id)
+void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams> source_snapshot_params, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion initial_insertion, String navigation_id)
 {
     auto& vm = this->vm();
 
@@ -2821,7 +2821,7 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
-void Navigable::reload(Optional<SerializationRecord> navigation_api_state, UserNavigationInvolvement user_involvement)
+void LocalNavigable::reload(Optional<SerializationRecord> navigation_api_state, UserNavigationInvolvement user_involvement)
 {
     // 1. If userInvolvement is not "browser UI", then:
     if (user_involvement != UserNavigationInvolvement::BrowserUI) {
@@ -2882,11 +2882,11 @@ bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& docu
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#allowed-to-navigate
-bool Navigable::allowed_by_sandboxing_to_navigate(Navigable const& target, SourceSnapshotParams const& source_snapshot_params)
+bool LocalNavigable::allowed_by_sandboxing_to_navigate(LocalNavigable const& target, SourceSnapshotParams const& source_snapshot_params)
 {
     auto& source = *this;
 
-    auto is_ancestor_of = [](Navigable const& a, Navigable const& b) {
+    auto is_ancestor_of = [](LocalNavigable const& a, LocalNavigable const& b) {
         for (auto parent = b.parent(); parent; parent = parent->parent()) {
             if (parent.ptr() == &a)
                 return true;
@@ -2944,7 +2944,7 @@ bool Navigable::allowed_by_sandboxing_to_navigate(Navigable const& target, Sourc
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-target-snapshot-params
-TargetSnapshotParams Navigable::snapshot_target_snapshot_params()
+TargetSnapshotParams LocalNavigable::snapshot_target_snapshot_params()
 {
     // To snapshot target snapshot params given a navigable targetNavigable, return a new target snapshot params with:
     // - sandboxing flags: the result of determining the creation sandboxing flags given targetNavigable's active
@@ -2958,7 +2958,7 @@ TargetSnapshotParams Navigable::snapshot_target_snapshot_params()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -3184,7 +3184,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     }
 }
 
-void Navigable::scroll_offset_did_change()
+void LocalNavigable::scroll_offset_did_change()
 {
     // https://w3c.github.io/csswg-drafts/cssom-view-1/#scrolling-events
     // Whenever a viewport gets scrolled (whether in response to user interaction or by an API), the user agent must
@@ -3206,14 +3206,14 @@ void Navigable::scroll_offset_did_change()
     doc->pending_scroll_events().append({ *doc, EventNames::scroll });
 }
 
-CSSPixelRect Navigable::to_top_level_rect(CSSPixelRect const& a_rect)
+CSSPixelRect LocalNavigable::to_top_level_rect(CSSPixelRect const& a_rect)
 {
     auto rect = a_rect;
     rect.set_location(to_top_level_position(a_rect.location()));
     return rect;
 }
 
-CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
+CSSPixelPoint LocalNavigable::to_top_level_position(CSSPixelPoint a_position)
 {
     auto position = a_position;
     for (auto ancestor = this; ancestor; ancestor = ancestor->parent()) {
@@ -3236,7 +3236,7 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
     return position;
 }
 
-void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList invalidate_display_list)
+void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList invalidate_display_list)
 {
     if (m_viewport_size == size && invalidate_display_list == InvalidateDisplayList::No)
         return;
@@ -3260,7 +3260,7 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
     }
 
     if (auto document = active_document()) {
-        document->set_needs_repaint(Badge<HTML::Navigable> {}, invalidate_display_list);
+        document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, invalidate_display_list);
 
         document->inform_all_viewport_clients_about_the_current_viewport_rect();
 
@@ -3269,7 +3269,7 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
     }
 }
 
-void Navigable::clamp_viewport_scroll_offset()
+void LocalNavigable::clamp_viewport_scroll_offset()
 {
     auto document = active_document();
     if (!document || !document->layout_is_up_to_date())
@@ -3289,7 +3289,7 @@ void Navigable::clamp_viewport_scroll_offset()
         perform_scroll_of_viewport_scrolling_box(clamped);
 }
 
-void Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position)
+void LocalNavigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position)
 {
     // NB: This method is ad-hoc, but is currently called where "perform a scroll of a scrolling box" would be,
     //     where the box is the viewport.
@@ -3299,7 +3299,7 @@ void Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_posit
         scroll_offset_did_change();
 
         if (auto document = active_document()) {
-            document->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::No);
+            document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
             document->set_needs_to_refresh_scroll_state(true);
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
         }
@@ -3383,9 +3383,9 @@ static void queue_async_scroll_operation_promise_resolution(GC::Ref<WebIDL::Prom
     }));
 }
 
-void Navigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id, GC::Ref<WebIDL::Promise> promise)
+void LocalNavigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id, GC::Ref<WebIDL::Promise> promise)
 {
-    if (has_been_destroyed() || !all_navigables().contains(*this)) {
+    if (has_been_destroyed() || !all_local_navigables().contains(*this)) {
         queue_async_scroll_operation_promise_resolution(promise);
         return;
     }
@@ -3393,7 +3393,7 @@ void Navigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOperation
     m_pending_async_scroll_operations.append({ operation_id, promise });
 }
 
-void Navigable::resolve_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id)
+void LocalNavigable::resolve_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id)
 {
     m_pending_async_scroll_operations.remove_first_matching([&](auto const& pending) {
         if (pending.operation_id != operation_id)
@@ -3404,7 +3404,7 @@ void Navigable::resolve_async_scroll_operation(Compositor::AsyncScrollOperationI
     });
 }
 
-void Navigable::resolve_all_pending_async_scroll_operations()
+void LocalNavigable::resolve_all_pending_async_scroll_operations()
 {
     while (!m_pending_async_scroll_operations.is_empty()) {
         auto pending = m_pending_async_scroll_operations.take_last();
@@ -3412,7 +3412,7 @@ void Navigable::resolve_all_pending_async_scroll_operations()
     }
 }
 
-static bool adopt_async_viewport_scroll_delta(Navigable& navigable, CSSPixelPoint scroll_delta)
+static bool adopt_async_viewport_scroll_delta(LocalNavigable& navigable, CSSPixelPoint scroll_delta)
 {
     auto document = navigable.active_document();
     if (!document)
@@ -3428,7 +3428,7 @@ static bool adopt_async_viewport_scroll_delta(Navigable& navigable, CSSPixelPoin
         || navigable.viewport_scroll_offset() != viewport_scroll_offset;
 }
 
-void Navigable::adopt_pending_async_scroll_offsets()
+void LocalNavigable::adopt_pending_async_scroll_offsets()
 {
     if (!page().async_scrolling_enabled() || !has_compositor_context())
         return;
@@ -3475,7 +3475,7 @@ void Navigable::adopt_pending_async_scroll_offsets()
         resolve_async_scroll_operation(operation_id);
 }
 
-void Navigable::schedule_hover_update_after_async_scroll()
+void LocalNavigable::schedule_hover_update_after_async_scroll()
 {
     static constexpr int hover_update_after_async_scroll_delay_ms = 100;
 
@@ -3490,21 +3490,21 @@ void Navigable::schedule_hover_update_after_async_scroll()
     m_async_scroll_hover_update_timer->restart(hover_update_after_async_scroll_delay_ms);
 }
 
-void Navigable::update_hover_after_async_scroll_stops()
+void LocalNavigable::update_hover_after_async_scroll_stops()
 {
     if (has_been_destroyed())
         return;
     event_handler().update_hover_after_scroll();
 }
 
-void Navigable::cancel_hover_update_after_async_scroll()
+void LocalNavigable::cancel_hover_update_after_async_scroll()
 {
     if (m_async_scroll_hover_update_timer)
         m_async_scroll_hover_update_timer->stop();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
-bool Navigable::has_a_rendering_opportunity() const
+bool LocalNavigable::has_a_rendering_opportunity() const
 {
     // A navigable has a rendering opportunity if the user agent is currently able to present
     // the contents of the navigable to the user,
@@ -3521,7 +3521,7 @@ bool Navigable::has_a_rendering_opportunity() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#inform-the-navigation-api-about-child-navigable-destruction
-void Navigable::inform_the_navigation_api_about_child_navigable_destruction()
+void LocalNavigable::inform_the_navigation_api_about_child_navigable_destruction()
 {
     // 1. Inform the navigation API about aborting navigation in navigable.
     inform_the_navigation_api_about_aborting_navigation();
@@ -3534,7 +3534,7 @@ void Navigable::inform_the_navigation_api_about_child_navigable_destruction()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#inform-the-navigation-api-about-aborting-navigation
-void Navigable::inform_the_navigation_api_about_aborting_navigation()
+void LocalNavigable::inform_the_navigation_api_about_aborting_navigation()
 {
     // 1. If this algorithm is running on navigable's active window's relevant agent's event loop, then continue on to the following steps.
     //    Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to run the following steps.
@@ -3560,7 +3560,7 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
     navigation->abort_the_ongoing_navigation();
 }
 
-bool Navigable::is_focused() const
+bool LocalNavigable::is_focused() const
 {
     if (!m_page->client().has_focus())
         return false;
@@ -3600,7 +3600,7 @@ static String visible_text_in_range(DOM::Range const& range)
     return MUST(builder.to_string());
 }
 
-String Navigable::selected_text() const
+String LocalNavigable::selected_text() const
 {
     auto document = active_document();
     if (!document)
@@ -3623,7 +3623,7 @@ String Navigable::selected_text() const
     return visible_text_in_range(*range);
 }
 
-String Navigable::cut_selected_text() const
+String LocalNavigable::cut_selected_text() const
 {
     auto document = active_document();
     if (!document)
@@ -3641,7 +3641,7 @@ String Navigable::cut_selected_text() const
     return text;
 }
 
-void Navigable::select_all()
+void LocalNavigable::select_all()
 {
     auto document = active_document();
     if (!document)
@@ -3658,7 +3658,7 @@ void Navigable::select_all()
     }
 }
 
-void Navigable::paste(Utf16String const& text)
+void LocalNavigable::paste(Utf16String const& text)
 {
     auto document = active_document();
     if (!document)
@@ -3667,7 +3667,7 @@ void Navigable::paste(Utf16String const& text)
     m_event_handler.handle_paste(text);
 }
 
-void Navigable::set_marked_text_from_input_method(Utf16String const& text)
+void LocalNavigable::set_marked_text_from_input_method(Utf16String const& text)
 {
     // Platform input methods call this on each composition update, with the current marked/preedit text. LibWeb owns
     // the marked-text range – so each update replaces the previously-marked text. The UI doesn't track the preedit
@@ -3682,7 +3682,7 @@ void Navigable::set_marked_text_from_input_method(Utf16String const& text)
     replace_input_method_marked_text(text);
 }
 
-void Navigable::commit_text_from_input_method(Utf16String const& text)
+void LocalNavigable::commit_text_from_input_method(Utf16String const& text)
 {
     // The input method has committed text and finished the composition. Replace the marked text with the committed
     // text, then end the composition — so the text becomes ordinary editable content.
@@ -3690,14 +3690,14 @@ void Navigable::commit_text_from_input_method(Utf16String const& text)
     m_input_method_composition_node = nullptr;
 }
 
-void Navigable::unmark_text_from_input_method()
+void LocalNavigable::unmark_text_from_input_method()
 {
     // The input method has finished the composition — leaving the current marked text in place. End the composition
     // without altering the content.
     m_input_method_composition_node = nullptr;
 }
 
-void Navigable::replace_input_method_marked_text(Utf16String const& text)
+void LocalNavigable::replace_input_method_marked_text(Utf16String const& text)
 {
     // Insert text from a platform input method into the currently-focused editable, via the same input-events target
     // that keyboard typing uses — so observers see the correct InputEvent.inputType.
@@ -3737,7 +3737,7 @@ void Navigable::replace_input_method_marked_text(Utf16String const& text)
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block
-CSSPixelRect Navigable::snapshot_containing_block()
+CSSPixelRect LocalNavigable::snapshot_containing_block()
 {
     // The snapshot containing block is a rectangle that covers all areas of the window that could potentially display
     // page content (and is therefore consistent regardless of root scrollbars or interactive widgets).
@@ -3747,23 +3747,23 @@ CSSPixelRect Navigable::snapshot_containing_block()
     return viewport_rect();
 }
 // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block-size
-CSSPixelSize Navigable::snapshot_containing_block_size()
+CSSPixelSize LocalNavigable::snapshot_containing_block_size()
 {
     return this->snapshot_containing_block().size();
 }
 
-void Navigable::register_navigation_observer(Badge<NavigationObserver>, NavigationObserver& navigation_observer)
+void LocalNavigable::register_navigation_observer(Badge<NavigationObserver>, NavigationObserver& navigation_observer)
 {
     m_navigation_observers.append(navigation_observer);
 }
 
-void Navigable::unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver& navigation_observer)
+void LocalNavigable::unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver& navigation_observer)
 {
     m_navigation_observers.remove(navigation_observer);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#nav-stop
-void Navigable::stop_loading()
+void LocalNavigable::stop_loading()
 {
     // 1. Let document be navigable's active document.
     auto document = active_document();
@@ -3776,25 +3776,25 @@ void Navigable::stop_loading()
     document->abort_a_document_and_its_descendants();
 }
 
-void Navigable::set_has_session_history_entry_and_ready_for_navigation()
+void LocalNavigable::set_has_session_history_entry_and_ready_for_navigation()
 {
     m_has_session_history_entry_and_ready_for_navigation = true;
     process_pending_navigations();
 }
 
-void Navigable::clear_parent_compositor_context()
+void LocalNavigable::clear_parent_compositor_context()
 {
     if (has_compositor_context())
         compositor_context().set_parent_context({});
 }
 
-void Navigable::destroy_compositor_context()
+void LocalNavigable::destroy_compositor_context()
 {
     clear_parent_compositor_context();
     m_compositor_context.clear();
 }
 
-void Navigable::repaint_after_compositor_process_reconnect()
+void LocalNavigable::repaint_after_compositor_process_reconnect()
 {
     resolve_all_pending_async_scroll_operations();
 
@@ -3817,7 +3817,7 @@ void Navigable::repaint_after_compositor_process_reconnect()
         child_navigable->repaint_after_compositor_process_reconnect();
 }
 
-void Navigable::set_should_show_line_box_borders(bool value)
+void LocalNavigable::set_should_show_line_box_borders(bool value)
 {
     m_should_show_line_box_borders = value;
     set_needs_repaint();
@@ -3826,13 +3826,13 @@ void Navigable::set_should_show_line_box_borders(bool value)
         child_navigable->set_should_show_line_box_borders(value);
 }
 
-void Navigable::set_should_show_caret_hit_test_debug_overlay(bool value)
+void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
 {
     m_should_show_caret_hit_test_debug_overlay = value;
 
     if (auto document = active_document()) {
         if (value)
-            document->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::Yes);
+            document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::Yes);
         else
             document->set_caret_hit_test_debug_rect({});
     }
@@ -3841,7 +3841,7 @@ void Navigable::set_should_show_caret_hit_test_debug_overlay(bool value)
         child_navigable->set_should_show_caret_hit_test_debug_overlay(value);
 }
 
-bool Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
+bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
     if (!has_compositor_context())
         return false;
@@ -3899,7 +3899,7 @@ bool Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     return true;
 }
 
-void Navigable::paint_next_frame()
+void LocalNavigable::paint_next_frame()
 {
     if (has_been_destroyed())
         return;
@@ -3937,7 +3937,7 @@ void Navigable::paint_next_frame()
     compositor_context().present_frame(viewport_rect);
 }
 
-void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)
+void LocalNavigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)
 {
     if (!has_compositor_context()) {
         callback();
@@ -3951,7 +3951,7 @@ void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintC
     compositor_context().request_screenshot(painting_surface, move(callback));
 }
 
-GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
+GC::Ref<WebIDL::Promise> LocalNavigable::scroll_viewport_by_delta(CSSPixelPoint delta)
 {
     auto vv = active_document()->visual_viewport();
     CSSPixelPoint page_position { CSSPixels(vv->page_left()), CSSPixels(vv->page_top()) };
@@ -3959,7 +3959,7 @@ GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta
 }
 
 // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
-GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position)
+GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position)
 {
     // 1. Let doc be the viewport’s associated Document.
     auto doc = active_document();
@@ -4033,7 +4033,7 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     // FIXME: Get a Promise from this.
     vv->scroll_by({ visual_dx, visual_dy });
     if (visual_dx == 0.0 && visual_dy == 0.0)
-        doc->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::No);
+        doc->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
 
     // 16. Let scrollPromise be a new Promise.
     auto scroll_promise = WebIDL::create_promise(doc->realm());
@@ -4045,7 +4045,7 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     return scroll_promise;
 }
 
-void Navigable::reset_zoom()
+void LocalNavigable::reset_zoom()
 {
     auto document = active_document();
     if (!document)
@@ -4053,7 +4053,7 @@ void Navigable::reset_zoom()
     document->visual_viewport()->reset();
 }
 
-bool Navigable::has_inclusive_ancestor_with_visibility_hidden() const
+bool LocalNavigable::has_inclusive_ancestor_with_visibility_hidden() const
 {
     if (auto container = this->container()) {
         if (auto container_computed_properties = container->computed_properties()) {

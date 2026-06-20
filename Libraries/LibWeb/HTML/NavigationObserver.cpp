@@ -5,14 +5,14 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationObserver.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationObserver);
 
-NavigationObserver::NavigationObserver(JS::Realm& realm, Navigable& navigable)
+NavigationObserver::NavigationObserver(JS::Realm& realm, LocalNavigable& navigable)
     : Bindings::PlatformObject(realm)
     , m_navigable(navigable)
 {

@@ -10,7 +10,7 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/MouseEvent.h>

@@ -113,7 +113,7 @@ GC::Ptr<DOM::Node const> Paintable::dom_node() const
     return m_dom_node.ptr();
 }
 
-GC::Ptr<HTML::Navigable> Paintable::navigable() const
+GC::Ptr<HTML::LocalNavigable> Paintable::navigable() const
 {
     return document().navigable();
 }

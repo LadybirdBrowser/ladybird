@@ -13,7 +13,7 @@
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>

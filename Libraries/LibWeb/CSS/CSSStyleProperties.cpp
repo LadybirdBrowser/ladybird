@@ -32,7 +32,7 @@
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>

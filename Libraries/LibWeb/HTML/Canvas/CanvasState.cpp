@@ -10,7 +10,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
 namespace Web::HTML {

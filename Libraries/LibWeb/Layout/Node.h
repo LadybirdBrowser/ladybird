@@ -105,7 +105,7 @@ public:
     DOM::Document& document();
     DOM::Document const& document() const;
 
-    GC::Ptr<HTML::Navigable> navigable() const;
+    GC::Ptr<HTML::LocalNavigable> navigable() const;
 
     Viewport const& root() const;
     Viewport& root();

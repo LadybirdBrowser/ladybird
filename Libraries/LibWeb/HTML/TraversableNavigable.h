@@ -12,7 +12,7 @@
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Geolocation/Geolocation.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
@@ -31,8 +31,8 @@ namespace Web::HTML {
 class ApplyHistoryStepState;
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#traversable-navigable
-class WEB_API TraversableNavigable final : public Navigable {
-    GC_CELL(TraversableNavigable, Navigable);
+class WEB_API TraversableNavigable final : public LocalNavigable {
+    GC_CELL(TraversableNavigable, LocalNavigable);
     GC_DECLARE_ALLOCATOR(TraversableNavigable);
 
 public:
@@ -76,21 +76,21 @@ public:
     };
     HistoryObjectLengthAndIndex get_the_history_object_length_and_index(int) const;
 
-    void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
+    void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<LocalNavigable>, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     void resume_applying_the_traverse_history_step(int, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     void apply_the_reload_history_step(UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     enum class SynchronousNavigation : bool {
         Yes,
         No,
     };
-    [[nodiscard]] bool try_to_synchronously_commit_same_document_navigation(GC::Ref<Navigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace);
-    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<Navigable> expected_ongoing_navigation_navigable, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    [[nodiscard]] bool try_to_synchronously_commit_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace);
+    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
     void update_for_navigable_creation_or_destruction(GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     int get_the_used_step(int step) const;
-    Vector<GC::Root<Navigable>> get_all_navigables_whose_current_session_history_entry_will_change_or_reload(int) const;
-    Vector<GC::Root<Navigable>> get_all_navigables_that_only_need_history_object_length_index_update(int) const;
-    Vector<GC::Root<Navigable>> get_all_navigables_that_might_experience_a_cross_document_traversal(int) const;
+    Vector<GC::Root<LocalNavigable>> get_all_local_navigables_whose_current_session_history_entry_will_change_or_reload(int) const;
+    Vector<GC::Root<LocalNavigable>> get_all_local_navigables_that_only_need_history_object_length_index_update(int) const;
+    Vector<GC::Root<LocalNavigable>> get_all_local_navigables_that_might_experience_a_cross_document_traversal(int) const;
 
     Vector<int> get_all_used_history_steps() const;
     void clear_the_forward_session_history();
@@ -109,7 +109,7 @@ public:
         m_session_history_traversal_queue->append(steps);
     }
 
-    void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryTraversalSteps> steps)
+    void append_session_history_synchronous_navigation_steps(GC::Ref<LocalNavigable> target_navigable, GC::Ref<SessionHistoryTraversalSteps> steps)
     {
         m_session_history_traversal_queue->append_sync(steps, target_navigable);
     }
@@ -124,7 +124,7 @@ public:
         CanceledByNavigate,
         Continue,
     };
-    void check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
+    void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
     StorageAPI::StorageShed& storage_shed() { return m_storage_shed; }
     StorageAPI::StorageShed const& storage_shed() const { return m_storage_shed; }
@@ -155,13 +155,13 @@ private:
         int step,
         bool check_for_cancelation,
         GC::Ptr<SourceSnapshotParams>,
-        GC::Ptr<Navigable> initiator_to_check,
+        GC::Ptr<LocalNavigable> initiator_to_check,
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation,
-        Navigable::NavigationAPIAbortBehavior,
+        LocalNavigable::NavigationAPIAbortBehavior,
         GC::Ptr<DOM::Document> pending_document,
-        GC::Ptr<Navigable> expected_ongoing_navigation_navigable,
+        GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
         Optional<String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
@@ -172,26 +172,26 @@ private:
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation,
-        Navigable::NavigationAPIAbortBehavior,
+        LocalNavigable::NavigationAPIAbortBehavior,
         GC::Ptr<DOM::Document> pending_document,
-        GC::Ptr<Navigable> expected_ongoing_navigation_navigable,
+        GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable,
         Optional<String> expected_ongoing_navigation_id,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
-    using OnHistoryStepPrechecksComplete = GC::Function<void(HistoryStepResult, int target_step, Navigable::NavigationAPIAbortBehavior)>;
+    using OnHistoryStepPrechecksComplete = GC::Function<void(HistoryStepResult, int target_step, LocalNavigable::NavigationAPIAbortBehavior)>;
     void run_the_history_step_prechecks(
         int step,
         bool check_for_cancelation,
         GC::Ptr<SourceSnapshotParams>,
-        GC::Ptr<Navigable> initiator_to_check,
+        GC::Ptr<LocalNavigable> initiator_to_check,
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
-        Navigable::NavigationAPIAbortBehavior,
+        LocalNavigable::NavigationAPIAbortBehavior,
         GC::Ref<OnHistoryStepPrechecksComplete>);
 
-    void check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
+    void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
-    Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable>, int);
+    Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<LocalNavigable>, int);
 
     [[nodiscard]] bool can_go_back() const;
     [[nodiscard]] bool can_go_forward() const;
@@ -260,9 +260,9 @@ struct BrowsingContextAndDocument {
 };
 
 BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
-void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
 template<>
-inline bool Navigable::fast_is<TraversableNavigable>() const { return is_traversable(); }
+inline bool LocalNavigable::fast_is<TraversableNavigable>() const { return is_traversable(); }
 
 }

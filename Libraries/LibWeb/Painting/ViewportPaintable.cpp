@@ -9,7 +9,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -75,7 +75,7 @@ void ViewportPaintable::initialize_async_scrolling_metadata_recording(DisplayLis
         blocking_wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport);
 }
 
-void ViewportPaintable::finalize_async_scrolling_metadata_recording(DisplayListRecordingContext& context, HTML::Navigable& navigable, Gfx::IntRect viewport_rect)
+void ViewportPaintable::finalize_async_scrolling_metadata_recording(DisplayListRecordingContext& context, HTML::LocalNavigable& navigable, Gfx::IntRect viewport_rect)
 {
     if (!context.is_recording_async_scrolling_metadata())
         return;

@@ -13,7 +13,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>

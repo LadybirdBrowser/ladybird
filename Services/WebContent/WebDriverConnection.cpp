@@ -321,7 +321,7 @@ void WebDriverConnection::close_session()
     set_is_webdriver_active(false);
 
     // 5. Optionally, close all top-level browsing contexts, without prompting to unload.
-    for (auto navigable : Web::HTML::all_navigables()) {
+    for (auto navigable : Web::HTML::all_local_navigables()) {
         if (auto traversable = navigable->top_level_traversable())
             traversable->close_top_level_traversable();
     }
@@ -686,7 +686,7 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
     //    Otherwise, return error with error code no such window.
     bool found_matching_context = false;
 
-    for (auto navigable : Web::HTML::all_navigables()) {
+    for (auto navigable : Web::HTML::all_local_navigables()) {
         auto traversable = navigable->top_level_traversable();
         if (!traversable || !traversable->active_browsing_context())
             continue;

@@ -42,7 +42,7 @@
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
@@ -306,7 +306,7 @@ void Internals::commit_text()
 
 void Internals::clobber_next_navigation_with_a_traversal()
 {
-    HTML::Navigable::clobber_next_navigation_with_a_traversal_for_testing();
+    HTML::LocalNavigable::clobber_next_navigation_with_a_traversal_for_testing();
 }
 
 UIEvents::MouseButton Internals::button_from_unsigned_short(WebIDL::UnsignedShort button)

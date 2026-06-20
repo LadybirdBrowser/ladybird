@@ -623,6 +623,7 @@ set(SOURCES
     HTML/ImageData.cpp
     HTML/ImageRequest.cpp
     HTML/ListOfAvailableImages.cpp
+    HTML/LocalNavigable.cpp
     HTML/Location.cpp
     HTML/MediaError.cpp
     HTML/MediaTrackBase.cpp
@@ -631,7 +632,6 @@ set(SOURCES
     HTML/MessagePort.cpp
     HTML/MimeType.cpp
     HTML/MimeTypeArray.cpp
-    HTML/Navigable.cpp
     HTML/NavigableContainer.cpp
     HTML/NavigateEvent.cpp
     HTML/Navigation.cpp

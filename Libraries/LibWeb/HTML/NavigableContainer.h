@@ -18,14 +18,14 @@ class WEB_API NavigableContainer : public HTMLElement {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ptr<NavigableContainer> navigable_container_with_content_navigable(GC::Ref<Navigable> navigable);
+    static GC::Ptr<NavigableContainer> navigable_container_with_content_navigable(GC::Ref<LocalNavigable> navigable);
 
     virtual ~NavigableContainer() override;
 
     static HashTable<NavigableContainer*>& all_instances();
 
-    GC::Ptr<Navigable> content_navigable() { return m_content_navigable; }
-    GC::Ptr<Navigable const> content_navigable() const { return m_content_navigable.ptr(); }
+    GC::Ptr<LocalNavigable> content_navigable() { return m_content_navigable; }
+    GC::Ptr<LocalNavigable const> content_navigable() const { return m_content_navigable.ptr(); }
 
     DOM::Document const* content_document() const;
     DOM::Document const* content_document_without_origin_check() const;
@@ -57,7 +57,7 @@ protected:
     void create_new_child_navigable();
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#content-navigable
-    GC::Ptr<Navigable> m_content_navigable { nullptr };
+    GC::Ptr<LocalNavigable> m_content_navigable { nullptr };
 
     void set_potentially_delays_the_load_event(bool value);
 

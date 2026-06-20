@@ -51,7 +51,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -1355,7 +1355,7 @@ void ConnectionFromClient::clear_inspected_dom_node(u64 page_id)
     if (!page.has_value())
         return;
 
-    for (auto& navigable : Web::HTML::all_navigables()) {
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (navigable->active_document() != nullptr) {
             navigable->active_document()->set_inspected_node(nullptr);
         }
@@ -1368,7 +1368,7 @@ void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID nod
     if (!page.has_value())
         return;
 
-    for (auto& navigable : Web::HTML::all_navigables()) {
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (navigable->active_document() != nullptr) {
             navigable->active_document()->set_highlighted_node(nullptr, {});
         }
@@ -1459,7 +1459,7 @@ void ConnectionFromClient::clear_flexbox_highlight(u64 page_id, Web::UniqueNodeI
         return;
     }
 
-    for (auto& navigable : Web::HTML::all_navigables()) {
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (navigable->active_document())
             navigable->active_document()->clear_flexbox_highlighted_node(nullptr);
     }
@@ -1496,7 +1496,7 @@ void ConnectionFromClient::clear_grid_highlight(u64 page_id, Web::UniqueNodeID n
         return;
     }
 
-    for (auto& navigable : Web::HTML::all_navigables()) {
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (navigable->active_document())
             navigable->active_document()->clear_grid_highlighted_node(nullptr);
     }

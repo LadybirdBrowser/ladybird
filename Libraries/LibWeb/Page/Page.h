@@ -96,11 +96,11 @@ public:
 
     GC::Ref<HTML::TraversableNavigable> top_level_traversable() const;
 
-    HTML::Navigable& focused_navigable();
-    HTML::Navigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
+    HTML::LocalNavigable& focused_navigable();
+    HTML::LocalNavigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
 
-    void set_focused_navigable(Badge<EventHandler>, HTML::Navigable&);
-    void navigable_document_destroyed(Badge<DOM::Document>, HTML::Navigable&);
+    void set_focused_navigable(Badge<EventHandler>, HTML::LocalNavigable&);
+    void navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable&);
 
     void load(URL::URL const&, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto);
     void load(URL::URL const&, Variant<Empty, String, HTML::POSTResource>,
@@ -325,7 +325,7 @@ private:
 
     GC::Ref<PageClient> m_client;
 
-    GC::Weak<HTML::Navigable> m_focused_navigable;
+    GC::Weak<HTML::LocalNavigable> m_focused_navigable;
 
     GC::Ptr<HTML::TraversableNavigable> m_top_level_traversable;
 

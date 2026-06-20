@@ -11,7 +11,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Storage.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StorageEvent.h>
 #include <LibWeb/HTML/Window.h>

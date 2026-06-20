@@ -15,7 +15,7 @@ namespace Web {
 
 class AutoScrollHandler {
 public:
-    AutoScrollHandler(HTML::Navigable&, DOM::Element& container);
+    AutoScrollHandler(HTML::LocalNavigable&, DOM::Element& container);
 
     void visit_edges(JS::Cell::Visitor&) const;
 
@@ -31,7 +31,7 @@ private:
     void activate();
     void deactivate();
 
-    GC::Ref<HTML::Navigable> m_navigable;
+    GC::Ref<HTML::LocalNavigable> m_navigable;
     GC::Ref<DOM::Element> m_container_element;
     CSSPixelPoint m_mouse_position;
     CSSPixelPoint m_fractional_delta;

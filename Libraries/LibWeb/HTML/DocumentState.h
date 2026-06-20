@@ -75,7 +75,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-document
     // NOTE: We store the document's unique ID rather than a pointer to the document, because DocumentState is
-    //       decoupled from the document's lifetime (Navigable owns the document directly).
+    //       decoupled from the document's lifetime (LocalNavigable owns the document directly).
     Optional<UniqueNodeID> m_document_id;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-history-policy-container

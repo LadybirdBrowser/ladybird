@@ -31,7 +31,7 @@ struct NavigationParams : GC::Cell {
     Optional<String> id;
 
     // the navigable to be navigated
-    GC::Ptr<Navigable> navigable;
+    GC::Ptr<LocalNavigable> navigable;
 
     // null or a request that started the navigation
     GC::Ptr<Fetch::Infrastructure::Request> request;
@@ -79,7 +79,7 @@ protected:
 
     NavigationParams(
         Optional<String> id,
-        GC::Ptr<Navigable> navigable,
+        GC::Ptr<LocalNavigable> navigable,
         GC::Ptr<Fetch::Infrastructure::Request> request,
         GC::Ptr<Fetch::Infrastructure::Response> response,
         GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller,
@@ -121,7 +121,7 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
     Optional<String> id;
 
     // the navigable to be navigated
-    GC::Ptr<Navigable> navigable;
+    GC::Ptr<LocalNavigable> navigable;
 
     // a URL
     URL::URL url;
@@ -143,7 +143,7 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
 protected:
     NonFetchSchemeNavigationParams(
         Optional<String> id,
-        GC::Ptr<Navigable> navigable,
+        GC::Ptr<LocalNavigable> navigable,
         URL::URL url,
         SandboxingFlagSet target_snapshot_sandboxing_flags,
         bool source_snapshot_has_transient_activation,
@@ -162,6 +162,6 @@ protected:
     void visit_edges(Visitor& visitor) override;
 };
 
-bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, URL::Origin destination_origin);
+bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, LocalNavigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, URL::Origin destination_origin);
 
 }
