@@ -1050,6 +1050,9 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
             return js_undefined();
 
         // c. Return ? parent.[[Get]](P, Receiver).
+        // AD-HOC: Avoid a native stack overflow when walking a pathologically-deep prototype chain.
+        if (vm.did_reach_stack_space_limit()) [[unlikely]]
+            return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
         return parent->internal_get(property_key, receiver, cacheable_metadata, PropertyLookupPhase::PrototypeChain);
     }
 
