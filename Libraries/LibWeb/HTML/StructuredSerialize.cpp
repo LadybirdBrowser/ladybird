@@ -101,6 +101,10 @@ enum class ValueTag : u8 {
     SerializableObject,
 
     // TODO: Define many more types
+
+    // Object/Array property-list terminator. Reserved at the top of the range so value tags can keep growing
+    // upward without ever colliding with it.
+    EndObject = 0xFF,
 };
 
 enum ErrorType {
@@ -539,10 +543,6 @@ public:
 
             // 4. Otherwise, for each key in ! EnumerableOwnProperties(value, key):
             else {
-                u64 property_count = 0;
-                auto count_offset = serialized.buffer().data().size();
-                serialized.encode(property_count);
-
                 for (auto key : MUST(object.enumerable_own_property_names(JS::Object::PropertyKind::Key))) {
                     auto property_key = MUST(JS::PropertyKey::from_value(m_vm, key));
 
@@ -555,17 +555,12 @@ public:
                         auto output_value = TRY(structured_serialize_internal(m_vm, input_value, m_for_storage, m_memory));
 
                         // 3. Append { [[Key]]: key, [[Value]]: outputValue } to serialized.[[Properties]].
-                        serialized.encode(key.as_string().utf16_string());
                         serialized.append(move(output_value));
-
-                        ++property_count;
+                        serialized.encode(key.as_string().utf16_string());
                     }
                 }
 
-                if (property_count) {
-                    auto* data = const_cast<u8*>(serialized.buffer().data().data());
-                    memcpy(data + count_offset, &property_count, sizeof(property_count));
-                }
+                serialized.encode(ValueTag::EndObject);
             }
         }
 
@@ -593,12 +588,15 @@ public:
     // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
     WebIDL::ExceptionOr<JS::Value> deserialize()
     {
+        return deserialize_value(m_serialized.decode<ValueTag>());
+    }
+
+    WebIDL::ExceptionOr<JS::Value> deserialize_value(ValueTag tag)
+    {
         if (m_vm.did_reach_stack_space_limit())
             return m_vm.throw_completion<JS::InternalError>(JS::ErrorType::CallStackSizeExceeded);
 
         auto& realm = *m_vm.current_realm();
-
-        auto tag = m_serialized.decode<ValueTag>();
 
         // 2. If memory[serialized] exists, then return memory[serialized].
         if (tag == ValueTag::ObjectReference) {
@@ -915,14 +913,17 @@ public:
             // 3. Otherwise, if serialized.[[Type]] is "Array" or "Object", then:
             else if (tag == ValueTag::ArrayObject || tag == ValueTag::Object) {
                 auto& object = value.as_object();
-                auto length = m_serialized.decode<u64>();
 
                 // 1. For each Record { [[Key]], [[Value]] } entry of serialized.[[Properties]]:
-                for (u64 i = 0u; i < length; ++i) {
-                    auto key = m_serialized.decode<Utf16String>();
+                while (true) {
+                    auto property_tag = m_serialized.decode<ValueTag>();
+                    if (property_tag == ValueTag::EndObject)
+                        break;
 
                     // 1. Let deserializedValue be ? StructuredDeserialize(entry.[[Value]], targetRealm, memory).
-                    auto deserialized_value = TRY(deserialize());
+                    auto deserialized_value = TRY(deserialize_value(property_tag));
+
+                    auto key = m_serialized.decode<Utf16String>();
 
                     // 2. Let result be ! CreateDataProperty(value, entry.[[Key]], deserializedValue).
                     auto result = MUST(object.create_data_property(key, deserialized_value));
