@@ -6,6 +6,7 @@
 
 #include <UI/Qt/MacWindow.h>
 
+#include <LibGfx/Color.h>
 #include <QAbstractNativeEventFilter>
 #include <QColor>
 #include <QCoreApplication>
@@ -65,6 +66,19 @@
 namespace Ladybird {
 
 static NSEvent* s_latest_window_drag_event;
+
+static Gfx::Color ns_color_to_gfx_color(NSColor* color)
+{
+    auto* rgb_color = [color colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
+    if (rgb_color != nil)
+        return {
+            static_cast<u8>([rgb_color redComponent] * 255),
+            static_cast<u8>([rgb_color greenComponent] * 255),
+            static_cast<u8>([rgb_color blueComponent] * 255),
+            static_cast<u8>([rgb_color alphaComponent] * 255)
+        };
+    return {};
+}
 
 static bool is_window_drag_on_gesture_enabled()
 {
@@ -246,6 +260,16 @@ bool start_appkit_window_drag(QWidget& widget)
 
     [window performWindowDragWithEvent:event];
     return true;
+}
+
+Gfx::Color appkit_web_inactive_selection_color()
+{
+    return ns_color_to_gfx_color([NSColor unemphasizedSelectedTextBackgroundColor]);
+}
+
+Gfx::Color appkit_web_inactive_selection_text_color()
+{
+    return ns_color_to_gfx_color([NSColor unemphasizedSelectedTextColor]);
 }
 
 }

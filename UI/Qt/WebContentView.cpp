@@ -24,9 +24,13 @@
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/PlatformColors.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
+#ifdef AK_OS_MACOS
+#    include <UI/Qt/MacWindow.h>
+#endif
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WebContentView.h>
 
@@ -857,7 +861,13 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
     translate(Gfx::ColorRole::VisitedLink, QPalette::ColorRole::LinkVisited);
     translate(Gfx::ColorRole::Button, QPalette::ColorRole::Button);
     translate(Gfx::ColorRole::ButtonText, QPalette::ColorRole::ButtonText);
+#ifdef AK_OS_MACOS
+    palette.set_color(Gfx::ColorRole::Selection, WebView::macos_web_selection_color());
+    palette.set_color(Gfx::ColorRole::InactiveSelection, appkit_web_inactive_selection_color());
+    palette.set_color(Gfx::ColorRole::InactiveSelectionText, appkit_web_inactive_selection_text_color());
+#else
     translate(Gfx::ColorRole::Selection, QPalette::ColorRole::Highlight);
+#endif
 
     palette.set_flag(Gfx::FlagRole::IsDark, is_using_dark_system_theme(widget));
 
