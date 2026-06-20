@@ -100,6 +100,8 @@ enum class ValueTag : u8 {
 
     SerializableObject,
 
+    Int32Primitive,
+
     // TODO: Define many more types
 
     // Object/Array property-list terminator. Reserved at the top of the range so value tags can keep growing
@@ -296,6 +298,9 @@ public:
         } else if (value.is_boolean()) {
             serialized.encode(ValueTag::BooleanPrimitive);
             serialized.encode(value.as_bool());
+        } else if (value.is_int32()) {
+            serialized.encode(ValueTag::Int32Primitive);
+            serialized.encode(value.as_i32());
         } else if (value.is_number()) {
             serialized.encode(ValueTag::NumberPrimitive);
             serialized.encode(value.as_double());
@@ -641,6 +646,10 @@ public:
             break;
         case ValueTag::BooleanPrimitive:
             value = JS::Value { m_serialized.decode<bool>() };
+            is_primitive = true;
+            break;
+        case ValueTag::Int32Primitive:
+            value = JS::Value { m_serialized.decode<i32>() };
             is_primitive = true;
             break;
         case ValueTag::NumberPrimitive:
