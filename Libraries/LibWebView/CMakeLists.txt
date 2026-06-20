@@ -42,6 +42,12 @@ set(SOURCES
     CompositorClient.cpp
 )
 
+if (APPLE)
+    list(APPEND SOURCES
+        PlatformColorsMacOS.cpp
+    )
+endif()
+
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
 compile_ipc(UIProcessServer.ipc UIProcessServerEndpoint.h)

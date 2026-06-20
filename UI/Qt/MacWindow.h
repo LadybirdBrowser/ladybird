@@ -10,6 +10,11 @@
 
 class QWidget;
 class QColor;
+namespace Gfx {
+
+class Color;
+
+}
 
 namespace Ladybird {
 
@@ -19,6 +24,8 @@ void install_always_active_window_control_hover_tracking(QWidget&, void (*hover_
 void install_appkit_event_capture();
 void make_appkit_window_first_responder(QWidget&);
 bool start_appkit_window_drag(QWidget&);
+Gfx::Color appkit_web_inactive_selection_color();
+Gfx::Color appkit_web_inactive_selection_text_color();
 #endif
 
 }
