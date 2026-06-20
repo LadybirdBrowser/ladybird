@@ -17,6 +17,7 @@ namespace Ladybird {
 void set_rounded_window_corners(QWidget&, bool enabled, double radius, QColor const& background_color);
 void install_always_active_window_control_hover_tracking(QWidget&, void (*hover_changed)(QWidget*));
 void install_appkit_event_capture();
+void make_appkit_window_first_responder(QWidget&);
 bool start_appkit_window_drag(QWidget&);
 #endif
 

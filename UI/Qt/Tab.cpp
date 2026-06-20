@@ -16,6 +16,9 @@
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
+#if defined(AK_OS_MACOS)
+#    include <UI/Qt/MacWindow.h>
+#endif
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WindowControlButton.h>
@@ -598,6 +601,9 @@ Tab::~Tab() = default;
 
 void Tab::focus_location_editor()
 {
+#if defined(AK_OS_MACOS)
+    make_appkit_window_first_responder(*m_location_edit);
+#endif
     m_location_edit->setFocus();
     m_location_edit->selectAll();
     m_location_edit->show_autocomplete();
