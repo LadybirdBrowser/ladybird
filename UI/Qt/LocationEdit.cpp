@@ -253,7 +253,11 @@ LocationEdit::LocationEdit(QWidget* parent)
     update_location_icon();
 
     m_autocomplete->on_query_complete = [this](auto suggestions, WebView::AutocompleteResultKind result_kind) {
-        int selected_row = apply_inline_autocomplete(suggestions);
+        int selected_row = -1;
+        if (!m_autocomplete_query_without_inline.isNull() && text() == m_autocomplete_query_without_inline)
+            selected_row = 0;
+        else
+            selected_row = apply_inline_autocomplete(suggestions);
 
         // Do not update the popup while results are still changing.
         // Intermediate updates are triggered on every keystroke and would
@@ -280,6 +284,10 @@ LocationEdit::LocationEdit(QWidget* parent)
 
     connect(m_autocomplete, &Autocomplete::did_close, this, [this] {
         m_current_inline_autocomplete_suggestion.clear();
+        if (!m_autocomplete_query_without_inline.isNull()) {
+            m_autocomplete_query_without_inline = QString();
+            return;
+        }
         restore_query();
     });
 
@@ -302,6 +310,8 @@ LocationEdit::LocationEdit(QWidget* parent)
     connect(this, &QLineEdit::textEdited, this, [this] {
         if (m_is_applying_inline_autocomplete)
             return;
+
+        m_autocomplete_query_without_inline = QString();
 
         if (m_url_is_hidden)
             m_has_user_edited_hidden_url = true;
@@ -376,6 +386,16 @@ void LocationEdit::set_url_is_hidden(bool url_is_hidden)
 
     if (m_url_is_hidden)
         clear();
+}
+
+void LocationEdit::show_autocomplete()
+{
+    if (!window() || !window()->isVisible())
+        return;
+
+    auto query = text();
+    m_autocomplete_query_without_inline = query;
+    m_autocomplete->query_autocomplete_engine(ak_string_from_qstring(query));
 }
 
 void LocationEdit::changeEvent(QEvent* event)
@@ -1072,6 +1092,7 @@ void LocationEdit::restore_query()
 
 void LocationEdit::reset_autocomplete_state()
 {
+    m_autocomplete_query_without_inline = QString();
     m_current_inline_autocomplete_suggestion.clear();
     m_suppressed_inline_autocomplete_query = QString();
     m_should_suppress_inline_autocomplete_on_next_change = false;

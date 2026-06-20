@@ -471,8 +471,10 @@ void Autocomplete::show_with_suggestions(Vector<WebView::AutocompleteSuggestion>
 
     update_chrome_style();
     position_popup();
-    if (!m_popup->isVisible())
+    if (!m_popup->isVisible()) {
         m_popup->show();
+        position_popup();
+    }
     m_popup->raise();
 
     int table_row = m_model->table_row_for_suggestion_index(selected_suggestion_index);
@@ -522,6 +524,7 @@ bool Autocomplete::select_next_suggestion()
     if (!m_popup->isVisible()) {
         position_popup();
         m_popup->show();
+        position_popup();
         m_popup->raise();
         int row = step_to_selectable_row(-1, 1);
         if (row != -1)
@@ -545,6 +548,7 @@ bool Autocomplete::select_previous_suggestion()
     if (!m_popup->isVisible()) {
         position_popup();
         m_popup->show();
+        position_popup();
         m_popup->raise();
         int row = step_to_selectable_row(0, -1);
         if (row != -1)

@@ -600,6 +600,7 @@ void Tab::focus_location_editor()
 {
     m_location_edit->setFocus();
     m_location_edit->selectAll();
+    m_location_edit->show_autocomplete();
 }
 
 void Tab::set_window(BrowserWindow& window)

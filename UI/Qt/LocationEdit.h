@@ -43,6 +43,7 @@ public:
     void set_url(Optional<URL::URL>);
     bool url_is_hidden() const { return m_url_is_hidden; }
     void set_url_is_hidden(bool);
+    void show_autocomplete();
 
 private:
     virtual void changeEvent(QEvent* event) override;
@@ -97,6 +98,7 @@ private:
 
     bool m_is_applying_inline_autocomplete { false };
     bool m_should_suppress_inline_autocomplete_on_next_change { false };
+    QString m_autocomplete_query_without_inline;
     QString m_current_inline_autocomplete_suggestion;
     QString m_suppressed_inline_autocomplete_query;
 };
