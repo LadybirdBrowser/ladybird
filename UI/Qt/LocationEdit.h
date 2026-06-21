@@ -73,10 +73,14 @@ private:
     QString display_url() const;
 
     int apply_inline_autocomplete(Vector<WebView::AutocompleteSuggestion> const&);
-    bool apply_inline_autocomplete_suggestion_text(QString const& suggestion_text, QString const& query);
+    bool apply_inline_autocomplete_suggestion_text(QString const& suggestion_text, QString const& query, bool allow_preview = false);
     void apply_inline_autocomplete_text(QString const& inline_text, QString const& query);
+    void apply_autocomplete_preview_text(QString const& suggestion_text, QString const& query);
     void activate_selected_autocomplete_suggestion();
     void restore_query();
+    void set_text_without_inline_autocomplete(QString const& text);
+    bool should_restore_autocomplete_query() const;
+    QString autocomplete_query() const;
     QString current_query() const;
     void reset_autocomplete_state();
 
@@ -99,9 +103,12 @@ private:
 
     bool m_is_applying_inline_autocomplete { false };
     bool m_should_suppress_inline_autocomplete_on_next_change { false };
+    bool m_has_highlighted_autocomplete_suggestion { false };
+    bool m_should_preserve_inline_autocomplete_on_close { false };
     bool m_should_skip_autocomplete_cancel_on_focus_out { false };
     QString m_autocomplete_popup_query;
     QString m_autocomplete_query_without_inline;
+    QString m_autocomplete_preview_query;
     QString m_current_inline_autocomplete_suggestion;
     QString m_pending_autocomplete_activation_query;
     QString m_suppressed_inline_autocomplete_query;
