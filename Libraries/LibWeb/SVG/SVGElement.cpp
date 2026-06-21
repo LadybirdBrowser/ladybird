@@ -140,18 +140,13 @@ void SVGElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properti
     Base::apply_presentational_hints(properties);
     CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
-        for (auto& property : attribute_style_properties()) {
+        for (auto const& property : attribute_style_properties()) {
             if (!property.name.equals_ignoring_ascii_case(name.view()))
                 continue;
             if (!property.supported_elements.is_empty() && !property.supported_elements.contains_slow(local_name()))
                 continue;
-            if (property.id == CSS::PropertyID::Mask) {
-                if (auto style_value = parse_css_value(parsing_context, value, CSS::PropertyID::Mask))
-                    properties.append({ .property_id = CSS::PropertyID::Mask, .value = style_value.release_nonnull() });
-            } else {
-                if (auto style_value = parse_css_value(parsing_context, value, property.id))
-                    properties.append({ .property_id = property.id, .value = style_value.release_nonnull() });
-            }
+            if (auto style_value = parse_css_value(parsing_context, value, property.id))
+                properties.append({ .property_id = property.id, .value = style_value.release_nonnull() });
             break;
         }
     });
