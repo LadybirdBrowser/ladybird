@@ -148,12 +148,12 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
     case WebView::ActionID::NavigateBack:
         if (include_action_icon == IncludeActionIcon::Yes)
             qaction.setIcon(create_chrome_icon(ChromeIcon::Back, palette));
-        qaction.setShortcut(QKeySequence::StandardKey::Back);
+        qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Back));
         break;
     case WebView::ActionID::NavigateForward:
         if (include_action_icon == IncludeActionIcon::Yes)
             qaction.setIcon(create_chrome_icon(ChromeIcon::Forward, palette));
-        qaction.setShortcut(QKeySequence::StandardKey::Forward);
+        qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Forward));
         break;
     case WebView::ActionID::Reload:
         if (include_action_icon == IncludeActionIcon::Yes)
