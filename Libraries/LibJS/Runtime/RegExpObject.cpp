@@ -8,6 +8,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Function.h>
 #include <AK/UnicodeUtils.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -474,14 +475,14 @@ String RegExpObject::escape_regexp_pattern() const
     for (auto code_point : m_pattern) {
         if (escaped) {
             escaped = false;
-            builder.append_code_point('\\');
+            builder.append('\\');
 
             switch (code_point) {
             case '\n':
-                builder.append_code_point('n');
+                builder.append('n');
                 break;
             case '\r':
-                builder.append_code_point('r');
+                builder.append('r');
                 break;
             case LINE_SEPARATOR:
                 builder.append("u2028"sv);
@@ -510,7 +511,7 @@ String RegExpObject::escape_regexp_pattern() const
         switch (code_point) {
         case '/':
             if (in_character_class)
-                builder.append_code_point('/');
+                builder.append('/');
             else
                 builder.append("\\/"sv);
             break;

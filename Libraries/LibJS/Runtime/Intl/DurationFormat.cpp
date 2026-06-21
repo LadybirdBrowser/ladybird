@@ -8,6 +8,8 @@
 #include <AK/GenericShorthands.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/DurationFormat.h>
 #include <LibJS/Runtime/Intl/ListFormat.h>
@@ -741,16 +743,16 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
     // 8. For each element parts of partitionedPartsList, do
     for (auto const& parts : partitioned_parts_list) {
         // a. Let string be the empty String.
-        StringBuilder string(StringBuilder::Mode::UTF16);
+        Utf16StringBuilder string;
 
         // b. For each Record { [[Type]], [[Value]], [[Unit]] } part in parts, do
         for (auto const& part : parts) {
             // i. Set string to the string-concatenation of string and part.[[Value]].
-            string.append(part.value);
+            string.append(part.value.utf16_view());
         }
 
         // c. Append string to strings.
-        strings.unchecked_append(string.to_utf16_string());
+        strings.unchecked_append(string.to_string());
     }
 
     // 9. Let formattedPartsList be CreatePartsFromList(lf, strings).

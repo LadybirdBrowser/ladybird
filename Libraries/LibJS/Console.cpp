@@ -10,6 +10,7 @@
 #include <AK/MemoryStream.h>
 #include <AK/NumberFormat.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Console.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -77,7 +78,11 @@ ThrowCompletionOr<Value> Console::assert_()
         // 3. Otherwise:
         else {
             // 1. Let concat be the concatenation of message, U+003A (:), U+0020 SPACE, and first.
-            auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", message->utf8_string(), MUST(first.to_string(vm))));
+            Utf16StringBuilder builder;
+            builder.append(message->utf16_string_view());
+            builder.append_ascii(": "sv);
+            builder.append(first.as_string().utf16_string_view());
+            auto concat = builder.to_string();
             // 2. Set data[0] to concat.
             data[0] = PrimitiveString::create(vm, move(concat));
         }

@@ -26,6 +26,10 @@ test("throws correct range errors", () => {
     expect(() => {
         "foo".repeat(0xffffffffff);
     }).toThrowWithMessage(RangeError, "repeat count must not overflow");
+
+    expect(() => {
+        "aa".repeat(0x80000000);
+    }).toThrowWithMessage(RangeError, "repeat count must not overflow");
 });
 
 test("UTF-16", () => {

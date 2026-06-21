@@ -11,7 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
-#include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayConstructor.h>
@@ -931,21 +931,21 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::join)
     };
 
     auto length = TRY(length_of_array_like(vm, this_object));
-    String separator = ","_string;
+    Utf16String separator = ","_utf16;
     if (!vm.argument(0).is_undefined())
-        separator = TRY(vm.argument(0).to_string(vm));
-    StringBuilder builder;
+        separator = TRY(vm.argument(0).to_utf16_string(vm));
+    Utf16StringBuilder builder;
     for (size_t i = 0; i < length; ++i) {
         if (i > 0)
-            builder.append(separator);
+            builder.append(separator.utf16_view());
         auto value = TRY(this_object->get(i));
         if (value.is_nullish())
             continue;
-        auto string = TRY(value.to_string(vm));
-        builder.append(string);
+        auto string = TRY(value.to_utf16_string(vm));
+        builder.append(string.utf16_view());
     }
 
-    return PrimitiveString::create(vm, builder.to_string_without_validation());
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 // 23.1.3.19 Array.prototype.keys ( ), https://tc39.es/ecma262/#sec-array.prototype.keys
@@ -1822,7 +1822,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::to_locale_string)
     constexpr auto separator = ","sv;
 
     // 4. Let R be the empty String.
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     // 5. Let k be 0.
     // 6. Repeat, while k < len,
@@ -1830,7 +1830,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::to_locale_string)
         // a. If k > 0, then
         if (i > 0) {
             // i. Set R to the string-concatenation of R and separator.
-            builder.append(separator);
+            builder.append_ascii(separator);
         }
 
         // b. Let nextElement be ? Get(array, ! ToString(k)).
@@ -1842,15 +1842,15 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::to_locale_string)
             auto locale_string_result = TRY(value.invoke(vm, vm.names.toLocaleString, locales, options));
 
             // ii. Set R to the string-concatenation of R and S.
-            auto string = TRY(locale_string_result.to_string(vm));
-            builder.append(string);
+            auto string = TRY(locale_string_result.to_utf16_string(vm));
+            builder.append(string.utf16_view());
         }
 
         // d. Increase k by 1.
     }
 
     // 7. Return R.
-    return PrimitiveString::create(vm, builder.to_string_without_validation());
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 // 23.1.3.33 Array.prototype.toReversed ( ), https://tc39.es/ecma262/#sec-array.prototype.toreversed

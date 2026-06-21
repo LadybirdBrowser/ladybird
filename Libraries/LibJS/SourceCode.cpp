@@ -7,7 +7,7 @@
 #include <AK/AllOf.h>
 #include <AK/BinarySearch.h>
 #include <AK/CharacterTypes.h>
-#include <AK/Utf8View.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/SourceCode.h>
 #include <LibJS/SourceRange.h>
 #include <LibJS/Token.h>
@@ -291,7 +291,7 @@ Utf16String SourceCode::decode_source_range(size_t start_offset, size_t length) 
         input = input.substring_view(byte_order_mark_size);
     }
 
-    StringBuilder builder(StringBuilder::Mode::UTF16, length);
+    Utf16StringBuilder builder(length);
     size_t current_offset = 0;
     auto result = actual_decoder->process_code_points(input, [&](auto code_point) -> ErrorOr<void> {
         char16_t code_units[2];
@@ -303,7 +303,7 @@ Utf16String SourceCode::decode_source_range(size_t start_offset, size_t length) 
         for (size_t i = 0; i < code_point_length_in_code_units; ++i) {
             auto code_unit_offset = current_offset + i;
             if (code_unit_offset >= start_offset && code_unit_offset < end_offset)
-                TRY(builder.try_append_code_unit(code_units[i]));
+                builder.append_code_unit(code_units[i]);
         }
 
         current_offset += code_point_length_in_code_units;
@@ -311,7 +311,7 @@ Utf16String SourceCode::decode_source_range(size_t start_offset, size_t length) 
     });
     result.release_value_but_fixme_should_propagate_errors();
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 void SourceCode::fill_position_cache() const
