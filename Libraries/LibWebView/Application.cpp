@@ -1683,6 +1683,8 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
                 auto action = Action::create(bookmark.title.value_or({}), ActionID::BookmarkItem, [this, url = bookmark.url]() {
                     if (auto view = active_web_view(); view.has_value())
                         view->load(url);
+                    else
+                        open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
                 });
 
                 action->set_base64_png_icon(bookmark.favicon_base64_png);

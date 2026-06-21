@@ -13,6 +13,8 @@
 
 #include <QApplication>
 
+class QMenu;
+
 namespace Ladybird {
 
 struct WindowConfiguration {
@@ -31,9 +33,18 @@ public:
 
     Function<void(URL::URL)> on_open_file;
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    void open_new_tab();
+    void open_new_window();
+    void focus_location_editor();
+    void reopen_recently_closed_tab();
+    void open_file();
+    void quit();
+    void initialize_macos_application_menu();
+    QMenu* qt_bookmarks_menu() const;
 
     BrowserWindow& active_window() const { return *m_active_window; }
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
+    BrowserWindow* active_window_if_any() const { return m_active_window; }
 
     Tab* active_tab() const { return m_active_window ? m_active_window->current_tab() : nullptr; }
     void update_reopen_recently_closed_actions() const;
@@ -46,6 +57,7 @@ private:
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override;
+    virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const override;
     virtual bool activate_tab_with_url(URL::URL const&) const override;
     virtual void open_url_in_new_window(URL::URL const& url) override;
 

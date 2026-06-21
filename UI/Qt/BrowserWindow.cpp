@@ -90,14 +90,6 @@ static Optional<u64> display_id_for_screen(QScreen* screen)
     });
 }
 
-static QString reopen_recently_closed_action_text(Optional<WebView::RecentlyClosedEntry const&> entry)
-{
-    if (entry.has_value() && entry->was_window)
-        return "&Reopen Recently Closed Window";
-
-    return "&Reopen Recently Closed Tab";
-}
-
 static Vector<URL::URL> recently_closed_urls_for_window(TabWidget const& tabs_container)
 {
     Vector<URL::URL> urls;
@@ -373,7 +365,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     if (show_menubar_option_available())
         view_menu->addAction(create_application_action(*view_menu, application.toggle_menu_bar_action(), IncludeActionIcon::No));
 
-    m_bookmarks_menu = create_application_menu(*this, application.bookmarks_menu());
+    m_bookmarks_menu = Application::the().qt_bookmarks_menu();
+    if (!m_bookmarks_menu)
+        m_bookmarks_menu = create_application_menu(*this, application.bookmarks_menu());
     m_hamburger_menu->addMenu(m_bookmarks_menu);
     menuBar()->addMenu(m_bookmarks_menu);
 
@@ -401,35 +395,26 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     quit_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Quit));
     m_hamburger_menu->addAction(quit_action);
     file_menu->addAction(quit_action);
+#if defined(AK_OS_MACOS)
+    QObject::connect(quit_action, &QAction::triggered, this, [] {
+        Application::the().quit();
+    });
+#else
     QObject::connect(quit_action, &QAction::triggered, this, &QMainWindow::close);
+#endif
 
-    QObject::connect(m_new_tab_action, &QAction::triggered, this, [this] {
-        auto& tab = new_tab_from_url(WebView::Application::settings().new_tab_page_url(), Web::HTML::ActivateTab::Yes);
-        tab.set_url_is_hidden(true);
-        tab.focus_location_editor();
+    QObject::connect(m_new_tab_action, &QAction::triggered, this, [] {
+        Application::the().open_new_tab();
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [] {
-        auto const& previous_active_window = Application::the().active_window();
-        WindowConfiguration configuration {
-            .width = previous_active_window.width(),
-            .height = previous_active_window.height(),
-            .maximized = previous_active_window.isMaximized(),
-        };
-        Application::the().new_window({ WebView::Application::settings().new_tab_page_url() }, configuration);
+        Application::the().open_new_window();
     });
-    QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, [this] {
-        auto recently_closed_entry = Application::history_store().pop_most_recently_closed_entry();
-        if (recently_closed_entry.has_value()) {
-            if (recently_closed_entry->was_window) {
-                auto& window = Application::the().new_window(recently_closed_entry->urls);
-                window.activate_tab(static_cast<int>(recently_closed_entry->active_tab_index));
-            } else if (!recently_closed_entry->urls.is_empty()) {
-                new_tab_from_url(recently_closed_entry->urls[0], Web::HTML::ActivateTab::Yes);
-            }
-        }
-        Application::the().update_reopen_recently_closed_actions();
+    QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, [] {
+        Application::the().reopen_recently_closed_tab();
     });
-    QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
+    QObject::connect(open_file_action, &QAction::triggered, this, [] {
+        Application::the().open_file();
+    });
 
     m_exit_button = new ExitFullscreenButton { this };
     m_fullscreen_mode = new FullscreenMode { this, m_exit_button };
@@ -514,7 +499,8 @@ void BrowserWindow::update_tabs_display()
 
 void BrowserWindow::rebuild_bookmarks_menu()
 {
-    repopulate_application_menu(*m_bookmarks_menu, *this, Application::the().bookmarks_menu());
+    if (m_bookmarks_menu != Application::the().qt_bookmarks_menu())
+        repopulate_application_menu(*m_bookmarks_menu, *this, Application::the().bookmarks_menu());
 
     for_each_tab([](Tab& tab) {
         tab.bookmarks_bar().rebuild();
@@ -751,7 +737,7 @@ void BrowserWindow::update_reopen_recently_closed_action()
         return;
 
     auto recently_closed_entry = Application::history_store().most_recently_closed_entry();
-    m_reopen_recently_closed_tab_action->setText(reopen_recently_closed_action_text(recently_closed_entry));
+    m_reopen_recently_closed_tab_action->setText("&Reopen Recently Closed Tab");
     m_reopen_recently_closed_tab_action->setEnabled(recently_closed_entry.has_value());
 }
 
