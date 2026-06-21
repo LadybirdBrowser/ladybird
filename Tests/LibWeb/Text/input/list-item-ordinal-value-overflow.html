@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<!-- Starting value at the i32 maximum: incrementing the ordinal for the second item overflows. -->
+<ol start="2147483647"><li>a</li><li>b</li></ol>
+<!-- Reversed list whose value attribute pins the ordinal to the i32 minimum: decrementing underflows. -->
+<ol reversed><li value="-2147483648">a</li><li>b</li></ol>
+<script>
+    test(() => {
+        // Forces layout, which computes each list item's ordinal value via the marker box.
+        document.documentElement.offsetHeight;
+        println("PASS (didn't crash)");
+    });
+</script>
