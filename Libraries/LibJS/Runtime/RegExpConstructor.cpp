@@ -257,10 +257,10 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpConstructor::escape)
         return vm.throw_completion<TypeError>(ErrorType::NotAString, string);
 
     // 2. Let escaped be the empty String.
+    auto code_point_list = string.as_string().utf16_string_view();
     Utf16StringBuilder escaped(string.as_string().utf16_string_view().length_in_code_units());
 
     // 3. Let cpList be StringToCodePoints(S).
-    auto code_point_list = string.as_string().utf16_string_view();
 
     // 4. For each code point c of cpList, do
     for (auto code_point : code_point_list) {

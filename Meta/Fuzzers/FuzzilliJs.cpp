@@ -149,8 +149,8 @@ JS_DEFINE_NATIVE_FUNCTION(TestRunnerGlobalObject::fuzzilli)
     if (!vm.argument_count())
         return JS::js_undefined();
 
-    auto operation = TRY(vm.argument(0).to_string(vm));
-    if (operation == "FUZZILLI_CRASH") {
+    auto operation = TRY(vm.argument(0).to_utf16_string(vm));
+    if (operation == "FUZZILLI_CRASH"sv) {
         auto type = TRY(vm.argument(1).to_i32(vm));
         switch (type) {
         case 0:
@@ -160,14 +160,14 @@ JS_DEFINE_NATIVE_FUNCTION(TestRunnerGlobalObject::fuzzilli)
             VERIFY_NOT_REACHED();
             break;
         }
-    } else if (operation == "FUZZILLI_PRINT") {
+    } else if (operation == "FUZZILLI_PRINT"sv) {
         static FILE* fzliout = fdopen(REPRL_DWFD, "w");
         if (!fzliout) {
             dbgln("Fuzzer output not available");
             fzliout = stdout;
         }
 
-        auto string = TRY(vm.argument(1).to_string(vm));
+        auto string = TRY(vm.argument(1).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
         outln(fzliout, "{}", string);
         fflush(fzliout);
     }

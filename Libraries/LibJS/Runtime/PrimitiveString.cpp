@@ -211,11 +211,6 @@ bool PrimitiveString::is_empty() const
     VERIFY_NOT_REACHED();
 }
 
-String PrimitiveString::utf8_string() const
-{
-    return utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
-}
-
 Utf16String PrimitiveString::utf16_string() const
 {
     resolve_if_needed();

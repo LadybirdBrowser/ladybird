@@ -50,7 +50,7 @@ WebIDL::ExceptionOr<String> serialize_javascript_value_to_json_string(JS::VM& vm
     VERIFY(result.is_string());
 
     // 4. Return result.
-    return result.as_string().utf8_string();
+    return result.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-json-bytes
@@ -154,7 +154,7 @@ String serialize_an_infra_value_to_a_json_string(JS::Realm& realm, JSONTopLevel 
     //            whitespace inserted.
     auto result = MUST(JS::call(vm, *realm.intrinsics().json_stringify_function(), JS::js_undefined(), js_value));
     VERIFY(result.is_string());
-    return result.as_string().utf8_string();
+    return result.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-json-bytes

@@ -90,7 +90,7 @@ static WebIDL::ExceptionOr<CSSUnparsedSegment> unparsed_segment_from_js_value(JS
 {
     if (auto variable_reference = value.as_if<CSSVariableReferenceValue>())
         return GC::Ref { *variable_reference };
-    return TRY(value.to_string(vm));
+    return TRY(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-set-the-value-of-an-existing-indexed-property

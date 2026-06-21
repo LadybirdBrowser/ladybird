@@ -293,7 +293,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
     if (input.is_string()) {
 
         // 1. Return a new key with type string and value input.
-        return Key::create_string(realm, input.as_string().utf8_string());
+        return Key::create_string(realm, input.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
     }
 
     // - If input is a buffer source type
@@ -2496,14 +2496,14 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> create_a_request_to_retrieve_multiple_i
         count = TRY(TRY(query_or_options.get(vm, "count"_utf16)).to_u32(vm));
 
         // 3. Set direction to query_or_options["direction"].
-        auto direction_value = TRY(TRY(query_or_options.get(vm, "direction"_utf16)).to_string(vm));
-        if (direction_value == "next")
+        auto direction_value = TRY(TRY(query_or_options.get(vm, "direction"_utf16)).to_utf16_string(vm));
+        if (direction_value == "next"sv)
             direction = Bindings::IDBCursorDirection::Next;
-        else if (direction_value == "nextunique")
+        else if (direction_value == "nextunique"sv)
             direction = Bindings::IDBCursorDirection::Nextunique;
-        else if (direction_value == "prev")
+        else if (direction_value == "prev"sv)
             direction = Bindings::IDBCursorDirection::Prev;
-        else if (direction_value == "prevunique")
+        else if (direction_value == "prevunique"sv)
             direction = Bindings::IDBCursorDirection::Prevunique;
     }
 

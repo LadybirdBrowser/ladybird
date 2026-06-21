@@ -51,7 +51,7 @@ static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_
 
     auto maybe_normalized_algorithm = [&]() -> WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> {
         if (hash_value.is_string()) {
-            auto const hash_string = TRY(hash_value.to_string(vm));
+            auto const hash_string = TRY(hash_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
             return normalize_an_algorithm(*realm, hash_string, "digest"_string);
         }
         if (hash_value.is_object()) {
@@ -520,7 +520,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyGenParams::from_value
     auto& object = value.as_object();
 
     auto curve_value = TRY(object.get("namedCurve"_utf16_fly_string));
-    auto curve = TRY(curve_value.to_string(vm));
+    auto curve = TRY(curve_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     return adopt_own<AlgorithmParams>(*new EcKeyGenParams { curve });
 }
@@ -574,7 +574,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyImportParams::from_va
     auto& object = value.as_object();
 
     auto named_curve_value = TRY(object.get("namedCurve"_utf16_fly_string));
-    auto named_curve = TRY(named_curve_value.to_string(vm));
+    auto named_curve = TRY(named_curve_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     return adopt_own<AlgorithmParams>(*new EcKeyImportParams { named_curve });
 }

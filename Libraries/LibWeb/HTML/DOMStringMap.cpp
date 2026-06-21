@@ -130,7 +130,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 {
     // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
     //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_string(vm()));
+    auto value = TRY(unconverted_value.to_utf16_string(vm())).to_utf8_but_should_be_ported_to_utf16();
 
     StringBuilder builder;
 

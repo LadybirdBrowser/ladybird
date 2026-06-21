@@ -71,10 +71,10 @@ JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatPrototype::format)
     auto value = TRY(vm.argument(0).to_number(vm));
 
     // 4. Let unit be ? ToString(unit).
-    auto unit = TRY(vm.argument(1).to_string(vm));
+    auto unit = TRY(vm.argument(1).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     // 5. Return ? FormatRelativeTime(relativeTimeFormat, value, unit).
-    auto formatted = TRY(format_relative_time(vm, relative_time_format, value.as_double(), unit.bytes_as_string_view()));
+    auto formatted = TRY(format_relative_time(vm, relative_time_format, value.as_double(), unit));
     return PrimitiveString::create(vm, move(formatted));
 }
 
@@ -89,10 +89,10 @@ JS_DEFINE_NATIVE_FUNCTION(RelativeTimeFormatPrototype::format_to_parts)
     auto value = TRY(vm.argument(0).to_number(vm));
 
     // 4. Let unit be ? ToString(unit).
-    auto unit = TRY(vm.argument(1).to_string(vm));
+    auto unit = TRY(vm.argument(1).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     // 5. Return ? FormatRelativeTimeToParts(relativeTimeFormat, value, unit).
-    return TRY(format_relative_time_to_parts(vm, relative_time_format, value.as_double(), unit.bytes_as_string_view()));
+    return TRY(format_relative_time_to_parts(vm, relative_time_format, value.as_double(), unit));
 }
 
 }

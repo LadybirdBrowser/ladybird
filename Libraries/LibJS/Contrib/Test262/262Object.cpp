@@ -92,7 +92,7 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::detach_array_buffer)
 
 JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
 {
-    auto source_text = TRY(vm.argument(0).to_string(vm));
+    auto source_text = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 1. Let hostDefined be any host-defined values for the provided sourceText (obtained in an implementation dependent manner)
 
@@ -100,7 +100,7 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
     auto& realm = *vm.current_realm();
 
     // 3. Let s be ParseScript(sourceText, realm, hostDefined).
-    auto script_or_error = Script::parse(source_text, realm);
+    auto script_or_error = Script::parse(source_text.to_utf8_but_should_be_ported_to_utf16(), realm);
 
     // 4. If s is a List of errors, then
     if (script_or_error.is_error()) {

@@ -74,11 +74,11 @@ JS_DEFINE_NATIVE_FUNCTION(DisplayNamesPrototype::of)
     auto display_names = TRY(typed_this_object(vm));
 
     // 3. Let code be ? ToString(code).
-    code = PrimitiveString::create(vm, TRY(code.to_string(vm)));
+    code = PrimitiveString::create(vm, TRY(code.to_utf16_string(vm)));
 
     // 4. Let code be ? CanonicalCodeForDisplayNames(displayNames.[[Type]], code).
-    code = TRY(canonical_code_for_display_names(vm, display_names->type(), code.as_string().utf8_string()));
-    auto code_string = code.as_string().utf8_string();
+    code = TRY(canonical_code_for_display_names(vm, display_names->type(), code.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16()));
+    auto code_string = code.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 
     // 5. Let fields be displayNames.[[Fields]].
     // 6. If fields has a field [[<code>]], return fields.[[<code>]].

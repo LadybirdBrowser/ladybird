@@ -2625,7 +2625,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
 
     // 9. If evaluationStatus is a normal completion, and evaluationStatus.[[Value]] is a String, then set result to evaluationStatus.[[Value]].
     if (evaluation_status.type() == JS::Completion::Type::Normal && evaluation_status.value().is_string()) {
-        result = evaluation_status.value().as_string().utf8_string();
+        result = evaluation_status.value().as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
     } else {
         // 10. Otherwise, return null.
         return nullptr;

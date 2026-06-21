@@ -304,7 +304,7 @@ static ErrorOr<T, Wasm::Result> trap_for_js_exception(JS::VM& vm, JS::ThrowCompl
 
     auto const& completion = result.error();
     auto& exception = completion.value();
-    warnln("JS exception: {}", MUST(exception.to_string(vm)));
+    warnln("JS exception: {}", MUST(exception.to_utf16_string(vm)));
     return Wasm::Trap { ByteString("JS exception") };
 }
 

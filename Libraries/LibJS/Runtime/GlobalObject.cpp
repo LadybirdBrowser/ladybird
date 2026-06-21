@@ -237,7 +237,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_float)
     }
 
     // 1. Let inputString be ? ToString(string).
-    auto input_string = TRY(string.to_string(vm));
+    auto input_string = TRY(string.to_utf16_string(vm));
 
     // 2. Let trimmedString be ! TrimString(inputString, start).
     auto trimmed_string = MUST(trim_string(vm, PrimitiveString::create(vm, move(input_string)), TrimMode::Left));
@@ -249,17 +249,17 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_float)
     // 5. Let parsedNumber be ParseText(StringToCodePoints(numberString), StrDecimalLiteral).
     // 6. Assert: parsedNumber is a Parse Node.
     // 7. Return StringNumericValue of parsedNumber.
-    auto trimmed_string_view = trimmed_string.bytes_as_string_view();
+    auto trimmed_string_view = trimmed_string.utf16_view();
 
     auto parsed_number = AK::parse_first_number<double>(trimmed_string_view, TrimWhitespace::No);
     if (parsed_number.has_value())
         return parsed_number->value;
 
-    auto first_code_point = *trimmed_string.code_points().begin();
+    auto first_code_point = *trimmed_string.begin();
     if (first_code_point == '-' || first_code_point == '+')
         trimmed_string_view = trimmed_string_view.substring_view(1);
 
-    if (trimmed_string_view.starts_with("Infinity"sv, AK::CaseSensitivity::CaseSensitive)) {
+    if (trimmed_string_view.starts_with("Infinity"sv)) {
         // Only an immediate - means we should return negative infinity
         return first_code_point == '-' ? js_negative_infinity() : js_infinity();
     }
@@ -273,12 +273,12 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_int)
     auto string = vm.argument(0);
 
     // 1. Let inputString be ? ToString(string).
-    auto input_string = TRY(string.to_string(vm));
+    auto input_string = TRY(string.to_utf16_string(vm));
 
     // 2. Let S be ! TrimString(inputString, start).
-    String trimmed_string;
+    Utf16String trimmed_string;
     // OPTIMIZATION: We can skip the trimming step when the value already starts with an alphanumeric ASCII character.
-    if (input_string.is_empty() || is_ascii_alphanumeric(input_string.bytes_as_string_view()[0])) {
+    if (input_string.is_empty() || is_ascii_alphanumeric(input_string.code_unit_at(0))) {
         trimmed_string = input_string;
     } else {
         trimmed_string = MUST(trim_string(vm, PrimitiveString::create(vm, move(input_string)), TrimMode::Left));
@@ -288,12 +288,12 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_int)
     auto sign = 1;
 
     // 4. If S is not empty and the first code unit of S is the code unit 0x002D (HYPHEN-MINUS), set sign to -1.
-    auto first_code_point = trimmed_string.is_empty() ? OptionalNone {} : Optional<u32> { *trimmed_string.code_points().begin() };
+    auto first_code_point = trimmed_string.is_empty() ? OptionalNone {} : Optional<u32> { *trimmed_string.begin() };
     if (first_code_point == 0x2Du)
         sign = -1;
 
     // 5. If S is not empty and the first code unit of S is the code unit 0x002B (PLUS SIGN) or the code unit 0x002D (HYPHEN-MINUS), remove the first code unit from S.
-    auto trimmed_view = trimmed_string.bytes_as_string_view();
+    auto trimmed_view = trimmed_string.utf16_view();
     if (first_code_point == 0x2Bu || first_code_point == 0x2Du)
         trimmed_view = trimmed_view.substring_view(1);
 
@@ -322,7 +322,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_int)
     // 10. If stripPrefix is true, then
     if (strip_prefix) {
         // a. If the length of S is at least 2 and the first two code units of S are either "0x" or "0X", then
-        if (trimmed_view.length() >= 2 && trimmed_view.substring_view(0, 2).equals_ignoring_ascii_case("0x"sv)) {
+        if (trimmed_view.length_in_code_units() >= 2 && trimmed_view.substring_view(0, 2).equals_ignoring_ascii_case("0x"sv)) {
             // i. Remove the first two code units from S.
             trimmed_view = trimmed_view.substring_view(2);
 
@@ -346,7 +346,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_int)
 
     bool had_digits = false;
     double number = 0;
-    for (auto code_point : Utf8View(trimmed_view)) {
+    for (auto code_point : trimmed_view) {
         auto digit = parse_digit(code_point);
         if (!digit.has_value())
             break;

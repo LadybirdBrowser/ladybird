@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(String con
                     // 1. If v is a DOMString, then follow the below steps:
                     if (value.is_string()) {
                         // 1. Let dataAsBytes be the result of UTF-8 encoding v.
-                        auto utf8_string = value.as_string().utf8_string();
+                        auto utf8_string = value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
                         auto data_as_bytes = MUST(ByteBuffer::copy(utf8_string.bytes()));
 
                         // 2. Let blobData be a Blob created using dataAsBytes with its type set to mimeType, serialized.

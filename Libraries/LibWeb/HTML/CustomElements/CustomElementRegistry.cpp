@@ -114,7 +114,7 @@ static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_string
 
         // 2. Let x be ? ToString(V).
         // 3. Return the IDL DOMString value that represents the same sequence of code units as the one the ECMAScript String value x represents.
-        auto string_value = TRY(next_item.to_string(vm));
+        auto string_value = TRY(next_item.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
         sequence_of_strings.append(move(string_value));
 

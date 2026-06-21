@@ -769,7 +769,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
             // 2. If event's returnValue attribute's value is the empty string, then set event's returnValue attribute's value to return value.
             auto& before_unload_event = static_cast<HTML::BeforeUnloadEvent&>(event);
             if (before_unload_event.return_value().is_empty())
-                before_unload_event.set_return_value(TRY(return_value.to_string(vm())));
+                before_unload_event.set_return_value(TRY(return_value.to_utf16_string(vm())).to_utf8_but_should_be_ported_to_utf16());
         }
     }
 

@@ -7,6 +7,7 @@
  */
 
 #include <AK/AllOf.h>
+#include <AK/Array.h>
 #include <AK/Assertions.h>
 #include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
@@ -426,7 +427,7 @@ String Value::to_string_without_side_effects() const
     case INT32_TAG:
         return String::number(as_i32());
     case STRING_TAG:
-        return as_string().utf8_string();
+        return as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
     case SYMBOL_TAG:
         return as_symbol().descriptive_string().to_utf8_but_should_be_ported_to_utf16();
     case BIGINT_TAG:
@@ -488,54 +489,9 @@ ThrowCompletionOr<GC::Ref<PrimitiveString>> Value::to_primitive_string(VM& vm)
 }
 
 // 7.1.17 ToString ( argument ), https://tc39.es/ecma262/#sec-tostring
-ThrowCompletionOr<String> Value::to_string(VM& vm) const
-{
-    if (is_double())
-        return number_to_string(m_value.as_double);
-
-    switch (m_value.tag) {
-    // 1. If argument is a String, return argument.
-    case STRING_TAG:
-        return as_string().utf8_string();
-    // 2. If argument is a Symbol, throw a TypeError exception.
-    case SYMBOL_TAG:
-        return vm.throw_completion<TypeError>(ErrorType::Convert, "symbol", "string");
-    // 3. If argument is undefined, return "undefined".
-    case UNDEFINED_TAG:
-        return "undefined"_string;
-    // 4. If argument is null, return "null".
-    case NULL_TAG:
-        return "null"_string;
-    // 5. If argument is true, return "true".
-    // 6. If argument is false, return "false".
-    case BOOLEAN_TAG:
-        return as_bool() ? "true"_string : "false"_string;
-    // 7. If argument is a Number, return Number::toString(argument, 10).
-    case INT32_TAG:
-        return String::number(as_i32());
-    // 8. If argument is a BigInt, return BigInt::toString(argument, 10).
-    case BIGINT_TAG:
-        return TRY_OR_THROW_OOM(vm, as_bigint().big_integer().to_base(10));
-    // 9. Assert: argument is an Object.
-    case OBJECT_TAG: {
-        // 10. Let primValue be ? ToPrimitive(argument, string).
-        auto primitive_value = TRY(to_primitive(vm, PreferredType::String));
-
-        // 11. Assert: primValue is not an Object.
-        VERIFY(!primitive_value.is_object());
-
-        // 12. Return ? ToString(primValue).
-        return primitive_value.to_string(vm);
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-// 7.1.17 ToString ( argument ), https://tc39.es/ecma262/#sec-tostring
 ThrowCompletionOr<ByteString> Value::to_byte_string(VM& vm) const
 {
-    return TRY(to_string(vm)).to_byte_string();
+    return TRY(to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16().to_byte_string();
 }
 
 // 7.1.17 ToString ( argument ), https://tc39.es/ecma262/#sec-tostring
@@ -746,17 +702,47 @@ constexpr bool is_ascii_number(u32 code_point)
     return is_ascii_digit(code_point) || code_point == '.' || (code_point == 'e' || code_point == 'E') || code_point == '+' || code_point == '-';
 }
 
+static constexpr AK::Array js_whitespace_code_units {
+    u'\u0009',
+    u'\u000A',
+    u'\u000B',
+    u'\u000C',
+    u'\u000D',
+    u'\u0020',
+    u'\u00A0',
+    u'\u1680',
+    u'\u2000',
+    u'\u2001',
+    u'\u2002',
+    u'\u2003',
+    u'\u2004',
+    u'\u2005',
+    u'\u2006',
+    u'\u2007',
+    u'\u2008',
+    u'\u2009',
+    u'\u200A',
+    u'\u2028',
+    u'\u2029',
+    u'\u202F',
+    u'\u205F',
+    u'\u3000',
+    u'\uFEFF',
+};
+
+static constexpr Utf16View js_whitespace { js_whitespace_code_units.data(), js_whitespace_code_units.size() };
+
 struct NumberParseResult {
-    StringView literal;
+    Utf16View literal;
     u8 base;
 };
 
-static Optional<NumberParseResult> parse_number_text(StringView text)
+static Optional<NumberParseResult> parse_number_text(Utf16View text)
 {
     NumberParseResult result {};
 
-    auto check_prefix = [&](auto lower_prefix, auto upper_prefix) {
-        if (text.length() <= 2)
+    auto check_prefix = [&](Utf16View lower_prefix, Utf16View upper_prefix) {
+        if (text.length_in_code_units() <= 2)
             return false;
         if (!text.starts_with(lower_prefix) && !text.starts_with(upper_prefix))
             return false;
@@ -794,10 +780,10 @@ static Optional<NumberParseResult> parse_number_text(StringView text)
 }
 
 // 7.1.4.1.1 StringToNumber ( str ), https://tc39.es/ecma262/#sec-stringtonumber
-double string_to_number(StringView string)
+double string_to_number(Utf16View string)
 {
     // 1. Let text be StringToCodePoints(str).
-    auto text = Utf8View(string).trim(whitespace_characters, AK::TrimMode::Both).as_string();
+    auto text = string.trim(js_whitespace);
 
     // 2. Let literal be ParseText(text, StringNumericLiteral).
     if (text.is_empty())
@@ -815,7 +801,7 @@ double string_to_number(StringView string)
 
     // 4. Return StringNumericValue of literal.
     if (result->base != 10) {
-        auto bigint = MUST(Crypto::UnsignedBigInteger::from_base(result->base, result->literal));
+        auto bigint = MUST(Crypto::UnsignedBigInteger::from_base(result->base, result->literal.to_utf8_but_should_be_ported_to_utf16()));
         return bigint.to_double();
     }
 
@@ -852,7 +838,7 @@ ThrowCompletionOr<Value> Value::to_number_slow_case(VM& vm) const
         return Value(as_bool() ? 1 : 0);
     // 6. If argument is a String, return StringToNumber(argument).
     case STRING_TAG:
-        return string_to_number(as_string().utf8_string());
+        return string_to_number(as_string().utf16_string_view());
     // 7. Assert: argument is an Object.
     case OBJECT_TAG: {
         // 8. Let primValue be ? ToPrimitive(argument, number).
@@ -869,7 +855,7 @@ ThrowCompletionOr<Value> Value::to_number_slow_case(VM& vm) const
     }
 }
 
-static Optional<BigInt*> string_to_bigint(VM& vm, StringView string);
+static Optional<BigInt*> string_to_bigint(VM& vm, Utf16View string);
 
 // 7.1.13 ToBigInt ( argument ), https://tc39.es/ecma262/#sec-tobigint
 ThrowCompletionOr<GC::Ref<BigInt>> Value::to_bigint(VM& vm) const
@@ -906,7 +892,7 @@ ThrowCompletionOr<GC::Ref<BigInt>> Value::to_bigint(VM& vm) const
         return primitive.as_bigint();
     case STRING_TAG: {
         // 1. Let n be ! StringToBigInt(prim).
-        auto bigint = string_to_bigint(vm, primitive.as_string().utf8_string());
+        auto bigint = string_to_bigint(vm, primitive.as_string().utf16_string_view());
 
         // 2. If n is undefined, throw a SyntaxError exception.
         if (!bigint.has_value())
@@ -925,17 +911,17 @@ ThrowCompletionOr<GC::Ref<BigInt>> Value::to_bigint(VM& vm) const
 }
 
 struct BigIntParseResult {
-    StringView literal;
+    Utf16View literal;
     u8 base { 10 };
     bool is_negative { false };
 };
 
-static Optional<BigIntParseResult> parse_bigint_text(StringView text)
+static Optional<BigIntParseResult> parse_bigint_text(Utf16View text)
 {
     BigIntParseResult result {};
 
-    auto parse_for_prefixed_base = [&](auto lower_prefix, auto upper_prefix, auto validator) {
-        if (text.length() <= 2)
+    auto parse_for_prefixed_base = [&](Utf16View lower_prefix, Utf16View upper_prefix, auto validator) {
+        if (text.length_in_code_units() <= 2)
             return false;
         if (!text.starts_with(lower_prefix) && !text.starts_with(upper_prefix))
             return false;
@@ -970,10 +956,10 @@ static Optional<BigIntParseResult> parse_bigint_text(StringView text)
 }
 
 // 7.1.14 StringToBigInt ( str ), https://tc39.es/ecma262/#sec-stringtobigint
-static Optional<BigInt*> string_to_bigint(VM& vm, StringView string)
+static Optional<BigInt*> string_to_bigint(VM& vm, Utf16View string)
 {
     // 1. Let text be StringToCodePoints(str).
-    auto text = Utf8View(string).trim(whitespace_characters, AK::TrimMode::Both).as_string();
+    auto text = string.trim(js_whitespace);
 
     // 2. Let literal be ParseText(text, StringIntegerLiteral).
     auto result = parse_bigint_text(text);
@@ -984,7 +970,7 @@ static Optional<BigInt*> string_to_bigint(VM& vm, StringView string)
 
     // 4. Let mv be the MV of literal.
     // 5. Assert: mv is an integer.
-    auto bigint = MUST(Crypto::SignedBigInteger::from_base(result->base, result->literal));
+    auto bigint = MUST(Crypto::SignedBigInteger::from_base(result->base, result->literal.to_utf8_but_should_be_ported_to_utf16()));
     if (result->is_negative && (bigint != bigint_zero()))
         bigint.negate();
 
@@ -2431,7 +2417,7 @@ ThrowCompletionOr<bool> is_loosely_equal(VM& vm, Value lhs, Value rhs)
     // 7. If Type(x) is BigInt and Type(y) is String, then
     if (lhs.is_bigint() && rhs.is_string()) {
         // a. Let n be StringToBigInt(y).
-        auto bigint = string_to_bigint(vm, rhs.as_string().utf8_string());
+        auto bigint = string_to_bigint(vm, rhs.as_string().utf16_string_view());
 
         // b. If n is undefined, return false.
         if (!bigint.has_value())
@@ -2530,7 +2516,7 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
     // a. If px is a BigInt and py is a String, then
     if (x_primitive.is_bigint() && y_primitive.is_string()) {
         // i. Let ny be StringToBigInt(py).
-        auto y_bigint = string_to_bigint(vm, y_primitive.as_string().utf8_string());
+        auto y_bigint = string_to_bigint(vm, y_primitive.as_string().utf16_string_view());
 
         // ii. If ny is undefined, return undefined.
         if (!y_bigint.has_value())
@@ -2545,7 +2531,7 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
     // b. If px is a String and py is a BigInt, then
     if (x_primitive.is_string() && y_primitive.is_bigint()) {
         // i. Let nx be StringToBigInt(px).
-        auto x_bigint = string_to_bigint(vm, x_primitive.as_string().utf8_string());
+        auto x_bigint = string_to_bigint(vm, x_primitive.as_string().utf16_string_view());
 
         // ii. If nx is undefined, return undefined.
         if (!x_bigint.has_value())

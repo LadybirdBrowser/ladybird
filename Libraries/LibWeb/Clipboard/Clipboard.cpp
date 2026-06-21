@@ -456,7 +456,7 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Ref<ClipboardItem>>
                             // 1. If v is a DOMString, then follow the below steps:
                             if (value.is_string()) {
                                 // 1. Let dataAsBytes be the result of UTF-8 encoding v.
-                                auto const& data_as_bytes = value.as_string().utf8_string();
+                                auto const& data_as_bytes = value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 
                                 // 2. Let blobData be a Blob created using dataAsBytes with its type set to representation’s MIME type.
                                 auto blob_data = FileAPI::Blob::create(realm, MUST(ByteBuffer::copy(data_as_bytes.bytes())), move(mime_type));

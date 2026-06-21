@@ -69,7 +69,7 @@ ThrowCompletionOr<GC::Ref<Object>> ZonedDateTimeConstructor::construct(FunctionO
         return vm.throw_completion<TypeError>(ErrorType::NotAString, time_zone_value);
 
     // 5. Let timeZoneParse be ? ParseTimeZoneIdentifier(timeZone).
-    auto time_zone_parse = TRY(parse_time_zone_identifier(vm, time_zone_value.as_string().utf8_string()));
+    auto time_zone_parse = TRY(parse_time_zone_identifier(vm, time_zone_value.as_string().utf16_string_view()));
 
     String time_zone;
 
@@ -100,7 +100,7 @@ ThrowCompletionOr<GC::Ref<Object>> ZonedDateTimeConstructor::construct(FunctionO
         return vm.throw_completion<TypeError>(ErrorType::NotAString, calendar_value);
 
     // 10. Set calendar to ? CanonicalizeCalendar(calendar).
-    auto calendar = TRY(canonicalize_calendar(vm, calendar_value.as_string().utf8_string()));
+    auto calendar = TRY(canonicalize_calendar(vm, calendar_value.as_string().utf16_string_view()));
 
     // 11. Return ? CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar, NewTarget).
     return TRY(create_temporal_zoned_date_time(vm, epoch_nanoseconds, move(time_zone), move(calendar), new_target));

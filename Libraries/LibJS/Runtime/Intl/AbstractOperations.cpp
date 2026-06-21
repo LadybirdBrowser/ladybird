@@ -307,7 +307,7 @@ ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales
             // iv. Else,
             else {
                 // 1. Let tag be ? ToString(kValue).
-                tag = TRY(key_value.to_string(vm));
+                tag = TRY(key_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
             }
 
             // v. If IsWellFormedLanguageTag(tag) is false, throw a RangeError exception.
@@ -451,7 +451,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
     Optional<MatchedLocale> matcher_result;
 
     // 2. If matcher is "lookup", then
-    if (matcher.is_string() && matcher.as_string().utf8_string() == "lookup"sv) {
+    if (matcher.is_string() && matcher.as_string().utf16_string_view() == "lookup"sv) {
         // a. Let r be LookupMatchingLocaleByPrefix(availableLocales, requestedLocales).
         matcher_result = lookup_matching_locale_by_prefix(requested_locales);
     }
@@ -639,7 +639,7 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
         // d. If value is not undefined, then
         if (!value.is_undefined()) {
             // i. Set value to ! ToString(value).
-            auto value_string = MUST(value.to_string(vm));
+            auto value_string = MUST(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
             // ii. If value cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
             if (!Unicode::is_type_identifier(value_string))
@@ -688,7 +688,7 @@ ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> re
         Optional<MatchedLocale> match;
 
         // a. If matcher is "lookup", then
-        if (matcher.as_string().utf8_string() == "lookup"sv) {
+        if (matcher.as_string().utf16_string_view() == "lookup"sv) {
             // i. Let match be LookupMatchingLocaleByPrefix(availableLocales, « locale »).
             match = lookup_matching_locale_by_prefix({ { locale } });
         }
@@ -743,12 +743,13 @@ ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM
         return StringOrBoolean { false };
 
     // 5. Let value be ? ToString(value).
-    auto value_string = TRY(value.to_string(vm));
+    auto value_string = TRY(value.to_utf16_string(vm));
 
     // 6. If stringValues does not contain value, throw a RangeError exception.
-    auto it = find(string_values.begin(), string_values.end(), value_string.bytes_as_string_view());
+    auto value_string_view = value_string.utf16_view();
+    auto it = find_if(string_values.begin(), string_values.end(), [&](auto allowed_value) { return value_string_view == allowed_value; });
     if (it == string_values.end())
-        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string, property.as_string());
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string_view.to_utf8_but_should_be_ported_to_utf16(), property.as_string());
 
     // 7. Return value.
     return StringOrBoolean { *it };

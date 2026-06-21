@@ -74,16 +74,16 @@ static bool is_valid_date(ParseResult const& result)
 // 13.31 RFC 9557 / ISO 8601 grammar, https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar
 class ISO8601Parser {
 public:
-    explicit ISO8601Parser(StringView input)
+    explicit ISO8601Parser(Utf16View input)
         : m_input(input)
         , m_state({
-              .lexer = GenericLexer { input },
+              .lexer = Utf16GenericLexer { input },
               .parse_result = {},
           })
     {
     }
 
-    [[nodiscard]] GenericLexer const& lexer() const { return m_state.lexer; }
+    [[nodiscard]] Utf16GenericLexer const& lexer() const { return m_state.lexer; }
     [[nodiscard]] ParseResult const& parse_result() const { return m_state.parse_result; }
 
     // https://tc39.es/proposal-temporal/#prod-TemporalDateTimeString
@@ -612,8 +612,8 @@ public:
     {
         StateTransaction transaction { *this };
 
-        Optional<StringView> key;
-        Optional<StringView> value;
+        Optional<Utf16View> key;
+        Optional<Utf16View> value;
 
         // Annotation :::
         //     [ AnnotationCriticalFlag[opt] AnnotationKey = AnnotationValue ]
@@ -1070,7 +1070,7 @@ public:
     }
 
     // https://tc39.es/ecma262/#prod-DecimalDigits
-    [[nodiscard]] bool parse_decimal_digits(Separator separator, Optional<StringView>& result)
+    [[nodiscard]] bool parse_decimal_digits(Separator separator, Optional<Utf16View>& result)
     {
         StateTransaction transaction { *this };
 
@@ -1258,7 +1258,7 @@ private:
             return false;
 
         if constexpr (IsSame<T, char>)
-            storage = transaction.parsed_string_view()[0];
+            storage = static_cast<char>(transaction.parsed_string_view().code_unit_at(0));
         else
             storage = transaction.parsed_string_view();
 
@@ -1267,7 +1267,7 @@ private:
     }
 
     struct State {
-        GenericLexer lexer;
+        Utf16GenericLexer lexer;
         ParseResult parse_result;
     };
 
@@ -1286,7 +1286,7 @@ private:
         }
 
         void commit() { m_commit = true; }
-        StringView parsed_string_view() const
+        Utf16View parsed_string_view() const
         {
             return m_parser.m_input.substring_view(m_start_index, m_parser.m_state.lexer.tell() - m_start_index);
         }
@@ -1298,7 +1298,7 @@ private:
         bool m_commit { false };
     };
 
-    StringView m_input;
+    Utf16View m_input;
     State m_state;
 };
 
@@ -1314,7 +1314,7 @@ private:
     __JS_ENUMERATE(TemporalZonedDateTimeString, parse_temporal_zoned_date_time_string) \
     __JS_ENUMERATE(TimeZoneIdentifier, parse_time_zone_identifier)
 
-Optional<ParseResult> parse_iso8601(Production production, StringView input)
+Optional<ParseResult> parse_iso8601(Production production, Utf16View input)
 {
     ISO8601Parser parser { input };
 
@@ -1337,7 +1337,7 @@ Optional<ParseResult> parse_iso8601(Production production, StringView input)
     return parser.parse_result();
 }
 
-Optional<TimeZoneOffset> parse_utc_offset(StringView input, SubMinutePrecision sub_minute_precision)
+Optional<TimeZoneOffset> parse_utc_offset(Utf16View input, SubMinutePrecision sub_minute_precision)
 {
     ISO8601Parser parser { input };
 

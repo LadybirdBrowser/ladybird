@@ -47,8 +47,6 @@ public:
 
     bool is_empty() const;
 
-    [[nodiscard]] String utf8_string() const;
-
     [[nodiscard]] Utf16String utf16_string() const;
     [[nodiscard]] Utf16View utf16_string_view() const;
     bool has_utf16_string() const { return m_utf16_string.has_value(); }

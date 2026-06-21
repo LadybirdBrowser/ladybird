@@ -234,22 +234,23 @@ JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString
 JS::ThrowCompletionOr<String> to_byte_string(JS::VM& vm, JS::Value value)
 {
     // 1. Let x be ? ToString(V).
-    auto x = TRY(value.to_string(vm));
+    auto x = TRY(value.to_utf16_string(vm));
 
     // 2. If the value of any element of x is greater than 255, then throw a TypeError.
-    for (auto [i, character] : enumerate(x.code_points())) {
+    for (size_t i = 0; i < x.length_in_code_units(); ++i) {
+        auto character = x.code_unit_at(i);
         if (character > 0xFF)
-            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Invalid byte 0x{:X} at index {}, must be an integer no less than 0 and no greater than 0xFF", character, x.code_points().byte_offset_of(i))));
+            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Invalid byte 0x{:X} at index {}, must be an integer no less than 0 and no greater than 0xFF", character, i)));
     }
 
     // 3. Return an IDL ByteString value whose length is the length of x, and where the value of each element is the value of the corresponding element of x.
     // FIXME: This should return a ByteString.
-    return x;
+    return x.to_utf8_but_should_be_ported_to_utf16();
 }
 
 JS::ThrowCompletionOr<String> to_string(JS::VM& vm, JS::Value value)
 {
-    return value.to_string(vm);
+    return TRY(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 }
 
 JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM& vm, JS::Value value)

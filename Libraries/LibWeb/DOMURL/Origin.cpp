@@ -56,7 +56,7 @@ WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
     }
     // 2. If value is a string:
     else if (value.is_string()) {
-        auto string = value.as_string().utf8_string();
+        auto string = value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 
         // 1. Let parsedURL be the result of basic URL parsing value.
         auto parsed_url = URL::Parser::basic_parse(string);
