@@ -59,7 +59,7 @@ JS_DEFINE_NATIVE_FUNCTION(KeyAlgorithm::name_getter)
 {
     auto* impl = TRY(impl_from<KeyAlgorithm>(vm, "KeyAlgorithm"sv));
     auto name = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->name(); }));
-    return JS::PrimitiveString::create(vm, name);
+    return JS::PrimitiveString::create(vm, Utf16String::from_utf8(name));
 }
 
 void KeyAlgorithm::visit_edges(Visitor& visitor)

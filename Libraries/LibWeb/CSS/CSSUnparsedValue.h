@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-using CSSUnparsedSegment = Variant<String, GC::Ref<CSSVariableReferenceValue>>;
+using CSSUnparsedSegment = Variant<Utf16String, GC::Ref<CSSVariableReferenceValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunparsedvalue
 class CSSUnparsedValue final : public CSSStyleValue {

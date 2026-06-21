@@ -13,18 +13,18 @@
 
 namespace JS {
 
-String ParserError::to_string() const
+Utf16String ParserError::to_utf16_string() const
 {
     if (!position.has_value())
         return message;
-    return MUST(String::formatted("{} (line: {}, column: {})", message, position.value().line, position.value().column));
+    return Utf16String::formatted("{} (line: {}, column: {})", message, position.value().line, position.value().column);
 }
 
 ByteString ParserError::to_byte_string() const
 {
     if (!position.has_value())
         return message.to_byte_string();
-    return ByteString::formatted("{} (line: {}, column: {})", message, position.value().line, position.value().column);
+    return Utf16String::formatted("{} (line: {}, column: {})", message, position.value().line, position.value().column).to_byte_string();
 }
 
 ByteString ParserError::source_location_hint(Utf16View const& source, char spacer, char indicator) const

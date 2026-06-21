@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
@@ -23,24 +23,22 @@ class RelativeTimeFormat final : public IntlObject {
 public:
     virtual ~RelativeTimeFormat() override = default;
 
-    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<Utf16View> relevant_extension_keys() const override;
     virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
-    String const& locale() const { return m_locale; }
-    void set_locale(String locale) { m_locale = move(locale); }
+    Utf16String const& locale() const { return m_locale; }
+    void set_locale(Utf16String locale) { m_locale = move(locale); }
 
-    String const& numbering_system() const { return m_numbering_system; }
-    void set_numbering_system(String numbering_system) { m_numbering_system = move(numbering_system); }
+    Utf16String const& numbering_system() const { return m_numbering_system; }
+    void set_numbering_system(Utf16String numbering_system) { m_numbering_system = move(numbering_system); }
 
     Unicode::Style style() const { return m_style; }
-    void set_style(StringView style) { m_style = Unicode::style_from_string(style); }
     void set_style(Utf16View style) { m_style = Unicode::style_from_string(style); }
-    StringView style_string() const { return Unicode::style_to_string(m_style); }
+    Utf16String style_string() const { return Unicode::style_to_string(m_style); }
 
     Unicode::NumericDisplay numeric() const { return m_numeric; }
-    void set_numeric(StringView numeric) { m_numeric = Unicode::numeric_display_from_string(numeric); }
     void set_numeric(Utf16View numeric) { m_numeric = Unicode::numeric_display_from_string(numeric); }
-    StringView numeric_string() const { return Unicode::numeric_display_to_string(m_numeric); }
+    Utf16String numeric_string() const { return Unicode::numeric_display_to_string(m_numeric); }
 
     Unicode::RelativeTimeFormat const& formatter() const { return *m_formatter; }
     void set_formatter(NonnullOwnPtr<Unicode::RelativeTimeFormat> formatter) { m_formatter = move(formatter); }
@@ -48,8 +46,8 @@ public:
 private:
     explicit RelativeTimeFormat(Object& prototype);
 
-    String m_locale;                                                       // [[Locale]]
-    String m_numbering_system;                                             // [[NumberingSystem]]
+    Utf16String m_locale;                                                  // [[Locale]]
+    Utf16String m_numbering_system;                                        // [[NumberingSystem]]
     Unicode::Style m_style { Unicode::Style::Long };                       // [[Style]]
     Unicode::NumericDisplay m_numeric { Unicode::NumericDisplay::Always }; // [[Numeric]]
 

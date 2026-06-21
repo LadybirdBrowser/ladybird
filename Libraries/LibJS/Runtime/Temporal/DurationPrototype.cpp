@@ -34,7 +34,7 @@ void DurationPrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 7.3.2 Temporal.Duration.prototype[ %Symbol.toStringTag% ], https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype-%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.Duration"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.Duration"_utf16_fly_string), Attribute::Configurable);
 
 #define __JS_ENUMERATE(unit) \
     define_native_accessor(realm, vm.names.unit, unit##_getter, {}, Attribute::Configurable);

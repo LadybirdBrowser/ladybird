@@ -426,7 +426,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     if (m_legacy_platform_object_flags->supports_named_properties) {
         for (auto& named_property : supported_property_names()) {
             if (TRY(is_named_property_exposed_on_object(Utf16FlyString::from_utf8(named_property))))
-                keys.append(JS::PrimitiveString::create(vm, named_property));
+                keys.append(JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(named_property)));
         }
     }
 

@@ -7,7 +7,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteString.h>
 #include <AK/DateConstants.h>
 #include <AK/Function.h>
 #include <AK/TypeCasts.h>
@@ -955,11 +954,12 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_date_string)
 
     // 3. If tv is NaN, return "Invalid Date".
     if (isnan(time))
-        return PrimitiveString::create(vm, "Invalid Date"_string);
+        return PrimitiveString::create(vm, "Invalid Date"_utf16_fly_string);
 
     // 4. Let t be LocalTime(tv).
     // 5. Return DateString(t).
-    return PrimitiveString::create(vm, date_string(local_time(time)));
+    auto string = date_string(local_time(time));
+    return PrimitiveString::create(vm, move(string));
 }
 
 // 21.4.4.36 Date.prototype.toISOString ( ), https://tc39.es/ecma262/#sec-date.prototype.toisostring
@@ -970,7 +970,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_iso_string)
     if (!Value(this_object->date_value()).is_finite_number())
         return vm.throw_completion<RangeError>(ErrorType::InvalidTimeValue);
 
-    auto string = TRY_OR_THROW_OOM(vm, this_object->iso_date_string());
+    auto string = this_object->iso_date_string();
     return PrimitiveString::create(vm, move(string));
 }
 
@@ -1001,7 +1001,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_locale_date_string)
 
     // 2. If x is NaN, return "Invalid Date".
     if (isnan(time))
-        return PrimitiveString::create(vm, "Invalid Date"_string);
+        return PrimitiveString::create(vm, "Invalid Date"_utf16_fly_string);
 
     // 3. Let dateFormat be ? CreateDateTimeFormat(%DateTimeFormat%, locales, options, "date", "date").
     auto date_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Date, Intl::OptionDefaults::Date));
@@ -1025,7 +1025,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_locale_string)
 
     // 2. If x is NaN, return "Invalid Date".
     if (isnan(time))
-        return PrimitiveString::create(vm, "Invalid Date"_string);
+        return PrimitiveString::create(vm, "Invalid Date"_utf16_fly_string);
 
     // 3. Let dateFormat be ? CreateDateTimeFormat(%DateTimeFormat%, locales, options, "any", "all").
     auto date_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Any, Intl::OptionDefaults::All));
@@ -1049,7 +1049,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_locale_time_string)
 
     // 2. If x is NaN, return "Invalid Date".
     if (isnan(time))
-        return PrimitiveString::create(vm, "Invalid Date"_string);
+        return PrimitiveString::create(vm, "Invalid Date"_utf16_fly_string);
 
     // 3. Let timeFormat be ? CreateDateTimeFormat(%DateTimeFormat%, locales, options, "time", "time").
     auto time_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Time, Intl::OptionDefaults::Time));
@@ -1071,17 +1071,17 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_string)
 
 // 21.4.4.41.1 TimeString ( tv ), https://tc39.es/ecma262/#sec-timestring
 // 14.5.8 TimeString ( tv ), https://tc39.es/proposal-temporal/#sec-timestring
-ByteString time_string(double time)
+Utf16String time_string(double time)
 {
     // 1. Let timeString be FormatTimeString(ℝ(HourFromTime(tv)), ℝ(MinFromTime(tv)), ℝ(SecFromTime(tv)), 0, 0).
     auto time_string = Temporal::format_time_string(hour_from_time(time), min_from_time(time), sec_from_time(time), 0, 0);
 
     // 4. Return the string-concatenation of timeString, the code unit 0x0020 (SPACE), and "GMT".
-    return ByteString::formatted("{} GMT", time_string);
+    return Utf16String::formatted("{} GMT", time_string);
 }
 
 // 21.4.4.41.2 DateString ( tv ), https://tc39.es/ecma262/#sec-datestring
-ByteString date_string(double time)
+Utf16String date_string(double time)
 {
     // 1. Let weekday be the Name of the entry in Table 62 with the Number WeekDay(tv).
     auto weekday = short_day_names[week_day(time)];
@@ -1100,7 +1100,7 @@ ByteString date_string(double time)
 
     // 6. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
     // 7. Return the string-concatenation of weekday, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), yearSign, and paddedYear.
-    return ByteString::formatted("{} {} {:02} {}{:04}", weekday, month, day, year_sign, abs(year));
+    return Utf16String::formatted("{} {} {:02} {}{:04}", weekday, month, day, year_sign, abs(year));
 }
 
 // 21.4.4.41.3 TimeZoneString ( tv ), https://tc39.es/ecma262/#sec-timezoneestring
@@ -1111,13 +1111,13 @@ Utf16String time_zone_string(double time)
     auto system_time_zone_identifier = JS::system_time_zone_identifier();
 
     // 2. Let offsetMinutes be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).[[OffsetMinutes]].
-    auto offset_minutes = Temporal::parse_time_zone_identifier(system_time_zone_identifier).offset_minutes;
+    auto offset_minutes = Temporal::parse_time_zone_identifier(system_time_zone_identifier.utf16_view()).offset_minutes;
     auto in_dst = Unicode::TimeZoneOffset::InDST::No;
 
     // 2. If offsetMinutes is EMPTY, then
     if (!offset_minutes.has_value()) {
         // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(tv) × 10^6)).
-        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier, time);
+        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier.utf16_view().bytes(), time);
         in_dst = offset.in_dst;
 
         // b. Set offsetMinutes to truncate(offsetNs / (60 × 10**9)).
@@ -1130,11 +1130,10 @@ Utf16String time_zone_string(double time)
     // 5. Let tzName be an implementation-defined string that is either the empty String or the string-concatenation of
     //    the code unit 0x0020 (SPACE), the code unit 0x0028 (LEFT PARENTHESIS), an implementation-defined timezone name,
     //    and the code unit 0x0029 (RIGHT PARENTHESIS).
-    auto time_zone_identifier = Unicode::current_time_zone();
-    auto tz_name = Utf16String::from_utf8(time_zone_identifier);
+    auto tz_name = Unicode::current_time_zone();
 
     // Most implementations seem to prefer the long-form display name of the time zone. Not super important, but we may as well match that behavior.
-    if (auto name = Unicode::time_zone_display_name(Unicode::default_locale(), time_zone_identifier, in_dst, time); name.has_value())
+    if (auto name = Unicode::time_zone_display_name(Unicode::default_locale().bytes(), tz_name.utf16_view().bytes(), in_dst, time); name.has_value())
         tz_name = name.release_value();
 
     // 10. Return the string-concatenation of offsetString and tzName.
@@ -1164,7 +1163,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_time_string)
 
     // 3. If tv is NaN, return "Invalid Date".
     if (isnan(time))
-        return PrimitiveString::create(vm, "Invalid Date"_string);
+        return PrimitiveString::create(vm, "Invalid Date"_utf16_fly_string);
 
     // 4. Let t be LocalTime(tv).
     // 5. Return the string-concatenation of TimeString(t) and TimeZoneString(tv).
@@ -1181,7 +1180,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_utc_string)
 
     // 3. If tv is NaN, return "Invalid Date".
     if (isnan(time))
-        return PrimitiveString::create(vm, "Invalid Date"_string);
+        return PrimitiveString::create(vm, "Invalid Date"_utf16_fly_string);
 
     // 4. Let weekday be the Name of the entry in Table 62 with the Number WeekDay(tv).
     auto weekday = short_day_names[week_day(time)];
@@ -1200,7 +1199,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_utc_string)
 
     // 9. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
     // 10. Return the string-concatenation of weekday, ",", the code unit 0x0020 (SPACE), day, the code unit 0x0020 (SPACE), month, the code unit 0x0020 (SPACE), yearSign, paddedYear, the code unit 0x0020 (SPACE), and TimeString(tv).
-    auto string = ByteString::formatted("{}, {:02} {} {}{:04} {}", weekday, day, month, year_sign, abs(year), time_string(time));
+    auto string = Utf16String::formatted("{}, {:02} {} {}{:04} {}", weekday, day, month, year_sign, abs(year), time_string(time));
     return PrimitiveString::create(vm, move(string));
 }
 

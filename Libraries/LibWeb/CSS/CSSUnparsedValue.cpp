@@ -24,7 +24,7 @@ GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(JS::Realm& realm, ReadonlySpa
     for (auto const& variant : value) {
         variant.visit(
             [&](GC::Ref<CSSVariableReferenceValue> it) { converted_value.append(it); },
-            [&](String const& it) { converted_value.append(it); });
+            [&](Utf16String const& it) { converted_value.append(it); });
     }
 
     return realm.create<CSSUnparsedValue>(realm, move(converted_value));
@@ -83,14 +83,14 @@ Optional<JS::Value> CSSUnparsedValue::item_value(size_t index) const
     auto value = m_tokens[index];
     return value.visit(
         [&](GC::Ref<CSSVariableReferenceValue> const& variable) -> JS::Value { return variable; },
-        [&](String const& string) -> JS::Value { return JS::PrimitiveString::create(vm(), string); });
+        [&](Utf16String const& string) -> JS::Value { return JS::PrimitiveString::create(vm(), string); });
 }
 
 static WebIDL::ExceptionOr<CSSUnparsedSegment> unparsed_segment_from_js_value(JS::VM& vm, JS::Value& value)
 {
     if (auto variable_reference = value.as_if<CSSVariableReferenceValue>())
         return GC::Ref { *variable_reference };
-    return TRY(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+    return TRY(value.to_utf16_string(vm));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-set-the-value-of-an-existing-indexed-property
@@ -150,8 +150,8 @@ WebIDL::ExceptionOr<Utf16String> CSSUnparsedValue::to_string() const
         //        serialize_a_series_of_component_values(). See https://github.com/w3c/css-houdini-drafts/issues/1148
         TRY(item.visit(
             // 1. If item is a USVString, append it to s.
-            [&](String const& string) -> WebIDL::ExceptionOr<void> {
-                s.append(Utf16String::from_utf8_without_validation(string));
+            [&](Utf16String const& string) -> WebIDL::ExceptionOr<void> {
+                s.append(string);
                 return {};
             },
             // 2. Otherwise, item is a CSSVariableReferenceValue. Serialize it, then append the result to s.

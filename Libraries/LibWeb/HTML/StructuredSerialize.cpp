@@ -302,7 +302,7 @@ public:
             serialized.encode(MUST(value.as_bigint().big_integer().to_base(10)));
         } else if (value.is_string()) {
             serialized.encode(ValueTag::StringPrimitive);
-            serialized.encode(value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+            serialized.encode(value.as_string().utf16_string());
         } else {
             return_primitive_type = false;
         }
@@ -338,7 +338,7 @@ public:
             // 10. Otherwise, if value has a [[StringData]] internal slot, then set serialized to { [[Type]]: "String", [[StringData]]: value.[[StringData]] }.
             else if (auto const* string_object = as_if<JS::StringObject>(*object)) {
                 serialized.encode(ValueTag::StringObject);
-                serialized.encode(string_object->primitive_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+                serialized.encode(string_object->primitive_string().utf16_string());
             }
 
             // 11. Otherwise, if value has a [[DateValue]] internal slot, then set serialized to { [[Type]]: "Date", [[DateValue]]: value.[[DateValue]] }.
@@ -619,7 +619,7 @@ public:
         auto is_primitive = false;
 
         auto decode_string = [&]() {
-            auto string = m_serialized.decode<String>();
+            auto string = m_serialized.decode<Utf16String>();
             return JS::PrimitiveString::create(m_vm, string);
         };
 

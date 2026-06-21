@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteString.h>
 #include <AK/Math.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
@@ -233,11 +233,11 @@ void BigFraction::reduce()
     m_denominator = denominator_divide.quotient;
 }
 
-String BigFraction::to_string(unsigned rounding_threshold) const
+Utf16String BigFraction::to_utf16_string(unsigned rounding_threshold) const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     if (m_numerator.is_negative() && m_numerator != "0"_bigint)
-        builder.append('-');
+        builder.append_ascii('-');
 
     auto const number_of_digits = [](auto integer) {
         unsigned size = 1;
@@ -256,43 +256,48 @@ String BigFraction::to_string(unsigned rounding_threshold) const
     auto const rounded_fraction = rounded(rounding_threshold);
 
     // We take the unsigned value as we already manage the '-'
-    auto const full_value = MUST(rounded_fraction.m_numerator.unsigned_value().to_base(10)).to_byte_string();
-    int split = full_value.length() - (number_of_digits(rounded_fraction.m_denominator) - 1);
+    auto const full_value = MUST(rounded_fraction.m_numerator.unsigned_value().to_base_utf16(10));
+    int split = full_value.length_in_code_units() - (number_of_digits(rounded_fraction.m_denominator) - 1);
 
     if (split < 0)
         split = 0;
 
-    auto const remove_trailing_zeros = [](StringView value) -> StringView {
-        auto n = value.length();
+    auto const remove_trailing_zeros = [](Utf16View value) -> Utf16View {
+        auto n = value.length_in_code_units();
         VERIFY(n > 0);
-        while (n > 0 && value.characters_without_null_termination()[n - 1] == '0')
+        while (n > 0 && value.code_unit_at(n - 1) == '0')
             --n;
-        return { value.characters_without_null_termination(), n };
+        return value.substring_view(0, n);
     };
 
-    auto const raw_fractional_value = full_value.substring(split, full_value.length() - split);
+    auto const raw_fractional_value = full_value.substring_view(split, full_value.length_in_code_units() - split);
 
-    auto const integer_value = split == 0 ? "0"sv : full_value.substring_view(0, split);
-    auto const fractional_value = rounding_threshold == 0 ? "0"sv : remove_trailing_zeros(raw_fractional_value);
+    Utf16View integer_value = "0"sv;
+    if (split != 0)
+        integer_value = full_value.substring_view(0, split);
+
+    Utf16View fractional_value = "0"sv;
+    if (rounding_threshold != 0)
+        fractional_value = remove_trailing_zeros(raw_fractional_value);
 
     builder.append(integer_value);
 
-    bool const has_decimal_part = fractional_value.length() > 0 && fractional_value != "0";
+    bool const has_decimal_part = fractional_value.length_in_code_units() > 0 && fractional_value != "0"sv;
 
     if (has_decimal_part) {
-        builder.append('.');
+        builder.append_ascii('.');
 
-        auto number_pre_zeros = number_of_digits(rounded_fraction.m_denominator) - full_value.length() - 1;
-        if (number_pre_zeros > rounding_threshold || fractional_value == "0")
+        auto number_pre_zeros = number_of_digits(rounded_fraction.m_denominator) - full_value.length_in_code_units() - 1;
+        if (number_pre_zeros > rounding_threshold || fractional_value == "0"sv)
             number_pre_zeros = 0;
 
-        builder.append_repeated('0', number_pre_zeros);
+        builder.append_repeated_ascii('0', number_pre_zeros);
 
-        if (fractional_value != "0")
+        if (fractional_value != "0"sv)
             builder.append(fractional_value);
     }
 
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 BigFraction BigFraction::sqrt() const

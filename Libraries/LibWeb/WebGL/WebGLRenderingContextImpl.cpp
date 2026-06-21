@@ -12,6 +12,8 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
@@ -1118,7 +1120,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
     }
     case GL_RENDERER: {
         auto result = reinterpret_cast<char const*>(m_context->get_string(GL_RENDERER));
-        return JS::PrimitiveString::create(realm().vm(), ByteString { result });
+        return JS::PrimitiveString::create(realm().vm(), Utf16String::from_ascii_without_validation(StringView { result, strlen(result) }.bytes()));
     }
     case GL_SAMPLE_ALPHA_TO_COVERAGE: {
         GLboolean result { GL_FALSE };
@@ -1166,7 +1168,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
     }
     case GL_SHADING_LANGUAGE_VERSION: {
         auto result = reinterpret_cast<char const*>(m_context->get_string(GL_SHADING_LANGUAGE_VERSION));
-        return JS::PrimitiveString::create(realm().vm(), ByteString { result });
+        return JS::PrimitiveString::create(realm().vm(), Utf16String::from_ascii_without_validation(StringView { result, strlen(result) }.bytes()));
     }
     case GL_STENCIL_BACK_FAIL: {
         GLint result { 0 };
@@ -1275,11 +1277,11 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
     }
     case GL_VENDOR: {
         auto result = reinterpret_cast<char const*>(m_context->get_string(GL_VENDOR));
-        return JS::PrimitiveString::create(realm().vm(), ByteString { result });
+        return JS::PrimitiveString::create(realm().vm(), Utf16String::from_ascii_without_validation(StringView { result, strlen(result) }.bytes()));
     }
     case GL_VERSION: {
         auto result = reinterpret_cast<char const*>(m_context->get_string(GL_VERSION));
-        return JS::PrimitiveString::create(realm().vm(), ByteString { result });
+        return JS::PrimitiveString::create(realm().vm(), Utf16String::from_ascii_without_validation(StringView { result, strlen(result) }.bytes()));
     }
     case GL_VIEWPORT: {
         Array<GLint, 4> result;
@@ -1297,7 +1299,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
             return JS::js_null();
         }
         auto result = reinterpret_cast<char const*>(m_context->get_string(GL_VENDOR));
-        return JS::PrimitiveString::create(realm().vm(), ByteString { result });
+        return JS::PrimitiveString::create(realm().vm(), Utf16String::from_ascii_without_validation(StringView { result, strlen(result) }.bytes()));
     }
     case UNMASKED_RENDERER_WEBGL: {
         if (!extension_enabled("WEBGL_debug_renderer_info"sv)) {
@@ -1305,7 +1307,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
             return JS::js_null();
         }
         auto result = reinterpret_cast<char const*>(m_context->get_string(GL_RENDERER));
-        return JS::PrimitiveString::create(realm().vm(), ByteString { result });
+        return JS::PrimitiveString::create(realm().vm(), Utf16String::from_ascii_without_validation(StringView { result, strlen(result) }.bytes()));
     }
 
     case GL_FRAGMENT_SHADER_DERIVATIVE_HINT: { // NOTE: This has the same value as GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES

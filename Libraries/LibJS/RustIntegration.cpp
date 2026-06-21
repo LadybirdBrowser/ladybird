@@ -89,17 +89,17 @@ static void collect_parse_errors(void* ctx, uint8_t const* message, size_t messa
 {
     auto& errors = *static_cast<Vector<ParserError>*>(ctx);
     errors.append({
-        MUST(String::from_utf8({ message, message_len })),
+        Utf16String::from_utf8({ message, message_len }),
         Position { line, column },
     });
 }
 
-// Collects a single parse error as a formatted String (for eval/dynamic function compilation).
+// Collects a single parse error as a formatted Utf16String (for eval/dynamic function compilation).
 static void collect_single_parse_error(void* ctx, uint8_t const* message, size_t message_len, uint32_t line, uint32_t column)
 {
-    auto& error_message = *static_cast<String*>(ctx);
+    auto& error_message = *static_cast<Utf16String*>(ctx);
     if (error_message.is_empty())
-        error_message = MUST(String::formatted("{} (line: {}, column: {})", MUST(String::from_utf8({ message, message_len })), line, column));
+        error_message = Utf16String::formatted("{} (line: {}, column: {})", Utf16String::from_utf8({ message, message_len }), line, column);
 }
 
 // --- Script GDI builder and callbacks ---
@@ -176,7 +176,7 @@ static void bytecode_dump_append_value_bigint(void* ctx, uint64_t encoded)
 {
     auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
     auto value = bit_cast<Value>(encoded);
-    builder.output.append(MUST(value.as_bigint().to_string()));
+    builder.output.append(value.as_bigint().to_utf16_string());
 }
 
 static void bytecode_dump_append_value_fallback(void* ctx, uint64_t encoded)
@@ -697,7 +697,7 @@ Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_cache_s
     void* exec_ptr = rust_materialize_bytecode_cache_script(blob, &realm.vm(), source_code.ptr(), source_code->length_in_code_units(), &builder.shared_function_data, &builder);
 
     if (!exec_ptr)
-        return Vector<ParserError> { ParserError { "Failed to materialize bytecode cache"_string, {} } };
+        return Vector<ParserError> { ParserError { "Failed to materialize bytecode cache"_utf16, {} } };
 
     builder.collect_shared_function_data();
     builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
@@ -718,7 +718,7 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(Utf16View sou
     return compile_parsed_script(parsed, source_code, realm);
 }
 
-Optional<Result<EvalResult, String>> compile_eval(
+Optional<Result<EvalResult, Utf16String>> compile_eval(
     PrimitiveString& code_string, VM& vm,
     CallerMode strict_caller, bool in_function, bool in_method,
     bool in_derived_constructor, bool in_class_field_initializer)
@@ -729,7 +729,7 @@ Optional<Result<EvalResult, String>> compile_eval(
 
     GC::DeferGC defer_gc(vm.heap());
     EvalGdiBuilder builder;
-    String parse_error;
+    Utf16String parse_error;
 
     auto const* source_ptr = source_code->utf16_data();
 
@@ -889,7 +889,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_m
         &builder, &callbacks, &tla_executable);
 
     if (!exec_ptr && !tla_executable)
-        return Vector<ParserError> { ParserError { "Failed to materialize bytecode cache"_string, {} } };
+        return Vector<ParserError> { ParserError { "Failed to materialize bytecode cache"_utf16, {} } };
 
     builder.collect_shared_function_data();
     if (tla_executable) {
@@ -1000,7 +1000,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView so
     return compile_parsed_module(parsed, source_code, realm);
 }
 
-Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_function(
+Optional<Result<GC::Ref<SharedFunctionInstanceData>, Utf16String>> compile_dynamic_function(
     VM& vm, Utf16View source_text, Utf16View parameters_string, Utf16View body_parse_string,
     FunctionKind kind)
 {
@@ -1025,7 +1025,7 @@ Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_fu
     auto const* body_data = prepare_utf16(body_parse_string, body_buf);
 
     GC::DeferGC defer_gc(vm.heap());
-    String parse_error;
+    Utf16String parse_error;
 
     void* sfd_ptr = rust_compile_dynamic_function(
         full_data, full_length,
@@ -1843,10 +1843,10 @@ extern "C" void* rust_compile_regex(
 
     auto parsed_pattern = JS::parse_regex_pattern(pattern, is_unicode, is_unicode_sets);
     if (parsed_pattern.is_error()) {
-        auto msg = MUST(String::formatted("RegExp compile error: {}", parsed_pattern.release_error().error));
-        auto* buf = static_cast<char*>(kmalloc(msg.byte_count() + 1));
-        memcpy(buf, msg.bytes().data(), msg.byte_count());
-        buf[msg.byte_count()] = '\0';
+        auto msg = Utf16String::formatted("RegExp compile error: {}", parsed_pattern.release_error().error).to_byte_string();
+        auto* buf = static_cast<char*>(kmalloc(msg.length() + 1));
+        memcpy(buf, msg.bytes().data(), msg.length());
+        buf[msg.length()] = '\0';
         *error_out = buf;
         return nullptr;
     }

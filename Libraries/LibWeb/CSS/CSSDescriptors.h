@@ -20,7 +20,7 @@ public:
     virtual ~CSSDescriptors() override;
 
     virtual size_t length() const override;
-    virtual String item(size_t index) const override;
+    virtual Utf16String item(size_t index) const override;
     virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property, StringView value, StringView priority) override;
     virtual WebIDL::ExceptionOr<String> remove_property(Utf16FlyString const& property) override;
     virtual String get_property_value(Utf16FlyString const& property) const override;

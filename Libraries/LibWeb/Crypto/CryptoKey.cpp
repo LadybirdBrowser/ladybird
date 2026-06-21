@@ -131,7 +131,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> deserialize_key_algorithm(HTML::Transfe
     case KeyAlgorithmTag::EcKeyAlgorithm: {
         auto algorithm = EcKeyAlgorithm::create(realm);
         algorithm->set_name(decoder.decode<String>());
-        algorithm->set_named_curve(decoder.decode<String>());
+        algorithm->set_named_curve(decoder.decode<Utf16String>());
         return algorithm;
     }
     case KeyAlgorithmTag::AesKeyAlgorithm: {
@@ -175,9 +175,9 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, RsaOtherPrimesInfo con
 RsaOtherPrimesInfo deserialize_rsa_other_primes_info(HTML::TransferDataDecoder& decoder)
 {
     return RsaOtherPrimesInfo {
-        .r = decoder.decode<Optional<String>>(),
-        .d = decoder.decode<Optional<String>>(),
-        .t = decoder.decode<Optional<String>>(),
+        .r = decoder.decode<Optional<Utf16String>>(),
+        .d = decoder.decode<Optional<Utf16String>>(),
+        .t = decoder.decode<Optional<Utf16String>>(),
     };
 }
 
@@ -214,22 +214,22 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, JsonWebKey const& jwk)
 JsonWebKey deserialize_json_web_key(HTML::TransferDataDecoder& decoder)
 {
     JsonWebKey jwk;
-    jwk.kty = decoder.decode<Optional<String>>();
-    jwk.use = decoder.decode<Optional<String>>();
-    jwk.key_ops = decoder.decode<Optional<Vector<String>>>();
-    jwk.alg = decoder.decode<Optional<String>>();
+    jwk.kty = decoder.decode<Optional<Utf16String>>();
+    jwk.use = decoder.decode<Optional<Utf16String>>();
+    jwk.key_ops = decoder.decode<Optional<Vector<Utf16String>>>();
+    jwk.alg = decoder.decode<Optional<Utf16String>>();
     jwk.ext = decoder.decode<Optional<bool>>();
-    jwk.crv = decoder.decode<Optional<String>>();
-    jwk.x = decoder.decode<Optional<String>>();
-    jwk.y = decoder.decode<Optional<String>>();
-    jwk.d = decoder.decode<Optional<String>>();
-    jwk.n = decoder.decode<Optional<String>>();
-    jwk.e = decoder.decode<Optional<String>>();
-    jwk.p = decoder.decode<Optional<String>>();
-    jwk.q = decoder.decode<Optional<String>>();
-    jwk.dp = decoder.decode<Optional<String>>();
-    jwk.dq = decoder.decode<Optional<String>>();
-    jwk.qi = decoder.decode<Optional<String>>();
+    jwk.crv = decoder.decode<Optional<Utf16String>>();
+    jwk.x = decoder.decode<Optional<Utf16String>>();
+    jwk.y = decoder.decode<Optional<Utf16String>>();
+    jwk.d = decoder.decode<Optional<Utf16String>>();
+    jwk.n = decoder.decode<Optional<Utf16String>>();
+    jwk.e = decoder.decode<Optional<Utf16String>>();
+    jwk.p = decoder.decode<Optional<Utf16String>>();
+    jwk.q = decoder.decode<Optional<Utf16String>>();
+    jwk.dp = decoder.decode<Optional<Utf16String>>();
+    jwk.dq = decoder.decode<Optional<Utf16String>>();
+    jwk.qi = decoder.decode<Optional<Utf16String>>();
     if (decoder.decode<bool>()) {
         auto size = decoder.decode<u64>();
         Vector<RsaOtherPrimesInfo> oth;
@@ -238,9 +238,9 @@ JsonWebKey deserialize_json_web_key(HTML::TransferDataDecoder& decoder)
             oth.unchecked_append(deserialize_rsa_other_primes_info(decoder));
         jwk.oth = move(oth);
     }
-    jwk.k = decoder.decode<Optional<String>>();
-    jwk.pub = decoder.decode<Optional<String>>();
-    jwk.priv = decoder.decode<Optional<String>>();
+    jwk.k = decoder.decode<Optional<Utf16String>>();
+    jwk.pub = decoder.decode<Optional<Utf16String>>();
+    jwk.priv = decoder.decode<Optional<Utf16String>>();
     return jwk;
 }
 
@@ -443,7 +443,7 @@ void CryptoKey::set_usages(Vector<Bindings::KeyUsage> usages)
     });
 }
 
-String CryptoKey::algorithm_name() const
+String const& CryptoKey::algorithm_name() const
 {
     if (m_algorithm_name.is_empty()) {
         auto name = MUST(m_algorithm_cached->get("name"_utf16_fly_string));

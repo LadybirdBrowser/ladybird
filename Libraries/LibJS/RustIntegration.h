@@ -162,7 +162,7 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(Utf16View sou
 
 // Compile eval code. Returns nullopt if Rust is not available.
 // On success, the executable's name is set to "eval".
-Optional<Result<EvalResult, String>> compile_eval(
+Optional<Result<EvalResult, Utf16String>> compile_eval(
     PrimitiveString& code_string, VM& vm,
     CallerMode strict_caller, bool in_function, bool in_method,
     bool in_derived_constructor, bool in_class_field_initializer);
@@ -181,7 +181,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView so
 
 // Compile a dynamic function (new Function()).
 // On success, returns a SharedFunctionInstanceData with source_text set.
-JS_API Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_function(
+JS_API Optional<Result<GC::Ref<SharedFunctionInstanceData>, Utf16String>> compile_dynamic_function(
     VM& vm, Utf16View source_text, Utf16View parameters_string, Utf16View body_parse_string,
     FunctionKind kind);
 

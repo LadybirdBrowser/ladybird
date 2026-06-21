@@ -155,7 +155,7 @@ WebIDL::ExceptionOr<void> TextDecoderStream::enqueue_decoded_output(String const
     if (fatal() && decoded.contains(0xFFFD))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
 
-    auto js_string = JS::PrimitiveString::create(vm, decoded);
+    auto js_string = JS::PrimitiveString::create(vm, Utf16String::from_utf8(decoded));
     return Streams::transform_stream_default_controller_enqueue(*m_transform->controller(), js_string);
 }
 

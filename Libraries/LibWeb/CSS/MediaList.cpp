@@ -156,7 +156,7 @@ Optional<JS::Value> MediaList::item_value(size_t index) const
 {
     if (index >= m_media.size())
         return {};
-    return JS::PrimitiveString::create(vm(), m_media[index]->to_string());
+    return JS::PrimitiveString::create(vm(), Utf16String::from_utf8(m_media[index]->to_string()));
 }
 
 void MediaList::dump(StringBuilder& builder, int indent_levels) const

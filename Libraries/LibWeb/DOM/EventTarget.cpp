@@ -9,6 +9,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/ExternalMemory.h>
@@ -494,7 +495,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         auto& settings_object = document->relevant_settings_object();
 
         // Build source text and parameter strings for the event handler function.
-        StringBuilder source_builder(StringBuilder::Mode::UTF16);
+        Utf16StringBuilder source_builder;
         Utf16String parameters_string;
 
         // sourceText / ParameterList
@@ -510,7 +511,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
             parameters_string = "event"_utf16;
         }
 
-        auto source_text = source_builder.to_utf16_string();
+        auto source_text = source_builder.to_string();
 
         auto& vm = Bindings::main_thread_vm();
 

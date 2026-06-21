@@ -9,6 +9,7 @@
 #include <AK/EnumBits.h>
 #include <AK/Span.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
@@ -20,7 +21,8 @@
 
 namespace JS::Intl {
 
-using LocaleKey = Variant<Empty, String>;
+using LocaleKey = Variant<Empty, Utf16String>;
+using ResolvedLocaleKey = Variant<Empty, Utf16String>;
 
 struct LocaleOptions {
     Value locale_matcher;
@@ -34,19 +36,19 @@ struct LocaleOptions {
 };
 
 struct MatchedLocale {
-    String locale;
+    Utf16String locale;
     Optional<Unicode::Extension> extension;
 };
 
 struct ResolvedLocale {
-    String locale;
-    String icu_locale;
-    LocaleKey ca; // [[Calendar]]
-    LocaleKey co; // [[Collation]]
-    LocaleKey hc; // [[HourCycle]]
-    LocaleKey kf; // [[CaseFirst]]
-    LocaleKey kn; // [[Numeric]]
-    LocaleKey nu; // [[NumberingSystem]]
+    Utf16String locale;
+    Utf16String icu_locale;
+    ResolvedLocaleKey ca; // [[Calendar]]
+    ResolvedLocaleKey co; // [[Collation]]
+    ResolvedLocaleKey hc; // [[HourCycle]]
+    ResolvedLocaleKey kf; // [[CaseFirst]]
+    ResolvedLocaleKey kn; // [[Numeric]]
+    ResolvedLocaleKey nu; // [[NumberingSystem]]
 };
 
 struct ResolvedOptions {
@@ -66,20 +68,20 @@ using StringOrBoolean = Variant<StringView, bool>;
 
 bool is_well_formed_language_tag(StringView locale);
 bool is_well_formed_language_tag(Utf16View locale);
-String canonicalize_unicode_locale_id(StringView locale);
-String canonicalize_unicode_locale_id(Utf16View locale);
+Utf16String canonicalize_unicode_locale_id(StringView locale);
+Utf16String canonicalize_unicode_locale_id(Utf16View locale);
 bool is_well_formed_currency_code(StringView currency);
 bool is_well_formed_currency_code(Utf16View currency);
 Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers();
-Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(StringView time_zone_identifier);
+Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(Utf16View time_zone_identifier);
 bool is_well_formed_unit_identifier(Utf16View unit_identifier);
-ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM&, Value locales);
-Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> requested_locales);
-Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<String> requested_locales);
-String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale_id, Vector<String> attributes, Vector<Unicode::Keyword> keywords);
-ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOptions const& options, ReadonlySpan<StringView> relevant_extension_keys);
+ThrowCompletionOr<Vector<Utf16String>> canonicalize_locale_list(VM&, Value locales);
+Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<Utf16String> requested_locales);
+Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<Utf16String> requested_locales);
+Utf16String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale_id, Vector<Utf16String> attributes, Vector<Unicode::Keyword> keywords);
+ResolvedLocale resolve_locale(ReadonlySpan<Utf16String> requested_locales, LocaleOptions const& options, ReadonlySpan<Utf16View> relevant_extension_keys);
 ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, Value locales, Value options_value, SpecialBehaviors special_behaviours = SpecialBehaviors::None, Function<void(LocaleOptions&)> modify_resolution_options = {});
-ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options);
+ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<Utf16String> requested_locales, Value options);
 ThrowCompletionOr<GC::Ref<Object>> coerce_options_to_object(VM&, Value options);
 ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM& vm, Object const& options, PropertyKey const& property, ReadonlySpan<StringView> string_values, StringOrBoolean fallback);
 ThrowCompletionOr<Optional<int>> default_number_option(VM&, Value value, int minimum, int maximum, Optional<int> fallback);

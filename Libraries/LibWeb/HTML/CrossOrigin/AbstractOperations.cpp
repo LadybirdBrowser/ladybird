@@ -484,7 +484,7 @@ GC::RootVector<JS::Value> cross_origin_own_property_keys(Variant<HTML::Location 
 
     // 2. For each e of CrossOriginProperties(O), append e.[[Property]] to keys.
     for (auto& entry : cross_origin_properties(object))
-        keys.append(JS::PrimitiveString::create(vm, move(entry.property)));
+        keys.append(JS::PrimitiveString::create(vm, Utf16String::from_utf8(entry.property)));
 
     // 3. Return the concatenation of keys and « "then", @@toStringTag, @@hasInstance, @@isConcatSpreadable ».
     keys.append(JS::PrimitiveString::create(vm, vm.names.then.as_string()));

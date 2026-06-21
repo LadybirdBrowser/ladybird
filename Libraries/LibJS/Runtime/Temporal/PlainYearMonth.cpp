@@ -22,7 +22,7 @@ namespace JS::Temporal {
 GC_DEFINE_ALLOCATOR(PlainYearMonth);
 
 // 9 Temporal.PlainYearMonth Objects, https://tc39.es/proposal-temporal/#sec-temporal-plainyearmonth-objects
-PlainYearMonth::PlainYearMonth(ISODate iso_date, String calendar, Object& prototype)
+PlainYearMonth::PlainYearMonth(ISODate iso_date, Utf16String calendar, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_iso_date(iso_date)
     , m_calendar(move(calendar))
@@ -78,7 +78,7 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
     // 6. If calendar is empty, set calendar to "iso8601".
     auto calendar = parse_result.calendar.has_value()
         ? TRY(canonicalize_calendar(vm, *parse_result.calendar))
-        : TRY(canonicalize_calendar(vm, "iso8601"sv));
+        : TRY(canonicalize_calendar(vm, ISO8601_CALENDAR));
 
     // 8. Let resolvedOptions be ? GetOptionsObject(options).
     auto resolved_options = TRY(get_options_object(vm, options));
@@ -138,7 +138,7 @@ ISOYearMonth balance_iso_year_month(double year, double month)
 }
 
 // 9.5.5 CreateTemporalYearMonth ( isoDate, calendar [ , newTarget ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtemporalyearmonth
-ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM& vm, ISODate iso_date, String calendar, GC::Ptr<FunctionObject> new_target)
+ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM& vm, ISODate iso_date, Utf16String calendar, GC::Ptr<FunctionObject> new_target)
 {
     auto& realm = *vm.current_realm();
 
@@ -160,27 +160,27 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM& vm, IS
 }
 
 // 9.5.6 TemporalYearMonthToString ( yearMonth, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-temporalyearmonthtostring
-String temporal_year_month_to_string(PlainYearMonth const& year_month, ShowCalendar show_calendar)
+Utf16String temporal_year_month_to_string(PlainYearMonth const& year_month, ShowCalendar show_calendar)
 {
     // 1. Let year be PadISOYear(yearMonth.[[ISODate]].[[Year]]).
     auto year = pad_iso_year(year_month.iso_date().year);
 
     // 2. Let month be ToZeroPaddedDecimalString(yearMonth.[[ISODate]].[[Month]], 2).
     // 3. Let result be the string-concatenation of year, the code unit 0x002D (HYPHEN-MINUS), and month.
-    auto result = MUST(String::formatted("{}-{:02}", year, year_month.iso_date().month));
+    auto result = Utf16String::formatted("{}-{:02}", year, year_month.iso_date().month);
 
     // 4. If showCalendar is one of always or critical, or yearMonth.[[Calendar]] is not "iso8601", then
     if (show_calendar == ShowCalendar::Always || show_calendar == ShowCalendar::Critical || year_month.calendar() != ISO8601_CALENDAR) {
         // a. Let day be ToZeroPaddedDecimalString(yearMonth.[[ISODate]].[[Day]], 2).
         // b. Set result to the string-concatenation of result, the code unit 0x002D (HYPHEN-MINUS), and day.
-        result = MUST(String::formatted("{}-{:02}", result, year_month.iso_date().day));
+        result = Utf16String::formatted("{}-{:02}", result, year_month.iso_date().day);
     }
 
     // 5. Let calendarString be FormatCalendarAnnotation(yearMonth.[[Calendar]], showCalendar).
     auto calendar_string = format_calendar_annotation(year_month.calendar(), show_calendar);
 
     // 6. Set result to the string-concatenation of result and calendarString.
-    result = MUST(String::formatted("{}{}", result, calendar_string));
+    result = Utf16String::formatted("{}{}", result, calendar_string);
 
     // 7. Return result.
     return result;

@@ -34,15 +34,15 @@ ListFormatType list_format_type_from_string(Utf16View list_format_type)
     VERIFY_NOT_REACHED();
 }
 
-StringView list_format_type_to_string(ListFormatType list_format_type)
+Utf16String list_format_type_to_string(ListFormatType list_format_type)
 {
     switch (list_format_type) {
     case ListFormatType::Conjunction:
-        return "conjunction"sv;
+        return "conjunction"_utf16;
     case ListFormatType::Disjunction:
-        return "disjunction"sv;
+        return "disjunction"_utf16;
     case ListFormatType::Unit:
-        return "unit"sv;
+        return "unit"_utf16;
     }
     VERIFY_NOT_REACHED();
 }
@@ -73,13 +73,13 @@ static constexpr UListFormatterWidth icu_list_format_width(Style style)
     VERIFY_NOT_REACHED();
 }
 
-static constexpr StringView icu_list_format_field_to_string(i32 field)
+static Utf16String icu_list_format_field_to_string(i32 field)
 {
     switch (field) {
     case ULISTFMT_LITERAL_FIELD:
-        return "literal"sv;
+        return "literal"_utf16;
     case ULISTFMT_ELEMENT_FIELD:
-        return "element"sv;
+        return "element"_utf16;
     }
     VERIFY_NOT_REACHED();
 }

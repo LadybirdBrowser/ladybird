@@ -29,10 +29,10 @@ DurationFormat::DurationFormat(Object& prototype)
 }
 
 // 13.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.DurationFormat-internal-slots
-ReadonlySpan<StringView> DurationFormat::relevant_extension_keys() const
+ReadonlySpan<Utf16View> DurationFormat::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
-    static constexpr AK::Array keys { "nu"sv };
+    static constexpr AK::Array<Utf16View, 1> keys { "nu"sv };
     return keys;
 }
 
@@ -63,17 +63,17 @@ DurationFormat::Style DurationFormat::style_from_string(Utf16View style)
     VERIFY_NOT_REACHED();
 }
 
-StringView DurationFormat::style_to_string(Style style)
+Utf16String DurationFormat::style_to_string(Style style)
 {
     switch (style) {
     case Style::Long:
-        return "long"sv;
+        return "long"_utf16;
     case Style::Short:
-        return "short"sv;
+        return "short"_utf16;
     case Style::Narrow:
-        return "narrow"sv;
+        return "narrow"_utf16;
     case Style::Digital:
-        return "digital"sv;
+        return "digital"_utf16;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -105,32 +105,32 @@ DurationFormat::ValueStyle DurationFormat::value_style_from_string(Utf16View val
     VERIFY_NOT_REACHED();
 }
 
-StringView DurationFormat::value_style_to_string(ValueStyle value_style)
+Utf16String DurationFormat::value_style_to_string(ValueStyle value_style)
 {
     switch (value_style) {
     case ValueStyle::Long:
-        return "long"sv;
+        return "long"_utf16;
     case ValueStyle::Short:
-        return "short"sv;
+        return "short"_utf16;
     case ValueStyle::Narrow:
-        return "narrow"sv;
+        return "narrow"_utf16;
     case ValueStyle::Numeric:
-        return "numeric"sv;
+        return "numeric"_utf16;
     case ValueStyle::TwoDigit:
-        return "2-digit"sv;
+        return "2-digit"_utf16;
     case ValueStyle::Fractional:
-        return "fractional"sv;
+        return "fractional"_utf16;
     }
     VERIFY_NOT_REACHED();
 }
 
-StringView DurationFormat::display_to_string(Display display)
+Utf16String DurationFormat::display_to_string(Display display)
 {
     switch (display) {
     case Display::Auto:
-        return "auto"sv;
+        return "auto"_utf16;
     case Display::Always:
-        return "always"sv;
+        return "always"_utf16;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -238,7 +238,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
     DurationFormat::ValueStyle style;
 
     // 2. Let displayDefault be "always".
-    auto display_default = "always"sv;
+    Utf16View display_default = u"always"sv;
 
     // 3. If style is undefined, then
     if (style_value.is_undefined()) {
@@ -249,7 +249,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
 
             // ii. If unit is not one of "hours", "minutes", or "seconds", set displayDefault to "auto".
             if (!first_is_one_of(unit, DurationFormat::Unit::Hours, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds))
-                display_default = "auto"sv;
+                display_default = u"auto"sv;
         }
         // b. Else if prevStyle is one of "fractional", "numeric" or "2-digit", then
         else if (first_is_one_of(previous_style, DurationFormat::ValueStyle::Fractional, DurationFormat::ValueStyle::Numeric, DurationFormat::ValueStyle::TwoDigit)) {
@@ -258,7 +258,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
 
             // ii. If unit is not "minutes" or "seconds", set displayDefault to "auto".
             if (!first_is_one_of(unit, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds))
-                display_default = "auto"sv;
+                display_default = u"auto"sv;
         }
         // c. Else,
         else {
@@ -266,7 +266,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
             style = static_cast<DurationFormat::ValueStyle>(base_style);
 
             // ii. Set displayDefault to "auto".
-            display_default = "auto"sv;
+            display_default = u"auto"sv;
         }
     } else {
         style = DurationFormat::value_style_from_string(style_value.as_string().utf16_string_view());
@@ -278,7 +278,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
         style = DurationFormat::ValueStyle::Fractional;
 
         // b. Set displayDefault to "auto".
-        display_default = "auto"sv;
+        display_default = u"auto"sv;
     }
 
     // 5. Let displayField be the string-concatenation of unit and "Display".
@@ -395,7 +395,7 @@ Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& du
     // 8. If signDisplayed is false, then
     if (!sign_displayed) {
         // a. Perform ! CreateDataPropertyOrThrow(nfOpts, "signDisplay", "never").
-        MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"sv)));
+        MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"_utf16_fly_string)));
     }
 
     // 9. Perform ! CreateDataPropertyOrThrow(nfOpts, "useGrouping", false).
@@ -412,7 +412,7 @@ Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& du
 
     for (auto& part : hours_parts) {
         // a. Append the Record { [[Type]]: part.[[Type]], [[Value]]: part.[[Value]], [[Unit]]: "hour" } to result.
-        result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "hour"sv });
+        result.unchecked_append({ .type = move(part.type), .value = move(part.value), .unit = "hour"_utf16 });
     }
 
     // 13. Return result.
@@ -433,7 +433,7 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
         auto separator = duration_format.hour_minute_separator();
 
         // b. Append the Record { [[Type]]: "literal", [[Value]]: separator, [[Unit]]: EMPTY } to result.
-        result.append({ .type = "literal"sv, .value = move(separator), .unit = {} });
+        result.append({ .type = "literal"_utf16, .value = move(separator), .unit = {} });
     }
 
     // 3. Let minutesStyle be durationFormat.[[MinutesOptions]].[[Style]].
@@ -460,7 +460,7 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
     // 9. If signDisplayed is false, then
     if (!sign_displayed) {
         // a. Perform ! CreateDataPropertyOrThrow(nfOpts, "signDisplay", "never").
-        MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"sv)));
+        MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"_utf16_fly_string)));
     }
 
     // 10. Perform ! CreateDataPropertyOrThrow(nfOpts, "useGrouping", false).
@@ -477,7 +477,7 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
 
     for (auto& part : minutes_parts) {
         // a. Append the Record { [[Type]]: part.[[Type]], [[Value]]: part.[[Value]], [[Unit]]: "minute" } to result.
-        result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "minute"sv });
+        result.unchecked_append({ .type = move(part.type), .value = move(part.value), .unit = "minute"_utf16 });
     }
 
     // 14. Return result.
@@ -498,7 +498,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
         auto separator = duration_format.minute_second_separator();
 
         // b. Append the Record { [[Type]]: "literal", [[Value]]: separator, [[Unit]]: EMPTY } to result.
-        result.append({ .type = "literal"sv, .value = move(separator), .unit = {} });
+        result.append({ .type = "literal"_utf16, .value = move(separator), .unit = {} });
     }
 
     // 3. Let secondsStyle be durationFormat.[[SecondsOptions]].[[Style]].
@@ -525,7 +525,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
     // 9. If signDisplayed is false, then
     if (!sign_displayed) {
         // a. Perform ! CreateDataPropertyOrThrow(nfOpts, "signDisplay", "never").
-        MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"sv)));
+        MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"_utf16_fly_string)));
     }
 
     // 10. Perform ! CreateDataPropertyOrThrow(nfOpts, "useGrouping", false).
@@ -552,7 +552,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
     }
 
     // 14. Perform ! CreateDataPropertyOrThrow(nfOpts, "roundingMode", "trunc").
-    MUST(number_format_options->create_data_property_or_throw(vm.names.roundingMode, PrimitiveString::create(vm, "trunc"sv)));
+    MUST(number_format_options->create_data_property_or_throw(vm.names.roundingMode, PrimitiveString::create(vm, "trunc"_utf16_fly_string)));
 
     // 15. Let nf be ! Construct(%Intl.NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
     auto number_format = construct_number_format(vm, duration_format, number_format_options);
@@ -565,7 +565,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
 
     for (auto& part : seconds_parts) {
         // a. Append the Record { [[Type]]: part.[[Type]], [[Value]]: part.[[Value]], [[Unit]]: "second" } to result.
-        result.unchecked_append({ .type = part.type, .value = move(part.value), .unit = "second"sv });
+        result.unchecked_append({ .type = move(part.type), .value = move(part.value), .unit = "second"_utf16 });
     }
 
     // 18. Return result.
@@ -690,7 +690,7 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     // 18. If secondsFormatted is true, then
     if (seconds_formatted) {
         // a. Let secondsParts be FormatNumericSeconds(durationFormat, secondsValue, minutesFormatted, signDisplayed).
-        auto seconds_value_mv = MathematicalValue { Utf16String::from_utf8(seconds_value.to_string(9)) };
+        auto seconds_value_mv = MathematicalValue { seconds_value.to_utf16_string(9) };
         auto seconds_parts = format_numeric_seconds(vm, duration_format, seconds_value_mv, minutes_formatted, sign_displayed);
 
         // b. Set numericPartsList to the list-concatenation of numericPartsList and secondsParts.
@@ -718,7 +718,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
     auto list_format_options = Object::create(realm, nullptr);
 
     // 2. Perform ! CreateDataPropertyOrThrow(lfOpts, "type", "unit").
-    MUST(list_format_options->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, "unit"sv)));
+    MUST(list_format_options->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, "unit"_utf16_fly_string)));
 
     // 3. Let listStyle be durationFormat.[[Style]].
     auto list_style = duration_format.style();
@@ -731,7 +731,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
 
     // 5. Perform ! CreateDataPropertyOrThrow(lfOpts, "style", listStyle).
     auto locale_list_style = Unicode::style_to_string(static_cast<Unicode::Style>(list_style));
-    MUST(list_format_options->create_data_property_or_throw(vm.names.style, PrimitiveString::create(vm, locale_list_style)));
+    MUST(list_format_options->create_data_property_or_throw(vm.names.style, PrimitiveString::create(vm, move(locale_list_style))));
 
     // 6. Let lf be ! Construct(%Intl.ListFormat%, « durationFormat.[[Locale]], lfOpts »).
     auto list_format = construct_list_format(vm, duration_format, list_format_options);
@@ -792,7 +792,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
             VERIFY(list_part.type == "literal"sv);
 
             // ii. Append the Record { [[Type]]: "literal", [[Value]]: listPart.[[Value]], [[Unit]]: empty } to flattenedPartsList.
-            flattened_parts_list.append({ .type = "literal"sv, .value = move(list_part.value), .unit = {} });
+            flattened_parts_list.append({ .type = "literal"_utf16, .value = move(list_part.value), .unit = {} });
         }
     }
 
@@ -876,7 +876,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                 }
 
                 // 5. Perform ! CreateDataPropertyOrThrow(nfOpts, "roundingMode", "trunc").
-                MUST(number_format_options->create_data_property_or_throw(vm.names.roundingMode, PrimitiveString::create(vm, "trunc"sv)));
+                MUST(number_format_options->create_data_property_or_throw(vm.names.roundingMode, PrimitiveString::create(vm, "trunc"_utf16_fly_string)));
 
                 // 6. Set numericUnitFound to true.
                 numeric_unit_found = true;
@@ -884,7 +884,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
 
             // iii. If display is "always" or value is not 0, then
             if (display == DurationFormat::Display::Always || !value.is_zero()) {
-                auto value_mv = MathematicalValue { Utf16String::from_utf8(value.to_string(9)) };
+                auto value_mv = MathematicalValue { value.to_utf16_string(9) };
 
                 // 1. Perform ! CreateDataPropertyOrThrow(nfOpts, "numberingSystem", durationFormat.[[NumberingSystem]]).
                 MUST(number_format_options->create_data_property_or_throw(vm.names.numberingSystem, PrimitiveString::create(vm, duration_format.numbering_system())));
@@ -901,18 +901,18 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                 // 3. Else,
                 else {
                     // a. Perform ! CreateDataPropertyOrThrow(nfOpts, "signDisplay", "never").
-                    MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"sv)));
+                    MUST(number_format_options->create_data_property_or_throw(vm.names.signDisplay, PrimitiveString::create(vm, "never"_utf16_fly_string)));
                 }
 
                 // 3. Perform ! CreateDataPropertyOrThrow(nfOpts, "style", "unit").
-                MUST(number_format_options->create_data_property_or_throw(vm.names.style, PrimitiveString::create(vm, "unit"sv)));
+                MUST(number_format_options->create_data_property_or_throw(vm.names.style, PrimitiveString::create(vm, "unit"_utf16_fly_string)));
 
                 // 4. Perform ! CreateDataPropertyOrThrow(nfOpts, "unit", numberFormatUnit).
                 MUST(number_format_options->create_data_property_or_throw(vm.names.unit, PrimitiveString::create(vm, number_format_unit.as_string())));
 
                 // 5. Perform ! CreateDataPropertyOrThrow(nfOpts, "unitDisplay", style).
                 auto locale_style = Unicode::style_to_string(static_cast<Unicode::Style>(style));
-                MUST(number_format_options->create_data_property_or_throw(vm.names.unitDisplay, PrimitiveString::create(vm, locale_style)));
+                MUST(number_format_options->create_data_property_or_throw(vm.names.unitDisplay, PrimitiveString::create(vm, move(locale_style))));
 
                 // 6. Let nf be ! Construct(%Intl.NumberFormat%, « durationFormat.[[Locale]], nfOpts »).
                 auto number_format = construct_number_format(vm, duration_format, number_format_options);
@@ -925,10 +925,11 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
 
                 // 10. For each Record { [[Type]], [[Value]] } part of parts, do
                 list.ensure_capacity(parts.size());
+                auto unit = number_format_unit.as_string().to_utf16_string();
 
                 for (auto& part : parts) {
                     // a. Append the Record { [[Type]]: part.[[Type]], [[Value]]: part.[[Value]], [[Unit]]: numberFormatUnit } to list.
-                    list.unchecked_append({ .type = part.type, .value = move(part.value), .unit = number_format_unit.as_string().view() });
+                    list.unchecked_append({ .type = move(part.type), .value = move(part.value), .unit = unit });
                 }
 
                 // 11. Append list to result.

@@ -11,6 +11,8 @@
 
 #include <AK/BuiltinWrappers.h>
 #include <AK/FloatingPoint.h>
+#include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibCrypto/BigInt/Tommath.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
@@ -170,6 +172,28 @@ ErrorOr<String> UnsignedBigInteger::to_base(u16 N) const
     MP_MUST(mp_to_radix(&m_mp, reinterpret_cast<char*>(buffer.data()), size, &written, N));
 
     return StringView(buffer.bytes().slice(0, written - 1)).to_ascii_lowercase_string();
+}
+
+ErrorOr<Utf16String> UnsignedBigInteger::to_base_utf16(u16 N) const
+{
+    VERIFY(N <= 36);
+    if (is_zero())
+        return "0"_utf16;
+
+    int size = 0;
+    MP_MUST(mp_radix_size(&m_mp, N, &size));
+    auto buffer = TRY(ByteBuffer::create_zeroed(size));
+
+    size_t written = 0;
+    MP_MUST(mp_to_radix(&m_mp, reinterpret_cast<char*>(buffer.data()), size, &written, N));
+
+    Utf16StringBuilder builder(written - 1);
+    for (auto character : buffer.bytes().slice(0, written - 1)) {
+        if (character >= 'A' && character <= 'Z')
+            character += 'a' - 'A';
+        builder.append_code_unit(character);
+    }
+    return builder.to_string();
 }
 
 size_t UnsignedBigInteger::count_digits_in_base(u16 base) const

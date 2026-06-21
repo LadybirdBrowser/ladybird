@@ -60,7 +60,7 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     auto [options, result, _] = TRY(resolve_options(vm, relative_time_format, locales_value, options_value, SpecialBehaviors::CoerceOptions));
 
     // 6. Let locale be r.[[Locale]].
-    auto locale = move(result.locale);
+    auto locale = result.locale;
 
     // 7. Set relativeTimeFormat.[[Locale]] to locale.
     relative_time_format->set_locale(locale);
@@ -68,17 +68,17 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     // 8. Set relativeTimeFormat.[[LocaleData]] to r.[[LocaleData]].
 
     // 9. Set relativeTimeFormat.[[NumberingSystem]] to r.[[nu]].
-    if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
+    if (auto* resolved_numbering_system = result.nu.get_pointer<Utf16String>())
         relative_time_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 10. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow" », "long").
-    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));
+    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, u"long"sv));
 
     // 11. Set relativeTimeFormat.[[Style]] to style.
     relative_time_format->set_style(style.as_string().utf16_string_view());
 
     // 12. Let numeric be ? GetOption(options, "numeric", STRING, « "always", "auto" », "always").
-    auto numeric = TRY(get_option(vm, *options, vm.names.numeric, OptionType::String, { "always"sv, "auto"sv }, "always"sv));
+    auto numeric = TRY(get_option(vm, *options, vm.names.numeric, OptionType::String, { "always"sv, "auto"sv }, u"always"sv));
 
     // 13. Set relativeTimeFormat.[[Numeric]] to numeric.
     relative_time_format->set_numeric(numeric.as_string().utf16_string_view());
@@ -88,7 +88,7 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     // 16. Let relativeTimeFormat.[[NumberFormat]] be ! Construct(%Intl.NumberFormat%, « locale, nfOptions »).
     // 17. Let relativeTimeFormat.[[PluralRules]] be ! Construct(%Intl.PluralRules%, « locale »).
     auto formatter = Unicode::RelativeTimeFormat::create(
-        result.icu_locale,
+        result.icu_locale.utf16_view().bytes(),
         relative_time_format->style());
     relative_time_format->set_formatter(move(formatter));
 

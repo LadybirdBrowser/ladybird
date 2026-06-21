@@ -8,6 +8,7 @@
 
 #include <AK/Concepts.h>
 #include <AK/Stream.h>
+#include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/Array.h>
@@ -140,9 +141,21 @@ ErrorOr<void> js_out(JS::PrintContext& print_context, CheckedFormatString<Args..
 {
     if (print_context.strip_ansi) {
         auto format_string_without_ansi = TRY(strip_ansi(format_string.view()));
-        TRY(print_context.stream.write_formatted(format_string_without_ansi, args...));
+        if (print_context.builder) {
+            AK::VariadicFormatParams<AK::AllowDebugOnlyFormatters::No, Args...> variadic_format_parameters { args... };
+            TRY(vformat(*print_context.builder, format_string_without_ansi.bytes_as_string_view(), variadic_format_parameters));
+        } else {
+            VERIFY(print_context.stream);
+            TRY(print_context.stream->write_formatted(format_string_without_ansi, args...));
+        }
     } else {
-        TRY(print_context.stream.write_formatted(format_string.view(), args...));
+        if (print_context.builder) {
+            AK::VariadicFormatParams<AK::AllowDebugOnlyFormatters::No, Args...> variadic_format_parameters { args... };
+            TRY(vformat(*print_context.builder, format_string.view(), variadic_format_parameters));
+        } else {
+            VERIFY(print_context.stream);
+            TRY(print_context.stream->write_formatted(format_string.view(), args...));
+        }
     }
 
     return {};
@@ -684,7 +697,7 @@ ErrorOr<void> print_intl_date_time_format(JS::PrintContext& print_context, JS::I
                 return JS::throw_completion(JS::js_null());
         } else {
             auto name = Unicode::calendar_pattern_style_to_string(*option);
-            if (print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), name), seen_objects).is_error())
+            if (print_value(print_context, JS::PrimitiveString::create(date_time_format.vm(), move(name)), seen_objects).is_error())
                 return JS::throw_completion(JS::js_null());
         }
 
@@ -788,10 +801,10 @@ ErrorOr<void> print_intl_duration_format(JS::PrintContext& print_context, JS::In
         auto display = JS::Intl::DurationFormat::display_to_string(options.display);
 
         TRY(js_out(print_context, "\n  {}: ", style_name));
-        TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), style), seen_objects));
+        TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), move(style)), seen_objects));
 
         TRY(js_out(print_context, "\n  {}: ", display_name));
-        TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), display), seen_objects));
+        TRY(print_value(print_context, JS::PrimitiveString::create(duration_format.vm(), move(display)), seen_objects));
 
         return {};
     };

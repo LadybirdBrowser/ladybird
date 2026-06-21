@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Export.h>
@@ -28,7 +29,7 @@ public:
     double date_value() const { return m_date_value; }
     void set_date_value(double value) { m_date_value = value; }
 
-    ErrorOr<Utf16String> iso_date_string() const;
+    Utf16String iso_date_string() const;
 
 private:
     Date(double date_value, Object& prototype);
@@ -43,8 +44,8 @@ inline bool Object::fast_is<Date>() const { return is_date(); }
 
 // 21.4.1.22 Time Zone Identifier Record, https://tc39.es/ecma262/#sec-time-zone-identifier-record
 struct TimeZoneIdentifier {
-    String identifier;         // [[Identifier]]
-    String primary_identifier; // [[PrimaryIdentifier]]
+    Utf16String identifier;         // [[Identifier]]
+    Utf16String primary_identifier; // [[PrimaryIdentifier]]
 };
 
 // https://tc39.es/ecma262/#eqn-HoursPerDay
@@ -90,7 +91,7 @@ i64 clip_double_to_sane_time(double value);
 Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringView time_zone_identifier, Temporal::ISODateTime const&);
 Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds);
 Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(StringView time_zone_identifier, double epoch_milliseconds);
-String system_time_zone_identifier();
+Utf16String system_time_zone_identifier();
 JS_API void clear_system_time_zone_cache();
 double local_time(double time);
 double utc_time(double time);

@@ -20,7 +20,7 @@ Segmenter::Segmenter(Object& prototype)
 }
 
 // 19.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.segmenter-internal-slots
-ReadonlySpan<StringView> Segmenter::relevant_extension_keys() const
+ReadonlySpan<Utf16View> Segmenter::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « ».
     return {};

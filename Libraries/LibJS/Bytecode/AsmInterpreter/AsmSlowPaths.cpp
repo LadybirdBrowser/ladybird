@@ -245,7 +245,7 @@ static ThrowCompletionOr<void> asm_create_variable(VM& vm, Utf16FlyString const&
         // Note: This is papering over an issue where "FunctionDeclarationInstantiation" creates these bindings for us.
         //       Instead of crashing in there, we'll just raise an exception here.
         if (TRY(vm.lexical_environment()->has_binding(name))) [[unlikely]]
-            return vm.throw_completion<InternalError>(TRY_OR_THROW_OOM(vm, String::formatted("Lexical environment already has binding '{}'", name)));
+            return vm.throw_completion<InternalError>(Utf16String::formatted("Lexical environment already has binding '{}'", name));
 
         if (is_immutable)
             return vm.lexical_environment()->create_immutable_binding(vm, name, is_strict);
@@ -2344,7 +2344,7 @@ i64 asm_slow_path_dynamic_typeof_binding(VM* vm, u32 pc, Op::DynamicTypeofBindin
 
     auto reference = ASM_TRY(*vm, pc, vm->resolve_binding(vm->get_identifier(instruction->identifier()), instruction->strict()));
     if (reference.is_unresolvable()) {
-        vm->set(instruction->dst(), PrimitiveString::create(*vm, "undefined"_string));
+        vm->set(instruction->dst(), PrimitiveString::create(*vm, "undefined"_utf16_fly_string));
         return static_cast<i64>(pc + sizeof(Op::DynamicTypeofBinding));
     }
 

@@ -10,6 +10,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Locale.h>
 
@@ -36,14 +37,14 @@ static constexpr u32 view_code_unit_at(ViewType const& view, size_t index)
         return static_cast<u8>(view[index]);
 }
 
-static String string_from_ascii_view(StringView string)
+static Utf16String utf16_string_from_ascii_view(StringView string)
 {
-    return MUST(String::from_utf8(string));
+    return Utf16String::from_ascii_without_validation(string.bytes());
 }
 
-static String string_from_ascii_view(Utf16View string)
+static Utf16String utf16_string_from_ascii_view(Utf16View string)
 {
-    return MUST(string.to_utf8());
+    return Utf16String::from_utf16(string);
 }
 
 template<typename ViewType>
@@ -205,10 +206,10 @@ static Optional<LanguageID> parse_unicode_language_id_from_lexer(Lexer& lexer)
         case ParseState::ParsingLanguageOrScript:
             if (is_unicode_language_subtag(*segment)) {
                 state = ParseState::ParsingScript;
-                language_id.language = string_from_ascii_view(*segment);
+                language_id.language = utf16_string_from_ascii_view(*segment);
             } else if (is_unicode_script_subtag(*segment)) {
                 state = ParseState::ParsingRegion;
-                language_id.script = string_from_ascii_view(*segment);
+                language_id.script = utf16_string_from_ascii_view(*segment);
             } else {
                 return {};
             }
@@ -217,7 +218,7 @@ static Optional<LanguageID> parse_unicode_language_id_from_lexer(Lexer& lexer)
         case ParseState::ParsingScript:
             if (is_unicode_script_subtag(*segment)) {
                 state = ParseState::ParsingRegion;
-                language_id.script = string_from_ascii_view(*segment);
+                language_id.script = utf16_string_from_ascii_view(*segment);
                 break;
             }
 
@@ -227,7 +228,7 @@ static Optional<LanguageID> parse_unicode_language_id_from_lexer(Lexer& lexer)
         case ParseState::ParsingRegion:
             if (is_unicode_region_subtag(*segment)) {
                 state = ParseState::ParsingVariant;
-                language_id.region = string_from_ascii_view(*segment);
+                language_id.region = utf16_string_from_ascii_view(*segment);
                 break;
             }
 
@@ -236,7 +237,7 @@ static Optional<LanguageID> parse_unicode_language_id_from_lexer(Lexer& lexer)
 
         case ParseState::ParsingVariant:
             if (is_unicode_variant_subtag(*segment)) {
-                language_id.variants.append(string_from_ascii_view(*segment));
+                language_id.variants.append(utf16_string_from_ascii_view(*segment));
             } else {
                 lexer.retreat(view_length(*segment) + 1);
                 state = ParseState::Done;
@@ -279,7 +280,7 @@ static Optional<LocaleExtension> parse_unicode_locale_extension(Lexer& lexer)
         switch (state) {
         case ParseState::ParsingAttribute:
             if (is_attribute(*segment)) {
-                locale_extension.attributes.append(string_from_ascii_view(*segment));
+                locale_extension.attributes.append(utf16_string_from_ascii_view(*segment));
                 break;
             }
 
@@ -288,8 +289,8 @@ static Optional<LocaleExtension> parse_unicode_locale_extension(Lexer& lexer)
 
         case ParseState::ParsingKeyword: {
             // keyword = key (sep type)?
-            Keyword keyword { .key = string_from_ascii_view(*segment) };
-            Vector<String> keyword_values;
+            Keyword keyword { .key = utf16_string_from_ascii_view(*segment) };
+            Vector<Utf16String> keyword_values;
 
             if (!is_key(*segment)) {
                 lexer.retreat(view_length(*segment) + 1);
@@ -306,12 +307,10 @@ static Optional<LocaleExtension> parse_unicode_locale_extension(Lexer& lexer)
                     break;
                 }
 
-                keyword_values.append(string_from_ascii_view(*type));
+                keyword_values.append(utf16_string_from_ascii_view(*type));
             }
 
-            StringBuilder builder;
-            builder.join('-', keyword_values);
-            keyword.value = MUST(builder.to_string());
+            keyword.value = Utf16String::join("-"sv, keyword_values);
 
             locale_extension.keywords.append(move(keyword));
             break;
@@ -366,8 +365,8 @@ static Optional<TransformedExtension> parse_transformed_extension(Lexer& lexer)
 
         case ParseState::ParsingField: {
             // tfield = tkey tvalue;
-            TransformedField field { .key = string_from_ascii_view(*segment) };
-            Vector<String> field_values;
+            TransformedField field { .key = utf16_string_from_ascii_view(*segment) };
+            Vector<Utf16String> field_values;
 
             if (!is_transformed_key(*segment)) {
                 lexer.retreat(view_length(*segment) + 1);
@@ -384,15 +383,13 @@ static Optional<TransformedExtension> parse_transformed_extension(Lexer& lexer)
                     break;
                 }
 
-                field_values.append(string_from_ascii_view(*value));
+                field_values.append(utf16_string_from_ascii_view(*value));
             }
 
             if (field_values.is_empty())
                 return {};
 
-            StringBuilder builder;
-            builder.join('-', field_values);
-            field.value = MUST(builder.to_string());
+            field.value = Utf16String::join("-"sv, field_values);
 
             transformed_extension.fields.append(move(field));
             break;
@@ -414,7 +411,7 @@ static Optional<OtherExtension> parse_other_extension(u32 key, Lexer& lexer)
     // https://unicode.org/reports/tr35/#other_extensions
     //
     // other_extensions = sep [alphanum-[tTuUxX]] (sep alphanum{2,8})+ ;
-    Vector<String> other_values;
+    Vector<Utf16String> other_values;
 
     if (!is_ascii_alphanumeric(key) || (key == 'x') || (key == 'X'))
         return {};
@@ -431,15 +428,13 @@ static Optional<OtherExtension> parse_other_extension(u32 key, Lexer& lexer)
             break;
         }
 
-        other_values.append(string_from_ascii_view(*segment));
+        other_values.append(utf16_string_from_ascii_view(*segment));
     }
 
     if (other_values.is_empty())
         return {};
 
-    StringBuilder builder;
-    builder.join('-', other_values);
-    other_extension.value = MUST(builder.to_string());
+    other_extension.value = Utf16String::join("-"sv, other_values);
 
     return other_extension;
 }
@@ -478,7 +473,7 @@ static Optional<Extension> parse_extension(Lexer& lexer)
 }
 
 template<typename Lexer>
-static Vector<String> parse_private_use_extensions(Lexer& lexer)
+static Vector<Utf16String> parse_private_use_extensions(Lexer& lexer)
 {
     // https://unicode.org/reports/tr35/#pu_extensions
     //
@@ -490,7 +485,7 @@ static Vector<String> parse_private_use_extensions(Lexer& lexer)
         return {};
 
     auto parse_values = [&]() {
-        Vector<String> extensions;
+        Vector<Utf16String> extensions;
 
         while (true) {
             auto segment = consume_next_segment(lexer);
@@ -502,7 +497,7 @@ static Vector<String> parse_private_use_extensions(Lexer& lexer)
                 break;
             }
 
-            extensions.append(string_from_ascii_view(*segment));
+            extensions.append(utf16_string_from_ascii_view(*segment));
         }
 
         return extensions;
@@ -582,22 +577,24 @@ Optional<LocaleID> parse_unicode_locale_id(Utf16View locale)
     return parse_unicode_locale_id_from_lexer(lexer);
 }
 
-String canonicalize_unicode_locale_id(StringView locale)
+Utf16String canonicalize_unicode_locale_id(StringView locale)
 {
     return LocaleData::canonicalize(locale);
 }
 
-String canonicalize_unicode_locale_id(Utf16View locale)
+Utf16String canonicalize_unicode_locale_id(Utf16View locale)
 {
-    return LocaleData::canonicalize(string_from_ascii_view(locale));
+    return LocaleData::canonicalize(locale.bytes());
 }
 
-String canonicalize_unicode_extension_values(StringView key, StringView value)
+Utf16String canonicalize_unicode_extension_values(StringView key, Utf16View value)
 {
+    VERIFY(value.has_ascii_storage());
+
     UErrorCode status = U_ZERO_ERROR;
 
     icu::LocaleBuilder builder;
-    builder.setUnicodeLocaleKeyword(icu_string_piece(key), icu_string_piece(value));
+    builder.setUnicodeLocaleKeyword(icu_string_piece(key), icu_string_piece(value.bytes()));
 
     auto locale = builder.build(status);
     verify_icu_success(status);
@@ -605,12 +602,12 @@ String canonicalize_unicode_extension_values(StringView key, StringView value)
     auto result = locale.getUnicodeKeywordValue<StringBuilder>(icu_string_piece(key), status);
     verify_icu_success(status);
 
-    return MUST(result.to_string());
+    return Utf16String::from_ascii_without_validation(result.string_view().bytes());
 }
 
-StringView default_locale()
+Utf16View default_locale()
 {
-    return "en"sv;
+    return Utf16View { "en"sv };
 }
 
 static void define_locales_without_scripts(HashTable<String>& locales)
@@ -687,15 +684,15 @@ Style style_from_string(Utf16View style)
     VERIFY_NOT_REACHED();
 }
 
-StringView style_to_string(Style style)
+Utf16String style_to_string(Style style)
 {
     switch (style) {
     case Style::Narrow:
-        return "narrow"sv;
+        return "narrow"_utf16;
     case Style::Short:
-        return "short"sv;
+        return "short"_utf16;
     case Style::Long:
-        return "long"sv;
+        return "long"_utf16;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -716,7 +713,7 @@ static void apply_extensions_to_locale(icu::Locale& locale, icu::Locale const& l
     verify_icu_success(status);
 }
 
-Optional<String> add_likely_subtags(StringView locale)
+Optional<Utf16String> add_likely_subtags(StringView locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -740,10 +737,10 @@ Optional<String> add_likely_subtags(StringView locale)
     if (icu_failure(status))
         return {};
 
-    return MUST(result.to_string());
+    return Utf16String::from_ascii_without_validation(result.string_view().bytes());
 }
 
-Optional<String> remove_likely_subtags(StringView locale)
+Optional<Utf16String> remove_likely_subtags(StringView locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -767,57 +764,93 @@ Optional<String> remove_likely_subtags(StringView locale)
     if (icu_failure(status))
         return {};
 
-    return MUST(result.to_string());
+    return Utf16String::from_ascii_without_validation(result.string_view().bytes());
 }
 
-bool is_locale_character_ordering_right_to_left(StringView locale)
+bool is_locale_character_ordering_right_to_left(Utf16View locale)
 {
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     if (!locale_data.has_value())
         return false; // Default to left-to-right
 
     return static_cast<bool>(locale_data->locale().isRightToLeft());
 }
 
+static void append_to_builder(StringBuilder& builder, StringView string)
+{
+    builder.append(string);
+}
+
+static void append_to_builder(Utf16StringBuilder& builder, StringView string)
+{
+    builder.append_ascii(string);
+}
+
+static void append_to_builder(StringBuilder& builder, Utf16String const& string)
+{
+    builder.append(string.utf16_view());
+}
+
+static void append_to_builder(Utf16StringBuilder& builder, Utf16String const& string)
+{
+    builder.append(string.utf16_view());
+}
+
+template<typename Builder>
+static void append_language_id_to_builder(Builder& builder, LanguageID const& language_id)
+{
+    auto append_segment = [&](Utf16String const& segment) {
+        if (!builder.is_empty())
+            append_to_builder(builder, "-"sv);
+        append_to_builder(builder, segment);
+    };
+
+    auto append_optional_segment = [&](Optional<Utf16String> const& segment) {
+        if (!segment.has_value())
+            return;
+        append_segment(*segment);
+    };
+
+    append_optional_segment(language_id.language);
+    append_optional_segment(language_id.script);
+    append_optional_segment(language_id.region);
+    for (auto const& variant : language_id.variants)
+        append_segment(variant);
+}
+
 String LanguageID::to_string() const
 {
     StringBuilder builder;
-
-    auto append_segment = [&](Optional<String> const& segment) {
-        if (!segment.has_value())
-            return;
-        if (!builder.is_empty())
-            builder.append('-');
-        builder.append(*segment);
-    };
-
-    append_segment(language);
-    append_segment(script);
-    append_segment(region);
-    for (auto const& variant : variants)
-        append_segment(variant);
+    append_language_id_to_builder(builder, *this);
 
     return MUST(builder.to_string());
 }
 
-String LocaleID::to_string() const
+Utf16String LanguageID::to_utf16_string() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
+    append_language_id_to_builder(builder, *this);
 
+    return builder.to_string();
+}
+
+template<typename Builder>
+static void append_locale_id_to_builder(Builder& builder, LocaleID const& locale_id)
+{
     auto append_segment = [&](auto const& segment) {
         if (segment.is_empty())
             return;
         if (!builder.is_empty())
-            builder.append('-');
-        builder.append(segment);
+            append_to_builder(builder, "-"sv);
+        append_to_builder(builder, segment);
     };
 
-    append_segment(language_id.to_string());
+    append_language_id_to_builder(builder, locale_id.language_id);
 
-    for (auto const& extension : extensions) {
+    for (auto const& extension : locale_id.extensions) {
         extension.visit(
             [&](LocaleExtension const& ext) {
-                builder.append("-u"sv);
+                append_to_builder(builder, "-u"sv);
                 for (auto const& attribute : ext.attributes)
                     append_segment(attribute);
                 for (auto const& keyword : ext.keywords) {
@@ -826,27 +859,42 @@ String LocaleID::to_string() const
                 }
             },
             [&](TransformedExtension const& ext) {
-                builder.append("-t"sv);
+                append_to_builder(builder, "-t"sv);
                 if (ext.language.has_value())
-                    append_segment(ext.language->to_string());
+                    append_language_id_to_builder(builder, *ext.language);
                 for (auto const& field : ext.fields) {
                     append_segment(field.key);
                     append_segment(field.value);
                 }
             },
             [&](OtherExtension const& ext) {
-                builder.appendff("-{}", ext.key);
+                append_to_builder(builder, "-"sv);
+                builder.append_code_unit(ext.key);
                 append_segment(ext.value);
             });
     }
 
-    if (!private_use_extensions.is_empty()) {
-        builder.append("-x"sv);
-        for (auto const& extension : private_use_extensions)
+    if (!locale_id.private_use_extensions.is_empty()) {
+        append_to_builder(builder, "-x"sv);
+        for (auto const& extension : locale_id.private_use_extensions)
             append_segment(extension);
     }
+}
+
+String LocaleID::to_string() const
+{
+    StringBuilder builder;
+    append_locale_id_to_builder(builder, *this);
 
     return MUST(builder.to_string());
+}
+
+Utf16String LocaleID::to_utf16_string() const
+{
+    Utf16StringBuilder builder;
+    append_locale_id_to_builder(builder, *this);
+
+    return builder.to_string();
 }
 
 }

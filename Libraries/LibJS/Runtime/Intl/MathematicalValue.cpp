@@ -8,6 +8,16 @@
 
 namespace JS::Intl {
 
+MathematicalValue::MathematicalValue(Value value)
+{
+    if (value.is_number()) {
+        m_value = value_from_number(value.as_double());
+        return;
+    }
+
+    m_value = MUST(value.as_bigint().big_integer().to_base_utf16(10));
+}
+
 bool MathematicalValue::is_number() const
 {
     return m_value.has<double>();

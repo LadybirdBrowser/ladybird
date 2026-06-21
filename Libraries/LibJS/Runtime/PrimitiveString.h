@@ -31,10 +31,6 @@ public:
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16View const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16FlyString const&);
 
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, String const&);
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, StringView);
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, FlyString const&);
-
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, PrimitiveString&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString const&, size_t code_unit_offset, size_t code_unit_length);
 

@@ -27,7 +27,7 @@ void SegmentIteratorPrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 19.6.2.2 %IntlSegmentIteratorPrototype% [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-%intlsegmentiteratorprototype%.%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Segmenter String Iterator"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Segmenter String Iterator"_utf16_fly_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.next, next, 0, attr);

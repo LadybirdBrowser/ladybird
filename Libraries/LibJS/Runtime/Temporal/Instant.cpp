@@ -200,11 +200,11 @@ Crypto::SignedBigInteger round_temporal_instant(Crypto::SignedBigInteger const& 
 }
 
 // 8.5.8 TemporalInstantToString ( instant, timeZone, precision ), https://tc39.es/proposal-temporal/#sec-temporal-temporalinstanttostring
-String temporal_instant_to_string(Instant const& instant, Optional<String const&> time_zone, SecondsStringPrecision::Precision precision)
+Utf16String temporal_instant_to_string(Instant const& instant, Optional<Utf16View> time_zone, SecondsStringPrecision::Precision precision)
 {
     // 1. Let outputTimeZone be timeZone.
     // 2. If outputTimeZone is undefined, set outputTimeZone to "UTC".
-    auto const& output_time_zone = time_zone.value_or(UTC_TIME_ZONE);
+    auto output_time_zone = time_zone.value_or(UTC_TIME_ZONE);
 
     // 3. Let epochNs be instant.[[EpochNanoseconds]].
     auto const& epoch_nanoseconds = instant.epoch_nanoseconds()->big_integer();
@@ -215,12 +215,12 @@ String temporal_instant_to_string(Instant const& instant, Optional<String const&
     // 5. Let dateTimeString be ISODateTimeToString(isoDateTime, "iso8601", precision, NEVER).
     auto date_time_string = iso_date_time_to_string(iso_date_time, ISO8601_CALENDAR, precision, ShowCalendar::Never);
 
-    String time_zone_string;
+    Utf16String time_zone_string;
 
     // 6. If timeZone is undefined, then
     if (!time_zone.has_value()) {
         // a. Let timeZoneString be "Z".
-        time_zone_string = "Z"_string;
+        time_zone_string = "Z"_utf16_fly_string.to_utf16_string();
     }
     // 7. Else,
     else {
@@ -232,7 +232,7 @@ String temporal_instant_to_string(Instant const& instant, Optional<String const&
     }
 
     // 8. Return the string-concatenation of dateTimeString and timeZoneString.
-    return MUST(String::formatted("{}{}", date_time_string, time_zone_string));
+    return Utf16String::formatted("{}{}", date_time_string, time_zone_string);
 }
 
 // 8.5.9 DifferenceTemporalInstant ( operation, instant, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalinstant

@@ -10,6 +10,8 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 
 namespace Unicode {
@@ -49,12 +51,12 @@ struct TimeZoneTransition {
     AK::Duration transition;
 };
 
-String current_time_zone();
-ErrorOr<void> set_current_time_zone(StringView);
+Utf16String current_time_zone();
+ErrorOr<void> set_current_time_zone(Utf16View);
 void clear_system_time_zone_cache();
-Vector<String> const& available_time_zones();
-Vector<String> available_time_zones_in_region(StringView region);
-Optional<String> resolve_primary_time_zone(StringView time_zone);
+Vector<Utf16String> const& available_time_zones();
+Vector<Utf16String> available_time_zones_in_region(Utf16View region);
+Optional<Utf16String> resolve_primary_time_zone(StringView time_zone);
 Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime time);
 Vector<TimeZoneOffset> disambiguated_time_zone_offsets(StringView time_zone, UnixDateTime time);
 Optional<TimeZoneTransition> get_time_zone_transition(StringView time_zone, UnixDateTime time, TimeZoneTransition::Options options);

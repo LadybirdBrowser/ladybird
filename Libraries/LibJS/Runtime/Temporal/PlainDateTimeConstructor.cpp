@@ -94,7 +94,7 @@ ThrowCompletionOr<GC::Ref<Object>> PlainDateTimeConstructor::construct(FunctionO
 
     // 11. If calendar is undefined, set calendar to "iso8601".
     if (calendar_value.is_undefined())
-        calendar_value = PrimitiveString::create(vm, "iso8601"_string);
+        calendar_value = PrimitiveString::create(vm, "iso8601"_utf16_fly_string);
 
     // 12. If calendar is not a String, throw a TypeError exception.
     if (!calendar_value.is_string())

@@ -9,6 +9,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
@@ -17,36 +18,36 @@ namespace Web::Crypto {
 
 // https://w3c.github.io/webcrypto/#JsonWebKey-dictionary
 struct RsaOtherPrimesInfo {
-    Optional<String> r;
-    Optional<String> d;
-    Optional<String> t;
+    Optional<Utf16String> r;
+    Optional<Utf16String> d;
+    Optional<Utf16String> t;
 };
 
 // https://w3c.github.io/webcrypto/#JsonWebKey-dictionary
 struct JsonWebKey {
-    Optional<String> kty;
-    Optional<String> use;
-    Optional<Vector<String>> key_ops;
-    Optional<String> alg;
+    Optional<Utf16String> kty;
+    Optional<Utf16String> use;
+    Optional<Vector<Utf16String>> key_ops;
+    Optional<Utf16String> alg;
     Optional<bool> ext;
-    Optional<String> crv;
-    Optional<String> x;
-    Optional<String> y;
-    Optional<String> d;
-    Optional<String> n;
-    Optional<String> e;
-    Optional<String> p;
-    Optional<String> q;
-    Optional<String> dp;
-    Optional<String> dq;
-    Optional<String> qi;
+    Optional<Utf16String> crv;
+    Optional<Utf16String> x;
+    Optional<Utf16String> y;
+    Optional<Utf16String> d;
+    Optional<Utf16String> n;
+    Optional<Utf16String> e;
+    Optional<Utf16String> p;
+    Optional<Utf16String> q;
+    Optional<Utf16String> dp;
+    Optional<Utf16String> dq;
+    Optional<Utf16String> qi;
     Optional<Vector<RsaOtherPrimesInfo>> oth;
-    Optional<String> k;
+    Optional<Utf16String> k;
 
     // https://wicg.github.io/webcrypto-modern-algos/#partial-JsonWebKey-dictionary
     // The following fields are defined in draft-ietf-cose-dilithium-07
-    Optional<String> pub;
-    Optional<String> priv;
+    Optional<Utf16String> pub;
+    Optional<Utf16String> priv;
 
     JS::ThrowCompletionOr<GC::Ref<JS::Object>> to_object(JS::Realm&);
 

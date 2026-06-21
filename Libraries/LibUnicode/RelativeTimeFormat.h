@@ -30,7 +30,7 @@ enum class TimeUnit {
 };
 Optional<TimeUnit> time_unit_from_string(StringView);
 Optional<TimeUnit> time_unit_from_string(Utf16View);
-StringView time_unit_to_string(TimeUnit);
+Utf16String time_unit_to_string(TimeUnit);
 
 enum class NumericDisplay {
     Always,
@@ -38,7 +38,7 @@ enum class NumericDisplay {
 };
 NumericDisplay numeric_display_from_string(StringView);
 NumericDisplay numeric_display_from_string(Utf16View);
-StringView numeric_display_to_string(NumericDisplay);
+Utf16String numeric_display_to_string(NumericDisplay);
 
 class RelativeTimeFormat {
 public:
@@ -46,9 +46,9 @@ public:
     virtual ~RelativeTimeFormat() = default;
 
     struct Partition {
-        StringView type;
+        Utf16String type;
         Utf16String value;
-        StringView unit;
+        Utf16String unit;
     };
 
     virtual Utf16String format(double, TimeUnit, NumericDisplay) const = 0;

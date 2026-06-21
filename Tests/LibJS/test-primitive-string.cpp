@@ -35,14 +35,14 @@ struct TestVM {
 NEVER_INLINE static void materialize_temporary_rope(VM& vm)
 {
     auto rope = PrimitiveString::create(vm,
-        *PrimitiveString::create(vm, "hello"_string),
-        *PrimitiveString::create(vm, "world"_string));
+        *PrimitiveString::create(vm, "hello"_utf16),
+        *PrimitiveString::create(vm, "world"_utf16));
     EXPECT(rope->utf16_string_view() == "helloworld"sv);
 }
 
 NEVER_INLINE static void materialize_temporary_substring(VM& vm)
 {
-    auto source = PrimitiveString::create(vm, "foobar"_string);
+    auto source = PrimitiveString::create(vm, "foobar"_utf16);
     auto substring = PrimitiveString::create(vm, *source, 0, 3);
     EXPECT(substring->utf16_string_view() == "foo"sv);
 }
@@ -60,7 +60,7 @@ TEST_CASE(primitive_string_substring_supports_nested_ranges)
 {
     TestVM test_vm;
 
-    auto string = PrimitiveString::create(*test_vm.vm, "abcdef"_string);
+    auto string = PrimitiveString::create(*test_vm.vm, "abcdef"_utf16);
     auto substring = PrimitiveString::create(*test_vm.vm, *string, 1, 4);
     auto nested_substring = PrimitiveString::create(*test_vm.vm, *substring, 1, 2);
 
@@ -75,8 +75,8 @@ TEST_CASE(primitive_string_substring_materializes_rope_ranges)
     TestVM test_vm;
 
     auto rope = PrimitiveString::create(*test_vm.vm,
-        *PrimitiveString::create(*test_vm.vm, "abcd"_string),
-        *PrimitiveString::create(*test_vm.vm, "efgh"_string));
+        *PrimitiveString::create(*test_vm.vm, "abcd"_utf16),
+        *PrimitiveString::create(*test_vm.vm, "efgh"_utf16));
     auto substring = PrimitiveString::create(*test_vm.vm, *rope, 3, 3);
 
     EXPECT_EQ(substring->length_in_utf16_code_units(), 3u);
@@ -88,8 +88,8 @@ TEST_CASE(primitive_string_concat_short_flat_strings_creates_flat_string)
     TestVM test_vm;
 
     auto concatenated = PrimitiveString::create(*test_vm.vm,
-        *PrimitiveString::create(*test_vm.vm, "foo"_string),
-        *PrimitiveString::create(*test_vm.vm, "bar"_string));
+        *PrimitiveString::create(*test_vm.vm, "foo"_utf16),
+        *PrimitiveString::create(*test_vm.vm, "bar"_utf16));
 
     EXPECT(concatenated->has_utf16_string());
     EXPECT(concatenated->utf16_string_view() == "foobar"sv);
@@ -100,8 +100,8 @@ TEST_CASE(primitive_string_concat_longer_strings_stays_deferred)
     TestVM test_vm;
 
     auto concatenated = PrimitiveString::create(*test_vm.vm,
-        *PrimitiveString::create(*test_vm.vm, "abcd"_string),
-        *PrimitiveString::create(*test_vm.vm, "efgh"_string));
+        *PrimitiveString::create(*test_vm.vm, "abcd"_utf16),
+        *PrimitiveString::create(*test_vm.vm, "efgh"_utf16));
 
     EXPECT(!concatenated->has_utf16_string());
     EXPECT(concatenated->utf16_string_view() == "abcdefgh"sv);
@@ -111,8 +111,8 @@ TEST_CASE(primitive_string_substring_reuses_cached_single_ascii_strings)
 {
     TestVM test_vm;
 
-    auto cached_b = PrimitiveString::create(*test_vm.vm, "b"_string);
-    auto string = PrimitiveString::create(*test_vm.vm, "abcd"_string);
+    auto cached_b = PrimitiveString::create(*test_vm.vm, "b"_utf16);
+    auto string = PrimitiveString::create(*test_vm.vm, "abcd"_utf16);
     auto substring = PrimitiveString::create(*test_vm.vm, *string, 1, 1);
 
     EXPECT_EQ(substring.ptr(), cached_b.ptr());
@@ -122,7 +122,7 @@ TEST_CASE(primitive_string_substring_handles_surrogate_boundaries)
 {
     TestVM test_vm;
 
-    auto string = PrimitiveString::create(*test_vm.vm, "😀x"_string);
+    auto string = PrimitiveString::create(*test_vm.vm, "😀x"_utf16);
     auto leading_surrogate = PrimitiveString::create(*test_vm.vm, *string, 0, 1);
     auto trailing_surrogate = PrimitiveString::create(*test_vm.vm, *string, 1, 1);
     auto full_code_point = PrimitiveString::create(*test_vm.vm, *string, 0, 2);
@@ -138,7 +138,7 @@ TEST_CASE(primitive_string_concat_short_strings_handles_surrogate_boundaries)
 {
     TestVM test_vm;
 
-    auto string = PrimitiveString::create(*test_vm.vm, "😀"_string);
+    auto string = PrimitiveString::create(*test_vm.vm, "😀"_utf16);
     auto leading_surrogate = PrimitiveString::create(*test_vm.vm, *string, 0, 1);
     auto trailing_surrogate = PrimitiveString::create(*test_vm.vm, *string, 1, 1);
 
@@ -185,17 +185,17 @@ TEST_CASE(deferred_primitive_strings_do_not_evict_cached_strings)
 {
     TestVM test_vm;
 
-    auto cached_foo = PrimitiveString::create(*test_vm.vm, "foo"_string);
+    auto cached_foo = PrimitiveString::create(*test_vm.vm, "foo"_utf16);
 
     materialize_temporary_rope(*test_vm.vm);
     clobber_stack();
 
     test_vm.vm->heap().collect_garbage();
-    EXPECT_EQ(PrimitiveString::create(*test_vm.vm, "foo"_string).ptr(), cached_foo.ptr());
+    EXPECT_EQ(PrimitiveString::create(*test_vm.vm, "foo"_utf16).ptr(), cached_foo.ptr());
 
     materialize_temporary_substring(*test_vm.vm);
     clobber_stack();
 
     test_vm.vm->heap().collect_garbage();
-    EXPECT_EQ(PrimitiveString::create(*test_vm.vm, "foo"_string).ptr(), cached_foo.ptr());
+    EXPECT_EQ(PrimitiveString::create(*test_vm.vm, "foo"_utf16).ptr(), cached_foo.ptr());
 }

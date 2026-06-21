@@ -71,7 +71,7 @@ ThrowCompletionOr<GC::Ref<Object>> ZonedDateTimeConstructor::construct(FunctionO
     // 5. Let timeZoneParse be ? ParseTimeZoneIdentifier(timeZone).
     auto time_zone_parse = TRY(parse_time_zone_identifier(vm, time_zone_value.as_string().utf16_string_view()));
 
-    String time_zone;
+    Utf16String time_zone;
 
     // 6. If timeZoneParse.[[OffsetMinutes]] is EMPTY, then
     if (!time_zone_parse.offset_minutes.has_value()) {
@@ -80,7 +80,7 @@ ThrowCompletionOr<GC::Ref<Object>> ZonedDateTimeConstructor::construct(FunctionO
 
         // b. If identifierRecord is EMPTY, throw a RangeError exception.
         if (!identifier_record.has_value())
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneName, *time_zone_parse.name);
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneName, time_zone_parse.name->utf16_view());
 
         // c. Set timeZone to identifierRecord.[[Identifier]].
         time_zone = identifier_record->identifier;
@@ -93,7 +93,7 @@ ThrowCompletionOr<GC::Ref<Object>> ZonedDateTimeConstructor::construct(FunctionO
 
     // 8. If calendar is undefined, set calendar to "iso8601".
     if (calendar_value.is_undefined())
-        calendar_value = PrimitiveString::create(vm, "iso8601"_string);
+        calendar_value = PrimitiveString::create(vm, "iso8601"_utf16_fly_string);
 
     // 9. If calendar is not a String, throw a TypeError exception.
     if (!calendar_value.is_string())

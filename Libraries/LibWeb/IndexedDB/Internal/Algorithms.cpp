@@ -738,7 +738,7 @@ JS::Value convert_a_key_to_a_value(JS::Realm& realm, GC::Ref<Key> key)
 
     case Key::KeyType::String: {
         // Return an ECMAScript String value equal to value
-        return JS::PrimitiveString::create(realm.vm(), key->value_as_string());
+        return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(key->value_as_string()));
     }
 
     case Key::KeyType::Date: {
@@ -1062,13 +1062,13 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
         // If value is a Blob and identifier is "type"
         else if (value.is_object() && is<FileAPI::Blob>(value.as_object()) && identifier == "type") {
             // Let value be a String equal to value’s type.
-            value = JS::PrimitiveString::create(realm.vm(), static_cast<FileAPI::Blob&>(value.as_object()).type());
+            value = JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(static_cast<FileAPI::Blob&>(value.as_object()).type()));
         }
 
         // If value is a File and identifier is "name"
         else if (value.is_object() && is<FileAPI::File>(value.as_object()) && identifier == "name") {
             // Let value be a String equal to value’s name.
-            value = JS::PrimitiveString::create(realm.vm(), static_cast<FileAPI::File&>(value.as_object()).name());
+            value = JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(static_cast<FileAPI::File&>(value.as_object()).name()));
         }
 
         // If value is a File and identifier is "lastModified"

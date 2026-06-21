@@ -55,6 +55,7 @@ def write_implementation_file(out: TextIO, properties: dict) -> None:
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
@@ -90,7 +91,7 @@ GC::Ref<JS::NativeFunction> create_getter(JS::Realm& realm, Utf16FlyString const
         auto result = TRY(throw_dom_exception_if_needed(vm, [&] {
             return idl_object->get_property_value(property_name);
         }));
-        return JS::PrimitiveString::create(vm, result);
+        return JS::PrimitiveString::create(vm, Utf16String::from_utf8(result));
     };
 
     return JS::NativeFunction::create(realm, move(getter), 0, JS::PropertyKey { attribute_name }, &realm, "get"sv);

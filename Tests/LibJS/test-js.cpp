@@ -42,7 +42,7 @@ TESTJS_GLOBAL_FUNCTION(evaluate_source, evaluateSource)
 
     auto script = JS::Script::parse(source.utf16_view(), realm);
     if (script.is_error())
-        return vm.throw_completion<JS::SyntaxError>(script.error().first().to_string());
+        return vm.throw_completion<JS::SyntaxError>(script.error().first().to_utf16_string());
 
     return vm.run(script.value());
 }
@@ -54,7 +54,7 @@ TESTJS_GLOBAL_FUNCTION(evaluate_module, evaluateModule)
     auto path = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto module = Test::JS::parse_module(path.to_byte_string(), realm);
     if (module.is_error())
-        return vm.throw_completion<JS::SyntaxError>(module.error().error.to_string());
+        return vm.throw_completion<JS::SyntaxError>(module.error().error.to_utf16_string());
 
     return vm.run(module.value());
 }
@@ -154,14 +154,15 @@ TESTJS_GLOBAL_FUNCTION(detach_array_buffer, detachArrayBuffer)
 
 TESTJS_GLOBAL_FUNCTION(set_time_zone, setTimeZone)
 {
-    auto current_time_zone = JS::PrimitiveString::create(vm, Core::TimeZone::current_time_zone());
+    auto current_time_zone = Core::TimeZone::current_time_zone();
+    auto current_time_zone_string = JS::PrimitiveString::create(vm, Utf16String::from_ascii_without_validation(current_time_zone.bytes_as_string_view().bytes()));
     auto time_zone = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
         return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
 
     JS::clear_system_time_zone_cache();
-    return current_time_zone;
+    return current_time_zone_string;
 }
 
 TESTJS_GLOBAL_FUNCTION(to_utf8_bytes, toUTF8Bytes)

@@ -85,7 +85,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatConstructor::supported_locales_of)
 // 11.1.2 CreateDateTimeFormat ( newTarget, locales, options, required, defaults ), https://tc39.es/ecma402/#sec-createdatetimeformat
 // 15.4.1 CreateDateTimeFormat ( newTarget, locales, options, required, defaults [ , toLocaleStringTimeZone ] ), https://tc39.es/proposal-temporal/#sec-createdatetimeformat
 // 3.1.1 CreateDateTimeFormat ( newTarget, locales, options, required, defaults ), https://tc39.es/proposal-intl-era-monthcode/#sec-ecma402-intl-datetimeformat-constructor
-ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, FunctionObject& new_target, Value locales_value, Value options_value, OptionRequired required, OptionDefaults defaults, Optional<String> const& to_locale_string_time_zone)
+ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, FunctionObject& new_target, Value locales_value, Value options_value, OptionRequired required, OptionDefaults defaults, Optional<Utf16View> const& to_locale_string_time_zone)
 {
     // 1. Let dateTimeFormat be ? OrdinaryCreateFromConstructor(newTarget, "%Intl.DateTimeFormat.prototype%", « [[InitializedDateTimeFormat]], [[Locale]], [[Calendar]], [[NumberingSystem]], [[TimeZone]], [[HourCycle]], [[DateStyle]], [[TimeStyle]], [[DateTimeFormat]], [[BoundFormat]] »).
     auto date_time_format = TRY(ordinary_create_from_constructor<DateTimeFormat>(vm, new_target, &Intrinsics::intl_date_time_format_prototype));
@@ -115,27 +115,27 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
     date_time_format->set_locale(move(result.locale));
 
     // 8. Let resolvedCalendar be r.[[ca]].
-    if (auto* resolved_calendar = result.ca.get_pointer<String>()) {
+    if (auto* resolved_calendar = result.ca.get_pointer<Utf16String>()) {
         // 9. If resolvedCalendar is "islamic", then
         // NB: We also make "islamic-rgsa" fall back to "islamic-tbla", as test262 relies on this behavior. This falls
         //     within implementation-defined behavior. See:
         //     https://github.com/tc39/ecma402/pull/1044#discussion_r2926804980
-        if (resolved_calendar->is_one_of("islamic"sv, "islamic-rgsa"sv)) {
+        if (resolved_calendar->utf16_view().is_one_of("islamic"sv, "islamic-rgsa"sv)) {
             // a. Set resolvedCalendar to "islamic-tbla".
-            *resolved_calendar = "islamic-tbla"_string;
+            date_time_format->set_calendar("islamic-tbla"_utf16);
 
             // b. If the ECMAScript implementation has a mechanism for reporting diagnostic warning messages, a warning
             //    should be issued.
+        } else {
+            // 10. Set dateTimeFormat.[[Calendar]] to resolvedCalendar.
+            date_time_format->set_calendar(move(*resolved_calendar));
         }
-
-        // 10. Set dateTimeFormat.[[Calendar]] to resolvedCalendar.
-        date_time_format->set_calendar(move(*resolved_calendar));
     }
 
     date_time_format->set_icu_locale(move(result.icu_locale));
 
     // 11. Set dateTimeFormat.[[NumberingSystem]] to r.[[nu]].
-    if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
+    if (auto* resolved_numbering_system = result.nu.get_pointer<Utf16String>())
         date_time_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 12. Let resolvedLocaleData be r.[[LocaleData]].
@@ -157,12 +157,12 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
         VERIFY(hour12.is_undefined());
 
         // b. Let hc be r.[[hc]].
-        if (auto* resolved_hour_cycle = result.hc.get_pointer<String>())
-            hour_cycle_value = Unicode::hour_cycle_from_string(*resolved_hour_cycle);
+        if (auto* resolved_hour_cycle = result.hc.get_pointer<Utf16String>())
+            hour_cycle_value = Unicode::hour_cycle_from_string(resolved_hour_cycle->utf16_view());
 
         // c. If hc is null, set hc to resolvedLocaleData.[[hourCycle]].
         if (!hour_cycle_value.has_value())
-            hour_cycle_value = Unicode::default_hour_cycle(date_time_format->locale());
+            hour_cycle_value = Unicode::default_hour_cycle(date_time_format->icu_locale().utf16_view());
     }
 
     // 16. Set dateTimeFormat.[[HourCycle]] to hc.
@@ -170,22 +170,21 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
     // 17. Let timeZone be ? Get(options, "timeZone").
     auto time_zone_value = TRY(options->get(vm.names.timeZone));
-    String time_zone;
-    Utf16String time_zone_string;
+    Utf16String icu_time_zone;
+    Utf16String time_zone;
 
     // 18. If timeZone is undefined, then
     if (time_zone_value.is_undefined()) {
         // a. If toLocaleStringTimeZone is present, then
         if (to_locale_string_time_zone.has_value()) {
             // i. Set timeZone to toLocaleStringTimeZone.
-            time_zone = *to_locale_string_time_zone;
-            time_zone_string = Utf16String::from_utf8(time_zone);
+            time_zone = Utf16String::from_utf16(*to_locale_string_time_zone);
         }
         // b. Else,
         else {
             // i. Set timeZone to SystemTimeZoneIdentifier().
             time_zone = system_time_zone_identifier();
-            time_zone_string = Utf16String::from_utf8(time_zone);
+            icu_time_zone = time_zone;
         }
     }
     // 19. Else,
@@ -195,10 +194,10 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
             return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, vm.names.timeZone, "a toLocaleString time zone"sv);
 
         // b. Set timeZone to ? ToString(timeZone).
-        time_zone_string = TRY(time_zone_value.to_utf16_string(vm));
+        time_zone = TRY(time_zone_value.to_utf16_string(vm));
     }
 
-    auto time_zone_view = time_zone_string.utf16_view();
+    auto time_zone_view = time_zone.utf16_view();
 
     // 20. If IsTimeZoneOffsetString(timeZone) is true, then
     auto parse_result = Temporal::parse_utc_offset(time_zone_view, Temporal::SubMinutePrecision::No);
@@ -218,33 +217,31 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
         // e. Set timeZone to FormatOffsetTimeZoneIdentifier(offsetMinutes).
         time_zone = format_offset_time_zone_identifier(offset_minutes);
+        icu_time_zone = time_zone;
     }
     // 21. Else,
     else {
         // a. Let timeZoneIdentifierRecord be GetAvailableNamedTimeZoneIdentifier(timeZone).
-        if (!time_zone_view.is_ascii())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, time_zone_view, vm.names.timeZone);
-
-        time_zone = MUST(time_zone_view.to_utf8());
-        auto time_zone_identifier_record = get_available_named_time_zone_identifier(time_zone);
+        auto time_zone_identifier_record = get_available_named_time_zone_identifier(time_zone_view);
 
         // b. If timeZoneIdentifierRecord is EMPTY, throw a RangeError exception.
         if (!time_zone_identifier_record.has_value())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, time_zone, vm.names.timeZone);
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, time_zone_view, vm.names.timeZone);
 
         // c. Set timeZone to timeZoneIdentifierRecord.[[Identifier]].
         time_zone = time_zone_identifier_record->identifier;
+        icu_time_zone = time_zone;
     }
 
     // 22. Set dateTimeFormat.[[TimeZone]] to timeZone.
-    date_time_format->set_time_zone(time_zone);
+    date_time_format->set_time_zone(move(time_zone));
 
     // NOTE: ICU requires time zone offset strings to be of the form "GMT+00:00"
     if (is_time_zone_offset_string)
-        time_zone = MUST(String::formatted("GMT{}", time_zone));
+        icu_time_zone = Utf16String::formatted("GMT{}", icu_time_zone);
 
     // AD-HOC: We must store the massaged time zone for creating ICU formatters for Temporal objects.
-    date_time_format->set_temporal_time_zone(time_zone);
+    date_time_format->set_temporal_time_zone(icu_time_zone);
 
     // 23. Let formatOptions be a new Record.
     Unicode::CalendarPattern format_options {};
@@ -297,7 +294,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
     }));
 
     // 27. Let formatMatcher be ? GetOption(options, "formatMatcher", string, « "basic", "best fit" », "best fit").
-    [[maybe_unused]] auto format_matcher = TRY(get_option(vm, *options, vm.names.formatMatcher, OptionType::String, AK::Array { "basic"sv, "best fit"sv }, "best fit"sv));
+    [[maybe_unused]] auto format_matcher = TRY(get_option(vm, *options, vm.names.formatMatcher, OptionType::String, AK::Array { "basic"sv, "best fit"sv }, u"best fit"sv));
 
     // 28. Let dateStyle be ? GetOption(options, "dateStyle", string, « "full", "long", "medium", "short" », undefined).
     auto date_style = TRY(get_option(vm, *options, vm.names.dateStyle, OptionType::String, AK::Array { "full"sv, "long"sv, "medium"sv, "short"sv }, Empty {}));
@@ -340,8 +337,8 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
         // d. Let styles be resolvedLocaleData.[[styles]].[[<resolvedCalendar>]].
         // e. Let bestFormat be DateTimeStyleFormat(dateStyle, timeStyle, styles).
         formatter = Unicode::DateTimeFormat::create_for_date_and_time_style(
-            date_time_format->icu_locale(),
-            time_zone,
+            date_time_format->icu_locale().utf16_view().bytes(),
+            icu_time_zone.utf16_view().bytes(),
             format_options.hour_cycle,
             format_options.hour12,
             date_time_format->date_style(),
@@ -428,8 +425,8 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
         }
 
         formatter = Unicode::DateTimeFormat::create_for_pattern_options(
-            date_time_format->icu_locale(),
-            time_zone,
+            date_time_format->icu_locale().utf16_view().bytes(),
+            icu_time_zone.utf16_view().bytes(),
             best_format);
     }
 
@@ -444,7 +441,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 }
 
 // 11.1.3 FormatOffsetTimeZoneIdentifier ( offsetMinutes ), https://tc39.es/ecma402/#sec-formatoffsettimezoneidentifier
-String format_offset_time_zone_identifier(double offset_minutes)
+Utf16String format_offset_time_zone_identifier(double offset_minutes)
 {
     // 1. If offsetMinutes ≥ 0, let sign be the code unit 0x002B (PLUS SIGN); otherwise, let sign be the code unit 0x002D (HYPHEN-MINUS).
     auto sign = offset_minutes >= 0.0 ? '+' : '-';
@@ -459,7 +456,7 @@ String format_offset_time_zone_identifier(double offset_minutes)
     auto minutes = static_cast<i64>(modulo(absolute_minutes, 60.0));
 
     // 5. Return the string-concatenation of sign, ToZeroPaddedDecimalString(hours, 2), the code unit 0x003A (COLON), and ToZeroPaddedDecimalString(minutes, 2).
-    return MUST(String::formatted("{}{:02}:{:02}", sign, hours, minutes));
+    return Utf16String::formatted("{}{:02}:{:02}", sign, hours, minutes);
 }
 
 }

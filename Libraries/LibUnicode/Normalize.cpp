@@ -39,21 +39,6 @@ NormalizationForm normalization_form_from_string(Utf16View form)
     VERIFY_NOT_REACHED();
 }
 
-StringView normalization_form_to_string(NormalizationForm form)
-{
-    switch (form) {
-    case NormalizationForm::NFD:
-        return "NFD"sv;
-    case NormalizationForm::NFC:
-        return "NFC"sv;
-    case NormalizationForm::NFKD:
-        return "NFKD"sv;
-    case NormalizationForm::NFKC:
-        return "NFKC"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static icu::Normalizer2 const* normalizer_for_form(NormalizationForm form, UErrorCode& status)
 {
     switch (form) {

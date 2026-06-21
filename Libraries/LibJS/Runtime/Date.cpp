@@ -37,7 +37,7 @@ Date::Date(double date_value, Object& prototype)
 
 Date::~Date() = default;
 
-ErrorOr<Utf16String> Date::iso_date_string() const
+Utf16String Date::iso_date_string() const
 {
     int year = year_from_time(m_date_value);
 
@@ -442,14 +442,18 @@ Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(StringView time_
     return offset.release_value();
 }
 
-static Optional<String> cached_system_time_zone_identifier;
+static auto& cached_system_time_zone_identifier()
+{
+    static NeverDestroyed<Optional<Utf16String>> cached_system_time_zone_identifier;
+    return *cached_system_time_zone_identifier;
+}
 
 // 21.4.1.24 SystemTimeZoneIdentifier ( ), https://tc39.es/ecma262/#sec-systemtimezoneidentifier
-String system_time_zone_identifier()
+Utf16String system_time_zone_identifier()
 {
     // OPTIMIZATION: We cache the system time zone to avoid the expensive lookups below.
-    if (cached_system_time_zone_identifier.has_value())
-        return *cached_system_time_zone_identifier;
+    if (cached_system_time_zone_identifier().has_value())
+        return *cached_system_time_zone_identifier();
 
     // 1. If the implementation only supports the UTC time zone, return "UTC".
 
@@ -457,23 +461,22 @@ String system_time_zone_identifier()
     //    time zone identifier or an offset time zone identifier.
     auto system_time_zone_string = Unicode::current_time_zone();
 
-    auto utf16_system_time_zone_string = Utf16String::from_utf8(system_time_zone_string);
-    if (!is_offset_time_zone_identifier(utf16_system_time_zone_string)) {
+    if (!is_offset_time_zone_identifier(system_time_zone_string)) {
         auto time_zone_identifier = Intl::get_available_named_time_zone_identifier(system_time_zone_string);
         if (!time_zone_identifier.has_value())
-            return "UTC"_string;
+            return "UTC"_utf16;
 
         system_time_zone_string = time_zone_identifier->primary_identifier;
     }
 
     // 3. Return systemTimeZoneString.
-    cached_system_time_zone_identifier = move(system_time_zone_string);
-    return *cached_system_time_zone_identifier;
+    cached_system_time_zone_identifier() = move(system_time_zone_string);
+    return *cached_system_time_zone_identifier();
 }
 
 void clear_system_time_zone_cache()
 {
-    cached_system_time_zone_identifier.clear();
+    cached_system_time_zone_identifier().clear();
 }
 
 // 21.4.1.25 LocalTime ( t ), https://tc39.es/ecma262/#sec-localtime
@@ -484,7 +487,7 @@ double local_time(double time)
     auto system_time_zone_identifier = JS::system_time_zone_identifier();
 
     // 2. Let parseResult be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).
-    auto parse_result = Temporal::parse_time_zone_identifier(system_time_zone_identifier);
+    auto parse_result = Temporal::parse_time_zone_identifier(system_time_zone_identifier.utf16_view());
 
     double offset_nanoseconds { 0 };
 
@@ -496,7 +499,7 @@ double local_time(double time)
     // 4. Else,
     else {
         // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(t) × 10^6)).
-        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier, time);
+        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier.utf16_view().bytes(), time);
         offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
     }
 
@@ -515,7 +518,7 @@ double utc_time(double time)
     auto system_time_zone_identifier = JS::system_time_zone_identifier();
 
     // 2. Let parseResult be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).
-    auto parse_result = Temporal::parse_time_zone_identifier(system_time_zone_identifier);
+    auto parse_result = Temporal::parse_time_zone_identifier(system_time_zone_identifier.utf16_view());
 
     double offset_nanoseconds { 0 };
 
@@ -530,7 +533,7 @@ double utc_time(double time)
         auto iso_date_time = Temporal::time_value_to_iso_date_time_record(time);
 
         // b. Let possibleInstants be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, isoDateTime).
-        auto possible_instants = get_named_time_zone_epoch_nanoseconds(system_time_zone_identifier, iso_date_time);
+        auto possible_instants = get_named_time_zone_epoch_nanoseconds(system_time_zone_identifier.utf16_view().bytes(), iso_date_time);
 
         // c. NOTE: The following steps ensure that when t represents local time repeating multiple times at a negative
         //    time zone transition (e.g. when the daylight saving time ends or the time zone offset is decreased due to
@@ -565,7 +568,7 @@ double utc_time(double time)
         }
 
         // f. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, disambiguatedInstant).
-        auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier, disambiguated_instant);
+        auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier.utf16_view().bytes(), disambiguated_instant);
         offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
     }
 

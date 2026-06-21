@@ -5,6 +5,7 @@
  */
 
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Completion.h>
@@ -21,7 +22,7 @@ WebIDL::ExceptionOr<JS::Value> parse_json_string_to_javascript_value(JS::Realm& 
     auto& vm = realm.vm();
 
     // 1. Return ? Call(%JSON.parse%, undefined, « string »).
-    return TRY(JS::call(vm, *realm.intrinsics().json_parse_function(), JS::js_undefined(), JS::PrimitiveString::create(vm, string)));
+    return TRY(JS::call(vm, *realm.intrinsics().json_parse_function(), JS::js_undefined(), JS::PrimitiveString::create(vm, Utf16String::from_utf8(string))));
 }
 
 // https://infra.spec.whatwg.org/#parse-json-bytes-to-a-javascript-value
@@ -77,7 +78,7 @@ WebIDL::ExceptionOr<ByteBuffer> serialize_javascript_value_to_json_bytes(JS::VM&
             auto const& base_value = json_value.get<JSONBaseValue>();
 
             if (base_value.has<String>())
-                return JS::PrimitiveString::create(vm, base_value.get<String>());
+                return JS::PrimitiveString::create(vm, Utf16String::from_utf8(base_value.get<String>()));
 
             if (base_value.has<bool>())
                 return JS::Value(base_value.get<bool>());

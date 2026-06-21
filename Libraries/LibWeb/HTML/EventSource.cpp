@@ -5,6 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <AK/Utf16String.h>
 #include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
@@ -445,7 +446,7 @@ void EventSource::dispatch_the_event()
     // 6. If the event type buffer has a value other than the empty string, change the type of the newly created event to equal
     //    the value of the event type buffer.
     Bindings::MessageEventInit init;
-    init.data = JS::PrimitiveString::create(vm(), data_buffer);
+    init.data = JS::PrimitiveString::create(vm(), Utf16String::from_utf8(data_buffer));
     init.last_event_id = last_event_id;
 
     auto type = m_event_type.is_empty() ? HTML::EventNames::message : m_event_type;

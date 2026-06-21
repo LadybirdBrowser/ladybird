@@ -67,7 +67,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     // 7. Let resolvedLocaleData be r.[[LocaleData]].
 
     // 8. Let digitalFormat be resolvedLocaleData.[[DigitalFormat]].
-    auto digital_format = Unicode::digital_format(result.icu_locale);
+    auto digital_format = Unicode::digital_format(result.icu_locale.utf16_view());
 
     // 9. Set durationFormat.[[HourMinuteSeparator]] to digitalFormat.[[HourMinuteSeparator]].
     duration_format->set_hour_minute_separator(move(digital_format.hours_minutes_separator));
@@ -76,11 +76,11 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     duration_format->set_minute_second_separator(move(digital_format.minutes_seconds_separator));
 
     // 11. Set durationFormat.[[NumberingSystem]] to r.[[nu]].
-    if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
+    if (auto* resolved_numbering_system = result.nu.get_pointer<Utf16String>())
         duration_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 12. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow", "digital" », "short").
-    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv, "digital"sv }, "short"sv));
+    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv, "digital"sv }, u"short"sv));
 
     // 13. Set durationFormat.[[Style]] to style.
     duration_format->set_style(style.as_string().utf16_string_view());

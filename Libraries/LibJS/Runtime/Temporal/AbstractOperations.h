@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
@@ -99,7 +100,7 @@ enum class Unit {
     Microsecond,
     Nanosecond,
 };
-StringView temporal_unit_to_string(Unit);
+Utf16View temporal_unit_to_string(Unit);
 
 // https://tc39.es/proposal-temporal/#sec-temporal-units
 enum class UnitCategory {
@@ -196,7 +197,7 @@ ThrowCompletionOr<Utf16String> parse_temporal_calendar_string(VM&, Utf16View);
 ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, Utf16View iso_string);
 ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM&, Utf16View time_zone_string);
 ThrowCompletionOr<Utf16String> to_offset_string(VM&, Value argument);
-CalendarFields iso_date_to_fields(String const& calendar, ISODate, DateType);
+CalendarFields iso_date_to_fields(Utf16View calendar, ISODate, DateType);
 ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOperation, Object const& options, UnitGroup, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit);
 
 // 13.40 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation

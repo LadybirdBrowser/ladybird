@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <AK/FlyString.h>
 #include <AK/StringBuilder.h>
@@ -55,11 +54,12 @@ GC::Ptr<PrimitiveString> PrimitiveString::try_create_short_flat_concatenated_str
     if (byte_count > String::MAX_SHORT_STRING_BYTE_COUNT)
         return nullptr;
 
-    AK::Array<u8, String::MAX_SHORT_STRING_BYTE_COUNT> buffer;
-    lhs_view->bytes().copy_to({ buffer.data(), lhs_view->length() });
-    rhs_view->bytes().copy_to({ buffer.data() + lhs_view->length(), rhs_view->length() });
+    auto string = Utf16String::create_uninitialized_ascii(byte_count, [&](Bytes buffer) {
+        lhs_view->bytes().copy_to(buffer.slice(0, lhs_view->length()));
+        rhs_view->bytes().copy_to(buffer.slice(lhs_view->length()));
+    });
 
-    return PrimitiveString::create(vm, String::from_utf8_without_validation({ buffer.data(), byte_count }));
+    return PrimitiveString::create(vm, string);
 }
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String const& string)
@@ -96,21 +96,6 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16View const& string
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16FlyString const& string)
 {
     return create(vm, string.to_utf16_string());
-}
-
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String const& string)
-{
-    return create(vm, Utf16String::from_utf8(string.bytes_as_string_view()));
-}
-
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, StringView string)
-{
-    return create(vm, String::from_utf8(string).release_value());
-}
-
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, FlyString const& string)
-{
-    return create(vm, string.to_string());
 }
 
 GC::Ref<PrimitiveString> PrimitiveString::create_from_unsigned_integer(VM& vm, u64 number)

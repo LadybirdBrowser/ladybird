@@ -44,7 +44,7 @@ struct RegExpNameElement {
 
 static ParseRegexPatternError invalid_group_name_error()
 {
-    return ParseRegexPatternError { "invalid group name"_string };
+    return ParseRegexPatternError { "invalid group name"_utf16 };
 }
 
 static ErrorOr<RegExpNameElement, ParseRegexPatternError> parse_regexp_name_element(Utf16View const& pattern, size_t index)
@@ -231,7 +231,7 @@ static ErrorOr<void, ParseRegexPatternError> validate_named_group_name_surrogate
 
 }
 
-static Result<RegExpObject::Flags, String> validate_flags(Utf16View const& flags)
+static Result<RegExpObject::Flags, Utf16String> validate_flags(Utf16View const& flags)
 {
     bool seen[128] {};
     RegExpObject::Flags flag_bits = static_cast<RegExpObject::Flags>(0);
@@ -240,22 +240,22 @@ static Result<RegExpObject::Flags, String> validate_flags(Utf16View const& flags
         auto ch = flags.code_unit_at(index);
 
         switch (ch) {
-#define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char)                              \
-    case #flag_char[0]:                                                                       \
-        if (seen[ch])                                                                         \
-            return MUST(String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch)); \
-        seen[ch] = true;                                                                      \
-        flag_bits |= RegExpObject::Flags::FlagName;                                           \
+#define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char)                             \
+    case #flag_char[0]:                                                                      \
+        if (seen[ch])                                                                        \
+            return Utf16String::formatted(ErrorType::RegExpObjectRepeatedFlag.format(), ch); \
+        seen[ch] = true;                                                                     \
+        flag_bits |= RegExpObject::Flags::FlagName;                                          \
         break;
             JS_ENUMERATE_REGEXP_FLAGS
 #undef __JS_ENUMERATE
         default:
-            return MUST(String::formatted(ErrorType::RegExpObjectBadFlag.format(), ch));
+            return Utf16String::formatted(ErrorType::RegExpObjectBadFlag.format(), ch);
         }
     }
 
     if (has_flag(flag_bits, RegExpObject::Flags::Unicode) && has_flag(flag_bits, RegExpObject::Flags::UnicodeSets))
-        return MUST(String::formatted(ErrorType::RegExpObjectIncompatibleFlags.format(), 'u', 'v'));
+        return Utf16String::formatted(ErrorType::RegExpObjectIncompatibleFlags.format(), 'u', 'v');
 
     return flag_bits;
 }
@@ -264,7 +264,7 @@ static Result<RegExpObject::Flags, String> validate_flags(Utf16View const& flags
 ErrorOr<Utf16String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pattern, bool unicode, bool unicode_sets)
 {
     if (unicode && unicode_sets)
-        return ParseRegexPatternError { MUST(String::formatted(ErrorType::RegExpObjectIncompatibleFlags.format(), 'u', 'v')) };
+        return ParseRegexPatternError { Utf16String::formatted(ErrorType::RegExpObjectIncompatibleFlags.format(), 'u', 'v') };
 
     TRY(validate_named_group_name_surrogates(pattern, unicode || unicode_sets));
 

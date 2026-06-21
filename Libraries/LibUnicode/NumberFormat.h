@@ -26,7 +26,7 @@ enum class NumberFormatStyle {
 };
 NumberFormatStyle number_format_style_from_string(StringView);
 NumberFormatStyle number_format_style_from_string(Utf16View);
-StringView number_format_style_to_string(NumberFormatStyle);
+Utf16String number_format_style_to_string(NumberFormatStyle);
 
 enum class SignDisplay {
     Auto,
@@ -37,7 +37,7 @@ enum class SignDisplay {
 };
 SignDisplay sign_display_from_string(StringView);
 SignDisplay sign_display_from_string(Utf16View);
-StringView sign_display_to_string(SignDisplay);
+Utf16String sign_display_to_string(SignDisplay);
 
 enum class Notation {
     Standard,
@@ -47,7 +47,7 @@ enum class Notation {
 };
 Notation notation_from_string(StringView);
 Notation notation_from_string(Utf16View);
-StringView notation_to_string(Notation);
+Utf16String notation_to_string(Notation);
 
 enum class CompactDisplay {
     Short,
@@ -55,7 +55,7 @@ enum class CompactDisplay {
 };
 CompactDisplay compact_display_from_string(StringView);
 CompactDisplay compact_display_from_string(Utf16View);
-StringView compact_display_to_string(CompactDisplay);
+Utf16String compact_display_to_string(CompactDisplay);
 
 enum class Grouping {
     Always,
@@ -64,7 +64,7 @@ enum class Grouping {
     False,
 };
 Grouping grouping_from_string(StringView);
-StringView grouping_to_string(Grouping);
+Utf16String grouping_to_string(Grouping);
 
 enum class CurrencyDisplay {
     Code,
@@ -74,7 +74,7 @@ enum class CurrencyDisplay {
 };
 CurrencyDisplay currency_display_from_string(StringView);
 CurrencyDisplay currency_display_from_string(Utf16View);
-StringView currency_display_to_string(CurrencyDisplay);
+Utf16String currency_display_to_string(CurrencyDisplay);
 
 enum class CurrencySign {
     Standard,
@@ -82,7 +82,7 @@ enum class CurrencySign {
 };
 CurrencySign currency_sign_from_string(StringView);
 CurrencySign currency_sign_from_string(Utf16View);
-StringView currency_sign_to_string(CurrencySign);
+Utf16String currency_sign_to_string(CurrencySign);
 
 struct DisplayOptions {
     NumberFormatStyle style { NumberFormatStyle::Decimal };
@@ -93,11 +93,11 @@ struct DisplayOptions {
 
     Grouping grouping { Grouping::Always };
 
-    Optional<String> currency;
+    Optional<Utf16String> currency;
     Optional<CurrencyDisplay> currency_display;
     Optional<CurrencySign> currency_sign;
 
-    Optional<String> unit;
+    Optional<Utf16String> unit;
     Optional<Style> unit_display;
 };
 
@@ -108,7 +108,7 @@ enum class RoundingType {
     LessPrecision,
 };
 RoundingType rounding_type_from_string(StringView);
-StringView rounding_type_to_string(RoundingType);
+Utf16String rounding_type_to_string(RoundingType);
 
 enum class RoundingMode {
     Ceil,
@@ -123,7 +123,7 @@ enum class RoundingMode {
 };
 RoundingMode rounding_mode_from_string(StringView);
 RoundingMode rounding_mode_from_string(Utf16View);
-StringView rounding_mode_to_string(RoundingMode);
+Utf16String rounding_mode_to_string(RoundingMode);
 
 enum class TrailingZeroDisplay {
     Auto,
@@ -131,7 +131,7 @@ enum class TrailingZeroDisplay {
 };
 TrailingZeroDisplay trailing_zero_display_from_string(StringView);
 TrailingZeroDisplay trailing_zero_display_from_string(Utf16View);
-StringView trailing_zero_display_to_string(TrailingZeroDisplay);
+Utf16String trailing_zero_display_to_string(TrailingZeroDisplay);
 
 struct RoundingOptions {
     RoundingType type { RoundingType::MorePrecision };
@@ -158,9 +158,9 @@ public:
     virtual ~NumberFormat() = default;
 
     struct Partition {
-        StringView type;
+        Utf16String type;
         Utf16String value;
-        StringView source;
+        Utf16String source;
     };
 
     using Value = Variant<double, Utf16String>;

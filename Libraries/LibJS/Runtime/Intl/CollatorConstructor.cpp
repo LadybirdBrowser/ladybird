@@ -66,7 +66,7 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
     auto options = TRY(coerce_options_to_object(vm, options_value));
 
     // 7. Let usage be ? GetOption(options, "usage", string, « "sort", "search" », "sort").
-    auto usage = TRY(get_option(vm, options, vm.names.usage, OptionType::String, { "sort"sv, "search"sv }, "sort"sv));
+    auto usage = TRY(get_option(vm, options, vm.names.usage, OptionType::String, { "sort"sv, "search"sv }, u"sort"sv));
 
     // 8. Set collator.[[Usage]] to usage.
     collator->set_usage(usage.as_string().utf16_string_view());
@@ -77,7 +77,7 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
     //     a. Let localeData be %Intl.Collator%.[[SearchLocaleData]].
 
     // 11. Let optionsResolution be ? ResolveOptions(%Intl.Collator%, localeData, CreateArrayFromList(requestedLocales), options).
-    auto requested_locales_array = Array::create_from<String>(realm, requested_locales, [&](auto& locale) { return PrimitiveString::create(vm, move(locale)); });
+    auto requested_locales_array = Array::create_from<Utf16String>(realm, requested_locales, [&](auto const& locale) { return PrimitiveString::create(vm, locale); });
     auto options_resolution = TRY(resolve_options(vm, collator, requested_locales_array, options_value));
 
     // 12. Let r be optionsResolution.[[ResolvedLocale]].
@@ -88,25 +88,25 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
 
     // 14. If r.[[co]] is null, let collation be "default". Otherwise, let collation be r.[[co]].
     auto collation = result.co.has<Empty>()
-        ? "default"_string
-        : move(result.co.get<String>());
+        ? "default"_utf16
+        : move(result.co.get<Utf16String>());
 
     // 15. Set collator.[[Collation]] to collation.
     collator->set_collation(move(collation));
 
     // 16. Set collator.[[Numeric]] to SameValue(r.[[kn]], "true").
-    collator->set_numeric(result.kn == "true"_string);
+    collator->set_numeric(result.kn.has<Utf16String>() && result.kn.get<Utf16String>().utf16_view() == "true"sv);
 
     // 17. Set collator.[[CaseFirst]] to r.[[kf]].
-    if (auto const* resolved_case_first = result.kf.get_pointer<String>())
-        collator->set_case_first(*resolved_case_first);
+    if (auto const* resolved_case_first = result.kf.get_pointer<Utf16String>())
+        collator->set_case_first(resolved_case_first->utf16_view());
 
     // 18. Let resolvedLocaleData be r.[[LocaleData]].
 
     // 19. If usage is "sort", let defaultSensitivity be "variant". Otherwise, let defaultSensitivity be resolvedLocaleData.[[sensitivity]].
     // NOTE: We do not acquire resolvedLocaleData.[[sensitivity]] here. Instead, we let LibUnicode fill in the
     //       default value if an override was not provided here.
-    auto default_sensitivity = collator->usage() == Unicode::Usage::Sort ? "variant"sv : OptionDefault {};
+    auto default_sensitivity = collator->usage() == Unicode::Usage::Sort ? OptionDefault { u"variant"sv } : OptionDefault {};
 
     // 20. Set collator.[[Sensitivity]] to ? GetOption(options, "sensitivity", string, « "base", "accent", "case", "variant" », defaultSensitivity).
     auto sensitivity_value = TRY(get_option(vm, options, vm.names.sensitivity, OptionType::String, { "base"sv, "accent"sv, "case"sv, "variant"sv }, default_sensitivity));
@@ -128,9 +128,9 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
 
     // Non-standard, create an ICU collator for this Intl object.
     auto icu_collator = Unicode::Collator::create(
-        collator->locale(),
+        result.icu_locale.utf16_view().bytes(),
         collator->usage(),
-        collator->collation(),
+        collator->collation().utf16_view().bytes(),
         sensitivity,
         collator->case_first(),
         collator->numeric(),

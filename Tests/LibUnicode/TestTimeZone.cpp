@@ -14,7 +14,8 @@ public:
     explicit TimeZoneGuard(StringView time_zone)
         : m_time_zone(Unicode::current_time_zone())
     {
-        (void)Unicode::set_current_time_zone(time_zone);
+        auto time_zone_utf16 = Utf16String::from_utf8(time_zone);
+        (void)Unicode::set_current_time_zone(time_zone_utf16);
     }
 
     ~TimeZoneGuard()
@@ -22,21 +23,21 @@ public:
         MUST(Unicode::set_current_time_zone(m_time_zone));
     }
 
-    String const& time_zone() const { return m_time_zone; }
+    Utf16String const& time_zone() const { return m_time_zone; }
 
 private:
-    String m_time_zone;
+    Utf16String m_time_zone;
 };
 
 TEST_CASE(current_time_zone)
 {
     {
         TimeZoneGuard guard { "America/New_York"sv };
-        EXPECT_EQ(Unicode::current_time_zone(), "America/New_York"sv);
+        EXPECT_EQ(Unicode::current_time_zone(), "America/New_York"_utf16);
     }
     {
         TimeZoneGuard guard { "America/Los_Angeles"sv };
-        EXPECT_EQ(Unicode::current_time_zone(), "America/Los_Angeles"sv);
+        EXPECT_EQ(Unicode::current_time_zone(), "America/Los_Angeles"_utf16);
     }
     {
         TimeZoneGuard guard { "ladybird"sv };
@@ -47,34 +48,35 @@ TEST_CASE(current_time_zone)
 TEST_CASE(available_time_zones)
 {
     auto const& time_zones = Unicode::available_time_zones();
-    EXPECT(time_zones.contains_slow("UTC"sv));
-    EXPECT(!time_zones.contains_slow("EAT"sv));
+    EXPECT(time_zones.contains_slow("UTC"_utf16));
+    EXPECT(!time_zones.contains_slow("EAT"_utf16));
 }
 
 TEST_CASE(available_time_zones_in_region)
 {
     {
         auto time_zones = Unicode::available_time_zones_in_region("AD"sv);
-        EXPECT_EQ(time_zones, to_array({ "Europe/Andorra"_string }));
+        EXPECT_EQ(time_zones, to_array({ "Europe/Andorra"_utf16 }));
     }
     {
         auto time_zones = Unicode::available_time_zones_in_region("ES"sv);
-        EXPECT_EQ(time_zones, to_array({ "Africa/Ceuta"_string, "Atlantic/Canary"_string, "Europe/Madrid"_string }));
+        EXPECT_EQ(time_zones, to_array({ "Africa/Ceuta"_utf16, "Atlantic/Canary"_utf16, "Europe/Madrid"_utf16 }));
     }
 }
 
 TEST_CASE(resolve_primary_time_zone)
 {
-    EXPECT_EQ(Unicode::resolve_primary_time_zone("UTC"sv), "Etc/UTC"sv);
-    EXPECT_EQ(Unicode::resolve_primary_time_zone("Asia/Katmandu"sv), "Asia/Kathmandu"sv);
-    EXPECT_EQ(Unicode::resolve_primary_time_zone("Australia/Canberra"sv), "Australia/Sydney"sv);
+    EXPECT_EQ(Unicode::resolve_primary_time_zone("UTC"sv), "Etc/UTC"_utf16);
+    EXPECT_EQ(Unicode::resolve_primary_time_zone("Asia/Katmandu"sv), "Asia/Kathmandu"_utf16);
+    EXPECT_EQ(Unicode::resolve_primary_time_zone("Australia/Canberra"sv), "Australia/Sydney"_utf16);
 }
 
 using enum Unicode::TimeZoneOffset::InDST;
 
 static void test_offset(StringView time_zone, i64 time, AK::Duration expected_offset, Unicode::TimeZoneOffset::InDST expected_in_dst)
 {
-    auto actual_offset = Unicode::time_zone_offset(time_zone, AK::UnixDateTime::from_seconds_since_epoch(time));
+    auto time_zone_utf16 = Utf16String::from_utf8(time_zone);
+    auto actual_offset = Unicode::time_zone_offset(time_zone_utf16, AK::UnixDateTime::from_seconds_since_epoch(time));
     VERIFY(actual_offset.has_value());
 
     EXPECT_EQ(actual_offset->offset, expected_offset);
@@ -84,6 +86,22 @@ static void test_offset(StringView time_zone, i64 time, AK::Duration expected_of
 static constexpr AK::Duration offset(i64 sign, i64 hours, i64 minutes, i64 seconds)
 {
     return AK::Duration::from_seconds(sign * ((hours * 3600) + (minutes * 60) + seconds));
+}
+
+TEST_CASE(time_zone_ids_with_utf16_storage)
+{
+    char16_t const region[] = u"DE";
+    auto time_zones = Unicode::available_time_zones_in_region({ region, 2 });
+    EXPECT(time_zones.contains_slow("Europe/Berlin"_utf16));
+
+    char16_t const time_zone[] = u"Europe/Berlin";
+    auto time_zone_view = Utf16View { time_zone, 13 };
+    EXPECT_EQ(Unicode::resolve_primary_time_zone(time_zone_view), "Europe/Berlin"_utf16);
+
+    auto actual_offset = Unicode::time_zone_offset(time_zone_view, AK::UnixDateTime::from_seconds_since_epoch(0));
+    VERIFY(actual_offset.has_value());
+    EXPECT_EQ(actual_offset->offset, offset(+1, 1, 0, 0));
+    EXPECT_EQ(actual_offset->in_dst, No);
 }
 
 // Useful website to convert times in the TZDB (which sometimes are and aren't UTC) to UTC and the desired local time:

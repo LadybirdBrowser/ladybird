@@ -353,7 +353,7 @@ Optional<JS::Value> DOMTokenList::item_value(size_t index) const
     auto string = item(index);
     if (!string.has_value())
         return {};
-    return JS::PrimitiveString::create(vm(), string.release_value());
+    return JS::PrimitiveString::create(vm(), Utf16String::from_utf8(string.release_value()));
 }
 
 }

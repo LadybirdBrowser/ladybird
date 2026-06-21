@@ -29,7 +29,7 @@ void DateTimeFormatPrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 11.3.7 Intl.DateTimeFormat.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype-%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.DateTimeFormat"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.DateTimeFormat"_utf16_fly_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.format, format, nullptr, Attribute::Configurable);
 
@@ -104,7 +104,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatPrototype::resolved_options)
                 MUST(options->create_data_property_or_throw(property, Value(*option)));
             } else {
                 auto name = Unicode::calendar_pattern_style_to_string(*option);
-                MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, name)));
+                MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, move(name))));
             }
 
             return {};

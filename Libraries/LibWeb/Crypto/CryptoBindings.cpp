@@ -17,7 +17,7 @@ namespace Web::Crypto {
 
 #define JWK_PARSE_STRING_PROPERTY(name)                                      \
     if (auto value = json_object.get_string(#name##sv); value.has_value()) { \
-        key.name = value.release_value();                                    \
+        key.name = Utf16String::from_utf8(value.release_value());            \
     }
 
 JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBytes data)
@@ -66,11 +66,11 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
     key.ext = json_object.get_bool("ext"sv);
 
     if (auto key_ops = json_object.get_array("key_ops"sv); key_ops.has_value()) {
-        key.key_ops = Vector<String> {};
+        key.key_ops = Vector<Utf16String> {};
         key.key_ops->ensure_capacity(key_ops->size());
 
         key_ops->for_each([&](auto const& value) {
-            key.key_ops->append(value.as_string());
+            key.key_ops->append(Utf16String::from_utf8(value.as_string()));
         });
     }
 
@@ -91,7 +91,6 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> JsonWebKey::to_object(JS::Realm& real
 {
     auto& vm = realm.vm();
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
-
     if (kty.has_value())
         TRY(object->create_data_property("kty"_utf16_fly_string, JS::PrimitiveString::create(vm, kty.value())));
 
@@ -99,8 +98,8 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> JsonWebKey::to_object(JS::Realm& real
         TRY(object->create_data_property("use"_utf16_fly_string, JS::PrimitiveString::create(vm, use.value())));
 
     if (key_ops.has_value()) {
-        auto key_ops_array = JS::Array::create_from<String>(realm, key_ops.value().span(), [&](auto& key_usage) -> JS::Value {
-            return JS::PrimitiveString::create(realm.vm(), key_usage);
+        auto key_ops_array = JS::Array::create_from<Utf16String>(realm, key_ops.value().span(), [&](auto& key_usage) -> JS::Value {
+            return JS::PrimitiveString::create(vm, key_usage);
         });
         TRY(object->create_data_property("key_ops"_utf16_fly_string, move(key_ops_array)));
     }

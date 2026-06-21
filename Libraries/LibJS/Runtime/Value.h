@@ -403,7 +403,6 @@ public:
 
     u64 encoded() const { return m_value.encoded; }
 
-    ThrowCompletionOr<ByteString> to_byte_string(VM&) const;
     ThrowCompletionOr<Utf16String> to_utf16_string(VM&) const;
     ThrowCompletionOr<GC::Ref<PrimitiveString>> to_primitive_string(VM&);
     ThrowCompletionOr<Value> to_primitive(VM&, PreferredType preferred_type = PreferredType::Default) const;
@@ -594,9 +593,7 @@ enum class NumberToStringMode {
     WithoutExponent,
 };
 JS_API void number_to_string(StringBuilder&, double, NumberToStringMode = NumberToStringMode::WithExponent);
-[[nodiscard]] JS_API String number_to_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
 [[nodiscard]] JS_API Utf16String number_to_utf16_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
-[[nodiscard]] ByteString number_to_byte_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
 double string_to_number(Utf16View);
 
 inline bool Value::operator==(Value const& value) const { return same_value(*this, value); }

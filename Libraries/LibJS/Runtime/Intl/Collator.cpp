@@ -24,10 +24,10 @@ void Collator::visit_edges(Visitor& visitor)
 }
 
 // 10.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl-collator-internal-slots
-ReadonlySpan<StringView> Collator::relevant_extension_keys() const
+ReadonlySpan<Utf16View> Collator::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is a List that must include the element "co", may include any or all of the elements "kf" and "kn", and must not include any other elements.
-    static constexpr AK::Array keys { "co"sv, "kf"sv, "kn"sv };
+    static constexpr AK::Array<Utf16View, 3> keys { "co"sv, "kf"sv, "kn"sv };
     return keys;
 }
 

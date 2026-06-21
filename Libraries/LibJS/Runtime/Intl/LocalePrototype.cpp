@@ -40,7 +40,7 @@ void LocalePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.getWeekInfo, get_week_info, 0, attr);
 
     // 15.3.16 Intl.Locale.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-intl.locale.prototype-%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.Locale"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.Locale"_utf16_fly_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.baseName, base_name, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.calendar, calendar, {}, Attribute::Configurable);
@@ -64,7 +64,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::base_name)
     auto locale_object = TRY(typed_this_object(vm));
 
     // 3. Return GetLocaleBaseName(loc.[[Locale]]).
-    return PrimitiveString::create(vm, locale_object->locale_id().language_id.to_string());
+    return PrimitiveString::create(vm, locale_object->locale_id().language_id.to_utf16_string());
 }
 
 #define JS_ENUMERATE_LOCALE_KEYWORD_PROPERTIES \
@@ -113,7 +113,9 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::maximize)
     auto locale_object = TRY(typed_this_object(vm));
 
     // 3. Let maximal be the result of the Add Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set maximal to loc.[[Locale]].
-    auto maximal = Unicode::add_likely_subtags(locale_object->locale()).value_or(locale_object->locale());
+    auto maximal = locale_object->locale();
+    if (auto maximal_locale = Unicode::add_likely_subtags(locale_object->locale().utf16_view().bytes()); maximal_locale.has_value())
+        maximal = maximal_locale.release_value();
 
     // 4. Return ! Construct(%Intl.Locale%, maximal).
     return Locale::create(realm, locale_object, move(maximal));
@@ -129,7 +131,9 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::minimize)
     auto locale_object = TRY(typed_this_object(vm));
 
     // 3. Let minimal be the result of the Remove Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set minimal to loc.[[Locale]].
-    auto minimal = Unicode::remove_likely_subtags(locale_object->locale()).value_or(locale_object->locale());
+    auto minimal = locale_object->locale();
+    if (auto minimal_locale = Unicode::remove_likely_subtags(locale_object->locale().utf16_view().bytes()); minimal_locale.has_value())
+        minimal = minimal_locale.release_value();
 
     // 4. Return ! Construct(%Intl.Locale%, minimal).
     return Locale::create(realm, locale_object, move(minimal));

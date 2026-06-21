@@ -108,7 +108,7 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
         auto& error = script_or_error.error()[0];
 
         // b. Return Completion { [[Type]]: throw, [[Value]]: error, [[Target]]: empty }.
-        return vm.throw_completion<SyntaxError>(error.to_string());
+        return vm.throw_completion<SyntaxError>(error.to_utf16_string());
     }
 
     // 5. Let status be ScriptEvaluation(s).

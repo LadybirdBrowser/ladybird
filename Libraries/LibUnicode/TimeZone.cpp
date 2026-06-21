@@ -19,16 +19,16 @@ namespace Unicode {
 
 static auto& cached_system_time_zone()
 {
-    static NeverDestroyed<Optional<String>> cached_system_time_zone;
+    static NeverDestroyed<Optional<Utf16String>> cached_system_time_zone;
     return *cached_system_time_zone;
 }
 
-static String current_time_zone_impl(OwnPtr<icu::TimeZone> time_zone)
+static Utf16String current_time_zone_impl(OwnPtr<icu::TimeZone> time_zone)
 {
     UErrorCode status = U_ZERO_ERROR;
 
     if (!time_zone || *time_zone == icu::TimeZone::getUnknown())
-        return "UTC"_string;
+        return "UTC"_utf16;
 
     icu::UnicodeString time_zone_id;
     time_zone->getID(time_zone_id);
@@ -37,22 +37,22 @@ static String current_time_zone_impl(OwnPtr<icu::TimeZone> time_zone)
     time_zone->getCanonicalID(time_zone_id, time_zone_name, status);
 
     if (icu_failure(status))
-        return "UTC"_string;
+        return "UTC"_utf16;
 
-    return icu_string_to_string(time_zone_name);
+    return icu_string_to_utf16_string(time_zone_name);
 }
 
-static String current_host_time_zone()
+static Utf16String current_host_time_zone()
 {
     return current_time_zone_impl(adopt_own_if_nonnull(icu::TimeZone::detectHostTimeZone()));
 }
 
-static String current_default_time_zone()
+static Utf16String current_default_time_zone()
 {
     return current_time_zone_impl(adopt_own_if_nonnull(icu::TimeZone::createDefault()));
 }
 
-String current_time_zone()
+Utf16String current_time_zone()
 {
     return cached_system_time_zone().ensure([] { return current_host_time_zone(); });
 }
@@ -62,7 +62,7 @@ void clear_system_time_zone_cache()
     cached_system_time_zone().clear();
 }
 
-ErrorOr<void> set_current_time_zone(StringView time_zone)
+ErrorOr<void> set_current_time_zone(Utf16View time_zone)
 {
     auto time_zone_data = TimeZoneData::for_time_zone(time_zone);
     if (!time_zone_data.has_value())
@@ -113,36 +113,58 @@ static constexpr bool is_legacy_non_iana_time_zone(StringView time_zone)
     return legacy_zones.contains_slow(time_zone);
 }
 
-static Vector<String> icu_available_time_zones(Optional<ByteString> const& region)
+static Vector<Utf16String> icu_available_time_zones(Optional<StringView> region)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    char const* icu_region = region.has_value() ? region->characters() : nullptr;
+    Array<u8, 4> region_buffer {};
+    char const* icu_region = nullptr;
+    if (region.has_value()) {
+        VERIFY(region->length() < region_buffer.size());
+        region->bytes().copy_to(region_buffer.span());
+        icu_region = reinterpret_cast<char const*>(region_buffer.data());
+    }
 
     auto time_zone_enumerator = adopt_own_if_nonnull(icu::TimeZone::createTimeZoneIDEnumeration(UCAL_ZONE_TYPE_ANY, icu_region, nullptr, status));
     if (icu_failure(status))
-        return { "UTC"_string };
+        return { Utf16String::from_ascii_without_validation("UTC"sv.bytes()) };
 
-    auto time_zones = icu_string_enumeration_to_list(move(time_zone_enumerator), nullptr, [](char const* zone, size_t zone_length) {
-        return !is_legacy_non_iana_time_zone({ zone, zone_length });
-    });
+    Vector<Utf16String> time_zones;
+    while (true) {
+        i32 length = 0;
+        auto const* time_zone = time_zone_enumerator->next(&length, status);
+
+        if (icu_failure(status) || time_zone == nullptr)
+            break;
+
+        StringView time_zone_view { time_zone, static_cast<size_t>(length) };
+        if (!is_legacy_non_iana_time_zone(time_zone_view))
+            time_zones.append(Utf16String::from_ascii_without_validation(time_zone_view.bytes()));
+    }
 
     quick_sort(time_zones);
     return time_zones;
 }
 
-Vector<String> const& available_time_zones()
+Vector<Utf16String> const& available_time_zones()
 {
-    static NeverDestroyed<Vector<String>> time_zones { icu_available_time_zones({}) };
+    static NeverDestroyed<Vector<Utf16String>> time_zones { icu_available_time_zones({}) };
     return *time_zones;
 }
 
-Vector<String> available_time_zones_in_region(StringView region)
+Vector<Utf16String> available_time_zones_in_region(Utf16View region)
 {
-    return icu_available_time_zones(region);
+    VERIFY(region.length_in_code_units() < 4);
+    Array<char, 4> region_buffer {};
+    for (auto i = 0uz; i < region.length_in_code_units(); ++i) {
+        auto code_unit = region.code_unit_at(i);
+        VERIFY(code_unit <= 0x7f);
+        region_buffer[i] = static_cast<char>(code_unit);
+    }
+    return icu_available_time_zones(StringView { region_buffer.data(), region.length_in_code_units() });
 }
 
-Optional<String> resolve_primary_time_zone(StringView time_zone)
+Optional<Utf16String> resolve_primary_time_zone(StringView time_zone)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -152,7 +174,7 @@ Optional<String> resolve_primary_time_zone(StringView time_zone)
     if (icu_failure(status))
         return {};
 
-    return icu_string_to_string(iana_id);
+    return icu_string_to_utf16_string(iana_id);
 }
 
 static UDate to_icu_time(UnixDateTime time)

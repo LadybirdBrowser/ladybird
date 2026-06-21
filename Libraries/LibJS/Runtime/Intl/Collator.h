@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/Intl/CollatorCompareFunction.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
@@ -22,26 +23,26 @@ class Collator final : public IntlObject {
 public:
     virtual ~Collator() override = default;
 
-    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<Utf16View> relevant_extension_keys() const override;
     virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
-    String const& locale() const { return m_locale; }
-    void set_locale(String locale) { m_locale = move(locale); }
+    Utf16String const& locale() const { return m_locale; }
+    void set_locale(Utf16String locale) { m_locale = move(locale); }
 
     Unicode::Usage usage() const { return m_usage; }
     void set_usage(Utf16View usage) { m_usage = Unicode::usage_from_string(usage); }
-    StringView usage_string() const LIFETIME_BOUND { return Unicode::usage_to_string(m_usage); }
+    Utf16String usage_string() const { return Unicode::usage_to_string(m_usage); }
 
     Unicode::Sensitivity sensitivity() const { return m_sensitivity; }
     void set_sensitivity(Unicode::Sensitivity sensitivity) { m_sensitivity = sensitivity; }
-    StringView sensitivity_string() const LIFETIME_BOUND { return Unicode::sensitivity_to_string(m_sensitivity); }
+    Utf16String sensitivity_string() const { return Unicode::sensitivity_to_string(m_sensitivity); }
 
     Unicode::CaseFirst case_first() const { return m_case_first; }
-    void set_case_first(StringView case_first) { m_case_first = Unicode::case_first_from_string(case_first); }
-    StringView case_first_string() const LIFETIME_BOUND { return Unicode::case_first_to_string(m_case_first); }
+    void set_case_first(Utf16View case_first) { m_case_first = Unicode::case_first_from_string(case_first); }
+    Utf16String case_first_string() const { return Unicode::case_first_to_string(m_case_first); }
 
-    String const& collation() const { return m_collation; }
-    void set_collation(String collation) { m_collation = move(collation); }
+    Utf16String const& collation() const { return m_collation; }
+    void set_collation(Utf16String collation) { m_collation = move(collation); }
 
     bool ignore_punctuation() const { return m_ignore_punctuation; }
     void set_ignore_punctuation(bool ignore_punctuation) { m_ignore_punctuation = ignore_punctuation; }
@@ -60,11 +61,11 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    String m_locale;                                                      // [[Locale]]
+    Utf16String m_locale;                                                 // [[Locale]]
     Unicode::Usage m_usage { Unicode::Usage::Sort };                      // [[Usage]]
     Unicode::Sensitivity m_sensitivity { Unicode::Sensitivity::Variant }; // [[Sensitivity]]
     Unicode::CaseFirst m_case_first { Unicode::CaseFirst::False };        // [[CaseFirst]]
-    String m_collation;                                                   // [[Collation]]
+    Utf16String m_collation;                                              // [[Collation]]
     bool m_ignore_punctuation { false };                                  // [[IgnorePunctuation]]
     bool m_numeric { false };                                             // [[Numeric]]
     GC::Ptr<CollatorCompareFunction> m_bound_compare;                     // [[BoundCompare]]

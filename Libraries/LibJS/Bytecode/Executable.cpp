@@ -409,7 +409,7 @@ static void dump_metadata(StringBuilder& output, Executable const& executable)
             else if (value.is_double())
                 output.appendff("Double({})", value.as_double());
             else if (value.is_bigint())
-                output.appendff("BigInt({})", MUST(value.as_bigint().to_string()));
+                output.appendff("BigInt({})", value.as_bigint().to_utf16_string());
             else if (value.is_string())
                 output.appendff("String(\"{}\")", value.as_string().utf16_string_view());
             else if (value.is_undefined())

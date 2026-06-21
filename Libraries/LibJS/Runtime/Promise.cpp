@@ -76,7 +76,7 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
 
     // 27.2.1.3.2 Promise Resolve Functions, https://tc39.es/ecma262/#sec-promise-resolve-functions
     auto resolve_function = PromiseResolvingFunction::create_resolve(realm, *this);
-    resolve_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
+    resolve_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 
     // 7. Let stepsReject be the algorithm steps defined in Promise Reject Functions.
     // 8. Let lengthReject be the number of non-optional parameters of the function definition in Promise Reject Functions.
@@ -86,7 +86,7 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
 
     // 27.2.1.3.1 Promise Reject Functions, https://tc39.es/ecma262/#sec-promise-reject-functions
     auto reject_function = PromiseResolvingFunction::create_reject(realm, *this, resolve_function);
-    reject_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
+    reject_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 
     // 12. Return the Record { [[Resolve]]: resolve, [[Reject]]: reject }.
     return { *resolve_function, *reject_function };
@@ -120,7 +120,7 @@ Value Promise::resolve_function_steps(VM& vm, Promise& promise, bool& already_re
         dbgln_if(PROMISE_DEBUG, "[Promise @ {} / PromiseResolvingFunction]: Promise can't be resolved with itself, rejecting with error", &promise);
 
         // a. Let selfResolutionError be a newly created TypeError object.
-        auto self_resolution_error = TypeError::create(realm, "Cannot resolve promise with itself"sv);
+        auto self_resolution_error = TypeError::create(realm, "Cannot resolve promise with itself"_utf16);
 
         // b. Perform RejectPromise(promise, selfResolutionError).
         promise.reject(self_resolution_error);

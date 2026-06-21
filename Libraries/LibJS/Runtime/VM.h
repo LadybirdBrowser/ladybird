@@ -363,7 +363,11 @@ public:
     template<typename T>
     COLD Completion throw_completion(ErrorType const& type)
     {
-        return throw_completion<T>(type.message());
+        auto& realm = *current_realm();
+        if constexpr (requires { T::create(realm, type.message()); })
+            return throw_completion<T>(type.message());
+        else
+            return throw_completion<T>(Utf16String::from_utf16(type.message()));
     }
 
     template<typename T, typename... Args>

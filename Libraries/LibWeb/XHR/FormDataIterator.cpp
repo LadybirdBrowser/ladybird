@@ -61,20 +61,20 @@ JS::Object* FormDataIterator::next()
 
     auto entry = m_form_data->m_entry_list[m_index++];
     if (m_iterator_kind == JS::Object::PropertyKind::Key)
-        return create_iterator_result_object(vm, JS::PrimitiveString::create(vm, entry.name), false);
+        return create_iterator_result_object(vm, JS::PrimitiveString::create(vm, Utf16String::from_utf8(entry.name)), false);
 
     auto entry_value = entry.value.visit(
         [&](GC::Ref<FileAPI::File> file) -> JS::Value {
             return file;
         },
         [&](String const& string) -> JS::Value {
-            return JS::PrimitiveString::create(vm, string);
+            return JS::PrimitiveString::create(vm, Utf16String::from_utf8(string));
         });
 
     if (m_iterator_kind == JS::Object::PropertyKind::Value)
         return create_iterator_result_object(vm, entry_value, false);
 
-    return create_iterator_result_object(vm, JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm, entry.name), entry_value }), false).ptr();
+    return create_iterator_result_object(vm, JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm, Utf16String::from_utf8(entry.name)), entry_value }), false).ptr();
 }
 
 }

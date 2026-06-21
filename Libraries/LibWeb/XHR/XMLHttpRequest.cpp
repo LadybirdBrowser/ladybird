@@ -194,10 +194,10 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
     if (m_response_type == Bindings::XMLHttpRequestResponseType::Empty || m_response_type == Bindings::XMLHttpRequestResponseType::Text) {
         // 1. If this’s state is not loading or done, then return the empty string.
         if (m_state != State::Loading && m_state != State::Done)
-            return JS::PrimitiveString::create(vm, String {});
+            return JS::PrimitiveString::create(vm, Utf16String {});
 
         // 2. Return the result of getting a text response for this.
-        return JS::PrimitiveString::create(vm, get_text_response());
+        return JS::PrimitiveString::create(vm, Utf16String::from_utf8(get_text_response()));
     }
     // 2. If this’s state is not done, then return null.
     if (m_state != State::Done)

@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/Utf16StringBuilder.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 
@@ -22,7 +24,7 @@ struct JSONParseRecord {
     // NB: In place of the spec's [[ParseNode]] field, we capture the source text
     //     matched by the parse node up front. It is present only when [[Value]] is
     //     a primitive, since the reviver context only exposes "source" for those.
-    Optional<String> source;
+    Optional<Utf16String> source;
     // [[Elements]]: if [[Value]] is an Array, the records for its elements; else empty.
     Vector<JSONParseRecord> elements;
     // [[Entries]]: if [[Value]] is a non-Array Object, the records for its entries; else empty.

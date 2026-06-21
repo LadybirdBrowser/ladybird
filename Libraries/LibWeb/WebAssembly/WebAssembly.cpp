@@ -532,7 +532,7 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS
 {
     // 1. If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
     auto detach_key = buffer.detach_key();
-    if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)) {
+    if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_utf16_fly_string)) {
         // 1. Let map be the surrounding agent's associated Memory object cache.
         auto const& map = get_cache(*vm.current_realm()).memory_instances();
 
@@ -583,7 +583,7 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
 {
     // AD-HOC: If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
     auto detach_key = buffer.detach_key();
-    if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)) {
+    if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_utf16_fly_string)) {
         // 1. Let map be the surrounding agent's associated Memory object cache.
         auto const& map = get_cache(*vm.current_realm()).memory_instances();
 
@@ -1224,77 +1224,77 @@ static JS::ThrowCompletionOr<GC::Ref<ClassName>> wasm_ordinary_create_from_const
     {                                                                                                                     \
     }
 
-#define DEFINE_WASM_NATIVE_ERROR_CONSTRUCTOR(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)                        \
-    GC_DEFINE_ALLOCATOR(ConstructorName);                                                                                                 \
-    ConstructorName::ConstructorName(JS::Realm& realm)                                                                                    \
-        : NativeFunction(#ClassName##_utf16_fly_string, *realm.intrinsics().error_constructor())                                          \
-    {                                                                                                                                     \
-    }                                                                                                                                     \
-                                                                                                                                          \
-    void ConstructorName::initialize(JS::Realm& realm)                                                                                    \
-    {                                                                                                                                     \
-        auto& vm = this->vm();                                                                                                            \
-        Base::initialize(realm);                                                                                                          \
-                                                                                                                                          \
-        /* 20.5.6.2.1 NativeError.prototype, https://tc39.es/ecma262/#sec-nativeerror.prototype */                                        \
-        define_direct_property(vm.names.prototype, &Bindings::ensure_web_prototype<PrototypeName>(realm, FullClassName##_fly_string), 0); \
-                                                                                                                                          \
-        define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, #ClassName##_string), JS::Attribute::Configurable);         \
-        define_direct_property(vm.names.length, JS::Value(1), JS::Attribute::Configurable);                                               \
-    }                                                                                                                                     \
-                                                                                                                                          \
-    ConstructorName::~ConstructorName() = default;                                                                                        \
-                                                                                                                                          \
-    /* 20.5.6.1.1 NativeError ( message [ , options ] ), https://tc39.es/ecma262/#sec-nativeerror */                                      \
-    JS::ThrowCompletionOr<JS::Value> ConstructorName::call()                                                                              \
-    {                                                                                                                                     \
-        /* 1. If NewTarget is undefined, let newTarget be the active function object; else let newTarget be NewTarget. */                 \
-        return TRY(construct(*this));                                                                                                     \
-    }                                                                                                                                     \
-                                                                                                                                          \
-    /* 20.5.6.1.1 NativeError ( message [ , options ] ), https://tc39.es/ecma262/#sec-nativeerror */                                      \
-    JS::ThrowCompletionOr<GC::Ref<JS::Object>> ConstructorName::construct(JS::FunctionObject& new_target)                                 \
-    {                                                                                                                                     \
-        auto& vm = this->vm();                                                                                                            \
-                                                                                                                                          \
-        auto message = vm.argument(0);                                                                                                    \
-        auto options = vm.argument(1);                                                                                                    \
-                                                                                                                                          \
-        /* 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%NativeError.prototype%", « [[ErrorData]] »). */                       \
-        auto error = TRY(wasm_ordinary_create_from_constructor<ClassName, PrototypeName>(vm, new_target, FullClassName##_fly_string));    \
-                                                                                                                                          \
-        /* 3. If message is not undefined, then */                                                                                        \
-        if (!message.is_undefined()) {                                                                                                    \
-            /* a. Let msg be ? ToString(message). */                                                                                      \
-            auto msg = TRY(message.to_utf16_string(vm));                                                                                  \
-                                                                                                                                          \
-            /* b. Perform CreateNonEnumerableDataPropertyOrThrow(O, "message", msg). */                                                   \
-            error->create_non_enumerable_data_property_or_throw(vm.names.message, JS::PrimitiveString::create(vm, move(msg)));            \
-        }                                                                                                                                 \
-                                                                                                                                          \
-        /* 4. Perform ? InstallErrorCause(O, options). */                                                                                 \
-        TRY(error->install_error_cause(options));                                                                                         \
-                                                                                                                                          \
-        /* 5. Return O. */                                                                                                                \
-        return error;                                                                                                                     \
+#define DEFINE_WASM_NATIVE_ERROR_CONSTRUCTOR(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)                          \
+    GC_DEFINE_ALLOCATOR(ConstructorName);                                                                                                   \
+    ConstructorName::ConstructorName(JS::Realm& realm)                                                                                      \
+        : NativeFunction(#ClassName##_utf16_fly_string, *realm.intrinsics().error_constructor())                                            \
+    {                                                                                                                                       \
+    }                                                                                                                                       \
+                                                                                                                                            \
+    void ConstructorName::initialize(JS::Realm& realm)                                                                                      \
+    {                                                                                                                                       \
+        auto& vm = this->vm();                                                                                                              \
+        Base::initialize(realm);                                                                                                            \
+                                                                                                                                            \
+        /* 20.5.6.2.1 NativeError.prototype, https://tc39.es/ecma262/#sec-nativeerror.prototype */                                          \
+        define_direct_property(vm.names.prototype, &Bindings::ensure_web_prototype<PrototypeName>(realm, FullClassName##_fly_string), 0);   \
+                                                                                                                                            \
+        define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, #ClassName##_utf16_fly_string), JS::Attribute::Configurable); \
+        define_direct_property(vm.names.length, JS::Value(1), JS::Attribute::Configurable);                                                 \
+    }                                                                                                                                       \
+                                                                                                                                            \
+    ConstructorName::~ConstructorName() = default;                                                                                          \
+                                                                                                                                            \
+    /* 20.5.6.1.1 NativeError ( message [ , options ] ), https://tc39.es/ecma262/#sec-nativeerror */                                        \
+    JS::ThrowCompletionOr<JS::Value> ConstructorName::call()                                                                                \
+    {                                                                                                                                       \
+        /* 1. If NewTarget is undefined, let newTarget be the active function object; else let newTarget be NewTarget. */                   \
+        return TRY(construct(*this));                                                                                                       \
+    }                                                                                                                                       \
+                                                                                                                                            \
+    /* 20.5.6.1.1 NativeError ( message [ , options ] ), https://tc39.es/ecma262/#sec-nativeerror */                                        \
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> ConstructorName::construct(JS::FunctionObject& new_target)                                   \
+    {                                                                                                                                       \
+        auto& vm = this->vm();                                                                                                              \
+                                                                                                                                            \
+        auto message = vm.argument(0);                                                                                                      \
+        auto options = vm.argument(1);                                                                                                      \
+                                                                                                                                            \
+        /* 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%NativeError.prototype%", « [[ErrorData]] »). */                         \
+        auto error = TRY(wasm_ordinary_create_from_constructor<ClassName, PrototypeName>(vm, new_target, FullClassName##_fly_string));      \
+                                                                                                                                            \
+        /* 3. If message is not undefined, then */                                                                                          \
+        if (!message.is_undefined()) {                                                                                                      \
+            /* a. Let msg be ? ToString(message). */                                                                                        \
+            auto msg = TRY(message.to_utf16_string(vm));                                                                                    \
+                                                                                                                                            \
+            /* b. Perform CreateNonEnumerableDataPropertyOrThrow(O, "message", msg). */                                                     \
+            error->create_non_enumerable_data_property_or_throw(vm.names.message, JS::PrimitiveString::create(vm, move(msg)));              \
+        }                                                                                                                                   \
+                                                                                                                                            \
+        /* 4. Perform ? InstallErrorCause(O, options). */                                                                                   \
+        TRY(error->install_error_cause(options));                                                                                           \
+                                                                                                                                            \
+        /* 5. Return O. */                                                                                                                  \
+        return error;                                                                                                                       \
     }
 
-#define DEFINE_WASM_NATIVE_ERROR_PROTOTYPE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \
-    GC_DEFINE_ALLOCATOR(PrototypeName);                                                                          \
-                                                                                                                 \
-    PrototypeName::PrototypeName(JS::Realm& realm)                                                               \
-        : PrototypeObject(realm.intrinsics().error_prototype())                                                  \
-    {                                                                                                            \
-    }                                                                                                            \
-                                                                                                                 \
-    void PrototypeName::initialize(JS::Realm& realm)                                                             \
-    {                                                                                                            \
-        auto& vm = this->vm();                                                                                   \
-        Base::initialize(realm);                                                                                 \
-                                                                                                                 \
-        u8 const attr = JS::Attribute::Writable | JS::Attribute::Configurable;                                   \
-        define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, #ClassName##_string), attr);       \
-        define_direct_property(vm.names.message, JS::PrimitiveString::create(vm, Utf16String {}), attr);         \
+#define DEFINE_WASM_NATIVE_ERROR_PROTOTYPE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)     \
+    GC_DEFINE_ALLOCATOR(PrototypeName);                                                                              \
+                                                                                                                     \
+    PrototypeName::PrototypeName(JS::Realm& realm)                                                                   \
+        : PrototypeObject(realm.intrinsics().error_prototype())                                                      \
+    {                                                                                                                \
+    }                                                                                                                \
+                                                                                                                     \
+    void PrototypeName::initialize(JS::Realm& realm)                                                                 \
+    {                                                                                                                \
+        auto& vm = this->vm();                                                                                       \
+        Base::initialize(realm);                                                                                     \
+                                                                                                                     \
+        u8 const attr = JS::Attribute::Writable | JS::Attribute::Configurable;                                       \
+        define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, #ClassName##_utf16_fly_string), attr); \
+        define_direct_property(vm.names.message, JS::PrimitiveString::create(vm, Utf16String {}), attr);             \
     }
 
 #define __WASM_ENUMERATE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \

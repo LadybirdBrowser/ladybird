@@ -25,11 +25,6 @@ static Utf16FlyString utf16_fly_string_from_metadata_name(StringView name)
     return Utf16FlyString::from_utf8_without_validation(name);
 }
 
-static String string_from_metadata_name(StringView name)
-{
-    return MUST(String::from_utf8(name));
-}
-
 InterfacePrototypeObject::InterfacePrototypeObject(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
     : Object(realm, metadata.ensure_parent_prototype ? nullptr : realm.intrinsics().object_prototype().ptr())
     , m_metadata(metadata)
@@ -44,10 +39,10 @@ void InterfacePrototypeObject::initialize(JS::Realm& realm)
         m_metadata.initialize_prototype(realm, *this);
     } else if (m_metadata.ensure_parent_prototype) {
         set_prototype(&m_metadata.ensure_parent_prototype(realm));
-        define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, string_from_metadata_name(m_metadata.namespaced_name)), JS::Attribute::Configurable);
+        define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, utf16_fly_string_from_metadata_name(m_metadata.namespaced_name)), JS::Attribute::Configurable);
     } else {
         set_prototype(realm.intrinsics().object_prototype());
-        define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, string_from_metadata_name(m_metadata.namespaced_name)), JS::Attribute::Configurable);
+        define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, utf16_fly_string_from_metadata_name(m_metadata.namespaced_name)), JS::Attribute::Configurable);
     }
 
     Base::initialize(realm);
@@ -98,7 +93,7 @@ void InterfaceConstructor::initialize(JS::Realm& realm)
     if (m_metadata.ensure_parent_constructor)
         set_prototype(&m_metadata.ensure_parent_constructor(realm));
     define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
-    define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, string_from_metadata_name(m_metadata.name)), JS::Attribute::Configurable);
+    define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, utf16_fly_string_from_metadata_name(m_metadata.name)), JS::Attribute::Configurable);
     define_direct_property(vm.names.prototype, &host_defined_intrinsics(realm).existing_web_prototype(fly_string_from_metadata_name(m_metadata.namespaced_name)), 0);
 }
 

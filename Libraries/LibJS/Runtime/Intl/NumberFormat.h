@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
@@ -32,8 +33,8 @@ public:
 
     virtual ~NumberFormatBase() override = default;
 
-    String const& locale() const { return m_locale; }
-    void set_locale(String locale) { m_locale = move(locale); }
+    Utf16String const& locale() const { return m_locale; }
+    void set_locale(Utf16String locale) { m_locale = move(locale); }
 
     int min_integer_digits() const { return m_min_integer_digits; }
     void set_min_integer_digits(int min_integer_digits) { m_min_integer_digits = min_integer_digits; }
@@ -55,35 +56,31 @@ public:
     void set_max_significant_digits(int max_significant_digits) { m_max_significant_digits = max_significant_digits; }
 
     Unicode::Notation notation() const { return m_notation; }
-    StringView notation_string() const { return Unicode::notation_to_string(m_notation); }
-    void set_notation(StringView notation) { m_notation = Unicode::notation_from_string(notation); }
+    Utf16String notation_string() const { return Unicode::notation_to_string(m_notation); }
     void set_notation(Utf16View notation) { m_notation = Unicode::notation_from_string(notation); }
 
     bool has_compact_display() const { return m_compact_display.has_value(); }
     Unicode::CompactDisplay compact_display() const { return *m_compact_display; }
-    StringView compact_display_string() const { return Unicode::compact_display_to_string(*m_compact_display); }
-    void set_compact_display(StringView compact_display) { m_compact_display = Unicode::compact_display_from_string(compact_display); }
+    Utf16String compact_display_string() const { return Unicode::compact_display_to_string(*m_compact_display); }
     void set_compact_display(Utf16View compact_display) { m_compact_display = Unicode::compact_display_from_string(compact_display); }
 
     Unicode::RoundingType rounding_type() const { return m_rounding_type; }
-    StringView rounding_type_string() const { return Unicode::rounding_type_to_string(m_rounding_type); }
+    Utf16String rounding_type_string() const { return Unicode::rounding_type_to_string(m_rounding_type); }
     void set_rounding_type(Unicode::RoundingType rounding_type) { m_rounding_type = rounding_type; }
 
     ComputedRoundingPriority computed_rounding_priority() const { return m_computed_rounding_priority; }
-    StringView computed_rounding_priority_string() const;
+    Utf16String computed_rounding_priority_string() const;
     void set_computed_rounding_priority(ComputedRoundingPriority computed_rounding_priority) { m_computed_rounding_priority = computed_rounding_priority; }
 
     Unicode::RoundingMode rounding_mode() const { return m_rounding_mode; }
-    StringView rounding_mode_string() const { return Unicode::rounding_mode_to_string(m_rounding_mode); }
-    void set_rounding_mode(StringView rounding_mode) { m_rounding_mode = Unicode::rounding_mode_from_string(rounding_mode); }
+    Utf16String rounding_mode_string() const { return Unicode::rounding_mode_to_string(m_rounding_mode); }
     void set_rounding_mode(Utf16View rounding_mode) { m_rounding_mode = Unicode::rounding_mode_from_string(rounding_mode); }
 
     int rounding_increment() const { return m_rounding_increment; }
     void set_rounding_increment(int rounding_increment) { m_rounding_increment = rounding_increment; }
 
     Unicode::TrailingZeroDisplay trailing_zero_display() const { return m_trailing_zero_display; }
-    StringView trailing_zero_display_string() const { return Unicode::trailing_zero_display_to_string(m_trailing_zero_display); }
-    void set_trailing_zero_display(StringView trailing_zero_display) { m_trailing_zero_display = Unicode::trailing_zero_display_from_string(trailing_zero_display); }
+    Utf16String trailing_zero_display_string() const { return Unicode::trailing_zero_display_to_string(m_trailing_zero_display); }
     void set_trailing_zero_display(Utf16View trailing_zero_display) { m_trailing_zero_display = Unicode::trailing_zero_display_from_string(trailing_zero_display); }
 
     virtual Unicode::DisplayOptions display_options() const;
@@ -96,7 +93,7 @@ protected:
     explicit NumberFormatBase(Object& prototype);
 
 private:
-    String m_locale;                                                                             // [[Locale]]
+    Utf16String m_locale;                                                                        // [[Locale]]
     int m_min_integer_digits { 0 };                                                              // [[MinimumIntegerDigits]]
     Optional<int> m_min_fraction_digits {};                                                      // [[MinimumFractionDigits]]
     Optional<int> m_max_fraction_digits {};                                                      // [[MaximumFractionDigits]]
@@ -121,41 +118,37 @@ class NumberFormat final : public NumberFormatBase {
 public:
     virtual ~NumberFormat() override = default;
 
-    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<Utf16View> relevant_extension_keys() const override;
     virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
-    String const& numbering_system() const { return m_numbering_system; }
-    void set_numbering_system(String numbering_system) { m_numbering_system = move(numbering_system); }
+    Utf16String const& numbering_system() const { return m_numbering_system; }
+    void set_numbering_system(Utf16String numbering_system) { m_numbering_system = move(numbering_system); }
 
     Unicode::NumberFormatStyle style() const { return m_style; }
-    StringView style_string() const { return Unicode::number_format_style_to_string(m_style); }
-    void set_style(StringView style) { m_style = Unicode::number_format_style_from_string(style); }
+    Utf16String style_string() const { return Unicode::number_format_style_to_string(m_style); }
     void set_style(Utf16View style) { m_style = Unicode::number_format_style_from_string(style); }
 
     bool has_currency() const { return m_currency.has_value(); }
-    String const& currency() const { return m_currency.value(); }
-    void set_currency(String currency) { m_currency = move(currency); }
+    Utf16String const& currency() const { return m_currency.value(); }
+    void set_currency(Utf16String currency) { m_currency = move(currency); }
 
     bool has_currency_display() const { return m_currency_display.has_value(); }
     Unicode::CurrencyDisplay currency_display() const { return *m_currency_display; }
-    StringView currency_display_string() const { return Unicode::currency_display_to_string(*m_currency_display); }
-    void set_currency_display(StringView currency_display) { m_currency_display = Unicode::currency_display_from_string(currency_display); }
+    Utf16String currency_display_string() const { return Unicode::currency_display_to_string(*m_currency_display); }
     void set_currency_display(Utf16View currency_display) { m_currency_display = Unicode::currency_display_from_string(currency_display); }
 
     bool has_currency_sign() const { return m_currency_sign.has_value(); }
     Unicode::CurrencySign currency_sign() const { return *m_currency_sign; }
-    StringView currency_sign_string() const { return Unicode::currency_sign_to_string(*m_currency_sign); }
-    void set_currency_sign(StringView currency_sign) { m_currency_sign = Unicode::currency_sign_from_string(currency_sign); }
+    Utf16String currency_sign_string() const { return Unicode::currency_sign_to_string(*m_currency_sign); }
     void set_currency_sign(Utf16View currency_sign) { m_currency_sign = Unicode::currency_sign_from_string(currency_sign); }
 
     bool has_unit() const { return m_unit.has_value(); }
-    String const& unit() const { return m_unit.value(); }
-    void set_unit(String unit) { m_unit = move(unit); }
+    Utf16String const& unit() const { return m_unit.value(); }
+    void set_unit(Utf16String unit) { m_unit = move(unit); }
 
     bool has_unit_display() const { return m_unit_display.has_value(); }
     Unicode::Style unit_display() const { return *m_unit_display; }
-    StringView unit_display_string() const { return Unicode::style_to_string(*m_unit_display); }
-    void set_unit_display(StringView unit_display) { m_unit_display = Unicode::style_from_string(unit_display); }
+    Utf16String unit_display_string() const { return Unicode::style_to_string(*m_unit_display); }
     void set_unit_display(Utf16View unit_display) { m_unit_display = Unicode::style_from_string(unit_display); }
 
     Unicode::Grouping use_grouping() const { return m_use_grouping; }
@@ -163,8 +156,7 @@ public:
     void set_use_grouping(StringOrBoolean const& use_grouping);
 
     Unicode::SignDisplay sign_display() const { return m_sign_display; }
-    StringView sign_display_string() const { return Unicode::sign_display_to_string(m_sign_display); }
-    void set_sign_display(StringView sign_display) { m_sign_display = Unicode::sign_display_from_string(sign_display); }
+    Utf16String sign_display_string() const { return Unicode::sign_display_to_string(m_sign_display); }
     void set_sign_display(Utf16View sign_display) { m_sign_display = Unicode::sign_display_from_string(sign_display); }
 
     NativeFunction* bound_format() const { return m_bound_format; }
@@ -177,20 +169,19 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    String m_locale;                                               // [[Locale]]
-    String m_numbering_system;                                     // [[NumberingSystem]]
+    Utf16String m_numbering_system;                                // [[NumberingSystem]]
     Unicode::NumberFormatStyle m_style;                            // [[Style]]
-    Optional<String> m_currency;                                   // [[Currency]]
+    Optional<Utf16String> m_currency;                              // [[Currency]]
     Optional<Unicode::CurrencyDisplay> m_currency_display;         // [[CurrencyDisplay]]
     Optional<Unicode::CurrencySign> m_currency_sign;               // [[CurrencySign]]
-    Optional<String> m_unit;                                       // [[Unit]]
+    Optional<Utf16String> m_unit;                                  // [[Unit]]
     Optional<Unicode::Style> m_unit_display;                       // [[UnitDisplay]]
     Unicode::Grouping m_use_grouping { Unicode::Grouping::False }; // [[UseGrouping]]
     Unicode::SignDisplay m_sign_display;                           // [[SignDisplay]]
     GC::Ptr<NativeFunction> m_bound_format;                        // [[BoundFormat]]
 };
 
-int currency_digits(StringView currency);
+int currency_digits(Utf16View currency);
 Vector<Unicode::NumberFormat::Partition> partition_number_pattern(NumberFormat const&, MathematicalValue const& number);
 Utf16String format_numeric(NumberFormat const&, MathematicalValue const& number);
 GC::Ref<Array> format_numeric_to_parts(VM&, NumberFormat const&, MathematicalValue const& number);

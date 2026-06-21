@@ -36,10 +36,10 @@ void DateTimeFormat::visit_edges(Cell::Visitor& visitor)
 }
 
 // 11.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.datetimeformat-internal-slots
-ReadonlySpan<StringView> DateTimeFormat::relevant_extension_keys() const
+ReadonlySpan<Utf16View> DateTimeFormat::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « "ca", "hc", "nu" ».
-    static constexpr AK::Array keys { "ca"sv, "hc"sv, "nu"sv };
+    static constexpr AK::Array<Utf16View, 3> keys { "ca"sv, "hc"sv, "nu"sv };
     return keys;
 }
 
@@ -75,32 +75,32 @@ static Optional<Unicode::DateTimeFormat const&> get_or_create_formatter(StringVi
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_date_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_date_formatter, m_temporal_plain_date_format);
+    return get_or_create_formatter(m_icu_locale.utf16_view().bytes(), "GMT+00:00"sv, m_temporal_plain_date_formatter, m_temporal_plain_date_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_year_month_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_year_month_formatter, m_temporal_plain_year_month_format);
+    return get_or_create_formatter(m_icu_locale.utf16_view().bytes(), "GMT+00:00"sv, m_temporal_plain_year_month_formatter, m_temporal_plain_year_month_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_month_day_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_month_day_formatter, m_temporal_plain_month_day_format);
+    return get_or_create_formatter(m_icu_locale.utf16_view().bytes(), "GMT+00:00"sv, m_temporal_plain_month_day_formatter, m_temporal_plain_month_day_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_time_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_time_formatter, m_temporal_plain_time_format);
+    return get_or_create_formatter(m_icu_locale.utf16_view().bytes(), "GMT+00:00"sv, m_temporal_plain_time_formatter, m_temporal_plain_time_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_plain_date_time_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, "GMT+00:00"sv, m_temporal_plain_date_time_formatter, m_temporal_plain_date_time_format);
+    return get_or_create_formatter(m_icu_locale.utf16_view().bytes(), "GMT+00:00"sv, m_temporal_plain_date_time_formatter, m_temporal_plain_date_time_format);
 }
 
 Optional<Unicode::DateTimeFormat const&> DateTimeFormat::temporal_instant_formatter()
 {
-    return get_or_create_formatter(m_icu_locale, m_temporal_time_zone, m_temporal_instant_formatter, m_temporal_instant_format);
+    return get_or_create_formatter(m_icu_locale.utf16_view().bytes(), m_temporal_time_zone.utf16_view().bytes(), m_temporal_instant_formatter, m_temporal_instant_format);
 }
 
 // 11.5.5 FormatDateTimePattern ( dateTimeFormat, patternParts, x, rangeFormatOptions ), https://tc39.es/ecma402/#sec-formatdatetimepattern
@@ -162,7 +162,7 @@ ThrowCompletionOr<GC::Ref<Array>> format_date_time_to_parts(VM& vm, DateTimeForm
         auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
         // b. Perform ! CreateDataPropertyOrThrow(O, "type", part.[[Type]]).
-        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, part.type)));
+        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, move(part.type))));
 
         // c. Perform ! CreateDataPropertyOrThrow(O, "value", part.[[Value]]).
         MUST(object->create_data_property_or_throw(vm.names.value, PrimitiveString::create(vm, move(part.value))));
@@ -249,13 +249,13 @@ ThrowCompletionOr<GC::Ref<Array>> format_date_time_range_to_parts(VM& vm, DateTi
         auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
         // b. Perform ! CreateDataPropertyOrThrow(O, "type", part.[[Type]]).
-        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, part.type)));
+        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, move(part.type))));
 
         // c. Perform ! CreateDataPropertyOrThrow(O, "value", part.[[Value]]).
         MUST(object->create_data_property_or_throw(vm.names.value, PrimitiveString::create(vm, move(part.value))));
 
         // d. Perform ! CreateDataPropertyOrThrow(O, "source", part.[[Source]]).
-        MUST(object->create_data_property_or_throw(vm.names.source, PrimitiveString::create(vm, part.source)));
+        MUST(object->create_data_property_or_throw(vm.names.source, PrimitiveString::create(vm, move(part.source))));
 
         // e. Perform ! CreateDataProperty(result, ! ToString(n), O).
         MUST(result->create_data_property_or_throw(n, object));
@@ -535,7 +535,8 @@ static double to_epoch_milliseconds(Crypto::SignedBigInteger const& epoch_nanose
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainDate const& temporal_date)
 {
     // 1. If temporalDate.[[Calendar]] is not either dateTimeFormat.[[Calendar]] or "iso8601", throw a RangeError exception.
-    if (!temporal_date.calendar().is_one_of(date_time_format.calendar(), "iso8601"sv))
+    auto date_time_format_calendar = date_time_format.calendar().utf16_view().bytes();
+    if (!temporal_date.calendar().is_one_of(date_time_format_calendar, "iso8601"sv))
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainDate"sv, temporal_date.calendar(), date_time_format.calendar());
 
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]], NoonTimeRecord()).
@@ -559,7 +560,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM& vm, DateTimeFo
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainYearMonth const& temporal_year_month)
 {
     // 1. If temporalYearMonth.[[Calendar]] is not equal to dateTimeFormat.[[Calendar]], throw a RangeError exception.
-    if (temporal_year_month.calendar() != date_time_format.calendar())
+    if (temporal_year_month.calendar() != date_time_format.calendar().utf16_view().bytes())
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainYearMonth"sv, temporal_year_month.calendar(), date_time_format.calendar());
 
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
@@ -583,7 +584,7 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM& vm, Date
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_month_day(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainMonthDay const& temporal_month_day)
 {
     // 1. If temporalMonthDay.[[Calendar]] is not equal to dateTimeFormat.[[Calendar]], throw a RangeError exception.
-    if (temporal_month_day.calendar() != date_time_format.calendar())
+    if (temporal_month_day.calendar() != date_time_format.calendar().utf16_view().bytes())
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainMonthDay"sv, temporal_month_day.calendar(), date_time_format.calendar());
 
     // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalMonthDay.[[ISODate]], NoonTimeRecord()).
@@ -630,7 +631,8 @@ ThrowCompletionOr<ValueFormat> handle_date_time_temporal_time(VM& vm, DateTimeFo
 ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date_time(VM& vm, DateTimeFormat& date_time_format, Temporal::PlainDateTime const& date_time)
 {
     // 1. If dateTime.[[Calendar]] is not "iso8601" and not equal to dateTimeFormat.[[Calendar]], throw a RangeError exception.
-    if (!date_time.calendar().is_one_of(date_time_format.calendar(), "iso8601"sv))
+    auto date_time_format_calendar = date_time_format.calendar().utf16_view().bytes();
+    if (!date_time.calendar().is_one_of(date_time_format_calendar, "iso8601"sv))
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.PlainDateTime"sv, date_time.calendar(), date_time_format.calendar());
 
     // 2. Let epochNs be GetUTCEpochNanoseconds(dateTime.[[ISODateTime]]).

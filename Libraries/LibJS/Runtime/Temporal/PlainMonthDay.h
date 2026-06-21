@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
@@ -23,17 +24,17 @@ public:
     virtual ~PlainMonthDay() override = default;
 
     [[nodiscard]] ISODate iso_date() const { return m_iso_date; }
-    [[nodiscard]] String const& calendar() const { return m_calendar; }
+    [[nodiscard]] Utf16String const& calendar() const { return m_calendar; }
 
 private:
-    PlainMonthDay(ISODate, String calendar, Object& prototype);
+    PlainMonthDay(ISODate, Utf16String calendar, Object& prototype);
 
-    ISODate m_iso_date; // [[ISODate]]
-    String m_calendar;  // [[Calendar]]
+    ISODate m_iso_date;     // [[ISODate]]
+    Utf16String m_calendar; // [[Calendar]]
 };
 
 ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM&, Value item, Value options = js_undefined());
-ThrowCompletionOr<GC::Ref<PlainMonthDay>> create_temporal_month_day(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
-String temporal_month_day_to_string(PlainMonthDay const&, ShowCalendar);
+ThrowCompletionOr<GC::Ref<PlainMonthDay>> create_temporal_month_day(VM&, ISODate, Utf16String calendar, GC::Ptr<FunctionObject> new_target = {});
+Utf16String temporal_month_day_to_string(PlainMonthDay const&, ShowCalendar);
 
 }

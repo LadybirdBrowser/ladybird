@@ -152,7 +152,7 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
 
     auto rust_compilation = RustIntegration::compile_dynamic_function(vm, source_text, parameters_string, body_parse_string, kind);
     if (!rust_compilation.has_value())
-        return vm.throw_completion<SyntaxError>("Failed to compile dynamic function"_string);
+        return vm.throw_completion<SyntaxError>("Failed to compile dynamic function"_utf16);
     if (rust_compilation->is_error())
         return vm.throw_completion<SyntaxError>(rust_compilation->release_error());
     function_data = rust_compilation->value();

@@ -64,19 +64,19 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     plural_rules->set_locale(move(result.locale));
 
     // 7. Let t be ? GetOption(options, "type", string, « "cardinal", "ordinal" », "cardinal").
-    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, AK::Array { "cardinal"sv, "ordinal"sv }, "cardinal"sv));
+    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, AK::Array { "cardinal"sv, "ordinal"sv }, u"cardinal"sv));
 
     // 8. Set pluralRules.[[Type]] to t.
     plural_rules->set_type(type.as_string().utf16_string_view());
 
     // 9. Let notation be ? GetOption(options, "notation", string, « "standard", "scientific", "engineering", "compact" », "standard").
-    auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"sv, "scientific"sv, "engineering"sv, "compact"sv }, "standard"sv));
+    auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"sv, "scientific"sv, "engineering"sv, "compact"sv }, u"standard"sv));
 
     // 10. Set pluralRules.[[Notation]] to notation.
     plural_rules->set_notation(notation.as_string().utf16_string_view());
 
     // 11. Let compactDisplay be ? GetOption(options, "compactDisplay", string, « "short", "long" », "short").
-    auto compact_display = TRY(get_option(vm, *options, vm.names.compactDisplay, OptionType::String, { "short"sv, "long"sv }, "short"sv));
+    auto compact_display = TRY(get_option(vm, *options, vm.names.compactDisplay, OptionType::String, { "short"sv, "long"sv }, u"short"sv));
 
     // 12. If notation is "compact", then
     if (plural_rules->notation() == Unicode::Notation::Compact) {
@@ -89,7 +89,7 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
 
     // Non-standard, create an ICU number formatter for this Intl object.
     auto formatter = Unicode::NumberFormat::create(
-        result.icu_locale,
+        result.icu_locale.utf16_view().bytes(),
         plural_rules->display_options(),
         plural_rules->rounding_options());
 

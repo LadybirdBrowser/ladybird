@@ -54,10 +54,10 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
     // 8. If result is a list of errors, then:
     if (result.is_error()) {
         auto& parse_error = result.error().first();
-        dbgln("JavaScriptModuleScript: Failed to parse: {}", parse_error.to_string());
+        dbgln("JavaScriptModuleScript: Failed to parse: {}", parse_error.to_utf16_string());
 
         // 1. Set script's parse error to result[0].
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
 
         // 2. Return script.
         return script;
@@ -82,8 +82,8 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
-        dbgln("JavaScriptModuleScript: Failed to parse: {}", parse_error.to_string());
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        dbgln("JavaScriptModuleScript: Failed to parse: {}", parse_error.to_utf16_string());
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
         return script;
     }
 
@@ -103,8 +103,8 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compile
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
-        dbgln("JavaScriptModuleScript: Failed to materialize: {}", parse_error.to_string());
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        dbgln("JavaScriptModuleScript: Failed to materialize: {}", parse_error.to_utf16_string());
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
         return script;
     }
 
@@ -124,8 +124,8 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_bytecode_ca
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
-        dbgln("JavaScriptModuleScript: Failed to materialize bytecode cache: {}", parse_error.to_string());
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        dbgln("JavaScriptModuleScript: Failed to materialize bytecode cache: {}", parse_error.to_utf16_string());
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
         return script;
     }
 

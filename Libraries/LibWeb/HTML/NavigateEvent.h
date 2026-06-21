@@ -135,18 +135,18 @@ private:
 namespace AK {
 
 template<>
-struct Formatter<Web::Bindings::NavigationScrollBehavior> : Formatter<StringView> {
+struct Formatter<Web::Bindings::NavigationScrollBehavior> : Formatter<Utf16String> {
     ErrorOr<void> format(FormatBuilder& builder, Web::Bindings::NavigationScrollBehavior const& value)
     {
-        return Formatter<StringView>::format(builder, Web::Bindings::idl_enum_to_string(value));
+        return Formatter<Utf16String>::format(builder, Web::Bindings::idl_enum_to_string(value));
     }
 };
 
 template<>
-struct Formatter<Web::Bindings::NavigationFocusReset> : Formatter<StringView> {
+struct Formatter<Web::Bindings::NavigationFocusReset> : Formatter<Utf16String> {
     ErrorOr<void> format(FormatBuilder& builder, Web::Bindings::NavigationFocusReset const& value)
     {
-        return Formatter<StringView>::format(builder, Web::Bindings::idl_enum_to_string(value));
+        return Formatter<Utf16String>::format(builder, Web::Bindings::idl_enum_to_string(value));
     }
 };
 

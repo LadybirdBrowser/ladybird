@@ -18,7 +18,7 @@ PluralRules::PluralRules(Object& prototype)
 }
 
 // 17.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.pluralrules-internal-slots
-ReadonlySpan<StringView> PluralRules::relevant_extension_keys() const
+ReadonlySpan<Utf16View> PluralRules::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « ».
     return {};

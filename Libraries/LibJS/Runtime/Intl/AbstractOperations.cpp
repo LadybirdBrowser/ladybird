@@ -34,7 +34,7 @@ static bool is_well_formed_language_tag_impl(ViewType locale)
         quick_sort(variants);
 
         for (size_t i = 0; i < variants.size() - 1; ++i) {
-            if (variants[i].equals_ignoring_case(variants[i + 1]))
+            if (variants[i].equals_ignoring_ascii_case(variants[i + 1]))
                 return true;
         }
 
@@ -121,12 +121,12 @@ bool is_well_formed_language_tag(Utf16View locale)
 }
 
 // 6.2.2 CanonicalizeUnicodeLocaleId ( locale ), https://tc39.es/ecma402/#sec-canonicalizeunicodelocaleid
-String canonicalize_unicode_locale_id(StringView locale)
+Utf16String canonicalize_unicode_locale_id(StringView locale)
 {
     return Unicode::canonicalize_unicode_locale_id(locale);
 }
 
-String canonicalize_unicode_locale_id(Utf16View locale)
+Utf16String canonicalize_unicode_locale_id(Utf16View locale)
 {
     return Unicode::canonicalize_unicode_locale_id(locale);
 }
@@ -189,8 +189,8 @@ Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
             auto primary = identifier;
 
             // b. If identifier is a Link name and identifier is not "UTC", then
-            if (identifier != "UTC"sv) {
-                if (auto resolved = Unicode::resolve_primary_time_zone(identifier); resolved.has_value() && identifier != resolved) {
+            if (identifier.utf16_view() != "UTC"sv) {
+                if (auto resolved = Unicode::resolve_primary_time_zone(identifier.utf16_view().bytes()); resolved.has_value() && identifier != *resolved) {
                     // i. Set primary to the Zone name that identifier resolves to, according to the rules for resolving Link
                     //    names in the IANA Time Zone Database.
                     primary = resolved.release_value();
@@ -200,16 +200,19 @@ Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
             }
 
             // c. If primary is one of "Etc/UTC", "Etc/GMT", or "GMT", set primary to "UTC".
-            if (primary.is_one_of("Etc/UTC"sv, "Etc/GMT"sv, "GMT"sv))
-                primary = "UTC"_string;
+            if (primary.utf16_view().is_one_of("Etc/UTC"sv, "Etc/GMT"sv, "GMT"sv))
+                primary = "UTC"_utf16;
 
             // d. Let record be the Time Zone Identifier Record { [[Identifier]]: identifier, [[PrimaryIdentifier]]: primary }.
-            TimeZoneIdentifier record { .identifier = identifier, .primary_identifier = primary };
+            TimeZoneIdentifier record {
+                .identifier = identifier,
+                .primary_identifier = primary,
+            };
 
             // e. Append record to result.
             result.unchecked_append(move(record));
 
-            if (!found_utc && identifier == "UTC"sv && primary == "UTC"sv)
+            if (!found_utc && identifier.utf16_view() == "UTC"sv && primary.utf16_view() == "UTC"sv)
                 found_utc = true;
         }
 
@@ -224,7 +227,7 @@ Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
 }
 
 // 6.5.2 GetAvailableNamedTimeZoneIdentifier ( timeZoneIdentifier ), https://tc39.es/ecma402/#sec-getavailablenamedtimezoneidentifier
-Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(StringView time_zone_identifier)
+Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(Utf16View time_zone_identifier)
 {
     // 1. For each element record of AvailableNamedTimeZoneIdentifiers(), do
     for (auto const& record : available_named_time_zone_identifiers()) {
@@ -287,18 +290,18 @@ bool is_well_formed_unit_identifier(Utf16View unit_identifier)
 }
 
 // 9.2.1 CanonicalizeLocaleList ( locales ), https://tc39.es/ecma402/#sec-canonicalizelocalelist
-ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales)
+ThrowCompletionOr<Vector<Utf16String>> canonicalize_locale_list(VM& vm, Value locales)
 {
     auto& realm = *vm.current_realm();
 
     // 1. If locales is undefined, then
     if (locales.is_undefined()) {
         // a. Return a new empty List.
-        return Vector<String> {};
+        return Vector<Utf16String> {};
     }
 
     // 2. Let seen be a new empty List.
-    Vector<String> seen;
+    Vector<Utf16String> seen;
 
     Object* object = nullptr;
     // 3. If Type(locales) is String or Type(locales) is Object and locales has an [[InitializedLocale]] internal slot, then
@@ -334,12 +337,12 @@ ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales
             if (!key_value.is_string() && !key_value.is_object())
                 return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOrString, key_value);
 
-            String canonicalized_tag;
+            Utf16String canonicalized_tag;
 
             // iii. If Type(kValue) is Object and kValue has an [[InitializedLocale]] internal slot, then
             if (auto locale = key_value.as_if<Locale>()) {
                 // 1. Let tag be kValue.[[Locale]].
-                auto tag = locale->locale();
+                auto tag = locale->locale().utf16_view();
 
                 // v. If IsWellFormedLanguageTag(tag) is false, throw a RangeError exception.
                 if (!is_well_formed_language_tag(tag))
@@ -374,17 +377,15 @@ ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales
 }
 
 // 9.2.3 LookupMatchingLocaleByPrefix ( availableLocales, requestedLocales ), https://tc39.es/ecma402/#sec-lookupmatchinglocalebyprefix
-Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> requested_locales)
+Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<Utf16String> requested_locales)
 {
     // 1. For each element locale of requestedLocales, do
     for (auto locale : requested_locales) {
-        auto locale_id = Unicode::parse_unicode_locale_id(locale);
+        auto locale_id = Unicode::parse_unicode_locale_id(locale.utf16_view());
         VERIFY(locale_id.has_value());
 
         // a. Let extension be empty.
         Optional<Unicode::Extension> extension;
-        String locale_without_extension;
-
         // b. If locale contains a Unicode locale extension sequence, then
         if (auto extensions = locale_id->remove_extension_type<Unicode::LocaleExtension>(); !extensions.is_empty()) {
             VERIFY(extensions.size() == 1);
@@ -393,24 +394,24 @@ Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> re
             extension = extensions.take_first();
 
             // ii. Set locale to the String value that is locale with any Unicode locale extension sequences removed.
-            locale = locale_id->to_string();
+            locale = locale_id->to_utf16_string();
         }
 
         // c. Let prefix be locale.
-        StringView prefix { locale };
+        auto prefix = locale.utf16_view();
 
         // d. Repeat, while prefix is not the empty String,
         while (!prefix.is_empty()) {
             // i. If availableLocales contains prefix, return the Record { [[locale]]: prefix, [[extension]]: extension }.
-            if (Unicode::is_locale_available(prefix))
-                return MatchedLocale { MUST(String::from_utf8(prefix)), move(extension) };
+            if (Unicode::is_locale_available(prefix.bytes()))
+                return MatchedLocale { Utf16String::from_utf16(prefix), move(extension) };
 
             // ii. If prefix contains "-" (code unit 0x002D HYPHEN-MINUS), let pos be the index into prefix of the last
             //     occurrence of "-"; else let pos be 0.
-            auto position = prefix.find_last('-').value_or(0);
+            auto position = prefix.find_last_code_point_offset('-').value_or(0);
 
             // iii. Repeat, while pos ≥ 2 and the substring of prefix from pos - 2 to pos - 1 is "-",
-            while (position >= 2 && prefix.substring_view(position - 2, 1) == '-') {
+            while (position >= 2 && prefix.substring_view(position - 2, 1) == "-"sv) {
                 // 1. Set pos to pos - 2.
                 position -= 2;
             }
@@ -425,7 +426,7 @@ Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> re
 }
 
 // 9.2.4 LookupMatchingLocaleByBestFit ( availableLocales, requestedLocales ), https://tc39.es/ecma402/#sec-lookupmatchinglocalebybestfit
-Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<String> requested_locales)
+Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<Utf16String> requested_locales)
 {
     // The algorithm is implementation dependent, but should produce results that a typical user of the requested locales
     // would consider at least as good as those produced by the LookupMatchingLocaleByPrefix algorithm.
@@ -433,7 +434,7 @@ Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<String> 
 }
 
 // 9.2.6 InsertUnicodeExtensionAndCanonicalize ( locale, attributes, keywords ), https://tc39.es/ecma402/#sec-insert-unicode-extension-and-canonicalize
-String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale, Vector<String> attributes, Vector<Unicode::Keyword> keywords)
+Utf16String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale, Vector<Utf16String> attributes, Vector<Unicode::Keyword> keywords)
 {
     // Note: This implementation differs from the spec in how the extension is inserted. The spec assumes
     // the input to this method is a string, and is written such that operations are performed on parts
@@ -442,11 +443,11 @@ String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale, Vecto
     locale.extensions.append(Unicode::LocaleExtension { move(attributes), move(keywords) });
 
     // 10. Return CanonicalizeUnicodeLocaleId(newLocale).
-    return JS::Intl::canonicalize_unicode_locale_id(locale.to_string());
+    return JS::Intl::canonicalize_unicode_locale_id(locale.to_utf16_string());
 }
 
 template<typename T>
-static auto& find_key_in_value(T& value, StringView key)
+static auto& find_key_in_value(T& value, Utf16View key)
 {
     if (key == "ca"sv)
         return value.ca;
@@ -465,7 +466,7 @@ static auto& find_key_in_value(T& value, StringView key)
     VERIFY_NOT_REACHED();
 }
 
-static Vector<LocaleKey> available_keyword_values(StringView locale, StringView key)
+static Vector<LocaleKey> available_keyword_values(Utf16View locale, Utf16View key)
 {
     auto key_locale_data = Unicode::available_keyword_values(locale, key);
 
@@ -485,9 +486,9 @@ static Vector<LocaleKey> available_keyword_values(StringView locale, StringView 
 }
 
 // 9.2.7 ResolveLocale ( availableLocales, requestedLocales, options, relevantExtensionKeys, localeData ), https://tc39.es/ecma402/#sec-resolvelocale
-ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOptions const& options, ReadonlySpan<StringView> relevant_extension_keys)
+ResolvedLocale resolve_locale(ReadonlySpan<Utf16String> requested_locales, LocaleOptions const& options, ReadonlySpan<Utf16View> relevant_extension_keys)
 {
-    static auto true_string = "true"_string;
+    auto true_string = "true"_utf16;
 
     // 1. Let matcher be options.[[localeMatcher]].
     auto const& matcher = options.locale_matcher;
@@ -507,7 +508,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
 
     // 4. If r is undefined, set r to the Record { [[locale]]: DefaultLocale(), [[extension]]: empty }.
     if (!matcher_result.has_value())
-        matcher_result = MatchedLocale { MUST(String::from_utf8(Unicode::default_locale())), {} };
+        matcher_result = MatchedLocale { Utf16String::from_utf16(Unicode::default_locale()), {} };
 
     // 5. Let foundLocale be r.[[locale]].
     auto found_locale = move(matcher_result->locale);
@@ -541,7 +542,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
     for (auto const& key : relevant_extension_keys) {
         // a. Let keyLocaleData be foundLocaleData.[[<key>]].
         // b. Assert: keyLocaleData is a List.
-        auto key_locale_data = available_keyword_values(found_locale, key);
+        auto key_locale_data = available_keyword_values(found_locale.utf16_view(), key);
 
         // c. Let value be keyLocaleData[0].
         // d. Assert: value is a String or value is null.
@@ -551,7 +552,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
         Optional<Unicode::Keyword> supported_keyword;
 
         // f. If keywords contains an element whose [[Key]] is key, then
-        if (auto entry = keywords.find_if([&](auto const& entry) { return entry.key == key; }); entry != keywords.end()) {
+        if (auto entry = keywords.find_if([&](auto const& entry) { return entry.key.utf16_view() == key; }); entry != keywords.end()) {
             // i. Let entry be the element of keywords whose [[Key]] is key.
             // ii. Let requestedValue be entry.[[Value]].
             auto requested_value = entry->value;
@@ -564,7 +565,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
                     value = move(requested_value);
 
                     // b. Set supportedKeyword to the Record { [[Key]]: key, [[Value]]: value }.
-                    supported_keyword = Unicode::Keyword { MUST(String::from_utf8(key)), move(entry->value) };
+                    supported_keyword = Unicode::Keyword { Utf16String::from_utf16(key), move(entry->value) };
                 }
             }
             // iv. Else if keyLocaleData contains "true", then
@@ -573,7 +574,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
                 value = true_string;
 
                 // 2. Set supportedKeyword to the Record { [[Key]]: key, [[Value]]: "" }.
-                supported_keyword = Unicode::Keyword { MUST(String::from_utf8(key)), {} };
+                supported_keyword = Unicode::Keyword { Utf16String::from_utf16(key), {} };
             }
         }
 
@@ -583,13 +584,14 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
         auto options_value = find_key_in_value(options, key);
 
         // j. If optionsValue is a String, then
-        if (auto* options_string = options_value.has_value() ? options_value->get_pointer<String>() : nullptr) {
+        if (auto* options_string = options_value.has_value() ? options_value->get_pointer<Utf16String>() : nullptr) {
             // i. Let ukey be the ASCII-lowercase of key.
             // NOTE: `key` is always lowercase, and this step is likely to be removed:
             //        https://github.com/tc39/ecma402/pull/846#discussion_r1428263375
 
             // ii. Set optionsValue to CanonicalizeUValue(ukey, optionsValue).
-            *options_string = Unicode::canonicalize_unicode_extension_values(key, *options_string);
+            auto canonicalized = Unicode::canonicalize_unicode_extension_values(key.bytes(), options_string->utf16_view());
+            *options_string = move(canonicalized);
 
             // iii. If optionsValue is the empty String, then
             if (options_string->is_empty()) {
@@ -611,31 +613,36 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
         if (supported_keyword.has_value())
             supported_keywords.append(supported_keyword.release_value());
 
-        if (auto* value_string = value.get_pointer<String>())
-            icu_keywords.empend(MUST(String::from_utf8(key)), *value_string);
+        if (auto* value_string = value.get_pointer<Utf16String>())
+            icu_keywords.empend(Utf16String::from_utf16(key), *value_string);
 
         // m. Set result.[[<key>]] to value.
-        find_key_in_value(result, key) = move(value);
+        if (auto* value_string = value.get_pointer<Utf16String>())
+            find_key_in_value(result, key) = *value_string;
+        else
+            find_key_in_value(result, key) = Empty {};
     }
 
     // AD-HOC: For ICU, we need to form a locale with all relevant extension keys present.
     if (icu_keywords.is_empty()) {
         result.icu_locale = found_locale;
     } else {
-        auto locale_id = Unicode::parse_unicode_locale_id(found_locale);
+        auto locale_id = Unicode::parse_unicode_locale_id(found_locale.utf16_view());
         VERIFY(locale_id.has_value());
 
-        result.icu_locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), {}, move(icu_keywords));
+        auto icu_locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), {}, move(icu_keywords));
+        result.icu_locale = move(icu_locale);
     }
 
     // 14. If supportedKeywords is not empty, then
     if (!supported_keywords.is_empty()) {
-        auto locale_id = Unicode::parse_unicode_locale_id(found_locale);
+        auto locale_id = Unicode::parse_unicode_locale_id(found_locale.utf16_view());
         VERIFY(locale_id.has_value());
 
         // a. Let supportedAttributes be a new empty List.
         // b. Set foundLocale to InsertUnicodeExtensionAndCanonicalize(foundLocale, supportedAttributes, supportedKeywords).
-        found_locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), {}, move(supported_keywords));
+        auto supported_locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), {}, move(supported_keywords));
+        found_locale = move(supported_locale);
     }
 
     // 15. Set result.[[Locale]] to foundLocale.
@@ -662,7 +669,7 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
         : TRY(get_options_object(vm, options_value));
 
     // 4. Let matcher be ? GetOption(options, "localeMatcher", STRING, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
+    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, u"best fit"sv));
 
     // 5. Let opt be the Record { [[localeMatcher]]: matcher }.
     LocaleOptions opt {};
@@ -687,10 +694,10 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
             auto value_string_view = value_string.utf16_view();
 
             // ii. If value cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-            if (!value_string_view.is_ascii() || !Unicode::is_type_identifier(value_string_view))
+            if (!value_string_view.has_ascii_storage() || !Unicode::is_type_identifier(value_string_view))
                 return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string_view, descriptor.property);
 
-            locale_key = MUST(value_string_view.to_utf8());
+            locale_key = move(value_string);
         }
 
         // e. Let key be desc.[[Key]].
@@ -715,7 +722,7 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
 }
 
 // 9.2.9 FilterLocales ( availableLocales, requestedLocales, options ), https://tc39.es/ecma402/#sec-lookupsupportedlocales
-ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> requested_locales, Value options_value)
+ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<Utf16String> requested_locales, Value options_value)
 {
     auto& realm = *vm.current_realm();
 
@@ -723,10 +730,10 @@ ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> re
     auto options = TRY(coerce_options_to_object(vm, options_value));
 
     // 2. Let matcher be ? GetOption(options, "localeMatcher", string, « "lookup", "best fit" », "best fit").
-    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
+    auto matcher = TRY(get_option(vm, options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, u"best fit"sv));
 
     // 3. Let subset be a new empty List.
-    Vector<String> subset;
+    Vector<Utf16String> subset;
 
     // 4. For each element locale of requestedLocales, do
     for (auto const& locale : requested_locales) {
@@ -749,7 +756,7 @@ ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> re
     }
 
     // 5. Return CreateArrayFromList(subset).
-    return Array::create_from<String>(realm, subset, [&vm](auto& locale) { return PrimitiveString::create(vm, move(locale)); });
+    return Array::create_from<Utf16String>(realm, subset, [&vm](auto const& locale) { return PrimitiveString::create(vm, locale); });
 }
 
 // 9.2.11 CoerceOptionsToObject ( options ), https://tc39.es/ecma402/#sec-coerceoptionstoobject

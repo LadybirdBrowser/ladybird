@@ -8,27 +8,29 @@
 
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 
 namespace Unicode {
 
-Vector<String> available_keyword_values(StringView locale, StringView key);
+Vector<Utf16String> available_keyword_values(Utf16View locale, Utf16View key);
 
-Vector<String> const& available_calendars();
-Vector<String> available_calendars(StringView locale);
+Vector<Utf16String> const& available_calendars();
+Vector<Utf16String> available_calendars(Utf16View locale);
 
-Vector<String> const& available_currencies();
+Vector<Utf16String> const& available_currencies();
 
-Vector<String> const& available_collation_case_orderings();
-Vector<String> const& available_collation_numeric_orderings();
+Vector<Utf16String> const& available_collation_case_orderings();
+Vector<Utf16String> const& available_collation_numeric_orderings();
 
-Vector<String> const& available_collations();
-Vector<String> available_collations(StringView locale);
+Vector<Utf16String> const& available_collations();
+Vector<Utf16String> available_collations(Utf16View locale);
 
-Vector<String> const& available_hour_cycles();
-Vector<String> available_hour_cycles(StringView locale);
+Vector<Utf16String> const& available_hour_cycles();
+Vector<Utf16String> available_hour_cycles(Utf16View locale);
 
-Vector<String> const& available_number_systems();
-Vector<String> available_number_systems(StringView locale);
+Vector<Utf16String> const& available_number_systems();
+Vector<Utf16String> available_number_systems(Utf16View locale);
 
 }

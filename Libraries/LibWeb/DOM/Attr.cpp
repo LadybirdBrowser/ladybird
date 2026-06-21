@@ -127,10 +127,10 @@ void Attr::handle_attribute_changes(Element& element, Optional<String> const& ol
         auto& vm = this->vm();
 
         GC::RootVector<JS::Value> arguments;
-        arguments.append(JS::PrimitiveString::create(vm, local_name()));
-        arguments.append(!old_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, old_value.value()));
-        arguments.append(!new_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, new_value.value()));
-        arguments.append(!namespace_uri().has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, namespace_uri().value()));
+        arguments.append(JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(local_name())));
+        arguments.append(!old_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, Utf16String::from_utf8(old_value.value())));
+        arguments.append(!new_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, Utf16String::from_utf8(new_value.value())));
+        arguments.append(!namespace_uri().has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(namespace_uri().value())));
 
         element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
     }

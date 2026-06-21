@@ -19,7 +19,7 @@ namespace JS::Temporal {
 GC_DEFINE_ALLOCATOR(PlainMonthDay);
 
 // 10 Temporal.PlainMonthDay Objects, https://tc39.es/proposal-temporal/#sec-temporal-plainmonthday-objects
-PlainMonthDay::PlainMonthDay(ISODate iso_date, String calendar, Object& prototype)
+PlainMonthDay::PlainMonthDay(ISODate iso_date, Utf16String calendar, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_iso_date(iso_date)
     , m_calendar(move(calendar))
@@ -75,7 +75,7 @@ ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM& vm, Value it
     // 6. If calendar is empty, set calendar to "iso8601".
     auto calendar = parse_result.calendar.has_value()
         ? TRY(canonicalize_calendar(vm, *parse_result.calendar))
-        : TRY(canonicalize_calendar(vm, "iso8601"sv));
+        : TRY(canonicalize_calendar(vm, ISO8601_CALENDAR));
 
     // 8. Let resolvedOptions be ? GetOptionsObject(options).
     auto resolved_options = TRY(get_options_object(vm, options));
@@ -115,7 +115,7 @@ ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM& vm, Value it
 }
 
 // 10.5.2 CreateTemporalMonthDay ( isoDate, calendar [ , newTarget ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtemporalmonthday
-ThrowCompletionOr<GC::Ref<PlainMonthDay>> create_temporal_month_day(VM& vm, ISODate iso_date, String calendar, GC::Ptr<FunctionObject> new_target)
+ThrowCompletionOr<GC::Ref<PlainMonthDay>> create_temporal_month_day(VM& vm, ISODate iso_date, Utf16String calendar, GC::Ptr<FunctionObject> new_target)
 {
     auto& realm = *vm.current_realm();
 
@@ -137,12 +137,12 @@ ThrowCompletionOr<GC::Ref<PlainMonthDay>> create_temporal_month_day(VM& vm, ISOD
 }
 
 // 10.5.3 TemporalMonthDayToString ( monthDay, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-temporalmonthdaytostring
-String temporal_month_day_to_string(PlainMonthDay const& month_day, ShowCalendar show_calendar)
+Utf16String temporal_month_day_to_string(PlainMonthDay const& month_day, ShowCalendar show_calendar)
 {
     // 1. Let month be ToZeroPaddedDecimalString(monthDay.[[ISODate]].[[Month]], 2).
     // 2. Let day be ToZeroPaddedDecimalString(monthDay.[[ISODate]].[[Day]], 2).
     // 3. Let result be the string-concatenation of month, the code unit 0x002D (HYPHEN-MINUS), and day.
-    auto result = MUST(String::formatted("{:02}-{:02}", month_day.iso_date().month, month_day.iso_date().day));
+    auto result = Utf16String::formatted("{:02}-{:02}", month_day.iso_date().month, month_day.iso_date().day);
 
     // 4. If showCalendar is one of ALWAYS or CRITICAL, or monthDay.[[Calendar]] is not "iso8601", then
     if (show_calendar == ShowCalendar::Always || show_calendar == ShowCalendar::Critical || month_day.calendar() != ISO8601_CALENDAR) {
@@ -150,14 +150,14 @@ String temporal_month_day_to_string(PlainMonthDay const& month_day, ShowCalendar
         auto year = pad_iso_year(month_day.iso_date().year);
 
         // b. Set result to the string-concatenation of year, the code unit 0x002D (HYPHEN-MINUS), and result.
-        result = MUST(String::formatted("{}-{}", year, result));
+        result = Utf16String::formatted("{}-{}", year, result);
     }
 
     // 5. Let calendarString be FormatCalendarAnnotation(monthDay.[[Calendar]], showCalendar).
     auto calendar_string = format_calendar_annotation(month_day.calendar(), show_calendar);
 
     // 6. Set result to the string-concatenation of result and calendarString.
-    result = MUST(String::formatted("{}{}", result, calendar_string));
+    result = Utf16String::formatted("{}{}", result, calendar_string);
 
     // 7. Return result.
     return result;

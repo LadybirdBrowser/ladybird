@@ -138,7 +138,7 @@ def write_implementation(
 
     {f'object.set_prototype(&ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string));' if interface.parent_name else ""}
     object.define_direct_property(vm.names.length, JS::Value({constructor_length}), JS::Attribute::Configurable);
-    object.define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "{interface.name}"_string), JS::Attribute::Configurable);
+    object.define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "{interface.name}"_utf16), JS::Attribute::Configurable);
     object.define_direct_property(vm.names.prototype, &ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.namespaced_name}"_fly_string), 0);
 """)
     constants.define_the_constants(out, context, includes, interface)
@@ -214,7 +214,7 @@ void {interface.prototype_class}::initialize(JS::Realm& realm)
 
     if "Global" in interface.extended_attributes:
         out.write(
-            f'    object.define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.namespaced_name}"_string), JS::Attribute::Configurable);\n'
+            f'    object.define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.namespaced_name}"_utf16), JS::Attribute::Configurable);\n'
         )
         if interface_requires_custom_prototype(interface):
             out.write("    Base::initialize(realm);\n")
@@ -244,7 +244,7 @@ void {interface.prototype_class}::initialize(JS::Realm& realm)
     constants.define_the_constants(out, context, includes, interface)
     operations.define_unscopable_members(out, includes, interface)
     out.write(
-        f'    object.define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.namespaced_name}"_string), JS::Attribute::Configurable);\n'
+        f'    object.define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.namespaced_name}"_utf16), JS::Attribute::Configurable);\n'
     )
     if interface_requires_custom_prototype(interface):
         out.write("    Base::initialize(realm);\n")

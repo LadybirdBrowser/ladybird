@@ -218,7 +218,7 @@ GC::Ref<WebIDL::Promise> IDBFactory::databases()
             auto info = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
             // 3. Set info’s name dictionary member to db’s name.
-            MUST(info->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), db->name())));
+            MUST(info->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(db->name()))));
 
             // 4. Set info’s version dictionary member to db’s version.
             MUST(info->create_data_property("version"_utf16_fly_string, JS::Value(db->version())));

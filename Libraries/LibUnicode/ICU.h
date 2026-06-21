@@ -12,6 +12,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibUnicode/DurationFormat.h>
 
@@ -37,7 +38,7 @@ namespace Unicode {
 class LocaleData {
 public:
     static Optional<LocaleData&> for_locale(StringView locale);
-    static String canonicalize(StringView locale);
+    static Utf16String canonicalize(StringView locale);
 
     ALWAYS_INLINE icu::Locale& locale() { return m_locale; }
 
@@ -57,7 +58,7 @@ private:
     explicit LocaleData(icu::Locale locale);
 
     icu::Locale m_locale;
-    Optional<String> m_canonical_locale_string;
+    Optional<Utf16String> m_canonical_locale_string;
 
     OwnPtr<icu::LocaleDisplayNames> m_standard_display_names;
     OwnPtr<icu::LocaleDisplayNames> m_dialect_display_names;
@@ -69,7 +70,7 @@ private:
 
 class TimeZoneData {
 public:
-    static Optional<TimeZoneData&> for_time_zone(StringView time_zone);
+    static Optional<TimeZoneData&> for_time_zone(Utf16View time_zone);
 
     ALWAYS_INLINE icu::TimeZone& time_zone() { return *m_time_zone; }
 

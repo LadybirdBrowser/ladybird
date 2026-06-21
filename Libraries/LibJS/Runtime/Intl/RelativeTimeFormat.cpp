@@ -21,10 +21,10 @@ RelativeTimeFormat::RelativeTimeFormat(Object& prototype)
 }
 
 // 18.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.RelativeTimeFormat-internal-slots
-ReadonlySpan<StringView> RelativeTimeFormat::relevant_extension_keys() const
+ReadonlySpan<Utf16View> RelativeTimeFormat::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
-    static constexpr AK::Array keys { "nu"sv };
+    static constexpr AK::Array<Utf16View, 1> keys { "nu"sv };
     return keys;
 }
 
@@ -131,7 +131,7 @@ ThrowCompletionOr<GC::Ref<Array>> format_relative_time_to_parts(VM& vm, Relative
         auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
         // b. Perform ! CreateDataPropertyOrThrow(O, "type", part.[[Type]]).
-        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, part.type)));
+        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, move(part.type))));
 
         // c. Perform ! CreateDataPropertyOrThrow(O, "value", part.[[Value]]).
         MUST(object->create_data_property_or_throw(vm.names.value, PrimitiveString::create(vm, move(part.value))));
@@ -139,7 +139,7 @@ ThrowCompletionOr<GC::Ref<Array>> format_relative_time_to_parts(VM& vm, Relative
         // d. If part.[[Unit]] is not empty, then
         if (!part.unit.is_empty()) {
             // i. Perform ! CreateDataPropertyOrThrow(O, "unit", part.[[Unit]]).
-            MUST(object->create_data_property_or_throw(vm.names.unit, PrimitiveString::create(vm, part.unit)));
+            MUST(object->create_data_property_or_throw(vm.names.unit, PrimitiveString::create(vm, move(part.unit))));
         }
 
         // e. Perform ! CreateDataPropertyOrThrow(result, ! ToString(n), O).

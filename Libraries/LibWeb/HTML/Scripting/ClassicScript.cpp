@@ -56,10 +56,10 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView sou
     // 11. If result is a list of errors, then:
     if (result.is_error()) {
         auto& parse_error = result.error().first();
-        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to parse: {}", parse_error.to_string());
+        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to parse: {}", parse_error.to_utf16_string());
 
         // 1. Set script's parse error and its error to rethrow to result[0].
-        script->set_parse_error(JS::SyntaxError::create(settings.realm(), parse_error.to_string()));
+        script->set_parse_error(JS::SyntaxError::create(settings.realm(), parse_error.to_utf16_string()));
         script->set_error_to_rethrow(script->parse_error());
 
         // 2. Return script.
@@ -93,9 +93,9 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
-        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to compile: {}", parse_error.to_string());
+        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to compile: {}", parse_error.to_utf16_string());
 
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
         script->set_error_to_rethrow(script->parse_error());
 
         return script;
@@ -126,9 +126,9 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
-        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to materialize: {}", parse_error.to_string());
+        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to materialize: {}", parse_error.to_utf16_string());
 
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
         script->set_error_to_rethrow(script->parse_error());
 
         return script;
@@ -159,9 +159,9 @@ GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString file
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
-        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to materialize bytecode cache: {}", parse_error.to_string());
+        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to materialize bytecode cache: {}", parse_error.to_utf16_string());
 
-        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_utf16_string()));
         script->set_error_to_rethrow(script->parse_error());
 
         return script;
