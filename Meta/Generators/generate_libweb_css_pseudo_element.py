@@ -148,19 +148,12 @@ PROPERTY_GROUPS = {
         # FIXME: line-padding
         "overflow-wrap",
         "tab-size",
-        "text-align",
-        # FIXME: text-align-all
-        # FIXME: text-align-last
         # FIXME: text-autospace
-        # FIXME: text-group-align
-        "text-indent",
         "text-justify",
         # FIXME: text-spacing
         # FIXME: text-spacing-trim
         "text-transform",
-        "text-wrap",
         "text-wrap-mode",
-        "text-wrap-style",
         "white-space",
         "white-space-collapse",
         "white-space-trim",
