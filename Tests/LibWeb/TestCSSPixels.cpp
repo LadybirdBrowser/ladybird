@@ -124,6 +124,14 @@ TEST_CASE(saturated_subtraction)
     EXPECT_EQ(value - -1, CSSPixels(INFINITY));
 }
 
+TEST_CASE(saturated_abs)
+{
+    // abs() of the minimum saturates to the maximum instead of overflowing.
+    EXPECT_EQ(CSSPixels::min().abs(), CSSPixels::max());
+    EXPECT_EQ(CSSPixels::from_raw(-5).abs(), CSSPixels::from_raw(5));
+    EXPECT_EQ(CSSPixels::from_raw(5).abs(), CSSPixels::from_raw(5));
+}
+
 TEST_CASE(multiplication_uses_i64_for_raw_values)
 {
     CSSPixels a(1200);

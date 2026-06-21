@@ -246,7 +246,7 @@ public:
         return *this;
     }
 
-    constexpr CSSPixels abs() const { return from_raw(::abs(m_value)); }
+    constexpr CSSPixels abs() const { return raw_value() < 0 ? from_raw(saturating_sub(0, raw_value())) : *this; }
 
     CSSPixels& scale_by(float value)
     {
