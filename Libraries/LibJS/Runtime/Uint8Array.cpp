@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <AK/StringUtils.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Uint8Array.h>
@@ -14,6 +15,13 @@
 #include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
+
+static void append_lowercase_hex_byte(Utf16StringBuilder& builder, u8 byte)
+{
+    constexpr auto hex_digits = "0123456789abcdef"sv;
+    builder.append_ascii(hex_digits[byte >> 4]);
+    builder.append_ascii(hex_digits[byte & 0xf]);
+}
 
 void Uint8ArrayConstructorHelpers::initialize(Realm& realm, Object& constructor)
 {
@@ -377,18 +385,18 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_hex)
     auto to_encode = TRY(get_uint8_array_bytes(vm, typed_array));
 
     // 4. Let out be the empty String.
-    StringBuilder out;
+    Utf16StringBuilder out(to_encode.bytes().size() * 2);
 
     // 5. For each byte byte of toEncode, do
     for (auto byte : to_encode.bytes()) {
         // a. Let hex be Number::toString(𝔽(byte), 16).
         // b. Set hex to StringPad(hex, 2, "0", START).
         // c. Set out to the string-concatenation of out and hex.
-        out.appendff("{:02x}", byte);
+        append_lowercase_hex_byte(out, byte);
     }
 
     // 6. Return out.
-    return PrimitiveString::create(vm, MUST(out.to_string()));
+    return PrimitiveString::create(vm, out.to_string());
 }
 
 // 23.3.3.1 ValidateUint8Array ( ta ), https://tc39.es/ecma262/#sec-validateuint8array

@@ -244,6 +244,7 @@
     M(StringNonGlobalRegExp, "RegExp argument is non-global")                                                                       \
     M(StringRepeatCountMustBe, "repeat count must be a {} number")                                                                  \
     M(StringRepeatCountMustNotOverflow, "repeat count must not overflow")                                                           \
+    M(StringSizeMustNotOverflow, "string size must not overflow")                                                                   \
     M(TemporalDifferentCalendars, "Cannot compare dates from two different calendars")                                              \
     M(TemporalDifferentTimeZones, "Cannot compare dates from two different time zones")                                             \
     M(TemporalDisambiguatePossibleEpochNSRejectMoreThanOne, "Cannot disambiguate two or more possible epoch nanoseconds")           \

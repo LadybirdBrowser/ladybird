@@ -79,6 +79,7 @@ bool all_import_attributes_supported(VM& vm, Vector<ImportAttribute> const& attr
 ThrowCompletionOr<Value> perform_import_call(VM&, Value specifier, Value options_value);
 
 size_t max_js_string_length();
+ThrowCompletionOr<size_t> checked_js_string_length_sum(VM&, size_t, size_t, ErrorType const&);
 ThrowCompletionOr<size_t> checked_js_string_length_product(VM&, size_t, size_t, ErrorType const&);
 
 enum class CanonicalIndexMode {
