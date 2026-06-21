@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const exponentBuffer = new ArrayBuffer(3);
+        const publicExponent = new Uint8Array(exponentBuffer);
+        publicExponent.set([0x01, 0x00, 0x01]);
+
+        // transfer() detaches exponentBuffer, so publicExponent views a detached buffer (byteLength 0).
+        exponentBuffer.transfer();
+
+        try {
+            await crypto.subtle.generateKey({
+                name: "RSASSA-PKCS1-v1_5",
+                modulusLength: 1024,
+                publicExponent,
+                hash: "SHA-256",
+            }, true, ["sign", "verify"]);
+            println("resolved");
+        } catch (e) {
+            println("rejected: " + e.name);
+        }
+        done();
+    });
+</script>
