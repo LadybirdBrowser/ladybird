@@ -32,6 +32,19 @@ SegmenterGranularity segmenter_granularity_from_string(StringView segmenter_gran
     VERIFY_NOT_REACHED();
 }
 
+SegmenterGranularity segmenter_granularity_from_string(Utf16View segmenter_granularity)
+{
+    if (segmenter_granularity == "grapheme"sv)
+        return SegmenterGranularity::Grapheme;
+    if (segmenter_granularity == "line"sv)
+        return SegmenterGranularity::Line;
+    if (segmenter_granularity == "sentence"sv)
+        return SegmenterGranularity::Sentence;
+    if (segmenter_granularity == "word"sv)
+        return SegmenterGranularity::Word;
+    VERIFY_NOT_REACHED();
+}
+
 StringView segmenter_granularity_to_string(SegmenterGranularity segmenter_granularity)
 {
     switch (segmenter_granularity) {

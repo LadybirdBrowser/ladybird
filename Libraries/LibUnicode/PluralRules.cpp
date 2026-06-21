@@ -17,6 +17,15 @@ PluralForm plural_form_from_string(StringView plural_form)
     VERIFY_NOT_REACHED();
 }
 
+PluralForm plural_form_from_string(Utf16View plural_form)
+{
+    if (plural_form == "cardinal"sv)
+        return PluralForm::Cardinal;
+    if (plural_form == "ordinal"sv)
+        return PluralForm::Ordinal;
+    VERIFY_NOT_REACHED();
+}
+
 StringView plural_form_to_string(PluralForm plural_form)
 {
     switch (plural_form) {

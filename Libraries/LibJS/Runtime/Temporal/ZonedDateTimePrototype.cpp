@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Intl/DateTimeFormat.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
@@ -415,7 +416,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::with)
     fields.nanosecond = iso_date_time.time.nanosecond;
 
     // 16. Set fields.[[OffsetString]] to FormatUTCOffsetNanoseconds(offsetNanoseconds).
-    fields.offset_string = format_utc_offset_nanoseconds(offset_nanoseconds);
+    fields.offset_string = Utf16String::from_utf8(format_utc_offset_nanoseconds(offset_nanoseconds));
 
     // 17. Let partialZonedDateTime be ? PrepareCalendarFields(calendar, temporalZonedDateTimeLike, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND, OFFSET », PARTIAL).
     static constexpr auto calendar_field_names = to_array({ CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day });
@@ -900,7 +901,8 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::get_time_zone_transition)
     auto direction = TRY(get_direction_option(vm, *direction_param));
 
     // 8. If IsOffsetTimeZoneIdentifier(timeZone) is true, return null.
-    if (is_offset_time_zone_identifier(time_zone))
+    auto utf16_time_zone = Utf16String::from_utf8(time_zone);
+    if (is_offset_time_zone_identifier(utf16_time_zone))
         return js_null();
 
     Optional<Crypto::SignedBigInteger> transition;

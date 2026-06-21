@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibUnicode/Segmenter.h>
 
@@ -28,6 +29,7 @@ public:
 
     Unicode::SegmenterGranularity segmenter_granularity() const { return m_segmenter_granularity; }
     void set_segmenter_granularity(StringView segmenter_granularity) { m_segmenter_granularity = Unicode::segmenter_granularity_from_string(segmenter_granularity); }
+    void set_segmenter_granularity(Utf16View segmenter_granularity) { m_segmenter_granularity = Unicode::segmenter_granularity_from_string(segmenter_granularity); }
     StringView segmenter_granularity_string() const { return Unicode::segmenter_granularity_to_string(m_segmenter_granularity); }
 
     Unicode::Segmenter const& segmenter() const { return *m_segmenter; }

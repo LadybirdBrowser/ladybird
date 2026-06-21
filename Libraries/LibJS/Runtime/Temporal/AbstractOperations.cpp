@@ -480,7 +480,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
 
     String calendar;
     Optional<String> time_zone;
-    Optional<String> offset_string;
+    Optional<Utf16String> offset_string;
 
     ISODate iso_date;
     Variant<ParsedISODateTime::StartOfDay, Time> time { Time {} };
@@ -560,8 +560,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
         // f. Else,
         else {
             // i. Let timeZone be ? ToTemporalTimeZoneIdentifier(annotation).
-            auto utf16_annotation = Utf16String::from_utf8(*annotation);
-            time_zone = TRY(to_temporal_time_zone_identifier(vm, utf16_annotation));
+            time_zone = TRY(to_temporal_time_zone_identifier(vm, *annotation));
 
             // ii. If result.[[TimeZone]].[[Z]] is true, then
             if (result.time_zone.z_designator) {
@@ -580,8 +579,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
             // v. If offsetString is not EMPTY, then
             if (offset_string.has_value()) {
                 // 1. Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
-                auto utf16_offset_string = Utf16String::from_utf8(*offset_string);
-                auto offset_parse_result = parse_utc_offset(utf16_offset_string, SubMinutePrecision::Yes);
+                auto offset_parse_result = parse_utc_offset(*offset_string, SubMinutePrecision::Yes);
 
                 // 2. Assert: offsetParseResult is a Parse Node.
                 VERIFY(offset_parse_result.has_value());
@@ -594,10 +592,10 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
 
         // g. Let calendar be result.[[Calendar]].
         // h. If calendar is EMPTY, set calendar to "iso8601".
-        calendar = result.calendar.value_or("iso8601"_string);
-
-        // i. Set calendar to ? CanonicalizeCalendar(calendar).
-        calendar = TRY(canonicalize_calendar(vm, calendar));
+        if (result.calendar.has_value())
+            calendar = TRY(canonicalize_calendar(vm, *result.calendar));
+        else
+            calendar = TRY(canonicalize_calendar(vm, "iso8601"sv));
 
         // j. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
         iso_date = create_iso_date_record(*result.year, result.month, result.day);
@@ -620,7 +618,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
     // 8. If offsetBehaviour is OPTION, then
     if (offset_behavior == OffsetBehavior::Option) {
         // a. Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
-        offset_nanoseconds = parse_date_time_utc_offset(offset_string->bytes_as_string_view());
+        offset_nanoseconds = parse_date_time_utc_offset(*offset_string);
     }
     // 9. Else,
     else {
@@ -1103,7 +1101,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, Utf16View iso_s
     Optional<ParseResult> parse_result;
 
     // 2. Let calendar be EMPTY.
-    Optional<String> calendar;
+    Optional<Utf16String> calendar;
 
     // 3. Let yearAbsent be false.
     auto year_absent = false;
@@ -1135,7 +1133,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, Utf16View iso_s
                     // i. If calendar is EMPTY, then
                     if (!calendar.has_value()) {
                         // i. Set calendar to CodePointsToString(value).
-                        calendar = value.to_utf8_but_should_be_ported_to_utf16();
+                        calendar = Utf16String::from_utf16(value);
 
                         // ii. If annotation contains an AnnotationCriticalFlag Parse Node, set calendarWasCritical to true.
                         if (annotation.critical)
@@ -1160,14 +1158,14 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, Utf16View iso_s
             // 3. If goal is TemporalYearMonthString and parseResult does not contain a DateDay Parse Node, then
             if (goal == Production::TemporalYearMonthString && !parse_result->date_day.has_value()) {
                 // a. If calendar is not EMPTY and the ASCII-lowercase of calendar is not "iso8601", throw a RangeError exception.
-                if (calendar.has_value() && !calendar->equals_ignoring_ascii_case(ISO8601_CALENDAR))
+                if (calendar.has_value() && !calendar->equals_ignoring_ascii_case("iso8601"sv))
                     return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarIdentifier, *calendar);
             }
 
             // 4. If goal is TemporalMonthDayString and parseResult does not contain a DateYear Parse Node, then
             if (goal == Production::TemporalMonthDayString && !parse_result->date_year.has_value()) {
                 // a. If calendar is not EMPTY and the ASCII-lowercase of calendar is not "iso8601", throw a RangeError exception.
-                if (calendar.has_value() && !calendar->equals_ignoring_ascii_case(ISO8601_CALENDAR))
+                if (calendar.has_value() && !calendar->equals_ignoring_ascii_case("iso8601"sv))
                     return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarIdentifier, *calendar);
 
                 // b. Set yearAbsent to true.
@@ -1291,7 +1289,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, Utf16View iso_s
     if (parse_result->time_zone_identifier.has_value()) {
         // a. Let identifier be the source text matched by the TimeZoneIdentifier Parse Node contained within parseResult.
         // b. Set timeZoneResult.[[TimeZoneAnnotation]] to CodePointsToString(identifier).
-        time_zone_result.time_zone_annotation = parse_result->time_zone_identifier->to_utf8_but_should_be_ported_to_utf16();
+        time_zone_result.time_zone_annotation = Utf16String::from_utf16(*parse_result->time_zone_identifier);
     }
 
     // 26. If parseResult contains a UTCDesignator Parse Node, then
@@ -1303,7 +1301,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, Utf16View iso_s
     else if (parse_result->date_time_offset.has_value()) {
         // a. Let offset be the source text matched by the UTCOffset[+SubMinutePrecision] Parse Node contained within parseResult.
         // b. Set timeZoneResult.[[OffsetString]] to CodePointsToString(offset).
-        time_zone_result.offset_string = parse_result->date_time_offset->source_text.to_utf8_but_should_be_ported_to_utf16();
+        time_zone_result.offset_string = Utf16String::from_utf16(parse_result->date_time_offset->source_text);
     }
 
     // 28. If yearAbsent is true, let yearReturn be EMPTY; else let yearReturn be yearMV.
@@ -1316,7 +1314,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, Utf16View iso_s
 }
 
 // 13.36 ParseTemporalCalendarString ( string ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporalcalendarstring
-ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, Utf16View string)
+ThrowCompletionOr<Utf16String> parse_temporal_calendar_string(VM& vm, Utf16View string)
 {
     // 1. Let parseResult be Completion(ParseISODateTime(string, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned],
     //    TemporalInstantString, TemporalTimeString, TemporalMonthDayString, TemporalYearMonthString »)).
@@ -1338,7 +1336,7 @@ ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, Utf16View strin
 
         // b. If calendar is EMPTY, return "iso8601".
         // c. Else, return calendar.
-        return calendar.value_or("iso8601"_string);
+        return calendar.value_or(Utf16String::from_utf8_without_validation("iso8601"sv));
     }
 
     // 3. Set parseResult to ParseText(StringToCodePoints(string), AnnotationValue).
@@ -1346,10 +1344,10 @@ ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, Utf16View strin
 
     // 4. If parseResult is a List of errors, throw a RangeError exception.
     if (!annotation_parse_result.has_value())
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarString, string.to_utf8_but_should_be_ported_to_utf16());
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarString, string);
 
     // 5. Return string.
-    return string.to_utf8_but_should_be_ported_to_utf16();
+    return Utf16String::from_utf16(string);
 }
 
 // 13.37 ParseTemporalDurationString ( isoString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaldurationstring
@@ -1600,7 +1598,7 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM& 
 
     // 5. If timeZoneResult.[[TimeZoneAnnotation]] is not EMPTY, return ! ParseTimeZoneIdentifier(timeZoneResult.[[TimeZoneAnnotation]]).
     if (time_zone_result.time_zone_annotation.has_value())
-        return parse_time_zone_identifier(*time_zone_result.time_zone_annotation);
+        return TRY(parse_time_zone_identifier(vm, *time_zone_result.time_zone_annotation));
 
     // 6. If timeZoneResult.[[Z]] is true, return ! ParseTimeZoneIdentifier("UTC").
     if (time_zone_result.z_designator)
@@ -1615,7 +1613,7 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM& 
 }
 
 // 13.41 ToOffsetString ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-tooffsetstring
-ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
+ThrowCompletionOr<Utf16String> to_offset_string(VM& vm, Value argument)
 {
     // 1. Let offset be ? ToPrimitive(argument, STRING).
     auto offset = TRY(argument.to_primitive(vm, Value::PreferredType::String));
@@ -1625,11 +1623,11 @@ ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTimeZoneString, offset);
 
     // 3. Perform ? ParseDateTimeUTCOffset(offset).
-    auto offset_string = offset.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
-    TRY(parse_date_time_utc_offset(vm, offset_string.bytes_as_string_view()));
+    auto offset_string = offset.as_string().utf16_string_view();
+    TRY(parse_date_time_utc_offset(vm, offset_string));
 
     // 4. Return offset.
-    return offset_string;
+    return Utf16String::from_utf16(offset_string);
 }
 
 // 13.42 ISODateToFields ( calendar, isoDate, type ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields

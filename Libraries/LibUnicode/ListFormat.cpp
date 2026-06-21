@@ -23,6 +23,17 @@ ListFormatType list_format_type_from_string(StringView list_format_type)
     VERIFY_NOT_REACHED();
 }
 
+ListFormatType list_format_type_from_string(Utf16View list_format_type)
+{
+    if (list_format_type == "conjunction"sv)
+        return ListFormatType::Conjunction;
+    if (list_format_type == "disjunction"sv)
+        return ListFormatType::Disjunction;
+    if (list_format_type == "unit"sv)
+        return ListFormatType::Unit;
+    VERIFY_NOT_REACHED();
+}
+
 StringView list_format_type_to_string(ListFormatType list_format_type)
 {
     switch (list_format_type) {

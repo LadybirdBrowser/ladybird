@@ -200,6 +200,17 @@ TEST_CASE(test_unsigned_bigint_base10_from_string)
         EXPECT_EQ(Crypto::UnsignedBigInteger::from_base(10, invalid_base10_number_string).is_error(), true);
 }
 
+TEST_CASE(test_bigint_from_utf16_string)
+{
+    auto unsigned_result = TRY_OR_FAIL(Crypto::UnsignedBigInteger::from_base(16, u"ffffffffffff"sv));
+    EXPECT_EQ(MUST(unsigned_result.to_base(16)), "ffffffffffff");
+
+    auto signed_result = TRY_OR_FAIL(Crypto::SignedBigInteger::from_base(10, u"-123456789"sv));
+    EXPECT_EQ(MUST(signed_result.to_base(10)), "-123456789");
+
+    EXPECT(Crypto::UnsignedBigInteger::from_base(10, u"12\u00a0"sv).is_error());
+}
+
 TEST_CASE(test_unsigned_bigint_base10_to_string)
 {
     auto bigint = Crypto::UnsignedBigInteger {

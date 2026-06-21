@@ -37,6 +37,27 @@ Optional<TimeUnit> time_unit_from_string(StringView time_unit)
     return {};
 }
 
+Optional<TimeUnit> time_unit_from_string(Utf16View time_unit)
+{
+    if (time_unit == "second"sv)
+        return TimeUnit::Second;
+    if (time_unit == "minute"sv)
+        return TimeUnit::Minute;
+    if (time_unit == "hour"sv)
+        return TimeUnit::Hour;
+    if (time_unit == "day"sv)
+        return TimeUnit::Day;
+    if (time_unit == "week"sv)
+        return TimeUnit::Week;
+    if (time_unit == "month"sv)
+        return TimeUnit::Month;
+    if (time_unit == "quarter"sv)
+        return TimeUnit::Quarter;
+    if (time_unit == "year"sv)
+        return TimeUnit::Year;
+    return {};
+}
+
 StringView time_unit_to_string(TimeUnit time_unit)
 {
     switch (time_unit) {
@@ -84,6 +105,15 @@ static constexpr URelativeDateTimeUnit icu_time_unit(TimeUnit unit)
 }
 
 NumericDisplay numeric_display_from_string(StringView numeric_display)
+{
+    if (numeric_display == "always"sv)
+        return NumericDisplay::Always;
+    if (numeric_display == "auto"sv)
+        return NumericDisplay::Auto;
+    VERIFY_NOT_REACHED();
+}
+
+NumericDisplay numeric_display_from_string(Utf16View numeric_display)
 {
     if (numeric_display == "always"sv)
         return NumericDisplay::Always;

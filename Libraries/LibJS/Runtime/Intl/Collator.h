@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/Intl/CollatorCompareFunction.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibUnicode/Collator.h>
@@ -28,7 +29,7 @@ public:
     void set_locale(String locale) { m_locale = move(locale); }
 
     Unicode::Usage usage() const { return m_usage; }
-    void set_usage(StringView usage) { m_usage = Unicode::usage_from_string(usage); }
+    void set_usage(Utf16View usage) { m_usage = Unicode::usage_from_string(usage); }
     StringView usage_string() const LIFETIME_BOUND { return Unicode::usage_to_string(m_usage); }
 
     Unicode::Sensitivity sensitivity() const { return m_sensitivity; }

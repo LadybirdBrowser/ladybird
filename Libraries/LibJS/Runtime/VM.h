@@ -435,11 +435,11 @@ public:
     Function<void(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>>, Realm*)> host_enqueue_promise_job;
     Function<GC::Ref<JobCallback>(FunctionObject&)> host_make_job_callback;
     Function<GC::Ptr<PrimitiveString>(Object const&)> host_get_code_for_eval;
-    Function<ThrowCompletionOr<void>(Realm&, ReadonlySpan<String>, StringView, StringView, CompilationType, ReadonlySpan<Value>, Value)> host_ensure_can_compile_strings;
+    Function<ThrowCompletionOr<void>(Realm&, ReadonlySpan<Utf16String>, Utf16View, Utf16View, CompilationType, ReadonlySpan<Value>, Value)> host_ensure_can_compile_strings;
     Function<ThrowCompletionOr<void>(Object&)> host_ensure_can_add_private_element;
     Function<ThrowCompletionOr<HandledByHost>(ArrayBuffer&, size_t)> host_resize_array_buffer;
     Function<ThrowCompletionOr<HandledByHost>(ArrayBuffer&, size_t)> host_grow_shared_array_buffer;
-    Function<void(StringView)> host_unrecognized_date_string;
+    Function<void(Utf16View)> host_unrecognized_date_string;
     Function<Crypto::SignedBigInteger(Object const& global)> host_system_utc_epoch_nanoseconds;
     Function<bool()> host_promise_job_queue_is_empty;
 

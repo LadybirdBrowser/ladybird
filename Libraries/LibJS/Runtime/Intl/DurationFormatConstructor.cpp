@@ -83,7 +83,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv, "digital"sv }, "short"sv));
 
     // 13. Set durationFormat.[[Style]] to style.
-    duration_format->set_style(style.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+    duration_format->set_style(style.as_string().utf16_string_view());
 
     // 14. Let prevStyle be the empty String.
     Optional<DurationFormat::ValueStyle> previous_style;

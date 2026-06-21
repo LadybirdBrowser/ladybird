@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Intl/NumberFormat.h>
 #include <LibJS/Runtime/Object.h>
@@ -27,6 +28,7 @@ public:
     Unicode::PluralForm type() const { return m_type; }
     StringView type_string() const { return Unicode::plural_form_to_string(m_type); }
     void set_type(StringView type) { m_type = Unicode::plural_form_from_string(type); }
+    void set_type(Utf16View type) { m_type = Unicode::plural_form_from_string(type); }
 
 private:
     explicit PluralRules(Object& prototype);

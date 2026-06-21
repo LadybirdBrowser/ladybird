@@ -457,7 +457,8 @@ String system_time_zone_identifier()
     //    time zone identifier or an offset time zone identifier.
     auto system_time_zone_string = Unicode::current_time_zone();
 
-    if (!is_offset_time_zone_identifier(system_time_zone_string)) {
+    auto utf16_system_time_zone_string = Utf16String::from_utf8(system_time_zone_string);
+    if (!is_offset_time_zone_identifier(utf16_system_time_zone_string)) {
         auto time_zone_identifier = Intl::get_available_named_time_zone_identifier(system_time_zone_string);
         if (!time_zone_identifier.has_value())
             return "UTC"_string;
@@ -662,11 +663,10 @@ double time_clip(double time)
 
 // 21.4.1.33.1 IsTimeZoneOffsetString ( offsetString ), https://tc39.es/ecma262/#sec-istimezoneoffsetstring
 // 14.5.10 IsOffsetTimeZoneIdentifier ( offsetString ), https://tc39.es/proposal-temporal/#sec-isoffsettimezoneidentifier
-bool is_offset_time_zone_identifier(StringView offset_string)
+bool is_offset_time_zone_identifier(Utf16View offset_string)
 {
     // 1. Let parseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[~SubMinutePrecision]).
-    auto utf16_offset_string = Utf16String::from_utf8(offset_string);
-    auto parse_result = Temporal::parse_utc_offset(utf16_offset_string, Temporal::SubMinutePrecision::No);
+    auto parse_result = Temporal::parse_utc_offset(offset_string, Temporal::SubMinutePrecision::No);
 
     // 2. If parseResult is a List of errors, return false.
     // 3. Return true.
@@ -675,11 +675,10 @@ bool is_offset_time_zone_identifier(StringView offset_string)
 
 // 21.4.1.33.2 ParseTimeZoneOffsetString ( offsetString ), https://tc39.es/ecma262/#sec-parsetimezoneoffsetstring
 // 14.5.11 ParseDateTimeUTCOffset ( offsetString ), https://tc39.es/proposal-temporal/#sec-parsedatetimeutcoffset
-ThrowCompletionOr<double> parse_date_time_utc_offset(VM& vm, StringView offset_string)
+ThrowCompletionOr<double> parse_date_time_utc_offset(VM& vm, Utf16View offset_string)
 {
     // 1. Let parseResult be ParseText(offsetString, UTCOffset[+SubMinutePrecision]).
-    auto utf16_offset_string = Utf16String::from_utf8(offset_string);
-    auto parse_result = Temporal::parse_utc_offset(utf16_offset_string, Temporal::SubMinutePrecision::Yes);
+    auto parse_result = Temporal::parse_utc_offset(offset_string, Temporal::SubMinutePrecision::Yes);
 
     // 2. If parseResult is a List of errors, throw a RangeError exception.
     if (!parse_result.has_value())
@@ -690,13 +689,12 @@ ThrowCompletionOr<double> parse_date_time_utc_offset(VM& vm, StringView offset_s
 
 // 21.4.1.33.2 ParseTimeZoneOffsetString ( offsetString ), https://tc39.es/ecma262/#sec-parsetimezoneoffsetstring
 // 14.5.11 ParseDateTimeUTCOffset ( offsetString ), https://tc39.es/proposal-temporal/#sec-parsedatetimeutcoffset
-double parse_date_time_utc_offset(StringView offset_string)
+double parse_date_time_utc_offset(Utf16View offset_string)
 {
     // OPTIMIZATION: Some callers can assume that parsing will succeed.
 
     // 1. Let parseResult be ParseText(offsetString, UTCOffset[+SubMinutePrecision]).
-    auto utf16_offset_string = Utf16String::from_utf8(offset_string);
-    auto parse_result = Temporal::parse_utc_offset(utf16_offset_string, Temporal::SubMinutePrecision::Yes);
+    auto parse_result = Temporal::parse_utc_offset(offset_string, Temporal::SubMinutePrecision::Yes);
     VERIFY(parse_result.has_value());
 
     return parse_date_time_utc_offset(*parse_result);

@@ -704,11 +704,11 @@ Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_cache_s
     return builder.result;
 }
 
-Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(StringView source_text, Realm& realm, StringView filename, size_t line_number_offset)
+Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(Utf16View source_text, Realm& realm, StringView filename, size_t line_number_offset)
 {
     auto source_code = SourceCode::create(
         String::from_utf8(filename).release_value_but_fixme_should_propagate_errors(),
-        Utf16String::from_utf8(source_text));
+        Utf16String::from_utf16(source_text));
 
     auto const* source_ptr = source_code->utf16_data();
     auto length = source_code->length_in_code_units();
@@ -1001,15 +1001,12 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView so
 }
 
 Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_function(
-    VM& vm, StringView source_text, StringView parameters_string, StringView body_parse_string,
+    VM& vm, Utf16View source_text, Utf16View parameters_string, Utf16View body_parse_string,
     FunctionKind kind)
 {
-    auto source_code = SourceCode::create({}, Utf16String::from_utf8(source_text));
+    auto source_code = SourceCode::create({}, Utf16String::from_utf16(source_text));
     auto const& code_view = source_code->code_view();
     auto full_length = code_view.length_in_code_units();
-
-    auto params_utf16 = Utf16String::from_utf8(parameters_string);
-    auto body_utf16 = Utf16String::from_utf8(body_parse_string);
 
     auto prepare_utf16 = [](Utf16View const& view, Vector<u16>& buf) -> u16 const* {
         if (view.has_ascii_storage()) {
@@ -1024,16 +1021,16 @@ Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_fu
 
     Vector<u16> full_buf, params_buf, body_buf;
     auto const* full_data = prepare_utf16(code_view, full_buf);
-    auto const* params_data = prepare_utf16(params_utf16.utf16_view(), params_buf);
-    auto const* body_data = prepare_utf16(body_utf16.utf16_view(), body_buf);
+    auto const* params_data = prepare_utf16(parameters_string, params_buf);
+    auto const* body_data = prepare_utf16(body_parse_string, body_buf);
 
     GC::DeferGC defer_gc(vm.heap());
     String parse_error;
 
     void* sfd_ptr = rust_compile_dynamic_function(
         full_data, full_length,
-        params_data, params_utf16.utf16_view().length_in_code_units(),
-        body_data, body_utf16.utf16_view().length_in_code_units(),
+        params_data, parameters_string.length_in_code_units(),
+        body_data, body_parse_string.length_in_code_units(),
         &vm, source_code.ptr(),
         static_cast<u8>(kind),
         &parse_error, collect_single_parse_error,
@@ -1043,7 +1040,7 @@ Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_fu
         return parse_error;
 
     auto& function_data = *static_cast<SharedFunctionInstanceData*>(sfd_ptr);
-    function_data.m_source_text_owner = Utf16String::from_utf8(source_text);
+    function_data.m_source_text_owner = Utf16String::from_utf16(source_text);
 
     return GC::Ref<SharedFunctionInstanceData> { function_data };
 }

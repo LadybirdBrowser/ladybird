@@ -22,8 +22,8 @@ TESTJS_PROGRAM_FLAG(test262_parser_tests, "Run test262 parser tests", "test262-p
 TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
 {
     auto& realm = *vm.current_realm();
-    auto source = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
-    auto script = JS::Script::parse(source, realm);
+    auto source = TRY(vm.argument(0).to_utf16_string(vm));
+    auto script = JS::Script::parse(source.utf16_view(), realm);
     return JS::Value(!script.is_error());
 }
 
@@ -38,9 +38,9 @@ TESTJS_GLOBAL_FUNCTION(evaluate_source, evaluateSource)
 {
     auto& realm = *vm.current_realm();
 
-    auto source = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+    auto source = TRY(vm.argument(0).to_utf16_string(vm));
 
-    auto script = JS::Script::parse(source, realm);
+    auto script = JS::Script::parse(source.utf16_view(), realm);
     if (script.is_error())
         return vm.throw_completion<JS::SyntaxError>(script.error().first().to_string());
 

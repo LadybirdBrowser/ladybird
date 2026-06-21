@@ -239,7 +239,7 @@ struct Formatter<JS::PropertyKey> : Formatter<Utf16String> {
     {
         if (property_key.is_number())
             return builder.put_u64(property_key.as_number());
-        return Formatter<Utf16String>::format(builder, property_key.to_string());
+        return Formatter<Utf16String> {}.format(builder, property_key.to_string());
     }
 };
 

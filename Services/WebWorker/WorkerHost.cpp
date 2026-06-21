@@ -220,7 +220,8 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             inside_settings->discard_environment();
 
             // 3. Abort these steps.
-            dbgln("DedicatedWorkerHost: Unable to fetch script {} because {}", url, script ? script->error_to_rethrow().to_string_without_side_effects() : "script was null"_string);
+            auto reason = script ? script->error_to_rethrow().to_utf16_string_without_side_effects().to_utf8() : "script was null"_string;
+            dbgln("DedicatedWorkerHost: Unable to fetch script {} because {}", url, reason);
             return;
         }
 

@@ -54,25 +54,25 @@ public:
 namespace AK {
 
 template<>
-struct Formatter<JS::PropertyDescriptor> : Formatter<StringView> {
+struct Formatter<JS::PropertyDescriptor> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, JS::PropertyDescriptor const& property_descriptor)
     {
-        Vector<String> parts;
+        Vector<Utf16String> parts;
         if (property_descriptor.value.has_value())
-            TRY(parts.try_append(TRY(String::formatted("[[Value]]: {}", property_descriptor.value->to_string_without_side_effects()))));
+            TRY(parts.try_append(Utf16String::formatted("[[Value]]: {}", property_descriptor.value->to_utf16_string_without_side_effects())));
         if (property_descriptor.get.has_value())
-            TRY(parts.try_append(TRY(String::formatted("[[Get]]: JS::Function* @ {:p}", property_descriptor.get->ptr()))));
+            TRY(parts.try_append(Utf16String::formatted("[[Get]]: JS::Function* @ {:p}", property_descriptor.get->ptr())));
         if (property_descriptor.set.has_value())
-            TRY(parts.try_append(TRY(String::formatted("[[Set]]: JS::Function* @ {:p}", property_descriptor.set->ptr()))));
+            TRY(parts.try_append(Utf16String::formatted("[[Set]]: JS::Function* @ {:p}", property_descriptor.set->ptr())));
         if (property_descriptor.writable.has_value())
-            TRY(parts.try_append(TRY(String::formatted("[[Writable]]: {}", *property_descriptor.writable))));
+            TRY(parts.try_append(Utf16String::formatted("[[Writable]]: {}", *property_descriptor.writable)));
         if (property_descriptor.enumerable.has_value())
-            TRY(parts.try_append(TRY(String::formatted("[[Enumerable]]: {}", *property_descriptor.enumerable))));
+            TRY(parts.try_append(Utf16String::formatted("[[Enumerable]]: {}", *property_descriptor.enumerable)));
         if (property_descriptor.configurable.has_value())
-            TRY(parts.try_append(TRY(String::formatted("[[Configurable]]: {}", *property_descriptor.configurable))));
+            TRY(parts.try_append(Utf16String::formatted("[[Configurable]]: {}", *property_descriptor.configurable)));
         if (property_descriptor.unimplemented.has_value())
-            TRY(parts.try_append(TRY(String::formatted("[[Unimplemented]]: {}", *property_descriptor.unimplemented))));
-        return Formatter<StringView>::format(builder, TRY(String::formatted("PropertyDescriptor {{ {} }}", TRY(String::join(", "sv, parts)))));
+            TRY(parts.try_append(Utf16String::formatted("[[Unimplemented]]: {}", *property_descriptor.unimplemented)));
+        return Formatter<Utf16String> {}.format(builder, Utf16String::formatted("PropertyDescriptor {{ {} }}", Utf16String::join(", "sv, parts)));
     }
 };
 

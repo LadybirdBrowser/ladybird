@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
@@ -56,11 +57,13 @@ public:
     Unicode::Notation notation() const { return m_notation; }
     StringView notation_string() const { return Unicode::notation_to_string(m_notation); }
     void set_notation(StringView notation) { m_notation = Unicode::notation_from_string(notation); }
+    void set_notation(Utf16View notation) { m_notation = Unicode::notation_from_string(notation); }
 
     bool has_compact_display() const { return m_compact_display.has_value(); }
     Unicode::CompactDisplay compact_display() const { return *m_compact_display; }
     StringView compact_display_string() const { return Unicode::compact_display_to_string(*m_compact_display); }
     void set_compact_display(StringView compact_display) { m_compact_display = Unicode::compact_display_from_string(compact_display); }
+    void set_compact_display(Utf16View compact_display) { m_compact_display = Unicode::compact_display_from_string(compact_display); }
 
     Unicode::RoundingType rounding_type() const { return m_rounding_type; }
     StringView rounding_type_string() const { return Unicode::rounding_type_to_string(m_rounding_type); }
@@ -73,6 +76,7 @@ public:
     Unicode::RoundingMode rounding_mode() const { return m_rounding_mode; }
     StringView rounding_mode_string() const { return Unicode::rounding_mode_to_string(m_rounding_mode); }
     void set_rounding_mode(StringView rounding_mode) { m_rounding_mode = Unicode::rounding_mode_from_string(rounding_mode); }
+    void set_rounding_mode(Utf16View rounding_mode) { m_rounding_mode = Unicode::rounding_mode_from_string(rounding_mode); }
 
     int rounding_increment() const { return m_rounding_increment; }
     void set_rounding_increment(int rounding_increment) { m_rounding_increment = rounding_increment; }
@@ -80,6 +84,7 @@ public:
     Unicode::TrailingZeroDisplay trailing_zero_display() const { return m_trailing_zero_display; }
     StringView trailing_zero_display_string() const { return Unicode::trailing_zero_display_to_string(m_trailing_zero_display); }
     void set_trailing_zero_display(StringView trailing_zero_display) { m_trailing_zero_display = Unicode::trailing_zero_display_from_string(trailing_zero_display); }
+    void set_trailing_zero_display(Utf16View trailing_zero_display) { m_trailing_zero_display = Unicode::trailing_zero_display_from_string(trailing_zero_display); }
 
     virtual Unicode::DisplayOptions display_options() const;
     Unicode::RoundingOptions rounding_options() const;
@@ -125,6 +130,7 @@ public:
     Unicode::NumberFormatStyle style() const { return m_style; }
     StringView style_string() const { return Unicode::number_format_style_to_string(m_style); }
     void set_style(StringView style) { m_style = Unicode::number_format_style_from_string(style); }
+    void set_style(Utf16View style) { m_style = Unicode::number_format_style_from_string(style); }
 
     bool has_currency() const { return m_currency.has_value(); }
     String const& currency() const { return m_currency.value(); }
@@ -134,11 +140,13 @@ public:
     Unicode::CurrencyDisplay currency_display() const { return *m_currency_display; }
     StringView currency_display_string() const { return Unicode::currency_display_to_string(*m_currency_display); }
     void set_currency_display(StringView currency_display) { m_currency_display = Unicode::currency_display_from_string(currency_display); }
+    void set_currency_display(Utf16View currency_display) { m_currency_display = Unicode::currency_display_from_string(currency_display); }
 
     bool has_currency_sign() const { return m_currency_sign.has_value(); }
     Unicode::CurrencySign currency_sign() const { return *m_currency_sign; }
     StringView currency_sign_string() const { return Unicode::currency_sign_to_string(*m_currency_sign); }
     void set_currency_sign(StringView currency_sign) { m_currency_sign = Unicode::currency_sign_from_string(currency_sign); }
+    void set_currency_sign(Utf16View currency_sign) { m_currency_sign = Unicode::currency_sign_from_string(currency_sign); }
 
     bool has_unit() const { return m_unit.has_value(); }
     String const& unit() const { return m_unit.value(); }
@@ -148,6 +156,7 @@ public:
     Unicode::Style unit_display() const { return *m_unit_display; }
     StringView unit_display_string() const { return Unicode::style_to_string(*m_unit_display); }
     void set_unit_display(StringView unit_display) { m_unit_display = Unicode::style_from_string(unit_display); }
+    void set_unit_display(Utf16View unit_display) { m_unit_display = Unicode::style_from_string(unit_display); }
 
     Unicode::Grouping use_grouping() const { return m_use_grouping; }
     Value use_grouping_to_value(VM&) const;
@@ -156,6 +165,7 @@ public:
     Unicode::SignDisplay sign_display() const { return m_sign_display; }
     StringView sign_display_string() const { return Unicode::sign_display_to_string(m_sign_display); }
     void set_sign_display(StringView sign_display) { m_sign_display = Unicode::sign_display_from_string(sign_display); }
+    void set_sign_display(Utf16View sign_display) { m_sign_display = Unicode::sign_display_from_string(sign_display); }
 
     NativeFunction* bound_format() const { return m_bound_format; }
     void set_bound_format(NativeFunction* bound_format) { m_bound_format = bound_format; }

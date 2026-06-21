@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibUnicode/ListFormat.h>
@@ -37,10 +38,12 @@ public:
 
     Unicode::ListFormatType type() const { return m_type; }
     void set_type(StringView type) { m_type = Unicode::list_format_type_from_string(type); }
+    void set_type(Utf16View type) { m_type = Unicode::list_format_type_from_string(type); }
     StringView type_string() const { return Unicode::list_format_type_to_string(m_type); }
 
     Unicode::Style style() const { return m_style; }
     void set_style(StringView style) { m_style = Unicode::style_from_string(style); }
+    void set_style(Utf16View style) { m_style = Unicode::style_from_string(style); }
     StringView style_string() const { return Unicode::style_to_string(m_style); }
 
     Unicode::ListFormat const& formatter() const { return *m_formatter; }

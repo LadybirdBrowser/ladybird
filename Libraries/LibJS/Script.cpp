@@ -22,7 +22,7 @@ bool g_dump_ast_use_color = false;
 GC_DEFINE_ALLOCATOR(Script);
 
 // 16.1.5 ParseScript ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parse-script
-Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(StringView source_text, Realm& realm, StringView filename, HostDefined* host_defined, size_t line_number_offset)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(Utf16View source_text, Realm& realm, StringView filename, HostDefined* host_defined, size_t line_number_offset)
 {
     auto rust_compilation = RustIntegration::compile_script(source_text, realm, filename, line_number_offset);
     if (!rust_compilation.has_value())

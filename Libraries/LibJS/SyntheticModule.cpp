@@ -63,7 +63,10 @@ ThrowCompletionOr<GC::Ref<SyntheticModule>> parse_json_module(Realm& realm, Stri
     auto& vm = realm.vm();
 
     // 1. Let json be ? ParseJSON(source).
-    auto json = TRY(JSONObject::parse_json(vm, source_text));
+    auto json_text = Utf16String::try_from_utf8(source_text);
+    if (json_text.is_error())
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+    auto json = TRY(JSONObject::parse_json(vm, json_text.release_value()));
 
     // 3. Return CreateDefaultExportSyntheticModule(json).
     return SyntheticModule::create_default_export_synthetic_module(realm, json, move(filename));

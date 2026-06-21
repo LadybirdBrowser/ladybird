@@ -25,7 +25,7 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
         if (auto object = exception.as_if<JS::Object>()) {
             if (MUST(object->has_own_property(vm.names.message))) {
                 auto message = object->get_without_side_effects(vm.names.message);
-                return message.to_string_without_side_effects();
+                return message.to_utf16_string_without_side_effects().to_utf8();
             }
         }
 

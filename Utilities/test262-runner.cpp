@@ -44,17 +44,23 @@ struct TestError {
     ByteString harness_file;
 };
 
+static String value_to_utf8_string_without_side_effects(JS::Value value)
+{
+    return value.to_utf16_string_without_side_effects().to_utf8();
+}
+
 using ScriptOrModuleProgram = Variant<GC::Ref<JS::Script>, GC::Ref<JS::SourceTextModule>>;
 
 template<typename ScriptType>
 static ErrorOr<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, StringView source, StringView filepath)
 {
-    auto script_or_error = ScriptType::parse(source, realm, filepath);
+    auto source_utf16 = Utf16String::from_utf8(source);
+    auto script_or_error = ScriptType::parse(source_utf16, realm, filepath);
     if (script_or_error.is_error()) {
         return TestError {
             NegativePhase::ParseOrEarly,
             "SyntaxError"_string,
-            script_or_error.error()[0].to_string(),
+            script_or_error.error()[0].to_utf16_string().to_utf8(),
             ""
         };
     }
@@ -103,22 +109,22 @@ static ErrorOr<void, TestError> run_program(InterpreterT& interpreter, ScriptOrM
         if (auto object = error_value.template as_if<JS::Object>()) {
             auto name = object->get_without_side_effects("name"_utf16_fly_string);
             if (!name.is_undefined() && !name.is_accessor()) {
-                error.type = name.to_string_without_side_effects();
+                error.type = value_to_utf8_string_without_side_effects(name);
             } else {
                 auto constructor_value = object->get_without_side_effects("constructor"_utf16_fly_string);
                 if (auto constructor = constructor_value.template as_if<JS::Object>()) {
                     name = constructor->get_without_side_effects("name"_utf16_fly_string);
                     if (!name.is_undefined())
-                        error.type = name.to_string_without_side_effects();
+                        error.type = value_to_utf8_string_without_side_effects(name);
                 }
             }
 
             auto message = object->get_without_side_effects("message"_utf16_fly_string);
             if (!message.is_undefined() && !message.is_accessor())
-                error.details = message.to_string_without_side_effects();
+                error.details = value_to_utf8_string_without_side_effects(message);
         }
         if (error.type.is_empty())
-            error.type = error_value.to_string_without_side_effects();
+            error.type = value_to_utf8_string_without_side_effects(error_value);
         return error;
     }
     return {};

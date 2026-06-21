@@ -24,19 +24,13 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(DateConstructor);
 
-static double parse_date_string(VM& vm, StringView date_string)
+static double parse_date_string(VM& vm, Utf16View date_string)
 {
     double result = DateParser::parse(date_string);
     if (result == NAN)
         vm.host_unrecognized_date_string(date_string);
 
     return result;
-}
-
-static double parse_date_string(VM& vm, Utf16View date_string)
-{
-    auto utf8_date_string = date_string.to_utf8_but_should_be_ported_to_utf16();
-    return parse_date_string(vm, utf8_date_string.bytes_as_string_view());
 }
 
 DateConstructor::DateConstructor(Realm& realm)

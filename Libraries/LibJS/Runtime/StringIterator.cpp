@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf8View.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/StringIterator.h>
@@ -13,15 +12,15 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(StringIterator);
 
-GC::Ref<StringIterator> StringIterator::create(Realm& realm, String string)
+GC::Ref<StringIterator> StringIterator::create(Realm& realm, Utf16String string)
 {
     return realm.create<StringIterator>(move(string), realm.intrinsics().string_iterator_prototype());
 }
 
-StringIterator::StringIterator(String string, Object& prototype)
+StringIterator::StringIterator(Utf16String string, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_string(move(string))
-    , m_iterator(Utf8View(m_string).begin())
+    , m_iterator(m_string.begin())
 {
 }
 
@@ -42,14 +41,14 @@ ThrowCompletionOr<void> StringIterator::next(VM& vm, bool& done, Value& value)
         return {};
     }
 
-    if (m_iterator.done()) {
+    if (m_iterator == m_string.end()) {
         m_done = true;
         done = true;
         value = js_undefined();
         return {};
     }
 
-    auto code_point = String::from_code_point(*m_iterator);
+    auto code_point = Utf16String::from_code_point(*m_iterator);
     ++m_iterator;
 
     value = PrimitiveString::create(vm, move(code_point));

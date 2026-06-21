@@ -48,8 +48,9 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView sou
     // FIXME: 9. Record classic script creation time given script and sourceURLForWindowScripts .
 
     // 10. Let result be ParseScript(source, settings's realm, script).
+    auto source_text = Utf16String::from_utf8(source);
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::parse(source, settings.realm(), script->filename(), script, source_line_number);
+    auto result = JS::Script::parse(source_text.utf16_view(), settings.realm(), script->filename(), script, source_line_number);
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Parsed {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
 
     // 11. If result is a list of errors, then:

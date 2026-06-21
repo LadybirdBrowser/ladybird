@@ -464,14 +464,14 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
 }
 
 // https://w3c.github.io/webappsec-csp/#can-compile-strings
-JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Realm& realm, ReadonlySpan<String> parameter_strings, StringView body_string, StringView code_string, JS::CompilationType compilation_type, ReadonlySpan<JS::Value> parameter_args, JS::Value body_arg)
+JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Realm& realm, ReadonlySpan<Utf16String> parameter_strings, Utf16View body_string, Utf16View code_string, JS::CompilationType compilation_type, ReadonlySpan<JS::Value> parameter_args, JS::Value body_arg)
 {
     Utf16String source_string;
 
     // 1. If compilationType is "TIMER", then:
     if (compilation_type == JS::CompilationType::Timer) {
         // 1. Let sourceString be codeString.
-        source_string = Utf16String::from_utf8(code_string);
+        source_string = Utf16String::from_utf16(code_string);
     }
     // 2. Else:
     else {
@@ -517,8 +517,8 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
         // 5. Let sourceToValidate be a new TrustedScript object created in realm whose data is set to codeString
         //    if isTrusted is true, and codeString otherwise.
         auto const source_to_validate = is_trusted
-            ? TrustedTypes::TrustedScriptOrString(realm.create<TrustedTypes::TrustedScript>(realm, Utf16String::from_utf8(code_string)))
-            : Utf16String::from_utf8(code_string);
+            ? TrustedTypes::TrustedScriptOrString(realm.create<TrustedTypes::TrustedScript>(realm, Utf16String::from_utf16(code_string)))
+            : Utf16String::from_utf16(code_string);
 
         // 6. Let sourceString be the result of executing the Get Trusted Type compliant string algorithm,
         //    with TrustedScript, realm, sourceToValidate, compilationSink, and 'script'.

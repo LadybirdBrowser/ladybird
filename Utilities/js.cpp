@@ -201,10 +201,9 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
     JS::ThrowCompletionOr<JS::Value> result { JS::js_undefined() };
 
     if (!s_as_module) {
-        auto script_or_error = JS::Script::parse(source, realm, source_name);
+        auto utf16_source = Utf16String::from_utf8(source);
+        auto script_or_error = JS::Script::parse(utf16_source.utf16_view(), realm, source_name);
         if (script_or_error.is_error()) {
-            auto utf16_source = Utf16String::from_utf8(source);
-
             auto error = script_or_error.error()[0];
             auto hint = error.source_location_hint(utf16_source);
             if (!hint.is_empty())
@@ -296,7 +295,12 @@ static JS::ThrowCompletionOr<JS::Value> load_json_impl(JS::VM& vm)
     if (file_contents_or_error.is_error())
         return vm.throw_completion<JS::Error>(TRY_OR_THROW_OOM(vm, String::formatted("Failed to read '{}': {}", filename, file_contents_or_error.error())));
 
-    return JS::JSONObject::parse_json(vm, file_contents_or_error.value());
+    auto file_contents = file_contents_or_error.release_value();
+    auto json_text = Utf16String::try_from_utf8(StringView { file_contents.bytes() });
+    if (json_text.is_error())
+        return vm.throw_completion<JS::SyntaxError>(JS::ErrorType::JsonMalformed);
+
+    return JS::JSONObject::parse_json(vm, json_text.release_value());
 }
 
 void ReplObject::initialize(JS::Realm& realm)

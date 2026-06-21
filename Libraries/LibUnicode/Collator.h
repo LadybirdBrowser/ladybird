@@ -8,6 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 
 namespace Unicode {
 
@@ -15,7 +16,7 @@ enum class Usage {
     Sort,
     Search,
 };
-Usage usage_from_string(StringView);
+Usage usage_from_string(Utf16View);
 StringView usage_to_string(Usage);
 
 enum class Sensitivity {
@@ -24,7 +25,7 @@ enum class Sensitivity {
     Case,
     Variant,
 };
-Sensitivity sensitivity_from_string(StringView);
+Sensitivity sensitivity_from_string(Utf16View);
 StringView sensitivity_to_string(Sensitivity);
 
 enum class CaseFirst {

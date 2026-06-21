@@ -9,6 +9,7 @@
 #include <AK/EnumBits.h>
 #include <AK/Span.h>
 #include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
@@ -64,11 +65,14 @@ AK_ENUM_BITWISE_OPERATORS(SpecialBehaviors);
 using StringOrBoolean = Variant<StringView, bool>;
 
 bool is_well_formed_language_tag(StringView locale);
+bool is_well_formed_language_tag(Utf16View locale);
 String canonicalize_unicode_locale_id(StringView locale);
+String canonicalize_unicode_locale_id(Utf16View locale);
 bool is_well_formed_currency_code(StringView currency);
+bool is_well_formed_currency_code(Utf16View currency);
 Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers();
 Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(StringView time_zone_identifier);
-bool is_well_formed_unit_identifier(StringView unit_identifier);
+bool is_well_formed_unit_identifier(Utf16View unit_identifier);
 ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM&, Value locales);
 Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> requested_locales);
 Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<String> requested_locales);

@@ -646,8 +646,8 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     // 6. NOTE: In the case of a direct eval, evalRealm is the realm of both the caller of eval and of the eval function itself.
     // 7. Perform ? HostEnsureCanCompileStrings(evalRealm, « », xStr, xStr, direct, « », x).
-    auto code_string_utf8 = code_string->utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
-    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, code_string_utf8, code_string_utf8, direct == EvalMode::Direct ? CompilationType::DirectEval : CompilationType::IndirectEval, {}, x));
+    auto code_string_view = code_string->utf16_string_view();
+    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, code_string_view, code_string_view, direct == EvalMode::Direct ? CompilationType::DirectEval : CompilationType::IndirectEval, {}, x));
 
     // 8. Let inFunction be false.
     bool in_function = false;
@@ -1959,7 +1959,7 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
         auto value_string = value.as_string().utf16_string_view();
         auto it = find_if(values.begin(), values.end(), [&](auto allowed_value) { return value_string == allowed_value; });
         if (it == values.end())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string.to_utf8_but_should_be_ported_to_utf16(), property.as_string());
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string, property.as_string());
 
         value = PrimitiveString::create(vm, *it);
     }

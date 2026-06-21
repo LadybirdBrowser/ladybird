@@ -161,7 +161,7 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
         send_console_output({
             .timestamp = UnixDateTime::now(),
             .output = WebView::ConsoleTrace {
-                .label = trace.label,
+                .label = trace.label.to_utf8(),
                 .stack = move(stack_frames),
             },
         });

@@ -41,7 +41,7 @@ public:
     // test-js to communicate between the JS tests and the C++ test runner.
     static ThrowCompletionOr<Optional<Utf16String>> stringify_impl(VM&, Value value, Value replacer, Value space);
 
-    static ThrowCompletionOr<Value> parse_json(VM&, StringView text, JSONParseRecord* root_record = nullptr);
+    static ThrowCompletionOr<Value> parse_json(VM&, Utf16View text, JSONParseRecord* root_record = nullptr);
 
 private:
     explicit JSONObject(Realm&);

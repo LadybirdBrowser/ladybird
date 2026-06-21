@@ -16,6 +16,7 @@ enum class PluralForm {
     Ordinal,
 };
 PluralForm plural_form_from_string(StringView);
+PluralForm plural_form_from_string(Utf16View);
 StringView plural_form_to_string(PluralForm);
 
 enum class PluralCategory {

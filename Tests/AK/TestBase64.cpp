@@ -66,6 +66,29 @@ TEST_CASE(test_decode_into)
     decode_equal("Zm9vYmFy"sv, "foobar"sv, 7);
 }
 
+TEST_CASE(test_decode_into_utf16)
+{
+    ByteBuffer buffer;
+
+    auto decode_equal = [&](Utf16View input, StringView expected, Optional<size_t> buffer_size = {}) {
+        buffer.resize(buffer_size.value_or_lazy_evaluated([&]() {
+            return AK::size_required_to_decode_base64(input);
+        }));
+
+        auto result = AK::decode_base64_into(input, buffer);
+        VERIFY(!result.is_error());
+
+        EXPECT_EQ(StringView { buffer }, expected);
+    };
+
+    decode_equal(u"Zm9vYmFy"sv, "foobar"sv);
+    decode_equal(u"Zm9vYmFy"sv, "foo"sv, 3);
+    decode_equal(u"aGVsbG8/d29ybGQ="sv, "hello?world"sv);
+
+    char16_t input[] = u"Zm9vYmFy";
+    decode_equal({ input, 8 }, "foobar"sv);
+}
+
 TEST_CASE(test_decode_invalid)
 {
     EXPECT(decode_base64(("asdf\xffqwe"sv)).is_error());

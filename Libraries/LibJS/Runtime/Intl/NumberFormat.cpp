@@ -210,7 +210,7 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
 
     // 2. If Type(primValue) is BigInt, return the mathematical value of primValue.
     if (primitive_value.is_bigint())
-        return MUST(value.as_bigint().big_integer().to_base(10));
+        return Utf16String::from_utf8(MUST(value.as_bigint().big_integer().to_base(10)));
 
     // FIXME: The remaining steps are being refactored into a new Runtime Semantic, StringIntlMV.
     //        We short-circuit some of these steps to avoid known pitfalls.
@@ -222,7 +222,7 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
 
     // 3. If Type(primValue) is String,
     // a.     Let str be primValue.
-    auto string = primitive_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
+    auto string = primitive_value.as_string().utf16_string_view();
 
     // Step 4 handled separately by the FIXME above.
 
@@ -234,7 +234,7 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
         return MathematicalValue::Symbol::NotANumber;
 
     // 7. If mv is 0 and the first non white space code point in str is -, return negative-zero.
-    if (mathematical_value == 0.0 && string.bytes_as_string_view().trim_whitespace(TrimMode::Left).starts_with('-'))
+    if (mathematical_value == 0.0 && string.trim_ascii_whitespace(TrimMode::Left).starts_with('-'))
         return MathematicalValue::Symbol::NegativeZero;
 
     // 8. If mv is 10^10000 and str contains Infinity, return positive-infinity.
@@ -246,7 +246,7 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
         return MathematicalValue::Symbol::NegativeInfinity;
 
     // 10. Return mv.
-    return string;
+    return Utf16String::from_utf16(string);
 }
 
 // 16.5.19 PartitionNumberRangePattern ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-partitionnumberrangepattern

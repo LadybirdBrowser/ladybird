@@ -75,13 +75,13 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));
 
     // 11. Set relativeTimeFormat.[[Style]] to style.
-    relative_time_format->set_style(style.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+    relative_time_format->set_style(style.as_string().utf16_string_view());
 
     // 12. Let numeric be ? GetOption(options, "numeric", STRING, « "always", "auto" », "always").
     auto numeric = TRY(get_option(vm, *options, vm.names.numeric, OptionType::String, { "always"sv, "auto"sv }, "always"sv));
 
     // 13. Set relativeTimeFormat.[[Numeric]] to numeric.
-    relative_time_format->set_numeric(numeric.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+    relative_time_format->set_numeric(numeric.as_string().utf16_string_view());
 
     // 14. Let nfOptions be OrdinaryObjectCreate(null).
     // 15. Perform ! CreateDataPropertyOrThrow(nfOptions, "numberingSystem", relativeTimeFormat.[[NumberingSystem]]).

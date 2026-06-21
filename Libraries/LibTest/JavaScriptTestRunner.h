@@ -235,11 +235,12 @@ inline ByteBuffer load_entire_file(StringView path)
 inline AK::Result<GC::Ref<JS::Script>, ParserError> parse_script(StringView path, JS::Realm& realm)
 {
     auto contents = load_entire_file(path);
-    auto script_or_errors = JS::Script::parse(contents, realm, path);
+    auto source_text = Utf16String::from_utf8(StringView { contents.bytes() });
+    auto script_or_errors = JS::Script::parse(source_text.utf16_view(), realm, path);
 
     if (script_or_errors.is_error()) {
         auto errors = script_or_errors.release_error();
-        return ParserError { errors[0], errors[0].source_location_hint(Utf16String::from_utf8(contents)) };
+        return ParserError { errors[0], errors[0].source_location_hint(source_text) };
     }
 
     return script_or_errors.release_value();
@@ -419,7 +420,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     auto& arr = user_output.as_array_exotic_object();
     for (u32 i = 0; i < arr.indexed_array_like_size(); ++i) {
         auto message = MUST(arr.get(i));
-        file_result.logged_messages.append(message.to_string_without_side_effects().to_byte_string());
+        file_result.logged_messages.append(message.to_utf16_string_without_side_effects().to_utf8().to_byte_string());
     }
 
     test_json.value().as_object().for_each_member([&](String const& suite_name, JsonValue const& suite_value) {
@@ -492,11 +493,14 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
             auto message = error_object.get_without_side_effects(g_vm->names.message);
 
             if (name.is_accessor() || message.is_accessor()) {
-                detail_builder.append(error.to_string_without_side_effects());
+                auto error_string = error.to_utf16_string_without_side_effects();
+                detail_builder.append(error_string.utf16_view());
             } else {
-                detail_builder.append(name.to_string_without_side_effects());
+                auto name_string = name.to_utf16_string_without_side_effects();
+                detail_builder.append(name_string.utf16_view());
                 detail_builder.append(": "sv);
-                detail_builder.append(message.to_string_without_side_effects());
+                auto message_string = message.to_utf16_string_without_side_effects();
+                detail_builder.append(message_string.utf16_view());
             }
 
             if (is<JS::Error>(error_object)) {
@@ -507,7 +511,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
 
             test_case.details = MUST(detail_builder.to_string());
         } else {
-            test_case.details = error.to_string_without_side_effects();
+            test_case.details = error.to_utf16_string_without_side_effects().to_utf8();
         }
 
         suite.tests.append(move(test_case));

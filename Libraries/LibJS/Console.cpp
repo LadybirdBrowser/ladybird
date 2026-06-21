@@ -446,11 +446,11 @@ ThrowCompletionOr<Value> Console::dirxml()
     return js_undefined();
 }
 
-static ThrowCompletionOr<String> label_or_fallback(VM& vm, StringView fallback)
+static ThrowCompletionOr<Utf16String> label_or_fallback(VM& vm, Utf16View fallback)
 {
     return vm.argument_count() > 0 && !vm.argument(0).is_undefined()
-        ? TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16()
-        : TRY_OR_THROW_OOM(vm, String::from_utf8(fallback));
+        ? TRY(vm.argument(0).to_utf16_string(vm))
+        : Utf16String::from_utf16(fallback);
 }
 
 // 1.2.1. count(label), https://console.spec.whatwg.org/#count
@@ -474,7 +474,7 @@ ThrowCompletionOr<Value> Console::count()
     }
 
     // 4. Let concat be the concatenation of label, U+003A (:), U+0020 SPACE, and ToString(map[label]).
-    auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", label, map.get(label).value()));
+    auto concat = Utf16String::formatted("{}: {}", label, map.get(label).value());
 
     // 5. Perform Logger("count", « concat »).
     GC::RootVector<Value> concat_as_vector;
@@ -503,7 +503,7 @@ ThrowCompletionOr<Value> Console::count_reset()
     else {
         // 1. Let message be a string without any formatting specifiers indicating generically
         //    that the given label does not have an associated count.
-        auto message = TRY_OR_THROW_OOM(vm, String::formatted("\"{}\" doesn't have a count", label));
+        auto message = Utf16String::formatted("\"{}\" doesn't have a count", label);
         // 2. Perform Logger("countReset", « message »);
         GC::RootVector<Value> message_as_vector;
         message_as_vector.append(PrimitiveString::create(vm, move(message)));
@@ -521,7 +521,7 @@ ThrowCompletionOr<Value> Console::group()
     Group group;
 
     // 2. If data is not empty, let groupLabel be the result of Formatter(data).
-    String group_label {};
+    Utf16String group_label {};
     auto data = vm_arguments();
     if (!data.is_empty()) {
         if (m_client) {
@@ -533,7 +533,7 @@ ThrowCompletionOr<Value> Console::group()
     }
     // ... Otherwise, let groupLabel be an implementation-chosen label representing a group.
     else {
-        group_label = "Group"_string;
+        group_label = "Group"_utf16;
     }
 
     // 3. Incorporate groupLabel as a label for group.
@@ -559,7 +559,7 @@ ThrowCompletionOr<Value> Console::group_collapsed()
     Group group;
 
     // 2. If data is not empty, let groupLabel be the result of Formatter(data).
-    String group_label {};
+    Utf16String group_label {};
     auto data = vm_arguments();
     if (!data.is_empty()) {
         if (m_client) {
@@ -571,7 +571,7 @@ ThrowCompletionOr<Value> Console::group_collapsed()
     }
     // ... Otherwise, let groupLabel be an implementation-chosen label representing a group.
     else {
-        group_label = "Group"_string;
+        group_label = "Group"_utf16;
     }
 
     // 3. Incorporate groupLabel as a label for group.
@@ -618,7 +618,7 @@ ThrowCompletionOr<Value> Console::time()
         if (m_client) {
             GC::RootVector<Value> timer_already_exists_warning_message_as_vector;
 
-            auto message = TRY_OR_THROW_OOM(vm, String::formatted("Timer '{}' already exists.", label));
+            auto message = Utf16String::formatted("Timer '{}' already exists.", label);
             timer_already_exists_warning_message_as_vector.append(PrimitiveString::create(vm, move(message)));
 
             TRY(m_client->printer(LogLevel::Warn, move(timer_already_exists_warning_message_as_vector)));
@@ -649,7 +649,7 @@ ThrowCompletionOr<Value> Console::time_log()
         if (m_client) {
             GC::RootVector<Value> timer_does_not_exist_warning_message_as_vector;
 
-            auto message = TRY_OR_THROW_OOM(vm, String::formatted("Timer '{}' does not exist.", label));
+            auto message = Utf16String::formatted("Timer '{}' does not exist.", label);
             timer_does_not_exist_warning_message_as_vector.append(PrimitiveString::create(vm, move(message)));
 
             TRY(m_client->printer(LogLevel::Warn, move(timer_does_not_exist_warning_message_as_vector)));
@@ -662,7 +662,7 @@ ThrowCompletionOr<Value> Console::time_log()
     auto duration = AK::human_readable_time(start_time.elapsed_time());
 
     // 4. Let concat be the concatenation of label, U+003A (:), U+0020 SPACE, and duration.
-    auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", label, duration));
+    auto concat = Utf16String::formatted("{}: {}", label, duration);
 
     // 5. Prepend concat to data.
     GC::RootVector<Value> data;
@@ -695,7 +695,7 @@ ThrowCompletionOr<Value> Console::time_end()
         if (m_client) {
             GC::RootVector<Value> timer_does_not_exist_warning_message_as_vector;
 
-            auto message = TRY_OR_THROW_OOM(vm, String::formatted("Timer '{}' does not exist.", label));
+            auto message = Utf16String::formatted("Timer '{}' does not exist.", label);
             timer_does_not_exist_warning_message_as_vector.append(PrimitiveString::create(vm, move(message)));
 
             TRY(m_client->printer(LogLevel::Warn, move(timer_does_not_exist_warning_message_as_vector)));
@@ -711,7 +711,7 @@ ThrowCompletionOr<Value> Console::time_end()
     auto duration = AK::human_readable_time(start_time.elapsed_time());
 
     // 5. Let concat be the concatenation of label, U+003A (:), U+0020 SPACE, and duration.
-    auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", label, duration));
+    auto concat = Utf16String::formatted("{}: {}", label, duration);
 
     // 6. Perform Printer("timeEnd", « concat »).
     if (m_client) {
@@ -758,25 +758,49 @@ void Console::output_debug_message(LogLevel log_level, StringView output) const
     }
 }
 
+void Console::output_debug_message(LogLevel log_level, Utf16View output) const
+{
+    switch (log_level) {
+    case Console::LogLevel::Debug:
+        dbgln("\033[32;1m(js debug)\033[0m {}", output);
+        break;
+    case Console::LogLevel::Error:
+        dbgln("\033[32;1m(js error)\033[0m {}", output);
+        break;
+    case Console::LogLevel::Info:
+        dbgln("\033[32;1m(js info)\033[0m {}", output);
+        break;
+    case Console::LogLevel::Log:
+        dbgln("\033[32;1m(js log)\033[0m {}", output);
+        break;
+    case Console::LogLevel::Warn:
+        dbgln("\033[32;1m(js warn)\033[0m {}", output);
+        break;
+    default:
+        dbgln("\033[32;1m(js)\033[0m {}", output);
+        break;
+    }
+}
+
 void Console::report_exception(String const& name, String const& message, JS::ErrorData const& error_data, bool in_promise) const
 {
     if (m_client)
         m_client->report_exception(name, message, error_data, in_promise);
 }
 
-ThrowCompletionOr<String> Console::value_vector_to_string(GC::RootVector<Value> const& values)
+ThrowCompletionOr<Utf16String> Console::value_vector_to_string(GC::RootVector<Value> const& values)
 {
     auto& vm = realm().vm();
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     for (auto const& item : values) {
         if (!builder.is_empty())
-            builder.append(' ');
+            builder.append_ascii(' ');
 
         builder.append(TRY(item.to_utf16_string(vm)));
     }
 
-    return MUST(builder.to_string());
+    return builder.to_string();
 }
 
 ConsoleClient::ConsoleClient(Console& console)
@@ -832,24 +856,24 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
         return args;
 
     // 2. Let target be the first element of args.
-    auto target = (!args.is_empty()) ? TRY(args.first().to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16() : String {};
+    auto target = (!args.is_empty()) ? TRY(args.first().to_utf16_string(vm)) : Utf16String {};
 
     // 3. Let current be the second element of args.
     auto current = (args.size() > 1) ? args[1] : js_undefined();
 
     // 4. Find the first possible format specifier specifier, from the left to the right in target.
-    auto find_specifier = [](StringView target) -> Optional<StringView> {
+    auto find_specifier = [](Utf16View target) -> Optional<Utf16View> {
         size_t start_index = 0;
-        while (start_index < target.length()) {
-            auto maybe_index = target.find('%', start_index);
+        while (start_index < target.length_in_code_units()) {
+            auto maybe_index = target.find_code_unit_offset('%', start_index);
             if (!maybe_index.has_value())
                 return {};
 
             auto index = maybe_index.value();
-            if (index + 1 >= target.length())
+            if (index + 1 >= target.length_in_code_units())
                 return {};
 
-            switch (target[index + 1]) {
+            switch (target.code_unit_at(index + 1)) {
             case 'c':
             case 'd':
             case 'f':
@@ -864,7 +888,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
         }
         return {};
     };
-    auto maybe_specifier = find_specifier(target);
+    auto maybe_specifier = find_specifier(target.utf16_view());
 
     // 5. If no format specifier was found, return args.
     if (!maybe_specifier.has_value()) {
@@ -914,13 +938,16 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
         // 6. TODO: process %c
         else if (specifier == "%c"sv) {
             // NOTE: This has no spec yet. `%c` specifiers treat the argument as CSS styling for the log message.
-            add_css_style_to_current_message(TRY(current.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16());
-            converted = PrimitiveString::create(vm, String {});
+            auto css_style = TRY(current.to_utf16_string(vm));
+            add_css_style_to_current_message(css_style.utf16_view());
+            converted = PrimitiveString::create(vm, Utf16String {});
         }
 
         // 7. If any of the previous steps set converted, replace specifier in target with converted.
-        if (converted.has_value())
-            target = TRY_OR_THROW_OOM(vm, target.replace(specifier, TRY(converted->to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16(), ReplaceMode::FirstOnly));
+        if (converted.has_value()) {
+            auto converted_string = TRY(converted->to_utf16_string(vm));
+            target = target.replace(specifier, converted_string.utf16_view(), ReplaceMode::FirstOnly);
+        }
     }
 
     // 7. Let result be a list containing target together with the elements of args starting from the third onward.
@@ -934,7 +961,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
     return formatter(result);
 }
 
-ThrowCompletionOr<String> ConsoleClient::generically_format_values(GC::RootVector<Value> const& values)
+ThrowCompletionOr<Utf16String> ConsoleClient::generically_format_values(GC::RootVector<Value> const& values)
 {
     AllocatingMemoryStream stream;
     auto& vm = m_console->realm().vm();
@@ -947,7 +974,8 @@ ThrowCompletionOr<String> ConsoleClient::generically_format_values(GC::RootVecto
         first = false;
     }
     // FIXME: Is it possible we could end up serializing objects to invalid UTF-8?
-    return TRY_OR_THROW_OOM(vm, String::from_stream(stream, stream.used_buffer_size()));
+    auto output = TRY_OR_THROW_OOM(vm, String::from_stream(stream, stream.used_buffer_size()));
+    return Utf16String::from_utf8(output);
 }
 
 }

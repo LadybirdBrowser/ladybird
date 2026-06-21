@@ -26,13 +26,15 @@ void log_trace_impl(JS::VM& vm, char const* function)
         auto argument = vm.argument(i);
         if (argument.is_string())
             builder.append_code_point('"');
-        auto string = argument.to_string_without_side_effects();
-        for (auto code_point : string.code_points()) {
-            if (code_point < 0x20) {
-                builder.appendff("\\u{:04x}", code_point);
+        auto string = argument.to_utf16_string_without_side_effects();
+        auto view = string.utf16_view();
+        for (size_t code_unit_index = 0; code_unit_index < view.length_in_code_units(); ++code_unit_index) {
+            auto code_unit = view.code_unit_at(code_unit_index);
+            if (code_unit < 0x20) {
+                builder.appendff("\\u{:04x}", code_unit);
                 continue;
             }
-            builder.append_code_point(code_point);
+            builder.append_code_unit(code_unit);
         }
         if (argument.is_string())
             builder.append_code_point('"');
