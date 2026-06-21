@@ -20,6 +20,7 @@ namespace Ladybird {
 
 #if defined(AK_OS_MACOS)
 void set_rounded_window_corners(QWidget&, bool enabled, double radius, QColor const& background_color);
+void set_appkit_window_resizable(QWidget&, bool enabled);
 void install_always_active_window_control_hover_tracking(QWidget&, void (*hover_changed)(QWidget*));
 void install_appkit_event_capture();
 void make_appkit_window_first_responder(QWidget&);
