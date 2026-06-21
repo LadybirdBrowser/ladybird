@@ -67,7 +67,7 @@ ThrowCompletionOr<GC::Ref<Object>> SegmenterConstructor::construct(FunctionObjec
     auto granularity = TRY(get_option(vm, *options, vm.names.granularity, OptionType::String, { "grapheme"sv, "word"sv, "sentence"sv }, "grapheme"sv));
 
     // 9. Set segmenter.[[SegmenterGranularity]] to granularity.
-    segmenter->set_segmenter_granularity(granularity.as_string().utf8_string());
+    segmenter->set_segmenter_granularity(granularity.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
 
     auto locale_segmenter = Unicode::Segmenter::create(segmenter->locale(), segmenter->segmenter_granularity());
     segmenter->set_segmenter(move(locale_segmenter));

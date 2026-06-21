@@ -7,6 +7,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
@@ -216,11 +217,11 @@ ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, Value tempora
     if (!temporal_time_zone_like.is_string())
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTimeZoneName, temporal_time_zone_like);
 
-    return to_temporal_time_zone_identifier(vm, temporal_time_zone_like.as_string().utf8_string());
+    return to_temporal_time_zone_identifier(vm, temporal_time_zone_like.as_string().utf16_string_view());
 }
 
 // 11.1.8 ToTemporalTimeZoneIdentifier ( temporalTimeZoneLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimezoneidentifier
-ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, StringView temporal_time_zone_like)
+ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, Utf16View temporal_time_zone_like)
 {
     // 3. Let parseResult be ? ParseTemporalTimeZoneString(temporalTimeZoneLike).
     auto parse_result = TRY(parse_temporal_time_zone_string(vm, temporal_time_zone_like));
@@ -480,8 +481,10 @@ bool time_zone_equals(StringView one, StringView two)
 
     // NB: IsOffsetTimeZoneIdentifier simply invokes parse_utc_offset and returns whether it has a value. We do this
     //     manually here so that we can handle the offset minutes assertion below without any extra performance penalty.
-    auto time_zone_offset_one = parse_utc_offset(one, SubMinutePrecision::No);
-    auto time_zone_offset_two = parse_utc_offset(two, SubMinutePrecision::No);
+    auto utf16_one = Utf16String::from_utf8(one);
+    auto utf16_two = Utf16String::from_utf8(two);
+    auto time_zone_offset_one = parse_utc_offset(utf16_one, SubMinutePrecision::No);
+    auto time_zone_offset_two = parse_utc_offset(utf16_two, SubMinutePrecision::No);
 
     // 2. If IsOffsetTimeZoneIdentifier(one) is false and IsOffsetTimeZoneIdentifier(two) is false, then
     if (!time_zone_offset_one.has_value() && !time_zone_offset_two.has_value()) {
@@ -524,7 +527,8 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, S
         return *result;
 
     // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
-    auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, identifier);
+    auto utf16_identifier = Utf16String::from_utf8(identifier);
+    auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, utf16_identifier);
 
     // 2. If parseResult is a List of errors, throw a RangeError exception.
     if (!parse_result.has_value())
@@ -536,13 +540,19 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, S
     return result;
 }
 
+ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, Utf16View identifier)
+{
+    return parse_time_zone_identifier(vm, identifier.to_utf8_but_should_be_ported_to_utf16());
+}
+
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
 ParsedTimeZoneIdentifier const& parse_time_zone_identifier(String const& identifier)
 {
     // OPTIMIZATION: Some callers can assume that parsing will succeed.
     return time_zone_id_cache().ensure(identifier, [&]() {
         // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
-        auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, identifier);
+        auto utf16_identifier = Utf16String::from_utf8(identifier);
+        auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, utf16_identifier);
         VERIFY(parse_result.has_value());
 
         return parse_time_zone_identifier(*parse_result);
@@ -560,7 +570,7 @@ ParsedTimeZoneIdentifier parse_time_zone_identifier(ParseResult const& parse_res
         // b. NOTE: name is syntactically valid, but does not necessarily conform to IANA Time Zone Database naming
         //    guidelines or correspond with an available named time zone identifier.
         // c. Return Time Zone Identifier Parse Record { [[Name]]: CodePointsToString(name), [[OffsetMinutes]]: EMPTY }.
-        return ParsedTimeZoneIdentifier { .name = String::from_utf8_without_validation(parse_result.time_zone_iana_name->bytes()), .offset_minutes = {} };
+        return ParsedTimeZoneIdentifier { .name = parse_result.time_zone_iana_name->to_utf8_but_should_be_ported_to_utf16(), .offset_minutes = {} };
     }
 
     // 4. Assert: parseResult contains a UTCOffset[~SubMinutePrecision] Parse Node.
@@ -568,7 +578,7 @@ ParsedTimeZoneIdentifier parse_time_zone_identifier(ParseResult const& parse_res
 
     // 5. Let offset be the source text matched by the UTCOffset[~SubMinutePrecision] Parse Node contained within parseResult.
     // 6. Let offsetNanoseconds be ! ParseDateTimeUTCOffset(CodePointsToString(offset)).
-    auto offset_nanoseconds = parse_date_time_utc_offset(parse_result.time_zone_offset->source_text);
+    auto offset_nanoseconds = parse_date_time_utc_offset(*parse_result.time_zone_offset);
 
     // 7. Let offsetMinutes be offsetNanoseconds / (60 × 10**9).
     auto offset_minutes = offset_nanoseconds / 60'000'000'000;

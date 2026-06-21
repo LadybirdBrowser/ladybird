@@ -18,6 +18,7 @@
 #include <AK/SourceLocation.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16View.h>
 #include <LibGC/NanBoxedValue.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
@@ -401,7 +402,6 @@ public:
 
     u64 encoded() const { return m_value.encoded; }
 
-    ThrowCompletionOr<String> to_string(VM&) const;
     ThrowCompletionOr<ByteString> to_byte_string(VM&) const;
     ThrowCompletionOr<Utf16String> to_utf16_string(VM&) const;
     ThrowCompletionOr<GC::Ref<PrimitiveString>> to_primitive_string(VM&);
@@ -597,7 +597,7 @@ JS_API void number_to_string(StringBuilder&, double, NumberToStringMode = Number
 [[nodiscard]] JS_API String number_to_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
 [[nodiscard]] JS_API Utf16String number_to_utf16_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
 [[nodiscard]] ByteString number_to_byte_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
-double string_to_number(StringView);
+double string_to_number(Utf16View);
 
 inline bool Value::operator==(Value const& value) const { return same_value(*this, value); }
 

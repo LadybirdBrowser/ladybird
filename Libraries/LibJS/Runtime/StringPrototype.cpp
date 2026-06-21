@@ -40,7 +40,7 @@ GC_DEFINE_ALLOCATOR(StringPrototype);
 static ThrowCompletionOr<String> utf8_string_from(VM& vm)
 {
     auto this_value = TRY(require_object_coercible(vm, vm.this_value()));
-    return TRY(this_value.to_string(vm));
+    return TRY(this_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 }
 
 static ThrowCompletionOr<GC::Ref<PrimitiveString>> primitive_string_from(VM& vm)
@@ -673,7 +673,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::match_all)
             auto flags_object = TRY(require_object_coercible(vm, flags));
 
             // iii. If ? ToString(flags) does not contain "g", throw a TypeError exception.
-            auto flags_string = TRY(flags_object.to_string(vm));
+            auto flags_string = TRY(flags_object.to_utf16_string(vm));
             if (!flags_string.contains('g'))
                 return vm.throw_completion<TypeError>(ErrorType::StringNonGlobalRegExp);
         }
@@ -714,7 +714,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::normalize)
     }
     // 4. Else, let f be ? ToString(form).
     else {
-        form = TRY(form_value.to_string(vm));
+        form = TRY(form_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     }
 
     // 5. If f is not one of "NFC", "NFD", "NFKC", or "NFKD", throw a RangeError exception.
@@ -953,7 +953,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
             auto flags_object = TRY(require_object_coercible(vm, flags));
 
             // iii. If ? ToString(flags) does not contain "g", throw a TypeError exception.
-            if (!TRY(flags_object.to_string(vm)).contains('g'))
+            if (!TRY(flags_object.to_utf16_string(vm)).contains('g'))
                 return vm.throw_completion<TypeError>(ErrorType::StringNonGlobalRegExp);
         }
 
@@ -1479,23 +1479,23 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::to_well_formed)
 }
 
 // 22.1.3.32.1 TrimString ( string, where ), https://tc39.es/ecma262/#sec-trimstring
-ThrowCompletionOr<String> trim_string(VM& vm, Value input_value, TrimMode where)
+ThrowCompletionOr<Utf16String> trim_string(VM& vm, Value input_value, TrimMode where)
 {
     // 1. Let str be ? RequireObjectCoercible(string).
     auto input_string = TRY(require_object_coercible(vm, input_value));
 
     // 2. Let S be ? ToString(str).
-    auto string = TRY(input_string.to_string(vm));
+    auto string = TRY(input_string.to_utf16_string(vm));
 
     // 3. If where is start, let T be the String value that is a copy of S with leading white space removed.
     // 4. Else if where is end, let T be the String value that is a copy of S with trailing white space removed.
     // 5. Else,
     // a. Assert: where is start+end.
     // b. Let T be the String value that is a copy of S with both leading and trailing white space removed.
-    auto trimmed_string = Utf8View(string).trim(whitespace_characters, where).as_string();
+    auto trimmed_string = string.trim(whitespace_characters, where);
 
     // 6. Return T.
-    return MUST(String::from_utf8(trimmed_string));
+    return trimmed_string;
 }
 
 // 22.1.3.32 String.prototype.trim ( ), https://tc39.es/ecma262/#sec-string.prototype.trim
@@ -1537,7 +1537,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::symbol_iterator)
     auto this_object = TRY(require_object_coercible(vm, vm.this_value()));
 
     // 2. Let s be ? ToString(O).
-    auto string = TRY(this_object.to_string(vm));
+    auto string = TRY(this_object.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     // 3. Let closure be a new Abstract Closure with no parameters that captures s and performs the following steps when called:
     //     ...
@@ -1605,7 +1605,7 @@ static ThrowCompletionOr<Value> create_html(VM& vm, Value string, StringView tag
         auto value_string = TRY(value.to_utf16_string(vm));
 
         // b. Let escapedV be the String value that is the same as V except that each occurrence of the code unit 0x0022 (QUOTATION MARK) in V has been replaced with the six code unit sequence "&quot;".
-        auto escaped_value_string = value_string.replace("\""sv, "&quot;"sv, ReplaceMode::All);
+        auto escaped_value_string = value_string.replace(u'"', "&quot;"sv, ReplaceMode::All);
 
         // c. Set p1 to the string-concatenation of:
         // - p1

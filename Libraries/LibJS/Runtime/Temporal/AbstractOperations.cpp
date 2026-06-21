@@ -90,7 +90,7 @@ ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& o
     auto string_value = TRY(get_option(vm, options, vm.names.overflow, OptionType::String, { "constrain"sv, "reject"sv }, "constrain"sv));
 
     // 2. If stringValue is "constrain", return CONSTRAIN.
-    if (string_value.as_string().utf8_string() == "constrain"sv)
+    if (string_value.as_string().utf16_string_view() == "constrain"sv)
         return Overflow::Constrain;
 
     // 3. Return REJECT.
@@ -102,7 +102,7 @@ ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM& vm, Obj
 {
     // 1. Let stringValue be ? GetOption(options, "disambiguation", STRING, « "compatible", "earlier", "later", "reject" », "compatible").
     auto string_value = TRY(get_option(vm, options, vm.names.disambiguation, OptionType::String, { "compatible"sv, "earlier"sv, "later"sv, "reject"sv }, "compatible"sv));
-    auto string_view = string_value.as_string().utf8_string();
+    auto string_view = string_value.as_string().utf16_string_view();
 
     // 2. If stringValue is "compatible", return COMPATIBLE.
     if (string_view == "compatible"sv)
@@ -166,7 +166,7 @@ ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM& vm, Object const&
 
     // 5. Let stringValue be ? GetOption(options, "offset", STRING, « "prefer", "use", "ignore", "reject" », stringFallback).
     auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "prefer"sv, "use"sv, "ignore"sv, "reject"sv }, string_fallback));
-    auto string_view = string_value.as_string().utf8_string();
+    auto string_view = string_value.as_string().utf16_string_view();
 
     // 6. If stringValue is "prefer", return PREFER.
     if (string_view == "prefer"sv)
@@ -189,7 +189,7 @@ ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM& vm, O
 {
     // 1. Let stringValue be ? GetOption(options, "calendarName", STRING, « "auto", "always", "never", "critical" », "auto").
     auto string_value = TRY(get_option(vm, options, vm.names.calendarName, OptionType::String, { "auto"sv, "always"sv, "never"sv, "critical"sv }, "auto"sv));
-    auto string_view = string_value.as_string().utf8_string();
+    auto string_view = string_value.as_string().utf16_string_view();
 
     // 2. If stringValue is "always", return ALWAYS.
     if (string_view == "always"sv)
@@ -212,7 +212,7 @@ ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM& 
 {
     // 1. Let stringValue be ? GetOption(options, "timeZoneName", STRING, « "auto", "never", "critical" », "auto").
     auto string_value = TRY(get_option(vm, options, vm.names.timeZoneName, OptionType::String, { "auto"sv, "never"sv, "critical"sv }, "auto"sv));
-    auto string_view = string_value.as_string().utf8_string();
+    auto string_view = string_value.as_string().utf16_string_view();
 
     // 2. If stringValue is "never", return NEVER.
     if (string_view == "never"sv)
@@ -231,7 +231,7 @@ ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM& vm, Object con
 {
     // 1. Let stringValue be ? GetOption(options, "offset", STRING, « "auto", "never" », "auto").
     auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "auto"sv, "never"sv }, "auto"sv));
-    auto string_view = string_value.as_string().utf8_string();
+    auto string_view = string_value.as_string().utf16_string_view();
 
     // 2. If stringValue is "never", return never.
     if (string_view == "never"sv)
@@ -246,7 +246,7 @@ ThrowCompletionOr<Direction> get_direction_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "direction", STRING, « "next", "previous" », REQUIRED).
     auto string_value = TRY(get_option(vm, options, vm.names.direction, OptionType::String, { "next"sv, "previous"sv }, Required {}));
-    auto string_view = string_value.as_string().utf8_string();
+    auto string_view = string_value.as_string().utf16_string_view();
 
     // 2. If stringValue is "next", return NEXT.
     if (string_view == "next"sv)
@@ -300,7 +300,7 @@ ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM& vm
     // 3. If digitsValue is not a Number, then
     if (!digits_value.is_number()) {
         // a. If ? ToString(digitsValue) is not "auto", throw a RangeError exception.
-        auto digits_value_string = TRY(digits_value.to_string(vm));
+        auto digits_value_string = TRY(digits_value.to_utf16_string(vm));
 
         if (digits_value_string != "auto"sv)
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, digits_value, vm.names.fractionalSecondDigits);
@@ -415,7 +415,7 @@ ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object cons
     if (value.is_undefined())
         return UnitValue { Unset {} };
 
-    auto value_string = value.as_string().utf8_string();
+    auto value_string = value.as_string().utf16_string_view();
 
     // 8. If value is "auto", return AUTO.
     if (value_string == "auto"sv)
@@ -544,7 +544,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
             return vm.throw_completion<TypeError>(ErrorType::NotAString, vm.names.relativeTo);
 
         // b. Let result be ? ParseISODateTime(value, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned] »).
-        auto result = TRY(parse_iso_date_time(vm, value.as_string().utf8_string(), { { Production::TemporalZonedDateTimeString, Production::TemporalDateTimeString } }));
+        auto result = TRY(parse_iso_date_time(vm, value.as_string().utf16_string_view(), { { Production::TemporalZonedDateTimeString, Production::TemporalDateTimeString } }));
 
         // c. Let offsetString be result.[[TimeZone]].[[OffsetString]].
         offset_string = move(result.time_zone.offset_string);
@@ -560,7 +560,8 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
         // f. Else,
         else {
             // i. Let timeZone be ? ToTemporalTimeZoneIdentifier(annotation).
-            time_zone = TRY(to_temporal_time_zone_identifier(vm, *annotation));
+            auto utf16_annotation = Utf16String::from_utf8(*annotation);
+            time_zone = TRY(to_temporal_time_zone_identifier(vm, utf16_annotation));
 
             // ii. If result.[[TimeZone]].[[Z]] is true, then
             if (result.time_zone.z_designator) {
@@ -579,7 +580,8 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
             // v. If offsetString is not EMPTY, then
             if (offset_string.has_value()) {
                 // 1. Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
-                auto offset_parse_result = parse_utc_offset(*offset_string, SubMinutePrecision::Yes);
+                auto utf16_offset_string = Utf16String::from_utf8(*offset_string);
+                auto offset_parse_result = parse_utc_offset(utf16_offset_string, SubMinutePrecision::Yes);
 
                 // 2. Assert: offsetParseResult is a Parse Node.
                 VERIFY(offset_parse_result.has_value());
@@ -618,7 +620,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
     // 8. If offsetBehaviour is OPTION, then
     if (offset_behavior == OffsetBehavior::Option) {
         // a. Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
-        offset_nanoseconds = parse_date_time_utc_offset(*offset_string);
+        offset_nanoseconds = parse_date_time_utc_offset(offset_string->bytes_as_string_view());
     }
     // 9. Else,
     else {
@@ -1095,7 +1097,7 @@ Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::Signed
 }
 
 // 13.35 ParseISODateTime ( isoString, allowedFormats ), https://tc39.es/proposal-temporal/#sec-temporal-parseisodatetime
-ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_string, ReadonlySpan<Production> allowed_formats)
+ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, Utf16View iso_string, ReadonlySpan<Production> allowed_formats)
 {
     // 1. Let parseResult be EMPTY.
     Optional<ParseResult> parse_result;
@@ -1133,7 +1135,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
                     // i. If calendar is EMPTY, then
                     if (!calendar.has_value()) {
                         // i. Set calendar to CodePointsToString(value).
-                        calendar = String::from_utf8_without_validation(value.bytes());
+                        calendar = value.to_utf8_but_should_be_ported_to_utf16();
 
                         // ii. If annotation contains an AnnotationCriticalFlag Parse Node, set calendarWasCritical to true.
                         if (annotation.critical)
@@ -1234,28 +1236,31 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
     // 19. If fSeconds is not empty, then
     if (!fractional_seconds.is_empty()) {
         // a. Let fSecondsDigits be the substring of CodePointsToString(fSeconds) from 1.
+        auto parse_fractional_digits = [](Utf16View digits, size_t offset) {
+            double value = 0;
+            for (size_t i = 0; i < 3; ++i) {
+                value *= 10;
+                auto index = offset + i;
+                if (index < digits.length_in_code_units())
+                    value += parse_ascii_digit(static_cast<char>(digits.code_unit_at(index)));
+            }
+            return value;
+        };
+
         auto fractional_seconds_digits = fractional_seconds.substring_view(1);
 
         // b. Let fSecondsDigitsExtended be the string-concatenation of fSecondsDigits and "000000000".
-        auto fractional_seconds_extended = MUST(String::formatted("{}000000000", fractional_seconds_digits));
-
         // c. Let millisecond be the substring of fSecondsDigitsExtended from 0 to 3.
-        auto millisecond = fractional_seconds_extended.bytes_as_string_view().substring_view(0, 3);
+        // f. Let millisecondMV be ℝ(StringToNumber(millisecond)).
+        millisecond_value = parse_fractional_digits(fractional_seconds_digits, 0);
 
         // d. Let microsecond be the substring of fSecondsDigitsExtended from 3 to 6.
-        auto microsecond = fractional_seconds_extended.bytes_as_string_view().substring_view(3, 3);
+        // g. Let microsecondMV be ℝ(StringToNumber(microsecond)).
+        microsecond_value = parse_fractional_digits(fractional_seconds_digits, 3);
 
         // e. Let nanosecond be the substring of fSecondsDigitsExtended from 6 to 9.
-        auto nanosecond = fractional_seconds_extended.bytes_as_string_view().substring_view(6, 3);
-
-        // f. Let millisecondMV be ℝ(StringToNumber(millisecond)).
-        millisecond_value = string_to_number(millisecond);
-
-        // g. Let microsecondMV be ℝ(StringToNumber(microsecond)).
-        microsecond_value = string_to_number(microsecond);
-
         // h. Let nanosecondMV be ℝ(StringToNumber(nanosecond)).
-        nanosecond_value = string_to_number(nanosecond);
+        nanosecond_value = parse_fractional_digits(fractional_seconds_digits, 6);
     }
     // 20. Else,
     else {
@@ -1286,7 +1291,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
     if (parse_result->time_zone_identifier.has_value()) {
         // a. Let identifier be the source text matched by the TimeZoneIdentifier Parse Node contained within parseResult.
         // b. Set timeZoneResult.[[TimeZoneAnnotation]] to CodePointsToString(identifier).
-        time_zone_result.time_zone_annotation = String::from_utf8_without_validation(parse_result->time_zone_identifier->bytes());
+        time_zone_result.time_zone_annotation = parse_result->time_zone_identifier->to_utf8_but_should_be_ported_to_utf16();
     }
 
     // 26. If parseResult contains a UTCDesignator Parse Node, then
@@ -1298,7 +1303,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
     else if (parse_result->date_time_offset.has_value()) {
         // a. Let offset be the source text matched by the UTCOffset[+SubMinutePrecision] Parse Node contained within parseResult.
         // b. Set timeZoneResult.[[OffsetString]] to CodePointsToString(offset).
-        time_zone_result.offset_string = String::from_utf8_without_validation(parse_result->date_time_offset->source_text.bytes());
+        time_zone_result.offset_string = parse_result->date_time_offset->source_text.to_utf8_but_should_be_ported_to_utf16();
     }
 
     // 28. If yearAbsent is true, let yearReturn be EMPTY; else let yearReturn be yearMV.
@@ -1311,7 +1316,7 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
 }
 
 // 13.36 ParseTemporalCalendarString ( string ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporalcalendarstring
-ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, String const& string)
+ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, Utf16View string)
 {
     // 1. Let parseResult be Completion(ParseISODateTime(string, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned],
     //    TemporalInstantString, TemporalTimeString, TemporalMonthDayString, TemporalYearMonthString »)).
@@ -1341,14 +1346,14 @@ ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, String const& s
 
     // 4. If parseResult is a List of errors, throw a RangeError exception.
     if (!annotation_parse_result.has_value())
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarString, string);
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarString, string.to_utf8_but_should_be_ported_to_utf16());
 
     // 5. Return string.
-    return string;
+    return string.to_utf8_but_should_be_ported_to_utf16();
 }
 
 // 13.37 ParseTemporalDurationString ( isoString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaldurationstring
-ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, StringView iso_string)
+ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, Utf16View iso_string)
 {
     // 1. Let duration be ParseText(StringToCodePoints(isoString), TemporalDurationString).
     auto parse_result = parse_iso8601(Production::TemporalDurationString, iso_string);
@@ -1461,7 +1466,7 @@ ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, Stri
         auto fractional_hours_digits = fractional_hours.substring_view(1);
 
         // c. Let fHoursScale be the length of fHoursDigits.
-        auto fractional_hours_scale = fractional_hours_digits.length();
+        auto fractional_hours_scale = fractional_hours_digits.length_in_code_units();
 
         // d. Let minutesMV be ? ToIntegerWithTruncation(fHoursDigits) / 10**fHoursScale × 60.
         auto minutes_integer = TRY(to_integer_with_truncation(vm, fractional_hours_digits, ErrorType::TemporalInvalidDurationString, iso_string));
@@ -1484,7 +1489,7 @@ ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, Stri
         auto fractional_minutes_digits = fractional_minutes.substring_view(1);
 
         // c. Let fMinutesScale be the length of fMinutesDigits.
-        auto fractional_minutes_scale = fractional_minutes_digits.length();
+        auto fractional_minutes_scale = fractional_minutes_digits.length_in_code_units();
 
         // d. Let secondsMV be ? ToIntegerWithTruncation(fMinutesDigits) / 10**fMinutesScale × 60.
         auto seconds_integer = TRY(to_integer_with_truncation(vm, fractional_minutes_digits, ErrorType::TemporalInvalidDurationString, iso_string));
@@ -1508,7 +1513,7 @@ ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, Stri
         auto fractional_seconds_digits = fractional_seconds.substring_view(1);
 
         // b. Let fSecondsScale be the length of fSecondsDigits.
-        auto fractional_seconds_scale = fractional_seconds_digits.length();
+        auto fractional_seconds_scale = fractional_seconds_digits.length_in_code_units();
 
         // c. Let millisecondsMV be ? ToIntegerWithTruncation(fSecondsDigits) / 10**fSecondsScale × 1000.
         auto milliseconds_integer = TRY(to_integer_with_truncation(vm, fractional_seconds_digits, ErrorType::TemporalInvalidDurationString, iso_string));
@@ -1568,7 +1573,7 @@ ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, Stri
 }
 
 // 13.38 ParseTemporalTimeZoneString ( timeZoneString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaltimezonestring
-ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM& vm, StringView time_zone_string)
+ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM& vm, Utf16View time_zone_string)
 {
     // 1. Let parseResult be ParseText(StringToCodePoints(timeZoneString), TimeZoneIdentifier).
     auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, time_zone_string);
@@ -1620,10 +1625,11 @@ ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTimeZoneString, offset);
 
     // 3. Perform ? ParseDateTimeUTCOffset(offset).
-    TRY(parse_date_time_utc_offset(vm, offset.as_string().utf8_string()));
+    auto offset_string = offset.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
+    TRY(parse_date_time_utc_offset(vm, offset_string.bytes_as_string_view()));
 
     // 4. Return offset.
-    return offset.as_string().utf8_string();
+    return offset_string;
 }
 
 // 13.42 ISODateToFields ( calendar, isoDate, type ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields

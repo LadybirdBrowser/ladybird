@@ -115,11 +115,11 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     // 8. For each element arg of parameterArgs, do
     for (auto const& parameter_value : parameter_args) {
         // a. Append ? ToString(arg) to parameterStrings.
-        parameter_strings.unchecked_append(TRY(parameter_value.to_string(vm)));
+        parameter_strings.unchecked_append(TRY(parameter_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16());
     }
 
     // 9. Let bodyString be ? ToString(bodyArg).
-    auto body_string = TRY(body_arg.to_string(vm));
+    auto body_string = TRY(body_arg.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     // 10. Let currentRealm be the current Realm Record.
     auto& realm = *vm.current_realm();

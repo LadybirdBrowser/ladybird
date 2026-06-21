@@ -302,7 +302,7 @@ public:
             serialized.encode(MUST(value.as_bigint().big_integer().to_base(10)));
         } else if (value.is_string()) {
             serialized.encode(ValueTag::StringPrimitive);
-            serialized.encode(value.as_string().utf8_string());
+            serialized.encode(value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
         } else {
             return_primitive_type = false;
         }
@@ -338,7 +338,7 @@ public:
             // 10. Otherwise, if value has a [[StringData]] internal slot, then set serialized to { [[Type]]: "String", [[StringData]]: value.[[StringData]] }.
             else if (auto const* string_object = as_if<JS::StringObject>(*object)) {
                 serialized.encode(ValueTag::StringObject);
-                serialized.encode(string_object->primitive_string().utf8_string());
+                serialized.encode(string_object->primitive_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
             }
 
             // 11. Otherwise, if value has a [[DateValue]] internal slot, then set serialized to { [[Type]]: "Date", [[DateValue]]: value.[[DateValue]] }.
@@ -397,7 +397,7 @@ public:
                 // 2. If name is not one of "Error", "EvalError", "RangeError", "ReferenceError", "SyntaxError", "TypeError", or "URIError", then set name to "Error".
                 auto type = ErrorType::Error;
                 if (name.is_string())
-                    type = error_name_to_type(name.as_string().utf8_string());
+                    type = error_name_to_type(name.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
 
                 // 3. Let valueMessageDesc be ? value.[[GetOwnProperty]]("message").
                 auto value_message_descriptor = TRY(object->internal_get_own_property(m_vm.names.message));

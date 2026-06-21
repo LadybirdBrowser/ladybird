@@ -175,7 +175,7 @@ ThrowCompletionOr<GC::Ref<PlainDateTime>> to_temporal_date_time(VM& vm, Value it
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidPlainDateTime);
 
     // 4. Let result be ? ParseISODateTime(item, « TemporalDateTimeString[~Zoned] »).
-    auto result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string(), { { Production::TemporalDateTimeString } }));
+    auto result = TRY(parse_iso_date_time(vm, item.as_string().utf16_string_view(), { { Production::TemporalDateTimeString } }));
 
     // 5. If result.[[Time]] is START-OF-DAY, let time be MidnightTimeRecord(); else let time be result.[[Time]].
     auto time = result.time.has<ParsedISODateTime::StartOfDay>() ? midnight_time_record() : result.time.get<Time>();

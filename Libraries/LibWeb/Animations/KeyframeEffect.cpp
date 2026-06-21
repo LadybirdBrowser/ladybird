@@ -69,26 +69,26 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
             return Optional<double> {};
         auto double_value = TRY(value.to_double(vm));
         if (isnan(double_value) || isinf(double_value))
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid offset value: {}", TRY(value.to_string(vm)))) };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid offset value: {}", TRY(value.to_utf16_string(vm)))) };
         return double_value;
     };
 
     Function<WebIDL::ExceptionOr<String>(JS::Value)> to_string = [&vm](JS::Value value) -> WebIDL::ExceptionOr<String> {
-        return TRY(value.to_string(vm));
+        return TRY(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     };
 
     Function<WebIDL::ExceptionOr<Bindings::CompositeOperationOrAuto>(JS::Value)> to_composite_operation = [&vm](JS::Value value) -> WebIDL::ExceptionOr<Bindings::CompositeOperationOrAuto> {
         if (value.is_undefined())
             return Bindings::CompositeOperationOrAuto::Auto;
 
-        auto string_value = TRY(value.to_string(vm));
-        if (string_value == "replace")
+        auto string_value = TRY(value.to_utf16_string(vm));
+        if (string_value == "replace"sv)
             return Bindings::CompositeOperationOrAuto::Replace;
-        if (string_value == "add")
+        if (string_value == "add"sv)
             return Bindings::CompositeOperationOrAuto::Add;
-        if (string_value == "accumulate")
+        if (string_value == "accumulate"sv)
             return Bindings::CompositeOperationOrAuto::Accumulate;
-        if (string_value == "auto")
+        if (string_value == "auto"sv)
             return Bindings::CompositeOperationOrAuto::Auto;
 
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid composite value"sv };
@@ -158,7 +158,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         if (!input_property.is_string())
             continue;
 
-        auto name = input_property.as_string().utf8_string();
+        auto name = input_property.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 
         // Handle the two special cases
         if (name == "cssFloat"sv || name == "cssOffset"sv) {
@@ -204,7 +204,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         else {
             // Let property values be the result of converting raw value to a DOMString using the procedure for
             // converting an ECMAScript value to a DOMString [WEBIDL].
-            property_values = TRY(raw_value.to_string(vm));
+            property_values = TRY(raw_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
         }
 
         // 4. Calculate the normalized property name as the result of applying the IDL attribute name to animation

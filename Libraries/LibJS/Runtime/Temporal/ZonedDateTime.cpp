@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
@@ -213,7 +214,7 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
             return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidZonedDateTimeString, item);
 
         // b. Let result be ? ParseISODateTime(item, « TemporalDateTimeString[+Zoned] »).
-        auto result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string(), { { Production::TemporalZonedDateTimeString } }));
+        auto result = TRY(parse_iso_date_time(vm, item.as_string().utf16_string_view(), { { Production::TemporalZonedDateTimeString } }));
 
         // c. Let annotation be result.[[TimeZone]].[[TimeZoneAnnotation]].
         auto annotation = move(result.time_zone.time_zone_annotation);
@@ -222,7 +223,8 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         VERIFY(annotation.has_value());
 
         // e. Let timeZone be ? ToTemporalTimeZoneIdentifier(annotation).
-        time_zone = TRY(to_temporal_time_zone_identifier(vm, *annotation));
+        auto utf16_annotation = Utf16String::from_utf8(*annotation);
+        time_zone = TRY(to_temporal_time_zone_identifier(vm, utf16_annotation));
 
         // f. Let offsetString be result.[[TimeZone]].[[OffsetString]].
         offset_string = move(result.time_zone.offset_string);
@@ -246,7 +248,8 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         // l. If offsetString is not EMPTY, then
         if (offset_string.has_value()) {
             // i. Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
-            auto offset_parse_result = parse_utc_offset(*offset_string, SubMinutePrecision::Yes);
+            auto utf16_offset_string = Utf16String::from_utf8(*offset_string);
+            auto offset_parse_result = parse_utc_offset(utf16_offset_string, SubMinutePrecision::Yes);
 
             // ii. Assert: offsetParseResult is a Parse Node.
             VERIFY(offset_parse_result.has_value());

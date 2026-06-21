@@ -193,7 +193,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
     if (!to_string_tag.is_string())
         tag = builtin_tag;
     else {
-        custom_tag = to_string_tag.as_string().utf8_string();
+        custom_tag = to_string_tag.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
         tag = custom_tag;
     }
 

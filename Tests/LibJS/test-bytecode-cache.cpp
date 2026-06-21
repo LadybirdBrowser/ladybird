@@ -860,7 +860,7 @@ TEST_CASE(bytecode_cache_to_string_caches_lazy_ascii_source_text)
     auto result = vm->run(script);
     VERIFY(!result.is_throw_completion());
     VERIFY(result.value().is_string());
-    EXPECT_EQ(result.value().as_string().utf8_string(), "function mapped() { return 'hello'; }|function mapped() { return 'hello'; }"_string);
+    EXPECT_EQ(result.value().as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), "function mapped() { return 'hello'; }|function mapped() { return 'hello'; }"_string);
     EXPECT_EQ(shared_data.m_source_text_owner.to_utf8(), "function mapped() { return 'hello'; }"sv);
 }
 
@@ -893,7 +893,7 @@ TEST_CASE(bytecode_cache_to_string_uses_lazy_utf8_offset_map)
     auto result = vm->run(script);
     VERIFY(!result.is_throw_completion());
     VERIFY(result.value().is_string());
-    EXPECT_EQ(result.value().as_string().utf8_string(), "function mapped() { return 'Known Trick\xe2\x84\xa2'; }"_string);
+    EXPECT_EQ(result.value().as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), "function mapped() { return 'Known Trick\xe2\x84\xa2'; }"_string);
     EXPECT_EQ(shared_data.m_source_text_owner.to_utf8(), "function mapped() { return 'Known Trick\xe2\x84\xa2'; }"sv);
 }
 
@@ -926,7 +926,7 @@ TEST_CASE(bytecode_cache_materializes_from_mapped_blob)
     auto result = vm->run(script_or_error.release_value());
     VERIFY(!result.is_throw_completion());
     VERIFY(result.value().is_string());
-    EXPECT_EQ(result.value().as_string().utf8_string(), "hello"_string);
+    EXPECT_EQ(result.value().as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), "hello"_string);
 }
 
 TEST_CASE(fresh_precompiled_function_executables_materialize_lazily)

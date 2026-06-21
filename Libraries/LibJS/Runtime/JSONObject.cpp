@@ -445,7 +445,7 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::parse)
     auto reviver = vm.argument(1);
 
     // 1. Let jsonString be ? ToString(text).
-    auto json_string = TRY(text.to_string(vm));
+    auto json_string = TRY(text.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     // 2. Let parseResult be ? ParseJSON(jsonString).
     // 3. Let unfiltered be parseResult.[[Value]].
@@ -996,7 +996,7 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::raw_json)
     auto& realm = *vm.current_realm();
 
     // 1. Let jsonString be ? ToString(text).
-    auto json_string = TRY(vm.argument(0).to_string(vm));
+    auto json_string = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     // 2. Throw a SyntaxError exception if jsonString is the empty String, or if either the first or last code unit of
     //    jsonString is any of 0x0009 (CHARACTER TABULATION), 0x000A (LINE FEED), 0x000D (CARRIAGE RETURN), or

@@ -402,7 +402,7 @@ void initialize_main_thread_vm(AgentType type)
             auto specifier = vm.argument(0);
 
             // 1. Set specifier to ? ToString(specifier).
-            auto specifier_string = TRY(specifier.to_string(vm));
+            auto specifier_string = TRY(specifier.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
             // 2. Let url be the result of resolving a module specifier given moduleScript and specifier.
             auto url = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] {

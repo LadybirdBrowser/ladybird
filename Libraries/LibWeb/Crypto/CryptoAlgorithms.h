@@ -51,7 +51,7 @@ struct HashAlgorithmIdentifier : public AlgorithmIdentifier {
             [](String const& name) -> JS::ThrowCompletionOr<String> { return name; },
             [&](GC::Root<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
                 auto name_property = TRY(obj->get("name"_utf16_fly_string));
-                return name_property.to_string(vm);
+                return TRY(name_property.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
             });
 
         return value;

@@ -447,7 +447,7 @@ String CryptoKey::algorithm_name() const
 {
     if (m_algorithm_name.is_empty()) {
         auto name = MUST(m_algorithm_cached->get("name"_utf16_fly_string));
-        m_algorithm_name = MUST(name.to_string(vm()));
+        m_algorithm_name = MUST(name.to_utf16_string(vm())).to_utf8_but_should_be_ported_to_utf16();
     }
     return m_algorithm_name;
 }

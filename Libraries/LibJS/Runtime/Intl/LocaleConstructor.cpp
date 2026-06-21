@@ -37,10 +37,10 @@ static ThrowCompletionOr<Optional<String>> get_string_option(VM& vm, Object cons
     if (option.is_undefined())
         return OptionalNone {};
 
-    if (validator && !validator(option.as_string().utf8_string()))
+    if (validator && !validator(option.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16()))
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, option, property);
 
-    return option.as_string().utf8_string();
+    return option.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 }
 
 // 15.1.2 UpdateLanguageId ( tag, options ), https://tc39.es/ecma402/#sec-updatelanguageid
@@ -286,7 +286,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
             return locale_tag->locale();
         // 9. Else,
         //     a. Let tag be ? ToString(tag).
-        return tag_value.to_string(vm);
+        return TRY(tag_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     }());
 
     // 10. Set options to ? CoerceOptionsToObject(options).
@@ -351,7 +351,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     // 30. If kn is not undefined, set kn to ! ToString(kn).
     // 31. Set opt.[[kn]] to kn.
     if (!kn.is_undefined())
-        opt.kn = TRY(kn.to_string(vm));
+        opt.kn = TRY(kn.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     // 32. Let numberingSystem be ? GetOption(options, "numberingSystem", STRING, EMPTY, undefined).
     // 33. If numberingSystem is not undefined, then

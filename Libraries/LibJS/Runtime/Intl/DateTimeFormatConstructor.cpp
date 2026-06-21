@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Date.h>
@@ -191,7 +192,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
             return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, vm.names.timeZone, "a toLocaleString time zone"sv);
 
         // b. Set timeZone to ? ToString(timeZone).
-        time_zone = TRY(time_zone_value.to_string(vm));
+        time_zone = TRY(time_zone_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     }
 
     // 20. If IsTimeZoneOffsetString(timeZone) is true, then
@@ -199,7 +200,8 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
     if (is_time_zone_offset_string) {
         // a. Let parseResult be ParseText(StringToCodePoints(timeZone), UTCOffset[~SubMinutePrecision]).
-        auto parse_result = Temporal::parse_utc_offset(time_zone, Temporal::SubMinutePrecision::No);
+        auto utf16_time_zone = Utf16String::from_utf8(time_zone);
+        auto parse_result = Temporal::parse_utc_offset(utf16_time_zone, Temporal::SubMinutePrecision::No);
 
         // b. Assert: parseResult is a Parse Node.
         VERIFY(parse_result.has_value());
@@ -275,7 +277,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
             // d. Set formatOptions.[[<prop>]] to value.
             if (!value.is_undefined()) {
-                option = Unicode::calendar_pattern_style_from_string(value.as_string().utf8_string());
+                option = Unicode::calendar_pattern_style_from_string(value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
 
                 // e. If value is not undefined, then
                 //     i. Set hasExplicitFormatComponents to true.
@@ -294,14 +296,14 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
     // 29. Set dateTimeFormat.[[DateStyle]] to dateStyle.
     if (!date_style.is_undefined())
-        date_time_format->set_date_style(date_style.as_string().utf8_string());
+        date_time_format->set_date_style(date_style.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
 
     // 30. Let timeStyle be ? GetOption(options, "timeStyle", string, « "full", "long", "medium", "short" », undefined).
     auto time_style = TRY(get_option(vm, *options, vm.names.timeStyle, OptionType::String, AK::Array { "full"sv, "long"sv, "medium"sv, "short"sv }, Empty {}));
 
     // 31. Set dateTimeFormat.[[TimeStyle]] to timeStyle.
     if (!time_style.is_undefined())
-        date_time_format->set_time_style(time_style.as_string().utf8_string());
+        date_time_format->set_time_style(time_style.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
 
     // 32. Let formats be resolvedLocaleData.[[formats]].[[<resolvedCalendar>]].
 

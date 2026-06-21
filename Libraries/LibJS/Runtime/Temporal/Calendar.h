@@ -11,6 +11,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
@@ -97,6 +98,7 @@ struct BalancedDate {
 };
 
 ThrowCompletionOr<String> canonicalize_calendar(VM&, StringView id);
+ThrowCompletionOr<String> canonicalize_calendar(VM&, Utf16View id);
 Vector<String> const& available_calendars();
 
 ThrowCompletionOr<MonthCode> parse_month_code(VM&, Value argument);

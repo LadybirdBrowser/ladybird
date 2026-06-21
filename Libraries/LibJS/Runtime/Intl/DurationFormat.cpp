@@ -269,7 +269,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
             display_default = "auto"sv;
         }
     } else {
-        style = DurationFormat::value_style_from_string(style_value.as_string().utf8_string());
+        style = DurationFormat::value_style_from_string(style_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
     }
 
     // 4. If style is "numeric" and IsFractionalSecondUnitName(unit) is true, then
@@ -286,7 +286,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
 
     // 6. Let display be ? GetOption(options, displayField, STRING, « "auto", "always" », displayDefault).
     auto display_value = TRY(get_option(vm, options, display_field, OptionType::String, { "auto"sv, "always"sv }, display_default));
-    auto display = DurationFormat::display_from_string(display_value.as_string().utf8_string());
+    auto display = DurationFormat::display_from_string(display_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
 
     // 7. Perform ? ValidateDurationUnitStyle(unit, style, display, prevStyle).
     TRY(validate_duration_unit_style(vm, unit_property_key, style, display, previous_style, display_field));

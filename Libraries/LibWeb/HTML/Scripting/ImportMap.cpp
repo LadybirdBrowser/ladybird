@@ -164,7 +164,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         }
 
         // 4. Let addressURL be the result of resolving a URL-like module specifier given value and baseURL.
-        auto address_url = resolve_url_like_module_specifier(value.as_string().utf8_string(), base_url);
+        auto address_url = resolve_url_like_module_specifier(value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), base_url);
 
         // 5. If addressURL is null, then:
         if (!address_url.has_value()) {
@@ -282,7 +282,7 @@ WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm
         }
 
         // 4. Set normalized[resolvedURL] to value.
-        normalized.set(resolved_url.release_value(), value.as_string().utf8_string());
+        normalized.set(resolved_url.release_value(), value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
     }
 
     // 3. Return normalized.

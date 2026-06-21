@@ -287,7 +287,7 @@ static JS::ThrowCompletionOr<JS::Value> load_ini_impl(JS::VM& vm)
 
 static JS::ThrowCompletionOr<JS::Value> load_json_impl(JS::VM& vm)
 {
-    auto filename = TRY(vm.argument(0).to_string(vm));
+    auto filename = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto file_or_error = Core::File::open(filename, Core::File::OpenMode::Read);
     if (file_or_error.is_error())
         return vm.throw_completion<JS::Error>(TRY_OR_THROW_OOM(vm, String::formatted("Failed to open '{}': {}", filename, file_or_error.error())));
@@ -338,7 +338,7 @@ JS_DEFINE_NATIVE_FUNCTION(ReplObject::save_to_file)
 {
     if (!vm.argument_count())
         return JS::Value(false);
-    auto const save_path = TRY(vm.argument(0).to_string(vm));
+    auto const save_path = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     if (!write_to_file(save_path).is_error()) {
         return JS::Value(true);
     }
@@ -788,7 +788,7 @@ static ErrorOr<void> repl(JS::Realm& realm)
 {
     while (s_keep_running_repl) {
         auto const piece = TRY(read_next_piece());
-        if (Utf8View { piece }.trim(JS::whitespace_characters).is_empty())
+        if (Utf16String::from_utf8(piece).trim(JS::whitespace_characters).is_empty())
             continue;
 
         g_repl_statements.append(piece);

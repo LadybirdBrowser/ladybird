@@ -8,6 +8,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <AK/Time.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
@@ -664,7 +665,8 @@ double time_clip(double time)
 bool is_offset_time_zone_identifier(StringView offset_string)
 {
     // 1. Let parseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[~SubMinutePrecision]).
-    auto parse_result = Temporal::parse_utc_offset(offset_string, Temporal::SubMinutePrecision::No);
+    auto utf16_offset_string = Utf16String::from_utf8(offset_string);
+    auto parse_result = Temporal::parse_utc_offset(utf16_offset_string, Temporal::SubMinutePrecision::No);
 
     // 2. If parseResult is a List of errors, return false.
     // 3. Return true.
@@ -676,7 +678,8 @@ bool is_offset_time_zone_identifier(StringView offset_string)
 ThrowCompletionOr<double> parse_date_time_utc_offset(VM& vm, StringView offset_string)
 {
     // 1. Let parseResult be ParseText(offsetString, UTCOffset[+SubMinutePrecision]).
-    auto parse_result = Temporal::parse_utc_offset(offset_string, Temporal::SubMinutePrecision::Yes);
+    auto utf16_offset_string = Utf16String::from_utf8(offset_string);
+    auto parse_result = Temporal::parse_utc_offset(utf16_offset_string, Temporal::SubMinutePrecision::Yes);
 
     // 2. If parseResult is a List of errors, throw a RangeError exception.
     if (!parse_result.has_value())
@@ -692,7 +695,8 @@ double parse_date_time_utc_offset(StringView offset_string)
     // OPTIMIZATION: Some callers can assume that parsing will succeed.
 
     // 1. Let parseResult be ParseText(offsetString, UTCOffset[+SubMinutePrecision]).
-    auto parse_result = Temporal::parse_utc_offset(offset_string, Temporal::SubMinutePrecision::Yes);
+    auto utf16_offset_string = Utf16String::from_utf8(offset_string);
+    auto parse_result = Temporal::parse_utc_offset(utf16_offset_string, Temporal::SubMinutePrecision::Yes);
     VERIFY(parse_result.has_value());
 
     return parse_date_time_utc_offset(*parse_result);
@@ -751,13 +755,13 @@ double parse_date_time_utc_offset(Temporal::TimeZoneOffset const& parse_result)
         auto parsed_fraction = *parse_result.fraction;
 
         // b. Let fraction be the string-concatenation of CodePointsToString(parsedFraction) and "000000000".
-        auto fraction = ByteString::formatted("{}000000000", parsed_fraction);
-
         // c. Let nanosecondsString be the substring of fraction from 1 to 10.
-        auto nanoseconds_string = fraction.substring_view(1, 9);
-
         // d. Let nanoseconds be ℝ(StringToNumber(nanosecondsString)).
-        nanoseconds = string_to_number(nanoseconds_string);
+        for (size_t i = 1; i < 10; ++i) {
+            nanoseconds *= 10;
+            if (i < parsed_fraction.length_in_code_units())
+                nanoseconds += parse_ascii_digit(static_cast<char>(parsed_fraction.code_unit_at(i)));
+        }
     }
 
     // 17. Return sign × (((hours × 60 + minutes) × 60 + seconds) × 10^9 + nanoseconds).

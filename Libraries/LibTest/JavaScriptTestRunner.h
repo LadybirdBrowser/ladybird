@@ -208,7 +208,7 @@ inline JS_DEFINE_NATIVE_FUNCTION(TestRunnerGlobalObject::report_test)
         return JS::js_undefined();
 
     auto test_name_value = vm.argument(0);
-    auto test_name = TRY(test_name_value.to_string(vm));
+    auto test_name = TRY(test_name_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto state_value = vm.argument(1);
     self.on_test_reported(test_name, state_value);
     return JS::js_undefined();
@@ -293,7 +293,7 @@ inline Vector<ByteString> TestRunner::get_test_paths() const
 inline void print_test_timings(String test_name, JS::Value state_value)
 {
     if (state_value.is_string()) {
-        auto state_string = state_value.as_string().utf8_string();
+        auto state_string = state_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
         if (state_string == "pass"sv) {
             print_modifiers({ FG_BOLD });
             out("Finished: ");

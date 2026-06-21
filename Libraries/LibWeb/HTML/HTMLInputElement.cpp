@@ -1400,7 +1400,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
             auto key_value = MUST(vm.argument(0).get(vm, "key"_utf16_fly_string));
             if (!key_value.is_string())
                 return JS::js_undefined();
-            auto key = key_value.as_string().utf8_string();
+            auto key = key_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 
             if (key == "ArrowLeft" || key == "ArrowDown")
                 MUST(step_down());

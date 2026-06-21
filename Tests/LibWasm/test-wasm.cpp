@@ -23,7 +23,7 @@ TESTJS_GLOBAL_FUNCTION(read_binary_wasm_file, readBinaryWasmFile)
         return StringView { error_string, strlen(error_string) };
     };
 
-    auto filename = TRY(vm.argument(0).to_string(vm));
+    auto filename = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto file = Core::File::open(filename, Core::File::OpenMode::Read);
     if (file.is_error())
         return vm.throw_completion<JS::TypeError>(error_code_to_string(file.error().code()));
@@ -292,7 +292,7 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
         if (expect.is_string()) {
             if (element_size != 32 && element_size != 64)
                 return vm.throw_completion<JS::TypeError>("Expected element of size 32 or 64"sv);
-            auto string = expect.as_string().utf8_string();
+            auto string = expect.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
             if (string == "nan:canonical") {
                 auto is_canonical = element_size == 32 ? _is_canonical_nan32(got) : _is_canonical_nan64(got);
                 if (!is_canonical)
@@ -323,7 +323,7 @@ void WebAssemblyModule::initialize(JS::Realm& realm)
 
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
 {
-    auto name = TRY(vm.argument(0).to_string(vm));
+    auto name = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto this_value = vm.this_value();
     auto object = TRY(this_value.to_object(vm));
     if (!is<WebAssemblyModule>(*object))

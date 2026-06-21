@@ -135,7 +135,7 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidPlainDate);
 
     // 4. Let result be ? ParseISODateTime(item, « TemporalDateTimeString[~Zoned] »).
-    auto result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string(), { { Production::TemporalDateTimeString } }));
+    auto result = TRY(parse_iso_date_time(vm, item.as_string().utf16_string_view(), { { Production::TemporalDateTimeString } }));
 
     // 5. Let calendar be result.[[Calendar]].
     // 6. If calendar is empty, set calendar to "iso8601".

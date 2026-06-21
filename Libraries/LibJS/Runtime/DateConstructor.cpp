@@ -9,6 +9,7 @@
  */
 
 #include <AK/Time.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/DateConstructor.h>
@@ -30,6 +31,12 @@ static double parse_date_string(VM& vm, StringView date_string)
         vm.host_unrecognized_date_string(date_string);
 
     return result;
+}
+
+static double parse_date_string(VM& vm, Utf16View date_string)
+{
+    auto utf8_date_string = date_string.to_utf8_but_should_be_ported_to_utf16();
+    return parse_date_string(vm, utf8_date_string.bytes_as_string_view());
 }
 
 DateConstructor::DateConstructor(Realm& realm)
@@ -97,7 +104,7 @@ ThrowCompletionOr<GC::Ref<Object>> DateConstructor::construct(FunctionObject& ne
             if (primitive.is_string()) {
                 // 1. Assert: The next step never returns an abrupt completion because Type(v) is String.
                 // 2. Let tv be the result of parsing v as a date, in exactly the same manner as for the parse method (21.4.3.2).
-                time_value = parse_date_string(vm, primitive.as_string().utf8_string());
+                time_value = parse_date_string(vm, primitive.as_string().utf16_string_view());
             }
             // iii. Else,
             else {
@@ -174,7 +181,7 @@ JS_DEFINE_NATIVE_FUNCTION(DateConstructor::parse)
 
     // This function applies the ToString operator to its argument. If ToString results in an abrupt completion the
     // Completion Record is immediately returned.
-    auto date_string = TRY(vm.argument(0).to_string(vm));
+    auto date_string = TRY(vm.argument(0).to_utf16_string(vm));
 
     // Otherwise, this function interprets the resulting String as a date and time; it returns a Number, the UTC time
     // value corresponding to the date and time.

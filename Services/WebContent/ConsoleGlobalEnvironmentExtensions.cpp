@@ -69,7 +69,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
     auto* console_global_object = TRY(get_console(vm));
     auto& window = *console_global_object->m_window_object;
 
-    auto selector = TRY(vm.argument(0).to_string(vm));
+    auto selector = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     if (vm.argument_count() > 1) {
         auto node = vm.argument(1).as_if<Web::DOM::ParentNode>();
@@ -91,7 +91,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
     auto* console_global_object = TRY(get_console(vm));
     auto& window = *console_global_object->m_window_object;
 
-    auto selector = TRY(vm.argument(0).to_string(vm));
+    auto selector = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     Web::DOM::ParentNode* element = &window.associated_document();
 

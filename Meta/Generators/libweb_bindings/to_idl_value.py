@@ -214,7 +214,7 @@ def write_enumeration_conversion(out: TextIO, enumeration: Enumeration, includes
 JS::ThrowCompletionOr<{enumeration.name}> {converter_function_name(enumeration)}(JS::VM& vm, JS::Value value)
 {{
     // 1. Let S be the result of calling ? ToString(V).
-    auto value_as_string = TRY(value.to_string(vm));
+    auto value_as_string = TRY(value.to_utf16_string(vm));
 
     // 2. If S is not one of E’s enumeration values, then throw a TypeError.
     // 3. Return the enumeration value of type E that is equal to S.
@@ -1198,7 +1198,7 @@ def union_to_idl_value(
         includes.add("LibJS/Runtime/ValueInlines.h")
         enumeration_conversion = f"""
         if ({value_name}.is_string()) {{
-            auto enumeration_string = TRY({value_name}.to_string(vm));
+            auto enumeration_string = TRY({value_name}.to_utf16_string(vm));
 """
         for enumeration_type in types.enumeration_types:
             enumeration = context.enumeration(enumeration_type)

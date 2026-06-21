@@ -134,7 +134,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     }
 
     // 4. Let algName be the value of the name attribute of initialAlg.
-    auto algorithm_name = TRY(initial_algorithm.to_string(vm));
+    auto algorithm_name = TRY(initial_algorithm.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     RegisteredAlgorithm desired_type;
 

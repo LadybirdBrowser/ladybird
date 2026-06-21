@@ -646,7 +646,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     // 6. NOTE: In the case of a direct eval, evalRealm is the realm of both the caller of eval and of the eval function itself.
     // 7. Perform ? HostEnsureCanCompileStrings(evalRealm, « », xStr, xStr, direct, « », x).
-    auto code_string_utf8 = code_string->utf8_string();
+    auto code_string_utf8 = code_string->utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
     TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, code_string_utf8, code_string_utf8, direct == EvalMode::Direct ? CompilationType::DirectEval : CompilationType::IndirectEval, {}, x));
 
     // 8. Let inFunction be false.
@@ -1360,8 +1360,7 @@ ThrowCompletionOr<Utf16String> get_substitution(VM& vm, Utf16View const& matched
             auto digits = template_remainder.substring_view(1, digit_count);
 
             // iii. Let index be ℝ(StringToNumber(digits)).
-            auto utf8_digits = MUST(digits.to_utf8());
-            auto index = static_cast<size_t>(string_to_number(utf8_digits));
+            auto index = static_cast<size_t>(string_to_number(digits));
 
             // iv. Assert: 0 ≤ index ≤ 99.
             VERIFY(index <= 99);
@@ -1380,8 +1379,7 @@ ThrowCompletionOr<Utf16String> get_substitution(VM& vm, Utf16View const& matched
                 digits = digits.substring_view(0, 1);
 
                 // 4. Set index to ℝ(StringToNumber(digits)).
-                utf8_digits = MUST(digits.to_utf8());
-                index = static_cast<size_t>(string_to_number(utf8_digits));
+                index = static_cast<size_t>(string_to_number(digits));
             }
 
             // vii. Let ref be the substring of templateRemainder from 0 to 1 + digitCount.
@@ -1958,8 +1956,12 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
         // NOTE: Every location in the spec that invokes GetOption with type=boolean also has values=undefined.
         VERIFY(value.is_string());
 
-        if (auto value_string = value.as_string().utf8_string(); !values.contains_slow(value_string))
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string, property.as_string());
+        auto value_string = value.as_string().utf16_string_view();
+        auto it = find_if(values.begin(), values.end(), [&](auto allowed_value) { return value_string == allowed_value; });
+        if (it == values.end())
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string.to_utf8_but_should_be_ported_to_utf16(), property.as_string());
+
+        value = PrimitiveString::create(vm, *it);
     }
 
     // 6. Return value.
@@ -1979,7 +1981,16 @@ ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM& vm, Object const& o
     auto string_value = TRY(get_option(vm, options, vm.names.roundingMode, OptionType::String, allowed_strings, string_fallback));
 
     // 4. Return the value from the "Rounding Mode" column of the row with stringValue in its "String Identifier" column.
-    return static_cast<RoundingMode>(allowed_strings.first_index_of(string_value.as_string().utf8_string()).value());
+    auto string = string_value.as_string().utf16_string_view();
+    Optional<size_t> index;
+    for (size_t i = 0; i < allowed_strings.size(); ++i) {
+        if (string == allowed_strings[i]) {
+            index = i;
+            break;
+        }
+    }
+    VERIFY(index.has_value());
+    return static_cast<RoundingMode>(*index);
 }
 
 // 14.5.2.4 GetRoundingIncrementOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-getroundingincrementoption

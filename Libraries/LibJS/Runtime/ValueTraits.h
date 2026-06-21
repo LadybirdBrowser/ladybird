@@ -19,7 +19,7 @@ struct ValueTraits : public Traits<Value> {
     {
         VERIFY(!value.is_special_empty_value());
         if (value.is_string())
-            return value.as_string().utf8_string().hash();
+            return value.as_string().utf16_string_view().hash();
 
         if (value.is_bigint())
             return value.as_bigint().big_integer().hash();

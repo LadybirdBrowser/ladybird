@@ -449,7 +449,7 @@ ThrowCompletionOr<Value> Console::dirxml()
 static ThrowCompletionOr<String> label_or_fallback(VM& vm, StringView fallback)
 {
     return vm.argument_count() > 0 && !vm.argument(0).is_undefined()
-        ? vm.argument(0).to_string(vm)
+        ? TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16()
         : TRY_OR_THROW_OOM(vm, String::from_utf8(fallback));
 }
 
@@ -773,7 +773,7 @@ ThrowCompletionOr<String> Console::value_vector_to_string(GC::RootVector<Value> 
         if (!builder.is_empty())
             builder.append(' ');
 
-        builder.append(TRY(item.to_string(vm)));
+        builder.append(TRY(item.to_utf16_string(vm)));
     }
 
     return MUST(builder.to_string());
@@ -832,7 +832,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
         return args;
 
     // 2. Let target be the first element of args.
-    auto target = (!args.is_empty()) ? TRY(args.first().to_string(vm)) : String {};
+    auto target = (!args.is_empty()) ? TRY(args.first().to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16() : String {};
 
     // 3. Let current be the second element of args.
     auto current = (args.size() > 1) ? args[1] : js_undefined();
@@ -914,13 +914,13 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
         // 6. TODO: process %c
         else if (specifier == "%c"sv) {
             // NOTE: This has no spec yet. `%c` specifiers treat the argument as CSS styling for the log message.
-            add_css_style_to_current_message(TRY(current.to_string(vm)));
+            add_css_style_to_current_message(TRY(current.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16());
             converted = PrimitiveString::create(vm, String {});
         }
 
         // 7. If any of the previous steps set converted, replace specifier in target with converted.
         if (converted.has_value())
-            target = TRY_OR_THROW_OOM(vm, target.replace(specifier, TRY(converted->to_string(vm)), ReplaceMode::FirstOnly));
+            target = TRY_OR_THROW_OOM(vm, target.replace(specifier, TRY(converted->to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16(), ReplaceMode::FirstOnly));
     }
 
     // 7. Let result be a list containing target together with the elements of args starting from the third onward.

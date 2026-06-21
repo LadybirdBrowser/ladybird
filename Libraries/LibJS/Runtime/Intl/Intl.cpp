@@ -111,7 +111,7 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
     auto& realm = *vm.current_realm();
 
     // 1. Let key be ? ToString(key).
-    auto key = TRY(vm.argument(0).to_string(vm));
+    auto key = TRY(vm.argument(0).to_utf16_string(vm));
 
     Optional<Variant<ReadonlySpan<StringView>, ReadonlySpan<String>>> list;
 

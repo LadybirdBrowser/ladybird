@@ -58,7 +58,7 @@ static JsonValue serialize_js_value(JS::Realm& realm, JS::Value value)
         return value.as_bool();
 
     if (value.is_string())
-        return value.as_string().utf8_string();
+        return value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 
     if (value.is_number()) {
         if (value.is_nan())

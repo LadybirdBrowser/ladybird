@@ -191,10 +191,10 @@ Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResu
 double round_number_to_increment(double, u64 increment, RoundingMode);
 Crypto::SignedBigInteger round_number_to_increment(Crypto::SignedBigInteger const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
 Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::SignedBigInteger const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
-ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM&, StringView iso_string, ReadonlySpan<Production> allowed_formats);
-ThrowCompletionOr<String> parse_temporal_calendar_string(VM&, String const&);
-ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, StringView iso_string);
-ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM&, StringView time_zone_string);
+ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM&, Utf16View iso_string, ReadonlySpan<Production> allowed_formats);
+ThrowCompletionOr<String> parse_temporal_calendar_string(VM&, Utf16View);
+ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, Utf16View iso_string);
+ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_temporal_time_zone_string(VM&, Utf16View time_zone_string);
 ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
 CalendarFields iso_date_to_fields(String const& calendar, ISODate, DateType);
 ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOperation, Object const& options, UnitGroup, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit);
@@ -215,10 +215,10 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Value argument, Err
 }
 
 // 13.40 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
-// AD-HOC: We often need to use this AO when we have a parsed StringView. This overload allows callers to avoid creating
+// AD-HOC: We often need to use this AO when we have a parsed Utf16View. This overload allows callers to avoid creating
 //         a PrimitiveString for the primary definition.
 template<typename... Args>
-ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, StringView argument, ErrorType const& error_type, Args&&... args)
+ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, Utf16View argument, ErrorType const& error_type, Args&&... args)
 {
     // 1. Let number be ? ToNumber(argument).
     auto number = string_to_number(argument);

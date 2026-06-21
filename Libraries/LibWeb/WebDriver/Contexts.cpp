@@ -77,7 +77,7 @@ ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_frame(JS::
         return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web frame"sv);
 
     // 2. Let reference be the result of getting the web frame identifier property from object.
-    auto reference = property.value().as_string().utf8_string();
+    auto reference = property.value().as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 
     // 3. Let browsing context be the browsing context whose window handle is reference, or null if no such browsing
     //    context exists.
@@ -112,7 +112,7 @@ ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_window(JS:
         return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web window"sv);
 
     // 2. Let reference be the result of getting the web window identifier property from object.
-    auto reference = property.value().as_string().utf8_string();
+    auto reference = property.value().as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 
     // 3. Let browsing context be the browsing context whose window handle is reference, or null if no such browsing
     //    context exists.

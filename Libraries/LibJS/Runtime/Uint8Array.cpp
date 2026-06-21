@@ -116,7 +116,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
     }
 
     // 9. Let result be FromBase64(string, alphabet, lastChunkHandling).
-    auto result = JS::from_base64(vm, string_value.as_string().utf8_string(), alphabet, last_chunk_handling);
+    auto result = JS::from_base64(vm, string_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), alphabet, last_chunk_handling);
 
     // 10. If result.[[Error]] is not NONE, then
     if (result.error.has_value()) {
@@ -152,7 +152,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_hex)
         return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
 
     // 2. Let result be FromHex(string).
-    auto result = JS::from_hex(vm, string_value.as_string().utf8_string());
+    auto result = JS::from_hex(vm, string_value.as_string().utf16_string_view());
 
     // 3. If result.[[Error]] is not NONE, then
     if (result.error.has_value()) {
@@ -220,7 +220,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_base64)
     auto byte_length = typed_array_length(typed_array_record);
 
     // 14. Let result be FromBase64(string, alphabet, lastChunkHandling, byteLength).
-    auto result = JS::from_base64(vm, string_value.as_string().utf8_string(), alphabet, last_chunk_handling, byte_length);
+    auto result = JS::from_base64(vm, string_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), alphabet, last_chunk_handling, byte_length);
 
     // 15. Let bytes be result.[[Bytes]].
     auto bytes = move(result.bytes);
@@ -280,7 +280,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_hex)
     auto byte_length = typed_array_length(typed_array_record);
 
     // 7. Let result be FromHex(string, byteLength).
-    auto result = JS::from_hex(vm, string_value.as_string().utf8_string(), byte_length);
+    auto result = JS::from_hex(vm, string_value.as_string().utf16_string_view(), byte_length);
 
     // 8. Let bytes be result.[[Bytes]].
     auto bytes = move(result.bytes);
@@ -524,14 +524,14 @@ DecodeResult from_base64(VM& vm, StringView string, Alphabet alphabet, AK::LastC
 }
 
 // 23.3.3.8 FromHex ( string [ , maxLength ] ), https://tc39.es/ecma262/#sec-fromhex
-DecodeResult from_hex(VM& vm, StringView string, Optional<size_t> max_length)
+DecodeResult from_hex(VM& vm, Utf16View string, Optional<size_t> max_length)
 {
     // 1. If maxLength is not present, set maxLength to 2**53 - 1.
     if (!max_length.has_value())
         max_length = MAX_ARRAY_LIKE_INDEX;
 
     // 2. Let length be the length of string.
-    auto length = string.length();
+    auto length = string.length_in_code_units();
 
     // 3. Let bytes be a new empty List.
     ByteBuffer bytes;

@@ -22,7 +22,7 @@ TESTJS_PROGRAM_FLAG(test262_parser_tests, "Run test262 parser tests", "test262-p
 TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
 {
     auto& realm = *vm.current_realm();
-    auto source = TRY(vm.argument(0).to_string(vm));
+    auto source = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto script = JS::Script::parse(source, realm);
     return JS::Value(!script.is_error());
 }
@@ -38,7 +38,7 @@ TESTJS_GLOBAL_FUNCTION(evaluate_source, evaluateSource)
 {
     auto& realm = *vm.current_realm();
 
-    auto source = TRY(vm.argument(0).to_string(vm));
+    auto source = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     auto script = JS::Script::parse(source, realm);
     if (script.is_error())
@@ -51,7 +51,7 @@ TESTJS_GLOBAL_FUNCTION(evaluate_module, evaluateModule)
 {
     auto& realm = *vm.current_realm();
 
-    auto path = TRY(vm.argument(0).to_string(vm));
+    auto path = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto module = Test::JS::parse_module(path.to_byte_string(), realm);
     if (module.is_error())
         return vm.throw_completion<JS::SyntaxError>(module.error().error.to_string());
@@ -155,7 +155,7 @@ TESTJS_GLOBAL_FUNCTION(detach_array_buffer, detachArrayBuffer)
 TESTJS_GLOBAL_FUNCTION(set_time_zone, setTimeZone)
 {
     auto current_time_zone = JS::PrimitiveString::create(vm, Core::TimeZone::current_time_zone());
-    auto time_zone = TRY(vm.argument(0).to_string(vm));
+    auto time_zone = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
         return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
@@ -168,7 +168,7 @@ TESTJS_GLOBAL_FUNCTION(to_utf8_bytes, toUTF8Bytes)
 {
     auto& realm = *vm.current_realm();
 
-    auto string = TRY(vm.argument(0).to_string(vm));
+    auto string = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto typed_array = TRY(JS::Uint8Array::create(realm, string.bytes().size()));
 
     for (auto [i, byte] : enumerate(string.bytes()))

@@ -284,6 +284,12 @@ ThrowCompletionOr<String> canonicalize_calendar(VM& vm, StringView id)
     return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarIdentifier, id);
 }
 
+ThrowCompletionOr<String> canonicalize_calendar(VM& vm, Utf16View id)
+{
+    auto utf8_id = id.to_utf8_but_should_be_ported_to_utf16();
+    return canonicalize_calendar(vm, utf8_id.bytes_as_string_view());
+}
+
 // 12.1.2 AvailableCalendars ( ), https://tc39.es/proposal-temporal/#sec-availablecalendars
 // 1.1.1 AvailableCalendars ( ), https://tc39.es/proposal-intl-era-monthcode/#sup-availablecalendars
 Vector<String> const& available_calendars()
@@ -318,7 +324,8 @@ ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, Value argument)
     if (!month_code.is_string())
         return vm.throw_completion<TypeError>(ErrorType::NotAString, month_code);
 
-    return parse_month_code(vm, month_code.as_string().utf8_string());
+    auto month_code_string = month_code.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
+    return parse_month_code(vm, month_code_string.bytes_as_string_view());
 }
 
 // 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
@@ -388,7 +395,7 @@ ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM& vm, String const& 
             // v. Else if Conversion is TO-STRING, then
             case CalendarFieldConversion::ToString:
                 // 1. Set value to ? ToString(value).
-                set_field_value(key, result, TRY(value.to_string(vm)));
+                set_field_value(key, result, TRY(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16());
                 break;
             // vi. Else if Conversion is TO-TEMPORAL-TIME-ZONE-IDENTIFIER, then
             case CalendarFieldConversion::ToTemporalTimeZoneIdentifier:
@@ -797,7 +804,7 @@ ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidCalendar);
 
     // 3. Let identifier be ? ParseTemporalCalendarString(temporalCalendarLike).
-    auto identifier = TRY(parse_temporal_calendar_string(vm, temporal_calendar_like.as_string().utf8_string()));
+    auto identifier = TRY(parse_temporal_calendar_string(vm, temporal_calendar_like.as_string().utf16_string_view()));
 
     // 4. Return ? CanonicalizeCalendar(identifier).
     return TRY(canonicalize_calendar(vm, identifier));
