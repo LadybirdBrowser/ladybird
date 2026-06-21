@@ -64,6 +64,8 @@ static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 #if defined(AK_OS_MACOS)
 static constexpr qreal WINDOW_CORNER_RADIUS = 12.0;
 #endif
+static constexpr int WINDOW_RESIZE_BORDER_WIDTH = 6;
+static constexpr int WINDOW_RESIZE_CORNER_WIDTH = WINDOW_RESIZE_BORDER_WIDTH * 2;
 
 static bool should_use_screen_signal_for_dpi_changes()
 {
@@ -243,6 +245,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setWindowIcon(app_icon());
     qApp->installEventFilter(this);
     update_window_corners();
+    update_appkit_window_resizability();
     update_window_border();
 
     update_tabs_display();
@@ -992,6 +995,7 @@ void BrowserWindow::update_window_decoration_state()
         }
     }
 
+    update_appkit_window_resizability();
     update_menu_bar_visibility();
     update_window_border();
 }
@@ -1160,6 +1164,7 @@ bool BrowserWindow::event(QEvent* event)
 #if defined(AK_OS_MACOS)
             QTimer::singleShot(0, this, [this] {
                 update_window_corners();
+                update_appkit_window_resizability();
             });
 #endif
         } else if (platform_surface_event->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
@@ -1169,10 +1174,17 @@ bool BrowserWindow::event(QEvent* event)
     if (event->type() == QEvent::ScreenChangeInternal)
         screen_changed(screen());
 
-    if (event->type() == QEvent::WindowActivate)
+    if (event->type() == QEvent::WindowActivate) {
         Application::the().set_active_window(*this);
-    else if (event->type() == QEvent::WindowDeactivate || event->type() == QEvent::Hide)
+        QTimer::singleShot(0, this, [this] {
+            refresh_resize_cursor_at_current_position(true);
+        });
+        QTimer::singleShot(50, this, [this] {
+            refresh_resize_cursor_at_current_position(true);
+        });
+    } else if (event->type() == QEvent::WindowDeactivate || event->type() == QEvent::Hide) {
         clear_resize_cursor();
+    }
 
     return QMainWindow::event(event);
 }
@@ -1184,6 +1196,18 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
         return QMainWindow::eventFilter(object, event);
     if (!uses_client_side_decorations())
         return QMainWindow::eventFilter(object, event);
+
+    if (m_is_resizing_window) {
+        if (event->type() == QEvent::MouseMove) {
+            auto* mouse_event = static_cast<QMouseEvent*>(event);
+            update_window_resize(mouse_event->globalPosition().toPoint());
+            return true;
+        }
+        if (event->type() == QEvent::MouseButtonRelease) {
+            finish_window_resize();
+            return true;
+        }
+    }
 
     auto const is_button = qobject_cast<QAbstractButton*>(object) != nullptr;
 
@@ -1215,11 +1239,18 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
         return QMainWindow::eventFilter(object, event);
 
     auto position = widget->mapTo(this, mouse_event->position().toPoint());
+    auto edges = resize_edges_for_position(position);
     if (event->type() == QEvent::MouseButtonPress && !isMaximized() && !isFullScreen()) {
-        auto edges = resize_edges_for_position(position);
-        auto* handle = windowHandle();
-        if (edges != Qt::Edges {} && handle && handle->startSystemResize(edges))
-            return true;
+        if (edges != Qt::Edges {}) {
+#if defined(AK_OS_MACOS)
+            if (start_window_resize(edges, mouse_event->globalPosition().toPoint()))
+                return true;
+#else
+            auto* handle = windowHandle();
+            if (handle && handle->startSystemResize(edges))
+                return true;
+#endif
+        }
     }
 
     auto is_empty_window_drag_region = widget->property(WINDOW_DRAG_REGION_PROPERTY).toBool()
@@ -1248,18 +1279,62 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
     return QMainWindow::eventFilter(object, event);
 }
 
+bool BrowserWindow::position_is_in_rounded_corner_cutout(QPoint const& position) const
+{
+#if defined(AK_OS_MACOS)
+    auto should_use_rounded_corners = WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseRoundedWindowCorners);
+    if (!should_use_rounded_corners || isFullScreen())
+        return false;
+
+    auto const radius = WINDOW_CORNER_RADIUS;
+    auto const x = static_cast<qreal>(position.x());
+    auto const y = static_cast<qreal>(position.y());
+    auto const right = static_cast<qreal>(width());
+    auto const bottom = static_cast<qreal>(height());
+
+    auto is_outside_corner_arc = [radius](qreal dx, qreal dy) {
+        return dx * dx + dy * dy > radius * radius;
+    };
+
+    auto in_cutout = false;
+    if (x < radius && y < radius)
+        in_cutout = is_outside_corner_arc(radius - x, radius - y);
+    else if (x >= right - radius && y < radius)
+        in_cutout = is_outside_corner_arc(x - (right - radius), radius - y);
+    else if (x < radius && y >= bottom - radius)
+        in_cutout = is_outside_corner_arc(radius - x, y - (bottom - radius));
+    else if (x >= right - radius && y >= bottom - radius)
+        in_cutout = is_outside_corner_arc(x - (right - radius), y - (bottom - radius));
+
+    return in_cutout;
+#else
+    (void)position;
+#endif
+    return false;
+}
+
 Qt::Edges BrowserWindow::resize_edges_for_position(QPoint const& position) const
 {
-    static constexpr int resize_border_width = 6;
+    if (position_is_in_rounded_corner_cutout(position))
+        return {};
 
     Qt::Edges edges;
-    if (position.x() <= resize_border_width)
+    auto in_left_resize_edge = position.x() <= WINDOW_RESIZE_BORDER_WIDTH;
+    auto in_right_resize_edge = position.x() >= width() - WINDOW_RESIZE_BORDER_WIDTH;
+    auto in_top_resize_edge = position.y() <= WINDOW_RESIZE_BORDER_WIDTH;
+    auto in_bottom_resize_edge = position.y() >= height() - WINDOW_RESIZE_BORDER_WIDTH;
+    auto in_left_resize_corner = position.x() <= WINDOW_RESIZE_CORNER_WIDTH;
+    auto in_right_resize_corner = position.x() >= width() - WINDOW_RESIZE_CORNER_WIDTH;
+    auto in_top_resize_corner = position.y() <= WINDOW_RESIZE_CORNER_WIDTH;
+    auto in_bottom_resize_corner = position.y() >= height() - WINDOW_RESIZE_CORNER_WIDTH;
+
+    if (in_left_resize_edge || (in_left_resize_corner && (in_top_resize_corner || in_bottom_resize_corner)))
         edges |= Qt::LeftEdge;
-    if (position.x() >= width() - resize_border_width)
+    if (in_right_resize_edge || (in_right_resize_corner && (in_top_resize_corner || in_bottom_resize_corner)))
         edges |= Qt::RightEdge;
-    if (position.y() <= resize_border_width)
+    if (in_top_resize_edge || (in_top_resize_corner && (in_left_resize_corner || in_right_resize_corner)))
         edges |= Qt::TopEdge;
-    if (position.y() >= height() - resize_border_width)
+    if (in_bottom_resize_edge || (in_bottom_resize_corner && (in_left_resize_corner || in_right_resize_corner)))
         edges |= Qt::BottomEdge;
 
     return edges;
@@ -1282,6 +1357,56 @@ Optional<Qt::CursorShape> BrowserWindow::resize_cursor_for_edges(Qt::Edges edges
     return {};
 }
 
+bool BrowserWindow::start_window_resize(Qt::Edges edges, QPoint const& global_position)
+{
+    if (edges == Qt::Edges {} || isMaximized() || isFullScreen())
+        return false;
+
+    m_is_resizing_window = true;
+    m_resize_edges = edges;
+    m_resize_start_global_position = global_position;
+    m_resize_start_geometry = geometry();
+    grabMouse();
+    return true;
+}
+
+void BrowserWindow::update_window_resize(QPoint const& global_position)
+{
+    if (!m_is_resizing_window)
+        return;
+
+    auto delta = global_position - m_resize_start_global_position;
+    auto new_geometry = m_resize_start_geometry;
+
+    if (m_resize_edges & Qt::LeftEdge) {
+        auto new_width = qBound(minimumWidth(), m_resize_start_geometry.width() - delta.x(), maximumWidth());
+        new_geometry.setX(m_resize_start_geometry.right() - new_width + 1);
+    } else if (m_resize_edges & Qt::RightEdge) {
+        auto new_width = qBound(minimumWidth(), m_resize_start_geometry.width() + delta.x(), maximumWidth());
+        new_geometry.setWidth(new_width);
+    }
+
+    if (m_resize_edges & Qt::TopEdge) {
+        auto new_height = qBound(minimumHeight(), m_resize_start_geometry.height() - delta.y(), maximumHeight());
+        new_geometry.setY(m_resize_start_geometry.bottom() - new_height + 1);
+    } else if (m_resize_edges & Qt::BottomEdge) {
+        auto new_height = qBound(minimumHeight(), m_resize_start_geometry.height() + delta.y(), maximumHeight());
+        new_geometry.setHeight(new_height);
+    }
+
+    setGeometry(new_geometry);
+}
+
+void BrowserWindow::finish_window_resize()
+{
+    if (!m_is_resizing_window)
+        return;
+
+    m_is_resizing_window = false;
+    m_resize_edges = {};
+    releaseMouse();
+}
+
 void BrowserWindow::update_resize_cursor(QPoint const& position)
 {
     if (!uses_client_side_decorations() || isMaximized() || isFullScreen() || !rect().contains(position)) {
@@ -1301,6 +1426,25 @@ void BrowserWindow::update_resize_cursor(QPoint const& position)
         QApplication::setOverrideCursor(*cursor_shape);
         m_resize_cursor_active = true;
     }
+}
+
+void BrowserWindow::refresh_resize_cursor_at_current_position(bool force_reapply)
+{
+    auto position = mapFromGlobal(QCursor::pos());
+    auto* child = childAt(position);
+    for (auto* object = child; object; object = qobject_cast<QWidget*>(object->parent())) {
+        if (qobject_cast<QAbstractButton*>(object)) {
+            clear_resize_cursor();
+            return;
+        }
+    }
+
+    if (force_reapply && m_resize_cursor_active) {
+        QApplication::restoreOverrideCursor();
+        m_resize_cursor_active = false;
+    }
+
+    update_resize_cursor(position);
 }
 
 void BrowserWindow::clear_resize_cursor()
@@ -1370,6 +1514,13 @@ void BrowserWindow::update_window_corners()
 
     clearMask();
     set_rounded_window_corners(*this, should_round_window, WINDOW_CORNER_RADIUS, ChromeStyle::chrome_background(palette()));
+#endif
+}
+
+void BrowserWindow::update_appkit_window_resizability()
+{
+#if defined(AK_OS_MACOS)
+    set_appkit_window_resizable(*this, !uses_client_side_decorations());
 #endif
 }
 

@@ -185,6 +185,22 @@ void set_rounded_window_corners(QWidget& widget, bool enabled, double radius, QC
     content_view.layer.backgroundColor = cg_color_from_qcolor(background_color);
 }
 
+void set_appkit_window_resizable(QWidget& widget, bool enabled)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view)
+        return;
+
+    auto* window = view.window;
+    if (!window)
+        return;
+
+    if (enabled)
+        window.styleMask |= NSWindowStyleMaskResizable;
+    else
+        window.styleMask &= ~NSWindowStyleMaskResizable;
+}
+
 void install_always_active_window_control_hover_tracking(QWidget& widget, void (*hover_changed)(QWidget*))
 {
     static char tracker_key;
