@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<script>
+    // createDocument with an empty qualified name yields a document with no root element.
+    const doc = document.implementation.createDocument(null, "", null);
+    document.evaluate("/", doc, null, XPathResult.ANY_TYPE, null);
+</script>

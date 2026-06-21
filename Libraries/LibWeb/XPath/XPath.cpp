@@ -92,7 +92,10 @@ static xmlNodePtr mirror_node(xmlDocPtr doc, DOM::Node const& node)
     }
     case DOM::NodeType::DOCUMENT_NODE: {
         auto const& document = static_cast<DOM::Document const&>(node);
-        return mirror_node(doc, *document.document_element());
+        auto const* document_element = document.document_element();
+        if (!document_element)
+            return nullptr;
+        return mirror_node(doc, *document_element);
     }
     case DOM::NodeType::DOCUMENT_TYPE_NODE: {
         return nullptr; // Unused in libxml2
