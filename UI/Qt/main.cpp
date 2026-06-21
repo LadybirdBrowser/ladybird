@@ -53,6 +53,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
     auto app = TRY(Ladybird::Application::create(arguments));
+    app->initialize_macos_application_menu();
     WebView::BrowserProcess browser_process;
 
     WebView::copy_default_config_files(Ladybird::Settings::the()->directory());
@@ -68,12 +69,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         app->on_open_file = [&](auto const& file_url) {
-            auto& window = app->active_window();
-            window.view().load(file_url);
+            if (auto* window = app->active_window_if_any()) {
+                window->view().load(file_url);
+                return;
+            }
+            app->new_window({ file_url });
         };
 
         browser_process.on_new_tab = [&](auto const& urls) {
-            auto& window = app->active_window();
+            if (!app->active_window_if_any()) {
+                app->new_window(urls);
+                return;
+            }
+
+            auto& window = *app->active_window_if_any();
             for (size_t i = 0; i < urls.size(); ++i) {
                 window.new_tab_from_url(urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No);
             }
@@ -83,12 +92,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         };
 
         browser_process.on_new_window = [&](auto const& urls) {
-            auto const& previous_active_window = app->active_window();
-            Ladybird::WindowConfiguration configuration {
-                .width = previous_active_window.width(),
-                .height = previous_active_window.height(),
-                .maximized = previous_active_window.isMaximized(),
-            };
+            Ladybird::WindowConfiguration configuration {};
+            if (auto* previous_active_window = app->active_window_if_any()) {
+                configuration.width = previous_active_window->width();
+                configuration.height = previous_active_window->height();
+                configuration.maximized = previous_active_window->isMaximized();
+            }
             app->new_window(urls, configuration);
         };
 
