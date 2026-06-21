@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/GenericLexer.h>
 #include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
+#include <AK/UnicodeUtils.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -86,24 +88,26 @@ ThrowCompletionOr<Optional<Utf16String>> JSONObject::stringify_impl(VM& vm, Valu
         }
     }
 
-    if (space.is_object()) {
+    Optional<Utf16String> space_string;
+    if (space.is_string()) {
+        space_string = space.as_string().utf16_string();
+    } else if (space.is_object()) {
         auto& space_object = space.as_object();
         if (is<NumberObject>(space_object))
             space = TRY(space.to_number(vm));
         else if (is<StringObject>(space_object))
-            space = TRY(space.to_primitive_string(vm));
+            space_string = TRY(space.to_utf16_string(vm));
     }
 
     if (space.is_number()) {
         auto space_mv = MUST(space.to_integer_or_infinity(vm));
         space_mv = min(10, space_mv);
         state.gap = space_mv < 1 ? Utf16String {} : Utf16String::repeated(' ', space_mv);
-    } else if (space.is_string()) {
-        auto string = space.as_string().utf16_string();
-        if (string.length_in_code_units() <= 10)
-            state.gap = string;
+    } else if (space_string.has_value()) {
+        if (space_string->length_in_code_units() <= 10)
+            state.gap = move(*space_string);
         else
-            state.gap = Utf16String::from_utf16(string.utf16_view().substring_view(0, 10));
+            state.gap = Utf16String::from_utf16(space_string->substring_view(0, 10));
     } else {
         state.gap = Utf16String {};
     }
@@ -153,14 +157,14 @@ ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifySta
         // b. If IsCallable(toJSON) is true, then
         if (to_json.is_function()) {
             // i. Set value to ? Call(toJSON, value, « key »).
-            value = TRY(call(vm, to_json.as_function(), value, PrimitiveString::create(vm, key.to_string())));
+            value = TRY(call(vm, to_json.as_function(), value, PrimitiveString::create(vm, key.to_utf16_string())));
         }
     }
 
     // 3. If state.[[ReplacerFunction]] is not undefined, then
     if (state.replacer_function) {
         // a. Set value to ? Call(state.[[ReplacerFunction]], holder, « key, value »).
-        value = TRY(call(vm, *state.replacer_function, holder, PrimitiveString::create(vm, key.to_string()), value));
+        value = TRY(call(vm, *state.replacer_function, holder, PrimitiveString::create(vm, key.to_utf16_string()), value));
     }
 
     // 4. If Type(value) is Object, then
@@ -181,7 +185,7 @@ ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifySta
         // c. Else if value has a [[StringData]] internal slot, then
         else if (is<StringObject>(value_object)) {
             // i. Set value to ? ToString(value).
-            value = TRY(value.to_primitive_string(vm));
+            value = PrimitiveString::create(vm, TRY(value.to_utf16_string(vm)));
         }
         // d. Else if value has a [[BooleanData]] internal slot, then
         else if (auto const* boolean = as_if<BooleanObject>(value_object)) {
@@ -297,7 +301,7 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
         }
 
         // Write key and colon
-        quote_json_string(builder, key.to_string());
+        quote_json_string(builder, key.to_utf16_string());
         builder.append_ascii(':');
         if (!state.gap.is_empty())
             builder.append_ascii(' ');
@@ -601,13 +605,111 @@ static ALWAYS_INLINE ThrowCompletionOr<void> ensure_simdjson_fully_parsed(VM& vm
     return {};
 }
 
-static ThrowCompletionOr<Value> parse_simdjson_value(VM&, simdjson::ondemand::value, JSONParseRecord* record = nullptr);
+struct JSONTextBytes {
+    explicit JSONTextBytes(Utf16View text)
+        : text(text)
+    {
+    }
+
+    Utf16View text;
+    Optional<ByteBuffer> utf8_storage;
+    Vector<size_t> byte_to_code_unit_offsets;
+    char const* parser_bytes_data { nullptr };
+
+    StringView bytes() const
+    {
+        if (text.has_ascii_storage())
+            return { text.bytes() };
+        return { utf8_storage->bytes() };
+    }
+
+    size_t byte_offset_to_code_unit_offset(size_t byte_offset) const
+    {
+        if (text.has_ascii_storage())
+            return byte_offset;
+        VERIFY(byte_offset < byte_to_code_unit_offsets.size());
+        return byte_to_code_unit_offsets[byte_offset];
+    }
+};
+
+static void append_json_surrogate_escape(StringBuilder& builder, u16 code_unit)
+{
+    builder.append("\\u"sv);
+    builder.appendff("{:04X}", code_unit);
+}
+
+static ErrorOr<JSONTextBytes> json_text_bytes(Utf16View text)
+{
+    JSONTextBytes text_bytes { text };
+    if (text.has_ascii_storage())
+        return text_bytes;
+
+    StringBuilder builder;
+    text_bytes.byte_to_code_unit_offsets.append(0);
+    for (size_t code_unit_offset = 0; code_unit_offset < text.length_in_code_units(); ++code_unit_offset) {
+        auto code_unit = text.code_unit_at(code_unit_offset);
+        auto code_point = static_cast<u32>(code_unit);
+        size_t code_unit_length = 1;
+        if (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit) && code_unit_offset + 1 < text.length_in_code_units()) {
+            auto next_code_unit = text.code_unit_at(code_unit_offset + 1);
+            if (AK::UnicodeUtils::is_utf16_low_surrogate(next_code_unit)) {
+                code_point = AK::UnicodeUtils::decode_utf16_surrogate_pair(code_unit, next_code_unit);
+                code_unit_length = 2;
+            }
+        }
+
+        if (code_unit_length == 1 && (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit) || AK::UnicodeUtils::is_utf16_low_surrogate(code_unit))) {
+            append_json_surrogate_escape(builder, code_unit);
+            for (int byte_index = 0; byte_index < 6; ++byte_index) {
+                auto is_code_point_boundary = byte_index == 5;
+                text_bytes.byte_to_code_unit_offsets.append(code_unit_offset + (is_code_point_boundary ? 1 : 0));
+            }
+            continue;
+        }
+
+        auto utf8_length = AK::UnicodeUtils::code_point_to_utf8(code_point, [&](char byte) {
+            builder.append(byte);
+        });
+        VERIFY(utf8_length > 0);
+
+        for (int byte_index = 0; byte_index < utf8_length; ++byte_index) {
+            auto is_code_point_boundary = byte_index == utf8_length - 1;
+            text_bytes.byte_to_code_unit_offsets.append(code_unit_offset + (is_code_point_boundary ? code_unit_length : 0));
+        }
+
+        code_unit_offset += code_unit_length - 1;
+    }
+
+    text_bytes.utf8_storage = TRY(builder.to_byte_buffer());
+    VERIFY(text_bytes.byte_to_code_unit_offsets.size() == text_bytes.utf8_storage->size() + 1);
+    return text_bytes;
+}
+
+static ThrowCompletionOr<Value> parse_simdjson_value(VM&, JSONTextBytes const&, simdjson::ondemand::value, JSONParseRecord* record = nullptr);
 
 // The source text matched by a primitive parse node, used by JSON.parse revivers.
-static Utf16String json_token_source(std::string_view raw)
+static Utf16String json_token_source(JSONTextBytes const& json_text, std::string_view raw)
 {
     StringView source { raw.data(), raw.size() };
-    return Utf16String::from_utf8(source.trim_whitespace());
+    size_t start = 0;
+    size_t end = source.length();
+    while (start < end && is_ascii_space(source[start]))
+        ++start;
+    while (end > start && is_ascii_space(source[end - 1]))
+        --end;
+
+    auto bytes = json_text.bytes();
+    auto* bytes_data = json_text.parser_bytes_data;
+    VERIFY(bytes_data);
+    auto* token_start = source.characters_without_null_termination() + start;
+    auto* token_end = source.characters_without_null_termination() + end;
+    VERIFY(token_start >= bytes_data);
+    VERIFY(token_end >= token_start);
+    VERIFY(static_cast<size_t>(token_end - bytes_data) <= bytes.length());
+
+    auto code_unit_start = json_text.byte_offset_to_code_unit_offset(token_start - bytes_data);
+    auto code_unit_end = json_text.byte_offset_to_code_unit_offset(token_end - bytes_data);
+    return Utf16String::from_utf16(json_text.text.substring_view(code_unit_start, code_unit_end - code_unit_start));
 }
 
 template<typename T>
@@ -671,7 +773,7 @@ static ThrowCompletionOr<Value> parse_simdjson_string(VM& vm, T& value)
 }
 
 template<typename T>
-static ThrowCompletionOr<Value> parse_simdjson_array(VM& vm, T& value, JSONParseRecord* record = nullptr)
+static ThrowCompletionOr<Value> parse_simdjson_array(VM& vm, JSONTextBytes const& json_text, T& value, JSONParseRecord* record = nullptr)
 {
     auto& realm = *vm.current_realm();
 
@@ -687,7 +789,7 @@ static ThrowCompletionOr<Value> parse_simdjson_array(VM& vm, T& value, JSONParse
         if (element.get(element_value))
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
         JSONParseRecord element_record;
-        auto parsed = TRY(parse_simdjson_value(vm, element_value, record ? &element_record : nullptr));
+        auto parsed = TRY(parse_simdjson_value(vm, json_text, element_value, record ? &element_record : nullptr));
         array->define_direct_property(index++, parsed, default_attributes);
         if (record)
             record->elements.append(move(element_record));
@@ -700,7 +802,7 @@ static ThrowCompletionOr<Value> parse_simdjson_array(VM& vm, T& value, JSONParse
 }
 
 template<typename T>
-static ThrowCompletionOr<Value> parse_simdjson_object(VM& vm, T& value, JSONParseRecord* record = nullptr)
+static ThrowCompletionOr<Value> parse_simdjson_object(VM& vm, JSONTextBytes const& json_text, T& value, JSONParseRecord* record = nullptr)
 {
     auto& realm = *vm.current_realm();
 
@@ -723,7 +825,7 @@ static ThrowCompletionOr<Value> parse_simdjson_object(VM& vm, T& value, JSONPars
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
         auto key = unescaped_key.release_value();
         JSONParseRecord entry_record;
-        auto parsed = TRY(parse_simdjson_value(vm, field_value, record ? &entry_record : nullptr));
+        auto parsed = TRY(parse_simdjson_value(vm, json_text, field_value, record ? &entry_record : nullptr));
         object->define_direct_property(key, parsed, default_attributes);
         if (record) {
             entry_record.key = key;
@@ -741,7 +843,7 @@ static ThrowCompletionOr<Value> parse_simdjson_object(VM& vm, T& value, JSONPars
     return object;
 }
 
-static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand::value value, JSONParseRecord* record)
+static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, JSONTextBytes const& json_text, simdjson::ondemand::value value, JSONParseRecord* record)
 {
     simdjson::ondemand::json_type type;
     if (value.type().get(type))
@@ -752,7 +854,7 @@ static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand:
     case simdjson::ondemand::json_type::null:
         if (record) {
             record->value = js_null();
-            record->source = json_token_source(value.raw_json_token());
+            record->source = json_token_source(json_text, value.raw_json_token());
         }
         return js_null();
     case simdjson::ondemand::json_type::boolean: {
@@ -762,7 +864,7 @@ static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand:
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
         if (record) {
             record->value = Value(boolean_value);
-            record->source = json_token_source(token);
+            record->source = json_token_source(json_text, token);
         }
         return Value(boolean_value);
     }
@@ -772,7 +874,7 @@ static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand:
         auto parsed = TRY(parse_simdjson_number(vm, value, raw_sv));
         if (record) {
             record->value = parsed;
-            record->source = json_token_source(raw);
+            record->source = json_token_source(json_text, raw);
         }
         return parsed;
     }
@@ -781,14 +883,14 @@ static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand:
         auto parsed = TRY(parse_simdjson_string(vm, value));
         if (record) {
             record->value = parsed;
-            record->source = json_token_source(token);
+            record->source = json_token_source(json_text, token);
         }
         return parsed;
     }
     case simdjson::ondemand::json_type::array:
-        return parse_simdjson_array(vm, value, record);
+        return parse_simdjson_array(vm, json_text, value, record);
     case simdjson::ondemand::json_type::object:
-        return parse_simdjson_object(vm, value, record);
+        return parse_simdjson_object(vm, json_text, value, record);
     case simdjson::ondemand::json_type::unknown:
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
     }
@@ -796,7 +898,7 @@ static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand:
     VERIFY_NOT_REACHED();
 }
 
-static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondemand::document& document, JSONParseRecord* record = nullptr)
+static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, JSONTextBytes const& json_text, simdjson::ondemand::document& document, JSONParseRecord* record = nullptr)
 {
     simdjson::ondemand::json_type type;
     if (document.type().get(type))
@@ -819,7 +921,7 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondema
             if (document.raw_json_token().get(null_token))
                 return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
             record->value = js_null();
-            record->source = json_token_source(null_token);
+            record->source = json_token_source(json_text, null_token);
         }
         return js_null();
     }
@@ -831,7 +933,7 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondema
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
         if (record) {
             record->value = Value(boolean_value);
-            record->source = json_token_source(raw_token);
+            record->source = json_token_source(json_text, raw_token);
         }
         return Value(boolean_value);
     }
@@ -841,7 +943,7 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondema
         auto parsed = TRY(parse_simdjson_number(vm, document, trimmed));
         if (record) {
             record->value = parsed;
-            record->source = json_token_source(raw_token);
+            record->source = json_token_source(json_text, raw_token);
         }
         return parsed;
     }
@@ -852,28 +954,19 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondema
         auto parsed = TRY(parse_simdjson_string(vm, document));
         if (record) {
             record->value = parsed;
-            record->source = json_token_source(string_token);
+            record->source = json_token_source(json_text, string_token);
         }
         return parsed;
     }
     case simdjson::ondemand::json_type::array:
-        return parse_simdjson_array(vm, document, record);
+        return parse_simdjson_array(vm, json_text, document, record);
     case simdjson::ondemand::json_type::object:
-        return parse_simdjson_object(vm, document, record);
+        return parse_simdjson_object(vm, json_text, document, record);
     case simdjson::ondemand::json_type::unknown:
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
     }
 
     VERIFY_NOT_REACHED();
-}
-
-static StringView utf8_json_text_bytes(Utf16View text, Optional<String>& utf8_text)
-{
-    if (text.has_ascii_storage())
-        return { text.bytes() };
-
-    utf8_text = MUST(text.to_utf8());
-    return utf8_text->bytes_as_string_view();
 }
 
 // 25.5.1.1 ParseJSON ( text ), https://tc39.es/ecma262/#sec-ParseJSON
@@ -884,11 +977,12 @@ ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, Utf16View text, JSONPars
     if (text.length_in_code_units() >= 1 && text.code_unit_at(0) == 0xFEFF)
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
-    Optional<String> utf8_text;
-    auto text_bytes = utf8_json_text_bytes(text, utf8_text);
+    auto json_text = json_text_bytes(text).release_value_but_fixme_should_propagate_errors();
+    auto text_bytes = json_text.bytes();
 
     simdjson::ondemand::parser parser;
     simdjson::padded_string padded(text_bytes.characters_without_null_termination(), text_bytes.length());
+    json_text.parser_bytes_data = padded.data();
 
     simdjson::ondemand::document document;
     if (parser.iterate(padded).get(document))
@@ -899,7 +993,7 @@ ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, Utf16View text, JSONPars
     // 4. NOTE: The early error rules defined in 13.2.5.1 have special handling for the above invocation of ParseText.
     // 5. Assert: script is a Parse Node.
     // 6. Let result be ! Evaluation of script.
-    auto result = TRY(parse_simdjson_document(vm, document, root_record));
+    auto result = TRY(parse_simdjson_document(vm, json_text, document, root_record));
 
     // 7. NOTE: The PropertyDefinitionEvaluation semantics defined in 13.2.5.5 have special handling for the above evaluation.
     // 8. Assert: result is either a String, a Number, a Boolean, an Object that is defined by either an ArrayLiteral or an ObjectLiteral, or null.
@@ -994,7 +1088,7 @@ ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, Object* h
     }
 
     // 6. Return ? Call(reviver, holder, « name, value, context »).
-    return TRY(call(vm, reviver, holder, PrimitiveString::create(vm, name.to_string()), value, context));
+    return TRY(call(vm, reviver, holder, PrimitiveString::create(vm, name.to_utf16_string()), value, context));
 }
 
 // 1.3 JSON.rawJSON ( text ), https://tc39.es/proposal-json-parse-with-source/#sec-json.rawjson
@@ -1022,8 +1116,8 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::raw_json)
     // 3. Parse StringToCodePoints(jsonString) as a JSON text as specified in ECMA-404. Throw a SyntaxError exception
     //    if it is not a valid JSON text as defined in that specification, or if its outermost value is an object or
     //    array as defined in that specification.
-    Optional<String> utf8_text;
-    auto text_bytes = utf8_json_text_bytes(json_string_view, utf8_text);
+    auto json_text = json_text_bytes(json_string_view).release_value_but_fixme_should_propagate_errors();
+    auto text_bytes = json_text.bytes();
 
     simdjson::ondemand::parser parser;
     simdjson::padded_string padded(text_bytes.characters_without_null_termination(), text_bytes.length());

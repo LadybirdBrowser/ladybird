@@ -153,7 +153,7 @@ public:
         return Value { PrimitiveString::create_from_unsigned_integer(vm, as_number()) };
     }
 
-    Utf16String to_string() const
+    Utf16String to_utf16_string() const
     {
         if (is_string())
             return as_string().to_utf16_string();
@@ -239,7 +239,7 @@ struct Formatter<JS::PropertyKey> : Formatter<Utf16String> {
     {
         if (property_key.is_number())
             return builder.put_u64(property_key.as_number());
-        return Formatter<Utf16String> {}.format(builder, property_key.to_string());
+        return Formatter<Utf16String> {}.format(builder, property_key.to_utf16_string());
     }
 };
 

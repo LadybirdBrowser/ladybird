@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 
 namespace Web::DOM {
 
@@ -19,19 +19,19 @@ enum class RequestFullscreenError : u8 {
     ElementNodeDocIsNotPendingDoc,
 };
 
-inline StringView request_fullscreen_error_to_string(RequestFullscreenError error)
+inline Utf16String request_fullscreen_error_to_string(RequestFullscreenError error)
 {
     switch (error) {
     case RequestFullscreenError::False:
         break;
     case RequestFullscreenError::ElementReadyCheckFailed:
-        return "Element ready check failed"sv;
+        return "Element ready check failed"_utf16;
     case RequestFullscreenError::UnsupportedElement:
-        return "Not supported element"sv;
+        return "Not supported element"_utf16;
     case RequestFullscreenError::NoTransientUserActivation:
-        return "No transient user activation available to consume"sv;
+        return "No transient user activation available to consume"_utf16;
     case RequestFullscreenError::ElementNodeDocIsNotPendingDoc:
-        return "Element's node document is not pending doc"sv;
+        return "Element's node document is not pending doc"_utf16;
     }
     VERIFY_NOT_REACHED();
 }

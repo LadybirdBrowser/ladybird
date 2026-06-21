@@ -322,7 +322,7 @@ void transform_stream_default_controller_terminate(TransformStreamDefaultControl
     readable_stream_default_controller_close(readable_controller);
 
     // 4. Let error be a TypeError exception indicating that the stream has been terminated.
-    auto error = JS::TypeError::create(realm, "Stream has been terminated."sv);
+    auto error = JS::TypeError::create(realm, "Stream has been terminated."_utf16);
 
     // 5. Perform ! TransformStreamErrorWritableAndUnblockWrite(stream, error).
     transform_stream_error_writable_and_unblock_write(*stream, error);

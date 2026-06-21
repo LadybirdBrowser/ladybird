@@ -137,6 +137,16 @@ static ErrorOr<String> decode_source_text(TextCodec::Decoder& fallback_decoder, 
     return decode_source_text(fallback_decoder, StringView { bytes });
 }
 
+static ErrorOr<Utf16String> decode_source_text_to_utf16(TextCodec::Decoder& fallback_decoder, StringView input)
+{
+    return TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(fallback_decoder, input);
+}
+
+static ErrorOr<Utf16String> decode_source_text_to_utf16(TextCodec::Decoder& fallback_decoder, ReadonlyBytes bytes)
+{
+    return decode_source_text_to_utf16(fallback_decoder, StringView { bytes });
+}
+
 static ReadonlyBytes body_bytes_view(Fetch::Infrastructure::FetchAlgorithms::BodyBytes const& body_bytes)
 {
     return body_bytes.get<Core::ImmutableBytes>().bytes();
@@ -738,7 +748,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
         // Warm-cache fast path: a sidecar arrived with the response. Decode and validate it off-thread, then try to
         // materialize a script straight from the validated cached bytecode without parsing or compiling.
         if (bytecode.has_value()) {
-            auto source_encoding = String::from_utf8(extracted_character_encoding).release_value_but_fixme_should_propagate_errors();
+            auto source_encoding = ByteString { extracted_character_encoding };
             auto source_length = TextCodec::convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(*fallback_decoder, StringView { source_bytes }).release_value_but_fixme_should_propagate_errors();
             prepare_bytecode_cache_off_thread(*bytecode, JS::RustIntegration::ProgramType::Script, source_length, *source_hash,
                 [response_url = move(response_url), response_url_string = move(response_url_string),
@@ -752,7 +762,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                     Optional<NonnullRefPtr<JS::SourceCode const>> source_code;
                     if (bytecode_cache) {
                         source_code = JS::SourceCode::create(
-                            String::from_utf8(response_url_string.view()).release_value_but_fixme_should_propagate_errors(),
+                            Utf16String::from_utf8(response_url_string.view()),
                             source_length,
                             source_encoding,
                             source_byte_storage);
@@ -765,11 +775,11 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                     }
 
                     if (!source_code.has_value()) {
-                        auto fallback_decoder = TextCodec::decoder_for(source_encoding);
+                        auto fallback_decoder = TextCodec::decoder_for(source_encoding.view());
                         VERIFY(fallback_decoder.has_value());
                         source_code = JS::SourceCode::create(
-                            String::from_utf8(response_url_string.view()).release_value_but_fixme_should_propagate_errors(),
-                            Utf16String::from_utf8(decode_source_text(*fallback_decoder, source_byte_storage.bytes()).release_value_but_fixme_should_propagate_errors()));
+                            Utf16String::from_utf8(response_url_string.view()),
+                            decode_source_text_to_utf16(*fallback_decoder, source_byte_storage.bytes()).release_value_but_fixme_should_propagate_errors());
                     }
 
                     compile_off_thread(source_code.release_value(), JS::RustIntegration::ProgramType::Script, 1,
@@ -804,8 +814,8 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
 
         if (!source_code.has_value()) {
             source_code = JS::SourceCode::create(
-                String::from_utf8(response_url_string.view()).release_value_but_fixme_should_propagate_errors(),
-                Utf16String::from_utf8(decode_source_text(*fallback_decoder, source_bytes).release_value_but_fixme_should_propagate_errors()));
+                Utf16String::from_utf8(response_url_string.view()),
+                decode_source_text_to_utf16(*fallback_decoder, source_bytes).release_value_but_fixme_should_propagate_errors());
         }
 
         compile_off_thread(source_code.release_value(), JS::RustIntegration::ProgramType::Script, 1,
@@ -1196,9 +1206,9 @@ void fetch_single_module_script(JS::Realm& realm,
                             Optional<NonnullRefPtr<JS::SourceCode const>> source_code;
                             if (bytecode_cache) {
                                 source_code = JS::SourceCode::create(
-                                    String::from_utf8(url_string.view()).release_value_but_fixme_should_propagate_errors(),
+                                    Utf16String::from_utf8(url_string.view()),
                                     source_length,
-                                    "UTF-8"_string,
+                                    "UTF-8"sv,
                                     source_byte_storage);
                                 auto module_script = ModuleScript::create_from_bytecode_cache(url_string, *source_code, *settings_root, response_url, bytecode_cache.release_nonnull()).release_value_but_fixme_should_propagate_errors();
                                 if (module_script && module_script->parse_error().is_null()) {
@@ -1213,8 +1223,8 @@ void fetch_single_module_script(JS::Realm& realm,
                                 auto fallback_decoder = TextCodec::decoder_for("UTF-8"sv);
                                 VERIFY(fallback_decoder.has_value());
                                 source_code = JS::SourceCode::create(
-                                    String::from_utf8(url_string.view()).release_value_but_fixme_should_propagate_errors(),
-                                    Utf16String::from_utf8(decode_source_text(*fallback_decoder, source_byte_storage.bytes()).release_value_but_fixme_should_propagate_errors()));
+                                    Utf16String::from_utf8(url_string.view()),
+                                    decode_source_text_to_utf16(*fallback_decoder, source_byte_storage.bytes()).release_value_but_fixme_should_propagate_errors());
                             }
 
                             compile_off_thread(source_code.release_value(), JS::RustIntegration::ProgramType::Module, 0,
@@ -1253,8 +1263,8 @@ void fetch_single_module_script(JS::Realm& realm,
 
                 if (!source_code.has_value()) {
                     source_code = JS::SourceCode::create(
-                        String::from_utf8(url_string.view()).release_value_but_fixme_should_propagate_errors(),
-                        Utf16String::from_utf8(decode_source_text(*decoder, source_bytes).release_value_but_fixme_should_propagate_errors()));
+                        Utf16String::from_utf8(url_string.view()),
+                        decode_source_text_to_utf16(*decoder, source_bytes).release_value_but_fixme_should_propagate_errors());
                 }
 
                 compile_off_thread(source_code.release_value(), JS::RustIntegration::ProgramType::Module, 0,
@@ -1307,8 +1317,8 @@ void fetch_single_module_script(JS::Realm& realm,
             if (mime_type.has_value() && mime_type->is_json() && module_type == "json") {
                 auto decoder = TextCodec::decoder_for("UTF-8"sv);
                 VERIFY(decoder.has_value());
-                auto source_text = decode_source_text(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
-                module_script = ModuleScript::create_a_json_module_script(url.to_byte_string(), source_text, settings_object).release_value_but_fixme_should_propagate_errors();
+                auto source_text = decode_source_text_to_utf16(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
+                module_script = ModuleScript::create_a_json_module_script(url.to_byte_string(), source_text.utf16_view(), settings_object).release_value_but_fixme_should_propagate_errors();
             }
         }
 
@@ -1346,10 +1356,10 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-an-inline-module-script-graph
-void fetch_inline_module_script_graph(JS::Realm& realm, ByteString const& filename, ByteString const& source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, OnFetchScriptComplete on_complete)
+void fetch_inline_module_script_graph(JS::Realm& realm, ByteString const& filename, Utf16View source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, OnFetchScriptComplete on_complete)
 {
     // 1. Let script be the result of creating a JavaScript module script using sourceText, settingsObject, baseURL, and options.
-    auto script = ModuleScript::create_a_javascript_module_script(filename, source_text.view(), settings_object, base_url).release_value_but_fixme_should_propagate_errors();
+    auto script = ModuleScript::create_a_javascript_module_script(filename, source_text, settings_object, base_url).release_value_but_fixme_should_propagate_errors();
 
     // 2. Fetch the descendants of and link script, given settingsObject, "script", and onComplete.
     fetch_descendants_of_and_link_a_module_script(realm, *script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);

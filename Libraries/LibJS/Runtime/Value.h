@@ -10,7 +10,6 @@
 
 #include <AK/Assertions.h>
 #include <AK/BitCast.h>
-#include <AK/ByteString.h>
 #include <AK/Format.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>

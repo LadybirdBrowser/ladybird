@@ -69,7 +69,7 @@ ThrowCompletionOr<GC::Ref<Object>> SegmenterConstructor::construct(FunctionObjec
     // 9. Set segmenter.[[SegmenterGranularity]] to granularity.
     segmenter->set_segmenter_granularity(granularity.as_string().utf16_string_view());
 
-    auto locale_segmenter = Unicode::Segmenter::create(result.icu_locale.utf16_view().bytes(), segmenter->segmenter_granularity());
+    auto locale_segmenter = Unicode::Segmenter::create(result.icu_locale.utf16_view(), segmenter->segmenter_granularity());
     segmenter->set_segmenter(move(locale_segmenter));
 
     // 10. Return segmenter.

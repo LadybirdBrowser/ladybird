@@ -8,6 +8,7 @@
 
 #include <AK/Concepts.h>
 #include <AK/Stream.h>
+#include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibJS/Print.h>
@@ -119,7 +120,7 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::ThrowCompletionOr
 ErrorOr<String> strip_ansi(StringView format_string)
 {
     if (format_string.is_empty())
-        return String();
+        return String {};
 
     StringBuilder builder;
     size_t i;

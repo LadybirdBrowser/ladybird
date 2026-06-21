@@ -40,7 +40,7 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
         for (auto const& frame : object->error_data()->traceback()) {
             auto source_range = frame.source_range();
             if (source_range.start.line != 0 || source_range.start.column != 0) {
-                attributes.filename = MUST(String::from_byte_string(source_range.filename()));
+                attributes.filename = source_range.filename().to_utf8();
                 attributes.lineno = source_range.start.line;
                 attributes.colno = source_range.start.column;
                 break;
@@ -52,7 +52,7 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
         for (auto const& frame : vm.stack_trace()) {
             if (frame.source_range.has_value()) {
                 auto const& source_range = *frame.source_range;
-                attributes.filename = MUST(String::from_byte_string(source_range.filename()));
+                attributes.filename = source_range.filename().to_utf8();
                 attributes.lineno = source_range.start.line;
                 attributes.colno = source_range.start.column;
                 break;

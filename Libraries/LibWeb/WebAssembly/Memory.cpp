@@ -35,14 +35,14 @@ WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Bi
     // https://webassembly.github.io/threads/js-api/index.html#dom-memory-memory
     // 3. If maximum is not empty and maximum < initial, throw a RangeError exception.
     if (descriptor.maximum.has_value() && descriptor.maximum.value() < descriptor.initial) {
-        return vm.throw_completion<JS::RangeError>("Initial is larger than maximum."sv);
+        return vm.throw_completion<JS::RangeError>("Initial is larger than maximum."_utf16);
     }
 
     // 4. Let share be shared if descriptor["shared"] is true and unshared otherwise.
     // 5. If share is shared and maximum is empty, throw a TypeError exception.
     auto shared = descriptor.shared;
     if (shared && !descriptor.maximum.has_value())
-        return vm.throw_completion<JS::TypeError>("Maximum has to be specified for shared memory."sv);
+        return vm.throw_completion<JS::TypeError>("Maximum has to be specified for shared memory."_utf16);
 
     Wasm::Limits limits { Wasm::AddressType::I32, descriptor.initial, descriptor.maximum.map([](auto x) -> u64 { return x; }) };
     Wasm::MemoryType memory_type { move(limits) };
@@ -50,7 +50,7 @@ WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Bi
     auto& cache = Detail::get_cache(realm);
     auto address = cache.abstract_machine().store().allocate(memory_type);
     if (!address.has_value())
-        return vm.throw_completion<JS::TypeError>("Wasm Memory allocation failed"sv);
+        return vm.throw_completion<JS::TypeError>("Wasm Memory allocation failed"_utf16);
 
     auto memory_object = realm.create<Memory>(realm, *address, shared ? Shared::Yes : Shared::No);
 
@@ -114,7 +114,7 @@ JS::ThrowCompletionOr<u32> Memory::grow(u32 delta)
 
     auto previous_size = memory->size() / Wasm::Constants::page_size;
     if (!memory->grow(delta * Wasm::Constants::page_size, Wasm::MemoryInstance::GrowType::No, Wasm::MemoryInstance::InhibitGrowCallback::Yes))
-        return vm.throw_completion<JS::RangeError>("Memory.grow() grows past the stated limit of the memory instance"sv);
+        return vm.throw_completion<JS::RangeError>("Memory.grow() grows past the stated limit of the memory instance"_utf16);
 
     refresh_the_memory_buffer(vm, realm(), m_address);
 
@@ -318,7 +318,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_resizable_memor
     // 3. If maxsize > (65536 × 65536),
     if (max_size > (65536 * Wasm::Constants::page_size)) {
         // 1. Throw a RangeError exception.
-        return vm.throw_completion<JS::RangeError>("Maximum memory length exceeds 65536 * 65536 bytes"sv);
+        return vm.throw_completion<JS::RangeError>("Maximum memory length exceeds 65536 * 65536 bytes"_utf16);
     }
 
     // https://webassembly.github.io/threads/js-api/index.html#create-a-resizable-memory-buffer

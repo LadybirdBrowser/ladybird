@@ -8204,7 +8204,7 @@ GC::Ref<WebIDL::Promise> Document::exit_fullscreen()
     // 2. If doc is not fully active or doc’s fullscreen element is null, then reject promise with a TypeError exception
     //    and return promise.
     if (!is_fully_active() || !fullscreen_element()) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Document not fully active or no fullscreen element."sv));
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Document not fully active or no fullscreen element."_utf16));
         return promise;
     }
 

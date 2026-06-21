@@ -634,7 +634,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_o
         // FIXME: This doesn't align with what the other browsers do. Spec issue: https://github.com/whatwg/html/issues/4157
         auto property_key_value = property_key.is_symbol()
             ? JS::Value { property_key.as_symbol() }
-            : JS::PrimitiveString::create(vm, property_key.to_string());
+            : JS::PrimitiveString::create(vm, property_key.to_utf16_string());
         if (m_default_properties.contains_slow(property_key_value))
             descriptor->configurable = true;
 

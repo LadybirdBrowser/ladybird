@@ -7,12 +7,13 @@
 
 #include <AK/Debug.h>
 #include <AK/UnicodeUtils.h>
-#include <AK/Utf16String.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibGfx/Palette.h>
 #include <LibJS/RustFFI.h>
 #include <LibJS/SourceCode.h>
 #include <LibJS/SyntaxHighlighter.h>
 #include <LibJS/Token.h>
+#include <LibTextCodec/Decoder.h>
 
 namespace JS {
 
@@ -101,8 +102,13 @@ static void on_token(void* ctx, FFI::FFIToken const* ffi_token)
 void SyntaxHighlighter::rehighlight(Palette const& palette)
 {
     auto text = m_client->get_text();
-    auto source_utf16 = Utf16String::from_utf8(text);
-    auto source_code = SourceCode::create({}, move(source_utf16));
+    auto source_bytes = MUST(Core::ImmutableBytes::copy(text.bytes()));
+    auto decoder = TextCodec::decoder_for("UTF-8"sv);
+    VERIFY(decoder.has_value());
+    auto source_length = TextCodec::convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(
+        *decoder, StringView { source_bytes.bytes() })
+                             .release_value_but_fixme_should_propagate_errors();
+    auto source_code = SourceCode::create({}, source_length, "UTF-8"sv, move(source_bytes));
     auto const* source_data = source_code->utf16_data();
     auto source_len = source_code->length_in_code_units();
 

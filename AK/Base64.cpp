@@ -44,20 +44,25 @@ static Optional<InvalidBase64> base64_error_from_result(simdutf::result result, 
 
     output.resize((result.count / 4) * 3);
 
-    auto error = [&]() {
+    struct DecodeError {
+        Base64DecodeError decode_error;
+        Error error;
+    };
+
+    auto [decode_error, error] = [&]() -> DecodeError {
         switch (result.error) {
         case simdutf::BASE64_EXTRA_BITS:
-            return Error::from_string_literal("Extra bits found at end of chunk");
+            return { Base64DecodeError::ExtraBits, Error::from_string_literal("Extra bits found at end of chunk") };
         case simdutf::BASE64_INPUT_REMAINDER:
-            return Error::from_string_literal("Invalid trailing data");
+            return { Base64DecodeError::InputRemainder, Error::from_string_literal("Invalid trailing data") };
         case simdutf::INVALID_BASE64_CHARACTER:
-            return Error::from_string_literal("Invalid base64 character");
+            return { Base64DecodeError::InvalidCharacter, Error::from_string_literal("Invalid base64 character") };
         default:
-            return Error::from_string_literal("Invalid base64-encoded data");
+            return { Base64DecodeError::InvalidData, Error::from_string_literal("Invalid base64-encoded data") };
         }
     }();
 
-    return InvalidBase64 { .error = move(error), .valid_input_bytes = result.count };
+    return InvalidBase64 { .decode_error = decode_error, .error = move(error), .valid_input_bytes = result.count };
 }
 
 static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(StringView input, ByteBuffer& output, LastChunkHandling last_chunk_handling, simdutf::base64_options options)

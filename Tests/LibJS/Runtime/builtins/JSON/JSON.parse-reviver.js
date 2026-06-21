@@ -20,6 +20,15 @@ test("reviver context exposes source text of primitive values", () => {
     expect(sources).toEqual(["1.5", '"a"', "true", "null", "2", undefined, undefined]);
 });
 
+test("reviver context preserves non-ASCII source text", () => {
+    const sources = [];
+    JSON.parse('["é", "\\u00e9", "😀"]', function (key, value, context) {
+        if (key !== "") sources.push(context.source);
+        return value;
+    });
+    expect(sources).toEqual(['"é"', '"\\u00e9"', '"😀"']);
+});
+
 test("reviver context has no source for forward-modified values", () => {
     const result = JSON.parse("[1, 2]", function (key, value, { source }) {
         if (key === "0") this[1] = { injected: true };

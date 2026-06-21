@@ -367,7 +367,7 @@ ThrowCompletionOr<Value> Console::trace()
         if (element.source_range.has_value()) {
             auto const& source_range = *element.source_range;
             if (!source_range.filename().is_empty()) {
-                frame.source_file = MUST(String::from_byte_string(source_range.filename()));
+                frame.source_file = source_range.filename();
                 frame.line = source_range.start.line;
                 frame.column = source_range.start.column;
             }

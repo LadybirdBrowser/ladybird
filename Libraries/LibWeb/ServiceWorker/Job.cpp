@@ -442,7 +442,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         if (job->client) {
             auto& realm = job->client->realm();
             auto context = HTML::TemporaryExecutionContext(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            WebIDL::reject_promise(realm, *job->job_promise, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Run Service Worker"sv).value());
+            WebIDL::reject_promise(realm, *job->job_promise, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Run Service Worker"_utf16).value());
             finish_job(vm, job);
         }
     });
@@ -470,7 +470,7 @@ static void unregister(JS::VM& vm, GC::Ref<Job> job)
     if (job->client) {
         auto& realm = job->client->realm();
         auto context = HTML::TemporaryExecutionContext(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        WebIDL::reject_promise(realm, *job->job_promise, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Service Worker unregistration"sv).value());
+        WebIDL::reject_promise(realm, *job->job_promise, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Service Worker unregistration"_utf16).value());
         finish_job(vm, job);
     }
 }

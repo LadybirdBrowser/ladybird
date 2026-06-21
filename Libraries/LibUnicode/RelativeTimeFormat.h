@@ -42,7 +42,7 @@ Utf16String numeric_display_to_string(NumericDisplay);
 
 class RelativeTimeFormat {
 public:
-    static NonnullOwnPtr<RelativeTimeFormat> create(StringView locale, Style style);
+    static NonnullOwnPtr<RelativeTimeFormat> create(Utf16View locale, Style style);
     virtual ~RelativeTimeFormat() = default;
 
     struct Partition {

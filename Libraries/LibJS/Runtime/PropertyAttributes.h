@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Format.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 
 namespace JS {
@@ -76,14 +76,14 @@ static constexpr PropertyAttributes default_attributes = Attribute::Configurable
 namespace AK {
 
 template<>
-struct Formatter<JS::PropertyAttributes> : Formatter<StringView> {
+struct Formatter<JS::PropertyAttributes> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, JS::PropertyAttributes const& property_attributes)
     {
-        Vector<ByteString> parts;
-        parts.append(ByteString::formatted("[[Writable]]: {}", property_attributes.is_writable()));
-        parts.append(ByteString::formatted("[[Enumerable]]: {}", property_attributes.is_enumerable()));
-        parts.append(ByteString::formatted("[[Configurable]]: {}", property_attributes.is_configurable()));
-        return Formatter<StringView>::format(builder, ByteString::formatted("PropertyAttributes {{ {} }}", ByteString::join(", "sv, parts)));
+        Vector<Utf16String> parts;
+        TRY(parts.try_append(Utf16String::formatted("[[Writable]]: {}", property_attributes.is_writable())));
+        TRY(parts.try_append(Utf16String::formatted("[[Enumerable]]: {}", property_attributes.is_enumerable())));
+        TRY(parts.try_append(Utf16String::formatted("[[Configurable]]: {}", property_attributes.is_configurable())));
+        return Formatter<Utf16String> {}.format(builder, Utf16String::formatted("PropertyAttributes {{ {} }}", Utf16String::join(", "sv, parts)));
     }
 };
 

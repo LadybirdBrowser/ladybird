@@ -22,9 +22,13 @@ bool g_dump_ast_use_color = false;
 GC_DEFINE_ALLOCATOR(Script);
 
 // 16.1.5 ParseScript ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parse-script
-Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(Utf16View source_text, Realm& realm, StringView filename, HostDefined* host_defined, size_t line_number_offset)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(Utf16View source_text, Realm& realm, StringView filename, Utf16View display_filename, HostDefined* host_defined, size_t line_number_offset)
 {
-    auto rust_compilation = RustIntegration::compile_script(source_text, realm, filename, line_number_offset);
+    auto fallback_display_filename = display_filename.is_empty() ? Utf16String::from_utf8(filename) : Utf16String {};
+    if (display_filename.is_empty())
+        display_filename = fallback_display_filename.utf16_view();
+
+    auto rust_compilation = RustIntegration::compile_script(source_text, realm, display_filename, line_number_offset);
     if (!rust_compilation.has_value())
         return Vector<ParserError> {};
     if (rust_compilation->is_error())
@@ -32,9 +36,8 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(Utf16View source_text
     return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), ExecutableBacking::source(), host_defined);
 }
 
-Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, HostDefined* host_defined)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, HostDefined* host_defined)
 {
-    auto filename = source_code->filename();
     auto rust_compilation = RustIntegration::compile_parsed_script(parsed, move(source_code), realm);
     if (!rust_compilation.has_value())
         return Vector<ParserError> {};
@@ -43,9 +46,8 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_parsed(FFI::Par
     return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), ExecutableBacking::source(), host_defined);
 }
 
-Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm, HostDefined* host_defined)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, HostDefined* host_defined)
 {
-    auto filename = source_code->filename();
     auto rust_compilation = RustIntegration::materialize_compiled_script(compiled, move(source_code), realm);
     if (!rust_compilation.has_value())
         return Vector<ParserError> {};
@@ -54,9 +56,8 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_compiled(FFI::C
     return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), ExecutableBacking::heap_bytecode(), host_defined);
 }
 
-Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, HostDefined* host_defined)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, HostDefined* host_defined)
 {
-    auto filename = source_code->filename();
     auto rust_compilation = RustIntegration::materialize_bytecode_cache_script(bytecode_cache, move(source_code), realm);
     if (!rust_compilation.has_value())
         return Vector<ParserError> {};

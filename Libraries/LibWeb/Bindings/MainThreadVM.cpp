@@ -104,7 +104,7 @@ void initialize_main_thread_vm(AgentType type)
     main_thread_vm_ptr()->set_agent(create_agent(main_thread_vm_ptr()->heap(), type));
 
     main_thread_vm_ptr()->on_unimplemented_property_access = [](auto const& object, auto const& property_key) {
-        dbgln("FIXME: Unimplemented IDL interface: '{}.{}'", object.class_name(), property_key.to_string());
+        dbgln("FIXME: Unimplemented IDL interface: '{}.{}'", object.class_name(), property_key.to_utf16_string());
     };
 
     // NOTE: We intentionally leak the main thread JavaScript VM.
@@ -115,7 +115,7 @@ void initialize_main_thread_vm(AgentType type)
     main_thread_vm_ptr()->host_ensure_can_add_private_element = [](JS::Object const& object) -> JS::ThrowCompletionOr<void> {
         // 1. If O is a WindowProxy object, or implements Location, then return ThrowCompletion(a new TypeError).
         if (is<HTML::WindowProxy>(object) || is<HTML::Location>(object))
-            return main_thread_vm_ptr()->throw_completion<JS::TypeError>("Cannot add private elements to window or location object"sv);
+            return main_thread_vm_ptr()->throw_completion<JS::TypeError>("Cannot add private elements to window or location object"_utf16);
 
         // 2. Return NormalCompletion(unused).
         return {};
@@ -440,7 +440,7 @@ void initialize_main_thread_vm(AgentType type)
         // 2. If settingsObject's global object implements WorkletGlobalScope or ServiceWorkerGlobalScope and loadState is undefined, then:
         if ((is<HTML::WorkletGlobalScope>(settings_object->global_object()) || is<ServiceWorker::ServiceWorkerGlobalScope>(settings_object->global_object())) && !load_state) {
             // 1. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(a new TypeError)).
-            auto completion = JS::throw_completion(JS::TypeError::create(settings_object->realm(), "Dynamic Import not available for Worklets or ServiceWorkers"_string));
+            auto completion = JS::throw_completion(JS::TypeError::create(settings_object->realm(), "Dynamic Import not available for Worklets or ServiceWorkers"_utf16));
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
             // 2. Return.
@@ -481,7 +481,7 @@ void initialize_main_thread_vm(AgentType type)
                             continue;
 
                         // 1. Let error be a new SyntaxError exception.
-                        auto error = JS::SyntaxError::create(settings_object->realm(), "Module request attributes must only contain a type attribute"_string);
+                        auto error = JS::SyntaxError::create(settings_object->realm(), "Module request attributes must only contain a type attribute"_utf16);
 
                         // 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
                         if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
@@ -523,7 +523,7 @@ void initialize_main_thread_vm(AgentType type)
                 // 5. If the result of running the module type allowed steps given moduleType and settingsObject is false, then:
                 if (!HTML::module_type_allowed(settings_object, module_type)) {
                     // 1. Let error be a new TypeError exception.
-                    auto error = JS::TypeError::create(settings_object->realm(), MUST(String::formatted("Module type '{}' is not supported", module_type)));
+                    auto error = JS::TypeError::create(settings_object->realm(), Utf16String::formatted("Module type '{}' is not supported", module_type));
 
                     // 2. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to error.
                     if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
@@ -605,7 +605,7 @@ void initialize_main_thread_vm(AgentType type)
             auto completion = [&]() -> JS::ThrowCompletionOr<GC::Ref<JS::Module>> {
                 // 2. If moduleScript is null, then set completion to ThrowCompletion(a new TypeError).
                 if (!module_script) {
-                    return JS::throw_completion(JS::TypeError::create(realm, ByteString::formatted("Loading imported module '{}' failed.", module_request.module_specifier)));
+                    return JS::throw_completion(JS::TypeError::create(realm, Utf16String::formatted("Loading imported module '{}' failed.", module_request.module_specifier)));
                 }
                 // 3. Otherwise, if moduleScript's parse error is not null, then:
                 else if (!module_script->parse_error().is_null()) {

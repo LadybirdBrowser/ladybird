@@ -151,7 +151,7 @@ struct RoundingOptions {
 class NumberFormat {
 public:
     static NonnullOwnPtr<NumberFormat> create(
-        StringView locale,
+        Utf16View locale,
         DisplayOptions const&,
         RoundingOptions const&);
 

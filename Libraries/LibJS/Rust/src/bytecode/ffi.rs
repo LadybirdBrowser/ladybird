@@ -370,10 +370,11 @@ unsafe extern "C" {
         pattern_len: usize,
         flags_data: *const u16,
         flags_len: usize,
-        error_out: *mut *const std::os::raw::c_char,
+        error_out: *mut *const u16,
+        error_len_out: *mut usize,
     ) -> *mut c_void;
 
-    pub fn rust_free_error_string(str: *const std::os::raw::c_char);
+    pub fn rust_free_error_string(str: *const u16);
 
     pub fn rust_number_to_utf16(value: f64, buffer: *mut u16, buffer_len: usize) -> usize;
 
@@ -950,20 +951,22 @@ pub fn js_number_to_utf16(value: f64) -> Utf16String {
 ///
 /// On success, returns an opaque handle to the compiled regex (a C++
 /// RustCompiledRegex*). On failure, returns the error message.
-pub fn compile_regex(pattern: &[u16], flags: &[u16]) -> Result<*mut c_void, String> {
+pub fn compile_regex(pattern: &[u16], flags: &[u16]) -> Result<*mut c_void, Utf16String> {
     unsafe {
-        let mut error: *const std::os::raw::c_char = std::ptr::null();
+        let mut error: *const u16 = std::ptr::null();
+        let mut error_len = 0usize;
         let handle = rust_compile_regex(
             pattern.as_ptr(),
             pattern.len(),
             flags.as_ptr(),
             flags.len(),
             &raw mut error,
+            &raw mut error_len,
         );
         if error.is_null() {
             Ok(handle)
         } else {
-            let msg = std::ffi::CStr::from_ptr(error).to_string_lossy().into_owned();
+            let msg = Utf16String(std::slice::from_raw_parts(error, error_len).to_vec());
             rust_free_error_string(error);
             Err(msg)
         }

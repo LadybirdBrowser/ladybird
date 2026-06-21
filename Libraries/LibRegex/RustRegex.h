@@ -9,6 +9,7 @@
 #include <AK/Error.h>
 #include <AK/Noncopyable.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibRegex/Export.h>
@@ -17,7 +18,7 @@
 namespace regex {
 
 struct RustNamedCaptureGroup {
-    String name;
+    Utf16FlyString name;
     unsigned int index;
 };
 

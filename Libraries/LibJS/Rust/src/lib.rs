@@ -252,8 +252,27 @@ unsafe fn source_from_raw<'a>(source: *const u16, len: usize) -> Option<&'a [u16
 
 /// Callback type for reporting parse errors to C++.
 pub type ParseErrorCallback = Option<
-    unsafe extern "C" fn(ctx: *mut c_void, message: *const u8, message_len: usize, line: u32, column: u32) -> (),
+    unsafe extern "C" fn(ctx: *mut c_void, message: *const u16, message_len: usize, line: u32, column: u32) -> (),
 >;
+
+unsafe fn report_parse_error(
+    callback: unsafe extern "C" fn(
+        ctx: *mut c_void,
+        message: *const u16,
+        message_len: usize,
+        line: u32,
+        column: u32,
+    ) -> (),
+    context: *mut c_void,
+    message: &str,
+    line: u32,
+    column: u32,
+) {
+    let message_utf16: Vec<u16> = message.encode_utf16().collect();
+    unsafe {
+        callback(context, message_utf16.as_ptr(), message_utf16.len(), line, column);
+    }
+}
 
 /// Check for errors, optionally reporting them via a C++ callback.
 fn check_errors_with_callback(
@@ -264,9 +283,8 @@ fn check_errors_with_callback(
     if parser.has_errors() {
         if let Some(cb) = error_callback {
             for err in parser.errors() {
-                let msg = &err.message;
                 unsafe {
-                    cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+                    report_parse_error(cb, error_context, &err.message, err.line, err.column);
                 }
             }
         }
@@ -275,9 +293,8 @@ fn check_errors_with_callback(
     if parser.scope_collector.has_errors() {
         if let Some(cb) = error_callback {
             for err in parser.scope_collector.drain_errors() {
-                let msg = &err.message;
                 unsafe {
-                    cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+                    report_parse_error(cb, error_context, &err.message, err.line, err.column);
                 }
             }
         }
@@ -680,8 +697,13 @@ pub unsafe extern "C" fn rust_parsed_program_take_errors(
     unsafe {
         let parsed = &mut *parsed;
         for err in parsed.errors.drain(..) {
-            let msg = err.message.as_bytes();
-            error_callback.unwrap()(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+            report_parse_error(
+                error_callback.unwrap(),
+                error_context,
+                &err.message,
+                err.line,
+                err.column,
+            );
         }
     }
 }
@@ -1552,13 +1574,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
                             .message
                             .unwrap_or_else(|| format!("Unexpected token {}", token.token_type.name()));
                         if let Some(cb) = error_callback {
-                            cb(
-                                error_context,
-                                msg.as_ptr(),
-                                msg.len(),
-                                token.line_number,
-                                token.line_column,
-                            );
+                            report_parse_error(cb, error_context, &msg, token.line_number, token.line_column);
                         }
                         return std::ptr::null_mut();
                     }
@@ -1642,8 +1658,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             if parser.scope_collector.has_errors() {
                 if let Some(cb) = error_callback {
                     for err in parser.scope_collector.drain_errors() {
-                        let msg = &err.message;
-                        cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+                        report_parse_error(cb, error_context, &err.message, err.line, err.column);
                     }
                 }
                 return std::ptr::null_mut();
@@ -1678,8 +1693,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
 
             let Some(function_id) = function_id else {
                 if let Some(cb) = error_callback {
-                    let msg = "Failed to parse dynamic function";
-                    cb(error_context, msg.as_ptr(), msg.len(), 0, 0);
+                    report_parse_error(cb, error_context, "Failed to parse dynamic function", 0, 0);
                 }
                 return std::ptr::null_mut();
             };

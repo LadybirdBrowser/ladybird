@@ -75,7 +75,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ModuleNamespaceObject::internal_
 
     // 2. Let exports be O.[[Exports]].
     // 3. If P is not an element of exports, return undefined.
-    auto export_element = m_exports.find(property_key.to_string());
+    auto export_element = m_exports.find(property_key.to_utf16_string());
     if (export_element.is_end())
         return Optional<PropertyDescriptor> {};
 
@@ -133,7 +133,7 @@ ThrowCompletionOr<bool> ModuleNamespaceObject::internal_has_property(PropertyKey
 
     // 2. Let exports be O.[[Exports]].
     // 3. If P is an element of exports, return true.
-    auto export_element = m_exports.find(property_key.to_string());
+    auto export_element = m_exports.find(property_key.to_utf16_string());
     if (!export_element.is_end())
         return true;
 
@@ -154,13 +154,13 @@ ThrowCompletionOr<Value> ModuleNamespaceObject::internal_get(PropertyKey const& 
 
     // 2. Let exports be O.[[Exports]].
     // 3. If P is not an element of exports, return undefined.
-    auto export_element = m_exports.find(property_key.to_string());
+    auto export_element = m_exports.find(property_key.to_utf16_string());
     if (export_element.is_end())
         return js_undefined();
 
     // 4. Let m be O.[[Module]].
     // 5. Let binding be m.ResolveExport(P).
-    auto binding = m_module->resolve_export(vm, property_key.to_string());
+    auto binding = m_module->resolve_export(vm, property_key.to_utf16_string());
 
     // 6. Assert: binding is a ResolvedBinding Record.
     VERIFY(binding.is_valid());
@@ -206,7 +206,7 @@ ThrowCompletionOr<bool> ModuleNamespaceObject::internal_delete(PropertyKey const
 
     // 2. Let exports be O.[[Exports]].
     // 3. If P is an element of exports, return false.
-    auto export_element = m_exports.find(property_key.to_string());
+    auto export_element = m_exports.find(property_key.to_utf16_string());
     if (!export_element.is_end())
         return false;
 

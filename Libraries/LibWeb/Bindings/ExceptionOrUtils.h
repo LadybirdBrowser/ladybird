@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -62,11 +63,11 @@ ALWAYS_INLINE JS::Completion exception_to_throw_completion(JS::VM& vm, auto&& ex
 {
     return exception.visit(
         [&](WebIDL::SimpleException const& exception) {
-            auto message = exception.message.visit([](auto const& s) -> StringView { return s; });
+            auto message = exception.message.visit([](auto const& s) { return Utf16String::from_utf8(s); });
             switch (exception.type) {
 #define E(x)                             \
     case WebIDL::SimpleExceptionType::x: \
-        return vm.template throw_completion<JS::x>(message);
+        return vm.template throw_completion<JS::x>(message.utf16_view());
 
                 ENUMERATE_SIMPLE_WEBIDL_EXCEPTION_TYPES(E)
 

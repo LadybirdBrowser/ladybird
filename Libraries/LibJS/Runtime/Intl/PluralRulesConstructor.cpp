@@ -89,7 +89,7 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
 
     // Non-standard, create an ICU number formatter for this Intl object.
     auto formatter = Unicode::NumberFormat::create(
-        result.icu_locale.utf16_view().bytes(),
+        result.icu_locale.utf16_view(),
         plural_rules->display_options(),
         plural_rules->rounding_options());
 

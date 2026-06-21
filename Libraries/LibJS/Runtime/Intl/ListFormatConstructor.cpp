@@ -78,7 +78,7 @@ ThrowCompletionOr<GC::Ref<Object>> ListFormatConstructor::construct(FunctionObje
     // 12. Let dataLocaleTypes be resolvedLocaleData.[[<type>]].
     // 13. Set listFormat.[[Templates]] to dataLocaleTypes.[[<style>]].
     auto formatter = Unicode::ListFormat::create(
-        result.icu_locale.utf16_view().bytes(),
+        result.icu_locale.utf16_view(),
         list_format->type(),
         list_format->style());
     list_format->set_formatter(move(formatter));

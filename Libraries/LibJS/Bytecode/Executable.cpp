@@ -358,12 +358,16 @@ static void dump_header(StringBuilder& output, Executable const& executable)
 
     // Show source location if available.
     if (first_source_map_entry) {
-        auto filename = executable.source_code->filename();
+        auto filename = executable.source_code->filename().utf16_view();
         if (!filename.is_empty()) {
             // Show just the basename to keep output portable across machines.
-            auto last_slash = filename.bytes_as_string_view().find_last('/');
+            Optional<size_t> last_slash;
+            for (size_t i = 0; i < filename.length_in_code_units(); ++i) {
+                if (filename.code_unit_at(i) == '/')
+                    last_slash = i;
+            }
             if (last_slash.has_value())
-                filename = MUST(filename.substring_from_byte_offset(last_slash.value() + 1));
+                filename = filename.substring_view(last_slash.value() + 1);
             output.appendff(" {}:{}:{}", filename, first_source_map_entry->line, first_source_map_entry->column);
         } else {
             output.appendff(" line {}, column {}", first_source_map_entry->line, first_source_map_entry->column);

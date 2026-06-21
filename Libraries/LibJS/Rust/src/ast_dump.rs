@@ -13,13 +13,6 @@ use crate::ast::*;
 use std::cell::RefCell;
 use std::fmt::Write;
 
-unsafe extern "C" {
-    // FIXME: This FFI workaround exists only to match C++ float-to-string
-    //        formatting in the AST dump. Once the C++ pipeline is removed,
-    //        this can be deleted and we can use our own formatting.
-    fn rust_format_double(value: f64, buffer: *mut u8, buffer_len: usize) -> usize;
-}
-
 /// Defines a function that maps enum variants to static string slices.
 macro_rules! op_to_string {
     ($name:ident, $enum_type:ty, { $($variant:ident => $str:literal),+ $(,)? }) => {
@@ -224,30 +217,9 @@ fn utf16_to_string(s: &[u16]) -> String {
         .collect()
 }
 
-/// Format f64 matching the C++ AK::Formatter<double> output exactly.
-///
-/// FIXME: This calls into C++ via FFI to guarantee identical output.
-///        Once the C++ pipeline is removed, this can be replaced with
-///        a native implementation.
+/// Format f64 matching the C++ Number::toString output exactly.
 fn format_f64(value: f64) -> String {
-    // C++ AST dump formats JS::Value which uses to_utf16_string_without_side_effects(),
-    // producing "Infinity"/"-Infinity"/"NaN". The rust_format_double FFI uses
-    // AK's double formatter which produces "inf"/"-inf"/"nan" instead.
-    if value.is_nan() {
-        return "NaN".to_string();
-    }
-    if value.is_infinite() {
-        return if value > 0.0 {
-            "Infinity".to_string()
-        } else {
-            "-Infinity".to_string()
-        };
-    }
-    let mut buffer = [0u8; 128];
-    let length = unsafe { rust_format_double(value, buffer.as_mut_ptr(), buffer.len()) };
-    std::str::from_utf8(&buffer[..length])
-        .expect("C++ produced invalid UTF-8")
-        .to_string()
+    utf16_to_string(&crate::bytecode::ffi::js_number_to_utf16(value))
 }
 
 op_to_string!(binary_op_to_string, BinaryOp, {
@@ -681,11 +653,12 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
         }
 
         ExpressionKind::BigIntLiteral(value) => {
+            let value = utf16_to_string(&value.0);
             dump_node!(
                 state,
                 "BigIntLiteral",
                 &expression.range,
-                color_number_str(state, value)
+                color_number_str(state, &value)
             );
         }
 

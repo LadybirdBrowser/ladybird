@@ -986,11 +986,11 @@ private:
 };
 
 NonnullOwnPtr<NumberFormat> NumberFormat::create(
-    StringView locale,
+    Utf16View locale,
     DisplayOptions const& display_options,
     RoundingOptions const& rounding_options)
 {
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     VERIFY(locale_data.has_value());
 
     auto formatter = icu::number::NumberFormatter::withLocale(locale_data->locale());

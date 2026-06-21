@@ -521,8 +521,8 @@ static T find_regional_values_for_locale(StringView locale, GetRegionalValues&& 
         return return_default_values();
 
     if (!language->region.has_value()) {
-        if (auto maximized = add_likely_subtags(language->to_string()); maximized.has_value())
-            language = parse_unicode_language_id(maximized->utf16_view().bytes());
+        if (auto maximized = add_likely_subtags(language->to_utf16_string()); maximized.has_value())
+            language = parse_unicode_language_id(maximized->utf16_view());
     }
 
     if (!language.has_value() || !language->region.has_value())
@@ -622,7 +622,7 @@ static bool apply_hour_cycle_to_skeleton(icu::UnicodeString& skeleton, Optional<
     return changed_hour_cycle;
 }
 
-static void apply_time_zone_to_formatter(icu::SimpleDateFormat& formatter, icu::Locale const& locale, StringView time_zone_identifier)
+static void apply_time_zone_to_formatter(icu::SimpleDateFormat& formatter, icu::Locale const& locale, Utf16View time_zone_identifier)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -672,7 +672,7 @@ static bool is_formatted_range_actually_a_range(icu::FormattedDateInterval const
 
 class DateTimeFormatImpl : public DateTimeFormat {
 public:
-    DateTimeFormatImpl(icu::Locale& locale, icu::UnicodeString const& pattern, StringView time_zone_identifier, NonnullOwnPtr<icu::SimpleDateFormat> formatter)
+    DateTimeFormatImpl(icu::Locale& locale, icu::UnicodeString const& pattern, Utf16View time_zone_identifier, NonnullOwnPtr<icu::SimpleDateFormat> formatter)
         : m_locale(locale)
         , m_pattern(CalendarPattern::create_from_pattern(icu_string_to_string(pattern)))
         , m_formatter(move(formatter))
@@ -883,8 +883,8 @@ private:
 };
 
 NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
-    StringView locale,
-    StringView time_zone_identifier,
+    Utf16View locale,
+    Utf16View time_zone_identifier,
     Optional<HourCycle> const& hour_cycle,
     Optional<bool> const& hour12,
     Optional<DateTimeStyle> const& date_style,
@@ -892,7 +892,7 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     VERIFY(locale_data.has_value());
 
     auto formatter = adopt_own(*as<icu::SimpleDateFormat>([&]() {
@@ -931,13 +931,13 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
 }
 
 NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_pattern_options(
-    StringView locale,
-    StringView time_zone_identifier,
+    Utf16View locale,
+    Utf16View time_zone_identifier,
     CalendarPattern const& options)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     VERIFY(locale_data.has_value());
 
     icu::UnicodeString pattern;

@@ -98,13 +98,13 @@ GC::Ref<WebIDL::Promise> WritableStream::close()
 
     // 1. If ! IsWritableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(*this)) {
-        auto exception = JS::TypeError::create(realm, "Cannot close a locked stream"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot close a locked stream"_utf16);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 2. If ! WritableStreamCloseQueuedOrInFlight(this) is true, return a promise rejected with a TypeError exception.
     if (writable_stream_close_queued_or_in_flight(*this)) {
-        auto exception = JS::TypeError::create(realm, "Cannot close a stream that is already closed or errored"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot close a stream that is already closed or errored"_utf16);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
@@ -119,7 +119,7 @@ GC::Ref<WebIDL::Promise> WritableStream::abort(Optional<JS::Value> reason)
 
     // 1. If ! IsWritableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(*this)) {
-        auto exception = JS::TypeError::create(realm, "Cannot abort a locked stream"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot abort a locked stream"_utf16);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 

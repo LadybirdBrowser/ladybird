@@ -51,7 +51,7 @@ GC::Ref<PrimitiveString> FunctionObject::make_function_name(Variant<PropertyKey,
     }
     // NOTE: This is necessary as we use a different parameter name.
     else {
-        name = name_arg.get<PropertyKey>().to_string();
+        name = name_arg.get<PropertyKey>().to_utf16_string();
     }
 
     // 4. If F has an [[InitialName]] internal slot, then

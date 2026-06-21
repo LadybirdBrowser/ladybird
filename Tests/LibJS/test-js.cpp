@@ -7,6 +7,7 @@
 
 #include <AK/Enumerate.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <LibCore/TimeZone.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Date.h>
@@ -159,7 +160,7 @@ TESTJS_GLOBAL_FUNCTION(set_time_zone, setTimeZone)
     auto time_zone = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
 
     if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
-        return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
+        return vm.throw_completion<JS::InternalError>(Utf16String::formatted("Could not set time zone: {}", result.error()));
 
     JS::clear_system_time_zone_cache();
     return current_time_zone_string;

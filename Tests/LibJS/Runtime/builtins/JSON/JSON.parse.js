@@ -132,6 +132,16 @@ test("unicode and surrogate pairs", () => {
     // Lone surrogates (valid JSON)
     expect(JSON.parse('"\\uD800"')).toBe("\uD800");
     expect(JSON.parse('"\\uDFFF"')).toBe("\uDFFF");
+
+    const actualHighSurrogate = JSON.parse('"\uD800"');
+    expect(actualHighSurrogate).toHaveLength(1);
+    expect(actualHighSurrogate.charCodeAt(0)).toBe(0xd800);
+
+    const actualLowSurrogate = JSON.parse('"\uDC00"');
+    expect(actualLowSurrogate).toHaveLength(1);
+    expect(actualLowSurrogate.charCodeAt(0)).toBe(0xdc00);
+
+    expect(JSON.parse('{"\uD800":"\uDC00"}')["\uD800"].charCodeAt(0)).toBe(0xdc00);
 });
 
 test("whitespace handling", () => {

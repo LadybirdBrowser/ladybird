@@ -363,7 +363,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::ends_with)
         return vm.throw_completion<TypeError>(ErrorType::IsNotA, "searchString", "string, but a regular expression");
 
     // 5. Let searchStr be ? ToString(searchString).
-    auto search_string = TRY(search_string_value.to_primitive_string(vm));
+    auto search_string = TRY(search_string_value.to_utf16_string(vm));
 
     // 6. Let len be the length of S.
     auto string_length = string->length_in_utf16_code_units();
@@ -378,7 +378,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::ends_with)
     }
 
     // 9. Let searchLength be the length of searchStr.
-    auto search_length = search_string->length_in_utf16_code_units();
+    auto search_length = search_string.length_in_code_units();
 
     // 10. If searchLength = 0, return true.
     if (search_length == 0)
@@ -396,7 +396,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::ends_with)
 
     // 14. If substring is searchStr, return true.
     // 15. Return false.
-    return Value(substring_view == search_string->utf16_string_view());
+    return Value(substring_view == search_string);
 }
 
 // 22.1.3.8 String.prototype.includes ( searchString [ , position ] ), https://tc39.es/ecma262/#sec-string.prototype.includes
@@ -417,7 +417,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::includes)
         return vm.throw_completion<TypeError>(ErrorType::IsNotA, "searchString", "string, but a regular expression");
 
     // 5. Let searchStr be ? ToString(searchString).
-    auto search_string = TRY(search_string_value.to_primitive_string(vm));
+    auto search_string = TRY(search_string_value.to_utf16_string(vm));
 
     size_t start = 0;
     if (!position.is_undefined()) {
@@ -431,7 +431,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::includes)
     }
 
     // 10. Let index be StringIndexOf(S, searchStr, start).
-    auto index = string_index_of(string->utf16_string_view(), search_string->utf16_string_view(), start);
+    auto index = string_index_of(string->utf16_string_view(), search_string, start);
 
     // 11. If index ≠ -1, return true.
     // 12. Return false.
@@ -446,10 +446,10 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::index_of)
     auto string = TRY(primitive_string_from(vm));
 
     // 3. Let searchStr be ? ToString(searchString).
-    auto search_string = TRY(vm.argument(0).to_primitive_string(vm));
+    auto search_string = TRY(vm.argument(0).to_utf16_string(vm));
 
     auto utf16_string_view = string->utf16_string_view();
-    auto utf16_search_view = search_string->utf16_string_view();
+    auto utf16_search_view = search_string.utf16_view();
 
     size_t start = 0;
     if (vm.argument_count() > 1) {
@@ -487,7 +487,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::last_index_of)
     auto string = TRY(primitive_string_from(vm));
 
     // 4. Let searchStr be ? ToString(searchString).
-    auto search_string = TRY(vm.argument(0).to_primitive_string(vm));
+    auto search_string = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 5. Let numPos be ? ToNumber(position).
     // 6. Assert: If position is undefined, then numPos is NaN.
@@ -500,7 +500,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::last_index_of)
     auto string_length = string->length_in_utf16_code_units();
 
     // 9. Let searchLen be the length of searchStr.
-    auto search_length = search_string->length_in_utf16_code_units();
+    auto search_length = search_string.length_in_code_units();
 
     // 10. If len < searchLen, return -1𝔽.
     if (string_length < search_length)
@@ -510,7 +510,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::last_index_of)
     size_t start = clamp(pos, static_cast<double>(0), static_cast<double>(string_length - search_length));
 
     // 12. Let result be StringLastIndexOf(S, searchStr, start).
-    auto result = string_last_index_of(string->utf16_string_view(), search_string->utf16_string_view(), start);
+    auto result = string_last_index_of(string->utf16_string_view(), search_string, start);
 
     // 13. If result is NOT-FOUND, return -1𝔽.
     if (!result.has_value())
@@ -874,10 +874,10 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace)
 
     // 5. Let functionalReplace be IsCallable(replaceValue).
     // 6. If functionalReplace is false, then
+    Optional<Utf16String> replace_string;
     if (!replace_value.is_function()) {
         // a. Set replaceValue to ? ToString(replaceValue).
-        auto replace_string = TRY(replace_value.to_primitive_string(vm));
-        replace_value = replace_string;
+        replace_string = TRY(replace_value.to_utf16_string(vm));
     }
 
     // 7. Let searchLength be the length of searchString.
@@ -906,13 +906,13 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace)
     // 13. Else,
     else {
         // a. Assert: replaceValue is a String.
-        VERIFY(replace_value.is_string());
+        VERIFY(replace_string.has_value());
 
         // b. Let captures be a new empty List.
         Span<Value> captures;
 
         // c. Let replacement be ! GetSubstitution(searchString, string, position, captures, undefined, replaceValue).
-        replacement = TRY(get_substitution(vm, search_string->utf16_string_view(), string->utf16_string_view(), *position, captures, js_undefined(), replace_value));
+        replacement = TRY(get_substitution(vm, search_string->utf16_string_view(), string->utf16_string_view(), *position, captures, js_undefined(), *replace_string));
     }
 
     // 14. Return the string-concatenation of preceding, replacement, and following.
@@ -976,10 +976,10 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
 
     // 5. Let functionalReplace be IsCallable(replaceValue).
     // 6. If functionalReplace is false, then
+    Optional<Utf16String> replace_string;
     if (!replace_value.is_function()) {
         // a. Set replaceValue to ? ToString(replaceValue).
-        auto replace_string = TRY(replace_value.to_primitive_string(vm));
-        replace_value = replace_string;
+        replace_string = TRY(replace_value.to_utf16_string(vm));
     }
 
     // 7. Let searchLength be the length of searchString.
@@ -1023,9 +1023,10 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
         // c. Else,
         else {
             // i. Assert: replaceValue is a String.
+            VERIFY(replace_string.has_value());
             // ii. Let captures be a new empty List.
             // iii. Let replacement be ! GetSubstitution(searchString, string, p, captures, undefined, replaceValue).
-            replacement = TRY(get_substitution(vm, search_string->utf16_string_view(), string->utf16_string_view(), position, {}, js_undefined(), replace_value));
+            replacement = TRY(get_substitution(vm, search_string->utf16_string_view(), string->utf16_string_view(), position, {}, js_undefined(), *replace_string));
         }
 
         // d. Set result to the string-concatenation of result, preserved, and replacement.
@@ -1172,7 +1173,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
         limit = TRY(limit_argument.to_u32(vm));
 
     // 6. Let separatorStr be ? ToString(separator).
-    auto separator = TRY(separator_argument.to_primitive_string(vm));
+    auto separator = TRY(separator_argument.to_utf16_string(vm));
 
     // 7. If lim = 0, then
     if (limit == 0) {
@@ -1190,7 +1191,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
     }
 
     // 9. Let separatorLength be the length of separatorStr.
-    auto separator_length = separator->length_in_utf16_code_units();
+    auto separator_length = separator.length_in_code_units();
 
     // 10. If separatorLength = 0, then
     if (separator_length == 0) {
@@ -1213,7 +1214,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
     }
 
     auto string_view = string->utf16_string_view();
-    auto separator_view = separator->utf16_string_view();
+    auto separator_view = separator.utf16_view();
 
     // 13. Let searchStart be 0.
     size_t search_start = 0;
@@ -1265,7 +1266,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::starts_with)
         return vm.throw_completion<TypeError>(ErrorType::IsNotA, "searchString", "string, but a regular expression");
 
     // 5. Let searchStr be ? ToString(searchString).
-    auto search_string = TRY(search_string_value.to_primitive_string(vm));
+    auto search_string = TRY(search_string_value.to_utf16_string(vm));
 
     // 6. Let len be the length of S.
     auto string_length = string->length_in_utf16_code_units();
@@ -1281,7 +1282,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::starts_with)
     }
 
     // 9. Let searchLength be the length of searchStr.
-    auto search_length = search_string->length_in_utf16_code_units();
+    auto search_length = search_string.length_in_code_units();
 
     // 10. If searchLength = 0, return true.
     if (search_length == 0)
@@ -1299,7 +1300,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::starts_with)
 
     // 14. If substring is searchStr, return true.
     // 15. Return false.
-    return Value(substring_view == search_string->utf16_string_view());
+    return Value(substring_view == search_string);
 }
 
 // 22.1.3.25 String.prototype.substring ( start, end ), https://tc39.es/ecma262/#sec-string.prototype.substring

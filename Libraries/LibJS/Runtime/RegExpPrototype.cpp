@@ -306,7 +306,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         // Named groups: find by linear scan (typically very few named groups).
         for (auto const& ng : named_groups) {
             if (ng.index == i) {
-                auto group_name = Utf16FlyString::from_utf8(ng.name);
+                auto const& group_name = ng.name;
                 if (matched_group_names.contains(group_name)) {
                     // Name already matched with a non-undefined value; skip.
                     break;
@@ -325,7 +325,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         groups = Object::create(realm, nullptr);
 
         for (auto const& ng : named_groups) {
-            auto group_name = Utf16FlyString::from_utf8(ng.name);
+            auto const& group_name = ng.name;
             auto value = original_groups.as_object().get_without_side_effects(group_name);
             MUST(groups.as_object().create_data_property_or_throw(group_name, value));
         }
@@ -377,7 +377,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         if (has_groups) {
             HashTable<Utf16FlyString> matched_index_group_names;
             for (auto const& ng : named_groups) {
-                auto group_name = Utf16FlyString::from_utf8(ng.name);
+                auto const& group_name = ng.name;
                 if (matched_index_group_names.contains(group_name))
                     continue;
                 unsigned int group_idx = ng.index;
@@ -906,10 +906,10 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
     // 5. Let functionalReplace be IsCallable(replaceValue).
 
     // 6. If functionalReplace is false, then
+    Optional<Utf16String> replace_string;
     if (!replace_value.is_function()) {
         // a. Set replaceValue to ? ToString(replaceValue).
-        auto replace_string = TRY(replace_value.to_utf16_string(vm));
-        replace_value = PrimitiveString::create(vm, move(replace_string));
+        replace_string = TRY(replace_value.to_utf16_string(vm));
     }
 
     // 7. Let flags be ? ToString(? Get(rx, "flags")).
@@ -1053,7 +1053,8 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
             }
 
             // ii. Let replacement be ? GetSubstitution(matched, S, position, captures, namedCaptures, replaceValue).
-            replacement = TRY(get_substitution(vm, matched->utf16_string_view(), string->utf16_string_view(), position, captures, named_captures, replace_value));
+            VERIFY(replace_string.has_value());
+            replacement = TRY(get_substitution(vm, matched->utf16_string_view(), string->utf16_string_view(), position, captures, named_captures, *replace_string));
         }
 
         // m. If position ≥ nextSourcePosition, then

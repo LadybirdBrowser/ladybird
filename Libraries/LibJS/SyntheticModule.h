@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Module.h>
@@ -40,6 +41,6 @@ private:
     EvaluationFunction m_evaluation_steps; // [[EvaluationSteps]]
 };
 
-ThrowCompletionOr<GC::Ref<SyntheticModule>> JS_API parse_json_module(Realm& realm, StringView source_text, ByteString filename);
+ThrowCompletionOr<GC::Ref<SyntheticModule>> JS_API parse_json_module(Realm& realm, Utf16View source_text, ByteString filename);
 
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Script.h>
 #include <LibURL/URL.h>
@@ -26,6 +27,7 @@ public:
 
     Optional<URL::URL> const& base_url() const { return m_base_url; }
     ByteString const& filename() const { return m_filename; }
+    Utf16String const& display_filename() const { return m_display_filename; }
 
     EnvironmentSettingsObject& settings_object();
 
@@ -46,6 +48,7 @@ private:
 
     Optional<URL::URL> m_base_url;
     ByteString m_filename;
+    Utf16String m_display_filename;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#settings-object
     // An environment settings object, containing various settings that are shared with other scripts in the same context.

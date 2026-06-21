@@ -116,9 +116,8 @@ size_t SourceTextModule::external_memory_size() const
     return size;
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined)
 {
-    auto filename = source_code->filename();
     auto rust_result = RustIntegration::compile_parsed_module(parsed, move(source_code), realm);
     // Always from the Rust pipeline, so the Optional must have a value.
     VERIFY(rust_result.has_value());
@@ -140,9 +139,8 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::source());
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined)
 {
-    auto filename = source_code->filename();
     auto rust_result = RustIntegration::materialize_compiled_module(compiled, move(source_code), realm);
     // Always from the Rust pipeline, so the Optional must have a value.
     VERIFY(rust_result.has_value());
@@ -164,9 +162,8 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::heap_bytecode());
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined)
 {
-    auto filename = source_code->filename();
     auto rust_result = RustIntegration::materialize_bytecode_cache_module(bytecode_cache, move(source_code), realm);
     // Always from the Rust pipeline, so the Optional must have a value.
     VERIFY(rust_result.has_value());
@@ -263,10 +260,8 @@ void SourceTextModule::complete_bytecode_cache_install(GC::Ptr<Bytecode::Executa
     verify_executable_backing_invariants();
 }
 
-// 16.2.1.7.1 ParseModule ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parsemodule
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(StringView source_text, Realm& realm, StringView filename, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::from_rust_result(Optional<Result<RustIntegration::ModuleResult, Vector<ParserError>>> rust_result, Realm& realm, StringView filename, Script::HostDefined* host_defined)
 {
-    auto rust_result = RustIntegration::compile_module(source_text, realm, filename);
     if (!rust_result.has_value())
         return Vector<ParserError> {};
     if (rust_result->is_error())
@@ -286,6 +281,21 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(S
         move(functions_to_initialize),
         move(module_result.shared_function_data),
         module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::source());
+}
+
+// 16.2.1.7.1 ParseModule ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parsemodule
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(Utf16View source_text, Realm& realm, StringView filename, Utf16View display_filename, Script::HostDefined* host_defined)
+{
+    auto fallback_display_filename = display_filename.is_empty() ? Utf16String::from_utf8(filename) : Utf16String {};
+    if (display_filename.is_empty())
+        display_filename = fallback_display_filename.utf16_view();
+
+    return from_rust_result(RustIntegration::compile_module(source_text, realm, display_filename), realm, filename, host_defined);
+}
+
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined)
+{
+    return from_rust_result(RustIntegration::compile_module(move(source_code), realm), realm, filename, host_defined);
 }
 
 void SourceTextModule::verify_executable_backing_invariants()

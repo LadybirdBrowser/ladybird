@@ -698,7 +698,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
                 // NOTE: IDL does not currently convert the object for us, so we will have to do it here.
                 result = TRY(WebIDL::construct(constructor, {})).as_if<HTML::HTMLElement>();
                 if (!result)
-                    return JS::throw_completion(JS::TypeError::create(realm, "Custom element constructor must return an object that implements HTMLElement"_string));
+                    return JS::throw_completion(JS::TypeError::create(realm, "Custom element constructor must return an object that implements HTMLElement"_utf16));
 
                 // FIXME: 2. Assert: result’s custom element state and custom element definition are initialized.
 

@@ -85,6 +85,22 @@ static ThrowCompletionOr<AK::LastChunkHandling> parse_last_chunk_handling(VM& vm
     return vm.throw_completion<TypeError>(ErrorType::OptionIsNotValidValue, last_chunk_handling, "lastChunkHandling"sv);
 }
 
+static Utf16String base64_decode_error_message(AK::Base64DecodeError error)
+{
+    switch (error) {
+    case AK::Base64DecodeError::ExtraBits:
+        return "Extra bits found at end of chunk"_utf16;
+    case AK::Base64DecodeError::InputRemainder:
+        return "Invalid trailing data"_utf16;
+    case AK::Base64DecodeError::InvalidCharacter:
+        return "Invalid base64 character"_utf16;
+    case AK::Base64DecodeError::InvalidData:
+        return "Invalid base64-encoded data"_utf16;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 // 23.3.1.1 Uint8Array.fromBase64 ( string [ , options ] ), https://tc39.es/ecma262/#sec-uint8array.frombase64
 JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
 {
@@ -516,7 +532,7 @@ DecodeResult from_base64(VM& vm, Utf16View string, Alphabet alphabet, AK::LastCh
         : AK::decode_base64url_into(string, output, last_chunk_handling);
 
     if (result.is_error()) {
-        auto error = vm.throw_completion<SyntaxError>(result.error().error.string_literal());
+        auto error = vm.throw_completion<SyntaxError>(base64_decode_error_message(result.error().decode_error));
         return { .read = result.error().valid_input_bytes, .bytes = move(output), .error = move(error) };
     }
 
@@ -542,7 +558,7 @@ DecodeResult from_hex(VM& vm, Utf16View string, Optional<size_t> max_length)
     // 5. If length modulo 2 ≠ 0, then
     if (length % 2 != 0) {
         // a. Let error be a newly created SyntaxError object.
-        auto error = vm.throw_completion<SyntaxError>("Hex string must have an even length"sv);
+        auto error = vm.throw_completion<SyntaxError>("Hex string must have an even length"_utf16);
 
         // b. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
         return { .read = read, .bytes = move(bytes), .error = move(error) };
@@ -561,7 +577,7 @@ DecodeResult from_hex(VM& vm, Utf16View string, Optional<size_t> max_length)
         // b. If hexits contains any code units which are not in "0123456789abcdefABCDEF", then
         if (!byte.has_value()) {
             // i. Let error be a newly created SyntaxError object.
-            auto error = vm.throw_completion<SyntaxError>("Hex string must only contain hex characters"sv);
+            auto error = vm.throw_completion<SyntaxError>("Hex string must only contain hex characters"_utf16);
 
             // ii. Return the Record { [[Read]]: read, [[Bytes]]: bytes, [[Error]]: error }.
             return { .read = read, .bytes = move(bytes), .error = move(error) };

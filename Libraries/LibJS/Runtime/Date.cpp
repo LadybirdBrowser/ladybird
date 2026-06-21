@@ -399,7 +399,7 @@ i64 clip_double_to_sane_time(double value)
 
 // 21.4.1.20 GetNamedTimeZoneEpochNanoseconds ( timeZoneIdentifier, year, month, day, hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/ecma262/#sec-getnamedtimezoneepochnanoseconds
 // 14.6.3 GetNamedTimeZoneEpochNanoseconds ( timeZoneIdentifier, isoDateTime ), https://tc39.es/proposal-temporal/#sec-getnamedtimezoneepochnanoseconds
-Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringView time_zone_identifier, Temporal::ISODateTime const& iso_date_time)
+Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(Utf16View time_zone_identifier, Temporal::ISODateTime const& iso_date_time)
 {
     auto local_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
     auto local_time = UnixDateTime::from_nanoseconds_since_epoch(clip_bigint_to_sane_time(local_nanoseconds));
@@ -416,7 +416,7 @@ Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringVie
 }
 
 // 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds
-Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds)
+Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(Utf16View time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
     // Since UnixDateTime::from_seconds_since_epoch() and UnixDateTime::from_nanoseconds_since_epoch() both take an i64, converting to
     // seconds first gives us a greater range. The TZDB doesn't have sub-second offsets.
@@ -431,7 +431,7 @@ Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_z
 
 // 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds
 // OPTIMIZATION: This overload is provided to allow callers to avoid BigInt construction if they do not need infinitely precise nanosecond resolution.
-Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(StringView time_zone_identifier, double epoch_milliseconds)
+Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(Utf16View time_zone_identifier, double epoch_milliseconds)
 {
     auto seconds = epoch_milliseconds / 1000.0;
     auto time = UnixDateTime::from_seconds_since_epoch(clip_double_to_sane_time(seconds));
@@ -499,7 +499,7 @@ double local_time(double time)
     // 4. Else,
     else {
         // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(t) × 10^6)).
-        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier.utf16_view().bytes(), time);
+        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier.utf16_view(), time);
         offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
     }
 
@@ -533,7 +533,7 @@ double utc_time(double time)
         auto iso_date_time = Temporal::time_value_to_iso_date_time_record(time);
 
         // b. Let possibleInstants be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, isoDateTime).
-        auto possible_instants = get_named_time_zone_epoch_nanoseconds(system_time_zone_identifier.utf16_view().bytes(), iso_date_time);
+        auto possible_instants = get_named_time_zone_epoch_nanoseconds(system_time_zone_identifier.utf16_view(), iso_date_time);
 
         // c. NOTE: The following steps ensure that when t represents local time repeating multiple times at a negative
         //    time zone transition (e.g. when the daylight saving time ends or the time zone offset is decreased due to
@@ -568,7 +568,7 @@ double utc_time(double time)
         }
 
         // f. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, disambiguatedInstant).
-        auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier.utf16_view().bytes(), disambiguated_instant);
+        auto offset = get_named_time_zone_offset_nanoseconds(system_time_zone_identifier.utf16_view(), disambiguated_instant);
         offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
     }
 

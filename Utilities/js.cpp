@@ -11,6 +11,7 @@
 #include <AK/Platform.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
+#include <AK/Utf16String.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/StandardPaths.h>
@@ -199,9 +200,9 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
     auto& vm = realm.vm();
 
     JS::ThrowCompletionOr<JS::Value> result { JS::js_undefined() };
+    auto utf16_source = Utf16String::from_utf8(source);
 
     if (!s_as_module) {
-        auto utf16_source = Utf16String::from_utf8(source);
         auto script_or_error = JS::Script::parse(utf16_source.utf16_view(), realm, source_name);
         if (script_or_error.is_error()) {
             auto error = script_or_error.error()[0];
@@ -219,10 +220,8 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
                 result = vm.run(*script);
         }
     } else {
-        auto module_or_error = JS::SourceTextModule::parse(source, realm, source_name);
+        auto module_or_error = JS::SourceTextModule::parse(utf16_source.utf16_view(), realm, source_name);
         if (module_or_error.is_error()) {
-            auto utf16_source = Utf16String::from_utf8(source);
-
             auto error = module_or_error.error()[0];
             auto hint = error.source_location_hint(utf16_source);
             if (!hint.is_empty())
@@ -269,7 +268,7 @@ static JS::ThrowCompletionOr<JS::Value> load_ini_impl(JS::VM& vm)
     auto filename = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16().to_byte_string();
     auto file_or_error = Core::File::open(filename, Core::File::OpenMode::Read);
     if (file_or_error.is_error())
-        return vm.throw_completion<JS::Error>(TRY_OR_THROW_OOM(vm, String::formatted("Failed to open '{}': {}", filename, file_or_error.error())));
+        return vm.throw_completion<JS::Error>(Utf16String::formatted("Failed to open '{}': {}", filename, file_or_error.error()));
 
     auto config_file = MUST(Core::ConfigFile::open(filename, file_or_error.release_value()));
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
@@ -289,11 +288,11 @@ static JS::ThrowCompletionOr<JS::Value> load_json_impl(JS::VM& vm)
     auto filename = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto file_or_error = Core::File::open(filename, Core::File::OpenMode::Read);
     if (file_or_error.is_error())
-        return vm.throw_completion<JS::Error>(TRY_OR_THROW_OOM(vm, String::formatted("Failed to open '{}': {}", filename, file_or_error.error())));
+        return vm.throw_completion<JS::Error>(Utf16String::formatted("Failed to open '{}': {}", filename, file_or_error.error()));
 
     auto file_contents_or_error = file_or_error.value()->read_until_eof();
     if (file_contents_or_error.is_error())
-        return vm.throw_completion<JS::Error>(TRY_OR_THROW_OOM(vm, String::formatted("Failed to read '{}': {}", filename, file_contents_or_error.error())));
+        return vm.throw_completion<JS::Error>(Utf16String::formatted("Failed to read '{}': {}", filename, file_contents_or_error.error()));
 
     auto file_contents = file_contents_or_error.release_value();
     auto json_text = Utf16String::try_from_utf8(StringView { file_contents.bytes() });
@@ -384,7 +383,7 @@ JS_DEFINE_NATIVE_FUNCTION(ReplObject::print)
 {
     auto result = print_all_arguments(vm);
     if (result.is_error())
-        return g_vm->throw_completion<JS::InternalError>(TRY_OR_THROW_OOM(*g_vm, String::formatted("Failed to print value(s): {}", result.error())));
+        return g_vm->throw_completion<JS::InternalError>(Utf16String::formatted("Failed to print value(s): {}", result.error()));
 
     return JS::js_undefined();
 }
@@ -421,7 +420,7 @@ JS_DEFINE_NATIVE_FUNCTION(ScriptObject::print)
 {
     auto result = print_all_arguments(vm);
     if (result.is_error())
-        return g_vm->throw_completion<JS::InternalError>(TRY_OR_THROW_OOM(*g_vm, String::formatted("Failed to print value(s): {}", result.error())));
+        return g_vm->throw_completion<JS::InternalError>(Utf16String::formatted("Failed to print value(s): {}", result.error()));
 
     return JS::js_undefined();
 }

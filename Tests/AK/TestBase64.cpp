@@ -103,6 +103,21 @@ TEST_CASE(test_decode_invalid)
     EXPECT(decode_base64("YQ="sv).is_error());
 }
 
+TEST_CASE(test_decode_into_error_kind)
+{
+    auto expect_error = [](StringView input, AK::Base64DecodeError expected_error) {
+        auto buffer = MUST(ByteBuffer::create_uninitialized(AK::size_required_to_decode_base64(input)));
+        auto result = AK::decode_base64_into(input, buffer, AK::LastChunkHandling::Strict);
+
+        VERIFY(result.is_error());
+        EXPECT_EQ(result.error().decode_error, expected_error);
+    };
+
+    expect_error("Zh=="sv, AK::Base64DecodeError::ExtraBits);
+    expect_error("Zm9va"sv, AK::Base64DecodeError::InputRemainder);
+    expect_error("-"sv, AK::Base64DecodeError::InvalidCharacter);
+}
+
 TEST_CASE(test_decode_only_padding)
 {
     // Only padding is not allowed

@@ -2698,7 +2698,7 @@ GC::Ref<WebIDL::Promise> Element::request_fullscreen(FullscreenRequester fullscr
 
     // 3. If pendingDoc is not fully active, then reject promise with a TypeError exception and return promise.
     if (!pending_doc->is_fully_active()) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Document not fully active."_string));
+        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Document not fully active."_utf16));
         return promise;
     }
 
@@ -3511,7 +3511,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
 
         // 4. If SameValue(constructResult, element) is false, then throw a TypeError.
         if (!JS::same_value(construct_result, this))
-            return vm.throw_completion<JS::TypeError>("Constructing the custom element returned a different element from the custom element"sv);
+            return vm.throw_completion<JS::TypeError>("Constructing the custom element returned a different element from the custom element"_utf16);
 
         return {};
     };

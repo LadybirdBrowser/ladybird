@@ -713,11 +713,11 @@ static void apply_extensions_to_locale(icu::Locale& locale, icu::Locale const& l
     verify_icu_success(status);
 }
 
-Optional<Utf16String> add_likely_subtags(StringView locale)
+Optional<Utf16String> add_likely_subtags(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     if (!locale_data.has_value())
         return {};
 
@@ -740,11 +740,11 @@ Optional<Utf16String> add_likely_subtags(StringView locale)
     return Utf16String::from_ascii_without_validation(result.string_view().bytes());
 }
 
-Optional<Utf16String> remove_likely_subtags(StringView locale)
+Optional<Utf16String> remove_likely_subtags(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     if (!locale_data.has_value())
         return {};
 

@@ -3108,7 +3108,7 @@ fn validate_constant_value(decoder: &mut Decoder<'_>) -> Option<()> {
         }
         tag if tag == ConstantTag::BigInt as u8 => {
             let length: usize = u32::decode(decoder)?.try_into().ok()?;
-            std::str::from_utf8(decoder.bytes(length)?).ok()?;
+            decoder.bytes(length)?.is_ascii().then_some(())?;
         }
         tag if tag == ConstantTag::WellKnownSymbol as u8 => match u8::decode(decoder)? {
             0 | 1 => {}
@@ -3167,7 +3167,9 @@ impl Decode for ConstantValue {
             tag if tag == ConstantTag::Empty as u8 => Some(Self::Empty),
             tag if tag == ConstantTag::String as u8 => Some(Self::String(ast::Utf16String::decode(decoder)?)),
             tag if tag == ConstantTag::BigInt as u8 => {
-                Some(Self::BigInt(String::from_utf8(ByteVector::decode(decoder)?).ok()?))
+                let bytes = ByteVector::decode(decoder)?;
+                bytes.is_ascii().then_some(())?;
+                Some(Self::BigInt(bytes.into_iter().map(char::from).collect()))
             }
             tag if tag == ConstantTag::WellKnownSymbol as u8 => match u8::decode(decoder)? {
                 0 => Some(Self::WellKnownSymbol(WellKnownSymbolKind::SymbolIterator)),

@@ -114,7 +114,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::maximize)
 
     // 3. Let maximal be the result of the Add Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set maximal to loc.[[Locale]].
     auto maximal = locale_object->locale();
-    if (auto maximal_locale = Unicode::add_likely_subtags(locale_object->locale().utf16_view().bytes()); maximal_locale.has_value())
+    if (auto maximal_locale = Unicode::add_likely_subtags(locale_object->locale().utf16_view()); maximal_locale.has_value())
         maximal = maximal_locale.release_value();
 
     // 4. Return ! Construct(%Intl.Locale%, maximal).
@@ -132,7 +132,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::minimize)
 
     // 3. Let minimal be the result of the Remove Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set minimal to loc.[[Locale]].
     auto minimal = locale_object->locale();
-    if (auto minimal_locale = Unicode::remove_likely_subtags(locale_object->locale().utf16_view().bytes()); minimal_locale.has_value())
+    if (auto minimal_locale = Unicode::remove_likely_subtags(locale_object->locale().utf16_view()); minimal_locale.has_value())
         minimal = minimal_locale.release_value();
 
     // 4. Return ! Construct(%Intl.Locale%, minimal).

@@ -71,7 +71,7 @@ async function fromAsync(asyncItems, mapper, thisArg) {
         // c. Let k be 0.
         // d. Repeat,
         for (let k = 0; ; ++k) {
-            // i. If k ≥ 2**53 - 1, then
+            // i. If k >= 2**53 - 1, then
             if (k >= MAX_ARRAY_LIKE_INDEX) {
                 // 1. Let error be ThrowCompletion(a newly created TypeError object).
                 const error = NewTypeError("Maximum array size exceeded");
@@ -80,7 +80,7 @@ async function fromAsync(asyncItems, mapper, thisArg) {
                 return AsyncIteratorClose(iteratorRecord, error, true);
             }
 
-            // ii. Let Pk be ! ToString(𝔽(k)).
+            // ii. Let Pk be ! ToString(F(k)).
             // iii. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
             // iv. Set nextResult to ? Await(nextResult).
             const nextResult = await Call(iteratorRecord.nextMethod, iteratorRecord.iterator);
@@ -93,7 +93,7 @@ async function fromAsync(asyncItems, mapper, thisArg) {
 
             // vii. If done is true, then
             if (done) {
-                // 1. Perform ? Set(A, "length", 𝔽(k), true).
+                // 1. Perform ? Set(A, "length", F(k), true).
                 array.length = k;
 
                 // 2. Return A.
@@ -108,7 +108,7 @@ async function fromAsync(asyncItems, mapper, thisArg) {
 
                 // ix. If mapping is true, then
                 if (mapping) {
-                    // 1. Let mappedValue be Completion(Call(mapper, thisArg, « nextValue, 𝔽(k) »)).
+                    // 1. Let mappedValue be Completion(Call(mapper, thisArg, nextValue, F(k))).
                     // 2. IfAbruptCloseAsyncIterator(mappedValue, iteratorRecord).
                     // 3. Set mappedValue to Completion(Await(mappedValue)).
                     // 4. IfAbruptCloseAsyncIterator(mappedValue, iteratorRecord).
@@ -143,7 +143,7 @@ async function fromAsync(asyncItems, mapper, thisArg) {
 
         // d. If IsConstructor(C) is true, then
         if (IsConstructor(constructor)) {
-            // i. Let A be ? Construct(C, « 𝔽(len) »).
+            // i. Let A be ? Construct(C, F(len)).
             array = new constructor(length);
         }
         // e. Else,
@@ -155,7 +155,7 @@ async function fromAsync(asyncItems, mapper, thisArg) {
         // f. Let k be 0.
         // g. Repeat, while k < len,
         for (let k = 0; k < length; ++k) {
-            // i. Let Pk be ! ToString(𝔽(k)).
+            // i. Let Pk be ! ToString(F(k)).
             // ii. Let kValue be ? Get(arrayLike, Pk).
             // iii. Set kValue to ? Await(kValue).
             const kValue = await arrayLike[k];
@@ -164,7 +164,7 @@ async function fromAsync(asyncItems, mapper, thisArg) {
 
             // iv. If mapping is true, then
             if (mapping) {
-                // 1. Let mappedValue be ? Call(mapper, thisArg, « kValue, 𝔽(k) »).
+                // 1. Let mappedValue be ? Call(mapper, thisArg, kValue, F(k)).
                 // 2. Set mappedValue to ? Await(mappedValue).
                 mappedValue = await Call(mapper, thisArg, kValue, k);
             }
@@ -180,7 +180,7 @@ async function fromAsync(asyncItems, mapper, thisArg) {
             // vii. Set k to k + 1.
         }
 
-        // h. Perform ? Set(A, "length", 𝔽(len), true).
+        // h. Perform ? Set(A, "length", F(len), true).
         array.length = length;
 
         // i. Return A.

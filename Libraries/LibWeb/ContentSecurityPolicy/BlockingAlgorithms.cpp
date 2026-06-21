@@ -531,13 +531,13 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
 
         // 7. If the algorithm throws an error, throw an EvalError.
         if (maybe_source_string.is_error()) {
-            return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"sv);
+            return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"_utf16);
         }
         source_string = maybe_source_string.release_value();
 
         // 8. If sourceString is not equal to codeString, throw an EvalError.
         if (source_string != code_string)
-            return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"sv);
+            return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"_utf16);
     }
 
     // 3. Let result be "Allowed".
@@ -613,7 +613,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
 
     // 6. If result is "Blocked", throw an EvalError exception.
     if (result == Directives::Directive::Result::Blocked) {
-        return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"sv);
+        return realm.vm().throw_completion<JS::EvalError>("Blocked by Content Security Policy"_utf16);
     }
 
     return {};

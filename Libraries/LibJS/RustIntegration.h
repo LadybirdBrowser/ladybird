@@ -158,7 +158,7 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(FFI::P
 Optional<Result<ScriptResult, Vector<ParserError>>> materialize_compiled_script(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
 
 // Compile a script. Returns nullopt if Rust is not available.
-Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(Utf16View source_text, Realm& realm, StringView filename, size_t line_number_offset);
+Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(Utf16View source_text, Realm& realm, Utf16View display_filename, size_t line_number_offset);
 
 // Compile eval code. Returns nullopt if Rust is not available.
 // On success, the executable's name is set to "eval".
@@ -177,7 +177,8 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(FFI::P
 Optional<Result<ModuleResult, Vector<ParserError>>> materialize_compiled_module(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
 
 // Compile a module. Returns nullopt if Rust is not available.
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView source_text, Realm& realm, StringView filename);
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(Utf16View source_text, Realm& realm, Utf16View display_filename);
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(NonnullRefPtr<SourceCode const>, Realm& realm);
 
 // Compile a dynamic function (new Function()).
 // On success, returns a SharedFunctionInstanceData with source_text set.
@@ -187,7 +188,7 @@ JS_API Optional<Result<GC::Ref<SharedFunctionInstanceData>, Utf16String>> compil
 
 // Compile a builtin JS file. Returns nullopt if Rust is not available.
 Optional<Vector<GC::Root<SharedFunctionInstanceData>>> compile_builtin_file(
-    unsigned char const* script_text, VM& vm);
+    Utf16View script_text, VM& vm);
 
 // Compile a function body for lazy compilation.
 // Returns nullptr if Rust is not available or the SFD doesn't use Rust compilation.

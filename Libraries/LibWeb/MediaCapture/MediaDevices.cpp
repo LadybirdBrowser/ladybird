@@ -595,7 +595,7 @@ GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(Optional<Bindings::MediaSt
 
     // 1. Let constraints be the method's first argument.
     if (!constraints.has_value())
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("getUserMedia requires constraints"sv));
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("getUserMedia requires constraints"_utf16));
 
     // 2. Let requestedMediaTypes be the set of media types in constraints with either a dictionary value or a value of true.
     auto const& constraints_value = constraints.value();
@@ -616,7 +616,7 @@ GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(Optional<Bindings::MediaSt
 
     // 3. If requestedMediaTypes is the empty set, return a promise rejected with a TypeError.
     if (!audio_requested && !video_requested)
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("No media types requested"sv));
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("No media types requested"_utf16));
 
     // 4. Let document be the relevant global object's associated Document.
     auto const& document = as<HTML::Window>(realm.global_object()).associated_document();

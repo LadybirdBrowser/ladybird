@@ -153,7 +153,7 @@ def write_html_constructor_steps(
 
     // 1. If NewTarget is equal to the active function object, then throw a TypeError.
     if (&new_target == vm.active_function_object())
-        return vm.throw_completion<JS::TypeError>("Cannot directly construct an HTML element, it must be inherited"sv);
+        return vm.throw_completion<JS::TypeError>("Cannot directly construct an HTML element, it must be inherited"_utf16);
 
     // 2. Let registry be null.
     GC::Ptr<HTML::CustomElementRegistry> registry;
@@ -176,7 +176,7 @@ def write_html_constructor_steps(
     //    If there is no such item, then throw a TypeError.
     auto definition = registry->get_definition_from_new_target(new_target);
     if (!definition)
-        return vm.throw_completion<JS::TypeError>("There is no custom element definition assigned to the given constructor"sv);
+        return vm.throw_completion<JS::TypeError>("There is no custom element definition assigned to the given constructor"_utf16);
 
     // 6. Let isValue be null.
     Optional<String> is_value;
@@ -184,7 +184,7 @@ def write_html_constructor_steps(
     // 7. If definition's local name is equal to definition's name (i.e., definition is for an autonomous custom element):
     if (definition->local_name() == definition->name()) {{
         // 1. If the active function object is not HTMLElement, then throw a TypeError.
-        {'return vm.throw_completion<JS::TypeError>("Autonomous custom elements can only inherit from HTMLElement"sv);' if interface.name != "HTMLElement" else ""}
+        {'return vm.throw_completion<JS::TypeError>("Autonomous custom elements can only inherit from HTMLElement"_utf16);' if interface.name != "HTMLElement" else ""}
     }}
     // 8. Otherwise (i.e., if definition is for a customized built-in element):
     else {{
@@ -193,7 +193,7 @@ def write_html_constructor_steps(
 
         // 2. If valid local names does not contain definition's local name, then throw a TypeError.
         if (!valid_local_names.contains_slow(definition->local_name()))
-            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Local name '{{}}' of customized built-in element is not a valid local name for {interface.name}", definition->local_name())));
+            return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Local name '{{}}' of customized built-in element is not a valid local name for {interface.name}", definition->local_name()));
 
         // 3. Set isValue to definition's name.
         is_value = definition->name();
@@ -243,7 +243,7 @@ def write_html_constructor_steps(
 
     // 13. If element is an already constructed marker, then throw a TypeError.
     if (element.has<HTML::AlreadyConstructedCustomElementMarker>())
-        return vm.throw_completion<JS::TypeError>("Custom element has already been constructed"sv);
+        return vm.throw_completion<JS::TypeError>("Custom element has already been constructed"_utf16);
 
     // 14. Perform ? element.[[SetPrototypeOf]](prototype).
     auto actual_element = element.get<GC::Ref<DOM::Element>>();

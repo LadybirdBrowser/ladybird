@@ -688,14 +688,14 @@ private:
 
 NonnullOwnPtr<Segmenter> Segmenter::create(SegmenterGranularity segmenter_granularity)
 {
-    return Segmenter::create(default_locale().bytes(), segmenter_granularity);
+    return Segmenter::create(default_locale(), segmenter_granularity);
 }
 
-NonnullOwnPtr<Segmenter> Segmenter::create(StringView locale, SegmenterGranularity segmenter_granularity)
+NonnullOwnPtr<Segmenter> Segmenter::create(Utf16View locale, SegmenterGranularity segmenter_granularity)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     VERIFY(locale_data.has_value());
 
     auto segmenter = adopt_own_if_nonnull([&]() {

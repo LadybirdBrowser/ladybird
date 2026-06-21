@@ -122,7 +122,7 @@ GC::Ref<WebIDL::Promise> ReadableStream::cancel(Optional<JS::Value> reason)
 
     // 1. If ! IsReadableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_readable_stream_locked(*this)) {
-        auto exception = JS::TypeError::create(realm, "Cannot cancel a locked stream"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot cancel a locked stream"_utf16);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
@@ -176,12 +176,12 @@ GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, Bi
 
     // 1. If ! IsReadableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_readable_stream_locked(*this)) {
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream': Cannot pipe a locked stream"sv));
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream': Cannot pipe a locked stream"_utf16));
     }
 
     // 2. If ! IsWritableStreamLocked(destination) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(destination)) {
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream':  Cannot pipe to a locked stream"sv));
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream':  Cannot pipe to a locked stream"_utf16));
     }
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.
