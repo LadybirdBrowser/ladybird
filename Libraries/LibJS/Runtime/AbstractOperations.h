@@ -17,6 +17,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/CanonicalIndex.h>
 #include <LibJS/Runtime/Environment.h>
+#include <LibJS/Runtime/ErrorTypes.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
@@ -77,12 +78,15 @@ bool all_import_attributes_supported(VM& vm, Vector<ImportAttribute> const& attr
 
 ThrowCompletionOr<Value> perform_import_call(VM&, Value specifier, Value options_value);
 
+size_t max_js_string_length();
+ThrowCompletionOr<size_t> checked_js_string_length_product(VM&, size_t, size_t, ErrorType const&);
+
 enum class CanonicalIndexMode {
     DetectNumericRoundtrip,
     IgnoreNumericRoundtrip,
 };
 [[nodiscard]] CanonicalIndex canonical_numeric_index_string(PropertyKey const&, CanonicalIndexMode needs_numeric);
-ThrowCompletionOr<String> get_substitution(VM&, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement);
+ThrowCompletionOr<Utf16String> get_substitution(VM&, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement);
 
 enum class CallerMode {
     Strict,

@@ -11,6 +11,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -410,16 +411,12 @@ void RopeString::resolve(EncodingPreference preference) const
     if (preference == EncodingPreference::UTF16) {
         // The caller wants a UTF-16 string, so we can simply concatenate all the pieces
         // into a UTF-16 code unit buffer and create a Utf16String from it.
-        StringBuilder builder(StringBuilder::Mode::UTF16, length_in_utf16_code_units);
+        Utf16StringBuilder builder(length_in_utf16_code_units);
 
-        for (auto const* current : pieces) {
-            if (current->has_utf16_string())
-                builder.append(current->utf16_string_view());
-            else
-                builder.append(current->utf8_string_view());
-        }
+        for (auto const* current : pieces)
+            builder.append(current->utf16_string_view());
 
-        m_utf16_string = builder.to_utf16_string();
+        m_utf16_string = builder.to_string();
         m_deferred_kind = DeferredKind::None;
         m_lhs = nullptr;
         m_rhs = nullptr;

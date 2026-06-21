@@ -7,8 +7,8 @@
 
 #include <AK/Checked.h>
 #include <AK/Function.h>
-#include <AK/StringBuilder.h>
 #include <AK/UnicodeUtils.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -763,14 +763,14 @@ static ThrowCompletionOr<Value> pad_string(VM& vm, GC::Ref<PrimitiveString> stri
     // 8. Let fillLen be intMaxLength - stringLength.
     auto fill_length = int_max_length - string_length;
 
-    StringBuilder truncated_string_filler_builder;
+    Utf16StringBuilder truncated_string_filler_builder;
     auto fill_code_units = filler.length_in_code_units();
     for (size_t i = 0; i < fill_length / fill_code_units; ++i)
         truncated_string_filler_builder.append(filler);
 
     // 9. Let truncatedStringFiller be the String value consisting of repeated concatenations of filler truncated to length fillLen.
     truncated_string_filler_builder.append(filler.substring_view(0, fill_length % fill_code_units));
-    auto truncated_string_filler = MUST(truncated_string_filler_builder.to_string());
+    auto truncated_string_filler = truncated_string_filler_builder.to_string();
 
     // 10. If placement is start, return the string-concatenation of truncatedStringFiller and S.
     // 11. Else, return the string-concatenation of S and truncatedStringFiller.
@@ -811,7 +811,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::repeat)
 {
     // 1. Let O be ? RequireObjectCoercible(this value).
     // 2. Let S be ? ToString(O).
-    auto string = TRY(utf8_string_from(vm));
+    auto string = TRY(primitive_string_from(vm));
 
     // 3. Let n be ? ToIntegerOrInfinity(count).
     auto n = TRY(vm.argument(0).to_integer_or_infinity(vm));
@@ -827,15 +827,21 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::repeat)
         return PrimitiveString::create(vm, String {});
 
     // OPTIMIZATION: If the string is empty, the result will be empty as well.
-    if (string.is_empty())
+    if (string->is_empty())
         return PrimitiveString::create(vm, String {});
 
-    auto repeated = String::repeated(string, n);
-    if (repeated.is_error())
+    if (n > static_cast<double>(NumericLimits<size_t>::max()))
         return vm.throw_completion<RangeError>(ErrorType::StringRepeatCountMustNotOverflow);
 
+    auto count = static_cast<size_t>(n);
+    auto string_view = string->utf16_string_view();
+
+    TRY(checked_js_string_length_product(vm, string_view.length_in_code_units(), count, ErrorType::StringRepeatCountMustNotOverflow));
+
     // 6. Return the String value that is made from n copies of S appended together.
-    return PrimitiveString::create(vm, repeated.release_value());
+    Utf16StringBuilder builder;
+    builder.append_repeated(string_view, count);
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 // 22.1.3.19 String.prototype.replace ( searchValue, replaceValue ), https://tc39.es/ecma262/#sec-string.prototype.replace
@@ -892,7 +898,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace)
 
     // 10. Let preceding be the substring of string from 0 to position.
     auto preceding = string->utf16_string_view().substring_view(0, *position);
-    String replacement;
+    Utf16String replacement;
 
     // 11. Let following be the substring of string from position + searchLength.
     auto following = string->utf16_string_view().substring_view(*position + search_length);
@@ -901,7 +907,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace)
     if (replace_value.is_function()) {
         // a. Let replacement be ? ToString(? Call(replaceValue, undefined, « searchString, 𝔽(position), string »)).
         auto result = TRY(call(vm, replace_value.as_function(), js_undefined(), search_string, Value(*position), string));
-        replacement = TRY(result.to_string(vm));
+        replacement = TRY(result.to_utf16_string(vm));
     }
     // 13. Else,
     else {
@@ -916,12 +922,12 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace)
     }
 
     // 14. Return the string-concatenation of preceding, replacement, and following.
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     builder.append(preceding);
-    builder.append(replacement);
+    builder.append(replacement.utf16_view());
     builder.append(following);
 
-    return PrimitiveString::create(vm, MUST(builder.to_string()));
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 // 22.1.3.20 String.prototype.replaceAll ( searchValue, replaceValue ), https://tc39.es/ecma262/#sec-string.prototype.replaceall
@@ -1007,18 +1013,18 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
     size_t end_of_last_match = 0;
 
     // 13. Let result be the empty String.
-    StringBuilder result;
+    Utf16StringBuilder result;
 
     // 14. For each element p of matchPositions, do
     for (auto position : match_positions) {
         // a. Let preserved be the substring of string from endOfLastMatch to p.
         auto preserved = string->utf16_string_view().substring_view(end_of_last_match, position - end_of_last_match);
-        String replacement;
+        Utf16String replacement;
 
         // b. If functionalReplace is true, then
         if (replace_value.is_function()) {
             // i. Let replacement be ? ToString(? Call(replaceValue, undefined, « searchString, 𝔽(p), string »)).
-            replacement = TRY(TRY(call(vm, replace_value.as_function(), js_undefined(), search_string, Value(position), string)).to_string(vm));
+            replacement = TRY(TRY(call(vm, replace_value.as_function(), js_undefined(), search_string, Value(position), string)).to_utf16_string(vm));
         }
         // c. Else,
         else {
@@ -1030,7 +1036,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
 
         // d. Set result to the string-concatenation of result, preserved, and replacement.
         result.append(preserved);
-        result.append(replacement);
+        result.append(replacement.utf16_view());
 
         // e. Set endOfLastMatch to p + searchLength.
         end_of_last_match = position + search_length;
@@ -1045,7 +1051,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
     }
 
     // 16. Return result.
-    return PrimitiveString::create(vm, MUST(result.to_string()));
+    return PrimitiveString::create(vm, result.to_string());
 }
 
 // 22.1.3.21 String.prototype.search ( regexp ), https://tc39.es/ecma262/#sec-string.prototype.search
@@ -1586,49 +1592,49 @@ static ThrowCompletionOr<Value> create_html(VM& vm, Value string, StringView tag
     TRY(require_object_coercible(vm, string));
 
     // 2. Let S be ? ToString(str).
-    auto str = TRY(string.to_string(vm));
+    auto str = TRY(string.to_utf16_string(vm));
 
     // 3. Let p1 be the string-concatenation of "<" and tag.
-    StringBuilder builder;
-    builder.append('<');
-    builder.append(tag);
+    Utf16StringBuilder builder;
+    builder.append_ascii('<');
+    builder.append_ascii(tag);
 
     // 4. If attribute is not the empty String, then
     if (!attribute.is_empty()) {
         // a. Let V be ? ToString(value).
-        auto value_string = TRY(value.to_string(vm));
+        auto value_string = TRY(value.to_utf16_string(vm));
 
         // b. Let escapedV be the String value that is the same as V except that each occurrence of the code unit 0x0022 (QUOTATION MARK) in V has been replaced with the six code unit sequence "&quot;".
-        auto escaped_value_string = MUST(value_string.replace("\""sv, "&quot;"sv, ReplaceMode::All));
+        auto escaped_value_string = value_string.replace("\""sv, "&quot;"sv, ReplaceMode::All);
 
         // c. Set p1 to the string-concatenation of:
         // - p1
         // - the code unit 0x0020 (SPACE)
-        builder.append(' ');
+        builder.append_ascii(' ');
         // - attribute
-        builder.append(attribute);
+        builder.append_ascii(attribute);
         // - the code unit 0x003D (EQUALS SIGN)
         // - the code unit 0x0022 (QUOTATION MARK)
-        builder.append("=\""sv);
+        builder.append_ascii("=\""sv);
         // - escapedV
-        builder.append(escaped_value_string);
+        builder.append(escaped_value_string.utf16_view());
         // - the code unit 0x0022 (QUOTATION MARK)
-        builder.append('"');
+        builder.append_ascii('"');
     }
 
     // 5. Let p2 be the string-concatenation of p1 and ">".
-    builder.append('>');
+    builder.append_ascii('>');
 
     // 6. Let p3 be the string-concatenation of p2 and S.
-    builder.append(str);
+    builder.append(str.utf16_view());
 
     // 7. Let p4 be the string-concatenation of p3, "</", tag, and ">".
-    builder.append("</"sv);
-    builder.append(tag);
-    builder.append('>');
+    builder.append_ascii("</"sv);
+    builder.append_ascii(tag);
+    builder.append_ascii('>');
 
     // 8. Return p4.
-    return PrimitiveString::create(vm, MUST(builder.to_string()));
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 // B.2.2.2 String.prototype.anchor ( name ), https://tc39.es/ecma262/#sec-string.prototype.anchor

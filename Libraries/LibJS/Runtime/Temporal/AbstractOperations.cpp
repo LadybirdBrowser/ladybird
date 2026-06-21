@@ -8,6 +8,8 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AK/StringBuilder.h>
+#include <AK/Utf16String.h>
 #include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -785,7 +787,10 @@ String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision
     }
 
     // 3. Return the string-concatenation of the code unit 0x002E (FULL STOP) and fractionString.
-    return MUST(String::formatted(".{}", fraction_string));
+    StringBuilder builder;
+    builder.append('.');
+    builder.append(fraction_string);
+    return MUST(builder.to_string());
 }
 
 // 13.26 FormatTimeString ( hour, minute, second, subSecondNanoseconds, precision [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formattimestring

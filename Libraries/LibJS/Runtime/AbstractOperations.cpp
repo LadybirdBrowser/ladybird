@@ -6,8 +6,11 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <AK/Checked.h>
 #include <AK/Function.h>
+#include <AK/NumericLimits.h>
 #include <AK/Optional.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Bytecode/Debug.h>
 #include <LibJS/ModuleLoading.h>
@@ -43,6 +46,20 @@
 #include <LibJS/SourceCode.h>
 
 namespace JS {
+
+size_t max_js_string_length()
+{
+    return NumericLimits<u32>::max();
+}
+
+ThrowCompletionOr<size_t> checked_js_string_length_product(VM& vm, size_t factor_a, size_t factor_b, ErrorType const& error_type)
+{
+    Checked<size_t> product = factor_a;
+    product *= factor_b;
+    if (product.has_overflow() || product.value() > max_js_string_length())
+        return vm.throw_completion<RangeError>(error_type);
+    return product.value();
+}
 
 // 7.2.1 RequireObjectCoercible ( argument ), https://tc39.es/ecma262/#sec-requireobjectcoercible
 ThrowCompletionOr<Value> require_object_coercible(VM& vm, Value value)
@@ -1258,7 +1275,7 @@ CanonicalIndex canonical_numeric_index_string(PropertyKey const& property_key, C
 }
 
 // 22.1.3.19.1 GetSubstitution ( matched, str, position, captures, namedCaptures, replacementTemplate ), https://tc39.es/ecma262/#sec-getsubstitution
-ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement_template)
+ThrowCompletionOr<Utf16String> get_substitution(VM& vm, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement_template)
 {
     // 1. Let stringLength be the length of str.
     auto string_length = str.length_in_code_units();
@@ -1267,7 +1284,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
     VERIFY(position <= string_length);
 
     // 3. Let result be the empty String.
-    StringBuilder result(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder result;
 
     // 4. Let templateRemainder be replacementTemplate.
     auto replace_template_string = TRY(replacement_template.to_utf16_string(vm));
@@ -1446,7 +1463,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
     }
 
     // 6. Return result.
-    return MUST(result.utf16_string_view().to_utf8());
+    return result.to_string();
 }
 
 void DisposeCapability::visit_edges(GC::Cell::Visitor& visitor) const

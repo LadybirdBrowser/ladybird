@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringBuilder.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -99,7 +99,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_char_code)
         return from_char_code_impl(vm, vm.argument(0));
 
     // 1. Let result be the empty String.
-    StringBuilder builder(StringBuilder::Mode::UTF16, vm.argument_count());
+    Utf16StringBuilder builder(vm.argument_count());
 
     // 2. For each element next of codeUnits, do
     for (size_t i = 0; i < vm.argument_count(); ++i) {
@@ -111,7 +111,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_char_code)
     }
 
     // 3. Return result.
-    return PrimitiveString::create(vm, builder.to_utf16_string());
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 // 22.1.2.2 String.fromCodePoint ( ...codePoints ), https://tc39.es/ecma262/#sec-string.fromcodepoint
@@ -119,7 +119,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_code_point)
 {
     // 1. Let result be the empty String.
     // NOTE: This will be an under-estimate if any code point is > 0xffff.
-    StringBuilder builder(StringBuilder::Mode::UTF16, vm.argument_count());
+    Utf16StringBuilder builder(vm.argument_count());
 
     // 2. For each element next of codePoints, do
     for (size_t i = 0; i < vm.argument_count(); ++i) {
@@ -147,7 +147,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_code_point)
         VERIFY(builder.is_empty());
 
     // 4. Return result.
-    return PrimitiveString::create(vm, builder.to_utf16_string());
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 // 22.1.2.4 String.raw ( template, ...substitutions ), https://tc39.es/ecma262/#sec-string.raw
@@ -172,7 +172,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::raw)
         return PrimitiveString::create(vm, String {});
 
     // 6. Let R be the empty String.
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     // 7. Let nextIndex be 0.
     // 8. Repeat,
@@ -181,10 +181,10 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::raw)
         auto next_literal_value = TRY(literals->get(PropertyKey(i)));
 
         // b. Let nextLiteral be ? ToString(nextLiteralVal).
-        auto next_literal = TRY(next_literal_value.to_string(vm));
+        auto next_literal = TRY(next_literal_value.to_utf16_string(vm));
 
         // c. Set R to the string-concatenation of R and nextLiteral.
-        builder.append(next_literal);
+        builder.append(next_literal.utf16_view());
 
         // d. If nextIndex + 1 = literalCount, return R.
         if (i + 1 == literal_count)
@@ -196,15 +196,15 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::raw)
             auto next_substitution_value = vm.argument(i + 1);
 
             // ii. Let nextSub be ? ToString(nextSubVal).
-            auto next_substitution = TRY(next_substitution_value.to_string(vm));
+            auto next_substitution = TRY(next_substitution_value.to_utf16_string(vm));
 
             // iii. Set R to the string-concatenation of R and nextSub.
-            builder.append(next_substitution);
+            builder.append(next_substitution.utf16_view());
         }
 
         // f. Set nextIndex to nextIndex + 1.
     }
-    return PrimitiveString::create(vm, builder.to_byte_string());
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 }
