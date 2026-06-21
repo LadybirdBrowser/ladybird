@@ -13,6 +13,7 @@
 #include <AK/IterationDecision.h>
 #include <AK/JsonObjectSerializer.h>
 #include <AK/NumericLimits.h>
+#include <AK/SaturatingMath.h>
 #include <AK/StringBuilder.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -4208,7 +4209,7 @@ i32 Element::ordinal_value()
 
     // 1. Let i be 1. [Not necessary]
     // 2. If owner is an ol element, let numbering be owner's starting value. Otherwise, let numbering be 1.
-    AK::Checked<i32> numbering = 1;
+    i32 numbering = 1;
     auto reversed = false;
 
     if (auto* ol_element = as_if<HTML::HTMLOListElement>(owner.ptr())) {
@@ -4233,13 +4234,13 @@ i32 Element::ordinal_value()
         }
 
         // 6. The ordinal value of item is numbering.
-        item->m_ordinal_value = numbering.value();
+        item->m_ordinal_value = numbering;
 
         // 7. If owner is an ol element, and owner has a reversed attribute, decrement numbering by 1; otherwise, increment numbering by 1.
         if (reversed) {
-            numbering--;
+            numbering = AK::saturating_sub(numbering, 1);
         } else {
-            numbering++;
+            numbering = AK::saturating_add(numbering, 1);
         }
 
         // 8. Increment i by 1. [Not necessary]
