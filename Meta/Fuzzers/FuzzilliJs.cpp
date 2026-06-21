@@ -7,6 +7,7 @@
 #include <AK/Format.h>
 #include <AK/Function.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/VM.h>
@@ -220,7 +221,8 @@ int main(int, char**)
         if (!Utf8View(js).validate()) {
             result = 1;
         } else {
-            auto parse_result = JS::Script::parse(js, realm);
+            auto source_text = Utf16String::from_utf8_without_validation(js);
+            auto parse_result = JS::Script::parse(source_text.utf16_view(), realm);
             if (parse_result.is_error()) {
                 result = 1;
             } else {

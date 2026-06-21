@@ -16,7 +16,7 @@
 
 namespace Unicode {
 
-LanguageDisplay language_display_from_string(StringView language_display)
+LanguageDisplay language_display_from_string(Utf16View language_display)
 {
     if (language_display == "standard"sv)
         return LanguageDisplay::Standard;

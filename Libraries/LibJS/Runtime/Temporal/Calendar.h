@@ -11,6 +11,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
@@ -71,7 +72,7 @@ struct CalendarFields {
         };
     }
 
-    Optional<String> era;
+    Optional<Utf16String> era;
     Optional<i32> era_year;
     Optional<i32> year;
     Optional<u32> month;
@@ -83,7 +84,7 @@ struct CalendarFields {
     Optional<u16> millisecond { 0 };
     Optional<u16> microsecond { 0 };
     Optional<u16> nanosecond { 0 };
-    Optional<String> offset_string;
+    Optional<Utf16String> offset_string;
     Optional<String> time_zone;
 };
 
@@ -103,6 +104,7 @@ Vector<String> const& available_calendars();
 
 ThrowCompletionOr<MonthCode> parse_month_code(VM&, Value argument);
 ThrowCompletionOr<MonthCode> parse_month_code(VM&, StringView month_code);
+ThrowCompletionOr<MonthCode> parse_month_code(VM&, Utf16View month_code);
 
 ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM&, String const& calendar, Object const& fields, CalendarFieldList calendar_field_names, CalendarFieldList non_calendar_field_names, CalendarFieldListOrPartial required_field_names);
 ThrowCompletionOr<ISODate> calendar_date_from_fields(VM&, String const& calendar, CalendarFields&, Overflow);
@@ -135,14 +137,14 @@ ThrowCompletionOr<void> non_iso_resolve_fields(VM&, String const& calendar, Cale
 ThrowCompletionOr<void> calendar_resolve_fields(VM&, String const& calendar, CalendarFields&, DateType);
 
 bool calendar_supports_era(String const& calendar);
-Optional<StringView> canonicalize_era_in_calendar(String const& calendar, StringView era);
+Optional<StringView> canonicalize_era_in_calendar(String const& calendar, Utf16View era);
 bool calendar_has_mid_year_eras(String const& calendar);
 bool is_valid_month_code_for_calendar(String const& calendar, StringView month_code);
 bool year_contains_month_code(String const& calendar, i32 arithmetic_year, StringView month_code);
 ThrowCompletionOr<String> constrain_month_code(VM&, String const& calendar, i32 arithmetic_year, String const& month_code, Overflow overflow);
 u8 month_code_to_ordinal(String const& calendar, i32 arithmetic_year, StringView month_code);
 u8 calendar_days_in_month(String const& calendar, i32 arithmetic_year, u8 ordinal_month);
-i32 calendar_date_arithmetic_year_for_era_year(String const& calendar, StringView era, i32 era_year);
+i32 calendar_date_arithmetic_year_for_era_year(String const& calendar, Utf16View era, i32 era_year);
 ThrowCompletionOr<ISODate> calendar_integers_to_iso(VM&, String const& calendar, i32 arithmetic_year, u8 ordinal_month, u8 day);
 u8 calendar_months_in_year(String const& calendar, i32 arithmetic_year);
 BalancedDate balance_non_iso_date(String const& calendar, i32 arithmetic_year, i32 ordinal_month, i32 day);

@@ -30,7 +30,7 @@
 
 namespace Unicode {
 
-DateTimeStyle date_time_style_from_string(StringView style)
+DateTimeStyle date_time_style_from_string(Utf16View style)
 {
     if (style == "full"sv)
         return DateTimeStyle::Full;
@@ -146,7 +146,7 @@ static constexpr char icu_hour_cycle(Optional<HourCycle> const& hour_cycle, Opti
     VERIFY_NOT_REACHED();
 }
 
-CalendarPatternStyle calendar_pattern_style_from_string(StringView style)
+CalendarPatternStyle calendar_pattern_style_from_string(Utf16View style)
 {
     if (style == "narrow"sv)
         return CalendarPatternStyle::Narrow;

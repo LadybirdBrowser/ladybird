@@ -8,6 +8,7 @@
 
 #include <AK/Concepts.h>
 #include <AK/Stream.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -62,31 +63,32 @@
 
 namespace {
 
-static ErrorOr<String> escape_for_string_literal(StringView string)
+static ErrorOr<Utf16String> escape_for_string_literal(Utf16View string)
 {
-    StringBuilder builder;
-    for (auto byte : string.bytes()) {
-        switch (byte) {
+    Utf16StringBuilder builder;
+    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
+        auto code_unit = string.code_unit_at(i);
+        switch (code_unit) {
         case '\r':
-            TRY(builder.try_append("\\r"sv));
+            builder.append_ascii("\\r"sv);
             continue;
         case '\v':
-            TRY(builder.try_append("\\v"sv));
+            builder.append_ascii("\\v"sv);
             continue;
         case '\f':
-            TRY(builder.try_append("\\f"sv));
+            builder.append_ascii("\\f"sv);
             continue;
         case '\b':
-            TRY(builder.try_append("\\b"sv));
+            builder.append_ascii("\\b"sv);
             continue;
         case '\n':
-            TRY(builder.try_append("\\n"sv));
+            builder.append_ascii("\\n"sv);
             continue;
         case '\\':
-            TRY(builder.try_append("\\\\"sv));
+            builder.append_ascii("\\\\"sv);
             continue;
         default:
-            TRY(builder.try_append(byte));
+            builder.append_code_unit(code_unit);
             continue;
         }
     }
@@ -147,6 +149,11 @@ ErrorOr<void> js_out(JS::PrintContext& print_context, CheckedFormatString<Args..
 }
 
 ErrorOr<void> print_type(JS::PrintContext& print_context, StringView name)
+{
+    return js_out(print_context, "[\033[36;1m{}\033[0m]", name);
+}
+
+ErrorOr<void> print_type(JS::PrintContext& print_context, Utf16View name)
 {
     return js_out(print_context, "[\033[36;1m{}\033[0m]", name);
 }
@@ -278,9 +285,9 @@ ErrorOr<void> print_error(JS::PrintContext& print_context, JS::Object const& obj
     if (name.is_accessor() || message.is_accessor()) {
         TRY(print_value(print_context, &object, seen_objects));
     } else {
-        auto name_string = name.to_string_without_side_effects();
-        auto message_string = message.to_string_without_side_effects();
-        TRY(print_type(print_context, name_string));
+        auto name_string = name.to_utf16_string_without_side_effects();
+        auto message_string = message.to_utf16_string_without_side_effects();
+        TRY(print_type(print_context, name_string.utf16_view()));
         if (!message_string.is_empty())
             TRY(js_out(print_context, " \033[31;1m{}\033[0m", message_string));
     }
@@ -1033,9 +1040,9 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, GC::
     else if (value.is_negative_zero())
         TRY(js_out(print_context, "-"));
 
-    auto contents = value.to_string_without_side_effects();
+    auto contents = value.to_utf16_string_without_side_effects();
     if (value.is_string() && !print_context.raw_strings)
-        TRY(js_out(print_context, "{}", TRY(escape_for_string_literal(contents))));
+        TRY(js_out(print_context, "{}", TRY(escape_for_string_literal(contents.utf16_view()))));
     else
         TRY(js_out(print_context, "{}", contents));
 

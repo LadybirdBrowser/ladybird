@@ -1105,7 +1105,7 @@ ByteString date_string(double time)
 
 // 21.4.4.41.3 TimeZoneString ( tv ), https://tc39.es/ecma262/#sec-timezoneestring
 // 14.5.9 TimeZoneString ( tv ), https://tc39.es/proposal-temporal/#sec-timezoneestring
-ByteString time_zone_string(double time)
+Utf16String time_zone_string(double time)
 {
     // 1. Let systemTimeZoneIdentifier be SystemTimeZoneIdentifier().
     auto system_time_zone_identifier = JS::system_time_zone_identifier();
@@ -1130,28 +1130,29 @@ ByteString time_zone_string(double time)
     // 5. Let tzName be an implementation-defined string that is either the empty String or the string-concatenation of
     //    the code unit 0x0020 (SPACE), the code unit 0x0028 (LEFT PARENTHESIS), an implementation-defined timezone name,
     //    and the code unit 0x0029 (RIGHT PARENTHESIS).
-    auto tz_name = Unicode::current_time_zone();
+    auto time_zone_identifier = Unicode::current_time_zone();
+    auto tz_name = Utf16String::from_utf8(time_zone_identifier);
 
     // Most implementations seem to prefer the long-form display name of the time zone. Not super important, but we may as well match that behavior.
-    if (auto name = Unicode::time_zone_display_name(Unicode::default_locale(), tz_name, in_dst, time); name.has_value())
-        tz_name = name->to_utf8_but_should_be_ported_to_utf16();
+    if (auto name = Unicode::time_zone_display_name(Unicode::default_locale(), time_zone_identifier, in_dst, time); name.has_value())
+        tz_name = name.release_value();
 
     // 10. Return the string-concatenation of offsetString and tzName.
-    return ByteString::formatted("{} ({})", offset_string, tz_name);
+    return Utf16String::formatted("{} ({})", offset_string, tz_name);
 }
 
 // 21.4.4.41.4 ToDateString ( tv ), https://tc39.es/ecma262/#sec-todatestring
-ByteString to_date_string(double time)
+Utf16String to_date_string(double time)
 {
     // 1. If tv is NaN, return "Invalid Date".
     if (Value(time).is_nan())
-        return "Invalid Date"sv;
+        return "Invalid Date"_utf16;
 
     // 2. Let t be LocalTime(tv).
     time = local_time(time);
 
     // 3. Return the string-concatenation of DateString(t), the code unit 0x0020 (SPACE), TimeString(t), and TimeZoneString(tv).
-    return ByteString::formatted("{} {}{}", date_string(time), time_string(time), time_zone_string(time));
+    return Utf16String::formatted("{} {}{}", date_string(time), time_string(time), time_zone_string(time));
 }
 
 // 21.4.4.42 Date.prototype.toTimeString ( ), https://tc39.es/ecma262/#sec-date.prototype.totimestring
@@ -1167,7 +1168,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_time_string)
 
     // 4. Let t be LocalTime(tv).
     // 5. Return the string-concatenation of TimeString(t) and TimeZoneString(tv).
-    auto string = ByteString::formatted("{}{}", time_string(local_time(time)), time_zone_string(time));
+    auto string = Utf16String::formatted("{}{}", time_string(local_time(time)), time_zone_string(time));
     return PrimitiveString::create(vm, move(string));
 }
 

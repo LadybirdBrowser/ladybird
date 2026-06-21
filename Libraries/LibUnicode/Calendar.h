@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16View.h>
 
 namespace Unicode {
 
@@ -50,6 +51,7 @@ struct CalendarDate {
 };
 
 Optional<MonthCode> parse_month_code(StringView month_code);
+Optional<MonthCode> parse_month_code(Utf16View month_code);
 String create_month_code(u8 month_number, bool is_leap_month);
 
 CalendarDate iso_date_to_calendar_date(String const& calendar, ISODate);

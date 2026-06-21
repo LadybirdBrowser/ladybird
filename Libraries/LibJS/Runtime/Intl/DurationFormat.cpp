@@ -50,7 +50,7 @@ ReadonlySpan<ResolutionOptionDescriptor> DurationFormat::resolution_option_descr
     return *descriptors;
 }
 
-DurationFormat::Style DurationFormat::style_from_string(StringView style)
+DurationFormat::Style DurationFormat::style_from_string(Utf16View style)
 {
     if (style == "long"sv)
         return Style::Long;
@@ -79,7 +79,7 @@ StringView DurationFormat::style_to_string(Style style)
     }
 }
 
-DurationFormat::Display DurationFormat::display_from_string(StringView display)
+DurationFormat::Display DurationFormat::display_from_string(Utf16View display)
 {
     if (display == "auto"sv)
         return Display::Auto;
@@ -88,7 +88,7 @@ DurationFormat::Display DurationFormat::display_from_string(StringView display)
     VERIFY_NOT_REACHED();
 }
 
-DurationFormat::ValueStyle DurationFormat::value_style_from_string(StringView value_style)
+DurationFormat::ValueStyle DurationFormat::value_style_from_string(Utf16View value_style)
 {
     if (value_style == "long"sv)
         return ValueStyle::Long;
@@ -269,7 +269,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
             display_default = "auto"sv;
         }
     } else {
-        style = DurationFormat::value_style_from_string(style_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+        style = DurationFormat::value_style_from_string(style_value.as_string().utf16_string_view());
     }
 
     // 4. If style is "numeric" and IsFractionalSecondUnitName(unit) is true, then
@@ -286,7 +286,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
 
     // 6. Let display be ? GetOption(options, displayField, STRING, « "auto", "always" », displayDefault).
     auto display_value = TRY(get_option(vm, options, display_field, OptionType::String, { "auto"sv, "always"sv }, display_default));
-    auto display = DurationFormat::display_from_string(display_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+    auto display = DurationFormat::display_from_string(display_value.as_string().utf16_string_view());
 
     // 7. Perform ? ValidateDurationUnitStyle(unit, style, display, prevStyle).
     TRY(validate_duration_unit_style(vm, unit_property_key, style, display, previous_style, display_field));
@@ -690,7 +690,8 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     // 18. If secondsFormatted is true, then
     if (seconds_formatted) {
         // a. Let secondsParts be FormatNumericSeconds(durationFormat, secondsValue, minutesFormatted, signDisplayed).
-        auto seconds_parts = format_numeric_seconds(vm, duration_format, MathematicalValue { seconds_value.to_string(9) }, minutes_formatted, sign_displayed);
+        auto seconds_value_mv = MathematicalValue { Utf16String::from_utf8(seconds_value.to_string(9)) };
+        auto seconds_parts = format_numeric_seconds(vm, duration_format, seconds_value_mv, minutes_formatted, sign_displayed);
 
         // b. Set numericPartsList to the list-concatenation of numericPartsList and secondsParts.
         numeric_parts_list.extend(move(seconds_parts));
@@ -883,7 +884,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
 
             // iii. If display is "always" or value is not 0, then
             if (display == DurationFormat::Display::Always || !value.is_zero()) {
-                MathematicalValue value_mv { value.to_string(9) };
+                auto value_mv = MathematicalValue { Utf16String::from_utf8(value.to_string(9)) };
 
                 // 1. Perform ! CreateDataPropertyOrThrow(nfOpts, "numberingSystem", durationFormat.[[NumberingSystem]]).
                 MUST(number_format_options->create_data_property_or_throw(vm.names.numberingSystem, PrimitiveString::create(vm, duration_format.numbering_system())));

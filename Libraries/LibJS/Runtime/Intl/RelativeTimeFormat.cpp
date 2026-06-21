@@ -43,7 +43,7 @@ ReadonlySpan<ResolutionOptionDescriptor> RelativeTimeFormat::resolution_option_d
 }
 
 // 18.5.1 SingularRelativeTimeUnit ( unit ), https://tc39.es/ecma402/#sec-singularrelativetimeunit
-ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM& vm, StringView unit)
+ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM& vm, Utf16View unit)
 {
     // 1. If unit is "seconds", return "second".
     if (unit == "seconds"sv)
@@ -78,7 +78,7 @@ ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM& vm, StringV
 }
 
 // 18.5.2 PartitionRelativeTimePattern ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-PartitionRelativeTimePattern
-ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_relative_time_pattern(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
+ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_relative_time_pattern(VM& vm, RelativeTimeFormat& relative_time_format, double value, Utf16View unit)
 {
     // 1. If value is NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
     if (!Value(value).is_finite_number())
@@ -91,7 +91,7 @@ ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_rela
 }
 
 // 18.5.4 FormatRelativeTime ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-FormatRelativeTime
-ThrowCompletionOr<Utf16String> format_relative_time(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
+ThrowCompletionOr<Utf16String> format_relative_time(VM& vm, RelativeTimeFormat& relative_time_format, double value, Utf16View unit)
 {
     // 1. Let parts be ? PartitionRelativeTimePattern(relativeTimeFormat, value, unit).
     auto time_unit = TRY([&]() -> ThrowCompletionOr<Unicode::TimeUnit> {
@@ -114,7 +114,7 @@ ThrowCompletionOr<Utf16String> format_relative_time(VM& vm, RelativeTimeFormat& 
 }
 
 // 18.5.5 FormatRelativeTimeToParts ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-FormatRelativeTimeToParts
-ThrowCompletionOr<GC::Ref<Array>> format_relative_time_to_parts(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
+ThrowCompletionOr<GC::Ref<Array>> format_relative_time_to_parts(VM& vm, RelativeTimeFormat& relative_time_format, double value, Utf16View unit)
 {
     auto& realm = *vm.current_realm();
 

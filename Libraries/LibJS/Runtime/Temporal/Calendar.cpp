@@ -286,8 +286,11 @@ ThrowCompletionOr<String> canonicalize_calendar(VM& vm, StringView id)
 
 ThrowCompletionOr<String> canonicalize_calendar(VM& vm, Utf16View id)
 {
-    auto utf8_id = id.to_utf8_but_should_be_ported_to_utf16();
-    return canonicalize_calendar(vm, utf8_id.bytes_as_string_view());
+    if (!id.is_ascii())
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarIdentifier, id);
+
+    auto id_string = MUST(id.to_utf8());
+    return canonicalize_calendar(vm, id_string.bytes_as_string_view());
 }
 
 // 12.1.2 AvailableCalendars ( ), https://tc39.es/proposal-temporal/#sec-availablecalendars
@@ -324,12 +327,20 @@ ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, Value argument)
     if (!month_code.is_string())
         return vm.throw_completion<TypeError>(ErrorType::NotAString, month_code);
 
-    auto month_code_string = month_code.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
-    return parse_month_code(vm, month_code_string.bytes_as_string_view());
+    return parse_month_code(vm, month_code.as_string().utf16_string_view());
 }
 
 // 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
 ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, StringView month_code)
+{
+    // 3. If ParseText(StringToCodePoints(monthCode), MonthCode) is a List of errors, throw a RangeError exception.
+    if (auto result = Unicode::parse_month_code(month_code); result.has_value())
+        return result.release_value();
+    return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
+}
+
+// 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
+ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, Utf16View month_code)
 {
     // 3. If ParseText(StringToCodePoints(monthCode), MonthCode) is a List of errors, throw a RangeError exception.
     if (auto result = Unicode::parse_month_code(month_code); result.has_value())
@@ -395,7 +406,7 @@ ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM& vm, String const& 
             // v. Else if Conversion is TO-STRING, then
             case CalendarFieldConversion::ToString:
                 // 1. Set value to ? ToString(value).
-                set_field_value(key, result, TRY(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16());
+                set_field_value(key, result, TRY(value.to_utf16_string(vm)));
                 break;
             // vi. Else if Conversion is TO-TEMPORAL-TIME-ZONE-IDENTIFIER, then
             case CalendarFieldConversion::ToTemporalTimeZoneIdentifier:
@@ -1510,7 +1521,7 @@ ThrowCompletionOr<void> non_iso_resolve_fields(VM& vm, String const& calendar, C
             return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarFieldName, "era"sv);
 
         // c. Let arithmeticYear be CalendarDateArithmeticYearForEraYear(calendar, canonicalEra, fields.[[EraYear]]).
-        auto arithmetic_year = calendar_date_arithmetic_year_for_era_year(calendar, *canonical_era, *fields.era_year);
+        auto arithmetic_year = calendar_date_arithmetic_year_for_era_year(calendar, *fields.era, *fields.era_year);
 
         // d. If fields.[[Year]] is not UNSET, and fields.[[Year]] ≠ arithmeticYear, throw a RangeError exception.
         if (fields.year.has_value() && *fields.year != arithmetic_year)
@@ -1650,7 +1661,7 @@ bool calendar_supports_era(String const& calendar)
 }
 
 // 4.1.2 CanonicalizeEraInCalendar ( calendar, era ), https://tc39.es/proposal-intl-era-monthcode/#sec-temporal-canonicalizeeraincalendar
-Optional<StringView> canonicalize_era_in_calendar(String const& calendar, StringView era)
+Optional<StringView> canonicalize_era_in_calendar(String const& calendar, Utf16View era)
 {
     // 1. For each row of Table 2, except the header row, do
     for (auto const& row : CALENDAR_ERA_DATA) {
@@ -1661,12 +1672,12 @@ Optional<StringView> canonicalize_era_in_calendar(String const& calendar, String
             auto canonical_name = row.era;
 
             // ii. If canonicalName is equal to era, return canonicalName.
-            if (canonical_name == era)
+            if (era == canonical_name)
                 return canonical_name;
 
             // iii. Let aliases be a List whose elements are the strings given in the "Aliases" column of the row.
             // iv. If aliases contains era, return canonicalName.
-            if (row.alias == era)
+            if (era == row.alias)
                 return canonical_name;
         }
     }
@@ -1824,16 +1835,16 @@ u8 calendar_days_in_month(String const& calendar, i32 arithmetic_year, u8 ordina
 }
 
 // 4.1.12 CalendarDateArithmeticYearForEraYear ( calendar, era, eraYear ), https://tc39.es/proposal-intl-era-monthcode/#sec-temporal-calendardatearithmeticyearforerayear
-i32 calendar_date_arithmetic_year_for_era_year(String const& calendar, StringView era, i32 era_year)
+i32 calendar_date_arithmetic_year_for_era_year(String const& calendar, Utf16View era, i32 era_year)
 {
     // 1. Let era be CanonicalizeEraInCalendar(calendar, era).
     // 2. Assert: era is not undefined.
-    era = canonicalize_era_in_calendar(calendar, era).release_value();
+    auto canonical_era = canonicalize_era_in_calendar(calendar, era).release_value();
 
     // 3. If calendar is not listed in the "Calendar Type" column of Table 1, return an implementation-defined value.
     // 4. Let r be the row in Table 2 with a value in the Calendar column matching calendar and a value in the Era
     //    column matching era.
-    auto row = find_value(CALENDAR_ERA_DATA, [&](auto const& row) { return row.calendar == calendar && row.era == era; });
+    auto row = find_value(CALENDAR_ERA_DATA, [&](auto const& row) { return row.calendar == calendar && row.era == canonical_era; });
     if (!row.has_value())
         return era_year;
 

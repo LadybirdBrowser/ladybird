@@ -139,7 +139,7 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
 
     String calendar;
     String time_zone;
-    Optional<String> offset_string;
+    Optional<Utf16String> offset_string;
 
     Disambiguation disambiguation;
     OffsetOption offset_option;
@@ -223,8 +223,7 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         VERIFY(annotation.has_value());
 
         // e. Let timeZone be ? ToTemporalTimeZoneIdentifier(annotation).
-        auto utf16_annotation = Utf16String::from_utf8(*annotation);
-        time_zone = TRY(to_temporal_time_zone_identifier(vm, utf16_annotation));
+        time_zone = TRY(to_temporal_time_zone_identifier(vm, *annotation));
 
         // f. Let offsetString be result.[[TimeZone]].[[OffsetString]].
         offset_string = move(result.time_zone.offset_string);
@@ -237,10 +236,9 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
 
         // h. Let calendar be result.[[Calendar]].
         // i. If calendar is EMPTY, set calendar to "iso8601".
-        calendar = result.calendar.value_or("iso8601"_string);
-
-        // j. Set calendar to ? CanonicalizeCalendar(calendar).
-        calendar = TRY(canonicalize_calendar(vm, calendar));
+        calendar = result.calendar.has_value()
+            ? TRY(canonicalize_calendar(vm, *result.calendar))
+            : TRY(canonicalize_calendar(vm, "iso8601"sv));
 
         // k. Set matchBehaviour to MATCH-MINUTES.
         match_behavior = MatchBehavior::MatchMinutes;
@@ -248,8 +246,7 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         // l. If offsetString is not EMPTY, then
         if (offset_string.has_value()) {
             // i. Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
-            auto utf16_offset_string = Utf16String::from_utf8(*offset_string);
-            auto offset_parse_result = parse_utc_offset(utf16_offset_string, SubMinutePrecision::Yes);
+            auto offset_parse_result = parse_utc_offset(*offset_string, SubMinutePrecision::Yes);
 
             // ii. Assert: offsetParseResult is a Parse Node.
             VERIFY(offset_parse_result.has_value());

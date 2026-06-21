@@ -11,7 +11,7 @@
 
 namespace Unicode {
 
-Usage usage_from_string(StringView usage)
+Usage usage_from_string(Utf16View usage)
 {
     if (usage == "sort"sv)
         return Usage::Sort;
@@ -49,7 +49,7 @@ static NonnullOwnPtr<icu::Locale> apply_usage_to_locale(icu::Locale const& local
     return result;
 }
 
-Sensitivity sensitivity_from_string(StringView sensitivity)
+Sensitivity sensitivity_from_string(Utf16View sensitivity)
 {
     if (sensitivity == "base"sv)
         return Sensitivity::Base;

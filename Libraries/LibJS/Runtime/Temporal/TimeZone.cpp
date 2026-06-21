@@ -453,7 +453,8 @@ ThrowCompletionOr<Crypto::SignedBigInteger> get_start_of_day(VM& vm, String cons
         return move(possible_epoch_nanoseconds[0]);
 
     // 4. Assert: IsOffsetTimeZoneIdentifier(timeZone) is false.
-    VERIFY(!is_offset_time_zone_identifier(time_zone));
+    auto utf16_time_zone = Utf16String::from_utf8(time_zone);
+    VERIFY(!is_offset_time_zone_identifier(utf16_time_zone));
 
     // 5. Let possibleEpochNsAfter be GetNamedTimeZoneEpochNanoseconds(timeZone, isoDateTimeAfter), where isoDateTimeAfter
     //    is the ISO Date-Time Record for which DifferenceISODateTime(isoDateTime, isoDateTimeAfter, "iso8601", hour).[[Time]]
@@ -542,7 +543,25 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, S
 
 ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, Utf16View identifier)
 {
-    return parse_time_zone_identifier(vm, identifier.to_utf8_but_should_be_ported_to_utf16());
+    Optional<String> cache_key;
+    if (identifier.is_ascii()) {
+        cache_key = MUST(identifier.to_utf8());
+        if (auto result = time_zone_id_cache().get(*cache_key); result.has_value())
+            return *result;
+    }
+
+    // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
+    auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, identifier);
+
+    // 2. If parseResult is a List of errors, throw a RangeError exception.
+    if (!parse_result.has_value())
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneString, identifier);
+
+    auto result = parse_time_zone_identifier(*parse_result);
+    if (cache_key.has_value())
+        time_zone_id_cache().set(*cache_key, result);
+
+    return result;
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
@@ -570,7 +589,7 @@ ParsedTimeZoneIdentifier parse_time_zone_identifier(ParseResult const& parse_res
         // b. NOTE: name is syntactically valid, but does not necessarily conform to IANA Time Zone Database naming
         //    guidelines or correspond with an available named time zone identifier.
         // c. Return Time Zone Identifier Parse Record { [[Name]]: CodePointsToString(name), [[OffsetMinutes]]: EMPTY }.
-        return ParsedTimeZoneIdentifier { .name = parse_result.time_zone_iana_name->to_utf8_but_should_be_ported_to_utf16(), .offset_minutes = {} };
+        return ParsedTimeZoneIdentifier { .name = MUST(parse_result.time_zone_iana_name->to_utf8()), .offset_minutes = {} };
     }
 
     // 4. Assert: parseResult contains a UTCOffset[~SubMinutePrecision] Parse Node.

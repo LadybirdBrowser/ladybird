@@ -230,7 +230,7 @@ fn utf16_to_string(s: &[u16]) -> String {
 ///        Once the C++ pipeline is removed, this can be replaced with
 ///        a native implementation.
 fn format_f64(value: f64) -> String {
-    // C++ AST dump formats JS::Value which uses to_string_without_side_effects(),
+    // C++ AST dump formats JS::Value which uses to_utf16_string_without_side_effects(),
     // producing "Infinity"/"-Infinity"/"NaN". The rust_format_double FFI uses
     // AK's double formatter which produces "inf"/"-inf"/"nan" instead.
     if value.is_nan() {

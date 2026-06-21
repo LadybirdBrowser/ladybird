@@ -35,6 +35,31 @@ static constexpr bool is_valid_month_code_string(StringView month_code)
     return true;
 }
 
+static constexpr bool is_valid_month_code_string(Utf16View month_code)
+{
+    // MonthCode :::
+    //     M00L
+    //     M0 NonZeroDigit L[opt]
+    //     M NonZeroDigit DecimalDigit L[opt]
+    auto length = month_code.length_in_code_units();
+
+    if (length != 3 && length != 4)
+        return false;
+
+    if (month_code.code_unit_at(0) != 'M')
+        return false;
+
+    if (!is_ascii_digit(month_code.code_unit_at(1)) || !is_ascii_digit(month_code.code_unit_at(2)))
+        return false;
+
+    if (length == 3 && month_code.code_unit_at(1) == '0' && month_code.code_unit_at(2) == '0')
+        return false;
+    if (length == 4 && month_code.code_unit_at(3) != 'L')
+        return false;
+
+    return true;
+}
+
 // 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
 Optional<MonthCode> parse_month_code(StringView month_code)
 {
@@ -59,6 +84,34 @@ Optional<MonthCode> parse_month_code(StringView month_code)
 
     // 7. Let monthNumber be ℝ(StringToNumber(monthCodeDigits)).
     auto month_number = month_code_digits.to_number<u8>().value();
+
+    // 8. Return the Record { [[MonthNumber]]: monthNumber, [[IsLeapMonth]]: isLeapMonth }.
+    return MonthCode { month_number, is_leap_month };
+}
+
+// 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
+Optional<MonthCode> parse_month_code(Utf16View month_code)
+{
+    // 3. If ParseText(StringToCodePoints(monthCode), MonthCode) is a List of errors, throw a RangeError exception.
+    if (!is_valid_month_code_string(month_code))
+        return {};
+
+    // 4. Let isLeapMonth be false.
+    auto is_leap_month = false;
+
+    // 5. If the length of monthCode = 4, then
+    if (month_code.length_in_code_units() == 4) {
+        // a. Assert: The fourth code unit of monthCode is 0x004C (LATIN CAPITAL LETTER L).
+        VERIFY(month_code.code_unit_at(3) == 'L');
+
+        // b. Set isLeapMonth to true.
+        is_leap_month = true;
+    }
+
+    // 6. Let monthCodeDigits be the substring of monthCode from 1 to 3.
+
+    // 7. Let monthNumber be ℝ(StringToNumber(monthCodeDigits)).
+    auto month_number = static_cast<u8>((month_code.code_unit_at(1) - '0') * 10 + (month_code.code_unit_at(2) - '0'));
 
     // 8. Return the Record { [[MonthNumber]]: monthNumber, [[IsLeapMonth]]: isLeapMonth }.
     return MonthCode { month_number, is_leap_month };

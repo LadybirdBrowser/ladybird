@@ -10,7 +10,6 @@
 #include <AK/TypeCasts.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf8View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/BigIntObject.h>
@@ -445,7 +444,7 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::parse)
     auto reviver = vm.argument(1);
 
     // 1. Let jsonString be ? ToString(text).
-    auto json_string = TRY(text.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+    auto json_string = TRY(text.to_utf16_string(vm));
 
     // 2. Let parseResult be ? ParseJSON(jsonString).
     // 3. Let unfiltered be parseResult.[[Value]].
@@ -868,20 +867,28 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondema
     VERIFY_NOT_REACHED();
 }
 
+static StringView utf8_json_text_bytes(Utf16View text, Optional<String>& utf8_text)
+{
+    if (text.has_ascii_storage())
+        return { text.bytes() };
+
+    utf8_text = MUST(text.to_utf8());
+    return utf8_text->bytes_as_string_view();
+}
+
 // 25.5.1.1 ParseJSON ( text ), https://tc39.es/ecma262/#sec-ParseJSON
-ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, StringView text, JSONParseRecord* root_record)
+ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, Utf16View text, JSONParseRecord* root_record)
 {
     // 1. If StringToCodePoints(text) is not a valid JSON text as specified in ECMA-404, throw a SyntaxError exception.
     // NB: Per ECMA-404, the BOM is not valid JSON whitespace. simdjson silently skips it, so we must reject it explicitly.
-    if (text.length() >= 3
-        && static_cast<u8>(text[0]) == 0xEF
-        && static_cast<u8>(text[1]) == 0xBB
-        && static_cast<u8>(text[2]) == 0xBF) {
+    if (text.length_in_code_units() >= 1 && text.code_unit_at(0) == 0xFEFF)
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
-    }
+
+    Optional<String> utf8_text;
+    auto text_bytes = utf8_json_text_bytes(text, utf8_text);
 
     simdjson::ondemand::parser parser;
-    simdjson::padded_string padded(text.characters_without_null_termination(), text.length());
+    simdjson::padded_string padded(text_bytes.characters_without_null_termination(), text_bytes.length());
 
     simdjson::ondemand::document document;
     if (parser.iterate(padded).get(document))
@@ -996,18 +1003,18 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::raw_json)
     auto& realm = *vm.current_realm();
 
     // 1. Let jsonString be ? ToString(text).
-    auto json_string = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+    auto json_string = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 2. Throw a SyntaxError exception if jsonString is the empty String, or if either the first or last code unit of
     //    jsonString is any of 0x0009 (CHARACTER TABULATION), 0x000A (LINE FEED), 0x000D (CARRIAGE RETURN), or
     //    0x0020 (SPACE).
-    auto bytes = json_string.bytes_as_string_view();
-    if (bytes.is_empty())
+    auto json_string_view = json_string.utf16_view();
+    if (json_string_view.is_empty())
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     static constexpr AK::Array invalid_code_points { 0x09, 0x0A, 0x0D, 0x20 };
-    auto first_char = bytes[0];
-    auto last_char = bytes[bytes.length() - 1];
+    auto first_char = json_string_view.code_unit_at(0);
+    auto last_char = json_string_view.code_unit_at(json_string_view.length_in_code_units() - 1);
 
     if (invalid_code_points.contains_slow(first_char) || invalid_code_points.contains_slow(last_char))
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
@@ -1015,8 +1022,11 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::raw_json)
     // 3. Parse StringToCodePoints(jsonString) as a JSON text as specified in ECMA-404. Throw a SyntaxError exception
     //    if it is not a valid JSON text as defined in that specification, or if its outermost value is an object or
     //    array as defined in that specification.
+    Optional<String> utf8_text;
+    auto text_bytes = utf8_json_text_bytes(json_string_view, utf8_text);
+
     simdjson::ondemand::parser parser;
-    simdjson::padded_string padded(json_string.bytes_as_string_view().characters_without_null_termination(), json_string.bytes_as_string_view().length());
+    simdjson::padded_string padded(text_bytes.characters_without_null_termination(), text_bytes.length());
 
     simdjson::ondemand::document doc;
     if (parser.iterate(padded).get(doc))

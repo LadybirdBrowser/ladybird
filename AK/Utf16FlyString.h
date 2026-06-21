@@ -198,7 +198,7 @@ template<>
 struct Formatter<Utf16FlyString> : Formatter<Utf16String> {
     ErrorOr<void> format(FormatBuilder& builder, Utf16FlyString const& string)
     {
-        return Formatter<Utf16String>::format(builder, string.to_utf16_string());
+        return Formatter<Utf16String> {}.format(builder, string.to_utf16_string());
     }
 };
 

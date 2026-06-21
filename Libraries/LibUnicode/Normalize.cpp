@@ -26,6 +26,19 @@ NormalizationForm normalization_form_from_string(StringView form)
     VERIFY_NOT_REACHED();
 }
 
+NormalizationForm normalization_form_from_string(Utf16View form)
+{
+    if (form == u"NFD"sv)
+        return NormalizationForm::NFD;
+    if (form == u"NFC"sv)
+        return NormalizationForm::NFC;
+    if (form == u"NFKD"sv)
+        return NormalizationForm::NFKD;
+    if (form == u"NFKC"sv)
+        return NormalizationForm::NFKC;
+    VERIFY_NOT_REACHED();
+}
+
 StringView normalization_form_to_string(NormalizationForm form)
 {
     switch (form) {
@@ -41,25 +54,25 @@ StringView normalization_form_to_string(NormalizationForm form)
     VERIFY_NOT_REACHED();
 }
 
+static icu::Normalizer2 const* normalizer_for_form(NormalizationForm form, UErrorCode& status)
+{
+    switch (form) {
+    case NormalizationForm::NFD:
+        return icu::Normalizer2::getNFDInstance(status);
+    case NormalizationForm::NFC:
+        return icu::Normalizer2::getNFCInstance(status);
+    case NormalizationForm::NFKD:
+        return icu::Normalizer2::getNFKDInstance(status);
+    case NormalizationForm::NFKC:
+        return icu::Normalizer2::getNFKCInstance(status);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 String normalize(StringView string, NormalizationForm form)
 {
     UErrorCode status = U_ZERO_ERROR;
-    icu::Normalizer2 const* normalizer = nullptr;
-
-    switch (form) {
-    case NormalizationForm::NFD:
-        normalizer = icu::Normalizer2::getNFDInstance(status);
-        break;
-    case NormalizationForm::NFC:
-        normalizer = icu::Normalizer2::getNFCInstance(status);
-        break;
-    case NormalizationForm::NFKD:
-        normalizer = icu::Normalizer2::getNFKDInstance(status);
-        break;
-    case NormalizationForm::NFKC:
-        normalizer = icu::Normalizer2::getNFKCInstance(status);
-        break;
-    }
+    auto const* normalizer = normalizer_for_form(form, status);
 
     if (icu_failure(status))
         return MUST(String::from_utf8(string));
@@ -74,6 +87,25 @@ String normalize(StringView string, NormalizationForm form)
         return MUST(String::from_utf8(string));
 
     return MUST(builder.to_string());
+}
+
+Utf16String normalize(Utf16View string, NormalizationForm form)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    auto const* normalizer = normalizer_for_form(form, status);
+
+    if (icu_failure(status))
+        return Utf16String::from_utf16(string);
+
+    VERIFY(normalizer);
+
+    auto icu_input = icu_string(string);
+    UErrorCode normalize_status = U_ZERO_ERROR;
+    auto icu_output = normalizer->normalize(icu_input, normalize_status);
+    if (icu_failure(normalize_status))
+        return Utf16String::from_utf16(string);
+
+    return icu_string_to_utf16_string(icu_output);
 }
 
 }

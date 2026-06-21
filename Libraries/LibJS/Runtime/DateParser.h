@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AllOf.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Error.h>
 #include <AK/GenericLexer.h>
@@ -45,18 +46,18 @@
 //     - We always parse as "Month 01, Year".
 // - Support Firefox less permissive punctuation but more permissive punctuation
 //   syntax.
-class DateParser : public GenericLexer {
+class DateParser : public Utf16GenericLexer {
 public:
-    ALWAYS_INLINE static double parse(StringView string)
+    ALWAYS_INLINE static double parse(Utf16View string)
     {
-        if (!string.is_ascii())
+        if (!all_of(string, is_ascii))
             return NAN;
         return DateParser(string).parse().value_or(NAN);
     }
 
 private:
-    explicit DateParser(StringView string)
-        : GenericLexer(string)
+    explicit DateParser(Utf16View string)
+        : Utf16GenericLexer(string)
     {
     }
 
@@ -589,7 +590,7 @@ private:
 
         m_timezone_utc = true;
 
-        bool space = consume_while(is_ascii_space).length() > 0;
+        bool space = !consume_while(is_ascii_space).is_empty();
         switch (peek()) {
         case '+':
         case '-':
@@ -953,10 +954,10 @@ private:
         // Convert the input string to uppercase only ~after~ parsing ISO8601 failed.
         // This saves some time (two string copies) if parsing a ISO8601 date succeeds.
         // The index stays exactly where it was before converting to uppercase.
-        auto str_uppercase = m_input.to_ascii_uppercase_string();
-        m_input = str_uppercase;
+        auto str_uppercase = m_input.to_ascii_uppercase();
+        m_input = str_uppercase.utf16_view();
         // FIXME: Two full string copies could be avoided, if to_uppercase can be done in place.
-        // The underlying StringView m_input protects itself from modifying its contents. Bummer.
+        // The underlying Utf16View m_input protects itself from modifying its contents. Bummer.
 
         while (!is_eof())
             if (!loop())

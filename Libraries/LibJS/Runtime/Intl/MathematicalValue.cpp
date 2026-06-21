@@ -21,13 +21,13 @@ double MathematicalValue::as_number() const
 
 bool MathematicalValue::is_string() const
 {
-    return m_value.has<String>();
+    return m_value.has<Utf16String>();
 }
 
-String const& MathematicalValue::as_string() const
+Utf16String const& MathematicalValue::as_string() const
 {
     VERIFY(is_string());
-    return m_value.get<String>();
+    return m_value.get<Utf16String>();
 }
 
 bool MathematicalValue::is_mathematical_value() const
@@ -69,7 +69,7 @@ Unicode::NumberFormat::Value MathematicalValue::to_value() const
         [](double value) -> Unicode::NumberFormat::Value {
             return value;
         },
-        [](String const& value) -> Unicode::NumberFormat::Value {
+        [](Utf16String const& value) -> Unicode::NumberFormat::Value {
             return value;
         },
         [](auto symbol) -> Unicode::NumberFormat::Value {

@@ -171,6 +171,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
     // 17. Let timeZone be ? Get(options, "timeZone").
     auto time_zone_value = TRY(options->get(vm.names.timeZone));
     String time_zone;
+    Utf16String time_zone_string;
 
     // 18. If timeZone is undefined, then
     if (time_zone_value.is_undefined()) {
@@ -178,11 +179,13 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
         if (to_locale_string_time_zone.has_value()) {
             // i. Set timeZone to toLocaleStringTimeZone.
             time_zone = *to_locale_string_time_zone;
+            time_zone_string = Utf16String::from_utf8(time_zone);
         }
         // b. Else,
         else {
             // i. Set timeZone to SystemTimeZoneIdentifier().
             time_zone = system_time_zone_identifier();
+            time_zone_string = Utf16String::from_utf8(time_zone);
         }
     }
     // 19. Else,
@@ -192,22 +195,23 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
             return vm.throw_completion<TypeError>(ErrorType::IntlInvalidDateTimeFormatOption, vm.names.timeZone, "a toLocaleString time zone"sv);
 
         // b. Set timeZone to ? ToString(timeZone).
-        time_zone = TRY(time_zone_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+        time_zone_string = TRY(time_zone_value.to_utf16_string(vm));
     }
 
+    auto time_zone_view = time_zone_string.utf16_view();
+
     // 20. If IsTimeZoneOffsetString(timeZone) is true, then
-    bool is_time_zone_offset_string = JS::is_offset_time_zone_identifier(time_zone);
+    auto parse_result = Temporal::parse_utc_offset(time_zone_view, Temporal::SubMinutePrecision::No);
+    bool is_time_zone_offset_string = parse_result.has_value();
 
     if (is_time_zone_offset_string) {
         // a. Let parseResult be ParseText(StringToCodePoints(timeZone), UTCOffset[~SubMinutePrecision]).
-        auto utf16_time_zone = Utf16String::from_utf8(time_zone);
-        auto parse_result = Temporal::parse_utc_offset(utf16_time_zone, Temporal::SubMinutePrecision::No);
 
         // b. Assert: parseResult is a Parse Node.
         VERIFY(parse_result.has_value());
 
         // c. Let offsetNanoseconds be ? ParseDateTimeUTCOffset(timeZone).
-        auto offset_nanoseconds = TRY(parse_date_time_utc_offset(vm, time_zone));
+        auto offset_nanoseconds = parse_date_time_utc_offset(*parse_result);
 
         // d. Let offsetMinutes be offsetNanoseconds / (6 × 10**10).
         auto offset_minutes = offset_nanoseconds / 60'000'000'000;
@@ -218,6 +222,10 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
     // 21. Else,
     else {
         // a. Let timeZoneIdentifierRecord be GetAvailableNamedTimeZoneIdentifier(timeZone).
+        if (!time_zone_view.is_ascii())
+            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, time_zone_view, vm.names.timeZone);
+
+        time_zone = MUST(time_zone_view.to_utf8());
         auto time_zone_identifier_record = get_available_named_time_zone_identifier(time_zone);
 
         // b. If timeZoneIdentifierRecord is EMPTY, throw a RangeError exception.
@@ -277,7 +285,7 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
             // d. Set formatOptions.[[<prop>]] to value.
             if (!value.is_undefined()) {
-                option = Unicode::calendar_pattern_style_from_string(value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+                option = Unicode::calendar_pattern_style_from_string(value.as_string().utf16_string_view());
 
                 // e. If value is not undefined, then
                 //     i. Set hasExplicitFormatComponents to true.
@@ -296,14 +304,14 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
     // 29. Set dateTimeFormat.[[DateStyle]] to dateStyle.
     if (!date_style.is_undefined())
-        date_time_format->set_date_style(date_style.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+        date_time_format->set_date_style(date_style.as_string().utf16_string_view());
 
     // 30. Let timeStyle be ? GetOption(options, "timeStyle", string, « "full", "long", "medium", "short" », undefined).
     auto time_style = TRY(get_option(vm, *options, vm.names.timeStyle, OptionType::String, AK::Array { "full"sv, "long"sv, "medium"sv, "short"sv }, Empty {}));
 
     // 31. Set dateTimeFormat.[[TimeStyle]] to timeStyle.
     if (!time_style.is_undefined())
-        date_time_format->set_time_style(time_style.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16());
+        date_time_format->set_time_style(time_style.as_string().utf16_string_view());
 
     // 32. Let formats be resolvedLocaleData.[[formats]].[[<resolvedCalendar>]].
 

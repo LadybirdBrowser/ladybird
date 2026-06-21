@@ -479,6 +479,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
 
         // 3. Let body be the uncompiled script body in eventHandler's value.
         auto& body = event_handler->value.get<ByteString>();
+        auto body_utf16 = Utf16String::from_utf8(body);
 
         // FIXME: 4. Let location be the location where the script body originated, as given by eventHandler's value.
 
@@ -493,28 +494,28 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         auto& settings_object = document->relevant_settings_object();
 
         // Build source text and parameter strings for the event handler function.
-        StringBuilder source_builder;
-        StringView parameters_string;
+        StringBuilder source_builder(StringBuilder::Mode::UTF16);
+        Utf16String parameters_string;
 
         // sourceText / ParameterList
         if (name == HTML::EventNames::error && is<HTML::Window>(this)) {
             //  -> If name is onerror and eventTarget is a Window object
             //      Let the function have five arguments, named event, source, lineno, colno, and error.
-            source_builder.appendff("function on{}(event, source, lineno, colno, error) {{\n{}\n}}", name, body);
-            parameters_string = "event, source, lineno, colno, error"sv;
+            source_builder.appendff("function on{}(event, source, lineno, colno, error) {{\n{}\n}}", name, body_utf16);
+            parameters_string = "event, source, lineno, colno, error"_utf16;
         } else {
             //  -> Otherwise
             //      Let the function have a single argument called event.
-            source_builder.appendff("function on{}(event) {{\n{}\n}}", name, body);
-            parameters_string = "event"sv;
+            source_builder.appendff("function on{}(event) {{\n{}\n}}", name, body_utf16);
+            parameters_string = "event"_utf16;
         }
 
-        auto source_text = source_builder.to_byte_string();
+        auto source_text = source_builder.to_utf16_string();
 
         auto& vm = Bindings::main_thread_vm();
 
         auto rust_compilation = JS::RustIntegration::compile_dynamic_function(
-            vm, source_text, parameters_string, body, JS::FunctionKind::Normal);
+            vm, source_text, parameters_string, body_utf16, JS::FunctionKind::Normal);
 
         // 7. If body is not parsable as FunctionBody or if parsing detects an early error, then follow these substeps:
         if (!rust_compilation.has_value() || rust_compilation->is_error()) {

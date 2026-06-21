@@ -188,6 +188,18 @@ TEST_CASE(parse_unicode_locale_id_with_unicode_locale_extension)
     pass("en-u-fff-gggg-xx-yyyy"sv, { { "fff"sv, "gggg"sv }, { { "xx"sv, "yyyy"sv } } });
 }
 
+TEST_CASE(parse_unicode_locale_id_rejects_non_ascii_utf16_extension_parts)
+{
+    auto fail = [](Utf16View locale) {
+        auto locale_id = Unicode::parse_unicode_locale_id(locale);
+        EXPECT(!locale_id.has_value());
+    };
+
+    fail(u"en-\uFF55-ab-foo"sv);
+    fail(u"en-u-\uFF41b-foo"sv);
+    fail(u"en-t-\uFF4B0-foo"sv);
+}
+
 TEST_CASE(parse_unicode_locale_id_with_transformed_extension)
 {
     struct TransformedExtension {

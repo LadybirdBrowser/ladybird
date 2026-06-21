@@ -18,6 +18,7 @@
 #include <AK/SourceLocation.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibGC/NanBoxedValue.h>
 #include <LibGC/Ptr.h>
@@ -433,7 +434,6 @@ public:
     ThrowCompletionOr<GC::Ptr<FunctionObject>> get_method(VM&, PropertyKey const&) const;
     ThrowCompletionOr<GC::Ptr<FunctionObject>> get_method(VM&, PropertyKey const&, Bytecode::PropertyLookupCache&) const;
 
-    [[nodiscard]] String to_string_without_side_effects() const;
     [[nodiscard]] Utf16String to_utf16_string_without_side_effects() const;
 
     [[nodiscard]] GC::Ref<PrimitiveString> typeof_(VM&) const;
@@ -669,12 +669,12 @@ inline Root<JS::Value> make_root(JS::Value value, SourceLocation location = Sour
 namespace AK {
 
 template<>
-struct Formatter<JS::Value> : Formatter<StringView> {
+struct Formatter<JS::Value> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, JS::Value value)
     {
         if (value.is_special_empty_value())
             return Formatter<StringView>::format(builder, "<empty>"sv);
-        return Formatter<StringView>::format(builder, value.to_string_without_side_effects());
+        return Formatter<Utf16String> {}.format(builder, value.to_utf16_string_without_side_effects());
     }
 };
 

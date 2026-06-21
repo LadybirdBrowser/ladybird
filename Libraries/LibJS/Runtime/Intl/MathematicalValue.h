@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Export.h>
@@ -33,7 +34,7 @@ public:
     {
     }
 
-    explicit MathematicalValue(String value)
+    explicit MathematicalValue(Utf16String value)
         : m_value(move(value))
     {
     }
@@ -46,7 +47,7 @@ public:
     MathematicalValue(Value value)
         : m_value(value.is_number()
                   ? value_from_number(value.as_double())
-                  : ValueType(MUST(value.as_bigint().big_integer().to_base(10))))
+                  : ValueType(Utf16String::from_utf8(MUST(value.as_bigint().big_integer().to_base(10)))))
     {
     }
 
@@ -54,7 +55,7 @@ public:
     double as_number() const;
 
     bool is_string() const;
-    String const& as_string() const;
+    Utf16String const& as_string() const;
 
     bool is_mathematical_value() const;
     bool is_positive_infinity() const;
@@ -65,7 +66,7 @@ public:
     Unicode::NumberFormat::Value to_value() const;
 
 private:
-    using ValueType = Variant<double, String, Symbol>;
+    using ValueType = Variant<double, Utf16String, Symbol>;
 
     static ValueType value_from_number(double number);
 

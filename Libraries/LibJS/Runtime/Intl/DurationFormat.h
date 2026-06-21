@@ -9,6 +9,7 @@
 
 #include <AK/Array.h>
 #include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
@@ -27,7 +28,7 @@ public:
         Narrow,
         Digital,
     };
-    static Style style_from_string(StringView style);
+    static Style style_from_string(Utf16View style);
     static StringView style_to_string(Style);
 
     enum class ValueStyle {
@@ -38,7 +39,7 @@ public:
         TwoDigit,
         Fractional,
     };
-    static ValueStyle value_style_from_string(StringView);
+    static ValueStyle value_style_from_string(Utf16View);
     static StringView value_style_to_string(ValueStyle);
 
     static_assert(to_underlying(ValueStyle::Long) == to_underlying(Unicode::Style::Long));
@@ -49,7 +50,7 @@ public:
         Auto,
         Always,
     };
-    static Display display_from_string(StringView display);
+    static Display display_from_string(Utf16View display);
     static StringView display_to_string(Display);
 
     enum class Unit {
@@ -88,7 +89,7 @@ public:
     void set_minute_second_separator(Utf16String minute_second_separator) { m_minute_second_separator = move(minute_second_separator); }
     Utf16String const& minute_second_separator() const { return m_minute_second_separator; }
 
-    void set_style(StringView style) { m_style = style_from_string(style); }
+    void set_style(Utf16View style) { m_style = style_from_string(style); }
     Style style() const { return m_style; }
     StringView style_string() const { return style_to_string(m_style); }
 

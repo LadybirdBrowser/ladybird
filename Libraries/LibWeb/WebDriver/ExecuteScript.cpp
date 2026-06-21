@@ -50,14 +50,15 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
 
     // FIXME: This does not handle scripts which contain `await` statements. It is not as as simple as declaring this
     //        function async, unfortunately. See: https://github.com/w3c/webdriver/issues/1436
-    auto source_text = ByteString::formatted(
+    auto body_utf16 = Utf16String::from_utf8(body);
+    auto source_text = Utf16String::formatted(
         R"~~~(function() {{
             {}
         }})~~~",
-        body);
+        body_utf16);
 
     auto rust_compilation = JS::RustIntegration::compile_dynamic_function(
-        realm.vm(), source_text, ""sv, body, JS::FunctionKind::Normal);
+        realm.vm(), source_text, Utf16String {}, body_utf16, JS::FunctionKind::Normal);
 
     // 4. If body is not parsable as a FunctionBody or if parsing detects an early error, return Completion { [[Type]]: normal, [[Value]]: null, [[Target]]: empty }.
     if (!rust_compilation.has_value() || rust_compilation->is_error())

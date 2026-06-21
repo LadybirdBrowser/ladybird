@@ -42,8 +42,8 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
                 exception_name = exception->name().to_string();
                 exception_message = MUST(exception->message().view().to_utf8());
             } else {
-                exception_name = name.to_string_without_side_effects();
-                exception_message = message.to_string_without_side_effects();
+                exception_name = name.to_utf16_string_without_side_effects().to_utf8();
+                exception_message = message.to_utf16_string_without_side_effects().to_utf8();
             }
             dbgln("{}", error_data->stack_string(JS::CompactTraceback::Yes));
             console.report_exception(exception_name, exception_message, *error_data, error_in_promise == ErrorInPromise::Yes);
@@ -53,8 +53,9 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
         dbgln("\033[31;1mUnhandled JavaScript exception{}:\033[0m {}", error_in_promise == ErrorInPromise::Yes ? " (in promise)" : "", value);
     }
 
-    auto message = value.to_string_without_side_effects();
-    auto error = JS::Error::create(realm, Utf16String::from_utf8(message));
+    auto utf16_message = value.to_utf16_string_without_side_effects();
+    auto message = utf16_message.to_utf8();
+    auto error = JS::Error::create(realm, utf16_message);
     console.report_exception("Error"_string, message, *error, error_in_promise == ErrorInPromise::Yes);
 }
 

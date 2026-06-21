@@ -42,6 +42,7 @@ public:
     [[nodiscard]] Bytes export_data(Bytes) const;
 
     [[nodiscard]] static ErrorOr<SignedBigInteger> from_base(u16 N, StringView str);
+    [[nodiscard]] static ErrorOr<SignedBigInteger> from_base(u16 N, Utf16View str);
     [[nodiscard]] ErrorOr<String> to_base(u16 N) const;
 
     [[nodiscard]] i64 to_i64() const;
@@ -117,5 +118,5 @@ struct AK::Formatter<Crypto::SignedBigInteger> : AK::Formatter<Crypto::UnsignedB
 inline Crypto::SignedBigInteger
 operator""_sbigint(char const* string, size_t length)
 {
-    return MUST(Crypto::SignedBigInteger::from_base(10, { string, length }));
+    return MUST(Crypto::SignedBigInteger::from_base(10, StringView { string, length }));
 }

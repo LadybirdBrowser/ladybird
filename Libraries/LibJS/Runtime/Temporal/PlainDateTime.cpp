@@ -182,10 +182,9 @@ ThrowCompletionOr<GC::Ref<PlainDateTime>> to_temporal_date_time(VM& vm, Value it
 
     // 6. Let calendar be result.[[Calendar]].
     // 7. If calendar is empty, set calendar to "iso8601".
-    auto calendar = result.calendar.value_or("iso8601"_string);
-
-    // 8. Set calendar to ? CanonicalizeCalendar(calendar).
-    calendar = TRY(canonicalize_calendar(vm, calendar));
+    auto calendar = result.calendar.has_value()
+        ? TRY(canonicalize_calendar(vm, *result.calendar))
+        : TRY(canonicalize_calendar(vm, "iso8601"sv));
 
     // 9. Let resolvedOptions be ? GetOptionsObject(options).
     auto resolved_options = TRY(get_options_object(vm, options));

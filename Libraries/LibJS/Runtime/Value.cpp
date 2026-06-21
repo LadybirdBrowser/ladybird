@@ -412,39 +412,6 @@ GC::Ref<PrimitiveString> Value::typeof_(VM& vm) const
     }
 }
 
-String Value::to_string_without_side_effects() const
-{
-    if (is_double())
-        return number_to_string(m_value.as_double);
-
-    switch (m_value.tag) {
-    case UNDEFINED_TAG:
-        return "undefined"_string;
-    case NULL_TAG:
-        return "null"_string;
-    case BOOLEAN_TAG:
-        return as_bool() ? "true"_string : "false"_string;
-    case INT32_TAG:
-        return String::number(as_i32());
-    case STRING_TAG:
-        return as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
-    case SYMBOL_TAG:
-        return as_symbol().descriptive_string().to_utf8_but_should_be_ported_to_utf16();
-    case BIGINT_TAG:
-        return as_bigint().to_string().release_value();
-    case OBJECT_TAG:
-        return String::formatted("[object {}]", as_object().class_name()).release_value();
-    case ACCESSOR_TAG:
-        return "<accessor>"_string;
-    case EMPTY_TAG:
-        return "<empty>"_string;
-    default:
-        if (is_cell())
-            return String::formatted("[internal object {}]", as_cell().class_name()).release_value();
-        VERIFY_NOT_REACHED();
-    }
-}
-
 Utf16String Value::to_utf16_string_without_side_effects() const
 {
     if (is_double())
@@ -613,7 +580,7 @@ ThrowCompletionOr<Value> Value::to_primitive_slow_case(VM& vm, PreferredType pre
                 return result;
 
             // vi. Throw a TypeError exception.
-            return vm.throw_completion<TypeError>(ErrorType::ToPrimitiveReturnedObject, to_string_without_side_effects(), hint);
+            return vm.throw_completion<TypeError>(ErrorType::ToPrimitiveReturnedObject, to_utf16_string_without_side_effects(), hint);
         }
 
         // c. If preferredType is not present, let preferredType be number.
@@ -801,7 +768,7 @@ double string_to_number(Utf16View string)
 
     // 4. Return StringNumericValue of literal.
     if (result->base != 10) {
-        auto bigint = MUST(Crypto::UnsignedBigInteger::from_base(result->base, result->literal.to_utf8_but_should_be_ported_to_utf16()));
+        auto bigint = MUST(Crypto::UnsignedBigInteger::from_base(result->base, result->literal));
         return bigint.to_double();
     }
 
@@ -970,7 +937,7 @@ static Optional<BigInt*> string_to_bigint(VM& vm, Utf16View string)
 
     // 4. Let mv be the MV of literal.
     // 5. Assert: mv is an integer.
-    auto bigint = MUST(Crypto::SignedBigInteger::from_base(result->base, result->literal.to_utf8_but_should_be_ported_to_utf16()));
+    auto bigint = MUST(Crypto::SignedBigInteger::from_base(result->base, result->literal));
     if (result->is_negative && (bigint != bigint_zero()))
         bigint.negate();
 

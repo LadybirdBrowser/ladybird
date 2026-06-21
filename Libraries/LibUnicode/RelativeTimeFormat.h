@@ -11,6 +11,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Forward.h>
 
@@ -28,6 +29,7 @@ enum class TimeUnit {
     Year,
 };
 Optional<TimeUnit> time_unit_from_string(StringView);
+Optional<TimeUnit> time_unit_from_string(Utf16View);
 StringView time_unit_to_string(TimeUnit);
 
 enum class NumericDisplay {
@@ -35,6 +37,7 @@ enum class NumericDisplay {
     Auto,
 };
 NumericDisplay numeric_display_from_string(StringView);
+NumericDisplay numeric_display_from_string(Utf16View);
 StringView numeric_display_to_string(NumericDisplay);
 
 class RelativeTimeFormat {

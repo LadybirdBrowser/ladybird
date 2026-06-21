@@ -16,6 +16,13 @@ size_t size_required_to_decode_base64(StringView input)
     return simdutf::maximal_binary_length_from_base64(input.characters_without_null_termination(), input.length());
 }
 
+size_t size_required_to_decode_base64(Utf16View input)
+{
+    if (input.has_ascii_storage())
+        return size_required_to_decode_base64(StringView { input.bytes() });
+    return simdutf::maximal_binary_length_from_base64(input.utf16_span().data(), input.length_in_code_units());
+}
+
 static constexpr simdutf::last_chunk_handling_options to_simdutf_last_chunk_handling(LastChunkHandling last_chunk_handling)
 {
     switch (last_chunk_handling) {
@@ -28,6 +35,29 @@ static constexpr simdutf::last_chunk_handling_options to_simdutf_last_chunk_hand
     }
 
     VERIFY_NOT_REACHED();
+}
+
+static Optional<InvalidBase64> base64_error_from_result(simdutf::result result, ByteBuffer& output)
+{
+    if (result.error == simdutf::SUCCESS || result.error == simdutf::OUTPUT_BUFFER_TOO_SMALL)
+        return {};
+
+    output.resize((result.count / 4) * 3);
+
+    auto error = [&]() {
+        switch (result.error) {
+        case simdutf::BASE64_EXTRA_BITS:
+            return Error::from_string_literal("Extra bits found at end of chunk");
+        case simdutf::BASE64_INPUT_REMAINDER:
+            return Error::from_string_literal("Invalid trailing data");
+        case simdutf::INVALID_BASE64_CHARACTER:
+            return Error::from_string_literal("Invalid base64 character");
+        default:
+            return Error::from_string_literal("Invalid base64-encoded data");
+        }
+    }();
+
+    return InvalidBase64 { .error = move(error), .valid_input_bytes = result.count };
 }
 
 static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(StringView input, ByteBuffer& output, LastChunkHandling last_chunk_handling, simdutf::base64_options options)
@@ -44,24 +74,34 @@ static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(StringView input, 
         to_simdutf_last_chunk_handling(last_chunk_handling),
         decode_up_to_bad_character);
 
-    if (result.error != simdutf::SUCCESS && result.error != simdutf::OUTPUT_BUFFER_TOO_SMALL) {
-        output.resize((result.count / 4) * 3);
+    if (auto error = base64_error_from_result(result, output); error.has_value())
+        return error.release_value();
 
-        auto error = [&]() {
-            switch (result.error) {
-            case simdutf::BASE64_EXTRA_BITS:
-                return Error::from_string_literal("Extra bits found at end of chunk");
-            case simdutf::BASE64_INPUT_REMAINDER:
-                return Error::from_string_literal("Invalid trailing data");
-            case simdutf::INVALID_BASE64_CHARACTER:
-                return Error::from_string_literal("Invalid base64 character");
-            default:
-                return Error::from_string_literal("Invalid base64-encoded data");
-            }
-        }();
+    VERIFY(output_length <= output.size());
+    output.resize(output_length);
 
-        return InvalidBase64 { .error = move(error), .valid_input_bytes = result.count };
-    }
+    return result.count;
+}
+
+static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(Utf16View input, ByteBuffer& output, LastChunkHandling last_chunk_handling, simdutf::base64_options options)
+{
+    if (input.has_ascii_storage())
+        return decode_base64_into_impl(StringView { input.bytes() }, output, last_chunk_handling, options);
+
+    static constexpr auto decode_up_to_bad_character = true;
+    auto output_length = output.size();
+
+    auto result = simdutf::base64_to_binary_safe(
+        input.utf16_span().data(),
+        input.length_in_code_units(),
+        reinterpret_cast<char*>(output.data()),
+        output_length,
+        options,
+        to_simdutf_last_chunk_handling(last_chunk_handling),
+        decode_up_to_bad_character);
+
+    if (auto error = base64_error_from_result(result, output); error.has_value())
+        return error.release_value();
 
     VERIFY(output_length <= output.size());
     output.resize(output_length);
@@ -114,6 +154,16 @@ ErrorOr<size_t, InvalidBase64> decode_base64_into(StringView input, ByteBuffer& 
 }
 
 ErrorOr<size_t, InvalidBase64> decode_base64url_into(StringView input, ByteBuffer& output, LastChunkHandling last_chunk_handling)
+{
+    return decode_base64_into_impl(input, output, last_chunk_handling, simdutf::base64_url);
+}
+
+ErrorOr<size_t, InvalidBase64> decode_base64_into(Utf16View input, ByteBuffer& output, LastChunkHandling last_chunk_handling)
+{
+    return decode_base64_into_impl(input, output, last_chunk_handling, simdutf::base64_default);
+}
+
+ErrorOr<size_t, InvalidBase64> decode_base64url_into(Utf16View input, ByteBuffer& output, LastChunkHandling last_chunk_handling)
 {
     return decode_base64_into_impl(input, output, last_chunk_handling, simdutf::base64_url);
 }

@@ -127,6 +127,33 @@ ErrorOr<SignedBigInteger> SignedBigInteger::from_base(u16 N, StringView str)
     return result;
 }
 
+ErrorOr<SignedBigInteger> SignedBigInteger::from_base(u16 N, Utf16View str)
+{
+    VERIFY(N <= 36);
+    if (str.is_empty())
+        return SignedBigInteger(0);
+
+    auto buffer = TRY(ByteBuffer::create_zeroed(str.length_in_code_units() + 1));
+
+    size_t idx = 0;
+    for (size_t i = 0; i < str.length_in_code_units(); ++i) {
+        auto code_unit = str.code_unit_at(i);
+        if (code_unit > NumericLimits<u8>::max())
+            return Error::from_string_literal("Invalid number");
+        if (code_unit == '_') {
+            // Skip underscores
+            continue;
+        }
+
+        buffer[idx++] = static_cast<u8>(code_unit);
+    }
+
+    SignedBigInteger result;
+    if (mp_read_radix(&result.m_mp, reinterpret_cast<char const*>(buffer.data()), N) != MP_OKAY)
+        return Error::from_string_literal("Invalid number");
+    return result;
+}
+
 ErrorOr<String> SignedBigInteger::to_base(u16 N) const
 {
     VERIFY(N <= 36);

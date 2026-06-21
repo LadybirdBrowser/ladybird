@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
@@ -97,9 +98,9 @@ JS_API double make_time(double hour, double min, double sec, double ms);
 JS_API double make_day(double year, double month, double date);
 JS_API double make_date(double day, double time);
 double time_clip(double time);
-bool is_offset_time_zone_identifier(StringView offset_string);
-ThrowCompletionOr<double> parse_date_time_utc_offset(VM&, StringView offset_string);
-double parse_date_time_utc_offset(StringView offset_string);
+bool is_offset_time_zone_identifier(Utf16View offset_string);
+ThrowCompletionOr<double> parse_date_time_utc_offset(VM&, Utf16View offset_string);
+double parse_date_time_utc_offset(Utf16View offset_string);
 double parse_date_time_utc_offset(Temporal::TimeZoneOffset const&);
 
 }

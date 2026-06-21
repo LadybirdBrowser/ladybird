@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
@@ -49,12 +50,12 @@ public:
     bool has_date_style() const { return m_date_style.has_value(); }
     Optional<Unicode::DateTimeStyle> const& date_style() const { return m_date_style; }
     StringView date_style_string() const { return Unicode::date_time_style_to_string(*m_date_style); }
-    void set_date_style(StringView style) { m_date_style = Unicode::date_time_style_from_string(style); }
+    void set_date_style(Utf16View style) { m_date_style = Unicode::date_time_style_from_string(style); }
 
     bool has_time_style() const { return m_time_style.has_value(); }
     Optional<Unicode::DateTimeStyle> const& time_style() const { return m_time_style; }
     StringView time_style_string() const { return Unicode::date_time_style_to_string(*m_time_style); }
-    void set_time_style(StringView style) { m_time_style = Unicode::date_time_style_from_string(style); }
+    void set_time_style(Utf16View style) { m_time_style = Unicode::date_time_style_from_string(style); }
 
     Unicode::CalendarPattern& date_time_format() { return m_date_time_format; }
     void set_date_time_format(Unicode::CalendarPattern date_time_format) { m_date_time_format = move(date_time_format); }

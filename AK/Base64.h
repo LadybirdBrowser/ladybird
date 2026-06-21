@@ -10,10 +10,12 @@
 #include <AK/Error.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 
 namespace AK {
 
 size_t size_required_to_decode_base64(StringView);
+size_t size_required_to_decode_base64(Utf16View);
 
 enum class LastChunkHandling {
     Loose,
@@ -33,6 +35,8 @@ struct InvalidBase64 {
 // string length if the output buffer was not large enough.
 ErrorOr<size_t, InvalidBase64> decode_base64_into(StringView, ByteBuffer&, LastChunkHandling = LastChunkHandling::Loose);
 ErrorOr<size_t, InvalidBase64> decode_base64url_into(StringView, ByteBuffer&, LastChunkHandling = LastChunkHandling::Loose);
+ErrorOr<size_t, InvalidBase64> decode_base64_into(Utf16View, ByteBuffer&, LastChunkHandling = LastChunkHandling::Loose);
+ErrorOr<size_t, InvalidBase64> decode_base64url_into(Utf16View, ByteBuffer&, LastChunkHandling = LastChunkHandling::Loose);
 
 enum class OmitPadding {
     No,

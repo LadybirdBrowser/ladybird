@@ -76,10 +76,9 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
 
     // 5. Let calendar be result.[[Calendar]].
     // 6. If calendar is empty, set calendar to "iso8601".
-    auto calendar = parse_result.calendar.value_or("iso8601"_string);
-
-    // 7. Set calendar to ? CanonicalizeCalendar(calendar).
-    calendar = TRY(canonicalize_calendar(vm, calendar));
+    auto calendar = parse_result.calendar.has_value()
+        ? TRY(canonicalize_calendar(vm, *parse_result.calendar))
+        : TRY(canonicalize_calendar(vm, "iso8601"sv));
 
     // 8. Let resolvedOptions be ? GetOptionsObject(options).
     auto resolved_options = TRY(get_options_object(vm, options));

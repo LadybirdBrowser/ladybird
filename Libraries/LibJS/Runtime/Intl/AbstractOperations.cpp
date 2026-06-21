@@ -24,8 +24,8 @@
 
 namespace JS::Intl {
 
-// 6.2.1 IsWellFormedLanguageTag ( locale ), https://tc39.es/ecma402/#sec-iswellformedlanguagetag
-bool is_well_formed_language_tag(StringView locale)
+template<typename ViewType>
+static bool is_well_formed_language_tag_impl(ViewType locale)
 {
     auto contains_duplicate_variant = [&](auto& variants) {
         if (variants.is_empty())
@@ -84,7 +84,7 @@ bool is_well_formed_language_tag(StringView locale)
 
         // b. Let transformExtension be the longest substring of extensions matched by the transformed_extensions Unicode
         //    locale nonterminal. If there is no such substring, return true.
-        if (auto* transformed = extension.get_pointer<Unicode::TransformedExtension>()) {
+        if (auto* transformed = extension.template get_pointer<Unicode::TransformedExtension>()) {
             // c. Assert: The substring of transformExtension from 0 to 3 is "-t-".
             // d. Let tPrefix be the substring of transformExtension from 3.
 
@@ -109,8 +109,24 @@ bool is_well_formed_language_tag(StringView locale)
     return true;
 }
 
+// 6.2.1 IsWellFormedLanguageTag ( locale ), https://tc39.es/ecma402/#sec-iswellformedlanguagetag
+bool is_well_formed_language_tag(StringView locale)
+{
+    return is_well_formed_language_tag_impl(locale);
+}
+
+bool is_well_formed_language_tag(Utf16View locale)
+{
+    return is_well_formed_language_tag_impl(locale);
+}
+
 // 6.2.2 CanonicalizeUnicodeLocaleId ( locale ), https://tc39.es/ecma402/#sec-canonicalizeunicodelocaleid
 String canonicalize_unicode_locale_id(StringView locale)
+{
+    return Unicode::canonicalize_unicode_locale_id(locale);
+}
+
+String canonicalize_unicode_locale_id(Utf16View locale)
 {
     return Unicode::canonicalize_unicode_locale_id(locale);
 }
@@ -126,6 +142,23 @@ bool is_well_formed_currency_code(StringView currency)
     // 3. If normalized contains any code unit outside of 0x0041 through 0x005A (corresponding to Unicode characters LATIN CAPITAL LETTER A through LATIN CAPITAL LETTER Z), return false.
     if (!all_of(currency, is_ascii_alpha))
         return false;
+
+    // 4. Return true.
+    return true;
+}
+
+bool is_well_formed_currency_code(Utf16View currency)
+{
+    // 1. If the length of currency is not 3, return false.
+    if (currency.length_in_code_units() != 3)
+        return false;
+
+    // 2. Let normalized be the ASCII-uppercase of currency.
+    // 3. If normalized contains any code unit outside of 0x0041 through 0x005A (corresponding to Unicode characters LATIN CAPITAL LETTER A through LATIN CAPITAL LETTER Z), return false.
+    for (size_t i = 0; i < currency.length_in_code_units(); ++i) {
+        if (!is_ascii_alpha(currency.code_unit_at(i)))
+            return false;
+    }
 
     // 4. Return true.
     return true;
@@ -205,14 +238,18 @@ Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(Str
 }
 
 // 6.6.1 IsWellFormedUnitIdentifier ( unitIdentifier ), https://tc39.es/ecma402/#sec-iswellformedunitidentifier
-bool is_well_formed_unit_identifier(StringView unit_identifier)
+bool is_well_formed_unit_identifier(Utf16View unit_identifier)
 {
     // 6.6.2 IsSanctionedSingleUnitIdentifier ( unitIdentifier ), https://tc39.es/ecma402/#sec-issanctionedsingleunitidentifier
-    constexpr auto is_sanctioned_single_unit_identifier = [](StringView unit_identifier) {
+    constexpr auto is_sanctioned_single_unit_identifier = [](Utf16View unit_identifier) {
         // 1. If unitIdentifier is listed in Table 2 below, return true.
         // 2. Else, return false.
         static constexpr auto sanctioned_units = sanctioned_single_unit_identifiers();
-        return find(sanctioned_units.begin(), sanctioned_units.end(), unit_identifier) != sanctioned_units.end();
+        for (auto sanctioned_unit : sanctioned_units) {
+            if (unit_identifier == sanctioned_unit)
+                return true;
+        }
+        return false;
     };
 
     // 1. If ! IsSanctionedSingleUnitIdentifier(unitIdentifier) is true, then
@@ -222,22 +259,22 @@ bool is_well_formed_unit_identifier(StringView unit_identifier)
     }
 
     // 2. Let i be StringIndexOf(unitIdentifier, "-per-", 0).
-    auto indices = unit_identifier.find_all("-per-"sv);
+    auto index = unit_identifier.find_code_unit_offset("-per-"sv);
 
     // 3. If i is -1 or StringIndexOf(unitIdentifier, "-per-", i + 1) is not -1, then
-    if (indices.size() != 1) {
+    if (!index.has_value() || unit_identifier.find_code_unit_offset("-per-"sv, *index + 1).has_value()) {
         // a. Return false.
         return false;
     }
 
     // 4. Assert: The five-character substring "-per-" occurs exactly once in unitIdentifier, at index i.
-    // NOTE: We skip this because the indices vector being of size 1 already verifies this invariant.
+    // NOTE: We skip this because the checks above already verify this invariant.
 
     // 5. Let numerator be the substring of unitIdentifier from 0 to i.
-    auto numerator = unit_identifier.substring_view(0, indices[0]);
+    auto numerator = unit_identifier.substring_view(0, *index);
 
     // 6. Let denominator be the substring of unitIdentifier from i + 5.
-    auto denominator = unit_identifier.substring_view(indices[0] + 5);
+    auto denominator = unit_identifier.substring_view(*index + 5);
 
     // 7. If ! IsSanctionedSingleUnitIdentifier(numerator) and ! IsSanctionedSingleUnitIdentifier(denominator) are both true, then
     if (is_sanctioned_single_unit_identifier(numerator) && is_sanctioned_single_unit_identifier(denominator)) {
@@ -297,25 +334,32 @@ ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales
             if (!key_value.is_string() && !key_value.is_object())
                 return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOrString, key_value);
 
-            String tag;
+            String canonicalized_tag;
 
             // iii. If Type(kValue) is Object and kValue has an [[InitializedLocale]] internal slot, then
             if (auto locale = key_value.as_if<Locale>()) {
                 // 1. Let tag be kValue.[[Locale]].
-                tag = locale->locale();
+                auto tag = locale->locale();
+
+                // v. If IsWellFormedLanguageTag(tag) is false, throw a RangeError exception.
+                if (!is_well_formed_language_tag(tag))
+                    return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
+
+                // vi. Let canonicalizedTag be ! CanonicalizeUnicodeLocaleId(tag).
+                canonicalized_tag = canonicalize_unicode_locale_id(tag);
             }
             // iv. Else,
             else {
                 // 1. Let tag be ? ToString(kValue).
-                tag = TRY(key_value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+                auto tag = TRY(key_value.to_utf16_string(vm));
+
+                // v. If IsWellFormedLanguageTag(tag) is false, throw a RangeError exception.
+                if (!is_well_formed_language_tag(tag.utf16_view()))
+                    return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
+
+                // vi. Let canonicalizedTag be ! CanonicalizeUnicodeLocaleId(tag).
+                canonicalized_tag = canonicalize_unicode_locale_id(tag.utf16_view());
             }
-
-            // v. If IsWellFormedLanguageTag(tag) is false, throw a RangeError exception.
-            if (!is_well_formed_language_tag(tag))
-                return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
-
-            // vi. Let canonicalizedTag be ! CanonicalizeUnicodeLocaleId(tag).
-            auto canonicalized_tag = canonicalize_unicode_locale_id(tag);
 
             // vii. If canonicalizedTag is not an element of seen, append canonicalizedTag as the last element of seen.
             if (!seen.contains_slow(canonicalized_tag))
@@ -639,13 +683,14 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
         // d. If value is not undefined, then
         if (!value.is_undefined()) {
             // i. Set value to ! ToString(value).
-            auto value_string = MUST(value.to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
+            auto value_string = MUST(value.to_utf16_string(vm));
+            auto value_string_view = value_string.utf16_view();
 
             // ii. If value cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-            if (!Unicode::is_type_identifier(value_string))
-                return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string, descriptor.property);
+            if (!value_string_view.is_ascii() || !Unicode::is_type_identifier(value_string_view))
+                return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string_view, descriptor.property);
 
-            locale_key = move(value_string);
+            locale_key = MUST(value_string_view.to_utf8());
         }
 
         // e. Let key be desc.[[Key]].
@@ -749,7 +794,7 @@ ThrowCompletionOr<StringOrBoolean> get_boolean_or_string_number_format_option(VM
     auto value_string_view = value_string.utf16_view();
     auto it = find_if(string_values.begin(), string_values.end(), [&](auto allowed_value) { return value_string_view == allowed_value; });
     if (it == string_values.end())
-        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string_view.to_utf8_but_should_be_ported_to_utf16(), property.as_string());
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string_view, property.as_string());
 
     // 7. Return value.
     return StringOrBoolean { *it };

@@ -623,7 +623,8 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                 // 3. Perform EnsureCSPDoesNotBlockStringCompilation(realm, « », handler, handler, timer, « », handler).
                 //    If this throws an exception, catch it, report it for global, and abort these steps.
                 auto handler_primitive_string = JS::PrimitiveString::create(vm, source);
-                if (auto result = ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, {}, source, source, JS::CompilationType::Timer, {}, handler_primitive_string); result.is_throw_completion()) {
+                auto source_utf16 = Utf16String::from_utf8(source);
+                if (auto result = ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, {}, source_utf16, source_utf16, JS::CompilationType::Timer, {}, handler_primitive_string); result.is_throw_completion()) {
                     report_exception(result, realm);
                     return false;
                 }

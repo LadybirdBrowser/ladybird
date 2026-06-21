@@ -8,6 +8,7 @@
 
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
 #include <LibUnicode/Locale.h>
@@ -33,10 +34,12 @@ public:
 
     Unicode::Style style() const { return m_style; }
     void set_style(StringView style) { m_style = Unicode::style_from_string(style); }
+    void set_style(Utf16View style) { m_style = Unicode::style_from_string(style); }
     StringView style_string() const { return Unicode::style_to_string(m_style); }
 
     Unicode::NumericDisplay numeric() const { return m_numeric; }
     void set_numeric(StringView numeric) { m_numeric = Unicode::numeric_display_from_string(numeric); }
+    void set_numeric(Utf16View numeric) { m_numeric = Unicode::numeric_display_from_string(numeric); }
     StringView numeric_string() const { return Unicode::numeric_display_to_string(m_numeric); }
 
     Unicode::RelativeTimeFormat const& formatter() const { return *m_formatter; }
@@ -54,9 +57,9 @@ private:
     OwnPtr<Unicode::RelativeTimeFormat> m_formatter;
 };
 
-ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM&, StringView unit);
-ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_relative_time_pattern(VM&, RelativeTimeFormat&, double value, StringView unit);
-ThrowCompletionOr<Utf16String> format_relative_time(VM&, RelativeTimeFormat&, double value, StringView unit);
-ThrowCompletionOr<GC::Ref<Array>> format_relative_time_to_parts(VM&, RelativeTimeFormat&, double value, StringView unit);
+ThrowCompletionOr<Unicode::TimeUnit> singular_relative_time_unit(VM&, Utf16View unit);
+ThrowCompletionOr<Vector<Unicode::RelativeTimeFormat::Partition>> partition_relative_time_pattern(VM&, RelativeTimeFormat&, double value, Utf16View unit);
+ThrowCompletionOr<Utf16String> format_relative_time(VM&, RelativeTimeFormat&, double value, Utf16View unit);
+ThrowCompletionOr<GC::Ref<Array>> format_relative_time_to_parts(VM&, RelativeTimeFormat&, double value, Utf16View unit);
 
 }

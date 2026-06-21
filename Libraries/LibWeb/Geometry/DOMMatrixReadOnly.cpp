@@ -567,37 +567,37 @@ WebIDL::ExceptionOr<String> DOMMatrixReadOnly::to_string() const
         TRY_OR_THROW_OOM(vm, builder.try_append("matrix("sv));
 
         // 2. Append ! ToString(m11 element) to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m11()).to_string_without_side_effects()));
+        TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m11())));
 
         // 3. Append ", " to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
 
         // 4. Append ! ToString(m12 element) to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m12()).to_string_without_side_effects()));
+        TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m12())));
 
         // 5. Append ", " to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
 
         // 6. Append ! ToString(m21 element) to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m21()).to_string_without_side_effects()));
+        TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m21())));
 
         // 7. Append ", " to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
 
         // 8. Append ! ToString(m22 element) to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m22()).to_string_without_side_effects()));
+        TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m22())));
 
         // 9. Append ", " to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
 
         // 10. Append ! ToString(m41 element) to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m41()).to_string_without_side_effects()));
+        TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m41())));
 
         // 11. Append ", " to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(", "sv));
 
         // 12. Append ! ToString(m42 element) to string.
-        TRY_OR_THROW_OOM(vm, builder.try_append(JS::Value(m42()).to_string_without_side_effects()));
+        TRY_OR_THROW_OOM(vm, builder.try_append(JS::number_to_string(m42())));
 
         // 13. Append ")" to string.
         TRY_OR_THROW_OOM(vm, builder.try_append(")"sv));

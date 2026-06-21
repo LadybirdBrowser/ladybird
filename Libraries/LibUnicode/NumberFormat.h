@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Forward.h>
@@ -24,6 +25,7 @@ enum class NumberFormatStyle {
     Unit,
 };
 NumberFormatStyle number_format_style_from_string(StringView);
+NumberFormatStyle number_format_style_from_string(Utf16View);
 StringView number_format_style_to_string(NumberFormatStyle);
 
 enum class SignDisplay {
@@ -34,6 +36,7 @@ enum class SignDisplay {
     Negative,
 };
 SignDisplay sign_display_from_string(StringView);
+SignDisplay sign_display_from_string(Utf16View);
 StringView sign_display_to_string(SignDisplay);
 
 enum class Notation {
@@ -43,6 +46,7 @@ enum class Notation {
     Compact,
 };
 Notation notation_from_string(StringView);
+Notation notation_from_string(Utf16View);
 StringView notation_to_string(Notation);
 
 enum class CompactDisplay {
@@ -50,6 +54,7 @@ enum class CompactDisplay {
     Long,
 };
 CompactDisplay compact_display_from_string(StringView);
+CompactDisplay compact_display_from_string(Utf16View);
 StringView compact_display_to_string(CompactDisplay);
 
 enum class Grouping {
@@ -68,6 +73,7 @@ enum class CurrencyDisplay {
     Name,
 };
 CurrencyDisplay currency_display_from_string(StringView);
+CurrencyDisplay currency_display_from_string(Utf16View);
 StringView currency_display_to_string(CurrencyDisplay);
 
 enum class CurrencySign {
@@ -75,6 +81,7 @@ enum class CurrencySign {
     Accounting,
 };
 CurrencySign currency_sign_from_string(StringView);
+CurrencySign currency_sign_from_string(Utf16View);
 StringView currency_sign_to_string(CurrencySign);
 
 struct DisplayOptions {
@@ -115,6 +122,7 @@ enum class RoundingMode {
     Trunc,
 };
 RoundingMode rounding_mode_from_string(StringView);
+RoundingMode rounding_mode_from_string(Utf16View);
 StringView rounding_mode_to_string(RoundingMode);
 
 enum class TrailingZeroDisplay {
@@ -122,6 +130,7 @@ enum class TrailingZeroDisplay {
     StripIfInteger,
 };
 TrailingZeroDisplay trailing_zero_display_from_string(StringView);
+TrailingZeroDisplay trailing_zero_display_from_string(Utf16View);
 StringView trailing_zero_display_to_string(TrailingZeroDisplay);
 
 struct RoundingOptions {
@@ -154,7 +163,7 @@ public:
         StringView source;
     };
 
-    using Value = Variant<double, String>;
+    using Value = Variant<double, Utf16String>;
 
     virtual Utf16String format(Value const&) const = 0;
     virtual Vector<Partition> format_to_parts(Value const&) const = 0;

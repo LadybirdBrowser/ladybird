@@ -116,7 +116,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
     }
 
     // 9. Let result be FromBase64(string, alphabet, lastChunkHandling).
-    auto result = JS::from_base64(vm, string_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), alphabet, last_chunk_handling);
+    auto result = JS::from_base64(vm, string_value.as_string().utf16_string_view(), alphabet, last_chunk_handling);
 
     // 10. If result.[[Error]] is not NONE, then
     if (result.error.has_value()) {
@@ -220,7 +220,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_base64)
     auto byte_length = typed_array_length(typed_array_record);
 
     // 14. Let result be FromBase64(string, alphabet, lastChunkHandling, byteLength).
-    auto result = JS::from_base64(vm, string_value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), alphabet, last_chunk_handling, byte_length);
+    auto result = JS::from_base64(vm, string_value.as_string().utf16_string_view(), alphabet, last_chunk_handling, byte_length);
 
     // 15. Let bytes be result.[[Bytes]].
     auto bytes = move(result.bytes);
@@ -505,7 +505,7 @@ void set_uint8_array_bytes(TypedArrayBase& into, ReadonlyBytes bytes)
 }
 
 // 23.3.3.7 FromBase64 ( string, alphabet, lastChunkHandling [ , maxLength ] ), https://tc39.es/ecma262/#sec-frombase64
-DecodeResult from_base64(VM& vm, StringView string, Alphabet alphabet, AK::LastChunkHandling last_chunk_handling, Optional<size_t> max_length)
+DecodeResult from_base64(VM& vm, Utf16View string, Alphabet alphabet, AK::LastChunkHandling last_chunk_handling, Optional<size_t> max_length)
 {
     auto output = MUST(ByteBuffer::create_uninitialized(max_length.value_or_lazy_evaluated([&]() {
         return AK::size_required_to_decode_base64(string);

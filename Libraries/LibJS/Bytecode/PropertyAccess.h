@@ -401,7 +401,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         if (!succeeded && strict == Strict::Yes) [[unlikely]] {
             if (base.is_object())
                 return vm.throw_completion<TypeError>(ErrorType::ReferenceNullishSetProperty, name, base);
-            return vm.throw_completion<TypeError>(ErrorType::ReferencePrimitiveSetProperty, name, base.typeof_(vm)->utf16_string_view().to_utf8_but_should_be_ported_to_utf16(), base);
+            return vm.throw_completion<TypeError>(ErrorType::ReferencePrimitiveSetProperty, name, base.typeof_(vm)->utf16_string_view(), base);
         }
         break;
     }

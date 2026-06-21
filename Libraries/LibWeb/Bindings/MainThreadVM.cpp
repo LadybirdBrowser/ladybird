@@ -122,7 +122,7 @@ void initialize_main_thread_vm(AgentType type)
     };
 
     // 8.1.6.2 HostEnsureCanCompileStrings(realm, parameterStrings, bodyString, codeString, compilationType, parameterArgs, bodyArg), https://html.spec.whatwg.org/multipage/webappapis.html#hostensurecancompilestrings(realm,-parameterstrings,-bodystring,-codestring,-compilationtype,-parameterargs,-bodyarg)
-    main_thread_vm_ptr()->host_ensure_can_compile_strings = [](JS::Realm& realm, ReadonlySpan<String> parameter_strings, StringView body_string, StringView code_string, JS::CompilationType compilation_type, ReadonlySpan<JS::Value> parameter_args, JS::Value body_arg) -> JS::ThrowCompletionOr<void> {
+    main_thread_vm_ptr()->host_ensure_can_compile_strings = [](JS::Realm& realm, ReadonlySpan<Utf16String> parameter_strings, Utf16View body_string, Utf16View code_string, JS::CompilationType compilation_type, ReadonlySpan<JS::Value> parameter_args, JS::Value body_arg) -> JS::ThrowCompletionOr<void> {
         // 1. Perform ? EnsureCSPDoesNotBlockStringCompilation(realm, parameterStrings, bodyString, codeString, compilationType, parameterArgs, bodyArg). [CSP]
         return ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, parameter_strings, body_string, code_string, compilation_type, parameter_args, body_arg);
     };
@@ -654,7 +654,7 @@ void initialize_main_thread_vm(AgentType type)
         HTML::fetch_single_imported_module_script(settings_object->realm(), url.release_value(), *fetch_client, destination, fetch_options, settings_object, fetch_referrer, module_request, perform_fetch, on_single_fetch_complete);
     };
 
-    main_thread_vm_ptr()->host_unrecognized_date_string = [](StringView date) {
+    main_thread_vm_ptr()->host_unrecognized_date_string = [](Utf16View date) {
         dbgln("Unable to parse date string: \"{}\"", date);
     };
 

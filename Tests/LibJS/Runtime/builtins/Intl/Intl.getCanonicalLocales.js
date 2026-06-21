@@ -66,6 +66,14 @@ describe("errors", () => {
             Intl.getCanonicalLocales("en-t-en-POSIX-POSIX");
         }).toThrowWithMessage(RangeError, "en-t-en-POSIX-POSIX is not a structurally valid language tag");
     });
+
+    test("non-ASCII UTF-16 extension subtags", () => {
+        ["en-\uff55-ab-foo", "en-u-\uff41b-foo", "en-t-\uff4b0-foo"].forEach(locale => {
+            expect(() => {
+                Intl.getCanonicalLocales(locale);
+            }).toThrowWithMessage(RangeError, `${locale} is not a structurally valid language tag`);
+        });
+    });
 });
 
 describe("normal behavior", () => {

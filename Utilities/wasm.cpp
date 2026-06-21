@@ -10,6 +10,7 @@
 #include <AK/MemoryStream.h>
 #include <AK/StackInfo.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
@@ -414,17 +415,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             }
 
             auto source_text = lexer.consume_all().trim_whitespace();
-            StringBuilder builder;
-            builder.append("("sv);
+            Utf16StringBuilder builder;
+            builder.append_ascii("("sv);
             auto first = true;
             for (auto& arg : formal_params) {
                 if (!first)
-                    builder.append(", "sv);
+                    builder.append_ascii(", "sv);
                 first = false;
-                builder.append(arg.name);
+                auto argument_name = Utf16String::from_utf8(arg.name);
+                builder.append(argument_name.utf16_view());
             }
-            builder.appendff(") => {}", source_text);
-            auto js_function = builder.to_byte_string();
+            builder.append_ascii(") => "sv);
+            auto source_text_utf16 = Utf16String::from_utf8(source_text);
+            builder.append(source_text_utf16.utf16_view());
+            auto js_function = builder.to_string();
             auto name = ByteString::formatted("{}.{}", module, fn_name);
             auto script = JS::Script::parse(js_function, realm, name);
             if (script.is_error()) {

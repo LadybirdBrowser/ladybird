@@ -14,6 +14,7 @@
 #include <AK/Span.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16View.h>
 #include <LibCore/Forward.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/Ptr.h>
@@ -157,7 +158,7 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(FFI::P
 Optional<Result<ScriptResult, Vector<ParserError>>> materialize_compiled_script(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
 
 // Compile a script. Returns nullopt if Rust is not available.
-Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(StringView source_text, Realm& realm, StringView filename, size_t line_number_offset);
+Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(Utf16View source_text, Realm& realm, StringView filename, size_t line_number_offset);
 
 // Compile eval code. Returns nullopt if Rust is not available.
 // On success, the executable's name is set to "eval".
@@ -181,7 +182,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView so
 // Compile a dynamic function (new Function()).
 // On success, returns a SharedFunctionInstanceData with source_text set.
 JS_API Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_function(
-    VM& vm, StringView source_text, StringView parameters_string, StringView body_parse_string,
+    VM& vm, Utf16View source_text, Utf16View parameters_string, Utf16View body_parse_string,
     FunctionKind kind);
 
 // Compile a builtin JS file. Returns nullopt if Rust is not available.

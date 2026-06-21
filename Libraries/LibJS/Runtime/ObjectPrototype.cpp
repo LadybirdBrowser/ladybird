@@ -148,61 +148,61 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
     // 4. Let isArray be ? IsArray(O).
     auto is_array = TRY(Value(object).is_array(vm));
 
-    StringView builtin_tag;
+    Utf16View builtin_tag;
 
     // 5. If isArray is true, let builtinTag be "Array".
     if (is_array)
-        builtin_tag = "Array"sv;
+        builtin_tag = u"Array"sv;
     // 6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "Arguments".
     else if (object->has_parameter_map())
-        builtin_tag = "Arguments"sv;
+        builtin_tag = u"Arguments"sv;
     // 7. Else if O has a [[Call]] internal method, let builtinTag be "Function".
     else if (object->is_function())
-        builtin_tag = "Function"sv;
+        builtin_tag = u"Function"sv;
     // 8. Else if O has an [[ErrorData]] internal slot, let builtinTag be "Error".
     else if (object->has_error_data())
-        builtin_tag = "Error"sv;
+        builtin_tag = u"Error"sv;
     // 9. Else if O has a [[BooleanData]] internal slot, let builtinTag be "Boolean".
     else if (is<BooleanObject>(*object))
-        builtin_tag = "Boolean"sv;
+        builtin_tag = u"Boolean"sv;
     // 10. Else if O has a [[NumberData]] internal slot, let builtinTag be "Number".
     else if (is<NumberObject>(*object))
-        builtin_tag = "Number"sv;
+        builtin_tag = u"Number"sv;
     // 11. Else if O has a [[StringData]] internal slot, let builtinTag be "String".
     else if (is<StringObject>(*object))
-        builtin_tag = "String"sv;
+        builtin_tag = u"String"sv;
     // 12. Else if O has a [[DateValue]] internal slot, let builtinTag be "Date".
     else if (is<Date>(*object))
-        builtin_tag = "Date"sv;
+        builtin_tag = u"Date"sv;
     // 13. Else if O has a [[RegExpMatcher]] internal slot, let builtinTag be "RegExp".
     else if (is<RegExpObject>(*object))
-        builtin_tag = "RegExp"sv;
+        builtin_tag = u"RegExp"sv;
     // 14. Else, let builtinTag be "Object".
     else
-        builtin_tag = "Object"sv;
+        builtin_tag = u"Object"sv;
 
     // 15. Let tag be ? Get(O, @@toStringTag).
     static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto to_string_tag = TRY(object->get(vm.well_known_symbol_to_string_tag(), cache));
 
     // Optimization: Instead of creating another PrimitiveString from builtin_tag, we separate tag and to_string_tag and add an additional branch to step 16.
-    StringView tag;
-    String custom_tag;
+    Utf16View tag;
+    Utf16String custom_tag;
 
     // 16. If Type(tag) is not String, set tag to builtinTag.
     if (!to_string_tag.is_string())
         tag = builtin_tag;
     else {
-        custom_tag = to_string_tag.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
-        tag = custom_tag;
+        custom_tag = to_string_tag.as_string().utf16_string();
+        tag = custom_tag.utf16_view();
     }
 
     // 17. Return the string-concatenation of "[object ", tag, and "]".
 
     // OPTIMIZATION: The VM has a cache for the extremely common "[object Object]" string.
-    if (tag == "Object"sv)
+    if (tag == u"Object"sv)
         return vm.cached_strings.object_Object;
-    return PrimitiveString::create(vm, MUST(String::formatted("[object {}]", tag)));
+    return PrimitiveString::create(vm, Utf16String::formatted("[object {}]", tag));
 }
 
 // 20.1.3.7 Object.prototype.valueOf ( ), https://tc39.es/ecma262/#sec-object.prototype.valueof
@@ -262,7 +262,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::define_getter)
 
     // 2. If IsCallable(getter) is false, throw a TypeError exception.
     if (!getter.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, getter.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, getter.to_utf16_string_without_side_effects());
 
     // 3. Let desc be PropertyDescriptor { [[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true }.
     auto descriptor = PropertyDescriptor { .get = &getter.as_function(), .enumerable = true, .configurable = true };
@@ -288,7 +288,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::define_setter)
 
     // 2. If IsCallable(setter) is false, throw a TypeError exception.
     if (!setter.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, setter.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, setter.to_utf16_string_without_side_effects());
 
     // 3. Let desc be PropertyDescriptor { [[Set]]: setter, [[Enumerable]]: true, [[Configurable]]: true }.
     auto descriptor = PropertyDescriptor { .set = &setter.as_function(), .enumerable = true, .configurable = true };

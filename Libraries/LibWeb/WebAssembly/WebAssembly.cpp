@@ -255,7 +255,7 @@ Wasm::HostFunction create_host_function(JS::VM& vm, JS::FunctionObject& function
 
             auto method = TRY_OR_RETURN_TRAP(result.get_method(vm, vm.names.iterator));
             if (!method)
-                return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, result.to_string_without_side_effects()));
+                return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, result.to_utf16_string_without_side_effects()));
 
             auto values = TRY_OR_RETURN_TRAP(JS::iterator_to_list(vm, TRY_OR_RETURN_TRAP(JS::get_iterator_from_method(vm, result, *method))));
 
@@ -300,7 +300,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
 
             // 3.2. If o is not an Object, throw a TypeError exception.
             if (!value.is_object())
-                return vm.throw_completion<JS::TypeError>(JS::ErrorType::IsNotAEvaluatedFrom, value.to_string_without_side_effects(), "Object"_string, MUST(String::formatted("[wasm import object][\"{}\"]", import_name.module)));
+                return vm.throw_completion<JS::TypeError>(JS::ErrorType::IsNotAEvaluatedFrom, value.to_utf16_string_without_side_effects(), "Object"_string, MUST(String::formatted("[wasm import object][\"{}\"]", import_name.module)));
             auto const& object = value.as_object();
 
             // 3.3. Let v be ? Get(o, componentName).

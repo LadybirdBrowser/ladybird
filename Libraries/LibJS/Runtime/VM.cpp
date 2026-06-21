@@ -154,7 +154,7 @@ VM::VM(ErrorMessages error_messages)
     };
 
     // 2 HostEnsureCanCompileStrings ( calleeRealm, parameterStrings, bodyString, codeString, compilationType, parameterArgs, bodyArg ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-hostensurecancompilestrings
-    host_ensure_can_compile_strings = [](Realm&, ReadonlySpan<String>, StringView, StringView, CompilationType, ReadonlySpan<Value>, Value) -> ThrowCompletionOr<void> {
+    host_ensure_can_compile_strings = [](Realm&, ReadonlySpan<Utf16String>, Utf16View, Utf16View, CompilationType, ReadonlySpan<Value>, Value) -> ThrowCompletionOr<void> {
         // The host-defined abstract operation HostEnsureCanCompileStrings takes arguments calleeRealm (a Realm Record),
         // parameterStrings (a List of Strings), bodyString (a String), and direct (a Boolean) and returns either a normal
         // completion containing unused or a throw completion.
@@ -230,7 +230,7 @@ VM::VM(ErrorMessages error_messages)
     };
 
     // AD-HOC: Inform the host that we received a date string we were unable to parse.
-    host_unrecognized_date_string = [](StringView) {
+    host_unrecognized_date_string = [](Utf16View) {
     };
 }
 
