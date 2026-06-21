@@ -54,9 +54,9 @@ static ThrowCompletionOr<Alphabet> parse_alphabet(VM& vm, Object& options)
 
     // If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
     if (alphabet.is_string()) {
-        if (alphabet.as_string().utf8_string_view() == "base64"sv)
+        if (alphabet.as_string().utf16_string_view() == "base64"sv)
             return Alphabet::Base64;
-        if (alphabet.as_string().utf8_string_view() == "base64url"sv)
+        if (alphabet.as_string().utf16_string_view() == "base64url"sv)
             return Alphabet::Base64URL;
     }
 
@@ -74,11 +74,11 @@ static ThrowCompletionOr<AK::LastChunkHandling> parse_last_chunk_handling(VM& vm
 
     // If lastChunkHandling is not one of "loose", "strict", or "stop-before-partial", throw a TypeError exception.
     if (last_chunk_handling.is_string()) {
-        if (last_chunk_handling.as_string().utf8_string_view() == "loose"sv)
+        if (last_chunk_handling.as_string().utf16_string_view() == "loose"sv)
             return AK::LastChunkHandling::Loose;
-        if (last_chunk_handling.as_string().utf8_string_view() == "strict"sv)
+        if (last_chunk_handling.as_string().utf16_string_view() == "strict"sv)
             return AK::LastChunkHandling::Strict;
-        if (last_chunk_handling.as_string().utf8_string_view() == "stop-before-partial"sv)
+        if (last_chunk_handling.as_string().utf16_string_view() == "stop-before-partial"sv)
             return AK::LastChunkHandling::StopBeforePartial;
     }
 
@@ -116,7 +116,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
     }
 
     // 9. Let result be FromBase64(string, alphabet, lastChunkHandling).
-    auto result = JS::from_base64(vm, string_value.as_string().utf8_string_view(), alphabet, last_chunk_handling);
+    auto result = JS::from_base64(vm, string_value.as_string().utf8_string(), alphabet, last_chunk_handling);
 
     // 10. If result.[[Error]] is not NONE, then
     if (result.error.has_value()) {
@@ -152,7 +152,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_hex)
         return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
 
     // 2. Let result be FromHex(string).
-    auto result = JS::from_hex(vm, string_value.as_string().utf8_string_view());
+    auto result = JS::from_hex(vm, string_value.as_string().utf8_string());
 
     // 3. If result.[[Error]] is not NONE, then
     if (result.error.has_value()) {
@@ -220,7 +220,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_base64)
     auto byte_length = typed_array_length(typed_array_record);
 
     // 14. Let result be FromBase64(string, alphabet, lastChunkHandling, byteLength).
-    auto result = JS::from_base64(vm, string_value.as_string().utf8_string_view(), alphabet, last_chunk_handling, byte_length);
+    auto result = JS::from_base64(vm, string_value.as_string().utf8_string(), alphabet, last_chunk_handling, byte_length);
 
     // 15. Let bytes be result.[[Bytes]].
     auto bytes = move(result.bytes);
@@ -280,7 +280,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_hex)
     auto byte_length = typed_array_length(typed_array_record);
 
     // 7. Let result be FromHex(string, byteLength).
-    auto result = JS::from_hex(vm, string_value.as_string().utf8_string_view(), byte_length);
+    auto result = JS::from_hex(vm, string_value.as_string().utf8_string(), byte_length);
 
     // 8. Let bytes be result.[[Bytes]].
     auto bytes = move(result.bytes);

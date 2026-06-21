@@ -69,7 +69,7 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
     auto usage = TRY(get_option(vm, options, vm.names.usage, OptionType::String, { "sort"sv, "search"sv }, "sort"sv));
 
     // 8. Set collator.[[Usage]] to usage.
-    collator->set_usage(usage.as_string().utf8_string_view());
+    collator->set_usage(usage.as_string().utf8_string());
 
     // 9. If usage is "sort", then
     //     a. Let localeData be %Intl.Collator%.[[SortLocaleData]].
@@ -113,7 +113,7 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
 
     Optional<Unicode::Sensitivity> sensitivity;
     if (!sensitivity_value.is_undefined())
-        sensitivity = Unicode::sensitivity_from_string(sensitivity_value.as_string().utf8_string_view());
+        sensitivity = Unicode::sensitivity_from_string(sensitivity_value.as_string().utf8_string());
 
     // 21. Let defaultIgnorePunctuation be resolvedLocaleData.[[ignorePunctuation]].
     // NOTE: We do not acquire resolvedLocaleData.[[ignorePunctuation]] here. Instead, we let LibUnicode fill in the

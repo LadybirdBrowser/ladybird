@@ -72,7 +72,7 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidPlainYearMonth);
 
     // 4. Let result be ? ParseISODateTime(item, « TemporalYearMonthString »).
-    auto parse_result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string_view(), { { Production::TemporalYearMonthString } }));
+    auto parse_result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string(), { { Production::TemporalYearMonthString } }));
 
     // 5. Let calendar be result.[[Calendar]].
     // 6. If calendar is empty, set calendar to "iso8601".

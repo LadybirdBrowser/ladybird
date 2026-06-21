@@ -397,7 +397,7 @@ public:
                 // 2. If name is not one of "Error", "EvalError", "RangeError", "ReferenceError", "SyntaxError", "TypeError", or "URIError", then set name to "Error".
                 auto type = ErrorType::Error;
                 if (name.is_string())
-                    type = error_name_to_type(name.as_string().utf8_string_view());
+                    type = error_name_to_type(name.as_string().utf8_string());
 
                 // 3. Let valueMessageDesc be ? value.[[GetOwnProperty]]("message").
                 auto value_message_descriptor = TRY(object->internal_get_own_property(m_vm.names.message));

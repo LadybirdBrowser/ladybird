@@ -69,7 +69,7 @@ ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM& vm, Value it
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidPlainMonthDay);
 
     // 4. Let result be ? ParseISODateTime(item, « TemporalMonthDayString »).
-    auto parse_result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string_view(), { { Production::TemporalMonthDayString } }));
+    auto parse_result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string(), { { Production::TemporalMonthDayString } }));
 
     // 5. Let calendar be result.[[Calendar]].
     // 6. If calendar is empty, set calendar to "iso8601".

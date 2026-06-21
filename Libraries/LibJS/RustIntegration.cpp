@@ -169,7 +169,7 @@ static void bytecode_dump_append_value_string(void* ctx, uint64_t encoded)
 {
     auto& builder = *static_cast<JS::RustIntegration::BytecodeDumpBuilder*>(ctx);
     auto value = bit_cast<Value>(encoded);
-    builder.output.append(value.as_string().utf8_string_view());
+    builder.output.append(value.as_string().utf16_string_view());
 }
 
 static void bytecode_dump_append_value_bigint(void* ctx, uint64_t encoded)

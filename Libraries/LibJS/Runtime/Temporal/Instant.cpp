@@ -111,7 +111,7 @@ ThrowCompletionOr<GC::Ref<Instant>> to_temporal_instant(VM& vm, Value item)
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidInstantString, item);
 
     // 3. Let parsed be ? ParseISODateTime(item, « TemporalInstantString »).
-    auto parsed = TRY(parse_iso_date_time(vm, item.as_string().utf8_string_view(), { { Production::TemporalInstantString } }));
+    auto parsed = TRY(parse_iso_date_time(vm, item.as_string().utf8_string(), { { Production::TemporalInstantString } }));
 
     // 4. Assert: Either parsed.[[TimeZone]].[[OffsetString]] is not empty or parsed.[[TimeZone]].[[Z]] is true, but not both.
     auto const& offset_string = parsed.time_zone.offset_string;

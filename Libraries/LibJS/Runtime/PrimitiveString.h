@@ -48,8 +48,6 @@ public:
     bool is_empty() const;
 
     [[nodiscard]] String utf8_string() const;
-    [[nodiscard]] StringView utf8_string_view() const;
-    bool has_utf8_string() const { return m_utf8_string.has_value(); }
 
     [[nodiscard]] Utf16String utf16_string() const;
     [[nodiscard]] Utf16View utf16_string_view() const;
@@ -75,16 +73,9 @@ protected:
 
     mutable DeferredKind m_deferred_kind { DeferredKind::None };
 
-    mutable Optional<String> m_utf8_string;
     mutable Optional<Utf16String> m_utf16_string;
 
-    bool m_utf8_string_is_in_cache { false };
     bool m_utf16_string_is_in_cache { false };
-
-    enum class EncodingPreference {
-        UTF8,
-        UTF16,
-    };
 
 private:
     friend class RopeString;
@@ -94,9 +85,8 @@ private:
     virtual size_t external_memory_size() const override;
 
     explicit PrimitiveString(Utf16String);
-    explicit PrimitiveString(String);
 
-    void resolve_if_needed(EncodingPreference) const;
+    void resolve_if_needed() const;
     Optional<StringView> short_flat_string_storage_view() const;
     static GC::Ptr<PrimitiveString> try_create_short_flat_concatenated_string(VM&, PrimitiveString const& lhs, PrimitiveString const& rhs);
 };
@@ -115,7 +105,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    void resolve(EncodingPreference) const;
+    void resolve() const;
 
     mutable GC::Ptr<PrimitiveString> m_lhs;
     mutable GC::Ptr<PrimitiveString> m_rhs;
@@ -135,7 +125,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    void resolve(EncodingPreference) const;
+    void resolve() const;
 
     mutable GC::Ptr<PrimitiveString> m_source_string;
     size_t m_code_unit_offset { 0 };

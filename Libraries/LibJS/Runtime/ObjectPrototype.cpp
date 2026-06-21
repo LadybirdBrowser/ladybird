@@ -187,12 +187,15 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
 
     // Optimization: Instead of creating another PrimitiveString from builtin_tag, we separate tag and to_string_tag and add an additional branch to step 16.
     StringView tag;
+    String custom_tag;
 
     // 16. If Type(tag) is not String, set tag to builtinTag.
     if (!to_string_tag.is_string())
         tag = builtin_tag;
-    else
-        tag = to_string_tag.as_string().utf8_string_view();
+    else {
+        custom_tag = to_string_tag.as_string().utf8_string();
+        tag = custom_tag;
+    }
 
     // 17. Return the string-concatenation of "[object ", tag, and "]".
 

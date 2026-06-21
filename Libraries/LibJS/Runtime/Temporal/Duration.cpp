@@ -361,7 +361,7 @@ ThrowCompletionOr<GC::Ref<Duration>> to_temporal_duration(VM& vm, Value item)
             return vm.throw_completion<TypeError>(ErrorType::NotAString, item);
 
         // b. Return ? ParseTemporalDurationString(item).
-        return TRY(parse_temporal_duration_string(vm, item.as_string().utf8_string_view()));
+        return TRY(parse_temporal_duration_string(vm, item.as_string().utf8_string()));
     }
 
     // 3. Let result be a new Partial Duration Record with each field set to 0.

@@ -84,18 +84,18 @@ VM::VM(ErrorMessages error_messages)
         Bytecode::StaticPropertyLookupCache::sweep_all();
     });
 
-    m_empty_string = m_heap.allocate<PrimitiveString>(String {});
+    m_empty_string = m_heap.allocate<PrimitiveString>(Utf16String {});
 
     cached_strings = {
-        .number = m_heap.allocate<PrimitiveString>("number"_string),
-        .undefined = m_heap.allocate<PrimitiveString>("undefined"_string),
-        .object = m_heap.allocate<PrimitiveString>("object"_string),
-        .string = m_heap.allocate<PrimitiveString>("string"_string),
-        .symbol = m_heap.allocate<PrimitiveString>("symbol"_string),
-        .boolean = m_heap.allocate<PrimitiveString>("boolean"_string),
-        .bigint = m_heap.allocate<PrimitiveString>("bigint"_string),
-        .function = m_heap.allocate<PrimitiveString>("function"_string),
-        .object_Object = m_heap.allocate<PrimitiveString>("[object Object]"_string),
+        .number = m_heap.allocate<PrimitiveString>("number"_utf16),
+        .undefined = m_heap.allocate<PrimitiveString>("undefined"_utf16),
+        .object = m_heap.allocate<PrimitiveString>("object"_utf16),
+        .string = m_heap.allocate<PrimitiveString>("string"_utf16),
+        .symbol = m_heap.allocate<PrimitiveString>("symbol"_utf16),
+        .boolean = m_heap.allocate<PrimitiveString>("boolean"_utf16),
+        .bigint = m_heap.allocate<PrimitiveString>("bigint"_utf16),
+        .function = m_heap.allocate<PrimitiveString>("function"_utf16),
+        .object_Object = m_heap.allocate<PrimitiveString>("[object Object]"_utf16),
     };
 
     for (size_t i = 0; i < single_ascii_character_strings.size(); ++i)

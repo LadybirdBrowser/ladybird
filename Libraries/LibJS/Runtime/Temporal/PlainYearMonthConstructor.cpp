@@ -76,7 +76,7 @@ ThrowCompletionOr<GC::Ref<Object>> PlainYearMonthConstructor::construct(Function
         return vm.throw_completion<TypeError>(ErrorType::NotAString, "calendar"sv);
 
     // 7. Set calendar to ? CanonicalizeCalendar(calendar).
-    auto calendar = TRY(canonicalize_calendar(vm, calendar_value.as_string().utf8_string_view()));
+    auto calendar = TRY(canonicalize_calendar(vm, calendar_value.as_string().utf8_string()));
 
     // 8. Let ref be ? ToIntegerWithTruncation(referenceISODay).
     auto reference = TRY(to_integer_with_truncation(vm, reference_iso_day, ErrorType::TemporalInvalidPlainYearMonth));

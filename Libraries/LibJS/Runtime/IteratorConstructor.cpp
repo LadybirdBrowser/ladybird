@@ -488,7 +488,7 @@ static ThrowCompletionOr<ZipMode> get_zip_mode(VM& vm, Object const& options)
 
     // 5. If mode is not one of "shortest", "longest", or "strict", throw a TypeError exception.
     if (mode.is_string()) {
-        auto mode_string = mode.as_string().utf8_string_view();
+        auto mode_string = mode.as_string().utf16_string_view();
 
         if (mode_string == "shortest"sv)
             return ZipMode::Shortest;

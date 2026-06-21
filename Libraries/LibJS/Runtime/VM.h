@@ -163,11 +163,6 @@ public:
     JS_ENUMERATE_WELL_KNOWN_SYMBOLS
 #undef __JS_ENUMERATE
 
-    HashMap<String, GC::Ptr<PrimitiveString>>& string_cache()
-    {
-        return m_string_cache;
-    }
-
     HashMap<Utf16String, GC::Ptr<PrimitiveString>>& utf16_string_cache()
     {
         return m_utf16_string_cache;
@@ -516,7 +511,6 @@ private:
 
     static VM* s_the;
 
-    HashMap<String, GC::Ptr<PrimitiveString>> m_string_cache;
     HashMap<Utf16String, GC::Ptr<PrimitiveString>> m_utf16_string_cache;
 
     static constexpr size_t numeric_string_cache_size = 1000;

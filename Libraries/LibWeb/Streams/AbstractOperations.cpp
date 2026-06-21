@@ -175,7 +175,7 @@ void set_up_cross_realm_transform_readable(JS::Realm& realm, ReadableStream& str
             auto value = MUST(data.get(vm, vm.names.value));
 
             // 5. Assert: type is a String.
-            auto type_string = type.as_string().utf8_string_view();
+            auto type_string = type.as_string().utf16_string_view();
 
             // 6. If type is "chunk",
             if (type_string == "chunk"sv) {
@@ -286,7 +286,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
             auto value = MUST(data.get(vm, vm.names.value));
 
             // 5. Assert: type is a String.
-            auto type_string = type.as_string().utf8_string_view();
+            auto type_string = type.as_string().utf16_string_view();
 
             // 6. If type is "pull",
             if (type_string == "pull"sv) {
