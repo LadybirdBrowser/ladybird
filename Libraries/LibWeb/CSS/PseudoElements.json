@@ -73,6 +73,7 @@
       "#padding-properties",
       "#border-properties",
       "box-shadow",
+      "float",
       "#custom-properties"
     ],
     "implementation": "synthetic"
@@ -124,7 +125,6 @@
       "color",
       "background-color",
       "#text-decoration-properties",
-      "text-shadow",
       "FIXME: stroke-color",
       "FIXME: fill-color",
       "stroke-width",

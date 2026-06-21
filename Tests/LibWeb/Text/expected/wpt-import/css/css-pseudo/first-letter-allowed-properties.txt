@@ -1,0 +1,42 @@
+Harness status: OK
+
+Found 36 tests
+
+33 Pass
+3 Fail
+Pass	pre test setup
+Pass	backgroundAttachment should be applied to first-letter pseudo elements.
+Pass	backgroundBlendMode should be applied to first-letter pseudo elements.
+Pass	backgroundClip should be applied to first-letter pseudo elements.
+Pass	backgroundColor should be applied to first-letter pseudo elements.
+Pass	backgroundImage should be applied to first-letter pseudo elements.
+Pass	backgroundOrigin should be applied to first-letter pseudo elements.
+Pass	backgroundPosition should be applied to first-letter pseudo elements.
+Pass	backgroundRepeat should be applied to first-letter pseudo elements.
+Pass	backgroundSize should be applied to first-letter pseudo elements.
+Pass	border should be applied to first-letter pseudo elements.
+Pass	borderImage should be applied to first-letter pseudo elements.
+Pass	borderRadius should be applied to first-letter pseudo elements.
+Pass	boxShadow should be applied to first-letter pseudo elements.
+Pass	color should be applied to first-letter pseudo elements.
+Pass	float should be applied to first-letter pseudo elements.
+Pass	font should be applied to first-letter pseudo elements.
+Pass	fontFeatureSettings should be applied to first-letter pseudo elements.
+Fail	fontSizeAdjust should be applied to first-letter pseudo elements.
+Pass	fontKerning should be applied to first-letter pseudo elements.
+Pass	fontVariationSettings should be applied to first-letter pseudo elements.
+Pass	letterSpacing should be applied to first-letter pseudo elements.
+Pass	margin should be applied to first-letter pseudo elements.
+Pass	padding should be applied to first-letter pseudo elements.
+Pass	opacity should be applied to first-letter pseudo elements.
+Pass	textDecoration should be applied to first-letter pseudo elements.
+Pass	textJustify should be applied to first-letter pseudo elements.
+Pass	textShadow should be applied to first-letter pseudo elements.
+Pass	textTransform should be applied to first-letter pseudo elements.
+Pass	textUnderlinePosition should be applied to first-letter pseudo elements.
+Pass	verticalAlign should be applied to first-letter pseudo elements.
+Pass	wordSpacing should be applied to first-letter pseudo elements.
+Pass	position should not be applied to first-letter pseudo elements.
+Fail	transition should not be applied to first-letter pseudo elements.
+Pass	transform should not be applied to first-letter pseudo elements.
+Fail	wordBreak should not be applied to first-letter pseudo elements.

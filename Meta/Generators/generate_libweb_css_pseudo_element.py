@@ -29,6 +29,7 @@ PROPERTY_GROUPS = {
         # https://drafts.csswg.org/css-backgrounds/#property-index
         "background",
         "background-attachment",
+        "background-blend-mode",
         "background-clip",
         "background-color",
         "background-image",
@@ -96,9 +97,9 @@ PROPERTY_GROUPS = {
         "font",
         "font-family",
         "font-feature-settings",
-        # FIXME: font-kerning
+        "font-kerning",
         "font-language-override",
-        # FIXME: font-optical-sizing
+        "font-optical-sizing",
         # FIXME: font-palette
         "font-size",
         # FIXME: font-size-adjust
@@ -200,8 +201,12 @@ PROPERTY_GROUPS = {
         "text-decoration",
         "text-decoration-color",
         "text-decoration-line",
+        "text-decoration-skip-ink",
         "text-decoration-style",
         "text-decoration-thickness",
+        "text-shadow",
+        "text-underline-offset",
+        "text-underline-position",
     ],
 }
 

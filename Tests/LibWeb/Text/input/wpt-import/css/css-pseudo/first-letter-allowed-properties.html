@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<title>CSS Test: Properties allowed on ::first-letter pseudo elements</title>
+<link rel="author" title="Chris Nardi" href="mailto:cnardi@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#first-letter-styling">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#target::first-letter {}
+#target { visibility: hidden; }
+</style>
+<div id="target">text</div>
+<script>
+'use strict';
+var style;
+const target = document.querySelector("#target");
+var defaultComputedStyle = getComputedStyle(target);
+
+test(function() {
+  var styleRule = document.styleSheets[0].cssRules[0];
+  assert_equals(styleRule.selectorText, '#target::first-letter', 'make sure we have the correct style rule');
+  style = styleRule.style;
+}, 'pre test setup');
+
+var validProperties = {
+  backgroundAttachment: 'fixed',
+  backgroundBlendMode: 'hue',
+  backgroundClip: 'padding-box',
+  backgroundColor: 'rgb(10, 20, 30)',
+  backgroundImage: 'linear-gradient(rgb(0, 0, 0), rgb(255, 255, 255))',
+  backgroundOrigin: 'border-box',
+  backgroundPosition: '10px 20px',
+  backgroundRepeat: 'no-repeat',
+  backgroundSize: '10px 20px',
+  border: '40px dotted rgb(10, 20, 30)',
+  borderImage: 'linear-gradient(rgb(0, 0, 0), rgb(255, 255, 255)) 10% / 20 / 30px repeat',
+  borderRadius: '10px 20px',
+  boxShadow: 'rgb(10, 20, 30) 10px 20px 30px 40px inset',
+  color: 'rgba(10, 20, 30, 0.4)',
+  float: 'right',
+  font: 'italic small-caps 900 10px / 20px sans-serif',
+  fontFeatureSettings: '"vert" 2',
+  fontSizeAdjust: '0.5',
+  fontKerning: 'none',
+  fontVariationSettings: '"XHGT" 0.7',
+  letterSpacing: '12px',
+  margin: '10px 20px 30px 40px',
+  padding: '10px 20px 30px 40px',
+  opacity: '0.5',
+  textDecoration: 'overline wavy rgb(10, 20, 30)',
+  textJustify: 'inter-word',
+  textShadow: 'rgb(10, 20, 30) 10px 20px 30px',
+  textTransform: 'capitalize',
+  textUnderlinePosition: 'under',
+  verticalAlign: '12%',
+  wordSpacing: '12px'
+};
+
+var invalidProperties = {
+  position: 'absolute',
+  transition: 'transform 1s',
+  transform: 'rotate(45deg)',
+  wordBreak: 'break-all'
+};
+
+function testFirstLetterProperty(property, rule, expected, reason) {
+  test(function() {
+    style[property] = "";
+    style[property] = rule;
+    assert_equals(getComputedStyle(target, '::first-letter')[property], expected);
+    style[property] = "";
+  }, reason);
+}
+
+for (var property in validProperties) {
+  testFirstLetterProperty(property, validProperties[property], validProperties[property],
+                          property + " should be applied to first-letter pseudo elements.");
+}
+
+for (var property in invalidProperties) {
+  testFirstLetterProperty(property, invalidProperties[property], defaultComputedStyle[property],
+                          property + " should not be applied to first-letter pseudo elements.");
+}
+</script>
