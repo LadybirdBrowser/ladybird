@@ -72,7 +72,7 @@ ThrowCompletionOr<GC::Ref<Object>> PlainDateConstructor::construct(FunctionObjec
         return vm.throw_completion<TypeError>(ErrorType::NotAString, "calendar"sv);
 
     // 7. Set calendar to ? CanonicalizeCalendar(calendar).
-    auto calendar = TRY(canonicalize_calendar(vm, calendar_value.as_string().utf8_string_view()));
+    auto calendar = TRY(canonicalize_calendar(vm, calendar_value.as_string().utf8_string()));
 
     // 8. If IsValidISODate(y, m, d) is false, throw a RangeError exception.
     if (!is_valid_iso_date(year, month, day))

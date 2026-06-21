@@ -67,13 +67,13 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, AK::Array { "cardinal"sv, "ordinal"sv }, "cardinal"sv));
 
     // 8. Set pluralRules.[[Type]] to t.
-    plural_rules->set_type(type.as_string().utf8_string_view());
+    plural_rules->set_type(type.as_string().utf8_string());
 
     // 9. Let notation be ? GetOption(options, "notation", string, « "standard", "scientific", "engineering", "compact" », "standard").
     auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"sv, "scientific"sv, "engineering"sv, "compact"sv }, "standard"sv));
 
     // 10. Set pluralRules.[[Notation]] to notation.
-    plural_rules->set_notation(notation.as_string().utf8_string_view());
+    plural_rules->set_notation(notation.as_string().utf8_string());
 
     // 11. Let compactDisplay be ? GetOption(options, "compactDisplay", string, « "short", "long" », "short").
     auto compact_display = TRY(get_option(vm, *options, vm.names.compactDisplay, OptionType::String, { "short"sv, "long"sv }, "short"sv));
@@ -81,7 +81,7 @@ ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObj
     // 12. If notation is "compact", then
     if (plural_rules->notation() == Unicode::Notation::Compact) {
         // a. Set pluralRules.[[CompactDisplay]] to compactDisplay.
-        plural_rules->set_compact_display(compact_display.as_string().utf8_string_view());
+        plural_rules->set_compact_display(compact_display.as_string().utf8_string());
     }
 
     // 13. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3, notation).

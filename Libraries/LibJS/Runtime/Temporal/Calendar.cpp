@@ -318,7 +318,7 @@ ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, Value argument)
     if (!month_code.is_string())
         return vm.throw_completion<TypeError>(ErrorType::NotAString, month_code);
 
-    return parse_month_code(vm, month_code.as_string().utf8_string_view());
+    return parse_month_code(vm, month_code.as_string().utf8_string());
 }
 
 // 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode

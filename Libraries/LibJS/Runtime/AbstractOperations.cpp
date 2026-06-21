@@ -646,7 +646,8 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     // 6. NOTE: In the case of a direct eval, evalRealm is the realm of both the caller of eval and of the eval function itself.
     // 7. Perform ? HostEnsureCanCompileStrings(evalRealm, « », xStr, xStr, direct, « », x).
-    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, code_string->utf8_string_view(), code_string->utf8_string_view(), direct == EvalMode::Direct ? CompilationType::DirectEval : CompilationType::IndirectEval, {}, x));
+    auto code_string_utf8 = code_string->utf8_string();
+    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, code_string_utf8, code_string_utf8, direct == EvalMode::Direct ? CompilationType::DirectEval : CompilationType::IndirectEval, {}, x));
 
     // 8. Let inFunction be false.
     bool in_function = false;
@@ -1978,7 +1979,7 @@ ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM& vm, Object const& o
     auto string_value = TRY(get_option(vm, options, vm.names.roundingMode, OptionType::String, allowed_strings, string_fallback));
 
     // 4. Return the value from the "Rounding Mode" column of the row with stringValue in its "String Identifier" column.
-    return static_cast<RoundingMode>(allowed_strings.first_index_of(string_value.as_string().utf8_string_view()).value());
+    return static_cast<RoundingMode>(allowed_strings.first_index_of(string_value.as_string().utf8_string()).value());
 }
 
 // 14.5.2.4 GetRoundingIncrementOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-getroundingincrementoption

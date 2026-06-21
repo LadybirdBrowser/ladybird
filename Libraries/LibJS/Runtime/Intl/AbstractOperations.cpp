@@ -451,7 +451,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
     Optional<MatchedLocale> matcher_result;
 
     // 2. If matcher is "lookup", then
-    if (matcher.is_string() && matcher.as_string().utf8_string_view() == "lookup"sv) {
+    if (matcher.is_string() && matcher.as_string().utf8_string() == "lookup"sv) {
         // a. Let r be LookupMatchingLocaleByPrefix(availableLocales, requestedLocales).
         matcher_result = lookup_matching_locale_by_prefix(requested_locales);
     }
@@ -688,7 +688,7 @@ ThrowCompletionOr<GC::Ref<Array>> filter_locales(VM& vm, ReadonlySpan<String> re
         Optional<MatchedLocale> match;
 
         // a. If matcher is "lookup", then
-        if (matcher.as_string().utf8_string_view() == "lookup"sv) {
+        if (matcher.as_string().utf8_string() == "lookup"sv) {
             // i. Let match be LookupMatchingLocaleByPrefix(availableLocales, « locale »).
             match = lookup_matching_locale_by_prefix({ { locale } });
         }

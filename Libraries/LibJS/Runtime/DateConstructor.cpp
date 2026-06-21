@@ -97,7 +97,7 @@ ThrowCompletionOr<GC::Ref<Object>> DateConstructor::construct(FunctionObject& ne
             if (primitive.is_string()) {
                 // 1. Assert: The next step never returns an abrupt completion because Type(v) is String.
                 // 2. Let tv be the result of parsing v as a date, in exactly the same manner as for the parse method (21.4.3.2).
-                time_value = parse_date_string(vm, primitive.as_string().utf8_string_view());
+                time_value = parse_date_string(vm, primitive.as_string().utf8_string());
             }
             // iii. Else,
             else {

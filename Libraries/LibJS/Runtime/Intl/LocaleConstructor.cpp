@@ -37,7 +37,7 @@ static ThrowCompletionOr<Optional<String>> get_string_option(VM& vm, Object cons
     if (option.is_undefined())
         return OptionalNone {};
 
-    if (validator && !validator(option.as_string().utf8_string_view()))
+    if (validator && !validator(option.as_string().utf8_string()))
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, option, property);
 
     return option.as_string().utf8_string();

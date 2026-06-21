@@ -159,7 +159,7 @@ ThrowCompletionOr<GC::Ref<PlainTime>> to_temporal_time(VM& vm, Value item, Value
             return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidPlainTime);
 
         // b. Let parseResult be ? ParseISODateTime(item, « TemporalTimeString »).
-        auto parse_result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string_view(), { { Production::TemporalTimeString } }));
+        auto parse_result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string(), { { Production::TemporalTimeString } }));
 
         // c. Assert: parseResult.[[Time]] is not START-OF-DAY.
         VERIFY(!parse_result.time.has<ParsedISODateTime::StartOfDay>());

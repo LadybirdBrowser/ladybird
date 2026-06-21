@@ -213,7 +213,7 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
             return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidZonedDateTimeString, item);
 
         // b. Let result be ? ParseISODateTime(item, « TemporalDateTimeString[+Zoned] »).
-        auto result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string_view(), { { Production::TemporalZonedDateTimeString } }));
+        auto result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string(), { { Production::TemporalZonedDateTimeString } }));
 
         // c. Let annotation be result.[[TimeZone]].[[TimeZoneAnnotation]].
         auto annotation = move(result.time_zone.time_zone_annotation);

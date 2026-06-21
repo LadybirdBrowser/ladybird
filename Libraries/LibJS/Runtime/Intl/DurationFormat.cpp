@@ -269,7 +269,7 @@ ThrowCompletionOr<DurationFormat::DurationUnitOptions> get_duration_unit_options
             display_default = "auto"sv;
         }
     } else {
-        style = DurationFormat::value_style_from_string(style_value.as_string().utf8_string_view());
+        style = DurationFormat::value_style_from_string(style_value.as_string().utf8_string());
     }
 
     // 4. If style is "numeric" and IsFractionalSecondUnitName(unit) is true, then

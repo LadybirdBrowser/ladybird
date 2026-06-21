@@ -1212,7 +1212,7 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::symbol_to_primitive)
     auto hint_value = vm.argument(0);
     if (!hint_value.is_string())
         return vm.throw_completion<TypeError>(ErrorType::InvalidHint, hint_value);
-    auto hint = hint_value.as_string().utf8_string_view();
+    auto hint = hint_value.as_string().utf16_string_view();
     Value::PreferredType try_first;
     if (hint == "string"sv || hint == "default"sv)
         try_first = Value::PreferredType::String;

@@ -78,7 +78,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"sv, "scientific"sv, "engineering"sv, "compact"sv }, "standard"sv));
 
     // 12. Set numberFormat.[[Notation]] to notation.
-    number_format->set_notation(notation.as_string().utf8_string_view());
+    number_format->set_notation(notation.as_string().utf8_string());
 
     int default_min_fraction_digits = 0;
     int default_max_fraction_digits = 0;
@@ -121,7 +121,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     // 18. If notation is "compact", then
     if (number_format->notation() == Unicode::Notation::Compact) {
         // a. Set numberFormat.[[CompactDisplay]] to compactDisplay.
-        number_format->set_compact_display(compact_display.as_string().utf8_string_view());
+        number_format->set_compact_display(compact_display.as_string().utf8_string());
 
         // b. Set defaultUseGrouping to "min2".
         default_use_grouping = "min2"sv;
@@ -150,7 +150,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     auto sign_display = TRY(get_option(vm, *options, vm.names.signDisplay, OptionType::String, { "auto"sv, "never"sv, "always"sv, "exceptZero"sv, "negative"sv }, "auto"sv));
 
     // 25. Set numberFormat.[[SignDisplay]] to signDisplay.
-    number_format->set_sign_display(sign_display.as_string().utf8_string_view());
+    number_format->set_sign_display(sign_display.as_string().utf8_string());
 
     // 26. If the implementation supports the normative optional constructor mode of 4.3 Note 1, then
     //     a. Let this be the this value.
@@ -202,7 +202,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
 
     // 10. Let roundingPriority be ? GetOption(options, "roundingPriority", STRING, « "auto", "morePrecision", "lessPrecision" », "auto").
     auto rounding_priority_option = TRY(get_option(vm, options, vm.names.roundingPriority, OptionType::String, { "auto"sv, "morePrecision"sv, "lessPrecision"sv }, "auto"sv));
-    auto rounding_priority = rounding_priority_option.as_string().utf8_string_view();
+    auto rounding_priority = rounding_priority_option.as_string().utf8_string();
 
     // 11. Let trailingZeroDisplay be ? GetOption(options, "trailingZeroDisplay", STRING, « "auto", "stripIfInteger" », "auto").
     auto trailing_zero_display = TRY(get_option(vm, options, vm.names.trailingZeroDisplay, OptionType::String, { "auto"sv, "stripIfInteger"sv }, "auto"sv));
@@ -217,10 +217,10 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
     intl_object.set_rounding_increment(*rounding_increment);
 
     // 15. Set intlObj.[[RoundingMode]] to roundingMode.
-    intl_object.set_rounding_mode(rounding_mode.as_string().utf8_string_view());
+    intl_object.set_rounding_mode(rounding_mode.as_string().utf8_string());
 
     // 16. Set intlObj.[[TrailingZeroDisplay]] to trailingZeroDisplay.
-    intl_object.set_trailing_zero_display(trailing_zero_display.as_string().utf8_string_view());
+    intl_object.set_trailing_zero_display(trailing_zero_display.as_string().utf8_string());
 
     // 17. If mnsd is undefined and mxsd is undefined, let hasSd be false. Otherwise, let hasSd be true.
     bool has_significant_digits = !min_significant_digits.is_undefined() || !max_significant_digits.is_undefined();
@@ -379,7 +379,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     auto style = TRY(get_option(vm, options, vm.names.style, OptionType::String, { "decimal"sv, "percent"sv, "currency"sv, "unit"sv }, "decimal"sv));
 
     // 2. Set intlObj.[[Style]] to style.
-    intl_object.set_style(style.as_string().utf8_string_view());
+    intl_object.set_style(style.as_string().utf8_string());
 
     // 3. Let currency be ? GetOption(options, "currency", STRING, EMPTY, undefined).
     auto currency = TRY(get_option(vm, options, vm.names.currency, OptionType::String, {}, Empty {}));
@@ -392,7 +392,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     }
     // 5. Else,
     //     a. If IsWellFormedCurrencyCode(currency) is false, throw a RangeError exception.
-    else if (!is_well_formed_currency_code(currency.as_string().utf8_string_view())) {
+    else if (!is_well_formed_currency_code(currency.as_string().utf8_string())) {
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, currency, "currency"sv);
     }
 
@@ -413,7 +413,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     }
     // 10. Else,
     //     a. If IsWellFormedUnitIdentifier(unit) is false, throw a RangeError exception.
-    else if (!is_well_formed_unit_identifier(unit.as_string().utf8_string_view())) {
+    else if (!is_well_formed_unit_identifier(unit.as_string().utf8_string())) {
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, unit, "unit"sv);
     }
 
@@ -426,10 +426,10 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
         intl_object.set_currency(MUST(currency.as_string().utf8_string().to_uppercase()));
 
         // c. Set intlObj.[[CurrencyDisplay]] to currencyDisplay.
-        intl_object.set_currency_display(currency_display.as_string().utf8_string_view());
+        intl_object.set_currency_display(currency_display.as_string().utf8_string());
 
         // d. Set intlObj.[[CurrencySign]] to currencySign.
-        intl_object.set_currency_sign(currency_sign.as_string().utf8_string_view());
+        intl_object.set_currency_sign(currency_sign.as_string().utf8_string());
     }
 
     // 13. If style is "unit", then
@@ -438,7 +438,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
         intl_object.set_unit(unit.as_string().utf8_string());
 
         // b. Set intlObj.[[UnitDisplay]] to unitDisplay.
-        intl_object.set_unit_display(unit_display.as_string().utf8_string_view());
+        intl_object.set_unit_display(unit_display.as_string().utf8_string());
     }
 
     // 14. Return UNUSED.

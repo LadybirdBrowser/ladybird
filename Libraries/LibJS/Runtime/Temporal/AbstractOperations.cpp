@@ -102,7 +102,7 @@ ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM& vm, Obj
 {
     // 1. Let stringValue be ? GetOption(options, "disambiguation", STRING, « "compatible", "earlier", "later", "reject" », "compatible").
     auto string_value = TRY(get_option(vm, options, vm.names.disambiguation, OptionType::String, { "compatible"sv, "earlier"sv, "later"sv, "reject"sv }, "compatible"sv));
-    auto string_view = string_value.as_string().utf8_string_view();
+    auto string_view = string_value.as_string().utf8_string();
 
     // 2. If stringValue is "compatible", return COMPATIBLE.
     if (string_view == "compatible"sv)
@@ -166,7 +166,7 @@ ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM& vm, Object const&
 
     // 5. Let stringValue be ? GetOption(options, "offset", STRING, « "prefer", "use", "ignore", "reject" », stringFallback).
     auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "prefer"sv, "use"sv, "ignore"sv, "reject"sv }, string_fallback));
-    auto string_view = string_value.as_string().utf8_string_view();
+    auto string_view = string_value.as_string().utf8_string();
 
     // 6. If stringValue is "prefer", return PREFER.
     if (string_view == "prefer"sv)
@@ -189,7 +189,7 @@ ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM& vm, O
 {
     // 1. Let stringValue be ? GetOption(options, "calendarName", STRING, « "auto", "always", "never", "critical" », "auto").
     auto string_value = TRY(get_option(vm, options, vm.names.calendarName, OptionType::String, { "auto"sv, "always"sv, "never"sv, "critical"sv }, "auto"sv));
-    auto string_view = string_value.as_string().utf8_string_view();
+    auto string_view = string_value.as_string().utf8_string();
 
     // 2. If stringValue is "always", return ALWAYS.
     if (string_view == "always"sv)
@@ -212,7 +212,7 @@ ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM& 
 {
     // 1. Let stringValue be ? GetOption(options, "timeZoneName", STRING, « "auto", "never", "critical" », "auto").
     auto string_value = TRY(get_option(vm, options, vm.names.timeZoneName, OptionType::String, { "auto"sv, "never"sv, "critical"sv }, "auto"sv));
-    auto string_view = string_value.as_string().utf8_string_view();
+    auto string_view = string_value.as_string().utf8_string();
 
     // 2. If stringValue is "never", return NEVER.
     if (string_view == "never"sv)
@@ -231,7 +231,7 @@ ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM& vm, Object con
 {
     // 1. Let stringValue be ? GetOption(options, "offset", STRING, « "auto", "never" », "auto").
     auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "auto"sv, "never"sv }, "auto"sv));
-    auto string_view = string_value.as_string().utf8_string_view();
+    auto string_view = string_value.as_string().utf8_string();
 
     // 2. If stringValue is "never", return never.
     if (string_view == "never"sv)
@@ -246,7 +246,7 @@ ThrowCompletionOr<Direction> get_direction_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "direction", STRING, « "next", "previous" », REQUIRED).
     auto string_value = TRY(get_option(vm, options, vm.names.direction, OptionType::String, { "next"sv, "previous"sv }, Required {}));
-    auto string_view = string_value.as_string().utf8_string_view();
+    auto string_view = string_value.as_string().utf8_string();
 
     // 2. If stringValue is "next", return NEXT.
     if (string_view == "next"sv)
@@ -415,7 +415,7 @@ ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object cons
     if (value.is_undefined())
         return UnitValue { Unset {} };
 
-    auto value_string = value.as_string().utf8_string_view();
+    auto value_string = value.as_string().utf8_string();
 
     // 8. If value is "auto", return AUTO.
     if (value_string == "auto"sv)
@@ -544,7 +544,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
             return vm.throw_completion<TypeError>(ErrorType::NotAString, vm.names.relativeTo);
 
         // b. Let result be ? ParseISODateTime(value, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned] »).
-        auto result = TRY(parse_iso_date_time(vm, value.as_string().utf8_string_view(), { { Production::TemporalZonedDateTimeString, Production::TemporalDateTimeString } }));
+        auto result = TRY(parse_iso_date_time(vm, value.as_string().utf8_string(), { { Production::TemporalZonedDateTimeString, Production::TemporalDateTimeString } }));
 
         // c. Let offsetString be result.[[TimeZone]].[[OffsetString]].
         offset_string = move(result.time_zone.offset_string);
@@ -1620,7 +1620,7 @@ ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTimeZoneString, offset);
 
     // 3. Perform ? ParseDateTimeUTCOffset(offset).
-    TRY(parse_date_time_utc_offset(vm, offset.as_string().utf8_string_view()));
+    TRY(parse_date_time_utc_offset(vm, offset.as_string().utf8_string()));
 
     // 4. Return offset.
     return offset.as_string().utf8_string();

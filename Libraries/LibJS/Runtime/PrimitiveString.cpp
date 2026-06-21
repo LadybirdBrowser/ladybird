@@ -9,11 +9,9 @@
 #include <AK/CharacterTypes.h>
 #include <AK/FlyString.h>
 #include <AK/StringBuilder.h>
-#include <AK/UnicodeUtils.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf8View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -37,30 +35,10 @@ Optional<StringView> PrimitiveString::short_flat_string_storage_view() const
     if (m_deferred_kind != DeferredKind::None)
         return {};
 
-    if (m_utf8_string.has_value() && m_utf8_string->is_short_string())
-        return m_utf8_string->bytes_as_string_view();
-
     if (m_utf16_string.has_value() && m_utf16_string->has_short_ascii_storage())
         return m_utf16_string->ascii_view();
 
     return {};
-}
-
-static bool utf8_views_form_surrogate_pair_across_boundary(StringView lhs, StringView rhs)
-{
-    if (lhs.length() < 3 || rhs.length() < 3)
-        return false;
-
-    // Surrogates encoded as UTF-8 are 3 bytes.
-    if ((static_cast<u8>(lhs[lhs.length() - 3]) & 0xf0) != 0xe0)
-        return false;
-    if ((static_cast<u8>(rhs[0]) & 0xf0) != 0xe0)
-        return false;
-
-    auto high_surrogate = *Utf8View(lhs.substring_view(lhs.length() - 3)).begin();
-    auto low_surrogate = *Utf8View(rhs).begin();
-    return AK::UnicodeUtils::is_utf16_high_surrogate(high_surrogate)
-        && AK::UnicodeUtils::is_utf16_low_surrogate(low_surrogate);
 }
 
 GC::Ptr<PrimitiveString> PrimitiveString::try_create_short_flat_concatenated_string(VM& vm, PrimitiveString const& lhs, PrimitiveString const& rhs)
@@ -75,9 +53,6 @@ GC::Ptr<PrimitiveString> PrimitiveString::try_create_short_flat_concatenated_str
 
     auto const byte_count = lhs_view->length() + rhs_view->length();
     if (byte_count > String::MAX_SHORT_STRING_BYTE_COUNT)
-        return nullptr;
-
-    if (utf8_views_form_surrogate_pair_across_boundary(*lhs_view, *rhs_view))
         return nullptr;
 
     AK::Array<u8, String::MAX_SHORT_STRING_BYTE_COUNT> buffer;
@@ -125,29 +100,7 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16FlyString const& s
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String const& string)
 {
-    if (string.is_empty())
-        return vm.empty_string();
-
-    auto const length_in_code_units = string.length_in_code_units();
-
-    if (length_in_code_units == 1) {
-        auto bytes = string.bytes();
-        if (auto ch = bytes[0]; is_ascii(ch))
-            return vm.single_ascii_character_string(ch);
-    }
-
-    if (string.length_in_code_units() > MAX_LENGTH_FOR_STRING_CACHE) {
-        return vm.heap().allocate<PrimitiveString>(string);
-    }
-
-    auto& string_cache = vm.string_cache();
-    if (auto it = string_cache.find(string); it != string_cache.end())
-        return *it->value;
-
-    auto new_string = vm.heap().allocate<PrimitiveString>(string);
-    new_string->m_utf8_string_is_in_cache = true;
-    string_cache.set(move(string), new_string);
-    return *new_string;
+    return create(vm, Utf16String::from_utf8(string.bytes_as_string_view()));
 }
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, StringView string)
@@ -224,18 +177,11 @@ PrimitiveString::PrimitiveString(Utf16String string)
 {
 }
 
-PrimitiveString::PrimitiveString(String string)
-    : m_utf8_string(move(string))
-{
-}
-
 PrimitiveString::~PrimitiveString() = default;
 
 size_t PrimitiveString::external_memory_size() const
 {
     size_t size = 0;
-    if (m_utf8_string.has_value())
-        size += string_external_memory_size(*m_utf8_string);
     if (m_utf16_string.has_value())
         size = saturating_add_external_memory_size(size, utf16_string_external_memory_size(*m_utf16_string));
     return size;
@@ -248,11 +194,6 @@ void PrimitiveString::finalize()
         auto const& string = *m_utf16_string;
         if (string.length_in_code_units() <= MAX_LENGTH_FOR_STRING_CACHE)
             vm().utf16_string_cache().remove(string);
-    }
-    if (m_utf8_string_is_in_cache) {
-        auto const& string = *m_utf8_string;
-        if (string.length_in_code_units() <= MAX_LENGTH_FOR_STRING_CACHE)
-            vm().string_cache().remove(string);
     }
 }
 
@@ -267,44 +208,19 @@ bool PrimitiveString::is_empty() const
 
     if (has_utf16_string())
         return m_utf16_string->is_empty();
-    if (has_utf8_string())
-        return m_utf8_string->is_empty();
     VERIFY_NOT_REACHED();
 }
 
 String PrimitiveString::utf8_string() const
 {
-    resolve_if_needed(EncodingPreference::UTF8);
-
-    if (!has_utf8_string()) {
-        VERIFY(has_utf16_string());
-        m_utf8_string = m_utf16_string->to_utf8();
-    }
-
-    return *m_utf8_string;
-}
-
-StringView PrimitiveString::utf8_string_view() const
-{
-    if (!has_utf8_string()) {
-        if (has_utf16_string() && m_utf16_string->has_ascii_storage())
-            return m_utf16_string->ascii_view();
-
-        (void)utf8_string();
-    }
-
-    return m_utf8_string->bytes_as_string_view();
+    return utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
 }
 
 Utf16String PrimitiveString::utf16_string() const
 {
-    resolve_if_needed(EncodingPreference::UTF16);
+    resolve_if_needed();
 
-    if (!has_utf16_string()) {
-        VERIFY(has_utf8_string());
-        m_utf16_string = Utf16String::from_utf8(*m_utf8_string);
-    }
-
+    VERIFY(has_utf16_string());
     return *m_utf16_string;
 }
 
@@ -333,8 +249,6 @@ bool PrimitiveString::operator==(PrimitiveString const& other) const
         return true;
     if (length_in_utf16_code_units() != other.length_in_utf16_code_units())
         return false;
-    if (m_utf8_string.has_value() && other.m_utf8_string.has_value())
-        return m_utf8_string->bytes_as_string_view() == other.m_utf8_string->bytes_as_string_view();
     if (m_utf16_string.has_value() && other.m_utf16_string.has_value())
         return *m_utf16_string == *other.m_utf16_string;
     return utf16_string_view() == other.utf16_string_view();
@@ -362,29 +276,28 @@ ThrowCompletionOr<Optional<Value>> PrimitiveString::get(VM& vm, PropertyKey cons
     return create(vm, *this, index.as_index(), 1);
 }
 
-void PrimitiveString::resolve_if_needed(EncodingPreference preference) const
+void PrimitiveString::resolve_if_needed() const
 {
     switch (m_deferred_kind) {
     case DeferredKind::None:
         return;
     case DeferredKind::Rope:
-        static_cast<RopeString const&>(*this).resolve(preference);
+        static_cast<RopeString const&>(*this).resolve();
         return;
     case DeferredKind::Substring:
-        static_cast<Substring const&>(*this).resolve(preference);
+        static_cast<Substring const&>(*this).resolve();
         return;
     }
 
     VERIFY_NOT_REACHED();
 }
 
-void RopeString::resolve(EncodingPreference preference) const
+void RopeString::resolve() const
 {
 
     // This vector will hold all the pieces of the rope that need to be assembled
     // into the resolved string.
     Vector<PrimitiveString const*, 2> pieces;
-    size_t approximate_length = 0;
     size_t length_in_utf16_code_units = 0;
 
     // NOTE: We traverse the rope tree without using recursion, since we'd run out of
@@ -401,91 +314,16 @@ void RopeString::resolve(EncodingPreference preference) const
             continue;
         }
 
-        if (current->has_utf8_string())
-            approximate_length += current->utf8_string_view().length();
-        if (preference == EncodingPreference::UTF16)
-            length_in_utf16_code_units += current->length_in_utf16_code_units();
+        length_in_utf16_code_units += current->length_in_utf16_code_units();
         pieces.append(current);
     }
 
-    if (preference == EncodingPreference::UTF16) {
-        // The caller wants a UTF-16 string, so we can simply concatenate all the pieces
-        // into a UTF-16 code unit buffer and create a Utf16String from it.
-        Utf16StringBuilder builder(length_in_utf16_code_units);
-
-        for (auto const* current : pieces)
-            builder.append(current->utf16_string_view());
-
-        m_utf16_string = builder.to_string();
-        m_deferred_kind = DeferredKind::None;
-        m_lhs = nullptr;
-        m_rhs = nullptr;
-        return;
-    }
-
-    // Now that we have all the pieces, we can concatenate them using a StringBuilder.
-    StringBuilder builder(approximate_length);
-
-    // We keep track of the previous piece in order to handle surrogate pairs spread across two pieces.
-    PrimitiveString const* previous = nullptr;
+    Utf16StringBuilder builder(length_in_utf16_code_units);
     for (auto const* current : pieces) {
-        if (!previous) {
-            // This is the very first piece, just append it and continue.
-            builder.append(current->utf8_string());
-            previous = current;
-            continue;
-        }
-
-        // Get the UTF-8 representations for both strings.
-        auto current_string_as_utf8 = current->utf8_string_view();
-        auto previous_string_as_utf8 = previous->utf8_string_view();
-
-        // NOTE: Now we need to look at the end of the previous string and the start
-        //       of the current string, to see if they should be combined into a surrogate.
-
-        // Surrogates encoded as UTF-8 are 3 bytes.
-        if ((previous_string_as_utf8.length() < 3) || (current_string_as_utf8.length() < 3)) {
-            builder.append(current_string_as_utf8);
-            previous = current;
-            continue;
-        }
-
-        // Might the previous string end with a UTF-8 encoded surrogate?
-        if ((static_cast<u8>(previous_string_as_utf8[previous_string_as_utf8.length() - 3]) & 0xf0) != 0xe0) {
-            // If not, just append the current string and continue.
-            builder.append(current_string_as_utf8);
-            previous = current;
-            continue;
-        }
-
-        // Might the current string begin with a UTF-8 encoded surrogate?
-        if ((static_cast<u8>(current_string_as_utf8[0]) & 0xf0) != 0xe0) {
-            // If not, just append the current string and continue.
-            builder.append(current_string_as_utf8);
-            previous = current;
-            continue;
-        }
-
-        auto high_surrogate = *Utf8View(previous_string_as_utf8.substring_view(previous_string_as_utf8.length() - 3)).begin();
-        auto low_surrogate = *Utf8View(current_string_as_utf8).begin();
-
-        if (!AK::UnicodeUtils::is_utf16_high_surrogate(high_surrogate) || !AK::UnicodeUtils::is_utf16_low_surrogate(low_surrogate)) {
-            builder.append(current_string_as_utf8);
-            previous = current;
-            continue;
-        }
-
-        // Remove 3 bytes from the builder and replace them with the UTF-8 encoded code point.
-        builder.trim(3);
-        builder.append_code_point(AK::UnicodeUtils::decode_utf16_surrogate_pair(high_surrogate, low_surrogate));
-
-        // Append the remaining part of the current string.
-        builder.append(current_string_as_utf8.substring_view(3));
-        previous = current;
+        builder.append(current->utf16_string_view());
     }
 
-    // NOTE: We've already produced valid UTF-8 above, so there's no need for additional validation.
-    m_utf8_string = builder.to_string_without_validation();
+    m_utf16_string = builder.to_string();
     m_deferred_kind = DeferredKind::None;
     m_lhs = nullptr;
     m_rhs = nullptr;
@@ -507,17 +345,11 @@ void RopeString::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_rhs);
 }
 
-void Substring::resolve(EncodingPreference preference) const
+void Substring::resolve() const
 {
     auto source_view = m_source_string->utf16_string_view().substring_view(m_code_unit_offset, m_code_unit_length);
 
-    if (preference == EncodingPreference::UTF16) {
-        m_utf16_string = Utf16String::from_utf16(source_view);
-    } else {
-        auto substring = Utf16String::from_utf16(source_view);
-        m_utf8_string = substring.to_utf8();
-    }
-
+    m_utf16_string = Utf16String::from_utf16(source_view);
     m_deferred_kind = DeferredKind::None;
     m_source_string = nullptr;
 }

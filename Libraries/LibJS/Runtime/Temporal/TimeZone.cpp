@@ -216,7 +216,7 @@ ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, Value tempora
     if (!temporal_time_zone_like.is_string())
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTimeZoneName, temporal_time_zone_like);
 
-    return to_temporal_time_zone_identifier(vm, temporal_time_zone_like.as_string().utf8_string_view());
+    return to_temporal_time_zone_identifier(vm, temporal_time_zone_like.as_string().utf8_string());
 }
 
 // 11.1.8 ToTemporalTimeZoneIdentifier ( temporalTimeZoneLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimezoneidentifier
