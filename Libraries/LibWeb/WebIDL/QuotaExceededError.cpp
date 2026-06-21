@@ -53,7 +53,7 @@ ExceptionOr<GC::Ref<QuotaExceededError>> QuotaExceededError::construct_impl(JS::
     if (options.quota.has_value()) {
         // 1. If options["quota"] is less than 0, then throw a RangeError.
         if (options.quota.value() < 0)
-            return vm.throw_completion<JS::RangeError>("Quota cannot be less than 0"sv);
+            return vm.throw_completion<JS::RangeError>("Quota cannot be less than 0"_utf16);
 
         // 2. Set this’s quota to options["quota"].
         error->m_quota = options.quota;
@@ -63,7 +63,7 @@ ExceptionOr<GC::Ref<QuotaExceededError>> QuotaExceededError::construct_impl(JS::
     if (options.requested.has_value()) {
         // 1. If options["requested"] is less than 0, then throw a RangeError.
         if (options.requested.value() < 0)
-            return vm.throw_completion<JS::RangeError>("Requested cannot be less than 0"sv);
+            return vm.throw_completion<JS::RangeError>("Requested cannot be less than 0"_utf16);
 
         // 2. Set this’s requested to options["requested"].
         error->m_requested = options.requested;
@@ -71,7 +71,7 @@ ExceptionOr<GC::Ref<QuotaExceededError>> QuotaExceededError::construct_impl(JS::
 
     // 5. If this’s quota is not null, this’s requested is not null, and this’s requested is less than this’s quota, then throw a RangeError.
     if (error->m_quota.has_value() && error->m_requested.has_value() && error->m_requested.value() < error->m_quota.value())
-        return vm.throw_completion<JS::RangeError>("Requested cannot be less than quota"sv);
+        return vm.throw_completion<JS::RangeError>("Requested cannot be less than quota"_utf16);
 
     return error;
 }

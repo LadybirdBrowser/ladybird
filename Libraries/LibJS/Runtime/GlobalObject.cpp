@@ -373,7 +373,7 @@ static ThrowCompletionOr<Utf16String> encode(VM& vm, Utf16View const& string, St
     auto string_length = string.length_in_code_units();
 
     // 2. Let R be the empty String.
-    StringBuilder encoded_builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder encoded_builder;
 
     // 3. Let alwaysUnescaped be the string-concatenation of the ASCII word characters and "-.!~*'()".
     // 4. Let unescapedSet be the string-concatenation of alwaysUnescaped and extraUnescaped.
@@ -396,7 +396,7 @@ static ThrowCompletionOr<Utf16String> encode(VM& vm, Utf16View const& string, St
             k++;
 
             // ii. Set R to the string-concatenation of R and C.
-            encoded_builder.append(code_unit);
+            encoded_builder.append_code_unit(code_unit);
         }
         // d. Else,
         else {
@@ -419,7 +419,7 @@ static ThrowCompletionOr<Utf16String> encode(VM& vm, Utf16View const& string, St
             VERIFY(nwritten > 0);
         }
     }
-    return encoded_builder.to_utf16_string();
+    return encoded_builder.to_string();
 }
 
 static ThrowCompletionOr<u8> decode_percent_encoded_byte(VM& vm, Utf16View const& string, size_t percent_index)
@@ -543,7 +543,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
     auto string = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 3. Let R be the empty String.
-    StringBuilder escaped(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder escaped;
 
     // 4. Let unescapedSet be the string-concatenation of the ASCII word characters and "@*+-./".
     auto unescaped_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@*_+-./"sv;
@@ -559,7 +559,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
         // NOTE: We know unescapedSet is ASCII-only, so ensure we have an ASCII codepoint before casting to char.
         if (is_ascii(code_unit) && unescaped_set.contains(static_cast<char>(code_unit))) {
             // i. Let S be the String value containing the single code unit char.
-            escaped.append(static_cast<char>(code_unit));
+            escaped.append_ascii(static_cast<char>(code_unit));
         }
         // c. Else,
         // i. Let n be the numeric value of char.
@@ -581,7 +581,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
     }
 
     // 7. Return R.
-    return PrimitiveString::create(vm, escaped.to_utf16_string());
+    return PrimitiveString::create(vm, escaped.to_string());
 }
 
 // B.2.1.2 unescape ( string ), https://tc39.es/ecma262/#sec-unescape-string

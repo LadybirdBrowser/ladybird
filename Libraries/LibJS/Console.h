@@ -59,7 +59,7 @@ public:
 
     struct TraceFrame {
         Utf16String function_name;
-        Optional<String> source_file;
+        Optional<Utf16String> source_file;
         Optional<size_t> line;
         Optional<size_t> column;
     };

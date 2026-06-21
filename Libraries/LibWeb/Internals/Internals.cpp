@@ -7,6 +7,7 @@
 
 #include <AK/JsonObject.h>
 #include <AK/NumericLimits.h>
+#include <AK/Utf16String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/TimeZone.h>
 #include <LibGfx/Cursor.h>
@@ -104,7 +105,7 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
 
     auto* document = page.top_level_browsing_context().active_document();
     if (!document)
-        return vm.throw_completion<JS::InternalError>("No active document available"sv);
+        return vm.throw_completion<JS::InternalError>("No active document available"_utf16);
 
     JsonObject metadata;
 
@@ -117,7 +118,7 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
             auto href = as<DOM::Element>(reference_node)->get_attribute_value(HTML::AttributeNames::href);
             auto url = document->encoding_parse_url(href);
             if (!url.has_value())
-                return vm.throw_completion<JS::InternalError>(MUST(String::formatted("Failed to construct URL for '{}'", href)));
+                return vm.throw_completion<JS::InternalError>(Utf16String::formatted("Failed to construct URL for '{}'", href));
             references.must_append(url->to_string());
         }
         return references;
@@ -199,7 +200,7 @@ WebIDL::ExceptionOr<String> Internals::set_time_zone(StringView time_zone)
     auto current_time_zone = Core::TimeZone::current_time_zone();
 
     if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
-        return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
+        return vm().throw_completion<JS::InternalError>(Utf16String::formatted("Could not set time zone: {}", result.error()));
 
     JS::clear_system_time_zone_cache();
     return current_time_zone;
@@ -527,7 +528,7 @@ WebIDL::ExceptionOr<void> Internals::set_content_blockers(String const& patterns
 
         auto pattern = String::from_utf8(line);
         if (pattern.is_error())
-            return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", pattern.error())));
+            return vm().throw_completion<JS::InternalError>(Utf16String::formatted("Could not set content blockers: {}", pattern.error()));
 
         patterns.append(pattern.release_value());
     }
@@ -536,7 +537,7 @@ WebIDL::ExceptionOr<void> Internals::set_content_blockers(String const& patterns
     auto had_cosmetic_rules = blocker.has_cosmetic_rules();
     auto result = blocker.set_patterns(patterns);
     if (result.is_error())
-        return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", result.error())));
+        return vm().throw_completion<JS::InternalError>(Utf16String::formatted("Could not set content blockers: {}", result.error()));
 
     if (had_cosmetic_rules || blocker.has_cosmetic_rules())
         page().invalidate_user_style();

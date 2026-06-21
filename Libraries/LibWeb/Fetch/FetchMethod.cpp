@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/TypeCasts.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/DOM/AbortSignal.h>
@@ -105,7 +106,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, Bindings::R
         // 3. If response is a network error, then reject p with a TypeError and abort these steps.
         if (response->is_network_error()) {
             auto message = response->network_error_message().value_or("Response is a network error"_string);
-            WebIDL::reject_promise(relevant_realm, promise_capability, JS::TypeError::create(relevant_realm, message));
+            WebIDL::reject_promise(relevant_realm, promise_capability, JS::TypeError::create(relevant_realm, Utf16String::from_utf8(message)));
             return;
         }
 

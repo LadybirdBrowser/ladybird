@@ -24,7 +24,7 @@ Utf16String list_format_type_to_string(ListFormatType);
 
 class ListFormat {
 public:
-    static NonnullOwnPtr<ListFormat> create(StringView locale, ListFormatType, Style);
+    static NonnullOwnPtr<ListFormat> create(Utf16View locale, ListFormatType, Style);
     virtual ~ListFormat() = default;
 
     struct Partition {

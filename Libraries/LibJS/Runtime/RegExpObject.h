@@ -10,6 +10,7 @@
 #include <AK/EnumBits.h>
 #include <AK/Optional.h>
 #include <AK/Result.h>
+#include <AK/String.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibRegex/ECMAScriptRegex.h>

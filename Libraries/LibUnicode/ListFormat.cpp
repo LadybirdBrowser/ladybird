@@ -152,11 +152,11 @@ private:
     NonnullOwnPtr<icu::ListFormatter> m_formatter;
 };
 
-NonnullOwnPtr<ListFormat> ListFormat::create(StringView locale, ListFormatType type, Style style)
+NonnullOwnPtr<ListFormat> ListFormat::create(Utf16View locale, ListFormatType type, Style style)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     VERIFY(locale_data.has_value());
 
     auto formatter = adopt_own(*icu::ListFormatter::createInstance(locale_data->locale(), icu_list_format_type(type), icu_list_format_width(style), status));

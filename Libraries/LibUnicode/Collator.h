@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
-#include <AK/StringView.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 
@@ -40,9 +39,9 @@ Utf16String case_first_to_string(CaseFirst);
 class Collator {
 public:
     static NonnullOwnPtr<Collator> create(
-        StringView locale,
+        Utf16View locale,
         Usage,
-        StringView collation,
+        Utf16View collation,
         Optional<Sensitivity>,
         CaseFirst,
         bool numeric,

@@ -238,9 +238,8 @@ fn generate_expression_inner(
         ExpressionKind::StringLiteral(value) => Some(generator.add_constant_string((**value).clone())),
 
         ExpressionKind::BigIntLiteral(value) => {
-            // The AST stores the raw value including the 'n' suffix; strip it for codegen.
-            let digits = value.strip_suffix('n').unwrap_or(value.as_str());
-            Some(generator.add_constant_bigint(digits.to_string()))
+            let digits = bigint_literal_digits(value);
+            Some(generator.add_constant_bigint(ascii_code_units_to_string(digits)?))
         }
 
         ExpressionKind::RegExpLiteral(data) => {
@@ -6354,8 +6353,8 @@ fn generate_class_expression(
                             ExpressionKind::PrivateIdentifier(p) => p.name.clone(),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
                             ExpressionKind::BigIntLiteral(s) => {
-                                let digits = s.strip_suffix('n').unwrap_or(s.as_str());
-                                Utf16String(digits.encode_utf16().collect())
+                                let digits = bigint_literal_digits(s);
+                                Utf16String(digits.to_vec())
                             }
                             _ => Utf16String::new(),
                         };
@@ -9396,33 +9395,99 @@ impl NonDecimalRadix {
     }
 }
 
-fn strip_non_decimal_prefix(text: &str) -> Option<(NonDecimalRadix, &str)> {
-    // Detect an ASCII non-decimal prefix without slicing at a UTF-8-invalid boundary.
-    // Empty suffixes ("0x", "0o", "0b") remain invalid and are rejected here.
-    // Callers validate suffix digits before delegating conversion to numeric parsers.
-    if let Some(rest) = text.strip_prefix("0b").or_else(|| text.strip_prefix("0B")) {
-        return (!rest.is_empty()).then_some((NonDecimalRadix::Binary, rest));
-    }
-    if let Some(rest) = text.strip_prefix("0o").or_else(|| text.strip_prefix("0O")) {
-        return (!rest.is_empty()).then_some((NonDecimalRadix::Octal, rest));
-    }
-    if let Some(rest) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
-        return (!rest.is_empty()).then_some((NonDecimalRadix::Hexadecimal, rest));
-    }
-    None
+fn is_utf16_whitespace(code_unit: u16) -> bool {
+    char::from_u32(code_unit.into()).is_some_and(char::is_whitespace)
 }
 
-fn is_valid_non_decimal_digits(text: &str, radix: NonDecimalRadix) -> bool {
+fn trim_utf16_whitespace(text: &[u16]) -> &[u16] {
+    let mut start = 0;
+    while start < text.len() && is_utf16_whitespace(text[start]) {
+        start += 1;
+    }
+
+    let mut end = text.len();
+    while end > start && is_utf16_whitespace(text[end - 1]) {
+        end -= 1;
+    }
+
+    &text[start..end]
+}
+
+fn strip_non_decimal_prefix_utf16(text: &[u16]) -> Option<(NonDecimalRadix, &[u16])> {
+    if text.len() < 3 || text[0] != b'0'.into() {
+        return None;
+    }
+
+    let radix = match text[1] {
+        code_unit if code_unit == b'b'.into() || code_unit == b'B'.into() => NonDecimalRadix::Binary,
+        code_unit if code_unit == b'o'.into() || code_unit == b'O'.into() => NonDecimalRadix::Octal,
+        code_unit if code_unit == b'x'.into() || code_unit == b'X'.into() => NonDecimalRadix::Hexadecimal,
+        _ => return None,
+    };
+
+    Some((radix, &text[2..]))
+}
+
+fn is_valid_non_decimal_digits_utf16(text: &[u16], radix: NonDecimalRadix) -> bool {
     // Keep this JS-specific precheck even though parse_bytes() also validates:
     // num-bigint accepts forms that are invalid in JS StringToNumber/StringToBigInt
     // non-decimal parsing (for example a leading '+' and '_' separators).
-    // strip_non_decimal_prefix() guarantees that this suffix is non-empty.
+    // strip_non_decimal_prefix_utf16() guarantees that this suffix is non-empty.
     debug_assert!(!text.is_empty());
     match radix {
-        NonDecimalRadix::Binary => text.bytes().all(|b| matches!(b, b'0' | b'1')),
-        NonDecimalRadix::Octal => text.bytes().all(|b| matches!(b, b'0'..=b'7')),
-        NonDecimalRadix::Hexadecimal => text.bytes().all(|b| b.is_ascii_hexdigit()),
+        NonDecimalRadix::Binary => text
+            .iter()
+            .all(|&code_unit| code_unit == b'0'.into() || code_unit == b'1'.into()),
+        NonDecimalRadix::Octal => text
+            .iter()
+            .all(|&code_unit| (b'0'.into()..=b'7'.into()).contains(&code_unit)),
+        NonDecimalRadix::Hexadecimal => text.iter().all(|&code_unit| {
+            (b'0'.into()..=b'9'.into()).contains(&code_unit)
+                || (b'a'.into()..=b'f'.into()).contains(&code_unit)
+                || (b'A'.into()..=b'F'.into()).contains(&code_unit)
+        }),
     }
+}
+
+fn ascii_code_units_to_bytes(text: &[u16]) -> Option<Vec<u8>> {
+    text.iter()
+        .map(|&code_unit| {
+            u8::try_from(code_unit)
+                .ok()
+                .and_then(|byte| byte.is_ascii().then_some(byte))
+        })
+        .collect()
+}
+
+fn ascii_code_units_to_string(text: &[u16]) -> Option<String> {
+    text.iter()
+        .map(|&code_unit| {
+            u8::try_from(code_unit)
+                .ok()
+                .and_then(|byte| byte.is_ascii().then_some(char::from(byte)))
+        })
+        .collect()
+}
+
+fn ascii_code_units_eq(text: &[u16], ascii: &[u8]) -> bool {
+    text.len() == ascii.len()
+        && text
+            .iter()
+            .zip(ascii)
+            .all(|(&code_unit, &byte)| code_unit == byte.into())
+}
+
+fn is_ascii_decimal_number_code_unit(code_unit: u16) -> bool {
+    (b'0'.into()..=b'9'.into()).contains(&code_unit)
+        || code_unit == b'.'.into()
+        || code_unit == b'e'.into()
+        || code_unit == b'E'.into()
+        || code_unit == b'+'.into()
+        || code_unit == b'-'.into()
+}
+
+fn bigint_literal_digits(literal: &Utf16String) -> &[u16] {
+    literal.0.strip_suffix(&[b'n'.into()]).unwrap_or(literal.0.as_slice())
 }
 
 /// Implements StringToBigInt per https://tc39.es/ecma262/#sec-stringtobigint.
@@ -9431,33 +9496,36 @@ fn is_valid_non_decimal_digits(text: &str, radix: NonDecimalRadix) -> bool {
 /// StringIntegerLiteral.
 fn string_to_bigint(s: &Utf16String) -> Option<BigInt> {
     use num_bigint::BigInt;
-    let s_utf8: String = char::decode_utf16(s.0.iter().copied())
-        .map(|r| r.unwrap_or('\u{FFFD}'))
-        .collect();
-    let s_trimmed = s_utf8.trim();
+    let s_trimmed = trim_utf16_whitespace(&s.0);
     if s_trimmed.is_empty() {
         return Some(BigInt::from(0));
     }
     // Check for non-decimal prefixes (no sign allowed).
-    if let Some((radix, rest)) = strip_non_decimal_prefix(s_trimmed) {
-        if !is_valid_non_decimal_digits(rest, radix) {
+    if let Some((radix, rest)) = strip_non_decimal_prefix_utf16(s_trimmed) {
+        if !is_valid_non_decimal_digits_utf16(rest, radix) {
             return None;
         }
         // Convert validated suffix digits using the parser.
-        return BigInt::parse_bytes(rest.as_bytes(), radix.as_u32());
+        let bytes = ascii_code_units_to_bytes(rest)?;
+        return BigInt::parse_bytes(&bytes, radix.as_u32());
     }
     // Decimal with optional sign. Only allow digits (no dots, no exponents).
-    let (is_negative, digits) = if let Some(rest) = s_trimmed.strip_prefix('-') {
+    let (is_negative, digits) = if let Some(rest) = s_trimmed.strip_prefix(&[b'-'.into()]) {
         (true, rest)
-    } else if let Some(rest) = s_trimmed.strip_prefix('+') {
+    } else if let Some(rest) = s_trimmed.strip_prefix(&[b'+'.into()]) {
         (false, rest)
     } else {
         (false, s_trimmed)
     };
-    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+    if digits.is_empty()
+        || !digits
+            .iter()
+            .all(|code_unit| (b'0'.into()..=b'9'.into()).contains(code_unit))
+    {
         return None;
     }
-    let bi = BigInt::parse_bytes(digits.as_bytes(), 10)?;
+    let bytes = ascii_code_units_to_bytes(digits)?;
+    let bi = BigInt::parse_bytes(&bytes, 10)?;
     Some(if is_negative { -bi } else { bi })
 }
 
@@ -9557,9 +9625,12 @@ fn js_exponentiate(base: f64, exponent: f64) -> f64 {
 /// Parse a non-decimal integer string via BigInt to f64, matching
 /// UnsignedBigInteger::from_base() + to_double(). This avoids u64 overflow
 /// for large literals like 0x10000000000000000.
-fn bigint_string_to_f64(s: &str, radix: u32) -> f64 {
+fn bigint_digits_to_f64(digits: &[u16], radix: u32) -> f64 {
     use num_bigint::BigUint;
-    match BigUint::parse_bytes(s.as_bytes(), radix) {
+    let Some(bytes) = ascii_code_units_to_bytes(digits) else {
+        return f64::NAN;
+    };
+    match BigUint::parse_bytes(&bytes, radix) {
         Some(n) => {
             use num_traits::ToPrimitive;
             n.to_f64().unwrap_or(f64::INFINITY)
@@ -9570,33 +9641,29 @@ fn bigint_string_to_f64(s: &str, radix: u32) -> f64 {
 
 // 7.1.4.1.1 StringToNumber ( str ), https://tc39.es/ecma262/#sec-stringtonumber
 fn string_to_number(s: &Utf16String) -> f64 {
-    let text: String = char::decode_utf16(s.0.iter().copied())
-        .map(|r| r.unwrap_or('\u{FFFD}'))
-        .collect();
-    let trimmed = text.trim();
+    let trimmed = trim_utf16_whitespace(&s.0);
     if trimmed.is_empty() {
         return 0.0;
     }
-    if trimmed == "Infinity" || trimmed == "+Infinity" {
+    if ascii_code_units_eq(trimmed, b"Infinity") || ascii_code_units_eq(trimmed, b"+Infinity") {
         return f64::INFINITY;
     }
-    if trimmed == "-Infinity" {
+    if ascii_code_units_eq(trimmed, b"-Infinity") {
         return f64::NEG_INFINITY;
     }
-    if let Some((radix, rest)) = strip_non_decimal_prefix(trimmed) {
-        if !is_valid_non_decimal_digits(rest, radix) {
+    if let Some((radix, rest)) = strip_non_decimal_prefix_utf16(trimmed) {
+        if !is_valid_non_decimal_digits_utf16(rest, radix) {
             return f64::NAN;
         }
-        // Convert validated suffix digits using the parser.
-        return bigint_string_to_f64(rest, radix.as_u32());
+        return bigint_digits_to_f64(rest, radix.as_u32());
     }
-    if !trimmed
-        .bytes()
-        .all(|b| b.is_ascii_digit() || b == b'.' || b == b'e' || b == b'E' || b == b'+' || b == b'-')
-    {
+    if !trimmed.iter().copied().all(is_ascii_decimal_number_code_unit) {
         return f64::NAN;
     }
-    trimmed.parse::<f64>().unwrap_or(f64::NAN)
+    let Some(text) = ascii_code_units_to_string(trimmed) else {
+        return f64::NAN;
+    };
+    text.parse::<f64>().unwrap_or(f64::NAN)
 }
 
 /// Convert a constant value to a JS number for constant folding purposes.
@@ -9982,44 +10049,9 @@ fn member_to_string_approximation(expression: &Expression, arena: &crate::ast::A
             result.0.extend_from_slice(utf16!("'"));
             result
         }
-        ExpressionKind::NumericLiteral(n) => {
-            let s = format_double_for_display(*n);
-            s.encode_utf16().collect()
-        }
+        ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
         ExpressionKind::This => Utf16String(utf16!("this").to_vec()),
         ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
         _ => Utf16String(utf16!("<object>").to_vec()),
     }
-}
-
-/// Format a double matching AK's `Utf16String::formatted("{}", double)`.
-/// Uses ECMA-262 rules: scientific notation when the decimal exponent n
-/// satisfies n < -5 or n > 21, otherwise regular decimal notation.
-fn format_double_for_display(n: f64) -> String {
-    if n.is_nan() {
-        return "NaN".to_string();
-    }
-    if n.is_infinite() {
-        return if n > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
-    }
-    if n == 0.0 {
-        return "0".to_string();
-    }
-    // Get the scientific notation representation to extract the exponent.
-    let e_str = format!("{n:e}");
-    if let Some(e_pos) = e_str.find('e') {
-        let exp_str = &e_str[e_pos + 1..];
-        let displayed_exponent = exp_str.parse::<i32>().unwrap_or(0);
-        // AK uses: n < -5 || n > 21 where n = displayed_exponent + 1.
-        // Equivalently: displayed_exponent < -6 || displayed_exponent > 20.
-        if !(-6..=20).contains(&displayed_exponent) {
-            let mantissa_part = &e_str[..e_pos];
-            if displayed_exponent < 0 {
-                return format!("{mantissa_part}e{displayed_exponent}");
-            } else {
-                return format!("{mantissa_part}e+{displayed_exponent}");
-            }
-        }
-    }
-    format!("{n}")
 }

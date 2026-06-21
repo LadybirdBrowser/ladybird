@@ -88,7 +88,7 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     // 16. Let relativeTimeFormat.[[NumberFormat]] be ! Construct(%Intl.NumberFormat%, « locale, nfOptions »).
     // 17. Let relativeTimeFormat.[[PluralRules]] be ! Construct(%Intl.PluralRules%, « locale »).
     auto formatter = Unicode::RelativeTimeFormat::create(
-        result.icu_locale.utf16_view().bytes(),
+        result.icu_locale.utf16_view(),
         relative_time_format->style());
     relative_time_format->set_formatter(move(formatter));
 

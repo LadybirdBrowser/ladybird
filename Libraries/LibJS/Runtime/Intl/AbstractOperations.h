@@ -66,11 +66,8 @@ AK_ENUM_BITWISE_OPERATORS(SpecialBehaviors);
 
 using StringOrBoolean = Variant<StringView, bool>;
 
-bool is_well_formed_language_tag(StringView locale);
 bool is_well_formed_language_tag(Utf16View locale);
-Utf16String canonicalize_unicode_locale_id(StringView locale);
 Utf16String canonicalize_unicode_locale_id(Utf16View locale);
-bool is_well_formed_currency_code(StringView currency);
 bool is_well_formed_currency_code(Utf16View currency);
 Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers();
 Optional<TimeZoneIdentifier const&> get_available_named_time_zone_identifier(Utf16View time_zone_identifier);

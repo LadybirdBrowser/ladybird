@@ -8,6 +8,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibTextCodec/Decoder.h>
 #include <RustFFI.h>
@@ -372,6 +373,19 @@ ErrorOr<String> convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte
     return output;
 }
 
+ErrorOr<Utf16String> convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(Decoder& fallback_decoder, StringView input)
+{
+    Decoder* actual_decoder = &fallback_decoder;
+
+    if (auto unicode_decoder = bom_sniff_to_decoder(input); unicode_decoder.has_value()) {
+        actual_decoder = &unicode_decoder.value();
+        input = input.substring_view(&unicode_decoder.value() == &s_utf8_decoder ? 3 : 2);
+    }
+
+    VERIFY(actual_decoder);
+    return actual_decoder->to_utf16(input);
+}
+
 ErrorOr<size_t> convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(Decoder& fallback_decoder, StringView input)
 {
     Decoder* actual_decoder = &fallback_decoder;
@@ -412,6 +426,16 @@ ErrorOr<String> Decoder::to_utf8(StringView input)
     StringBuilder builder(input.length());
     TRY(process(input, [&builder](u32 c) { return builder.try_append_code_point(c); }));
     return builder.to_string_without_validation();
+}
+
+ErrorOr<Utf16String> Decoder::to_utf16(StringView input)
+{
+    Utf16StringBuilder builder;
+    TRY(process(input, [&builder](u32 c) -> ErrorOr<void> {
+        builder.append_code_point(c);
+        return {};
+    }));
+    return builder.to_string();
 }
 
 ErrorOr<size_t> Decoder::length_in_utf16_code_units(StringView input)

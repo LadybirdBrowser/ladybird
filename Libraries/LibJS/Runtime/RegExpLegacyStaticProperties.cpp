@@ -216,10 +216,10 @@ ThrowCompletionOr<void> set_legacy_regexp_static_property(VM& vm, RegExpConstruc
         return vm.throw_completion<TypeError>(ErrorType::SetLegacyRegExpStaticPropertyThisValueMismatch);
 
     // 3. Let strVal be ? ToString(val).
-    auto str_value = TRY(value.to_primitive_string(vm));
+    auto str_value = TRY(value.to_utf16_string(vm));
 
     // 4. Set the value of the internal slot of C named internalSlotName to strVal.
-    (constructor.legacy_static_properties().*property_setter)(str_value);
+    (constructor.legacy_static_properties().*property_setter)(PrimitiveString::create(vm, move(str_value)));
 
     return {};
 }

@@ -23,7 +23,7 @@ void IncrementalReadLoopReadRequest::on_chunk(JS::Value chunk)
 
     if (!uint8_array) {
         continue_algorithm = GC::create_function(realm.heap(), [&realm, process_body_error = m_process_body_error] {
-            process_body_error->function()(JS::TypeError::create(realm, "Chunk data is not Uint8Array"sv));
+            process_body_error->function()(JS::TypeError::create(realm, "Chunk data is not Uint8Array"_utf16));
         });
     }
     // 3. Otherwise:

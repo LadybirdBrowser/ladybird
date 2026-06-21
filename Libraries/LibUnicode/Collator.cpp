@@ -31,14 +31,14 @@ Utf16String usage_to_string(Usage usage)
     VERIFY_NOT_REACHED();
 }
 
-static NonnullOwnPtr<icu::Locale> apply_usage_to_locale(icu::Locale const& locale, Usage usage, StringView collation)
+static NonnullOwnPtr<icu::Locale> apply_usage_to_locale(icu::Locale const& locale, Usage usage, Utf16View collation)
 {
     auto result = adopt_own(*locale.clone());
     UErrorCode status = U_ZERO_ERROR;
 
     switch (usage) {
     case Usage::Sort:
-        result->setUnicodeKeywordValue("co", icu_string_piece(collation), status);
+        result->setUnicodeKeywordValue("co", icu_string_piece(StringView { collation.bytes() }), status);
         break;
     case Usage::Search:
         result->setUnicodeKeywordValue("co", "search", status);
@@ -205,9 +205,9 @@ private:
 };
 
 NonnullOwnPtr<Collator> Collator::create(
-    StringView locale,
+    Utf16View locale,
     Usage usage,
-    StringView collation,
+    Utf16View collation,
     Optional<Sensitivity> sensitivity,
     CaseFirst case_first,
     bool numeric,
@@ -215,7 +215,7 @@ NonnullOwnPtr<Collator> Collator::create(
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     VERIFY(locale_data.has_value());
 
     auto locale_with_usage = apply_usage_to_locale(locale_data->locale(), usage, collation);

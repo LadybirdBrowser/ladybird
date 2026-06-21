@@ -13,7 +13,8 @@ GC_DEFINE_ALLOCATOR(Script);
 
 Script::Script(Optional<URL::URL> base_url, ByteString filename, EnvironmentSettingsObject& settings)
     : m_base_url(move(base_url))
-    , m_filename(move(filename))
+    , m_filename(filename)
+    , m_display_filename(Utf16String::from_utf8(filename))
     , m_settings(settings)
 {
 }

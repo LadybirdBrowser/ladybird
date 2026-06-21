@@ -9,7 +9,6 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
-#include <AK/StringView.h>
 #include <AK/Types.h>
 #include <LibJS/Export.h>
 #include <LibJS/Position.h>
@@ -21,7 +20,7 @@ struct JS_API SourceRange {
     NonnullRefPtr<SourceCode const> code;
     Position start;
 
-    ByteString filename() const { return code->filename().to_byte_string(); }
+    Utf16String const& filename() const { return code->filename(); }
 };
 
 }

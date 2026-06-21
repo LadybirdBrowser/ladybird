@@ -47,8 +47,8 @@ ErrorOr<CompiledRustRegex, String> CompiledRustRegex::compile(Utf16View pattern,
     if (groups) {
         result.m_named_groups.ensure_capacity(group_count);
         for (unsigned int i = 0; i < group_count; ++i) {
-            auto name = String::from_utf8({ reinterpret_cast<char const*>(groups[i].name), groups[i].name_len });
-            result.m_named_groups.append(RustNamedCaptureGroup { MUST(name), groups[i].index });
+            auto name = Utf16FlyString::from_utf8({ reinterpret_cast<char const*>(groups[i].name), groups[i].name_len });
+            result.m_named_groups.append(RustNamedCaptureGroup { move(name), groups[i].index });
         }
         rust_regex_free_named_groups(groups, group_count);
     }

@@ -58,7 +58,7 @@ GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::abort(Optional<JS::Value> 
 
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
-        auto exception = JS::TypeError::create(realm, "Cannot abort a writer that has no locked stream"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot abort a writer that has no locked stream"_utf16);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
@@ -75,13 +75,13 @@ GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::close()
 
     // 2. If stream is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
-        auto exception = JS::TypeError::create(realm, "Cannot close a writer that has no locked stream"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot close a writer that has no locked stream"_utf16);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 3. If ! WritableStreamCloseQueuedOrInFlight(stream) is true, return a promise rejected with a TypeError exception.
     if (writable_stream_close_queued_or_in_flight(*m_stream)) {
-        auto exception = JS::TypeError::create(realm, "Cannot close a stream that is already closed or errored"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot close a stream that is already closed or errored"_utf16);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 
@@ -112,7 +112,7 @@ GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::write(Optional<JS::Value> 
 
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
-        auto exception = JS::TypeError::create(realm, "Cannot write to a writer that has no locked stream"sv);
+        auto exception = JS::TypeError::create(realm, "Cannot write to a writer that has no locked stream"_utf16);
         return WebIDL::create_rejected_promise(realm, exception);
     }
 

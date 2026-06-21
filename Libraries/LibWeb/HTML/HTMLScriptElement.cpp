@@ -529,7 +529,7 @@ void HTMLScriptElement::prepare_script()
 
             // 2. Fetch an inline module script graph, given source text, base URL, settings object, options, and with the following steps given result:
             // FIXME: Pass options
-            fetch_inline_module_script_graph(realm(), m_document->url().to_byte_string(), source_text.to_byte_string(), base_url, document().relevant_settings_object(), steps);
+            fetch_inline_module_script_graph(realm(), m_document->url().to_byte_string(), source_text.utf16_view(), base_url, document().relevant_settings_object(), steps);
         }
         // -> "importmap"
         else if (m_script_type == ScriptType::ImportMap) {

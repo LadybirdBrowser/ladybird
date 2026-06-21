@@ -145,7 +145,7 @@ GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(Bindings::MediaDecodin
     // 1. If configuration is not a valid MediaDecodingConfiguration, return a Promise rejected with a newly created
     //    TypeError.
     if (!is_valid_media_decoding_configuration(configuration)) {
-        return WebIDL::create_rejected_promise_from_exception(realm, vm().throw_completion<JS::TypeError>("The given configuration is not a valid MediaDecodingConfiguration"sv));
+        return WebIDL::create_rejected_promise_from_exception(realm, vm().throw_completion<JS::TypeError>("The given configuration is not a valid MediaDecodingConfiguration"_utf16));
     }
 
     // 2. If configuration.keySystemConfiguration exists, run the following substeps:

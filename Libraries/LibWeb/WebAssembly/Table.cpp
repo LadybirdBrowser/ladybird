@@ -45,12 +45,12 @@ static WebIDL::ExceptionOr<u64> address_value_to_u64(JS::VM& vm, JS::Value value
 
         // 1.2. If n < 0 or n >= 2^64, throw a TypeError exception.
         if (bigint->big_integer().is_negative())
-            return vm.throw_completion<JS::TypeError>("Table size must be non-negative"sv);
+            return vm.throw_completion<JS::TypeError>("Table size must be non-negative"_utf16);
 
         auto string = TRY_OR_THROW_OOM(vm, bigint->big_integer().to_base(10));
         auto number = string.to_number<u64>();
         if (!number.has_value())
-            return vm.throw_completion<JS::TypeError>("Table size is too large"sv);
+            return vm.throw_completion<JS::TypeError>("Table size is too large"_utf16);
 
         // 1.3. Return n.
         return *number;
@@ -99,7 +99,7 @@ WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bind
 
     // 7. If type is not valid, throw a RangeError exception.
     if (maximum.has_value() && maximum.value() < initial)
-        return vm.throw_completion<JS::RangeError>("Maximum should not be less than initial in table type"sv);
+        return vm.throw_completion<JS::RangeError>("Maximum should not be less than initial in table type"_utf16);
 
     // 8. If value is missing, let ref be DefaultValue(elementtype).
     // 9. Otherwise, let ref be ? ToWebAssemblyValue(value, elementtype).
@@ -113,7 +113,7 @@ WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bind
     // 11. Let (store, tableaddr) be table_alloc(store, type, ref). If allocation fails, throw a RangeError exception.
     auto address = cache.abstract_machine().store().allocate(table_type);
     if (!address.has_value())
-        return vm.throw_completion<JS::RangeError>("Wasm Table allocation failed"sv);
+        return vm.throw_completion<JS::RangeError>("Wasm Table allocation failed"_utf16);
 
     auto const& reference = reference_value.to<Wasm::Reference>();
     auto& table = *cache.abstract_machine().store().get(*address);
@@ -163,7 +163,7 @@ WebIDL::ExceptionOr<JS::Value> Table::grow(JS::Value delta_value, Optional<JS::V
     auto& cache = Detail::get_cache(realm());
     auto* table = cache.abstract_machine().store().get(address());
     if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table to grow"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory table to grow"_utf16);
 
     // 3. Let initialSize be table_size(store, tableaddr).
     auto initial_size = table->elements().size();
@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<JS::Value> Table::grow(JS::Value delta_value, Optional<JS::V
     // 8. Let result be table_grow(store, tableaddr, delta64, ref).
     // 9. If result is error, throw a RangeError exception.
     if (!table->grow(delta, reference))
-        return vm.throw_completion<JS::RangeError>("Failed to grow table"sv);
+        return vm.throw_completion<JS::RangeError>("Failed to grow table"_utf16);
 
     // 10. Set the surrounding agent's associated store to result.
     // NOTE: The store is updated in-place.
@@ -204,7 +204,7 @@ WebIDL::ExceptionOr<JS::Value> Table::get(JS::Value index_value) const
     auto& cache = Detail::get_cache(realm());
     auto* table = cache.abstract_machine().store().get(address());
     if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory table"_utf16);
 
     // 3. Let (addrtype, limits, elementtype) be table_type(store, tableaddr).
     auto address_type = table->type().limits().address_type();
@@ -212,7 +212,7 @@ WebIDL::ExceptionOr<JS::Value> Table::get(JS::Value index_value) const
 
     // 4. If elementtype matches exnref, throw a TypeError exception.
     if (element_type.kind() == Wasm::ValueType::ExceptionReference)
-        return vm.throw_completion<JS::TypeError>("Cannot get an exnref table element"sv);
+        return vm.throw_completion<JS::TypeError>("Cannot get an exnref table element"_utf16);
 
     // 5. Let index64 be ? AddressValueToU64(index, addrtype).
     auto index = TRY(address_value_to_u64(vm, index_value, address_type));
@@ -220,7 +220,7 @@ WebIDL::ExceptionOr<JS::Value> Table::get(JS::Value index_value) const
     // 6. Let result be table_read(store, tableaddr, index64).
     // 7. If result is error, throw a RangeError exception.
     if (table->elements().size() <= index)
-        return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
+        return vm.throw_completion<JS::RangeError>("Table element index out of range"_utf16);
 
     auto& ref = table->elements()[index];
 
@@ -239,7 +239,7 @@ WebIDL::ExceptionOr<void> Table::set(JS::Value index_value, Optional<JS::Value> 
     auto& cache = Detail::get_cache(realm());
     auto* table = cache.abstract_machine().store().get(address());
     if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory table"_utf16);
 
     // 3. Let (addrtype, limits, elementtype) be table_type(store, tableaddr).
     auto address_type = table->type().limits().address_type();
@@ -247,13 +247,13 @@ WebIDL::ExceptionOr<void> Table::set(JS::Value index_value, Optional<JS::Value> 
 
     // 4. If elementtype matches exnref, throw a TypeError exception.
     if (element_type.kind() == Wasm::ValueType::ExceptionReference)
-        return vm.throw_completion<JS::TypeError>("Cannot set an exnref table element"sv);
+        return vm.throw_completion<JS::TypeError>("Cannot set an exnref table element"_utf16);
 
     // 5. Let index64 be ? AddressValueToU64(index, addrtype).
     auto index = TRY(address_value_to_u64(vm, index_value, address_type));
 
     if (table->elements().size() <= index)
-        return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
+        return vm.throw_completion<JS::RangeError>("Table element index out of range"_utf16);
 
     // 6. If value is missing, let ref be DefaultValue(elementtype).
     // 7. Otherwise, let ref be ? ToWebAssemblyValue(value, elementtype).
@@ -281,7 +281,7 @@ WebIDL::ExceptionOr<JS::Value> Table::length() const
     auto& cache = Detail::get_cache(realm());
     auto* table = cache.abstract_machine().store().get(address());
     if (!table)
-        return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
+        return vm.throw_completion<JS::RangeError>("Could not find the memory table"_utf16);
 
     // 3. Let addrtype be the address type in table_type(store, tableaddr).
     auto address_type = table->type().limits().address_type();

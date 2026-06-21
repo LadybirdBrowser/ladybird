@@ -119,7 +119,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> {interface.name}Properti
 
     // 4. If the result of running the named property visibility algorithm with property name P and object object is true, then:
     if (TRY(object.is_named_property_exposed_on_object(property_name))) {{
-        auto property_name_string = property_name.to_string().to_utf8_but_should_be_ported_to_utf16();
+        auto property_name_string = property_name.to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
 
         // 1. Let operation be the operation used to declare the named property getter.
         // 2. Let value be an uninitialized variable.

@@ -92,7 +92,7 @@ Optional<Crypto::SignedBigInteger> get_named_time_zone_next_transition(Utf16View
         .include_given_time = Unicode::TimeZoneTransition::Options::IncludeGivenTime::No,
         .transition_rule = Unicode::TimeZoneTransition::Options::TransitionRule::TransitionWhereUTCOffsetChanges,
     };
-    auto time_zone_transition = Unicode::get_time_zone_transition(time_zone.bytes(), time, options);
+    auto time_zone_transition = Unicode::get_time_zone_transition(time_zone, time, options);
 
     if (!time_zone_transition.has_value())
         return {};
@@ -122,7 +122,7 @@ Optional<Crypto::SignedBigInteger> get_named_time_zone_previous_transition(Utf16
         .include_given_time = has_sub_millisecond_precision ? Unicode::TimeZoneTransition::Options::IncludeGivenTime::Yes : Unicode::TimeZoneTransition::Options::IncludeGivenTime::No,
         .transition_rule = Unicode::TimeZoneTransition::Options::TransitionRule::TransitionWhereUTCOffsetChanges,
     };
-    auto time_zone_transition = Unicode::get_time_zone_transition(time_zone.bytes(), time, options);
+    auto time_zone_transition = Unicode::get_time_zone_transition(time_zone, time, options);
 
     if (!time_zone_transition.has_value())
         return {};
@@ -254,7 +254,7 @@ i64 get_offset_nanoseconds_for(Utf16View time_zone, Crypto::SignedBigInteger con
         return *parse_result.offset_minutes * 60'000'000'000;
 
     // 3. Return GetNamedTimeZoneOffsetNanoseconds(parseResult.[[Name]], epochNs).
-    return get_named_time_zone_offset_nanoseconds(parse_result.name->utf16_view().bytes(), epoch_nanoseconds).offset.to_nanoseconds();
+    return get_named_time_zone_offset_nanoseconds(parse_result.name->utf16_view(), epoch_nanoseconds).offset.to_nanoseconds();
 }
 
 // 11.1.10 GetISODateTimeFor ( timeZone, epochNs ), https://tc39.es/proposal-temporal/#sec-temporal-getisodatetimefor
@@ -425,7 +425,7 @@ ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanosecon
     // 3. Else,
     else {
         // a. Let possibleEpochNanoseconds be GetNamedTimeZoneEpochNanoseconds(parseResult.[[Name]], isoDateTime).
-        possible_epoch_nanoseconds = get_named_time_zone_epoch_nanoseconds(parse_result.name->utf16_view().bytes(), iso_date_time);
+        possible_epoch_nanoseconds = get_named_time_zone_epoch_nanoseconds(parse_result.name->utf16_view(), iso_date_time);
     }
 
     // 4. For each value epochNanoseconds in possibleEpochNanoseconds, do

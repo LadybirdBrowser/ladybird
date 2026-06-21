@@ -1117,7 +1117,7 @@ Utf16String time_zone_string(double time)
     // 2. If offsetMinutes is EMPTY, then
     if (!offset_minutes.has_value()) {
         // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(tv) × 10^6)).
-        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier.utf16_view().bytes(), time);
+        auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier.utf16_view(), time);
         in_dst = offset.in_dst;
 
         // b. Set offsetMinutes to truncate(offsetNs / (60 × 10**9)).
@@ -1133,7 +1133,9 @@ Utf16String time_zone_string(double time)
     auto tz_name = Unicode::current_time_zone();
 
     // Most implementations seem to prefer the long-form display name of the time zone. Not super important, but we may as well match that behavior.
-    if (auto name = Unicode::time_zone_display_name(Unicode::default_locale().bytes(), tz_name.utf16_view().bytes(), in_dst, time); name.has_value())
+    auto locale = MUST(Unicode::default_locale().to_byte_string());
+    auto time_zone_identifier = MUST(tz_name.utf16_view().to_byte_string());
+    if (auto name = Unicode::time_zone_display_name(locale.view(), time_zone_identifier.view(), in_dst, time); name.has_value())
         tz_name = name.release_value();
 
     // 10. Return the string-concatenation of offsetString and tzName.

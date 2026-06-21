@@ -144,11 +144,11 @@ ByteString LexicalPath::canonicalized_path(ByteString path)
     return builder.to_byte_string();
 }
 
-ByteString LexicalPath::absolute_path(ByteString dir_path, ByteString target)
+ByteString LexicalPath::absolute_path(StringView dir_path, StringView target)
 {
-    if (LexicalPath(target).is_absolute()) {
+    if (is_absolute_path(target))
         return LexicalPath::canonicalized_path(target);
-    }
+
     return LexicalPath::canonicalized_path(join(dir_path, target).string());
 }
 

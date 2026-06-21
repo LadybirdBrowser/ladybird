@@ -12,6 +12,7 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
+#include <AK/Utf16String.h>
 #include <LibHTTP/Cache/MemoryCache.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Method.h>
@@ -2303,13 +2304,13 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             fetched_data_receiver->handle_network_data(Requests::ResponseData::from_bytes({}), FetchedDataReceiver::NetworkState::Complete);
         } else {
             // 16.1.2.2. Otherwise, if stream is readable, error stream with a TypeError.
-            auto error = MUST(String::formatted("Load failed: {}", error_message.value_or("Unknown error"sv)));
+            auto error = Utf16String::formatted("Load failed: {}", error_message.value_or("Unknown error"sv));
 
             if (stream->is_readable())
                 stream->error(JS::TypeError::create(realm, error));
 
             if (!pending_response->is_resolved())
-                pending_response->resolve(Infrastructure::Response::network_error(vm, error));
+                pending_response->resolve(Infrastructure::Response::network_error(vm, error.to_utf8_but_should_be_ported_to_utf16()));
         }
     });
 

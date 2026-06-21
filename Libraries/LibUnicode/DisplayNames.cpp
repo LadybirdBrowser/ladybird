@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/ByteString.h>
 #include <LibUnicode/DisplayNames.h>
 #include <LibUnicode/ICU.h>
 
@@ -37,19 +38,13 @@ Utf16String language_display_to_string(LanguageDisplay language_display)
     }
 }
 
-static String string_from_ascii_view(Utf16View string)
-{
-    return MUST(string.to_utf8());
-}
-
-Optional<Utf16String> language_display_name(StringView locale, Utf16View language, LanguageDisplay display)
+Optional<Utf16String> language_display_name(StringView locale, StringView language, LanguageDisplay display)
 {
     auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
         return {};
 
-    auto language_string = string_from_ascii_view(language);
-    auto language_data = LocaleData::for_locale(language_string.bytes_as_string_view());
+    auto language_data = LocaleData::for_locale(language);
     if (!language_data.has_value())
         return {};
 
@@ -63,7 +58,7 @@ Optional<Utf16String> language_display_name(StringView locale, Utf16View languag
     return icu_string_to_utf16_string(result);
 }
 
-Optional<Utf16String> region_display_name(StringView locale, Utf16View region)
+Optional<Utf16String> region_display_name(StringView locale, StringView region)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -71,8 +66,7 @@ Optional<Utf16String> region_display_name(StringView locale, Utf16View region)
     if (!locale_data.has_value())
         return {};
 
-    auto region_string = string_from_ascii_view(region);
-    auto icu_region = icu::LocaleBuilder().setRegion(icu_string_piece(region_string.bytes_as_string_view())).build(status);
+    auto icu_region = icu::LocaleBuilder().setRegion(icu_string_piece(region)).build(status);
     if (icu_failure(status))
         return {};
 
@@ -82,7 +76,7 @@ Optional<Utf16String> region_display_name(StringView locale, Utf16View region)
     return icu_string_to_utf16_string(result);
 }
 
-Optional<Utf16String> script_display_name(StringView locale, Utf16View script)
+Optional<Utf16String> script_display_name(StringView locale, StringView script)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -90,8 +84,7 @@ Optional<Utf16String> script_display_name(StringView locale, Utf16View script)
     if (!locale_data.has_value())
         return {};
 
-    auto script_string = string_from_ascii_view(script);
-    auto icu_script = icu::LocaleBuilder().setScript(icu_string_piece(script_string.bytes_as_string_view())).build(status);
+    auto icu_script = icu::LocaleBuilder().setScript(icu_string_piece(script)).build(status);
     if (icu_failure(status))
         return {};
 
@@ -101,27 +94,26 @@ Optional<Utf16String> script_display_name(StringView locale, Utf16View script)
     return icu_string_to_utf16_string(result);
 }
 
-Optional<Utf16String> calendar_display_name(StringView locale, Utf16View calendar)
+Optional<Utf16String> calendar_display_name(StringView locale, StringView calendar)
 {
     auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
         return {};
 
     if (calendar == "gregory"sv)
-        return calendar_display_name(locale, "gregorian"sv);
+        calendar = "gregorian"sv;
     if (calendar == "islamicc"sv)
-        return calendar_display_name(locale, "islamic-civil"sv);
+        calendar = "islamic-civil"sv;
     if (calendar == "ethioaa"sv)
-        return calendar_display_name(locale, "ethiopic-amete-alem"sv);
+        calendar = "ethiopic-amete-alem"sv;
 
     icu::UnicodeString result;
-    auto calendar_string = string_from_ascii_view(calendar);
-    locale_data->standard_display_names().keyValueDisplayName("calendar", calendar_string.to_byte_string().characters(), result);
+    locale_data->standard_display_names().keyValueDisplayName("calendar", ByteString(calendar).characters(), result);
 
     return icu_string_to_utf16_string(result);
 }
 
-static constexpr UDateTimePatternField icu_date_time_field(Utf16View field)
+static constexpr UDateTimePatternField icu_date_time_field(StringView field)
 {
     if (field == "day"sv)
         return UDATPG_DAY_FIELD;
@@ -164,7 +156,7 @@ static constexpr UDateTimePGDisplayWidth icu_date_time_style(Style style)
     VERIFY_NOT_REACHED();
 }
 
-Optional<Utf16String> date_time_field_display_name(StringView locale, Utf16View field, Style style)
+Optional<Utf16String> date_time_field_display_name(StringView locale, StringView field, Style style)
 {
     auto locale_data = LocaleData::for_locale(locale);
     if (!locale_data.has_value())
@@ -195,29 +187,16 @@ Optional<Utf16String> time_zone_display_name(StringView locale, StringView time_
     return icu_string_to_utf16_string(time_zone_name);
 }
 
-template<typename ViewType>
-static Array<UChar, 4> icu_currency_code(ViewType currency)
+static constexpr Array<UChar, 4> icu_currency_code(StringView currency)
 {
-    if constexpr (IsSame<ViewType, Utf16View>)
-        VERIFY(currency.length_in_code_units() == 3);
-    else
-        VERIFY(currency.length() == 3);
+    VERIFY(currency.length() == 3);
 
-    if constexpr (IsSame<ViewType, Utf16View>) {
-        return to_array({
-            static_cast<UChar>(currency.code_unit_at(0)),
-            static_cast<UChar>(currency.code_unit_at(1)),
-            static_cast<UChar>(currency.code_unit_at(2)),
-            u'\0',
-        });
-    } else {
-        return to_array({
-            static_cast<UChar>(currency[0]),
-            static_cast<UChar>(currency[1]),
-            static_cast<UChar>(currency[2]),
-            u'\0',
-        });
-    }
+    return to_array({
+        static_cast<UChar>(currency[0]),
+        static_cast<UChar>(currency[1]),
+        static_cast<UChar>(currency[2]),
+        u'\0',
+    });
 }
 
 static constexpr UCurrNameStyle icu_currency_style(Style style)
@@ -234,7 +213,7 @@ static constexpr UCurrNameStyle icu_currency_style(Style style)
     VERIFY_NOT_REACHED();
 }
 
-Optional<Utf16String> currency_display_name(StringView locale, Utf16View currency, Style style)
+Optional<Utf16String> currency_display_name(StringView locale, StringView currency, Style style)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -246,27 +225,6 @@ Optional<Utf16String> currency_display_name(StringView locale, Utf16View currenc
 
     i32 length = 0;
     UChar const* result = ucurr_getName(icu_currency.data(), locale_data->locale().getName(), icu_currency_style(style), nullptr, &length, &status);
-
-    if (icu_failure(status))
-        return {};
-    if ((status == U_USING_DEFAULT_WARNING) && (result == icu_currency.data()))
-        return {};
-
-    return icu_string_to_utf16_string(result, length);
-}
-
-Optional<Utf16String> currency_numeric_display_name(StringView locale, StringView currency)
-{
-    UErrorCode status = U_ZERO_ERROR;
-
-    auto locale_data = LocaleData::for_locale(locale);
-    if (!locale_data.has_value())
-        return {};
-
-    auto icu_currency = icu_currency_code(currency);
-
-    i32 length = 0;
-    UChar const* result = ucurr_getPluralName(icu_currency.data(), locale_data->locale().getName(), nullptr, "other", &length, &status);
 
     if (icu_failure(status))
         return {};

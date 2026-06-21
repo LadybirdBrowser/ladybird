@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteString.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>

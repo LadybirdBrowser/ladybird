@@ -1285,7 +1285,7 @@ CanonicalIndex canonical_numeric_index_string(PropertyKey const& property_key, C
 }
 
 // 22.1.3.19.1 GetSubstitution ( matched, str, position, captures, namedCaptures, replacementTemplate ), https://tc39.es/ecma262/#sec-getsubstitution
-ThrowCompletionOr<Utf16String> get_substitution(VM& vm, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement_template)
+ThrowCompletionOr<Utf16String> get_substitution(VM& vm, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Utf16View const& replacement_template)
 {
     // 1. Let stringLength be the length of str.
     auto string_length = str.length_in_code_units();
@@ -1297,8 +1297,7 @@ ThrowCompletionOr<Utf16String> get_substitution(VM& vm, Utf16View const& matched
     Utf16StringBuilder result;
 
     // 4. Let templateRemainder be replacementTemplate.
-    auto replace_template_string = TRY(replacement_template.to_utf16_string(vm));
-    Utf16View template_remainder { replace_template_string };
+    auto template_remainder = replacement_template;
 
     // 5. Repeat, while templateRemainder is not the empty String,
     while (!template_remainder.is_empty()) {
@@ -1948,18 +1947,17 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
         VERIFY(type == OptionType::String);
 
         // b. Set value to ? ToString(value).
-        value = TRY(value.to_primitive_string(vm));
-    }
+        auto value_string = TRY(value.to_utf16_string(vm));
 
-    // 5. If values is not EMPTY and values does not contain value, throw a RangeError exception.
-    if (!values.is_empty()) {
-        // NOTE: Every location in the spec that invokes GetOption with type=boolean also has values=undefined.
-        VERIFY(value.is_string());
+        // 5. If values is not EMPTY and values does not contain value, throw a RangeError exception.
+        if (!values.is_empty()) {
+            auto value_string_view = value_string.utf16_view();
+            auto it = find_if(values.begin(), values.end(), [&](auto allowed_value) { return value_string_view == allowed_value; });
+            if (it == values.end())
+                return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string_view, property.as_string());
+        }
 
-        auto value_string = value.as_string().utf16_string_view();
-        auto it = find_if(values.begin(), values.end(), [&](auto allowed_value) { return value_string == allowed_value; });
-        if (it == values.end())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string, property.as_string());
+        value = PrimitiveString::create(vm, value_string);
     }
 
     // 6. Return value.

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>

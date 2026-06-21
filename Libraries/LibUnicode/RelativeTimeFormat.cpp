@@ -264,11 +264,11 @@ private:
     NonnullOwnPtr<icu::RelativeDateTimeFormatter> m_formatter;
 };
 
-NonnullOwnPtr<RelativeTimeFormat> RelativeTimeFormat::create(StringView locale, Style style)
+NonnullOwnPtr<RelativeTimeFormat> RelativeTimeFormat::create(Utf16View locale, Style style)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     VERIFY(locale_data.has_value());
 
     auto* number_formatter = icu::NumberFormat::createInstance(locale_data->locale(), UNUM_DECIMAL, status);

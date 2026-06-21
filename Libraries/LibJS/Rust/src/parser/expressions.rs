@@ -379,15 +379,9 @@ impl Parser<'_> {
                 let token = self.consume();
                 let value = self.token_value(&token);
                 // Store the raw value including the 'n' suffix, matching C++.
-                let value_utf8: String = value
-                    .iter()
-                    .map(|&c| {
-                        assert!(c < 128, "BigIntLiteral should only contain ASCII characters");
-                        c as u8 as char
-                    })
-                    .collect();
+                let value = Utf16String(value.to_vec());
                 (
-                    self.expression(start, ExpressionKind::BigIntLiteral(Box::new(value_utf8))),
+                    self.expression(start, ExpressionKind::BigIntLiteral(Box::new(value))),
                     true,
                 )
             }
@@ -654,7 +648,7 @@ impl Parser<'_> {
         let compiled_regex = match crate::bytecode::ffi::compile_regex(&pattern, &flags) {
             Ok(handle) => Arc::new(CompiledRegex::new(handle)),
             Err(msg) => {
-                self.syntax_error_at_position(&msg, start);
+                self.syntax_error_at_position(&String::from_utf16_lossy(&msg), start);
                 Arc::new(CompiledRegex::new(std::ptr::null_mut()))
             }
         };
@@ -1804,14 +1798,8 @@ impl Parser<'_> {
                 let token = self.consume();
                 let value = self.token_value(&token);
                 // Store the raw value including the 'n' suffix, matching C++.
-                let value_utf8: String = value
-                    .iter()
-                    .map(|&c| {
-                        assert!(c < 128, "BigIntLiteral should only contain ASCII characters");
-                        c as u8 as char
-                    })
-                    .collect();
-                let expression = self.expression(start, ExpressionKind::BigIntLiteral(Box::new(value_utf8)));
+                let value = Utf16String(value.to_vec());
+                let expression = self.expression(start, ExpressionKind::BigIntLiteral(Box::new(value)));
                 PropertyKey {
                     expression,
                     name: None,

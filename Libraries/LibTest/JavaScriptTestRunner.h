@@ -125,7 +125,7 @@ extern HashMap<bool*, Tuple<ByteString, ByteString, char>> g_extra_args;
 
 struct ParserError {
     JS::ParserError error;
-    ByteString hint;
+    Utf16String hint;
 };
 
 struct JSFileResult {
@@ -236,7 +236,8 @@ inline AK::Result<GC::Ref<JS::Script>, ParserError> parse_script(StringView path
 {
     auto contents = load_entire_file(path);
     auto source_text = Utf16String::from_utf8(StringView { contents.bytes() });
-    auto script_or_errors = JS::Script::parse(source_text.utf16_view(), realm, path);
+    auto display_filename = Utf16String::from_utf8(path);
+    auto script_or_errors = JS::Script::parse(source_text.utf16_view(), realm, path, display_filename.utf16_view());
 
     if (script_or_errors.is_error()) {
         auto errors = script_or_errors.release_error();
@@ -249,11 +250,13 @@ inline AK::Result<GC::Ref<JS::Script>, ParserError> parse_script(StringView path
 inline AK::Result<GC::Ref<JS::SourceTextModule>, ParserError> parse_module(StringView path, JS::Realm& realm)
 {
     auto contents = load_entire_file(path);
-    auto script_or_errors = JS::SourceTextModule::parse(contents, realm, path);
+    auto source_text = Utf16String::from_utf8(StringView { contents.bytes() });
+    auto display_filename = Utf16String::from_utf8(path);
+    auto script_or_errors = JS::SourceTextModule::parse(source_text.utf16_view(), realm, path, display_filename.utf16_view());
 
     if (script_or_errors.is_error()) {
         auto errors = script_or_errors.release_error();
-        return ParserError { errors[0], errors[0].source_location_hint(Utf16String::from_utf8(contents)) };
+        return ParserError { errors[0], errors[0].source_location_hint(source_text) };
     }
 
     return script_or_errors.release_value();
@@ -383,7 +386,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     auto result = parse_script(m_common_path, *realm);
     if (result.is_error()) {
         warnln("Unable to parse test-common.js");
-        warnln("{}", result.error().error.to_byte_string());
+        warnln("{}", result.error().error.to_utf16_string().to_byte_string());
         warnln("{}", result.error().hint);
         cleanup_and_exit();
     }
@@ -575,11 +578,11 @@ inline void TestRunner::print_file_result(JSFileResult const& file_result) const
         outln("    ❌ The file failed to parse");
         outln();
         print_modifiers({ FG_GRAY });
-        for (auto& message : test_error.hint.split('\n', SplitBehavior::KeepEmpty)) {
+        for (auto& message : test_error.hint.split_view('\n', SplitBehavior::KeepEmpty)) {
             outln("         {}", message);
         }
         print_modifiers({ FG_RED });
-        outln("         {}", test_error.error.to_byte_string());
+        outln("         {}", test_error.error.to_utf16_string().to_byte_string());
         outln();
         return;
     }

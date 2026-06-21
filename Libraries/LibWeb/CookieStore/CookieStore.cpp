@@ -166,7 +166,7 @@ GC::Ref<WebIDL::Promise> CookieStore::get(Bindings::CookieStoreGetOptions const&
 
     // 5. If options is empty, then return a promise rejected with a TypeError.
     if (!options.name.has_value() && !options.url.has_value())
-        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "CookieStoreGetOptions is empty"sv));
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "CookieStoreGetOptions is empty"_utf16));
 
     // 6. If options["url"] is present, then run these steps:
     if (options.url.has_value()) {
@@ -175,16 +175,16 @@ GC::Ref<WebIDL::Promise> CookieStore::get(Bindings::CookieStoreGetOptions const&
 
         // AD-HOC: This isn't explicitly mentioned in the specification, but we have to reject invalid URLs as well
         if (!parsed.has_value())
-            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url is invalid"sv));
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url is invalid"_utf16));
 
         // 2. If this’s relevant global object is a Window object and parsed does not equal url with exclude fragments
         //    set to true, then return a promise rejected with a TypeError.
         if (is<HTML::Window>(HTML::relevant_global_object(*this)) && !parsed->equals(url, URL::ExcludeFragment::Yes))
-            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url does not match creation URL"sv));
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url does not match creation URL"_utf16));
 
         // 3. If parsed’s origin and url’s origin are not the same origin, then return a promise rejected with a TypeError.
         if (parsed->origin() != url.origin())
-            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url's origin does not match creation URL's origin"sv));
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url's origin does not match creation URL's origin"_utf16));
 
         // 4. Set url to parsed.
         url = parsed.value();
@@ -291,16 +291,16 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(Bindings::CookieStoreGetOptions co
 
         // AD-HOC: This isn't explicitly mentioned in the specification, but we have to reject invalid URLs as well
         if (!parsed.has_value())
-            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url is invalid"sv));
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url is invalid"_utf16));
 
         // 2. If this’s relevant global object is a Window object and parsed does not equal url with exclude fragments
         //    set to true, then return a promise rejected with a TypeError.
         if (is<HTML::Window>(HTML::relevant_global_object(*this)) && !parsed->equals(url, URL::ExcludeFragment::Yes))
-            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url does not match creation URL"sv));
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url does not match creation URL"_utf16));
 
         // 3. If parsed’s origin and url’s origin are not the same origin, then return a promise rejected with a TypeError.
         if (parsed->origin() != url.origin())
-            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url's origin does not match creation URL's origin"sv));
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url's origin does not match creation URL's origin"_utf16));
 
         // 4. Set url to parsed.
         url = parsed.value();
@@ -564,7 +564,7 @@ GC::Ref<WebIDL::Promise> CookieStore::set(String name, String value)
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If r is failure, then reject p with a TypeError and abort these steps.
             if (!result)
-                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name or value are malformed"sv));
+                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name or value are malformed"_utf16));
 
             // 3. Resolve p with undefined.
             WebIDL::resolve_promise(realm, promise);
@@ -608,7 +608,7 @@ GC::Ref<WebIDL::Promise> CookieStore::set(Bindings::CookieInit const& options)
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If r is failure, then reject p with a TypeError and abort these steps.
             if (!result)
-                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name, value, domain or path are malformed"sv));
+                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name, value, domain or path are malformed"_utf16));
 
             // 3. Resolve p with undefined.
             WebIDL::resolve_promise(realm, promise);
@@ -672,7 +672,7 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(String name)
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If r is failure, then reject p with a TypeError and abort these steps.
             if (!result)
-                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name is malformed"sv));
+                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name is malformed"_utf16));
 
             // 3. Resolve p with undefined.
             WebIDL::resolve_promise(realm, promise);
@@ -716,7 +716,7 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(Bindings::CookieStoreDeleteOptions
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If r is failure, then reject p with a TypeError and abort these steps.
             if (!result)
-                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name is malformed"sv));
+                return WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Name is malformed"_utf16));
 
             // 3. Resolve p with undefined.
             WebIDL::resolve_promise(realm, promise);

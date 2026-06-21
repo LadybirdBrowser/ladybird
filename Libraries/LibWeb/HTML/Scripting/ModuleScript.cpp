@@ -29,13 +29,13 @@ ModuleScript::ModuleScript(Optional<URL::URL> base_url, ByteString filename, Env
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-javascript-module-script
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject& settings, URL::URL base_url)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject& settings, URL::URL base_url)
 {
     auto& realm = settings.realm();
 
     // 1. If scripting is disabled for settings, then set source to the empty string.
     if (HTML::is_scripting_disabled(settings))
-        source = ""sv;
+        source = {};
 
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
     // 3. Set script's settings object to settings.
@@ -49,7 +49,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
     script->set_error_to_rethrow(JS::js_null());
 
     // 7. Let result be ParseModule(source, realm, script).
-    auto result = JS::SourceTextModule::parse(source, realm, filename.view(), script);
+    auto result = JS::SourceTextModule::parse(source, realm, script->filename(), script->display_filename(), script);
 
     // 8. If result is a list of errors, then:
     if (result.is_error()) {
@@ -78,7 +78,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    auto result = JS::SourceTextModule::parse_from_pre_parsed(parsed, move(source_code), realm, script);
+    auto result = JS::SourceTextModule::parse_from_pre_parsed(parsed, move(source_code), realm, script->filename(), script);
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
@@ -99,7 +99,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compile
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    auto result = JS::SourceTextModule::parse_from_pre_compiled(compiled, move(source_code), realm, script);
+    auto result = JS::SourceTextModule::parse_from_pre_compiled(compiled, move(source_code), realm, script->filename(), script);
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
@@ -120,7 +120,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_bytecode_ca
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    auto result = JS::SourceTextModule::parse_from_bytecode_cache(bytecode_cache, move(source_code), realm, script);
+    auto result = JS::SourceTextModule::parse_from_bytecode_cache(bytecode_cache, move(source_code), realm, script->filename(), script);
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
@@ -167,7 +167,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_scr
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-json-module-script
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_json_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject& settings)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_json_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject& settings)
 {
     auto& realm = settings.realm();
 

@@ -10,6 +10,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibRegex/Export.h>
@@ -34,7 +35,7 @@ struct ECMAScriptCompileFlags {
 };
 
 struct ECMAScriptNamedCaptureGroup {
-    String name;
+    Utf16FlyString name;
     unsigned int index;
 };
 

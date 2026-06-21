@@ -233,7 +233,7 @@ GC::Ref<WebIDL::Promise> Cache::add_all(ReadonlySpan<Fetch::RequestInfo> request
             // 2. If r’s url’s scheme is not one of "http" and "https", or r’s method is not `GET`, return a promise
             //    rejected with a TypeError.
             if (!inner_request->url().scheme().is_one_of("http"sv, "https"sv) || inner_request->method() != "GET"sv)
-                return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Request must be a GET request with an HTTP(S) URL"sv));
+                return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Request must be a GET request with an HTTP(S) URL"_utf16));
         }
     }
 
@@ -257,7 +257,7 @@ GC::Ref<WebIDL::Promise> Cache::add_all(ReadonlySpan<Fetch::RequestInfo> request
                 fetch_controller->abort(realm, {});
 
             // 2. Return a promise rejected with a TypeError.
-            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Request must have an HTTP(S) URL"sv));
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Request must have an HTTP(S) URL"_utf16));
         }
 
         // 3. If r’s client’s global object is a ServiceWorkerGlobalScope object, set request’s service-workers mode to "none".
@@ -284,7 +284,7 @@ GC::Ref<WebIDL::Promise> Cache::add_all(ReadonlySpan<Fetch::RequestInfo> request
                 //    responsePromise with a TypeError.
                 auto status = response->status();
                 if (response->type() == Fetch::Infrastructure::Response::Type::Error || !Fetch::Infrastructure::is_ok_status(status) || status == 206) {
-                    WebIDL::reject_promise(realm, response_promise, JS::TypeError::create(realm, "Fetch request failed"sv));
+                    WebIDL::reject_promise(realm, response_promise, JS::TypeError::create(realm, "Fetch request failed"_utf16));
                     did_reject_promise = true;
                 }
                 // 2. Else if response’s header list contains a header named `Vary`, then:
@@ -296,7 +296,7 @@ GC::Ref<WebIDL::Promise> Cache::add_all(ReadonlySpan<Fetch::RequestInfo> request
                         // 1. If fieldValue matches "*", then:
                         if (field_value == "*"sv) {
                             // 1. Reject responsePromise with a TypeError.
-                            WebIDL::reject_promise(realm, response_promise, JS::TypeError::create(realm, "Vary '*' is not supported"sv));
+                            WebIDL::reject_promise(realm, response_promise, JS::TypeError::create(realm, "Vary '*' is not supported"_utf16));
                             did_reject_promise = true;
 
                             // 2. For each fetchController of fetchControllers, abort fetchController.
@@ -434,14 +434,14 @@ GC::Ref<WebIDL::Promise> Cache::put(Fetch::RequestInfo request, GC::Ref<Fetch::R
     // 4. If innerRequest’s url’s scheme is not one of "http" and "https", or innerRequest’s method is not `GET`, return
     //    a promise rejected with a TypeError.
     if (!inner_request->url().scheme().is_one_of("http"sv, "https"sv) || inner_request->method() != "GET"sv)
-        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Request must be a GET request with an HTTP(S) URL"sv));
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Request must be a GET request with an HTTP(S) URL"_utf16));
 
     // 5. Let innerResponse be response’s response.
     auto inner_response = response->response();
 
     // 6. If innerResponse’s status is 206, return a promise rejected with a TypeError.
     if (inner_response->status() == 206)
-        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Partial responses are not supported"sv));
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Partial responses are not supported"_utf16));
 
     // 7. If innerResponse’s header list contains a header named `Vary`, then:
     //     1. Let fieldValues be the list containing the items corresponding to the Vary header’s field-values.
@@ -455,12 +455,12 @@ GC::Ref<WebIDL::Promise> Cache::put(Fetch::RequestInfo request, GC::Ref<Fetch::R
     });
 
     if (found_vary_wildcard)
-        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Vary '*' is not supported"sv));
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Vary '*' is not supported"_utf16));
 
     // 8. If innerResponse’s body is disturbed or locked, return a promise rejected with a TypeError.
     if (auto body = inner_response->body()) {
         if (auto stream = body->stream(); stream->is_disturbed() || stream->is_locked())
-            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Response's body stream is disturbed or locked"sv));
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Response's body stream is disturbed or locked"_utf16));
     }
 
     // 9. Let clonedResponse be a clone of innerResponse.

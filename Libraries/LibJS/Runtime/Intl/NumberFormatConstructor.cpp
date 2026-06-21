@@ -20,13 +20,13 @@ static Utf16String ascii_uppercase_currency_code(Utf16View currency)
 {
     VERIFY(currency.length_in_code_units() == 3);
 
-    char code[3];
+    char16_t code[3];
     for (size_t i = 0; i < currency.length_in_code_units(); ++i) {
         VERIFY(is_ascii_alpha(currency.code_unit_at(i)));
-        code[i] = static_cast<char>(to_ascii_uppercase(currency.code_unit_at(i)));
+        code[i] = to_ascii_uppercase(currency.code_unit_at(i));
     }
 
-    return Utf16String::from_ascii_without_validation({ code, 3 });
+    return Utf16String::from_utf16(Utf16View { code, 3 });
 }
 
 // 16.1 The Intl.NumberFormat Constructor, https://tc39.es/ecma402/#sec-intl-numberformat-constructor
@@ -172,7 +172,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
 
     // Non-standard, create an ICU number formatter for this Intl object.
     auto formatter = Unicode::NumberFormat::create(
-        result.icu_locale.utf16_view().bytes(),
+        result.icu_locale.utf16_view(),
         number_format->display_options(),
         number_format->rounding_options());
     number_format->set_formatter(move(formatter));

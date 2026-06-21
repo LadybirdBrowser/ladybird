@@ -9,7 +9,6 @@
 #include <AK/IterationDecision.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
-#include <AK/StringView.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
@@ -139,16 +138,16 @@ struct CalendarPattern {
 class DateTimeFormat {
 public:
     static NonnullOwnPtr<DateTimeFormat> create_for_date_and_time_style(
-        StringView locale,
-        StringView time_zone_identifier,
+        Utf16View locale,
+        Utf16View time_zone_identifier,
         Optional<HourCycle> const& hour_cycle,
         Optional<bool> const& hour12,
         Optional<DateTimeStyle> const& date_style,
         Optional<DateTimeStyle> const& time_style);
 
     static NonnullOwnPtr<DateTimeFormat> create_for_pattern_options(
-        StringView locale,
-        StringView time_zone_identifier,
+        Utf16View locale,
+        Utf16View time_zone_identifier,
         CalendarPattern const&);
 
     virtual ~DateTimeFormat() = default;

@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Enumerate.h>
 #include <AK/NumericLimits.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -240,7 +241,7 @@ JS::ThrowCompletionOr<String> to_byte_string(JS::VM& vm, JS::Value value)
     for (size_t i = 0; i < x.length_in_code_units(); ++i) {
         auto character = x.code_unit_at(i);
         if (character > 0xFF)
-            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Invalid byte 0x{:X} at index {}, must be an integer no less than 0 and no greater than 0xFF", character, i)));
+            return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Invalid byte 0x{:X} at index {}, must be an integer no less than 0 and no greater than 0xFF", character, i));
     }
 
     // 3. Return an IDL ByteString value whose length is the length of x, and where the value of each element is the value of the corresponding element of x.
@@ -528,7 +529,7 @@ JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value value, EnforceRang
 
         // 3. If x < lowerBound or x > upperBound, then throw a TypeError.
         if (x < lower_bound || x > upper_bound)
-            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Number '{}' is outside of allowed range of {} to {}", x, lower_bound, upper_bound)));
+            return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Number '{}' is outside of allowed range of {} to {}", x, lower_bound, upper_bound));
 
         // 4. Return x.
         return x;

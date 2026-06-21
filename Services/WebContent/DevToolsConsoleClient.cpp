@@ -113,7 +113,7 @@ void DevToolsConsoleClient::report_exception(String const& name, String const& m
             stack_frame.function = frame.function_name.to_utf8();
 
         if (!source_range.filename().is_empty() || source_range.start.line != 0 || source_range.start.column != 0) {
-            stack_frame.file = String::from_utf8_with_replacement_character(source_range.filename());
+            stack_frame.file = source_range.filename().to_utf8();
             stack_frame.line = source_range.start.line;
             stack_frame.column = source_range.start.column;
         }
@@ -150,9 +150,13 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
         stack_frames.ensure_capacity(trace.stack.size());
 
         for (auto const& frame : trace.stack) {
+            Optional<String> source_file;
+            if (frame.source_file.has_value())
+                source_file = frame.source_file->to_utf8();
+
             stack_frames.unchecked_append(WebView::StackFrame {
                 .function = frame.function_name.to_utf8(),
-                .file = frame.source_file,
+                .file = move(source_file),
                 .line = frame.line,
                 .column = frame.column,
             });

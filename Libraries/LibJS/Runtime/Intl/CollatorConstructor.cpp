@@ -128,9 +128,9 @@ ThrowCompletionOr<GC::Ref<Object>> CollatorConstructor::construct(FunctionObject
 
     // Non-standard, create an ICU collator for this Intl object.
     auto icu_collator = Unicode::Collator::create(
-        result.icu_locale.utf16_view().bytes(),
+        result.icu_locale.utf16_view(),
         collator->usage(),
-        collator->collation().utf16_view().bytes(),
+        collator->collation().utf16_view(),
         sensitivity,
         collator->case_first(),
         collator->numeric(),

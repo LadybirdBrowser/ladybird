@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
@@ -21,8 +20,7 @@ struct JS_API ParserError {
     Optional<Position> position;
 
     Utf16String to_utf16_string() const;
-    ByteString to_byte_string() const;
-    ByteString source_location_hint(Utf16View const& source, char spacer = ' ', char indicator = '^') const;
+    Utf16String source_location_hint(Utf16View const& source, char spacer = ' ', char indicator = '^') const;
 };
 
 }

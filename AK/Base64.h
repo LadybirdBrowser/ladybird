@@ -24,10 +24,18 @@ enum class LastChunkHandling {
     StopBeforePartial,
 };
 
+enum class Base64DecodeError {
+    ExtraBits,
+    InputRemainder,
+    InvalidCharacter,
+    InvalidData,
+};
+
 ErrorOr<ByteBuffer> decode_base64(StringView, LastChunkHandling = LastChunkHandling::Loose);
 ErrorOr<ByteBuffer> decode_base64url(StringView, LastChunkHandling = LastChunkHandling::Loose);
 
 struct InvalidBase64 {
+    Base64DecodeError decode_error { Base64DecodeError::InvalidData };
     Error error;
     size_t valid_input_bytes { 0 };
 };

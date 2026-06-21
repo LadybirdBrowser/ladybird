@@ -106,7 +106,7 @@ ByteString LexicalPath::canonicalized_path(ByteString path)
     return path == "" ? "." : path;
 }
 
-ByteString LexicalPath::absolute_path(ByteString dir_path, ByteString target)
+ByteString LexicalPath::absolute_path(StringView dir_path, StringView target)
 {
     if (is_absolute_path(target))
         return canonicalized_path(target);

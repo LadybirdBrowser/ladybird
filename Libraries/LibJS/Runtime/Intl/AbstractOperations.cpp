@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/AllOf.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
 #include <AK/NeverDestroyed.h>
@@ -110,43 +109,18 @@ static bool is_well_formed_language_tag_impl(ViewType locale)
 }
 
 // 6.2.1 IsWellFormedLanguageTag ( locale ), https://tc39.es/ecma402/#sec-iswellformedlanguagetag
-bool is_well_formed_language_tag(StringView locale)
-{
-    return is_well_formed_language_tag_impl(locale);
-}
-
 bool is_well_formed_language_tag(Utf16View locale)
 {
     return is_well_formed_language_tag_impl(locale);
 }
 
 // 6.2.2 CanonicalizeUnicodeLocaleId ( locale ), https://tc39.es/ecma402/#sec-canonicalizeunicodelocaleid
-Utf16String canonicalize_unicode_locale_id(StringView locale)
-{
-    return Unicode::canonicalize_unicode_locale_id(locale);
-}
-
 Utf16String canonicalize_unicode_locale_id(Utf16View locale)
 {
     return Unicode::canonicalize_unicode_locale_id(locale);
 }
 
 // 6.3.1 IsWellFormedCurrencyCode ( currency ), https://tc39.es/ecma402/#sec-iswellformedcurrencycode
-bool is_well_formed_currency_code(StringView currency)
-{
-    // 1. If the length of currency is not 3, return false.
-    if (currency.length() != 3)
-        return false;
-
-    // 2. Let normalized be the ASCII-uppercase of currency.
-    // 3. If normalized contains any code unit outside of 0x0041 through 0x005A (corresponding to Unicode characters LATIN CAPITAL LETTER A through LATIN CAPITAL LETTER Z), return false.
-    if (!all_of(currency, is_ascii_alpha))
-        return false;
-
-    // 4. Return true.
-    return true;
-}
-
 bool is_well_formed_currency_code(Utf16View currency)
 {
     // 1. If the length of currency is not 3, return false.
@@ -190,7 +164,7 @@ Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
 
             // b. If identifier is a Link name and identifier is not "UTC", then
             if (identifier.utf16_view() != "UTC"sv) {
-                if (auto resolved = Unicode::resolve_primary_time_zone(identifier.utf16_view().bytes()); resolved.has_value() && identifier != *resolved) {
+                if (auto resolved = Unicode::resolve_primary_time_zone(identifier.utf16_view()); resolved.has_value() && identifier != *resolved) {
                     // i. Set primary to the Zone name that identifier resolves to, according to the rules for resolving Link
                     //    names in the IANA Time Zone Database.
                     primary = resolved.release_value();
@@ -443,7 +417,8 @@ Utf16String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale, 
     locale.extensions.append(Unicode::LocaleExtension { move(attributes), move(keywords) });
 
     // 10. Return CanonicalizeUnicodeLocaleId(newLocale).
-    return JS::Intl::canonicalize_unicode_locale_id(locale.to_utf16_string());
+    auto locale_string = locale.to_utf16_string();
+    return JS::Intl::canonicalize_unicode_locale_id(locale_string.utf16_view());
 }
 
 template<typename T>

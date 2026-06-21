@@ -141,7 +141,7 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
 
     // 4. If rootDesc["name"] is not supported, return a promise rejected with a TypeError.
     if (!is_permission_supported(root_desc.name)) {
-        auto error = vm().throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, root_desc.name, "PermissionName"sv);
+        auto error = vm().throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, root_desc.name, "PermissionName"_utf16);
         return WebIDL::create_rejected_promise_from_exception(realm, error.release_error());
     }
 

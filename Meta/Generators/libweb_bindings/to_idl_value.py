@@ -1273,7 +1273,7 @@ def union_to_idl_value(
     # 20. Throw a TypeError.
     includes.add("LibJS/Runtime/Error.h")
     append("""
-        return vm.throw_completion<JS::TypeError>("No union types matched"sv);
+        return vm.throw_completion<JS::TypeError>("No union types matched"_utf16);
 """)
 
     return f"""[&]() -> JS::ThrowCompletionOr<{variant_type}> {{

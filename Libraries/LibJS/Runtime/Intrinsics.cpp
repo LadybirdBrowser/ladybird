@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/AggregateErrorConstructor.h>
@@ -140,10 +141,11 @@
         ".incbin " #file_path "\n"                  \
         ".global " #name "_END\n" #name "_END:\n"   \
         ".byte 0\n");                               \
-    extern unsigned char const name[];
+    extern unsigned char const name[];              \
+    extern unsigned char const name##_END[];
 
 #if defined(AK_COMPILER_CLANG) || (defined(AK_COMPILER_GCC) && (__GNUC__ > 14))
-static constexpr unsigned char ABSTRACT_OPERATIONS[] = {
+static constexpr char16_t ABSTRACT_OPERATIONS[] = {
 #    embed "JavaScriptImplementations/AbstractOperations.js" suffix(, )
     0 // null terminator
 };
@@ -152,7 +154,7 @@ INCLUDE_FILE_WITH_ASSEMBLY(ABSTRACT_OPERATIONS, "LibJS/Runtime/JavaScriptImpleme
 #endif
 
 #if defined(AK_COMPILER_CLANG) || (defined(AK_COMPILER_GCC) && (__GNUC__ > 14))
-static constexpr unsigned char ARRAY_CONSTRUCTOR[] = {
+static constexpr char16_t ARRAY_CONSTRUCTOR[] = {
 #    embed "JavaScriptImplementations/ArrayConstructor.js" suffix(, )
     0 // null terminator
 };
@@ -163,6 +165,40 @@ INCLUDE_FILE_WITH_ASSEMBLY(ARRAY_CONSTRUCTOR, "LibJS/Runtime/JavaScriptImplement
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(Intrinsics);
+
+#if !defined(AK_COMPILER_CLANG) && !(defined(AK_COMPILER_GCC) && (__GNUC__ > 14))
+static Utf16String utf16_source_from_ascii_bytes(ReadonlyBytes source)
+{
+    Vector<char16_t> code_units;
+    code_units.ensure_capacity(source.size());
+    for (auto byte : source) {
+        VERIFY(byte <= 0x7f);
+        code_units.unchecked_append(byte);
+    }
+
+    return Utf16String::from_utf16({ code_units.data(), code_units.size() });
+}
+#endif
+
+static Utf16View abstract_operations_source()
+{
+#if defined(AK_COMPILER_CLANG) || (defined(AK_COMPILER_GCC) && (__GNUC__ > 14))
+    return { ABSTRACT_OPERATIONS, AK::array_size(ABSTRACT_OPERATIONS) - 1 };
+#else
+    static NeverDestroyed<Utf16String> source = utf16_source_from_ascii_bytes({ ABSTRACT_OPERATIONS, static_cast<size_t>(ABSTRACT_OPERATIONS_END - ABSTRACT_OPERATIONS) });
+    return source->utf16_view();
+#endif
+}
+
+static Utf16View array_constructor_source()
+{
+#if defined(AK_COMPILER_CLANG) || (defined(AK_COMPILER_GCC) && (__GNUC__ > 14))
+    return { ARRAY_CONSTRUCTOR, AK::array_size(ARRAY_CONSTRUCTOR) - 1 };
+#else
+    static NeverDestroyed<Utf16String> source = utf16_source_from_ascii_bytes({ ARRAY_CONSTRUCTOR, static_cast<size_t>(ARRAY_CONSTRUCTOR_END - ARRAY_CONSTRUCTOR) });
+    return source->utf16_view();
+#endif
+}
 
 static void initialize_constructor(VM& vm, PropertyKey const& property_key, Object& constructor, Object* prototype, PropertyAttributes constructor_property_attributes = Attribute::Writable | Attribute::Configurable)
 {
@@ -203,7 +239,7 @@ GC::Ref<Intrinsics> Intrinsics::create(Realm& realm)
     return *intrinsics;
 }
 
-static Vector<GC::Root<SharedFunctionInstanceData>> parse_builtin_file(unsigned char const* script_text, VM& vm)
+static Vector<GC::Root<SharedFunctionInstanceData>> parse_builtin_file(Utf16View script_text, VM& vm)
 {
     auto rust_compilation = RustIntegration::compile_builtin_file(script_text, vm);
     VERIFY(rust_compilation.has_value());
@@ -549,7 +585,7 @@ GC::Ref<Intl::Collator> Intrinsics::default_collator()
     GC::Ref<NativeJavaScriptBackedFunction> Intrinsics::snake_name##_abstract_operation_function()                                                                                                              \
     {                                                                                                                                                                                                           \
         if (!m_##snake_name##_abstract_operation_function) {                                                                                                                                                    \
-            auto shared_data_list = parse_builtin_file(ABSTRACT_OPERATIONS, m_realm->vm());                                                                                                                     \
+            auto shared_data_list = parse_builtin_file(abstract_operations_source(), m_realm->vm());                                                                                                            \
             auto it = shared_data_list.find_if([](auto const& shared_data) {                                                                                                                                    \
                 return shared_data->m_name == #functionName##sv;                                                                                                                                                \
             });                                                                                                                                                                                                 \
@@ -565,7 +601,7 @@ JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
     GC::Ref<NativeJavaScriptBackedFunction> Intrinsics::snake_name##_array_constructor_function()                                                                                                              \
     {                                                                                                                                                                                                          \
         if (!m_##snake_name##_array_constructor_function) {                                                                                                                                                    \
-            auto shared_data_list = parse_builtin_file(ARRAY_CONSTRUCTOR, m_realm->vm());                                                                                                                      \
+            auto shared_data_list = parse_builtin_file(array_constructor_source(), m_realm->vm());                                                                                                             \
             auto it = shared_data_list.find_if([](auto const& shared_data) {                                                                                                                                   \
                 return shared_data->m_name == #functionName##sv;                                                                                                                                               \
             });                                                                                                                                                                                                \

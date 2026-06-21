@@ -164,7 +164,7 @@ Vector<Utf16String> available_time_zones_in_region(Utf16View region)
     return icu_available_time_zones(StringView { region_buffer.data(), region.length_in_code_units() });
 }
 
-Optional<Utf16String> resolve_primary_time_zone(StringView time_zone)
+Optional<Utf16String> resolve_primary_time_zone(Utf16View time_zone)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -186,7 +186,7 @@ static UDate to_icu_time(UnixDateTime time)
     return clamp(static_cast<UDate>(time.milliseconds_since_epoch()), min_time, max_time);
 }
 
-Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime time)
+Optional<TimeZoneOffset> time_zone_offset(Utf16View time_zone, UnixDateTime time)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -209,7 +209,7 @@ Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime tim
     };
 }
 
-Vector<TimeZoneOffset> disambiguated_time_zone_offsets(StringView time_zone, UnixDateTime time)
+Vector<TimeZoneOffset> disambiguated_time_zone_offsets(Utf16View time_zone, UnixDateTime time)
 {
     UErrorCode status = U_ZERO_ERROR;
 
@@ -253,7 +253,7 @@ Vector<TimeZoneOffset> disambiguated_time_zone_offsets(StringView time_zone, Uni
     return offsets;
 }
 
-Optional<TimeZoneTransition> get_time_zone_transition(StringView time_zone, UnixDateTime time, TimeZoneTransition::Options options)
+Optional<TimeZoneTransition> get_time_zone_transition(Utf16View time_zone, UnixDateTime time, TimeZoneTransition::Options options)
 {
     auto time_zone_data = TimeZoneData::for_time_zone(time_zone);
     if (!time_zone_data.has_value())

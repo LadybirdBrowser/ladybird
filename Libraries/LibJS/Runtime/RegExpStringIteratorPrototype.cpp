@@ -79,10 +79,10 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpStringIteratorPrototype::next)
     }
 
     // 12. Let matchStr be ? ToString(? Get(match, "0")).
-    auto match_string = TRY(TRY(match.get(vm, 0)).to_primitive_string(vm));
+    auto match_string = TRY(TRY(match.get(vm, 0)).to_utf16_string(vm));
 
     // 13. If matchStr is the empty String, then
-    if (match_string->is_empty()) {
+    if (match_string.is_empty()) {
         // a. Let thisIndex be ℝ(? ToLength(? Get(R, "lastIndex"))).
         auto this_index = TRY(TRY(regexp.get(vm.names.lastIndex)).to_length(vm));
 

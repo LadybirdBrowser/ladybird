@@ -82,7 +82,7 @@ void ReadLoopReadRequest::on_chunk(JS::Value chunk)
 {
     // 1. If chunk is not a Uint8Array object, call failureSteps with a TypeError and abort these steps.
     if (!chunk.is_object() || !is<JS::Uint8Array>(chunk.as_object())) {
-        m_failure_steps->function()(JS::TypeError::create(m_realm, "Chunk data is not Uint8Array"sv));
+        m_failure_steps->function()(JS::TypeError::create(m_realm, "Chunk data is not Uint8Array"_utf16));
         return;
     }
 

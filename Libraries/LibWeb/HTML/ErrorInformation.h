@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/String.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace Web::HTML {
