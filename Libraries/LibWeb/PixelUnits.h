@@ -180,7 +180,7 @@ public:
     }
 
     constexpr CSSPixels operator+() const { return from_raw(+raw_value()); }
-    constexpr CSSPixels operator-() const { return from_raw(-raw_value()); }
+    constexpr CSSPixels operator-() const { return from_raw(saturating_sub(0, raw_value())); }
 
     constexpr CSSPixels operator+(CSSPixels const& other) const
     {

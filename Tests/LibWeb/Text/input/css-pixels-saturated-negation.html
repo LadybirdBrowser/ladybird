@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    /* A huge negative inset saturates the CSSPixels raw value to the i32 minimum. */
+    #target {
+        position: relative;
+        right: -999999999999999999999999999999999999px;
+        width: 1px;
+        height: 1px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        // Forces layout, which negates the inset while resolving relative positioning.
+        document.documentElement.offsetHeight;
+        println("PASS (didn't crash)");
+    });
+</script>
