@@ -30,7 +30,7 @@ public:
     virtual void initialize(JS::Realm&) override;
 
     virtual size_t length() const override;
-    virtual String item(size_t index) const override;
+    virtual Utf16String item(size_t index) const override;
 
     Optional<StyleProperty> get_property(PropertyID) const;
     Optional<StyleProperty const&> custom_property(Utf16FlyString const& custom_property_name) const;

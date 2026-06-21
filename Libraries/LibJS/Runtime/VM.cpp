@@ -50,7 +50,7 @@ NonnullRefPtr<VM> VM::create()
     ++s_vm_count;
 
     ErrorMessages error_messages {};
-    error_messages[to_underlying(ErrorMessage::OutOfMemory)] = ErrorType::OutOfMemory.message();
+    error_messages[to_underlying(ErrorMessage::OutOfMemory)] = Utf16String::from_utf16(ErrorType::OutOfMemory.message());
 
     auto vm = adopt_ref(*new VM(move(error_messages)));
 
@@ -828,7 +828,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
 
         if (module_or_errors.is_error()) {
             VERIFY(module_or_errors.error().size() > 0);
-            return throw_completion<SyntaxError>(module_or_errors.error().first().to_byte_string());
+            return throw_completion<SyntaxError>(module_or_errors.error().first().to_utf16_string());
         }
 
         return module_or_errors.release_value();

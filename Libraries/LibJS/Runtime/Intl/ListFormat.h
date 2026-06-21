@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibJS/Runtime/Intl/IntlObject.h>
@@ -30,21 +30,19 @@ public:
 
     virtual ~ListFormat() override = default;
 
-    virtual ReadonlySpan<StringView> relevant_extension_keys() const override;
+    virtual ReadonlySpan<Utf16View> relevant_extension_keys() const override;
     virtual ReadonlySpan<ResolutionOptionDescriptor> resolution_option_descriptors(VM&) const override;
 
-    String const& locale() const { return m_locale; }
-    void set_locale(String locale) { m_locale = move(locale); }
+    Utf16String const& locale() const { return m_locale; }
+    void set_locale(Utf16String locale) { m_locale = move(locale); }
 
     Unicode::ListFormatType type() const { return m_type; }
-    void set_type(StringView type) { m_type = Unicode::list_format_type_from_string(type); }
     void set_type(Utf16View type) { m_type = Unicode::list_format_type_from_string(type); }
-    StringView type_string() const { return Unicode::list_format_type_to_string(m_type); }
+    Utf16String type_string() const { return Unicode::list_format_type_to_string(m_type); }
 
     Unicode::Style style() const { return m_style; }
-    void set_style(StringView style) { m_style = Unicode::style_from_string(style); }
     void set_style(Utf16View style) { m_style = Unicode::style_from_string(style); }
-    StringView style_string() const { return Unicode::style_to_string(m_style); }
+    Utf16String style_string() const { return Unicode::style_to_string(m_style); }
 
     Unicode::ListFormat const& formatter() const { return *m_formatter; }
     void set_formatter(NonnullOwnPtr<Unicode::ListFormat> formatter) { m_formatter = move(formatter); }
@@ -52,7 +50,7 @@ public:
 private:
     explicit ListFormat(Object& prototype);
 
-    String m_locale;                                                         // [[Locale]]
+    Utf16String m_locale;                                                    // [[Locale]]
     Unicode::ListFormatType m_type { Unicode::ListFormatType::Conjunction }; // [[Type]]
     Unicode::Style m_style { Unicode::Style::Long };                         // [[Style]]
 

@@ -57,7 +57,7 @@ struct ParsedISOTimeZone {
 
 // 13.33 Time Zone Identifier Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-time-zone-identifier-parse-records
 struct ParsedTimeZoneIdentifier {
-    Optional<String> name;
+    Optional<Utf16String> name;
     Optional<i64> offset_minutes;
 };
 

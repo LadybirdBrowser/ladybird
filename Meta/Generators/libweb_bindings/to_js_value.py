@@ -41,9 +41,9 @@ def write_enumeration_to_javascript_value_declaration(
     enumeration: Enumeration,
     includes: GeneratedIncludes,
 ) -> None:
-    includes.add("AK/String.h")
+    includes.add("AK/Utf16String.h")
 
-    out.write(f"String idl_enum_to_string({enumeration.name});\n\n")
+    out.write(f"Utf16String idl_enum_to_string({enumeration.name});\n\n")
 
 
 def write_dictionary_to_javascript_value_declaration(out: TextIO, dictionary: Dictionary) -> None:
@@ -56,7 +56,7 @@ def write_dictionary_to_javascript_value_declaration(out: TextIO, dictionary: Di
 def write_enumeration_to_javascript_value_conversion(out: TextIO, enumeration: Enumeration) -> None:
     out.write(
         f"""// https://webidl.spec.whatwg.org/#idl-enumeration
-String idl_enum_to_string({enumeration.name} value)
+Utf16String idl_enum_to_string({enumeration.name} value)
 {{
     // The result of converting an IDL enumeration type value to a JavaScript value is the String value that represents the same sequence of code units as the enumeration value.
     switch (value) {{
@@ -65,7 +65,7 @@ String idl_enum_to_string({enumeration.name} value)
 
     for value in enumeration.values:
         out.write(f"    case {enumeration.name}::{string_to_cpp_enum_name(value)}:\n")
-        out.write(f'        return "{value}"_string;\n')
+        out.write(f'        return "{value}"_utf16;\n')
 
     out.write(
         """    }
@@ -212,23 +212,23 @@ def unrestricted_double_to_javascript_value(value: str) -> str:
 
 # 3.2.10. DOMString, https://webidl.spec.whatwg.org/#js-DOMString
 def domstring_to_javascript_value(value: str, includes: GeneratedIncludes) -> str:
-    includes.add("LibJS/Runtime/PrimitiveString.h")
-    return f"JS::PrimitiveString::create(vm, {value})"
+    includes.add("LibWeb/WebIDL/AbstractOperations.h")
+    return f"WebIDL::primitive_string_from_string(vm, {value})"
 
 
 # 3.2.11. ByteString, https://webidl.spec.whatwg.org/#js-ByteString
 def bytestring_to_javascript_value(value: str, includes: GeneratedIncludes) -> str:
-    includes.add("LibJS/Runtime/PrimitiveString.h")
+    includes.add("LibWeb/WebIDL/AbstractOperations.h")
     # The result of converting an IDL ByteString value to a JavaScript value is a String value whose length is the length
     # of the ByteString, and the value of each element of which is the value of the corresponding element of the ByteString.
-    return f"JS::PrimitiveString::create(vm, {value})"
+    return f"WebIDL::primitive_string_from_string(vm, {value})"
 
 
 # 3.2.12. USVString, https://webidl.spec.whatwg.org/#js-USVString
 def usvstring_to_javascript_value(value: str, includes: GeneratedIncludes) -> str:
-    includes.add("LibJS/Runtime/PrimitiveString.h")
+    includes.add("LibWeb/WebIDL/AbstractOperations.h")
     # The result of converting an IDL USVString value S to a JavaScript value is S.
-    return f"JS::PrimitiveString::create(vm, {value})"
+    return f"WebIDL::primitive_string_from_string(vm, {value})"
 
 
 # 3.2.13. object, https://webidl.spec.whatwg.org/#js-object

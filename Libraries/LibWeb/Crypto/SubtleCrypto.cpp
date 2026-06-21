@@ -34,38 +34,49 @@ static void normalize_key_usages(Vector<Bindings::KeyUsage>& key_usages)
 
 static JsonWebKey to_internal_json_web_key(Bindings::JsonWebKey bindings_jwk)
 {
+    auto to_utf16 = [](Optional<String> value) -> Optional<Utf16String> {
+        if (!value.has_value())
+            return {};
+        return Utf16String::from_utf8(value.release_value());
+    };
+    auto to_utf16_vector = [](Optional<Vector<String>> values) -> Optional<Vector<Utf16String>> {
+        if (!values.has_value())
+            return {};
+        Vector<Utf16String> result;
+        result.ensure_capacity(values->size());
+        for (auto& value : *values)
+            result.unchecked_append(Utf16String::from_utf8(value));
+        return result;
+    };
+
     JsonWebKey jwk;
-    jwk.alg = move(bindings_jwk.alg);
-    jwk.crv = move(bindings_jwk.crv);
-    jwk.d = move(bindings_jwk.d);
-    jwk.dp = move(bindings_jwk.dp);
-    jwk.dq = move(bindings_jwk.dq);
-    jwk.e = move(bindings_jwk.e);
+    jwk.alg = to_utf16(move(bindings_jwk.alg));
+    jwk.crv = to_utf16(move(bindings_jwk.crv));
+    jwk.d = to_utf16(move(bindings_jwk.d));
+    jwk.dp = to_utf16(move(bindings_jwk.dp));
+    jwk.dq = to_utf16(move(bindings_jwk.dq));
+    jwk.e = to_utf16(move(bindings_jwk.e));
     jwk.ext = move(bindings_jwk.ext);
-    jwk.k = move(bindings_jwk.k);
-    jwk.key_ops = move(bindings_jwk.key_ops);
-    jwk.kty = move(bindings_jwk.kty);
-    jwk.n = move(bindings_jwk.n);
+    jwk.k = to_utf16(move(bindings_jwk.k));
+    jwk.key_ops = to_utf16_vector(move(bindings_jwk.key_ops));
+    jwk.kty = to_utf16(move(bindings_jwk.kty));
+    jwk.n = to_utf16(move(bindings_jwk.n));
     if (bindings_jwk.oth.has_value()) {
         Vector<RsaOtherPrimesInfo> oth;
         oth.ensure_capacity(bindings_jwk.oth->size());
         for (auto& bindings_prime : *bindings_jwk.oth) {
-            oth.append({
-                .r = move(bindings_prime.r),
-                .d = move(bindings_prime.d),
-                .t = move(bindings_prime.t),
-            });
+            oth.append({ .r = to_utf16(move(bindings_prime.r)), .d = to_utf16(move(bindings_prime.d)), .t = to_utf16(move(bindings_prime.t)) });
         }
         jwk.oth = move(oth);
     }
-    jwk.p = move(bindings_jwk.p);
-    jwk.priv = move(bindings_jwk.priv);
-    jwk.pub = move(bindings_jwk.pub);
-    jwk.q = move(bindings_jwk.q);
-    jwk.qi = move(bindings_jwk.qi);
-    jwk.use = move(bindings_jwk.use);
-    jwk.x = move(bindings_jwk.x);
-    jwk.y = move(bindings_jwk.y);
+    jwk.p = to_utf16(move(bindings_jwk.p));
+    jwk.priv = to_utf16(move(bindings_jwk.priv));
+    jwk.pub = to_utf16(move(bindings_jwk.pub));
+    jwk.q = to_utf16(move(bindings_jwk.q));
+    jwk.qi = to_utf16(move(bindings_jwk.qi));
+    jwk.use = to_utf16(move(bindings_jwk.use));
+    jwk.x = to_utf16(move(bindings_jwk.x));
+    jwk.y = to_utf16(move(bindings_jwk.y));
     return jwk;
 }
 
@@ -111,7 +122,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
         // Return the result of running the normalize an algorithm algorithm,
         // with the alg set to a new Algorithm dictionary whose name attribute is alg, and with the op set to op.
         auto dictionary = JS::Object::create(realm, realm.intrinsics().object_prototype());
-        TRY(dictionary->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(vm, algorithm.get<String>())));
+        TRY(dictionary->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(vm, Utf16String::from_utf8(algorithm.get<String>()))));
         return normalize_an_algorithm(realm, dictionary, operation);
     }
 

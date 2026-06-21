@@ -96,7 +96,7 @@ void {interface.name}Properties::initialize(JS::Realm& realm)
     auto& vm = realm.vm();
 
     // The class string of a named properties object is the concatenation of the interface's identifier and the string "Properties".
-    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.name}Properties"_string), JS::Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.name}Properties"_utf16), JS::Attribute::Configurable);
 
     // 1. Let proto be null.
     // 2. If interface is declared to inherit from another interface, then set proto to the interface prototype object in realm for the inherited interface.

@@ -39,10 +39,10 @@ void NumberFormat::visit_edges(Cell::Visitor& visitor)
 }
 
 // 16.2.3 Internal slots, https://tc39.es/ecma402/#sec-intl.numberformat-internal-slots
-ReadonlySpan<StringView> NumberFormat::relevant_extension_keys() const
+ReadonlySpan<Utf16View> NumberFormat::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « "nu" ».
-    static constexpr AK::Array keys { "nu"sv };
+    static constexpr AK::Array<Utf16View, 1> keys { "nu"sv };
     return keys;
 }
 
@@ -60,15 +60,15 @@ ReadonlySpan<ResolutionOptionDescriptor> NumberFormat::resolution_option_descrip
     return *descriptors;
 }
 
-StringView NumberFormatBase::computed_rounding_priority_string() const
+Utf16String NumberFormatBase::computed_rounding_priority_string() const
 {
     switch (m_computed_rounding_priority) {
     case ComputedRoundingPriority::Auto:
-        return "auto"sv;
+        return "auto"_utf16;
     case ComputedRoundingPriority::MorePrecision:
-        return "morePrecision"sv;
+        return "morePrecision"_utf16;
     case ComputedRoundingPriority::LessPrecision:
-        return "lessPrecision"sv;
+        return "lessPrecision"_utf16;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -79,8 +79,9 @@ Value NumberFormat::use_grouping_to_value(VM& vm) const
     switch (m_use_grouping) {
     case Unicode::Grouping::Always:
     case Unicode::Grouping::Auto:
-    case Unicode::Grouping::Min2:
+    case Unicode::Grouping::Min2: {
         return PrimitiveString::create(vm, Unicode::grouping_to_string(m_use_grouping));
+    }
     case Unicode::Grouping::False:
         return Value(false);
     default:
@@ -140,11 +141,11 @@ Unicode::DisplayOptions NumberFormat::display_options() const
 }
 
 // 16.5.1 CurrencyDigits ( currency ), https://tc39.es/ecma402/#sec-currencydigits
-int currency_digits(StringView currency)
+int currency_digits(Utf16View currency)
 {
     // 1. If the ISO 4217 currency and funds code list contains currency as an alphabetic code, return the minor
     //    unit value corresponding to the currency from the list; otherwise, return 2.
-    if (auto currency_code = Unicode::get_currency_code(currency); currency_code.has_value())
+    if (auto currency_code = Unicode::get_currency_code(currency.bytes()); currency_code.has_value())
         return currency_code->minor_unit.value_or(2);
     return 2;
 }
@@ -186,7 +187,7 @@ GC::Ref<Array> format_numeric_to_parts(VM& vm, NumberFormat const& number_format
         auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
         // b. Perform ! CreateDataPropertyOrThrow(O, "type", part.[[Type]]).
-        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, part.type)));
+        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, move(part.type))));
 
         // c. Perform ! CreateDataPropertyOrThrow(O, "value", part.[[Value]]).
         MUST(object->create_data_property_or_throw(vm.names.value, PrimitiveString::create(vm, move(part.value))));
@@ -210,7 +211,7 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
 
     // 2. If Type(primValue) is BigInt, return the mathematical value of primValue.
     if (primitive_value.is_bigint())
-        return Utf16String::from_utf8(MUST(value.as_bigint().big_integer().to_base(10)));
+        return MUST(value.as_bigint().big_integer().to_base_utf16(10));
 
     // FIXME: The remaining steps are being refactored into a new Runtime Semantic, StringIntlMV.
     //        We short-circuit some of these steps to avoid known pitfalls.
@@ -303,13 +304,13 @@ ThrowCompletionOr<GC::Ref<Array>> format_numeric_range_to_parts(VM& vm, NumberFo
         auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
         // b. Perform ! CreateDataPropertyOrThrow(O, "type", part.[[Type]]).
-        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, part.type)));
+        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, move(part.type))));
 
         // c. Perform ! CreateDataPropertyOrThrow(O, "value", part.[[Value]]).
         MUST(object->create_data_property_or_throw(vm.names.value, PrimitiveString::create(vm, move(part.value))));
 
         // d. Perform ! CreateDataPropertyOrThrow(O, "source", part.[[Source]]).
-        MUST(object->create_data_property_or_throw(vm.names.source, PrimitiveString::create(vm, part.source)));
+        MUST(object->create_data_property_or_throw(vm.names.source, PrimitiveString::create(vm, move(part.source))));
 
         // e. Perform ! CreateDataPropertyOrThrow(result, ! ToString(n), O).
         MUST(result->create_data_property_or_throw(n, object));

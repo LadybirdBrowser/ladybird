@@ -63,13 +63,13 @@ ThrowCompletionOr<GC::Ref<Object>> ListFormatConstructor::construct(FunctionObje
     list_format->set_locale(move(result.locale));
 
     // 7. Let type be ? GetOption(options, "type", string, « "conjunction", "disjunction", "unit" », "conjunction").
-    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, { "conjunction"sv, "disjunction"sv, "unit"sv }, "conjunction"sv));
+    auto type = TRY(get_option(vm, *options, vm.names.type, OptionType::String, { "conjunction"sv, "disjunction"sv, "unit"sv }, u"conjunction"sv));
 
     // 8. Set listFormat.[[Type]] to type.
     list_format->set_type(type.as_string().utf16_string_view());
 
     // 9. Let style be ? GetOption(options, "style", string, « "long", "short", "narrow" », "long").
-    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));
+    auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, u"long"sv));
 
     // 10. Set listFormat.[[Style]] to style.
     list_format->set_style(style.as_string().utf16_string_view());
@@ -78,7 +78,7 @@ ThrowCompletionOr<GC::Ref<Object>> ListFormatConstructor::construct(FunctionObje
     // 12. Let dataLocaleTypes be resolvedLocaleData.[[<type>]].
     // 13. Set listFormat.[[Templates]] to dataLocaleTypes.[[<style>]].
     auto formatter = Unicode::ListFormat::create(
-        list_format->locale(),
+        result.icu_locale.utf16_view().bytes(),
         list_format->type(),
         list_format->style());
     list_format->set_formatter(move(formatter));

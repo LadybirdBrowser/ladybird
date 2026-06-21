@@ -10,6 +10,7 @@
 #include <AK/Error.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 
 namespace AK {
@@ -45,6 +46,8 @@ enum class OmitPadding {
 
 ErrorOr<String> encode_base64(ReadonlyBytes, OmitPadding = OmitPadding::No);
 ErrorOr<String> encode_base64url(ReadonlyBytes, OmitPadding = OmitPadding::No);
+ErrorOr<Utf16String> encode_base64_to_utf16(ReadonlyBytes, OmitPadding = OmitPadding::No);
+ErrorOr<Utf16String> encode_base64url_to_utf16(ReadonlyBytes, OmitPadding = OmitPadding::No);
 
 }
 
@@ -52,5 +55,7 @@ ErrorOr<String> encode_base64url(ReadonlyBytes, OmitPadding = OmitPadding::No);
 using AK::decode_base64;
 using AK::decode_base64url;
 using AK::encode_base64;
+using AK::encode_base64_to_utf16;
 using AK::encode_base64url;
+using AK::encode_base64url_to_utf16;
 #endif

@@ -10,6 +10,7 @@
 #include <AK/Hex.h>
 #include <AK/StringConversions.h>
 #include <AK/UnicodeUtils.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibGC/DeferGC.h>
@@ -366,15 +367,13 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_int)
 }
 
 // 19.2.6.5 Encode ( string, extraUnescaped ), https://tc39.es/ecma262/#sec-encode
-static ThrowCompletionOr<ByteString> encode(VM& vm, ByteString const& string, StringView unescaped_set)
+static ThrowCompletionOr<Utf16String> encode(VM& vm, Utf16View const& string, StringView unescaped_set)
 {
-    auto utf16_string = Utf16String::from_utf8(string);
-
     // 1. Let strLen be the length of string.
-    auto string_length = utf16_string.length_in_code_units();
+    auto string_length = string.length_in_code_units();
 
     // 2. Let R be the empty String.
-    StringBuilder encoded_builder;
+    StringBuilder encoded_builder(StringBuilder::Mode::UTF16);
 
     // 3. Let alwaysUnescaped be the string-concatenation of the ASCII word characters and "-.!~*'()".
     // 4. Let unescapedSet be the string-concatenation of alwaysUnescaped and extraUnescaped.
@@ -389,7 +388,7 @@ static ThrowCompletionOr<ByteString> encode(VM& vm, ByteString const& string, St
         // Handled below
 
         // b. Let C be the code unit at index k within string.
-        auto code_unit = utf16_string.code_unit_at(k);
+        auto code_unit = string.code_unit_at(k);
         // c. If C is in unescapedSet, then
         // NOTE: We assume the unescaped set only contains ascii characters as unescaped_set is a StringView.
         if (code_unit < 0x80 && unescaped_set.contains(static_cast<char>(code_unit))) {
@@ -402,7 +401,7 @@ static ThrowCompletionOr<ByteString> encode(VM& vm, ByteString const& string, St
         // d. Else,
         else {
             // i. Let cp be CodePointAt(string, k).
-            auto code_point = code_point_at(utf16_string, k);
+            auto code_point = code_point_at(string, k);
             // ii. If cp.[[IsUnpairedSurrogate]] is true, throw a URIError exception.
             if (code_point.is_unpaired_surrogate)
                 return vm.throw_completion<URIError>(ErrorType::URIMalformed);
@@ -420,78 +419,79 @@ static ThrowCompletionOr<ByteString> encode(VM& vm, ByteString const& string, St
             VERIFY(nwritten > 0);
         }
     }
-    return encoded_builder.to_byte_string();
+    return encoded_builder.to_utf16_string();
+}
+
+static ThrowCompletionOr<u8> decode_percent_encoded_byte(VM& vm, Utf16View const& string, size_t percent_index)
+{
+    if (percent_index + 2 >= string.length_in_code_units())
+        return vm.throw_completion<URIError>(ErrorType::URIMalformed);
+
+    auto first_digit = string.code_unit_at(percent_index + 1);
+    if (!is_ascii_hex_digit(first_digit))
+        return vm.throw_completion<URIError>(ErrorType::URIMalformed);
+
+    auto second_digit = string.code_unit_at(percent_index + 2);
+    if (!is_ascii_hex_digit(second_digit))
+        return vm.throw_completion<URIError>(ErrorType::URIMalformed);
+
+    return (parse_ascii_hex_digit(first_digit) << 4) | parse_ascii_hex_digit(second_digit);
 }
 
 // 19.2.6.6 Decode ( string, preserveEscapeSet ), https://tc39.es/ecma262/#sec-decode
 // FIXME: Add spec comments to this implementation. It deviates a lot, so that's a bit tricky.
-static ThrowCompletionOr<ByteString> decode(VM& vm, ByteString const& string, StringView reserved_set)
+static ThrowCompletionOr<Utf16String> decode(VM& vm, Utf16View const& string, StringView reserved_set)
 {
-    StringBuilder decoded_builder;
-    auto code_point_start_offset = 0u;
-    auto expected_continuation_bytes = 0;
-    for (size_t k = 0; k < string.length(); k++) {
-        auto code_unit = string[k];
+    Utf16StringBuilder decoded_builder;
+    for (size_t k = 0; k < string.length_in_code_units(); ++k) {
+        auto code_unit = string.code_unit_at(k);
         if (code_unit != '%') {
-            if (expected_continuation_bytes > 0)
-                return vm.throw_completion<URIError>(ErrorType::URIMalformed);
-
-            decoded_builder.append(code_unit);
+            decoded_builder.append_code_unit(code_unit);
             continue;
         }
 
-        if (k + 2 >= string.length())
-            return vm.throw_completion<URIError>(ErrorType::URIMalformed);
-
-        auto first_digit = decode_hex_digit(string[k + 1]);
-        if (first_digit >= 16)
-            return vm.throw_completion<URIError>(ErrorType::URIMalformed);
-
-        auto second_digit = decode_hex_digit(string[k + 2]);
-        if (second_digit >= 16)
-            return vm.throw_completion<URIError>(ErrorType::URIMalformed);
-
-        u8 decoded_code_unit = (first_digit << 4) | second_digit;
+        auto decoded_code_unit = TRY(decode_percent_encoded_byte(vm, string, k));
         k += 2;
-        if (expected_continuation_bytes > 0) {
-            decoded_builder.append(decoded_code_unit);
-            expected_continuation_bytes--;
-            if (expected_continuation_bytes == 0 && !Utf8View(decoded_builder.string_view().substring_view(code_point_start_offset)).validate(AllowLonelySurrogates::No))
-                return vm.throw_completion<URIError>(ErrorType::URIMalformed);
-            continue;
-        }
 
         if (decoded_code_unit < 0x80) {
             if (reserved_set.contains(static_cast<char>(decoded_code_unit)))
                 decoded_builder.append(string.substring_view(k - 2, 3));
             else
-                decoded_builder.append(decoded_code_unit);
+                decoded_builder.append_code_unit(decoded_code_unit);
             continue;
         }
 
-        auto leading_ones = count_leading_zeroes_safe(static_cast<u8>(~decoded_code_unit));
+        auto leading_ones = static_cast<size_t>(count_leading_zeroes_safe(static_cast<u8>(~decoded_code_unit)));
         if (leading_ones == 1 || leading_ones > 4)
             return vm.throw_completion<URIError>(ErrorType::URIMalformed);
 
-        code_point_start_offset = decoded_builder.length();
-        decoded_builder.append(decoded_code_unit);
-        expected_continuation_bytes = leading_ones - 1;
+        u8 utf8_bytes[4] { decoded_code_unit };
+        for (auto byte_index = 1u; byte_index < leading_ones; ++byte_index) {
+            if (k + 3 >= string.length_in_code_units() || string.code_unit_at(k + 1) != '%')
+                return vm.throw_completion<URIError>(ErrorType::URIMalformed);
+            utf8_bytes[byte_index] = TRY(decode_percent_encoded_byte(vm, string, k + 1));
+            k += 3;
+        }
+
+        auto utf8_view = Utf8View { StringView { reinterpret_cast<char const*>(utf8_bytes), leading_ones } };
+        if (!utf8_view.validate(AllowLonelySurrogates::No))
+            return vm.throw_completion<URIError>(ErrorType::URIMalformed);
+        for (auto decoded_code_point : utf8_view)
+            decoded_builder.append_code_point(decoded_code_point);
     }
-    if (expected_continuation_bytes > 0)
-        return vm.throw_completion<URIError>(ErrorType::URIMalformed);
-    return decoded_builder.to_byte_string();
+    return decoded_builder.to_string();
 }
 
 // 19.2.6.1 decodeURI ( encodedURI ), https://tc39.es/ecma262/#sec-decodeuri-encodeduri
 JS_DEFINE_NATIVE_FUNCTION(GlobalObject::decode_uri)
 {
     // 1. Let uriString be ? ToString(encodedURI).
-    auto uri_string = TRY(vm.argument(0).to_byte_string(vm));
+    auto uri_string = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 2. Let preserveEscapeSet be ";/?:@&=+$,#".
     // 3. Return ? Decode(uriString, preserveEscapeSet).
-    auto decoded = TRY(decode(vm, uri_string, ";/?:@&=+$,#"sv));
-    return PrimitiveString::create(vm, move(decoded));
+    auto decoded = TRY(decode(vm, uri_string.utf16_view(), ";/?:@&=+$,#"sv));
+    return PrimitiveString::create(vm, decoded);
 }
 
 // 19.2.6.2 decodeURIComponent ( encodedURIComponent ), https://tc39.es/ecma262/#sec-decodeuricomponent-encodeduricomponent
@@ -500,12 +500,12 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::decode_uri_component)
     auto encoded_uri_component = vm.argument(0);
 
     // 1. Let componentString be ? ToString(encodedURIComponent).
-    auto uri_string = TRY(encoded_uri_component.to_byte_string(vm));
+    auto uri_string = TRY(encoded_uri_component.to_utf16_string(vm));
 
     // 2. Let preserveEscapeSet be the empty String.
     // 3. Return ? Decode(componentString, preserveEscapeSet).
-    auto decoded = TRY(decode(vm, uri_string, ""sv));
-    return PrimitiveString::create(vm, move(decoded));
+    auto decoded = TRY(decode(vm, uri_string.utf16_view(), ""sv));
+    return PrimitiveString::create(vm, decoded);
 }
 
 // 19.2.6.3 encodeURI ( uri ), https://tc39.es/ecma262/#sec-encodeuri-uri
@@ -514,11 +514,11 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::encode_uri)
     auto uri = vm.argument(0);
 
     // 1. Let uriString be ? ToString(uri).
-    auto uri_string = TRY(uri.to_byte_string(vm));
+    auto uri_string = TRY(uri.to_utf16_string(vm));
 
     // 2. Let extraUnescaped be ";/?:@&=+$,#".
     // 3. Return ? Encode(uriString, extraUnescaped).
-    auto encoded = TRY(encode(vm, uri_string, ";/?:@&=+$,abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()#"sv));
+    auto encoded = TRY(encode(vm, uri_string.utf16_view(), ";/?:@&=+$,abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()#"sv));
     return PrimitiveString::create(vm, move(encoded));
 }
 
@@ -528,11 +528,11 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::encode_uri_component)
     auto uri_component = vm.argument(0);
 
     // 1. Let componentString be ? ToString(uriComponent).
-    auto uri_string = TRY(uri_component.to_byte_string(vm));
+    auto uri_string = TRY(uri_component.to_utf16_string(vm));
 
     // 2. Let extraUnescaped be the empty String.
     // 3. Return ? Encode(componentString, extraUnescaped).
-    auto encoded = TRY(encode(vm, uri_string, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()"sv));
+    auto encoded = TRY(encode(vm, uri_string.utf16_view(), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()"sv));
     return PrimitiveString::create(vm, move(encoded));
 }
 
@@ -543,7 +543,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
     auto string = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 3. Let R be the empty String.
-    StringBuilder escaped;
+    StringBuilder escaped(StringBuilder::Mode::UTF16);
 
     // 4. Let unescapedSet be the string-concatenation of the ASCII word characters and "@*+-./".
     auto unescaped_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@*_+-./"sv;
@@ -581,7 +581,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
     }
 
     // 7. Return R.
-    return PrimitiveString::create(vm, escaped.to_byte_string());
+    return PrimitiveString::create(vm, escaped.to_utf16_string());
 }
 
 // B.2.1.2 unescape ( string ), https://tc39.es/ecma262/#sec-unescape-string
@@ -598,7 +598,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::unescape)
 
     // 4. Let k be 0.
     // 5. Repeat, while k ≠ length,
-    for (auto k = 0; k < length; ++k) {
+    for (size_t k = 0; k < length; ++k) {
         // a. Let c be the code unit at index k within string.
         u16 code_unit = string.code_unit_at(k);
 

@@ -9,32 +9,6 @@
 
 namespace Unicode {
 
-// https://tc39.es/proposal-temporal/#prod-MonthCode
-static constexpr bool is_valid_month_code_string(StringView month_code)
-{
-    // MonthCode :::
-    //     M00L
-    //     M0 NonZeroDigit L[opt]
-    //     M NonZeroDigit DecimalDigit L[opt]
-    auto length = month_code.length();
-
-    if (length != 3 && length != 4)
-        return false;
-
-    if (month_code[0] != 'M')
-        return false;
-
-    if (!is_ascii_digit(month_code[1]) || !is_ascii_digit(month_code[2]))
-        return false;
-
-    if (length == 3 && month_code[1] == '0' && month_code[2] == '0')
-        return false;
-    if (length == 4 && month_code[3] != 'L')
-        return false;
-
-    return true;
-}
-
 static constexpr bool is_valid_month_code_string(Utf16View month_code)
 {
     // MonthCode :::
@@ -58,35 +32,6 @@ static constexpr bool is_valid_month_code_string(Utf16View month_code)
         return false;
 
     return true;
-}
-
-// 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
-Optional<MonthCode> parse_month_code(StringView month_code)
-{
-    // 3. If ParseText(StringToCodePoints(monthCode), MonthCode) is a List of errors, throw a RangeError exception.
-    if (!is_valid_month_code_string(month_code))
-        return {};
-
-    // 4. Let isLeapMonth be false.
-    auto is_leap_month = false;
-
-    // 5. If the length of monthCode = 4, then
-    if (month_code.length() == 4) {
-        // a. Assert: The fourth code unit of monthCode is 0x004C (LATIN CAPITAL LETTER L).
-        VERIFY(month_code[3] == 'L');
-
-        // b. Set isLeapMonth to true.
-        is_leap_month = true;
-    }
-
-    // 6. Let monthCodeDigits be the substring of monthCode from 1 to 3.
-    auto month_code_digits = month_code.substring_view(1, 2);
-
-    // 7. Let monthNumber be ℝ(StringToNumber(monthCodeDigits)).
-    auto month_number = month_code_digits.to_number<u8>().value();
-
-    // 8. Return the Record { [[MonthNumber]]: monthNumber, [[IsLeapMonth]]: isLeapMonth }.
-    return MonthCode { month_number, is_leap_month };
 }
 
 // 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
@@ -118,7 +63,7 @@ Optional<MonthCode> parse_month_code(Utf16View month_code)
 }
 
 // 12.2.2 CreateMonthCode ( monthNumber, isLeapMonth ), https://tc39.es/proposal-temporal/#sec-temporal-createmonthcode
-String create_month_code(u8 month_number, bool is_leap_month)
+Utf16String create_month_code(u8 month_number, bool is_leap_month)
 {
     // 1. Assert: If isLeapMonth is false, monthNumber > 0.
     if (!is_leap_month)
@@ -130,14 +75,29 @@ String create_month_code(u8 month_number, bool is_leap_month)
     if (is_leap_month) {
         // a. Return the string-concatenation of the code unit 0x004D (LATIN CAPITAL LETTER M), numberPart, and the
         //    code unit 0x004C (LATIN CAPITAL LETTER L).
-        return MUST(String::formatted("M{:02}L", month_number));
+        u8 month_code[] = { 'M', static_cast<u8>('0' + (month_number / 10)), static_cast<u8>('0' + (month_number % 10)), 'L' };
+        return Utf16String::from_ascii_without_validation(month_code);
     }
 
     // 4. Return the string-concatenation of the code unit 0x004D (LATIN CAPITAL LETTER M) and numberPart.
-    return MUST(String::formatted("M{:02}", month_number));
+    u8 month_code[] = { 'M', static_cast<u8>('0' + (month_number / 10)), static_cast<u8>('0' + (month_number % 10)) };
+    return Utf16String::from_ascii_without_validation(month_code);
 }
 
-CalendarDate iso_date_to_calendar_date(String const& calendar, ISODate iso_date)
+static ReadonlyBytes month_code_as_ascii_bytes(Utf16View month_code, Bytes buffer)
+{
+    VERIFY(month_code.length_in_code_units() <= buffer.size());
+
+    for (size_t i = 0; i < month_code.length_in_code_units(); ++i) {
+        auto code_unit = month_code.code_unit_at(i);
+        VERIFY(is_ascii(code_unit));
+        buffer[i] = static_cast<u8>(code_unit);
+    }
+
+    return { buffer.data(), month_code.length_in_code_units() };
+}
+
+CalendarDate iso_date_to_calendar_date(StringView calendar, ISODate iso_date)
 {
     auto result = FFI::icu_iso_date_to_calendar_date(calendar.bytes().data(), calendar.bytes().size(), iso_date.year, iso_date.month, iso_date.day);
 
@@ -146,7 +106,7 @@ CalendarDate iso_date_to_calendar_date(String const& calendar, ISODate iso_date)
         .era_year = {},
         .year = result.year,
         .month = result.month,
-        .month_code = String::from_utf8_without_validation({ result.month_code, result.month_code_length }),
+        .month_code = Utf16String::from_ascii_without_validation({ result.month_code, result.month_code_length }),
         .day = result.day,
         .day_of_week = result.day_of_week,
         .day_of_year = result.day_of_year,
@@ -159,7 +119,7 @@ CalendarDate iso_date_to_calendar_date(String const& calendar, ISODate iso_date)
     };
 }
 
-Optional<ISODate> calendar_date_to_iso_date(String const& calendar, i32 year, u8 month, u8 day)
+Optional<ISODate> calendar_date_to_iso_date(StringView calendar, i32 year, u8 month, u8 day)
 {
     auto result = FFI::icu_calendar_date_to_iso_date(calendar.bytes().data(), calendar.bytes().size(), year, month, day);
     if (!result.has_value)
@@ -168,42 +128,50 @@ Optional<ISODate> calendar_date_to_iso_date(String const& calendar, i32 year, u8
     return ISODate { result.iso_date.year, result.iso_date.month, result.iso_date.day };
 }
 
-Optional<ISODate> iso_year_and_month_code_to_iso_date(String const& calendar, i32 year, StringView month_code, u8 day)
+Optional<ISODate> iso_year_and_month_code_to_iso_date(StringView calendar, i32 year, Utf16View month_code, u8 day)
 {
-    auto result = FFI::icu_iso_year_and_month_code_to_iso_date(calendar.bytes().data(), calendar.bytes().size(), year, month_code.bytes().data(), month_code.length(), day);
+    u8 month_code_buffer[4];
+    auto month_code_bytes = month_code_as_ascii_bytes(month_code, month_code_buffer);
+    auto result = FFI::icu_iso_year_and_month_code_to_iso_date(calendar.bytes().data(), calendar.bytes().size(), year, month_code_bytes.data(), month_code_bytes.size(), day);
     if (!result.has_value)
         return {};
 
     return ISODate { result.iso_date.year, result.iso_date.month, result.iso_date.day };
 }
 
-Optional<ISODate> calendar_year_and_month_code_to_iso_date(String const& calendar, i32 arithmetic_year, StringView month_code, u8 day)
+Optional<ISODate> calendar_year_and_month_code_to_iso_date(StringView calendar, i32 arithmetic_year, Utf16View month_code, u8 day)
 {
-    auto result = FFI::icu_calendar_year_and_month_code_to_iso_date(calendar.bytes().data(), calendar.bytes().size(), arithmetic_year, month_code.bytes().data(), month_code.length(), day);
+    u8 month_code_buffer[4];
+    auto month_code_bytes = month_code_as_ascii_bytes(month_code, month_code_buffer);
+    auto result = FFI::icu_calendar_year_and_month_code_to_iso_date(calendar.bytes().data(), calendar.bytes().size(), arithmetic_year, month_code_bytes.data(), month_code_bytes.size(), day);
     if (!result.has_value)
         return {};
 
     return ISODate { result.iso_date.year, result.iso_date.month, result.iso_date.day };
 }
 
-u8 calendar_months_in_year(String const& calendar, i32 arithmetic_year)
+u8 calendar_months_in_year(StringView calendar, i32 arithmetic_year)
 {
     return FFI::icu_calendar_months_in_year(calendar.bytes().data(), calendar.bytes().size(), arithmetic_year);
 }
 
-u8 calendar_days_in_month(String const& calendar, i32 arithmetic_year, u8 ordinal_month)
+u8 calendar_days_in_month(StringView calendar, i32 arithmetic_year, u8 ordinal_month)
 {
     return FFI::icu_calendar_days_in_month(calendar.bytes().data(), calendar.bytes().size(), arithmetic_year, ordinal_month);
 }
 
-u8 calendar_max_days_in_month_code(String const& calendar, StringView month_code)
+u8 calendar_max_days_in_month_code(StringView calendar, Utf16View month_code)
 {
-    return FFI::icu_calendar_max_days_in_month_code(calendar.bytes().data(), calendar.bytes().size(), month_code.bytes().data(), month_code.length());
+    u8 month_code_buffer[4];
+    auto month_code_bytes = month_code_as_ascii_bytes(month_code, month_code_buffer);
+    return FFI::icu_calendar_max_days_in_month_code(calendar.bytes().data(), calendar.bytes().size(), month_code_bytes.data(), month_code_bytes.size());
 }
 
-bool calendar_year_contains_month_code(String const& calendar, i32 arithmetic_year, StringView month_code)
+bool calendar_year_contains_month_code(StringView calendar, i32 arithmetic_year, Utf16View month_code)
 {
-    return FFI::icu_year_contains_month_code(calendar.bytes().data(), calendar.bytes().size(), arithmetic_year, month_code.bytes().data(), month_code.length());
+    u8 month_code_buffer[4];
+    auto month_code_bytes = month_code_as_ascii_bytes(month_code, month_code_buffer);
+    return FFI::icu_year_contains_month_code(calendar.bytes().data(), calendar.bytes().size(), arithmetic_year, month_code_bytes.data(), month_code_bytes.size());
 }
 
 }

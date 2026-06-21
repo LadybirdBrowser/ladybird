@@ -29,7 +29,7 @@ void ArrayIteratorPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.next, next, 0, Attribute::Configurable | Attribute::Writable, Bytecode::Builtin::ArrayIteratorPrototypeNext);
 
     // 23.1.5.2.2 %ArrayIteratorPrototype% [ @@toStringTag ], https://tc39.es/ecma262/#sec-%arrayiteratorprototype%-@@tostringtag
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Array Iterator"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Array Iterator"_utf16_fly_string), Attribute::Configurable);
 }
 
 // 23.1.5.2.1 %ArrayIteratorPrototype%.next ( ), https://tc39.es/ecma262/#sec-%arrayiteratorprototype%.next

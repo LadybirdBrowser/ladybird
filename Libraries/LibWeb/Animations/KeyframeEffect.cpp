@@ -109,10 +109,10 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
     auto& keyframe_object = keyframe_input.as_object();
     auto composite = TRY(keyframe_object.get("composite"_utf16_fly_string));
     if (composite.is_undefined())
-        composite = JS::PrimitiveString::create(vm, "auto"_string);
+        composite = JS::PrimitiveString::create(vm, "auto"_utf16_fly_string);
     auto easing = TRY(keyframe_object.get("easing"_utf16_fly_string));
     if (easing.is_undefined())
-        easing = JS::PrimitiveString::create(vm, "linear"_string);
+        easing = JS::PrimitiveString::create(vm, "linear"_utf16_fly_string);
     auto offset = TRY(keyframe_object.get("offset"_utf16_fly_string));
 
     if constexpr (AL == AllowLists::Yes) {
@@ -865,7 +865,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
             TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), ShouldThrowExceptions::Yes));
             TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), ShouldThrowExceptions::Yes));
             auto easing_value = keyframe.easing.get<CSS::EasingFunction>();
-            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value.to_string()), ShouldThrowExceptions::Yes));
+            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, Utf16String::from_utf8(easing_value.to_string())), ShouldThrowExceptions::Yes));
 
             if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
                 TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"sv), ShouldThrowExceptions::Yes));
@@ -879,7 +879,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {
                 auto key = Utf16FlyString::from_utf8(CSS::camel_case_string_from_property_id(id));
-                auto value_string = JS::PrimitiveString::create(vm, value->to_string(CSS::SerializationMode::Normal));
+                auto value_string = JS::PrimitiveString::create(vm, Utf16String::from_utf8(value->to_string(CSS::SerializationMode::Normal)));
                 TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
             }
 

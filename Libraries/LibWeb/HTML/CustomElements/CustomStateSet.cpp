@@ -43,7 +43,7 @@ void CustomStateSet::visit_edges(Cell::Visitor& visitor)
 
 bool CustomStateSet::has_state(FlyString const& state) const
 {
-    return m_set_entries->set_has(JS::PrimitiveString::create(realm().vm(), state));
+    return m_set_entries->set_has(JS::PrimitiveString::create(realm().vm(), Utf16FlyString::from_utf8(state)));
 }
 
 void CustomStateSet::on_set_modified_from_js(Badge<Bindings::CustomStateSetPrototype>)

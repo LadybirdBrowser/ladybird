@@ -49,7 +49,7 @@ ThrowCompletionOr<Value> StringConstructor::call()
 
     // 1. If value is not present, let s be the empty String.
     if (!vm.argument_count())
-        return PrimitiveString::create(vm, String {});
+        return PrimitiveString::create(vm, Utf16String {});
 
     // 2. Else,
     // a. If NewTarget is undefined and value is a Symbol, return SymbolDescriptiveString(value).
@@ -72,7 +72,7 @@ ThrowCompletionOr<GC::Ref<Object>> StringConstructor::construct(FunctionObject& 
 
     // 1. If value is not present, let s be the empty String.
     if (!vm.argument_count()) {
-        primitive_string = PrimitiveString::create(vm, String {});
+        primitive_string = PrimitiveString::create(vm, Utf16String {});
     }
     // 2. Else,
     else {
@@ -169,7 +169,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::raw)
 
     // 5. If literalCount ≤ 0, return the empty String.
     if (literal_count == 0)
-        return PrimitiveString::create(vm, String {});
+        return PrimitiveString::create(vm, Utf16String {});
 
     // 6. Let R be the empty String.
     Utf16StringBuilder builder;

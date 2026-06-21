@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
 namespace Crypto {
@@ -44,6 +45,7 @@ public:
     [[nodiscard]] static ErrorOr<SignedBigInteger> from_base(u16 N, StringView str);
     [[nodiscard]] static ErrorOr<SignedBigInteger> from_base(u16 N, Utf16View str);
     [[nodiscard]] ErrorOr<String> to_base(u16 N) const;
+    [[nodiscard]] ErrorOr<Utf16String> to_base_utf16(u16 N) const;
 
     [[nodiscard]] i64 to_i64() const;
     [[nodiscard]] u64 to_u64() const;

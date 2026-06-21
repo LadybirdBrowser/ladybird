@@ -66,6 +66,10 @@ describe("correct behavior", () => {
         });
     });
 
+    test("fractional number with radix", () => {
+        expect((0.5).toString(2)).toBe("0.1");
+    });
+
     test("decimal radix gets converted to int", () => {
         expect((30).toString(10.1)).toBe("30");
         expect((30).toString(10.9)).toBe("30");

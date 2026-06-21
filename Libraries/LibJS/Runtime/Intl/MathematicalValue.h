@@ -44,12 +44,7 @@ public:
     {
     }
 
-    MathematicalValue(Value value)
-        : m_value(value.is_number()
-                  ? value_from_number(value.as_double())
-                  : ValueType(Utf16String::from_utf8(MUST(value.as_bigint().big_integer().to_base(10)))))
-    {
-    }
+    MathematicalValue(Value);
 
     bool is_number() const;
     double as_number() const;

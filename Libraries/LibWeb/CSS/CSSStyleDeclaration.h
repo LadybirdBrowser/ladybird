@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -28,7 +29,7 @@ public:
     virtual void initialize(JS::Realm&) override;
 
     virtual size_t length() const = 0;
-    virtual String item(size_t index) const = 0;
+    virtual Utf16String item(size_t index) const = 0;
 
     virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property_name, StringView css_text, StringView priority) = 0;
     virtual WebIDL::ExceptionOr<String> remove_property(Utf16FlyString const& property_name) = 0;

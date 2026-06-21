@@ -29,7 +29,7 @@ void DurationFormatPrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 13.3.5 Intl.DurationFormat.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype-%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.DurationFormat"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.DurationFormat"_utf16_fly_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.resolvedOptions, resolved_options, 0, attr);
@@ -77,11 +77,13 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::resolved_options)
             }
 
             // 5. Perform ! CreateDataPropertyOrThrow(options, p, style).
-            MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, DurationFormat::value_style_to_string(style))));
+            auto style_string = DurationFormat::value_style_to_string(style);
+            MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, move(style_string))));
 
             // 6. Set p to the string-concatenation of p and "Display".
             // 7. Set v to v.[[Display]].
-            MUST(options->create_data_property_or_throw(*display_property, PrimitiveString::create(vm, DurationFormat::display_to_string(value.display))));
+            auto display_string = DurationFormat::display_to_string(value.display);
+            MUST(options->create_data_property_or_throw(*display_property, PrimitiveString::create(vm, move(display_string))));
         } else {
             // iv. Perform ! CreateDataPropertyOrThrow(options, p, v).
             MUST(options->create_data_property_or_throw(property, PrimitiveString::create(vm, move(value))));
@@ -162,14 +164,14 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format_to_parts)
         auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
         // b. Perform ! CreateDataPropertyOrThrow(obj, "type", part.[[Type]]).
-        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, part.type)));
+        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, move(part.type))));
 
         // c. Perform ! CreateDataPropertyOrThrow(obj, "value", part.[[Value]]).
         MUST(object->create_data_property_or_throw(vm.names.value, PrimitiveString::create(vm, move(part.value))));
 
         // d. If part.[[Unit]] is not empty, perform ! CreateDataPropertyOrThrow(obj, "unit", part.[[Unit]]).
         if (!part.unit.is_empty())
-            MUST(object->create_data_property_or_throw(vm.names.unit, PrimitiveString::create(vm, part.unit)));
+            MUST(object->create_data_property_or_throw(vm.names.unit, PrimitiveString::create(vm, move(part.unit))));
 
         // e. Perform ! CreateDataPropertyOrThrow(result, ! ToString(n), obj).
         MUST(result->create_data_property_or_throw(n, object));

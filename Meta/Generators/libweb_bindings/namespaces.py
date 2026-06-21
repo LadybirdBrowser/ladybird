@@ -95,7 +95,7 @@ void {interface.namespace_class}::initialize(JS::Realm& realm)
     Base::initialize(realm);
 
     // The class string of a namespace object is the namespace’s identifier.
-    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.name}"_string), JS::Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.name}"_utf16), JS::Attribute::Configurable);
 """
     )
 

@@ -6,6 +6,7 @@
  */
 
 #include <AK/QuickSort.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibRequests/RequestClient.h>
@@ -378,9 +379,8 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
     // When a WebSocket message has been received with type type and data data, the user agent must queue a task to follow these steps:
     HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(heap(), [this, message = move(message), is_text] {
         if (is_text) {
-            auto text_message = ByteString(ReadonlyBytes(message));
             Bindings::MessageEventInit event_init;
-            event_init.data = JS::PrimitiveString::create(vm(), text_message);
+            event_init.data = JS::PrimitiveString::create(vm(), Utf16String::from_utf8(StringView { ReadonlyBytes(message) }));
             dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init, m_url.origin()));
             return;
         }

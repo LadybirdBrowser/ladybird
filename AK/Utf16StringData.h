@@ -15,6 +15,12 @@
 #include <AK/Utf16View.h>
 #include <AK/kmalloc.h>
 
+namespace AK {
+
+class Utf16String;
+
+}
+
 namespace AK::Detail {
 
 void did_destroy_utf16_fly_string_data(Badge<Detail::Utf16StringData>, Detail::Utf16StringData const&);
@@ -118,6 +124,8 @@ public:
     [[nodiscard]] ALWAYS_INLINE bool is_fly_string() const { return m_is_fly_string; }
 
 private:
+    friend class AK::Utf16String;
+
     ALWAYS_INLINE Utf16StringData(StorageType storage_type, size_t code_unit_length)
         : m_length_in_code_units(code_unit_length)
     {
@@ -126,6 +134,7 @@ private:
     }
 
     static NonnullRefPtr<Utf16StringData> create_uninitialized(StorageType storage_type, size_t code_unit_length);
+    static NonnullRefPtr<Utf16StringData> create_uninitialized_ascii(size_t length_in_code_units, Bytes& buffer);
 
     template<typename ViewType>
     static NonnullRefPtr<Utf16StringData> create_from_code_point_iterable(ViewType const&);

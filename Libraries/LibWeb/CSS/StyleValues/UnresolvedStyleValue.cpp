@@ -197,7 +197,7 @@ private:
 
     void serialize_unserialized_values()
     {
-        m_reified_values.append(serialize_a_series_of_component_values(m_unserialized_values));
+        m_reified_values.append(Utf16String::from_utf8(serialize_a_series_of_component_values(m_unserialized_values)));
         m_unserialized_values.clear_with_capacity();
     }
 

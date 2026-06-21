@@ -282,7 +282,7 @@ void {interface.name}IteratorPrototype::initialize(JS::Realm& realm)
     auto& vm = this->vm();
     Base::initialize(realm);
     define_native_function(realm, vm.names.next, next, 0, JS::Attribute::Writable | JS::Attribute::Enumerable | JS::Attribute::Configurable);
-    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.name} Iterator"_string), JS::Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.name} Iterator"_utf16), JS::Attribute::Configurable);
 }}
 
 static JS::ThrowCompletionOr<{fully_qualified_name_for_interface(interface)}Iterator*> {make_name_acceptable_cpp(title_case_to_snake_case(iterator_interface_name))}_impl_from(JS::VM& vm)
@@ -373,7 +373,7 @@ void {interface.name}AsyncIteratorPrototype::initialize(JS::Realm& realm)
 {{
     auto& vm = this->vm();
     Base::initialize(realm);
-    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.name} AsyncIterator"_string), JS::Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.name} AsyncIterator"_utf16), JS::Attribute::Configurable);
 
     define_native_function(realm, vm.names.next, next, 0, JS::default_attributes);
     {"define_native_function(realm, vm.names.return_, return_, 1, JS::default_attributes);" if "DefinesAsyncIteratorReturn" in interface.extended_attributes else ""}

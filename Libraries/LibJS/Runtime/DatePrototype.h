@@ -76,8 +76,8 @@ private:
 };
 
 ThrowCompletionOr<double> this_time_value(VM&, Value value);
-ByteString time_string(double time);
-ByteString date_string(double time);
+Utf16String time_string(double time);
+Utf16String date_string(double time);
 Utf16String time_zone_string(double time);
 Utf16String to_date_string(double time);
 

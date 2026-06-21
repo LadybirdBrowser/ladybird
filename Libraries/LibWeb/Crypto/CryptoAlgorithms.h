@@ -10,6 +10,7 @@
 
 #include <AK/EnumBits.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
@@ -23,7 +24,7 @@
 namespace Web::Crypto {
 
 using AlgorithmIdentifier = Variant<GC::Ref<JS::Object>, String>;
-using NamedCurve = String;
+using NamedCurve = Utf16String;
 using KeyDataType = FlattenVariant<WebIDL::BufferSourceVariant, Variant<JsonWebKey>>;
 
 // https://wicg.github.io/webcrypto-modern-algos/#encapsulation
@@ -767,12 +768,12 @@ struct EcdhKeyDeriveParams : public AlgorithmParams {
 struct EcKeyImportParams : public AlgorithmParams {
     virtual ~EcKeyImportParams() override;
 
-    EcKeyImportParams(String named_curve)
+    EcKeyImportParams(NamedCurve named_curve)
         : named_curve(move(named_curve))
     {
     }
 
-    String named_curve;
+    NamedCurve named_curve;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };
@@ -955,8 +956,8 @@ private:
     }
 };
 
-ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger);
-WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm&, String const& base64_url_string);
-WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm&, String const& base64_url_string);
+ErrorOr<Utf16String> base64_url_uint_encode(::Crypto::UnsignedBigInteger);
+WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm&, Utf16String const& base64_url_string);
+WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm&, Utf16String const& base64_url_string);
 
 }

@@ -16,7 +16,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(NumberFormatConstructor);
 
-static String ascii_uppercase_currency_code(Utf16View currency)
+static Utf16String ascii_uppercase_currency_code(Utf16View currency)
 {
     VERIFY(currency.length_in_code_units() == 3);
 
@@ -26,7 +26,7 @@ static String ascii_uppercase_currency_code(Utf16View currency)
         code[i] = static_cast<char>(to_ascii_uppercase(currency.code_unit_at(i)));
     }
 
-    return String::from_ascii_short_string_without_validation(code, 3);
+    return Utf16String::from_ascii_without_validation({ code, 3 });
 }
 
 // 16.1 The Intl.NumberFormat Constructor, https://tc39.es/ecma402/#sec-intl-numberformat-constructor
@@ -79,7 +79,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     // 7. Set numberFormat.[[LocaleData]] to r.[[LocaleData]].
 
     // 8. Set numberFormat.[[NumberingSystem]] to r.[[nu]].
-    if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
+    if (auto* resolved_numbering_system = result.nu.get_pointer<Utf16String>())
         number_format->set_numbering_system(move(*resolved_numbering_system));
 
     // 9. Perform ? SetNumberFormatUnitOptions(numberFormat, options).
@@ -89,7 +89,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     auto style = number_format->style();
 
     // 11. Let notation be ? GetOption(options, "notation", STRING, « "standard", "scientific", "engineering", "compact" », "standard").
-    auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"sv, "scientific"sv, "engineering"sv, "compact"sv }, "standard"sv));
+    auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"sv, "scientific"sv, "engineering"sv, "compact"sv }, u"standard"sv));
 
     // 12. Set numberFormat.[[Notation]] to notation.
     number_format->set_notation(notation.as_string().utf16_string_view());
@@ -127,7 +127,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     TRY(set_number_format_digit_options(vm, number_format, *options, default_min_fraction_digits, default_max_fraction_digits, number_format->notation()));
 
     // 16. Let compactDisplay be ? GetOption(options, "compactDisplay", STRING, « "short", "long" », "short").
-    auto compact_display = TRY(get_option(vm, *options, vm.names.compactDisplay, OptionType::String, { "short"sv, "long"sv }, "short"sv));
+    auto compact_display = TRY(get_option(vm, *options, vm.names.compactDisplay, OptionType::String, { "short"sv, "long"sv }, u"short"sv));
 
     // 17. Let defaultUseGrouping be "auto".
     auto default_use_grouping = "auto"sv;
@@ -161,7 +161,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     number_format->set_use_grouping(use_grouping);
 
     // 24. Let signDisplay be ? GetOption(options, "signDisplay", STRING, « "auto", "never", "always", "exceptZero", "negative" », "auto").
-    auto sign_display = TRY(get_option(vm, *options, vm.names.signDisplay, OptionType::String, { "auto"sv, "never"sv, "always"sv, "exceptZero"sv, "negative"sv }, "auto"sv));
+    auto sign_display = TRY(get_option(vm, *options, vm.names.signDisplay, OptionType::String, { "auto"sv, "never"sv, "always"sv, "exceptZero"sv, "negative"sv }, u"auto"sv));
 
     // 25. Set numberFormat.[[SignDisplay]] to signDisplay.
     number_format->set_sign_display(sign_display.as_string().utf16_string_view());
@@ -172,7 +172,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
 
     // Non-standard, create an ICU number formatter for this Intl object.
     auto formatter = Unicode::NumberFormat::create(
-        result.icu_locale,
+        result.icu_locale.utf16_view().bytes(),
         number_format->display_options(),
         number_format->rounding_options());
     number_format->set_formatter(move(formatter));
@@ -212,14 +212,14 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
         return vm.throw_completion<RangeError>(ErrorType::IntlInvalidRoundingIncrement, *rounding_increment);
 
     // 9. Let roundingMode be ? GetOption(options, "roundingMode", STRING, « "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", "halfEven" », "halfExpand").
-    auto rounding_mode = TRY(get_option(vm, options, vm.names.roundingMode, OptionType::String, { "ceil"sv, "floor"sv, "expand"sv, "trunc"sv, "halfCeil"sv, "halfFloor"sv, "halfExpand"sv, "halfTrunc"sv, "halfEven"sv }, "halfExpand"sv));
+    auto rounding_mode = TRY(get_option(vm, options, vm.names.roundingMode, OptionType::String, { "ceil"sv, "floor"sv, "expand"sv, "trunc"sv, "halfCeil"sv, "halfFloor"sv, "halfExpand"sv, "halfTrunc"sv, "halfEven"sv }, u"halfExpand"sv));
 
     // 10. Let roundingPriority be ? GetOption(options, "roundingPriority", STRING, « "auto", "morePrecision", "lessPrecision" », "auto").
-    auto rounding_priority_option = TRY(get_option(vm, options, vm.names.roundingPriority, OptionType::String, { "auto"sv, "morePrecision"sv, "lessPrecision"sv }, "auto"sv));
+    auto rounding_priority_option = TRY(get_option(vm, options, vm.names.roundingPriority, OptionType::String, { "auto"sv, "morePrecision"sv, "lessPrecision"sv }, u"auto"sv));
     auto rounding_priority = rounding_priority_option.as_string().utf16_string_view();
 
     // 11. Let trailingZeroDisplay be ? GetOption(options, "trailingZeroDisplay", STRING, « "auto", "stripIfInteger" », "auto").
-    auto trailing_zero_display = TRY(get_option(vm, options, vm.names.trailingZeroDisplay, OptionType::String, { "auto"sv, "stripIfInteger"sv }, "auto"sv));
+    auto trailing_zero_display = TRY(get_option(vm, options, vm.names.trailingZeroDisplay, OptionType::String, { "auto"sv, "stripIfInteger"sv }, u"auto"sv));
 
     // 12. NOTE: All fields required by SetNumberFormatDigitOptions have now been read from options. The remainder of this AO interprets the options and may throw exceptions.
 
@@ -390,7 +390,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
 ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& intl_object, Object const& options)
 {
     // 1. Let style be ? GetOption(options, "style", STRING, « "decimal", "percent", "currency", "unit" », "decimal").
-    auto style = TRY(get_option(vm, options, vm.names.style, OptionType::String, { "decimal"sv, "percent"sv, "currency"sv, "unit"sv }, "decimal"sv));
+    auto style = TRY(get_option(vm, options, vm.names.style, OptionType::String, { "decimal"sv, "percent"sv, "currency"sv, "unit"sv }, u"decimal"sv));
 
     // 2. Set intlObj.[[Style]] to style.
     intl_object.set_style(style.as_string().utf16_string_view());
@@ -411,10 +411,10 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     }
 
     // 6. Let currencyDisplay be ? GetOption(options, "currencyDisplay", STRING, « "code", "symbol", "narrowSymbol", "name" », "symbol").
-    auto currency_display = TRY(get_option(vm, options, vm.names.currencyDisplay, OptionType::String, { "code"sv, "symbol"sv, "narrowSymbol"sv, "name"sv }, "symbol"sv));
+    auto currency_display = TRY(get_option(vm, options, vm.names.currencyDisplay, OptionType::String, { "code"sv, "symbol"sv, "narrowSymbol"sv, "name"sv }, u"symbol"sv));
 
     // 7. Let currencySign be ? GetOption(options, "currencySign", STRING, « "standard", "accounting" », "standard").
-    auto currency_sign = TRY(get_option(vm, options, vm.names.currencySign, OptionType::String, { "standard"sv, "accounting"sv }, "standard"sv));
+    auto currency_sign = TRY(get_option(vm, options, vm.names.currencySign, OptionType::String, { "standard"sv, "accounting"sv }, u"standard"sv));
 
     // 8. Let unit be ? GetOption(options, "unit", STRING, EMPTY, undefined).
     auto unit = TRY(get_option(vm, options, vm.names.unit, OptionType::String, {}, Empty {}));
@@ -432,7 +432,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     }
 
     // 11. Let unitDisplay be ? GetOption(options, "unitDisplay", STRING, « "short", "narrow", "long" », "short").
-    auto unit_display = TRY(get_option(vm, options, vm.names.unitDisplay, OptionType::String, { "short"sv, "narrow"sv, "long"sv }, "short"sv));
+    auto unit_display = TRY(get_option(vm, options, vm.names.unitDisplay, OptionType::String, { "short"sv, "narrow"sv, "long"sv }, u"short"sv));
 
     // 12. If style is "currency", then
     if (intl_object.style() == Unicode::NumberFormatStyle::Currency) {
@@ -449,7 +449,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
     // 13. If style is "unit", then
     if (intl_object.style() == Unicode::NumberFormatStyle::Unit) {
         // a. Set intlObj.[[Unit]] to unit.
-        intl_object.set_unit(MUST(unit.as_string().utf16_string_view().to_utf8()));
+        intl_object.set_unit(unit.as_string().utf16_string());
 
         // b. Set intlObj.[[UnitDisplay]] to unitDisplay.
         intl_object.set_unit_display(unit_display.as_string().utf16_string_view());

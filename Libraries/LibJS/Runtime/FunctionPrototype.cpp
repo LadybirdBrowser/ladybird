@@ -35,7 +35,7 @@ void FunctionPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.well_known_symbol_has_instance(), symbol_has_instance, 1, 0, Bytecode::Builtin::OrdinaryHasInstance);
     define_direct_property(vm.names.length, Value(0), Attribute::Configurable);
-    define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
+    define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 }
 
 ThrowCompletionOr<Value> FunctionPrototype::internal_call(ExecutionContext&, Value)
@@ -214,12 +214,12 @@ JS_DEFINE_NATIVE_FUNCTION(FunctionPrototype::to_string)
     if (auto const* native_function = as_if<NativeFunction>(function)) {
         // NOTE: once we remove name(), the fallback here can simply be an empty string.
         auto const name = native_function->initial_name().value_or(native_function->name());
-        return PrimitiveString::create(vm, ByteString::formatted("function {}() {{ [native code] }}", name));
+        return PrimitiveString::create(vm, Utf16String::formatted("function {}() {{ [native code] }}", name));
     }
 
     // 4. If Type(func) is Object and IsCallable(func) is true, return an implementation-defined String source code representation of func. The representation must have the syntax of a NativeFunction.
     // NOTE: ProxyObject, BoundFunction, WrappedFunction
-    return PrimitiveString::create(vm, "function () { [native code] }"_string);
+    return PrimitiveString::create(vm, "function () { [native code] }"_utf16_fly_string);
 }
 
 // 20.2.3.6 Function.prototype [ @@hasInstance ] ( V ), https://tc39.es/ecma262/#sec-function.prototype-@@hasinstance

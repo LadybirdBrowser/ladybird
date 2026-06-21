@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
@@ -24,20 +25,20 @@ public:
     virtual ~PlainYearMonth() override = default;
 
     [[nodiscard]] ISODate iso_date() const { return m_iso_date; }
-    [[nodiscard]] String const& calendar() const { return m_calendar; }
+    [[nodiscard]] Utf16String const& calendar() const { return m_calendar; }
 
 private:
-    PlainYearMonth(ISODate, String calendar, Object& prototype);
+    PlainYearMonth(ISODate, Utf16String calendar, Object& prototype);
 
-    ISODate m_iso_date; // [[ISODate]]
-    String m_calendar;  // [[Calendar]]
+    ISODate m_iso_date;     // [[ISODate]]
+    Utf16String m_calendar; // [[Calendar]]
 };
 
 ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM&, Value item, Value options = js_undefined());
 bool iso_year_month_within_limits(ISODate);
 ISOYearMonth balance_iso_year_month(double year, double month);
-ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
-String temporal_year_month_to_string(PlainYearMonth const&, ShowCalendar);
+ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM&, ISODate, Utf16String calendar, GC::Ptr<FunctionObject> new_target = {});
+Utf16String temporal_year_month_to_string(PlainYearMonth const&, ShowCalendar);
 ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM&, DurationOperation, PlainYearMonth const&, Value other, Value options);
 ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM&, ArithmeticOperation, PlainYearMonth const&, Value temporal_duration_like, Value options);
 

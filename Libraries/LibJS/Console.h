@@ -58,7 +58,7 @@ public:
     };
 
     struct TraceFrame {
-        String function_name;
+        Utf16String function_name;
         Optional<String> source_file;
         Optional<size_t> line;
         Optional<size_t> column;

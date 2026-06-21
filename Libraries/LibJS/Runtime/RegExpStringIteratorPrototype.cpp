@@ -28,7 +28,7 @@ void RegExpStringIteratorPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.next, next, 0, attr);
 
     // 22.2.9.2.2 %RegExpStringIteratorPrototype% [ @@toStringTag ], https://tc39.es/ecma262/#sec-%regexpstringiteratorprototype%-@@tostringtag
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "RegExp String Iterator"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "RegExp String Iterator"_utf16_fly_string), Attribute::Configurable);
 }
 
 // 22.2.9.2.1 %RegExpStringIteratorPrototype%.next ( ), https://tc39.es/ecma262/#sec-%regexpstringiteratorprototype%.next

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Completion.h>
@@ -24,17 +25,17 @@ public:
     virtual ~ZonedDateTime() override = default;
 
     [[nodiscard]] GC::Ref<BigInt const> epoch_nanoseconds() const { return m_epoch_nanoseconds; }
-    [[nodiscard]] String const& time_zone() const { return m_time_zone; }
-    [[nodiscard]] String const& calendar() const { return m_calendar; }
+    [[nodiscard]] Utf16String const& time_zone() const { return m_time_zone; }
+    [[nodiscard]] Utf16String const& calendar() const { return m_calendar; }
 
 private:
-    ZonedDateTime(BigInt const& nanoseconds, String time_zone, String calendar, Object& prototype);
+    ZonedDateTime(BigInt const& nanoseconds, Utf16String time_zone, Utf16String calendar, Object& prototype);
 
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<BigInt const> m_epoch_nanoseconds; // [[EpochNanoseconds]]
-    String m_time_zone;                        // [[TimeZone]]
-    String m_calendar;                         // [[Calendar]]
+    Utf16String m_time_zone;                   // [[TimeZone]]
+    Utf16String m_calendar;                    // [[Calendar]]
 };
 
 enum class OffsetBehavior {
@@ -48,14 +49,14 @@ enum class MatchBehavior {
     MatchMinutes,
 };
 
-ThrowCompletionOr<Crypto::SignedBigInteger> interpret_iso_date_time_offset(VM&, ISODate, Variant<ParsedISODateTime::StartOfDay, Time> const&, OffsetBehavior, double offset_nanoseconds, String const& time_zone, Disambiguation, OffsetOption, MatchBehavior);
+ThrowCompletionOr<Crypto::SignedBigInteger> interpret_iso_date_time_offset(VM&, ISODate, Variant<ParsedISODateTime::StartOfDay, Time> const&, OffsetBehavior, double offset_nanoseconds, Utf16View time_zone, Disambiguation, OffsetOption, MatchBehavior);
 ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM&, Value item, Value options = js_undefined());
-ThrowCompletionOr<GC::Ref<ZonedDateTime>> create_temporal_zoned_date_time(VM&, BigInt const& epoch_nanoseconds, String time_zone, String calendar, GC::Ptr<FunctionObject> new_target = {});
-String temporal_zoned_date_time_to_string(ZonedDateTime const&, SecondsStringPrecision::Precision, ShowCalendar, ShowTimeZoneName, ShowOffset, u64 increment = 1, Unit = Unit::Nanosecond, RoundingMode = RoundingMode::Trunc);
-ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM&, Crypto::SignedBigInteger const& epoch_nanoseconds, String const& time_zone, String const& calendar, InternalDuration const&, Overflow);
-ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, String const& time_zone, String const& calendar, Unit largest_unit);
-ThrowCompletionOr<InternalDuration> difference_zoned_date_time_with_rounding(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, String const& time_zone, String const& calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode);
-ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, String const& time_zone, String const& calendar, Unit);
+ThrowCompletionOr<GC::Ref<ZonedDateTime>> create_temporal_zoned_date_time(VM&, BigInt const& epoch_nanoseconds, Utf16String time_zone, Utf16String calendar, GC::Ptr<FunctionObject> new_target = {});
+Utf16String temporal_zoned_date_time_to_string(ZonedDateTime const&, SecondsStringPrecision::Precision, ShowCalendar, ShowTimeZoneName, ShowOffset, u64 increment = 1, Unit = Unit::Nanosecond, RoundingMode = RoundingMode::Trunc);
+ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM&, Crypto::SignedBigInteger const& epoch_nanoseconds, Utf16View time_zone, Utf16View calendar, InternalDuration const&, Overflow);
+ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, Utf16View time_zone, Utf16View calendar, Unit largest_unit);
+ThrowCompletionOr<InternalDuration> difference_zoned_date_time_with_rounding(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, Utf16View time_zone, Utf16View calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode);
+ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, Utf16View time_zone, Utf16View calendar, Unit);
 ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_zoned_date_time(VM&, DurationOperation, ZonedDateTime const&, Value other, Value options);
 ThrowCompletionOr<GC::Ref<ZonedDateTime>> add_duration_to_zoned_date_time(VM&, ArithmeticOperation, ZonedDateTime const&, Value temporal_duration_like, Value options);
 

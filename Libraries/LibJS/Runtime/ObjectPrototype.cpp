@@ -136,11 +136,11 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
 
     // 1. If the this value is undefined, return "[object Undefined]".
     if (this_value.is_undefined())
-        return PrimitiveString::create(vm, "[object Undefined]"_string);
+        return PrimitiveString::create(vm, "[object Undefined]"_utf16_fly_string);
 
     // 2. If the this value is null, return "[object Null]".
     if (this_value.is_null())
-        return PrimitiveString::create(vm, "[object Null]"_string);
+        return PrimitiveString::create(vm, "[object Null]"_utf16_fly_string);
 
     // 3. Let O be ! ToObject(this value).
     auto object = MUST(this_value.to_object(vm));

@@ -8,6 +8,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AK/StringBuilder.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibCrypto/BigFraction/BigFraction.h>
@@ -48,9 +49,31 @@ static auto temporal_units = to_array<TemporalUnit>({
     { Unit::Nanosecond, "nanosecond"sv, "nanoseconds"sv, UnitCategory::Time, 1000 },
 });
 
-StringView temporal_unit_to_string(Unit unit)
+Utf16View temporal_unit_to_string(Unit unit)
 {
-    return temporal_units[to_underlying(unit)].singular_property_name;
+    switch (unit) {
+    case Unit::Year:
+        return u"year"sv;
+    case Unit::Month:
+        return u"month"sv;
+    case Unit::Week:
+        return u"week"sv;
+    case Unit::Day:
+        return u"day"sv;
+    case Unit::Hour:
+        return u"hour"sv;
+    case Unit::Minute:
+        return u"minute"sv;
+    case Unit::Second:
+        return u"second"sv;
+    case Unit::Millisecond:
+        return u"millisecond"sv;
+    case Unit::Microsecond:
+        return u"microsecond"sv;
+    case Unit::Nanosecond:
+        return u"nanosecond"sv;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 // 13.1 ISODateToEpochDays ( year, month, date ), https://tc39.es/proposal-temporal/#sec-isodatetoepochdays
@@ -87,7 +110,7 @@ ThrowCompletionOr<void> check_iso_days_range(VM& vm, ISODate iso_date)
 ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "overflow", STRING, « "constrain", "reject" », "constrain").
-    auto string_value = TRY(get_option(vm, options, vm.names.overflow, OptionType::String, { "constrain"sv, "reject"sv }, "constrain"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.overflow, OptionType::String, { "constrain"sv, "reject"sv }, u"constrain"sv));
 
     // 2. If stringValue is "constrain", return CONSTRAIN.
     if (string_value.as_string().utf16_string_view() == "constrain"sv)
@@ -101,7 +124,7 @@ ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& o
 ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "disambiguation", STRING, « "compatible", "earlier", "later", "reject" », "compatible").
-    auto string_value = TRY(get_option(vm, options, vm.names.disambiguation, OptionType::String, { "compatible"sv, "earlier"sv, "later"sv, "reject"sv }, "compatible"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.disambiguation, OptionType::String, { "compatible"sv, "earlier"sv, "later"sv, "reject"sv }, u"compatible"sv));
     auto string_view = string_value.as_string().utf16_string_view();
 
     // 2. If stringValue is "compatible", return COMPATIBLE.
@@ -150,16 +173,16 @@ ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM& vm, Object const&
         switch (fallback) {
         // 1. If fallback is PREFER, let stringFallback be "prefer".
         case OffsetOption::Prefer:
-            return "prefer"sv;
+            return u"prefer"sv;
         // 2. Else if fallback is USE, let stringFallback be "use".
         case OffsetOption::Use:
-            return "use"sv;
+            return u"use"sv;
         // 3. Else if fallback is IGNORE, let stringFallback be "ignore".
         case OffsetOption::Ignore:
-            return "ignore"sv;
+            return u"ignore"sv;
         // 4. Else, let stringFallback be "reject".
         case OffsetOption::Reject:
-            return "reject"sv;
+            return u"reject"sv;
         }
         VERIFY_NOT_REACHED();
     }();
@@ -188,7 +211,7 @@ ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM& vm, Object const&
 ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "calendarName", STRING, « "auto", "always", "never", "critical" », "auto").
-    auto string_value = TRY(get_option(vm, options, vm.names.calendarName, OptionType::String, { "auto"sv, "always"sv, "never"sv, "critical"sv }, "auto"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.calendarName, OptionType::String, { "auto"sv, "always"sv, "never"sv, "critical"sv }, u"auto"sv));
     auto string_view = string_value.as_string().utf16_string_view();
 
     // 2. If stringValue is "always", return ALWAYS.
@@ -211,7 +234,7 @@ ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM& vm, O
 ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "timeZoneName", STRING, « "auto", "never", "critical" », "auto").
-    auto string_value = TRY(get_option(vm, options, vm.names.timeZoneName, OptionType::String, { "auto"sv, "never"sv, "critical"sv }, "auto"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.timeZoneName, OptionType::String, { "auto"sv, "never"sv, "critical"sv }, u"auto"sv));
     auto string_view = string_value.as_string().utf16_string_view();
 
     // 2. If stringValue is "never", return NEVER.
@@ -230,7 +253,7 @@ ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM& 
 ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "offset", STRING, « "auto", "never" », "auto").
-    auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "auto"sv, "never"sv }, "auto"sv));
+    auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "auto"sv, "never"sv }, u"auto"sv));
     auto string_view = string_value.as_string().utf16_string_view();
 
     // 2. If stringValue is "never", return never.
@@ -405,7 +428,7 @@ ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object cons
     auto default_value = default_.visit(
         [](Unset) -> OptionDefault { return Empty {}; },
         [](Required) -> OptionDefault { return Required {}; },
-        [](Auto) -> OptionDefault { return "auto"sv; },
+        [](Auto) -> OptionDefault { return u"auto"sv; },
         [](Unit unit) -> OptionDefault { return temporal_unit_to_string(unit); });
 
     // 6. Let value be ? GetOption(options, key, STRING, allowedStrings, defaultValue).
@@ -478,8 +501,8 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
     // 4. Let matchBehaviour be MATCH-EXACTLY.
     auto match_behavior = MatchBehavior::MatchExactly;
 
-    String calendar;
-    Optional<String> time_zone;
+    Utf16String calendar;
+    Optional<Utf16String> time_zone;
     Optional<Utf16String> offset_string;
 
     ISODate iso_date;
@@ -595,7 +618,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
         if (result.calendar.has_value())
             calendar = TRY(canonicalize_calendar(vm, *result.calendar));
         else
-            calendar = TRY(canonicalize_calendar(vm, "iso8601"sv));
+            calendar = TRY(canonicalize_calendar(vm, ISO8601_CALENDAR));
 
         // j. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
         iso_date = create_iso_date_record(*result.year, result.month, result.day);
@@ -1336,7 +1359,7 @@ ThrowCompletionOr<Utf16String> parse_temporal_calendar_string(VM& vm, Utf16View 
 
         // b. If calendar is EMPTY, return "iso8601".
         // c. Else, return calendar.
-        return calendar.value_or(Utf16String::from_utf8_without_validation("iso8601"sv));
+        return calendar.value_or("iso8601"_utf16);
     }
 
     // 3. Set parseResult to ParseText(StringToCodePoints(string), AnnotationValue).
@@ -1631,7 +1654,7 @@ ThrowCompletionOr<Utf16String> to_offset_string(VM& vm, Value argument)
 }
 
 // 13.42 ISODateToFields ( calendar, isoDate, type ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields
-CalendarFields iso_date_to_fields(String const& calendar, ISODate iso_date, DateType type)
+CalendarFields iso_date_to_fields(Utf16View calendar, ISODate iso_date, DateType type)
 {
     // 1. Let fields be an empty Calendar Fields Record with all fields set to unset.
     auto fields = CalendarFields::unset();

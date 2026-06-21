@@ -111,11 +111,11 @@ JS::Value IDBObjectStore::key_path() const
 
     return m_store->key_path().value().visit(
         [&](String const& value) -> JS::Value {
-            return JS::PrimitiveString::create(realm().vm(), value);
+            return JS::PrimitiveString::create(realm().vm(), Utf16String::from_utf8(value));
         },
         [&](Vector<String> const& value) -> JS::Value {
             return JS::Array::create_from<String>(realm(), value.span(), [&](auto const& entry) -> JS::Value {
-                return JS::PrimitiveString::create(realm().vm(), entry);
+                return JS::PrimitiveString::create(realm().vm(), Utf16String::from_utf8(entry));
             });
         });
 }

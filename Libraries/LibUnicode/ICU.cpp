@@ -26,7 +26,7 @@ static auto& locale_cache()
 
 static auto& time_zone_cache()
 {
-    static NeverDestroyed<HashMap<String, OwnPtr<TimeZoneData>>> cache;
+    static NeverDestroyed<HashMap<Utf16String, OwnPtr<TimeZoneData>>> cache;
     return *cache;
 }
 
@@ -56,7 +56,7 @@ LocaleData::LocaleData(icu::Locale locale)
 {
 }
 
-String LocaleData::canonicalize(StringView locale)
+Utf16String LocaleData::canonicalize(StringView locale)
 {
     auto locale_data = LocaleData::for_locale(locale);
     VERIFY(locale_data.has_value());
@@ -70,7 +70,7 @@ String LocaleData::canonicalize(StringView locale)
     //        for all keywords (and then remove "true" per UTS 35). Per CLDR BCP47 data, only specific keys define "yes"
     //        as an alias for "true" (kb, kc, kh, kk, kn). For other keys, "yes" must be preserved. See:
     //        https://unicode-org.atlassian.net/browse/ICU-21367
-    HashTable<ByteString> keywords_with_yes;
+    HashTable<Utf16String> keywords_with_yes;
 
     if (auto parsed = parse_unicode_locale_id(locale); parsed.has_value()) {
         parsed->for_each_extension_of_type<LocaleExtension>([&](auto const& extension) {
@@ -78,9 +78,10 @@ String LocaleData::canonicalize(StringView locale)
                 if (!keyword.value.equals_ignoring_ascii_case("yes"sv))
                     continue;
 
-                auto key = keyword.key.to_ascii_lowercase().to_byte_string();
+                auto key = keyword.key.to_ascii_lowercase();
 
-                if (auto const* legacy_key = uloc_toLegacyKey(key.characters())) {
+                auto key_bytes = MUST(key.utf16_view().to_byte_string());
+                if (auto const* legacy_key = uloc_toLegacyKey(key_bytes.characters())) {
                     if (auto const* value = uloc_toUnicodeLocaleType(legacy_key, "yes"); !value || value != "true"sv)
                         keywords_with_yes.set(move(key));
                 }
@@ -97,21 +98,21 @@ String LocaleData::canonicalize(StringView locale)
     verify_icu_success(status);
 
     if (keywords_with_yes.is_empty()) {
-        locale_data->m_canonical_locale_string = MUST(result.to_string());
+        locale_data->m_canonical_locale_string = Utf16String::from_ascii_without_validation(result.string_view().bytes());
     } else {
         auto parsed = parse_unicode_locale_id(result.string_view());
         VERIFY(parsed.has_value());
 
         parsed->for_each_extension_of_type<LocaleExtension>([&](auto& extension) {
             for (auto& keyword : extension.keywords) {
-                if (keyword.value.is_empty() && keywords_with_yes.contains(keyword.key.bytes_as_string_view()))
-                    keyword.value = "yes"_string;
+                if (keyword.value.is_empty() && keywords_with_yes.contains(keyword.key))
+                    keyword.value = "yes"_utf16;
             }
 
             return IterationDecision::Continue;
         });
 
-        locale_data->m_canonical_locale_string = parsed->to_string();
+        locale_data->m_canonical_locale_string = parsed->to_utf16_string();
     }
 
     return *locale_data->m_canonical_locale_string;
@@ -172,12 +173,13 @@ icu::TimeZoneNames& LocaleData::time_zone_names()
     return *m_time_zone_names;
 }
 
-Optional<TimeZoneData&> TimeZoneData::for_time_zone(StringView time_zone)
+Optional<TimeZoneData&> TimeZoneData::for_time_zone(Utf16View time_zone)
 {
     auto time_zone_data = time_zone_cache().get(time_zone);
 
     if (!time_zone_data.has_value()) {
-        time_zone_data = time_zone_cache().ensure(MUST(String::from_utf8(time_zone)), [&]() -> OwnPtr<TimeZoneData> {
+        auto time_zone_key = Utf16String::from_utf16(time_zone);
+        time_zone_data = time_zone_cache().ensure(move(time_zone_key), [&]() -> OwnPtr<TimeZoneData> {
             auto icu_time_zone = adopt_own_if_nonnull(icu::TimeZone::createTimeZone(icu_string(time_zone)));
             if (!icu_time_zone || *icu_time_zone == icu::TimeZone::getUnknown())
                 return nullptr;

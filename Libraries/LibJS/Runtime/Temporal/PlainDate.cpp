@@ -26,7 +26,7 @@ namespace JS::Temporal {
 GC_DEFINE_ALLOCATOR(PlainDate);
 
 // 3 Temporal.PlainDate Objects, https://tc39.es/proposal-temporal/#sec-temporal-plaindate-objects
-PlainDate::PlainDate(ISODate iso_date, String calendar, Object& prototype)
+PlainDate::PlainDate(ISODate iso_date, Utf16String calendar, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_iso_date(iso_date)
     , m_calendar(move(calendar))
@@ -44,7 +44,7 @@ ISODate create_iso_date_record(double year, double month, double day)
 }
 
 // 3.5.3 CreateTemporalDate ( isoDate, calendar [ , newTarget ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtemporaldate
-ThrowCompletionOr<GC::Ref<PlainDate>> create_temporal_date(VM& vm, ISODate iso_date, String calendar, GC::Ptr<FunctionObject> new_target)
+ThrowCompletionOr<GC::Ref<PlainDate>> create_temporal_date(VM& vm, ISODate iso_date, Utf16String calendar, GC::Ptr<FunctionObject> new_target)
 {
     auto& realm = *vm.current_realm();
 
@@ -141,7 +141,7 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
     // 6. If calendar is empty, set calendar to "iso8601".
     auto calendar = result.calendar.has_value()
         ? TRY(canonicalize_calendar(vm, *result.calendar))
-        : TRY(canonicalize_calendar(vm, "iso8601"sv));
+        : TRY(canonicalize_calendar(vm, ISO8601_CALENDAR));
 
     // 8. Let resolvedOptions be ? GetOptionsObject(options).
     auto resolved_options = TRY(get_options_object(vm, options));
@@ -157,7 +157,7 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
 }
 
 // 3.5.5 CompareSurpasses ( sign, year, monthOrCode, day, target ), https://tc39.es/proposal-temporal/#sec-temporal-comparesurpasses
-bool compare_surpasses(i8 sign, i32 year, Variant<u8, String> const& month_or_code, u8 day, CalendarDate const& target)
+bool compare_surpasses(i8 sign, i32 year, Variant<u8, Utf16String> const& month_or_code, u8 day, CalendarDate const& target)
 {
     // 1. If year ≠ target.[[Year]], then
     if (year != target.year) {
@@ -166,7 +166,7 @@ bool compare_surpasses(i8 sign, i32 year, Variant<u8, String> const& month_or_co
             return true;
     }
     // 2. Else if monthOrCode is a month code and monthOrCode is not target.[[MonthCode]], then
-    else if (auto const* month_code = month_or_code.get_pointer<String>(); month_code && *month_code != target.month_code) {
+    else if (auto const* month_code = month_or_code.get_pointer<Utf16String>(); month_code && *month_code != target.month_code) {
         // a. If sign > 0, then
         if (sign > 0) {
             // i. If monthOrCode is lexicographically greater than target.[[MonthCode]], return true.
@@ -312,22 +312,22 @@ ISODate add_days_to_iso_date(ISODate iso_date, double days)
 }
 
 // 3.5.9 PadISOYear ( y ), https://tc39.es/proposal-temporal/#sec-temporal-padisoyear
-String pad_iso_year(i32 year)
+Utf16String pad_iso_year(i32 year)
 {
     // 1. If y ≥ 0 and y ≤ 9999, return ToZeroPaddedDecimalString(y, 4).
     if (year >= 0 && year <= 9999)
-        return MUST(String::formatted("{:04}", year));
+        return Utf16String::formatted("{:04}", year);
 
     // 2. If y > 0, let yearSign be "+"; else, let yearSign be "-".
     auto year_sign = year > 0 ? '+' : '-';
 
     // 3. Let year be ToZeroPaddedDecimalString(abs(y), 6).
     // 4. Return the string-concatenation of yearSign and year.
-    return MUST(String::formatted("{}{:06}", year_sign, abs(year)));
+    return Utf16String::formatted("{}{:06}", year_sign, abs(year));
 }
 
 // 3.5.10 TemporalDateToString ( temporalDate, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-temporaldatetostring
-String temporal_date_to_string(PlainDate const& temporal_date, ShowCalendar show_calendar)
+Utf16String temporal_date_to_string(PlainDate const& temporal_date, ShowCalendar show_calendar)
 {
     // 1. Let year be PadISOYear(temporalDate.[[ISODate]].[[Year]]).
     auto year = pad_iso_year(temporal_date.iso_date().year);
@@ -342,7 +342,7 @@ String temporal_date_to_string(PlainDate const& temporal_date, ShowCalendar show
     auto calendar = format_calendar_annotation(temporal_date.calendar(), show_calendar);
 
     // 5. Return the string-concatenation of year, the code unit 0x002D (HYPHEN-MINUS), month, the code unit 0x002D (HYPHEN-MINUS), day, and calendar.
-    return MUST(String::formatted("{}-{:02}-{:02}{}", year, month, day, calendar));
+    return Utf16String::formatted("{}-{:02}-{:02}{}", year, month, day, calendar);
 }
 
 // 3.5.11 ISODateWithinLimits ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodatewithinlimits

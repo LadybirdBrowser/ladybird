@@ -86,7 +86,7 @@ static JsonValue serialize_js_value(JS::Realm& realm, JS::Value value)
         Web::HTML::TemporaryExecutionContext execution_context { realm };
         AllocatingMemoryStream stream;
 
-        JS::PrintContext context { vm, stream, true };
+        JS::PrintContext context { .vm = vm, .stream = &stream, .strip_ansi = true };
         MUST(JS::print(value, context));
 
         return MUST(String::from_stream(stream, stream.used_buffer_size()));
@@ -151,7 +151,7 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
 
         for (auto const& frame : trace.stack) {
             stack_frames.unchecked_append(WebView::StackFrame {
-                .function = frame.function_name,
+                .function = frame.function_name.to_utf8(),
                 .file = frame.source_file,
                 .line = frame.line,
                 .column = frame.column,

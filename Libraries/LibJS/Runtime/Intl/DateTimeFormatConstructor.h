@@ -51,7 +51,7 @@ enum class OptionInherit {
     Relevant,
 };
 
-ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM&, FunctionObject& new_target, Value locales_value, Value options_value, OptionRequired, OptionDefaults, Optional<String> const& to_locale_string_time_zone = {});
-String format_offset_time_zone_identifier(double offset_minutes);
+ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM&, FunctionObject& new_target, Value locales_value, Value options_value, OptionRequired, OptionDefaults, Optional<Utf16View> const& to_locale_string_time_zone = {});
+Utf16String format_offset_time_zone_identifier(double offset_minutes);
 
 }

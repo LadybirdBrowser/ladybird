@@ -105,6 +105,7 @@ describe("correct behavior", () => {
         expect(JSON.stringify({ a: function () {} })).toBe("{}");
         expect(JSON.stringify({ a: Symbol() })).toBe("{}");
         expect(JSON.stringify({ a: 1, b: undefined, c: 2 })).toBe('{"a":1,"c":2}');
+        expect(JSON.stringify({ a: "é", b: undefined, c: 1 })).toBe('{"a":"é","c":1}');
     });
 
     test("array replacer acts as property whitelist", () => {

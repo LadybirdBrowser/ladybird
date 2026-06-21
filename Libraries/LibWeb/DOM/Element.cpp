@@ -3471,10 +3471,10 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
 
         GC::RootVector<JS::Value> arguments;
 
-        arguments.append(JS::PrimitiveString::create(vm, attribute->local_name()));
+        arguments.append(JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(attribute->local_name())));
         arguments.append(JS::js_null());
-        arguments.append(JS::PrimitiveString::create(vm, attribute->value()));
-        arguments.append(attribute->namespace_uri().has_value() ? JS::PrimitiveString::create(vm, attribute->namespace_uri().value()) : JS::js_null());
+        arguments.append(JS::PrimitiveString::create(vm, Utf16String::from_utf8(attribute->value())));
+        arguments.append(attribute->namespace_uri().has_value() ? JS::PrimitiveString::create(vm, Utf16FlyString::from_utf8(attribute->namespace_uri().value())) : JS::js_null());
 
         enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
     }

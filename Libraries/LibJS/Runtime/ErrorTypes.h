@@ -8,6 +8,7 @@
 
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibJS/Export.h>
 
 #define JS_ENUMERATE_ERROR_TYPES(M)                                                                                                 \
@@ -320,16 +321,17 @@ public:
 #undef __ENUMERATE_JS_ERROR
 
     StringView format() const { return m_format; }
-    Utf16String const& message() const;
+    Utf16View message() const { return m_message; }
 
 private:
-    explicit ErrorType(StringView format)
+    explicit ErrorType(StringView format, Utf16View message)
         : m_format(format)
+        , m_message(message)
     {
     }
 
     StringView m_format;
-    mutable Utf16String m_message;
+    Utf16View m_message;
 };
 
 }

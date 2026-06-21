@@ -323,7 +323,7 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
         },
         0, Utf16FlyString {}, &realm);
     m_throw_type_error_function->define_direct_property(vm.names.length, Value(0), 0);
-    m_throw_type_error_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), 0);
+    m_throw_type_error_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), 0);
     MUST(m_throw_type_error_function->internal_prevent_extensions());
 
     m_throw_type_error_accessor = Accessor::create(

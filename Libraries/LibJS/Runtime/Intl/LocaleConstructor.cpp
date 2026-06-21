@@ -18,14 +18,24 @@ namespace JS::Intl {
 GC_DEFINE_ALLOCATOR(LocaleConstructor);
 
 struct LocaleAndKeys {
-    String locale;
-    Optional<String> ca;
-    Optional<String> co;
-    Optional<String> fw;
-    Optional<String> hc;
-    Optional<String> kf;
-    Optional<String> kn;
-    Optional<String> nu;
+    Utf16String locale;
+    Optional<Utf16String> ca;
+    Optional<Utf16String> co;
+    Optional<Utf16String> fw;
+    Optional<Utf16String> hc;
+    Optional<Utf16String> kf;
+    Optional<Utf16String> kn;
+    Optional<Utf16String> nu;
+};
+
+struct LocaleOptionsAndKeys {
+    Optional<Utf16String> ca;
+    Optional<Utf16String> co;
+    Optional<Utf16String> fw;
+    Optional<Utf16String> hc;
+    Optional<Utf16String> kf;
+    Optional<Utf16String> kn;
+    Optional<Utf16String> nu;
 };
 
 static bool is_unicode_language_subtag(Utf16View subtag)
@@ -49,26 +59,24 @@ static bool is_type_identifier(Utf16View identifier)
 }
 
 // NOTE: This is not an AO in the spec. This just serves to abstract very similar steps in UpdateLanguageId and the Intl.Locale constructor.
-static ThrowCompletionOr<Optional<String>> get_string_option(VM& vm, Object const& options, PropertyKey const& property, Function<bool(Utf16View)> validator, ReadonlySpan<StringView> values = {}, Optional<String> const& fallback = {})
+static ThrowCompletionOr<Optional<Utf16String>> get_string_option(VM& vm, Object const& options, PropertyKey const& property, Function<bool(Utf16View)> validator, ReadonlySpan<StringView> values = {}, Optional<Utf16String> const& fallback = {})
 {
-    auto option_default = fallback.has_value() ? OptionDefault { *fallback } : Empty {};
-
-    auto option = TRY(get_option(vm, options, property, OptionType::String, values, option_default));
+    auto option = TRY(get_option(vm, options, property, OptionType::String, values, Empty {}));
     if (option.is_undefined())
-        return OptionalNone {};
+        return fallback;
 
-    auto option_string = option.as_string().utf16_string_view();
-    if (!option_string.is_ascii())
+    auto option_string_view = option.as_string().utf16_string_view();
+    if (!option_string_view.has_ascii_storage())
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, option, property);
 
-    if (validator && !validator(option_string))
+    if (validator && !validator(option_string_view))
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, option, property);
 
-    return MUST(option_string.to_utf8());
+    return Utf16String::from_utf16(option_string_view);
 }
 
 // 15.1.2 UpdateLanguageId ( tag, options ), https://tc39.es/ecma402/#sec-updatelanguageid
-static ThrowCompletionOr<String> update_language_id(VM& vm, StringView tag, Object const& options)
+static ThrowCompletionOr<Utf16String> update_language_id(VM& vm, Utf16View tag, Object const& options)
 {
     auto locale_id = Unicode::parse_unicode_locale_id(tag);
     VERIFY(locale_id.has_value());
@@ -92,7 +100,7 @@ static ThrowCompletionOr<String> update_language_id(VM& vm, StringView tag, Obje
 
     // 8. Let variants be ? GetOption(options, "variants", STRING, EMPTY, GetLocaleVariants(baseName)).
     auto variants = TRY(get_string_option(vm, options, vm.names.variants, nullptr, {}, get_locale_variants(*locale_id)));
-    Vector<String> variant_subtags;
+    Vector<Utf16String> variant_subtags;
 
     // 9. If variants is not undefined, then
     if (variants.has_value()) {
@@ -104,9 +112,12 @@ static ThrowCompletionOr<String> update_language_id(VM& vm, StringView tag, Obje
         auto lower_variants = variants->to_ascii_lowercase();
 
         // c. Let variantSubtags be StringSplitToList(lowerVariants, "-").
-        variant_subtags = MUST(lower_variants.split('-', SplitBehavior::KeepEmpty));
+        lower_variants.utf16_view().for_each_split_view('-', SplitBehavior::KeepEmpty, [&](auto variant) {
+            variant_subtags.append(Utf16String::from_utf16(variant));
+            return IterationDecision::Continue;
+        });
 
-        HashTable<String> seen_variants;
+        HashTable<Utf16String> seen_variants;
         bool has_duplicate_variant = false;
 
         // d. For each element variant of variantSubtags, do
@@ -145,16 +156,16 @@ static ThrowCompletionOr<String> update_language_id(VM& vm, StringView tag, Obje
     new_tag.private_use_extensions = move(private_use_extensions);
 
     // 16. Return newTag.
-    return new_tag.to_string();
+    return new_tag.to_utf16_string();
 }
 
 // 15.1.3 MakeLocaleRecord ( tag, options, localeExtensionKeys ), https://tc39.es/ecma402/#sec-makelocalerecord
-static LocaleAndKeys make_locale_record(StringView tag, LocaleAndKeys options, ReadonlySpan<StringView> locale_extension_keys)
+static LocaleAndKeys make_locale_record(Utf16View tag, LocaleOptionsAndKeys options, ReadonlySpan<Utf16View> locale_extension_keys)
 {
     auto locale_id = Unicode::parse_unicode_locale_id(tag);
     VERIFY(locale_id.has_value());
 
-    Vector<String> attributes;
+    Vector<Utf16String> attributes;
     Vector<Unicode::Keyword> keywords;
 
     // 1. If tag contains a substring that is a Unicode locale extension sequence, then
@@ -174,7 +185,25 @@ static LocaleAndKeys make_locale_record(StringView tag, LocaleAndKeys options, R
     //     a. Let attributes be a new empty List.
     //     b. Let keywords be a new empty List.
 
-    auto field_from_key = [](LocaleAndKeys& value, StringView key) -> Optional<String>& {
+    auto option_field_from_key = [](LocaleOptionsAndKeys& value, Utf16View key) -> Optional<Utf16String>& {
+        if (key == "ca"sv)
+            return value.ca;
+        if (key == "co"sv)
+            return value.co;
+        if (key == "fw"sv)
+            return value.fw;
+        if (key == "hc"sv)
+            return value.hc;
+        if (key == "kf"sv)
+            return value.kf;
+        if (key == "kn"sv)
+            return value.kn;
+        if (key == "nu"sv)
+            return value.nu;
+        VERIFY_NOT_REACHED();
+    };
+
+    auto result_field_from_key = [](LocaleAndKeys& value, Utf16View key) -> Optional<Utf16String>& {
         if (key == "ca"sv)
             return value.ca;
         if (key == "co"sv)
@@ -198,10 +227,10 @@ static LocaleAndKeys make_locale_record(StringView tag, LocaleAndKeys options, R
     // 4. For each element key of localeExtensionKeys, do
     for (auto const& key : locale_extension_keys) {
         Unicode::Keyword* entry = nullptr;
-        Optional<String> value;
+        Optional<Utf16String> value;
 
         // a. If keywords contains an element whose [[Key]] is key, then
-        if (auto it = keywords.find_if([&](auto const& k) { return key == k.key; }); it != keywords.end()) {
+        if (auto it = keywords.find_if([&](auto const& k) { return k.key.utf16_view() == key; }); it != keywords.end()) {
             // i. Let entry be the element of keywords whose [[Key]] is key.
             entry = &(*it);
 
@@ -214,12 +243,12 @@ static LocaleAndKeys make_locale_record(StringView tag, LocaleAndKeys options, R
 
         // c. Assert: options has a field [[<key>]].
         // d. Let overrideValue be options.[[<key>]].
-        auto const& override_value = field_from_key(options, key);
+        auto const& override_value = option_field_from_key(options, key);
 
         // e. If overrideValue is not undefined, then
         if (override_value.has_value()) {
             // i. Set value to CanonicalizeUValue(key, overrideValue).
-            value = Unicode::canonicalize_unicode_extension_values(key, *override_value);
+            value = Unicode::canonicalize_unicode_extension_values(key.bytes(), override_value->utf16_view());
 
             // ii. If entry is not empty, then
             if (entry != nullptr) {
@@ -229,17 +258,18 @@ static LocaleAndKeys make_locale_record(StringView tag, LocaleAndKeys options, R
             // iii. Else,
             else {
                 // 1. Append the Record { [[Key]]: key, [[Value]]: value } to keywords.
-                keywords.empend(MUST(String::from_utf8(key)), *value);
+                keywords.empend(Utf16String::from_utf16(key), *value);
             }
         }
 
         // f. Set result.[[<key>]] to value.
-        field_from_key(result, key) = move(value);
+        if (value.has_value())
+            result_field_from_key(result, key) = *value;
     }
 
     // 5. Let locale be the String value that is tag with any Unicode locale extension sequences removed.
     locale_id->remove_extension_type<Unicode::LocaleExtension>();
-    auto locale = locale_id->to_string();
+    auto locale = locale_id->to_utf16_string();
 
     // 6. If attributes is not empty or keywords is not empty, then
     if (!attributes.is_empty() || !keywords.is_empty()) {
@@ -303,7 +333,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     if (!tag_value.is_string() && !tag_value.is_object())
         return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOrString, "tag"sv);
 
-    String tag;
+    Utf16String tag;
     bool tag_is_canonicalized = false;
 
     // 8. If tag is an Object and tag has an [[InitializedLocale]] internal slot, then
@@ -329,7 +359,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     auto options = TRY(coerce_options_to_object(vm, options_value));
 
     // 11. If IsWellFormedLanguageTag(tag) is false, throw a RangeError exception.
-    if (!tag_is_canonicalized && !is_well_formed_language_tag(tag))
+    if (!tag_is_canonicalized && !is_well_formed_language_tag(tag.utf16_view()))
         return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
 
     // 12. NOTE: Because LanguageId canonicalization can alter tag in arbitrary ways according to Alias Rules from
@@ -337,14 +367,15 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     //     options.
 
     // 13. Set tag to CanonicalizeUnicodeLocaleId(tag).
-    if (!tag_is_canonicalized)
-        tag = canonicalize_unicode_locale_id(tag);
+    if (!tag_is_canonicalized) {
+        tag = canonicalize_unicode_locale_id(tag.utf16_view());
+    }
 
     // 14. Set tag to ? UpdateLanguageId(tag, options).
-    tag = TRY(update_language_id(vm, tag, options));
+    tag = TRY(update_language_id(vm, tag.utf16_view(), options));
 
     // 15. Let opt be a new Record.
-    LocaleAndKeys opt {};
+    LocaleOptionsAndKeys opt {};
 
     // 16. Let calendar be ? GetOption(options, "calendar", STRING, EMPTY, undefined).
     // 17. If calendar is not undefined, then
@@ -364,10 +395,10 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     // 23. If fw is not undefined, then
     if (first_day_of_week.has_value()) {
         // a. Set fw to WeekdayToUValue(fw).
-        first_day_of_week = MUST(String::from_utf8(weekday_to_u_value(*first_day_of_week)));
+        first_day_of_week = Utf16String::from_utf16(weekday_to_u_value(first_day_of_week->utf16_view()));
 
         // b. If fw cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-        if (!Unicode::is_type_identifier(*first_day_of_week))
+        if (!Unicode::is_type_identifier(first_day_of_week->utf16_view()))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, *first_day_of_week, vm.names.firstDayOfWeek);
     }
 
@@ -388,7 +419,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     // 30. If kn is not undefined, set kn to ! ToString(kn).
     // 31. Set opt.[[kn]] to kn.
     if (!kn.is_undefined())
-        opt.kn = kn.as_bool() ? "true"_string : "false"_string;
+        opt.kn = kn.as_bool() ? "true"_utf16 : "false"_utf16;
 
     // 32. Let numberingSystem be ? GetOption(options, "numberingSystem", STRING, EMPTY, undefined).
     // 33. If numberingSystem is not undefined, then
@@ -397,7 +428,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     opt.nu = TRY(get_string_option(vm, options, vm.names.numberingSystem, is_type_identifier));
 
     // 35. Let r be MakeLocaleRecord(tag, opt, localeExtensionKeys).
-    auto result = make_locale_record(tag, move(opt), locale_extension_keys);
+    auto result = make_locale_record(tag.utf16_view(), move(opt), locale_extension_keys);
 
     // 36. Set locale.[[Locale]] to r.[[locale]].
     locale->set_locale(move(result.locale));
@@ -419,16 +450,16 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
         locale->set_hour_cycle(result.hc.release_value());
 
     // 41. If localeExtensionKeys contains "kf", then
-    if (locale_extension_keys.span().contains_slow("kf"sv)) {
+    if (locale_extension_keys.span().contains_slow(Utf16View { "kf"sv })) {
         // a. Set locale.[[CaseFirst]] to r.[[kf]].
         if (result.kf.has_value())
             locale->set_case_first(result.kf.release_value());
     }
 
     // 42. If localeExtensionKeys contains "kn", then
-    if (locale_extension_keys.span().contains_slow("kn"sv)) {
+    if (locale_extension_keys.span().contains_slow(Utf16View { "kn"sv })) {
         // a. If SameValue(r.[[kn]], "true") is true or r.[[kn]] is the empty String, then
-        if (result.kn.has_value() && (result.kn == "true"sv || result.kn->is_empty())) {
+        if (result.kn.has_value() && (result.kn->utf16_view() == "true"sv || result.kn->is_empty())) {
             // i. Set locale.[[Numeric]] to true.
             locale->set_numeric(true);
         }

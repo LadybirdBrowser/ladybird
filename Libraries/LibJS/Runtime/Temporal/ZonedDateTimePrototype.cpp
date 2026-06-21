@@ -37,7 +37,7 @@ void ZonedDateTimePrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 6.3.2 Temporal.ZonedDateTime.prototype[ %Symbol.toStringTag% ], https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype-%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.ZonedDateTime"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.ZonedDateTime"_utf16_fly_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.calendarId, calendar_id_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.timeZoneId, time_zone_id_getter, {}, Attribute::Configurable);
@@ -204,8 +204,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::month_code_getter)
     auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer());
 
     // 4. Return CalendarISOToDate(zonedDateTime.[[Calendar]], isoDateTime.[[ISODate]]).[[MonthCode]].
-    auto month_code = calendar_iso_to_date(zoned_date_time->calendar(), iso_date_time.iso_date).month_code;
-    return PrimitiveString::create(vm, move(month_code));
+    return PrimitiveString::create(vm, calendar_iso_to_date(zoned_date_time->calendar(), iso_date_time.iso_date).month_code);
 }
 
 // 6.3.11 get Temporal.ZonedDateTime.prototype.hour, https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hour
@@ -416,7 +415,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::with)
     fields.nanosecond = iso_date_time.time.nanosecond;
 
     // 16. Set fields.[[OffsetString]] to FormatUTCOffsetNanoseconds(offsetNanoseconds).
-    fields.offset_string = Utf16String::from_utf8(format_utc_offset_nanoseconds(offset_nanoseconds));
+    fields.offset_string = format_utc_offset_nanoseconds(offset_nanoseconds);
 
     // 17. Let partialZonedDateTime be ? PrepareCalendarFields(calendar, temporalZonedDateTimeLike, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND, OFFSET », PARTIAL).
     static constexpr auto calendar_field_names = to_array({ CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day });
@@ -806,7 +805,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_locale_string)
     auto zoned_date_time = TRY(typed_this_object(vm));
 
     // 3. Let dateTimeFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, ANY, ALL, zonedDateTime.[[TimeZone]]).
-    auto date_time_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Any, Intl::OptionDefaults::All, zoned_date_time->time_zone()));
+    auto date_time_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Any, Intl::OptionDefaults::All, zoned_date_time->time_zone().utf16_view()));
 
     // 4. If zonedDateTime.[[Calendar]] is not "iso8601" and CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is false, throw a RangeError exception.
     if (zoned_date_time->calendar() != ISO8601_CALENDAR && !calendar_equals(zoned_date_time->calendar(), date_time_format->calendar()))
@@ -901,8 +900,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::get_time_zone_transition)
     auto direction = TRY(get_direction_option(vm, *direction_param));
 
     // 8. If IsOffsetTimeZoneIdentifier(timeZone) is true, return null.
-    auto utf16_time_zone = Utf16String::from_utf8(time_zone);
-    if (is_offset_time_zone_identifier(utf16_time_zone))
+    if (is_offset_time_zone_identifier(time_zone))
         return js_null();
 
     Optional<Crypto::SignedBigInteger> transition;

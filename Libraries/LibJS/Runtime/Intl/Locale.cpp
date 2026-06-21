@@ -15,7 +15,7 @@ namespace JS::Intl {
 
 GC_DEFINE_ALLOCATOR(Locale);
 
-GC::Ref<Locale> Locale::create(Realm& realm, GC::Ref<Locale> source_locale, String locale_tag)
+GC::Ref<Locale> Locale::create(Realm& realm, GC::Ref<Locale> source_locale, Utf16String locale_tag)
 {
     auto locale = realm.create<Locale>(realm.intrinsics().intl_locale_prototype());
 
@@ -38,11 +38,11 @@ Locale::Locale(Object& prototype)
 
 Unicode::LocaleID const& Locale::locale_id() const
 {
-    return m_cached_locale_id.ensure([&] { return Unicode::parse_unicode_locale_id(locale()); });
+    return m_cached_locale_id.ensure([&] { return Unicode::parse_unicode_locale_id(locale().utf16_view()); });
 }
 
 // 15.5.5 GetLocaleVariants ( locale ), https://tc39.es/ecma402/#sec-getlocalevariants
-Optional<String> get_locale_variants(Unicode::LocaleID const& locale)
+Optional<Utf16String> get_locale_variants(Unicode::LocaleID const& locale)
 {
     // 1. Let baseName be GetLocaleBaseName(locale).
     auto const& base_name = locale.language_id;
@@ -57,7 +57,7 @@ Optional<String> get_locale_variants(Unicode::LocaleID const& locale)
         return {};
 
     // 4. Return the substring of variants from 1.
-    return MUST(String::join("-"sv, base_name.variants));
+    return Utf16String::join("-"sv, base_name.variants);
 }
 
 // 15.5.9 CalendarsOfLocale ( loc ), https://tc39.es/ecma402/#sec-calendarsoflocale
@@ -82,10 +82,10 @@ GC::Ref<Array> calendars_of_locale(VM& vm, Locale const& locale_object)
     //    in common use for date and time formatting in lookupRegion. The list is empty if no calendar preference data
     //    for lookupRegion is available.
     // 8. If list is empty, set list to « "gregory" ».
-    auto list = Unicode::available_calendars(locale_object.locale());
+    auto list = Unicode::available_calendars(locale_object.locale().utf16_view());
 
     // 9. Return CreateArrayFromList(list).
-    return Array::create_from<String>(realm, list, [&vm](auto const& value) {
+    return Array::create_from<Utf16String>(realm, list, [&vm](auto const& value) {
         return PrimitiveString::create(vm, value);
     });
 }
@@ -115,10 +115,10 @@ GC::Ref<Array> collations_of_locale(VM& vm, Locale const& locale_object)
     // 4. Else,
     //     a. Let list be « "emoji", "eor" ».
     // 5. Let sorted be a copy of list, sorted according to lexicographic code unit order.
-    auto list = Unicode::available_collations(locale_object.locale());
+    auto list = Unicode::available_collations(locale_object.locale().utf16_view());
 
     // 6. Return CreateArrayFromList(sorted).
-    return Array::create_from<String>(realm, list, [&vm](auto const& value) {
+    return Array::create_from<Utf16String>(realm, list, [&vm](auto const& value) {
         return PrimitiveString::create(vm, value);
     });
 }
@@ -143,10 +143,10 @@ GC::Ref<Array> hour_cycles_of_locale(VM& vm, Locale const& locale_object)
     //     a. Let lookupRegion be region.
     // 7. Let list be a List of unique hour cycle identifiers, which must be lower case String values indicating either the 12-hour format ("h11", "h12") or the 24-hour format ("h23", "h24"), sorted in descending preference of those in common use for date and time formatting in lookupRegion. The list is empty if no time data for lookupRegion is available.
     // 8. If list is empty, set list to « "h23" ».
-    auto list = Unicode::available_hour_cycles(locale_object.locale());
+    auto list = Unicode::available_hour_cycles(locale_object.locale().utf16_view());
 
     // 9. Return CreateArrayFromList(list).
-    return Array::create_from<String>(realm, list, [&vm](auto const& value) {
+    return Array::create_from<Utf16String>(realm, list, [&vm](auto const& value) {
         return PrimitiveString::create(vm, value);
     });
 }
@@ -170,10 +170,10 @@ GC::Ref<Array> numbering_systems_of_locale(VM& vm, Locale const& locale_object)
     //     d. Let list be « numberingSystems[0] ».
     // 4. Else,
     //     a. Let list be « "latn" ».
-    auto list = Unicode::available_number_systems(locale_object.locale());
+    auto list = Unicode::available_number_systems(locale_object.locale().utf16_view());
 
     // 5. Return CreateArrayFromList(list).
-    return Array::create_from<String>(realm, list, [&vm](auto const& value) {
+    return Array::create_from<Utf16String>(realm, list, [&vm](auto const& value) {
         return PrimitiveString::create(vm, value);
     });
 }
@@ -193,16 +193,16 @@ Value time_zones_of_locale(VM& vm, Locale const& locale_object)
     // 3. Let list be a List of unique canonical time zone identifiers, which must be String values indicating a
     //    canonical Zone name of the IANA Time Zone Database, of those in common use in region. The list is empty if no
     //    time zones are commonly used in region. The list is sorted according to lexicographic code unit order.
-    auto list = Unicode::available_time_zones_in_region(*region);
+    auto list = Unicode::available_time_zones_in_region(region->utf16_view());
 
     // 4. Return CreateArrayFromList( list ).
-    return Array::create_from<String>(realm, list, [&vm](auto const& value) {
+    return Array::create_from<Utf16String>(realm, list, [&vm](auto const& value) {
         return PrimitiveString::create(vm, value);
     });
 }
 
 // 15.5.14 TextDirectionOfLocale ( loc ), https://tc39.es/ecma402/#sec-textdirectionoflocale
-StringView text_direction_of_locale(Locale const& locale_object)
+Utf16View text_direction_of_locale(Locale const& locale_object)
 {
     // 1. Let locale be loc.[[Locale]].
     auto const& locale = locale_object.locale();
@@ -218,29 +218,29 @@ StringView text_direction_of_locale(Locale const& locale_object)
     // 5. If the default general ordering of characters within a line in script is left-to-right, return "ltr".
     // 6. Return undefined.
     // FIXME: ICU does not provide a method to determine if a locale is neither rtl nor ltr.
-    return Unicode::is_locale_character_ordering_right_to_left(locale) ? "rtl"sv : "ltr"sv;
+    return Unicode::is_locale_character_ordering_right_to_left(locale.utf16_view()) ? Utf16View { "rtl"sv } : Utf16View { "ltr"sv };
 }
 
 struct FirstDayStringAndValue {
-    StringView weekday;
-    StringView string;
+    Utf16View weekday;
+    Utf16View string;
     u8 value { 0 };
 };
 
 // Table 26: Weekday String and Value, https://tc39.es/ecma402/#table-locale-weekday-string-value
 static constexpr auto WEEKDAY_STRING_AND_VALUE = to_array<FirstDayStringAndValue>({
-    { "0"sv, "sun"sv, 7 },
-    { "1"sv, "mon"sv, 1 },
-    { "2"sv, "tue"sv, 2 },
-    { "3"sv, "wed"sv, 3 },
-    { "4"sv, "thu"sv, 4 },
-    { "5"sv, "fri"sv, 5 },
-    { "6"sv, "sat"sv, 6 },
-    { "7"sv, "sun"sv, 7 },
+    { u"0"sv, u"sun"sv, 7 },
+    { u"1"sv, u"mon"sv, 1 },
+    { u"2"sv, u"tue"sv, 2 },
+    { u"3"sv, u"wed"sv, 3 },
+    { u"4"sv, u"thu"sv, 4 },
+    { u"5"sv, u"fri"sv, 5 },
+    { u"6"sv, u"sat"sv, 6 },
+    { u"7"sv, u"sun"sv, 7 },
 });
 
 // 15.5.15 WeekdayToUValue ( fw ), https://tc39.es/ecma402/#sec-weekdaytouvalue
-StringView weekday_to_u_value(StringView weekday)
+Utf16View weekday_to_u_value(Utf16View weekday)
 {
     // 1. For each row of Table 26, except the header row, in table order, do
     for (auto const& row : WEEKDAY_STRING_AND_VALUE) {
@@ -256,7 +256,7 @@ StringView weekday_to_u_value(StringView weekday)
 }
 
 // 15.5.16 WeekdayUValueToNumber ( fw ), https://tc39.es/ecma402/#sec-weekdayuvaluetonumber
-Optional<u8> weekday_u_value_to_number(StringView weekday)
+Optional<u8> weekday_u_value_to_number(Utf16View weekday)
 {
     // 1. For each row of Table 26, except the header row, in table order, do
     for (auto const& row : WEEKDAY_STRING_AND_VALUE) {
@@ -313,7 +313,7 @@ WeekInfo week_info_of_locale(Locale const& locale_object)
     auto const& locale = locale_object.locale();
 
     // 2. Let r be a Record whose fields are defined by Table 27, with values based on locale.
-    auto locale_week_info = Unicode::week_info_of_locale(locale);
+    auto locale_week_info = Unicode::week_info_of_locale(locale.utf16_view());
 
     WeekInfo week_info {};
     week_info.first_day = weekday_to_integer(locale_week_info.first_day_of_week, Unicode::Weekday::Monday);
@@ -326,7 +326,7 @@ WeekInfo week_info_of_locale(Locale const& locale_object)
         auto const& first_day_of_week_string = locale_object.first_day_of_week();
 
         // 4. Let fw be WeekdayUValueToNumber(fws).
-        first_day_of_week = weekday_u_value_to_number(first_day_of_week_string);
+        first_day_of_week = weekday_u_value_to_number(first_day_of_week_string.utf16_view());
     }
 
     // 5. If fw is not undefined, then

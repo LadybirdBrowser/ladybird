@@ -28,7 +28,7 @@ void NumberFormatPrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 16.3.7 Intl.NumberFormat.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-intl.numberformat.prototype-%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.NumberFormat"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.NumberFormat"_utf16_fly_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.format, format, nullptr, Attribute::Configurable);
 

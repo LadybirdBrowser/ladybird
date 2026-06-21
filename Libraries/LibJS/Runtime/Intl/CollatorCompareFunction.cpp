@@ -28,7 +28,7 @@ void CollatorCompareFunction::initialize(Realm& realm)
     Base::initialize(realm);
     auto& vm = this->vm();
     define_direct_property(vm.names.length, Value(2), Attribute::Configurable);
-    define_direct_property(vm.names.name, PrimitiveString::create(vm, String {}), Attribute::Configurable);
+    define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 }
 
 void CollatorCompareFunction::visit_edges(Visitor& visitor)

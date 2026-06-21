@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -63,7 +64,7 @@ i8 compare_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds_o
 ThrowCompletionOr<Crypto::SignedBigInteger> add_instant(VM&, Crypto::SignedBigInteger const& epoch_nanoseconds, TimeDuration const&);
 InternalDuration difference_instant(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, u64 rounding_increment, Unit smallest_unit, RoundingMode);
 Crypto::SignedBigInteger round_temporal_instant(Crypto::SignedBigInteger const& nanoseconds, u64 increment, Unit, RoundingMode);
-String temporal_instant_to_string(Instant const&, Optional<String const&> time_zone, SecondsStringPrecision::Precision);
+Utf16String temporal_instant_to_string(Instant const&, Optional<Utf16View> time_zone, SecondsStringPrecision::Precision);
 ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_instant(VM&, DurationOperation, Instant const&, Value other, Value options);
 ThrowCompletionOr<GC::Ref<Instant>> add_duration_to_instant(VM&, ArithmeticOperation, Instant const&, Value temporal_duration_like);
 

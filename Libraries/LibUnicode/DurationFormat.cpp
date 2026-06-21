@@ -22,11 +22,11 @@ static constexpr bool is_not_ascii_digit(u32 code_point)
     return !is_ascii_digit(code_point);
 }
 
-DigitalFormat digital_format(StringView locale)
+DigitalFormat digital_format(Utf16View locale)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    auto locale_data = LocaleData::for_locale(locale);
+    auto locale_data = LocaleData::for_locale(locale.bytes());
     if (!locale_data.has_value())
         return {};
 
@@ -38,7 +38,7 @@ DigitalFormat digital_format(StringView locale)
     rounding_options.min_significant_digits = 1;
     rounding_options.max_significant_digits = 2;
 
-    auto number_formatter = NumberFormat::create(locale, {}, rounding_options);
+    auto number_formatter = NumberFormat::create(locale.bytes(), {}, rounding_options);
 
     auto icu_locale = adopt_own(*locale_data->locale().clone());
     icu_locale->setUnicodeKeywordValue("nu", "latn", status);

@@ -36,7 +36,7 @@ void PlainDatePrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 3.3.2 Temporal.PlainDate.prototype[ %Symbol.toStringTag% ], https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype-%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.PlainDate"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.PlainDate"_utf16_fly_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.calendarId, calendar_id_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.era, era_getter, {}, Attribute::Configurable);
@@ -161,8 +161,7 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::month_code_getter)
     auto plain_date = TRY(typed_this_object(vm));
 
     // 3. Return CalendarISOToDate(plainDate.[[Calendar]], plainDate.[[ISODate]]).[[MonthCode]].
-    auto month_code = calendar_iso_to_date(plain_date->calendar(), plain_date->iso_date()).month_code;
-    return PrimitiveString::create(vm, move(month_code));
+    return PrimitiveString::create(vm, calendar_iso_to_date(plain_date->calendar(), plain_date->iso_date()).month_code);
 }
 
 // 3.3.12 get Temporal.PlainDate.prototype.weekOfYear, https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.weekofyear
@@ -398,7 +397,7 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_zoned_date_time)
     // 2. Perform ? RequireInternalSlot(plainDate, [[InitializedTemporalDate]]).
     auto plain_date = TRY(typed_this_object(vm));
 
-    String time_zone;
+    Utf16String time_zone;
     Value temporal_time;
 
     // 3. If item is an Object, then

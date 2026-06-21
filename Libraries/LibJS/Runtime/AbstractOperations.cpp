@@ -702,7 +702,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     auto rust_compilation = RustIntegration::compile_eval(*code_string, vm, strict_caller, in_function, in_method, in_derived_constructor, in_class_field_initializer);
     if (!rust_compilation.has_value())
-        return vm.throw_completion<SyntaxError>("Failed to compile eval code"_string);
+        return vm.throw_completion<SyntaxError>("Failed to compile eval code"_utf16);
     if (rust_compilation->is_error())
         return vm.throw_completion<SyntaxError>(rust_compilation->release_error());
     auto& eval_result = rust_compilation->value();
@@ -1277,7 +1277,7 @@ CanonicalIndex canonical_numeric_index_string(PropertyKey const& property_key, C
 
     // FIXME: We return 0 instead of n but it might not observable?
     // 3. If SameValue(! ToString(n), argument) is true, return n.
-    if (number_to_string(*maybe_double) == argument)
+    if (number_to_utf16_string(*maybe_double) == argument)
         return CanonicalIndex(CanonicalIndex::Type::Numeric, 0);
 
     // 4. Return undefined.
@@ -1934,7 +1934,7 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
             [](Empty) -> Value { return js_undefined(); },
             [](bool default_) -> Value { return Value { default_ }; },
             [](double default_) -> Value { return Value { default_ }; },
-            [&](StringView default_) -> Value { return PrimitiveString::create(vm, default_); });
+            [&](Utf16View default_) -> Value { return PrimitiveString::create(vm, default_); });
     }
 
     // 3. If type is BOOLEAN, then
@@ -1960,8 +1960,6 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
         auto it = find_if(values.begin(), values.end(), [&](auto allowed_value) { return value_string == allowed_value; });
         if (it == values.end())
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string, property.as_string());
-
-        value = PrimitiveString::create(vm, *it);
     }
 
     // 6. Return value.
@@ -1975,7 +1973,8 @@ ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM& vm, Object const& o
     static constexpr auto allowed_strings = to_array({ "ceil"sv, "floor"sv, "expand"sv, "trunc"sv, "halfCeil"sv, "halfFloor"sv, "halfExpand"sv, "halfTrunc"sv, "halfEven"sv });
 
     // 2. Let stringFallback be the value from the "String Identifier" column of the row with fallback in its "Rounding Mode" column.
-    auto string_fallback = allowed_strings[to_underlying(fallback)];
+    static constexpr auto utf16_allowed_strings = to_array({ u"ceil"sv, u"floor"sv, u"expand"sv, u"trunc"sv, u"halfCeil"sv, u"halfFloor"sv, u"halfExpand"sv, u"halfTrunc"sv, u"halfEven"sv });
+    auto string_fallback = utf16_allowed_strings[to_underlying(fallback)];
 
     // 3. Let stringValue be ? GetOption(options, "roundingMode", STRING, allowedStrings, stringFallback).
     auto string_value = TRY(get_option(vm, options, vm.names.roundingMode, OptionType::String, allowed_strings, string_fallback));

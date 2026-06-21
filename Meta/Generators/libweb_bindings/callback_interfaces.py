@@ -50,7 +50,7 @@ def write_callback_interface_implementation(
     [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable;
 
     object.define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
-    object.define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "{interface.name}"_string), JS::Attribute::Configurable);
+    object.define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "{interface.name}"_utf16), JS::Attribute::Configurable);
 """)
     define_the_constants(out, context, includes, interface)
     out.write(

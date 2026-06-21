@@ -24,10 +24,10 @@ public:
     virtual ~ErrorEvent() override;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#dom-errorevent-message
-    String const& message() const { return m_message; }
+    Utf16String const& message() const { return m_message; }
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#dom-errorevent-filename
-    String const& filename() const { return m_filename; }
+    Utf16String const& filename() const { return m_filename; }
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#dom-errorevent-lineno
     u32 lineno() const { return m_lineno; }
@@ -44,8 +44,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    String m_message;
-    String m_filename; // FIXME: This should be a USVString.
+    Utf16String m_message;
+    Utf16String m_filename;
     u32 m_lineno { 0 };
     u32 m_colno { 0 };
     JS::Value m_error;

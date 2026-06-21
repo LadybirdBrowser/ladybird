@@ -46,7 +46,7 @@ void JSONObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.isRawJSON, is_raw_json, 1, attr);
 
     // 25.5.3 JSON [ @@toStringTag ], https://tc39.es/ecma262/#sec-json-@@tostringtag
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "JSON"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "JSON"_utf16_fly_string), Attribute::Configurable);
 }
 
 // 25.5.2 JSON.stringify ( value [ , replacer [ , space ] ] ), https://tc39.es/ecma262/#sec-json.stringify
@@ -604,10 +604,10 @@ static ALWAYS_INLINE ThrowCompletionOr<void> ensure_simdjson_fully_parsed(VM& vm
 static ThrowCompletionOr<Value> parse_simdjson_value(VM&, simdjson::ondemand::value, JSONParseRecord* record = nullptr);
 
 // The source text matched by a primitive parse node, used by JSON.parse revivers.
-static String json_token_source(std::string_view raw)
+static Utf16String json_token_source(std::string_view raw)
 {
     StringView source { raw.data(), raw.size() };
-    return MUST(String::from_utf8(source.trim_whitespace()));
+    return Utf16String::from_utf8(source.trim_whitespace());
 }
 
 template<typename T>

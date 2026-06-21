@@ -10,17 +10,17 @@
 #include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/Optional.h>
-#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Export.h>
 #include <LibJS/SourceRange.h>
 
 namespace JS {
 
 struct JS_API ParserError {
-    String message;
+    Utf16String message;
     Optional<Position> position;
 
-    String to_string() const;
+    Utf16String to_utf16_string() const;
     ByteString to_byte_string() const;
     ByteString source_location_hint(Utf16View const& source, char spacer = ' ', char indicator = '^') const;
 };

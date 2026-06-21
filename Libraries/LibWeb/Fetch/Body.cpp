@@ -173,7 +173,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::text() const
         VERIFY(decoder.has_value());
 
         auto utf8_text = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, bytes));
-        return JS::PrimitiveString::create(vm, move(utf8_text));
+        return JS::PrimitiveString::create(vm, Utf16String::from_utf8(utf8_text));
     }));
 }
 

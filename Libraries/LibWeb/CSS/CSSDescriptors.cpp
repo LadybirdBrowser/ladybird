@@ -31,14 +31,14 @@ size_t CSSDescriptors::length() const
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-item
-String CSSDescriptors::item(size_t index) const
+Utf16String CSSDescriptors::item(size_t index) const
 {
     // The item(index) method must return the property name of the CSS declaration at position index.
     // If there is no indexth object in the collection, then the method must return the empty string.
     if (index >= length())
         return {};
 
-    return m_descriptors[index].descriptor_name_and_id.name().to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+    return m_descriptors[index].descriptor_name_and_id.name().to_utf16_string();
 }
 
 // https://drafts.csswg.org/cssom/#set-a-css-declaration

@@ -9,7 +9,6 @@
 #include <AK/AllOf.h>
 #include <AK/Array.h>
 #include <AK/Assertions.h>
-#include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
@@ -255,25 +254,11 @@ void number_to_string(StringBuilder& builder, double d, NumberToStringMode mode)
     number_to_string_impl(builder, d, mode);
 }
 
-String number_to_string(double d, NumberToStringMode mode)
-{
-    StringBuilder builder;
-    number_to_string(builder, d, mode);
-    return MUST(builder.to_string());
-}
-
 Utf16String number_to_utf16_string(double d, NumberToStringMode mode)
 {
     Utf16StringBuilder builder;
     number_to_string_impl(builder, d, mode);
     return builder.to_string();
-}
-
-ByteString number_to_byte_string(double d, NumberToStringMode mode)
-{
-    StringBuilder builder;
-    number_to_string(builder, d, mode);
-    return builder.to_byte_string();
 }
 
 // 7.2.2 IsArray ( argument ), https://tc39.es/ecma262/#sec-isarray
@@ -456,12 +441,6 @@ ThrowCompletionOr<GC::Ref<PrimitiveString>> Value::to_primitive_string(VM& vm)
 }
 
 // 7.1.17 ToString ( argument ), https://tc39.es/ecma262/#sec-tostring
-ThrowCompletionOr<ByteString> Value::to_byte_string(VM& vm) const
-{
-    return TRY(to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16().to_byte_string();
-}
-
-// 7.1.17 ToString ( argument ), https://tc39.es/ecma262/#sec-tostring
 ThrowCompletionOr<Utf16String> Value::to_utf16_string(VM& vm) const
 {
     if (is_double())
@@ -489,7 +468,7 @@ ThrowCompletionOr<Utf16String> Value::to_utf16_string(VM& vm) const
         return Utf16String::number(as_i32());
         // 8. If argument is a BigInt, return BigInt::toString(argument, 10).
     case BIGINT_TAG:
-        return Utf16String::from_utf8(MUST(as_bigint().big_integer().to_base(10)));
+        return MUST(as_bigint().big_integer().to_base_utf16(10));
         // 9. Assert: argument is an Object.
     case OBJECT_TAG: {
         // 10. Let primValue be ? ToPrimitive(argument, string).
@@ -554,19 +533,19 @@ ThrowCompletionOr<Value> Value::to_primitive_slow_case(VM& vm, PreferredType pre
 
         // b. If exoticToPrim is not undefined, then
         if (exotic_to_primitive) {
-            auto hint = [&]() -> ByteString {
+            auto hint = [&]() -> Utf16FlyString {
                 switch (preferred_type) {
                 // i. If preferredType is not present, let hint be "default".
                 case PreferredType::Default:
-                    return "default";
+                    return "default"_utf16_fly_string;
                 // ii. Else if preferredType is string, let hint be "string".
                 case PreferredType::String:
-                    return "string";
+                    return "string"_utf16_fly_string;
                 // iii. Else,
                 // 1. Assert: preferredType is number.
                 // 2. Let hint be "number".
                 case PreferredType::Number:
-                    return "number";
+                    return "number"_utf16_fly_string;
                 default:
                     VERIFY_NOT_REACHED();
                 }

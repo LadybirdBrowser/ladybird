@@ -1141,7 +1141,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::source)
     if (!is<RegExpObject>(*regexp_object)) {
         // a. If SameValue(R, %RegExp.prototype%) is true, return "(?:)".
         if (same_value(regexp_object, realm.intrinsics().regexp_prototype()))
-            return PrimitiveString::create(vm, "(?:)"_string);
+            return PrimitiveString::create(vm, "(?:)"_utf16_fly_string);
 
         // b. Otherwise, throw a TypeError exception.
         return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOfType, "RegExp");
@@ -1553,7 +1553,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::to_string)
 
     // 5. Let result be the string-concatenation of "/", pattern, "/", and flags.
     // 6. Return result.
-    return PrimitiveString::create(vm, ByteString::formatted("/{}/{}", pattern, flags));
+    return PrimitiveString::create(vm, Utf16String::formatted("/{}/{}", pattern, flags));
 }
 
 // B.2.4.1 RegExp.prototype.compile ( pattern, flags ), https://tc39.es/ecma262/#sec-regexp.prototype.compile

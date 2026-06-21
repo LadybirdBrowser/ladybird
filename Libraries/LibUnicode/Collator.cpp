@@ -20,13 +20,13 @@ Usage usage_from_string(Utf16View usage)
     VERIFY_NOT_REACHED();
 }
 
-StringView usage_to_string(Usage usage)
+Utf16String usage_to_string(Usage usage)
 {
     switch (usage) {
     case Usage::Sort:
-        return "sort"sv;
+        return "sort"_utf16;
     case Usage::Search:
-        return "search"sv;
+        return "search"_utf16;
     }
     VERIFY_NOT_REACHED();
 }
@@ -62,17 +62,17 @@ Sensitivity sensitivity_from_string(Utf16View sensitivity)
     VERIFY_NOT_REACHED();
 }
 
-StringView sensitivity_to_string(Sensitivity sensitivity)
+Utf16String sensitivity_to_string(Sensitivity sensitivity)
 {
     switch (sensitivity) {
     case Sensitivity::Base:
-        return "base"sv;
+        return "base"_utf16;
     case Sensitivity::Accent:
-        return "accent"sv;
+        return "accent"_utf16;
     case Sensitivity::Case:
-        return "case"sv;
+        return "case"_utf16;
     case Sensitivity::Variant:
-        return "variant"sv;
+        return "variant"_utf16;
     }
     VERIFY_NOT_REACHED();
 }
@@ -114,7 +114,7 @@ static Sensitivity sensitivity_for_collator(icu::Collator const& collator)
     }
 }
 
-CaseFirst case_first_from_string(StringView case_first)
+CaseFirst case_first_from_string(Utf16View case_first)
 {
     if (case_first == "upper"sv)
         return CaseFirst::Upper;
@@ -125,15 +125,15 @@ CaseFirst case_first_from_string(StringView case_first)
     VERIFY_NOT_REACHED();
 }
 
-StringView case_first_to_string(CaseFirst case_first)
+Utf16String case_first_to_string(CaseFirst case_first)
 {
     switch (case_first) {
     case CaseFirst::Upper:
-        return "upper"sv;
+        return "upper"_utf16;
     case CaseFirst::Lower:
-        return "lower"sv;
+        return "lower"_utf16;
     case CaseFirst::False:
-        return "false"sv;
+        return "false"_utf16;
     }
     VERIFY_NOT_REACHED();
 }

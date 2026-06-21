@@ -10,11 +10,13 @@
 
 #include <AK/FlyString.h>
 #include <AK/Forward.h>
+#include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FunctionObject.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -35,6 +37,16 @@ WEB_API JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM&, JS::Value);
 WEB_API JS::ThrowCompletionOr<String> to_usv_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<Utf16String> to_utf16_usv_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<String> to_byte_string(JS::VM&, JS::Value);
+
+template<typename T>
+GC::Ref<JS::PrimitiveString> primitive_string_from_string(JS::VM& vm, T&& value)
+{
+    using ValueType = RemoveCVReference<T>;
+    if constexpr (IsSame<ValueType, String> || IsSame<ValueType, StringView> || IsSame<ValueType, FlyString> || IsSame<ValueType, ByteString>)
+        return JS::PrimitiveString::create(vm, Utf16String::from_utf8(value));
+    else
+        return JS::PrimitiveString::create(vm, forward<T>(value));
+}
 
 enum class ExceptionBehavior {
     NotSpecified,

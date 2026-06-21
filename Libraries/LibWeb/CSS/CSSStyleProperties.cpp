@@ -143,7 +143,7 @@ size_t CSSStyleProperties::length() const
     return m_properties.size() + m_custom_properties.size();
 }
 
-String CSSStyleProperties::item(size_t index) const
+Utf16String CSSStyleProperties::item(size_t index) const
 {
     // The item(index) method must return the property name of the CSS declaration at position index.
     // If there is no indexth object in the collection, then the method must return the empty string.
@@ -154,13 +154,13 @@ String CSSStyleProperties::item(size_t index) const
 
     if (is_computed()) {
         auto property_id = static_cast<PropertyID>(index + to_underlying(first_longhand_property_id));
-        return string_from_property_id(property_id).to_string();
+        return Utf16String::from_utf8(string_from_property_id(property_id));
     }
 
     if (index < custom_properties_count)
-        return m_custom_properties.keys()[index].to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
+        return m_custom_properties.keys()[index].to_utf16_string();
 
-    return CSS::string_from_property_id(m_properties[index - custom_properties_count].property_id).to_string();
+    return Utf16String::from_utf8(CSS::string_from_property_id(m_properties[index - custom_properties_count].property_id));
 }
 
 Optional<StyleProperty> CSSStyleProperties::get_property(PropertyID property_id) const

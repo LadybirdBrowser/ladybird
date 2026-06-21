@@ -56,7 +56,7 @@ WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(String const& feature_val
     for (auto const& value : value_vector)
         wrapped_values.append(JS::Value { value });
 
-    m_map_entries->map_set(JS::PrimitiveString::create(vm(), feature_value_name), JS::Array::create_from(realm(), wrapped_values.span()));
+    m_map_entries->map_set(JS::PrimitiveString::create(vm(), Utf16String::from_utf8(feature_value_name)), JS::Array::create_from(realm(), wrapped_values.span()));
 
     m_parent_rule->clear_caches();
 

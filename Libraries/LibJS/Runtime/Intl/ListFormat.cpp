@@ -21,7 +21,7 @@ ListFormat::ListFormat(Object& prototype)
 }
 
 // 14.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.ListFormat-internal-slots
-ReadonlySpan<StringView> ListFormat::relevant_extension_keys() const
+ReadonlySpan<Utf16View> ListFormat::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « ».
     return {};
@@ -71,7 +71,7 @@ GC::Ref<Array> format_list_to_parts(VM& vm, ListFormat const& list_format, Reado
         auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
         // b. Perform ! CreateDataPropertyOrThrow(O, "type", part.[[Type]]).
-        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, part.type)));
+        MUST(object->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, move(part.type))));
 
         // c. Perform ! CreateDataPropertyOrThrow(O, "value", part.[[Value]]).
         MUST(object->create_data_property_or_throw(vm.names.value, PrimitiveString::create(vm, move(part.value))));

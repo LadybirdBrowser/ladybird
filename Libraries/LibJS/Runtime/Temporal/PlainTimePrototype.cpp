@@ -28,7 +28,7 @@ void PlainTimePrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 4.3.2 Temporal.PlainTime.prototype[ %Symbol.toStringTag% ], https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype-%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.PlainTime"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.PlainTime"_utf16_fly_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.hour, hour_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.minute, minute_getter, {}, Attribute::Configurable);

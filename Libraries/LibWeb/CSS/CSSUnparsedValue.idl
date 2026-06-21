@@ -9,4 +9,4 @@ interface CSSUnparsedValue : CSSStyleValue {
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssunparsedsegment
-typedef (USVString or CSSVariableReferenceValue) CSSUnparsedSegment;
+typedef (Utf16USVString or CSSVariableReferenceValue) CSSUnparsedSegment;

@@ -341,16 +341,16 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_base64)
     }
 
     // 8. Let toEncode be ? GetUint8ArrayBytes(O).
-    String out_ascii;
+    Utf16String out_ascii;
 
     // OPTIMIZATION: If the ArrayBuffer is not shared, we can avoid copying the bytes.
     if (!typed_array->viewed_array_buffer()->is_shared_array_buffer()
         && !typed_array->viewed_array_buffer()->is_detached()) {
         auto to_encode = TRY(get_uint8_array_bytes_view(vm, typed_array));
         if (alphabet == Alphabet::Base64) {
-            out_ascii = MUST(encode_base64(to_encode, omit_padding));
+            out_ascii = MUST(encode_base64_to_utf16(to_encode, omit_padding));
         } else {
-            out_ascii = MUST(encode_base64url(to_encode, omit_padding));
+            out_ascii = MUST(encode_base64url_to_utf16(to_encode, omit_padding));
         }
     } else {
         auto to_encode = TRY(get_uint8_array_bytes(vm, typed_array));
@@ -359,14 +359,14 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_base64)
         if (alphabet == Alphabet::Base64) {
             // a. Let outAscii be the sequence of code points which results from encoding toEncode according to the base64
             //    encoding specified in section 4 of RFC 4648. Padding is included if and only if omitPadding is false.
-            out_ascii = MUST(encode_base64(to_encode, omit_padding));
+            out_ascii = MUST(encode_base64_to_utf16(to_encode, omit_padding));
         }
         // 10. Else,
         else {
             // a. Assert: alphabet is "base64url".
             // b. Let outAscii be the sequence of code points which results from encoding toEncode according to the base64url
             //    encoding specified in section 5 of RFC 4648. Padding is included if and only if omitPadding is false.
-            out_ascii = MUST(encode_base64url(to_encode, omit_padding));
+            out_ascii = MUST(encode_base64url_to_utf16(to_encode, omit_padding));
         }
     }
 

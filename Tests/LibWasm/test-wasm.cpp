@@ -26,17 +26,17 @@ TESTJS_GLOBAL_FUNCTION(read_binary_wasm_file, readBinaryWasmFile)
     auto filename = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto file = Core::File::open(filename, Core::File::OpenMode::Read);
     if (file.is_error())
-        return vm.throw_completion<JS::TypeError>(error_code_to_string(file.error().code()));
+        return vm.throw_completion<JS::TypeError>(Utf16String::from_utf8(error_code_to_string(file.error().code())));
 
     auto file_size = file.value()->size();
     if (file_size.is_error())
-        return vm.throw_completion<JS::TypeError>(error_code_to_string(file_size.error().code()));
+        return vm.throw_completion<JS::TypeError>(Utf16String::from_utf8(error_code_to_string(file_size.error().code())));
 
     auto array = TRY(JS::Uint8Array::create(realm, file_size.value()));
 
     auto read = file.value()->read_until_filled(array->data());
     if (read.is_error())
-        return vm.throw_completion<JS::TypeError>(error_code_to_string(read.error().code()));
+        return vm.throw_completion<JS::TypeError>(Utf16String::from_utf8(error_code_to_string(read.error().code())));
 
     return JS::Value(array);
 }
@@ -66,10 +66,10 @@ public:
         linker.link(spec_test_namespace());
         auto link_result = linker.finish();
         if (link_result.is_error())
-            return vm.throw_completion<JS::TypeError>("Link failed"sv);
+            return vm.throw_completion<JS::TypeError>("Link failed"_utf16);
         auto result = machine().instantiate(*instance->m_module, link_result.release_value());
         if (result.is_error())
-            return vm.throw_completion<JS::TypeError>(result.release_error().error);
+            return vm.throw_completion<JS::TypeError>(Utf16String::from_utf8(result.release_error().error));
         instance->m_module_instance = result.release_value();
         return instance.ptr();
     }
@@ -169,12 +169,12 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
     auto& realm = *vm.current_realm();
     auto object = TRY(vm.argument(0).to_object(vm));
     if (!is<JS::Uint8Array>(*object))
-        return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to parse_webassembly_module"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to parse_webassembly_module"_utf16);
     auto& array = static_cast<JS::Uint8Array&>(*object);
     FixedMemoryStream stream { array.data() };
     auto result = Wasm::Module::parse(stream);
     if (result.is_error())
-        return vm.throw_completion<JS::SyntaxError>(Wasm::parse_error_to_byte_string(result.error()));
+        return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(Wasm::parse_error_to_byte_string(result.error())));
 
     HashMap<Wasm::Linker::Name, Wasm::ExternValue> imports;
     auto import_value = vm.argument(1);
@@ -197,14 +197,14 @@ TESTJS_GLOBAL_FUNCTION(validate_webassembly_module, validateWebAssemblyModule)
 {
     auto object = TRY(vm.argument(0).to_object(vm));
     if (!is<JS::Uint8Array>(*object))
-        return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to validate_webassembly_module"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to validate_webassembly_module"_utf16);
     auto& array = static_cast<JS::Uint8Array&>(*object);
     FixedMemoryStream stream { array.data() };
     auto result = Wasm::Module::parse(stream);
     if (result.is_error())
-        return vm.throw_completion<JS::SyntaxError>(Wasm::parse_error_to_byte_string(result.error()));
+        return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(Wasm::parse_error_to_byte_string(result.error())));
     if (auto validation = WebAssemblyModule::machine().validate(*result.value(), {}, Wasm::CompileToNative::No); validation.is_error())
-        return vm.throw_completion<JS::SyntaxError>(validation.release_error().error_string);
+        return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(validation.release_error().error_string));
     return JS::js_undefined();
 }
 
@@ -212,11 +212,11 @@ TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
 {
     auto lhs = TRY(vm.argument(0).to_object(vm));
     if (!is<JS::TypedArrayBase>(*lhs))
-        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"_utf16);
     auto& lhs_array = static_cast<JS::TypedArrayBase&>(*lhs);
     auto rhs = TRY(vm.argument(1).to_object(vm));
     if (!is<JS::TypedArrayBase>(*rhs))
-        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"_utf16);
     auto& rhs_array = static_cast<JS::TypedArrayBase&>(*rhs);
     auto lhs_record = JS::make_typed_array_with_buffer_witness_record(lhs_array, JS::ArrayBuffer::Order::SeqCst);
     auto rhs_record = JS::make_typed_array_with_buffer_witness_record(rhs_array, JS::ArrayBuffer::Order::SeqCst);
@@ -266,7 +266,7 @@ TESTJS_GLOBAL_FUNCTION(is_valid_funcref_in, isValidFuncrefIn)
     auto value = TRY(vm.argument(0).to_index(vm));
     auto module_object = TRY(vm.argument(1).to_object(vm));
     if (!is<WebAssemblyModule>(*module_object))
-        return vm.throw_completion<JS::TypeError>("Expected a WebAssemblyModule"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a WebAssemblyModule"_utf16);
     auto& module = static_cast<WebAssemblyModule&>(*module_object);
     return JS::Value(module.machine().store().get(Wasm::FunctionAddress { value }) != nullptr);
 }
@@ -275,11 +275,11 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
 {
     auto expected = TRY(vm.argument(0).to_object(vm));
     if (!is<JS::Array>(*expected))
-        return vm.throw_completion<JS::TypeError>("Expected an Array"sv);
+        return vm.throw_completion<JS::TypeError>("Expected an Array"_utf16);
     auto& expected_array = static_cast<JS::Array&>(*expected);
     auto got = TRY(vm.argument(1).to_object(vm));
     if (!is<JS::TypedArrayBase>(*got))
-        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"sv);
+        return vm.throw_completion<JS::TypeError>("Expected a TypedArray"_utf16);
     auto& got_array = static_cast<JS::TypedArrayBase&>(*got);
     auto element_size = 128 / TRY(TRY(expected_array.get("length"_utf16_fly_string)).to_u32(vm));
     size_t i = 0;
@@ -291,7 +291,7 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
         auto expect = TRY(expected_array.get(it_index));
         if (expect.is_string()) {
             if (element_size != 32 && element_size != 64)
-                return vm.throw_completion<JS::TypeError>("Expected element of size 32 or 64"sv);
+                return vm.throw_completion<JS::TypeError>("Expected element of size 32 or 64"_utf16);
             auto string = expect.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
             if (string == "nan:canonical") {
                 auto is_canonical = element_size == 32 ? _is_canonical_nan32(got) : _is_canonical_nan64(got);
@@ -305,7 +305,7 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
                     return false;
                 continue;
             }
-            return vm.throw_completion<JS::TypeError>(ByteString::formatted("Bad SIMD float expectation: {}", string));
+            return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Bad SIMD float expectation: {}", string));
         }
         u64 expect_value = expect.is_bigint() ? TRY(expect.to_bigint_uint64(vm)) : (u64)TRY(expect.to_index(vm));
         if (got != expect_value)
@@ -327,7 +327,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
     auto this_value = vm.this_value();
     auto object = TRY(this_value.to_object(vm));
     if (!is<WebAssemblyModule>(*object))
-        return vm.throw_completion<JS::TypeError>("Not a WebAssemblyModule"sv);
+        return vm.throw_completion<JS::TypeError>("Not a WebAssemblyModule"_utf16);
     auto& instance = static_cast<WebAssemblyModule&>(*object);
     for (auto& entry : instance.module_instance().exports()) {
         if (entry.name() == name.to_byte_string()) {
@@ -372,13 +372,13 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
                 }
                 case Wasm::ValueType::I8:
                 case Wasm::ValueType::I16:
-                    return vm.throw_completion<JS::TypeError>("Unsupported heap reference"sv);
+                    return vm.throw_completion<JS::TypeError>("Unsupported heap reference"_utf16);
                 }
             }
-            return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("'{}' does not refer to a function or a global", name)));
+            return vm.throw_completion<JS::TypeError>(Utf16String::formatted("'{}' does not refer to a function or a global", name));
         }
     }
-    return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("'{}' could not be found", name)));
+    return vm.throw_completion<JS::TypeError>(Utf16String::formatted("'{}' could not be found", name));
 }
 
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
@@ -387,16 +387,16 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     Wasm::FunctionAddress function_address { address };
     auto function_instance = WebAssemblyModule::machine().store().get(function_address);
     if (!function_instance)
-        return vm.throw_completion<JS::TypeError>("Invalid function address"sv);
+        return vm.throw_completion<JS::TypeError>("Invalid function address"_utf16);
 
     Wasm::FunctionType const* type { nullptr };
     function_instance->visit([&](auto& value) { type = &value.type(); });
     if (!type)
-        return vm.throw_completion<JS::TypeError>("Invalid function found at given address"sv);
+        return vm.throw_completion<JS::TypeError>("Invalid function found at given address"_utf16);
 
     Vector<Wasm::Value> arguments;
     if (type->parameters().size() + 1 > vm.argument_count())
-        return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("Expected {} arguments for call, but found {}", type->parameters().size() + 1, vm.argument_count())));
+        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Expected {} arguments for call, but found {}", type->parameters().size() + 1, vm.argument_count()));
     size_t index = 1;
     for (auto& param : type->parameters()) {
         auto argument = vm.argument(index++);
@@ -429,7 +429,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
         case Wasm::ValueType::Kind::V128: {
             auto object = MUST(argument.to_object(vm));
             if (!is<JS::TypedArrayBase>(*object))
-                return vm.throw_completion<JS::TypeError>("Expected typed array"sv);
+                return vm.throw_completion<JS::TypeError>("Expected typed array"_utf16);
             auto& array = static_cast<JS::TypedArrayBase&>(*object);
             u128 bits = 0;
             auto* ptr = bit_cast<u8*>(&bits);
@@ -457,13 +457,13 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             if (argument.is_null())
                 arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::ExceptionReference) } }));
             else
-                return vm.throw_completion<JS::TypeError>("Exception references are not supported"sv);
+                return vm.throw_completion<JS::TypeError>("Exception references are not supported"_utf16);
             break;
         case Wasm::ValueType::Kind::TypeUseReference:
             if (argument.is_null())
                 arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::TypeUseReference, param.unsafe_typeindex()) } }));
             else
-                return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"sv);
+                return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"_utf16);
             break;
         case Wasm::ValueType::Kind::AnyReference:
             if (argument.is_null()) {
@@ -484,11 +484,11 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             if (argument.is_null())
                 arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(param.kind()) } }));
             else
-                return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"sv);
+                return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"_utf16);
             break;
         case Wasm::ValueType::Kind::I8:
         case Wasm::ValueType::Kind::I16:
-            return vm.throw_completion<JS::TypeError>("Packed types are not valid parameter types"sv);
+            return vm.throw_completion<JS::TypeError>("Packed types are not valid parameter types"_utf16);
         }
     }
 
@@ -497,7 +497,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     if (result.is_trap()) {
         if (auto ptr = result.trap().data.get_pointer<Wasm::ExternallyManagedTrap>())
             return ptr->unsafe_external_object_as<JS::Completion>();
-        return vm.throw_completion<JS::TypeError>(TRY_OR_THROW_OOM(vm, String::formatted("Execution trapped: {}", result.trap().format())));
+        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Execution trapped: {}", result.trap().format()));
     }
 
     if (result.values().is_empty())
@@ -537,7 +537,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             return JS::js_null();
         case Wasm::ValueType::I8:
         case Wasm::ValueType::I16:
-            return vm.throw_completion<JS::TypeError>("Unsupported packed type"sv);
+            return vm.throw_completion<JS::TypeError>("Unsupported packed type"_utf16);
         }
         VERIFY_NOT_REACHED();
     };

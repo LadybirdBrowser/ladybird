@@ -111,7 +111,7 @@ static int s_exit_code = 0;
 
 static ErrorOr<void> print_inline(JS::Value value, Stream& stream)
 {
-    JS::PrintContext print_context { .vm = *g_vm, .stream = stream, .strip_ansi = s_strip_ansi, .raw_strings = s_raw_strings };
+    JS::PrintContext print_context { .vm = *g_vm, .stream = &stream, .strip_ansi = s_strip_ansi, .raw_strings = s_raw_strings };
     return JS::print(value, print_context);
 }
 
@@ -209,7 +209,7 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
             if (!hint.is_empty())
                 outln("{}", hint);
 
-            auto error_string = error.to_string();
+            auto error_string = error.to_utf16_string();
             outln("{}", error_string);
             result = vm.throw_completion<JS::SyntaxError>(move(error_string));
         } else {
@@ -228,7 +228,7 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
             if (!hint.is_empty())
                 outln("{}", hint);
 
-            auto error_string = error.to_string();
+            auto error_string = error.to_utf16_string();
             outln("{}", error_string);
             result = vm.throw_completion<JS::SyntaxError>(move(error_string));
         } else {
@@ -266,7 +266,7 @@ static JS::ThrowCompletionOr<JS::Value> load_ini_impl(JS::VM& vm)
 {
     auto& realm = *vm.current_realm();
 
-    auto filename = TRY(vm.argument(0).to_byte_string(vm));
+    auto filename = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16().to_byte_string();
     auto file_or_error = Core::File::open(filename, Core::File::OpenMode::Read);
     if (file_or_error.is_error())
         return vm.throw_completion<JS::Error>(TRY_OR_THROW_OOM(vm, String::formatted("Failed to open '{}': {}", filename, file_or_error.error())));
@@ -277,7 +277,7 @@ static JS::ThrowCompletionOr<JS::Value> load_ini_impl(JS::VM& vm)
         auto group_object = JS::Object::create(realm, realm.intrinsics().object_prototype());
         for (auto const& key : config_file->keys(group)) {
             auto entry = config_file->read_entry(group, key);
-            group_object->define_direct_property(Utf16String::from_utf8(key), JS::PrimitiveString::create(vm, move(entry)), JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
+            group_object->define_direct_property(Utf16String::from_utf8(key), JS::PrimitiveString::create(vm, Utf16String::from_utf8(entry)), JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
         }
         object->define_direct_property(Utf16String::from_utf8(group), group_object, JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
     }

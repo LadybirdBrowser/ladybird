@@ -34,7 +34,7 @@ void PlainDateTimePrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 5.3.2 Temporal.PlainDateTime.prototype[ %Symbol.toStringTag% ], https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype-%symbol.tostringtag%
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.PlainDateTime"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.PlainDateTime"_utf16_fly_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.calendarId, calendar_id_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.era, era_getter, {}, Attribute::Configurable);
@@ -166,8 +166,7 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::month_code_getter)
     auto plain_date_time = TRY(typed_this_object(vm));
 
     // 3. Return CalendarISOToDate(plainDateTime.[[Calendar]], plainDateTime.[[ISODateTime]].[[ISODate]]).[[MonthCode]].
-    auto month_code = calendar_iso_to_date(plain_date_time->calendar(), plain_date_time->iso_date_time().iso_date).month_code;
-    return PrimitiveString::create(vm, move(month_code));
+    return PrimitiveString::create(vm, calendar_iso_to_date(plain_date_time->calendar(), plain_date_time->iso_date_time().iso_date).month_code);
 }
 
 // 5.3.10 get Temporal.PlainDateTime.prototype.hour, https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.hour

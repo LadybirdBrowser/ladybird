@@ -27,7 +27,7 @@ void ListFormatPrototype::initialize(Realm& realm)
     auto& vm = this->vm();
 
     // 14.3.5 Intl.ListFormat.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma402/#sec-Intl.ListFormat.prototype-toStringTag
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.ListFormat"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Intl.ListFormat"_utf16_fly_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.resolvedOptions, resolved_options, 0, attr);

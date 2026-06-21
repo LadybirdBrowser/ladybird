@@ -26,7 +26,7 @@ enum class DateTimeStyle {
     Short,
 };
 DateTimeStyle date_time_style_from_string(Utf16View);
-StringView date_time_style_to_string(DateTimeStyle);
+Utf16String date_time_style_to_string(DateTimeStyle);
 
 enum class Weekday {
     Sunday,
@@ -44,9 +44,9 @@ enum class HourCycle {
     H23,
     H24,
 };
-HourCycle hour_cycle_from_string(StringView hour_cycle);
-StringView hour_cycle_to_string(HourCycle hour_cycle);
-Optional<HourCycle> default_hour_cycle(StringView locale);
+HourCycle hour_cycle_from_string(Utf16View hour_cycle);
+Utf16String hour_cycle_to_string(HourCycle hour_cycle);
+Optional<HourCycle> default_hour_cycle(Utf16View locale);
 
 enum class CalendarPatternStyle {
     Narrow,
@@ -60,7 +60,7 @@ enum class CalendarPatternStyle {
     LongGeneric,
 };
 CalendarPatternStyle calendar_pattern_style_from_string(Utf16View style);
-StringView calendar_pattern_style_to_string(CalendarPatternStyle style);
+Utf16String calendar_pattern_style_to_string(CalendarPatternStyle style);
 
 struct CalendarPattern {
     enum class Field {
@@ -154,9 +154,9 @@ public:
     virtual ~DateTimeFormat() = default;
 
     struct Partition {
-        StringView type;
+        Utf16String type;
         Utf16String value;
-        StringView source;
+        Utf16String source;
     };
 
     virtual CalendarPattern const& chosen_pattern() const = 0;
@@ -176,6 +176,6 @@ struct WeekInfo {
     Optional<Weekday> first_day_of_week;
     Vector<Weekday> weekend_days;
 };
-WeekInfo week_info_of_locale(StringView locale);
+WeekInfo week_info_of_locale(Utf16View locale);
 
 }

@@ -273,7 +273,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::char_at)
     // 4. Let size be the length of S.
     // 5. If position < 0 or position ≥ size, return the empty String.
     if (position < 0 || position >= string->length_in_utf16_code_units())
-        return PrimitiveString::create(vm, String {});
+        return PrimitiveString::create(vm, Utf16String {});
 
     // 6. Return the substring of S from position to position + 1.
     return PrimitiveString::create(vm, *string, position, 1);
@@ -687,7 +687,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::match_all)
     auto string = TRY(this_object.to_primitive_string(vm));
 
     // 4. Let rx be ? RegExpCreate(regexp, "g").
-    auto rx = TRY(regexp_create(vm, regexp, PrimitiveString::create(vm, "g"_string)));
+    auto rx = TRY(regexp_create(vm, regexp, PrimitiveString::create(vm, "g"_utf16_fly_string)));
 
     // 5. Return ? Invoke(rx, @@matchAll, « S »).
     return TRY(Value(rx).invoke(vm, vm.well_known_symbol_match_all(), string));
@@ -769,8 +769,8 @@ static ThrowCompletionOr<Value> pad_string(VM& vm, GC::Ref<PrimitiveString> stri
     // 10. If placement is start, return the string-concatenation of truncatedStringFiller and S.
     // 11. Else, return the string-concatenation of S and truncatedStringFiller.
     auto formatted = placement == PadPlacement::Start
-        ? MUST(String::formatted("{}{}", truncated_string_filler, string->utf16_string_view()))
-        : MUST(String::formatted("{}{}", string->utf16_string_view(), truncated_string_filler));
+        ? Utf16String::formatted("{}{}", truncated_string_filler, string->utf16_string_view())
+        : Utf16String::formatted("{}{}", string->utf16_string_view(), truncated_string_filler);
     return PrimitiveString::create(vm, move(formatted));
 }
 
@@ -1122,7 +1122,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::slice)
 
     // 12. If from ≥ to, return the empty String.
     if (int_start >= int_end)
-        return PrimitiveString::create(vm, String {});
+        return PrimitiveString::create(vm, Utf16String {});
 
     // 13. Return the substring of S from from to to.
     return PrimitiveString::create(vm, *string, int_start, int_end - int_start);
@@ -1347,7 +1347,7 @@ static ThrowCompletionOr<Utf16String> transform_case(VM& vm, Utf16String const& 
     // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
     auto requested_locales = TRY(Intl::canonicalize_locale_list(vm, locales));
 
-    String requested_locale;
+    Utf16String requested_locale;
 
     // 2. If requestedLocales is not an empty List, then
     if (!requested_locales.is_empty()) {
@@ -1357,7 +1357,7 @@ static ThrowCompletionOr<Utf16String> transform_case(VM& vm, Utf16String const& 
     // 3. Else,
     else {
         // a. Let requestedLocale be ! DefaultLocale().
-        requested_locale = String::from_utf8_without_validation(Unicode::default_locale().bytes());
+        requested_locale = Utf16String::from_utf16(Unicode::default_locale());
     }
 
     // 4. Let availableLocales be an Available Locales List which includes the language tags for which the Unicode Character Database contains language-sensitive case mappings. If the implementation supports additional locale-sensitive case mappings, availableLocales should also include their corresponding language tags.
@@ -1365,7 +1365,7 @@ static ThrowCompletionOr<Utf16String> transform_case(VM& vm, Utf16String const& 
     auto match = Intl::lookup_matching_locale_by_prefix({ { requested_locale } });
 
     // 6. If match is not undefined, let locale be match.[[locale]]; else let locale be "und".
-    StringView locale = match.has_value() ? match->locale : "und"sv;
+    auto locale = match.has_value() ? match->locale.utf16_view().bytes() : "und"sv;
 
     // 7. Let codePoints be StringToCodePoints(S).
 
@@ -1573,7 +1573,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::substr)
     auto int_end = min((i32)(int_start + int_length), size);
 
     if (int_start >= int_end)
-        return PrimitiveString::create(vm, String {});
+        return PrimitiveString::create(vm, Utf16String {});
 
     // 11. Return the substring of S from intStart to intEnd.
     return PrimitiveString::create(vm, *string, int_start, int_end - int_start);

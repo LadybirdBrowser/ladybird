@@ -138,6 +138,22 @@ static ErrorOr<String> encode_base64_impl(ReadonlyBytes input, simdutf::base64_o
     return String { move(output) };
 }
 
+static Utf16String encode_base64_to_utf16_impl(ReadonlyBytes input, simdutf::base64_options options)
+{
+    if (input.is_empty())
+        return {};
+
+    return Utf16String::create_uninitialized_ascii(
+        simdutf::base64_length_from_binary(input.size(), options),
+        [&](Bytes buffer) {
+            simdutf::binary_to_base64(
+                reinterpret_cast<char const*>(input.data()),
+                input.size(),
+                reinterpret_cast<char*>(buffer.data()),
+                options);
+        });
+}
+
 ErrorOr<ByteBuffer> decode_base64(StringView input, LastChunkHandling last_chunk_handling)
 {
     return decode_base64_impl(input, last_chunk_handling, simdutf::base64_default);
@@ -184,6 +200,24 @@ ErrorOr<String> encode_base64url(ReadonlyBytes input, OmitPadding omit_padding)
         : simdutf::base64_url_with_padding;
 
     return encode_base64_impl(input, options);
+}
+
+ErrorOr<Utf16String> encode_base64_to_utf16(ReadonlyBytes input, OmitPadding omit_padding)
+{
+    auto options = omit_padding == OmitPadding::Yes
+        ? simdutf::base64_default_no_padding
+        : simdutf::base64_default;
+
+    return encode_base64_to_utf16_impl(input, options);
+}
+
+ErrorOr<Utf16String> encode_base64url_to_utf16(ReadonlyBytes input, OmitPadding omit_padding)
+{
+    auto options = omit_padding == OmitPadding::Yes
+        ? simdutf::base64_url
+        : simdutf::base64_url_with_padding;
+
+    return encode_base64_to_utf16_impl(input, options);
 }
 
 }

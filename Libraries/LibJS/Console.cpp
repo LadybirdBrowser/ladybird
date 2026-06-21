@@ -52,7 +52,7 @@ ThrowCompletionOr<Value> Console::assert_()
         return js_undefined();
 
     // 2. Let message be a string without any formatting specifiers indicating generically an assertion failure (such as "Assertion failed").
-    auto message = PrimitiveString::create(vm, "Assertion failed"_string);
+    auto message = PrimitiveString::create(vm, "Assertion failed"_utf16_fly_string);
 
     // NOTE: Assemble `data` from the function arguments.
     GC::RootVector<Value> data;
@@ -362,7 +362,7 @@ ThrowCompletionOr<Value> Console::trace()
         Console::TraceFrame frame;
 
         auto function_name = (context && context->function) ? context->function->name_for_call_stack() : ""_utf16;
-        frame.function_name = function_name.is_empty() ? "<anonymous>"_string : function_name.to_utf8();
+        frame.function_name = function_name.is_empty() ? "<anonymous>"_utf16 : function_name;
 
         if (element.source_range.has_value()) {
             auto const& source_range = *element.source_range;
@@ -963,19 +963,17 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
 
 ThrowCompletionOr<Utf16String> ConsoleClient::generically_format_values(GC::RootVector<Value> const& values)
 {
-    AllocatingMemoryStream stream;
     auto& vm = m_console->realm().vm();
-    PrintContext ctx { vm, stream, true };
+    Utf16StringBuilder builder;
+    PrintContext ctx { .vm = vm, .builder = &builder, .strip_ansi = true };
     bool first = true;
     for (auto const& value : values) {
         if (!first)
-            TRY_OR_THROW_OOM(vm, stream.write_until_depleted(" "sv.bytes()));
+            builder.append_ascii(' ');
         TRY_OR_THROW_OOM(vm, JS::print(value, ctx));
         first = false;
     }
-    // FIXME: Is it possible we could end up serializing objects to invalid UTF-8?
-    auto output = TRY_OR_THROW_OOM(vm, String::from_stream(stream, stream.used_buffer_size()));
-    return Utf16String::from_utf8(output);
+    return builder.to_string();
 }
 
 }

@@ -45,17 +45,17 @@ SegmenterGranularity segmenter_granularity_from_string(Utf16View segmenter_granu
     VERIFY_NOT_REACHED();
 }
 
-StringView segmenter_granularity_to_string(SegmenterGranularity segmenter_granularity)
+Utf16String segmenter_granularity_to_string(SegmenterGranularity segmenter_granularity)
 {
     switch (segmenter_granularity) {
     case SegmenterGranularity::Grapheme:
-        return "grapheme"sv;
+        return "grapheme"_utf16;
     case SegmenterGranularity::Line:
-        return "line"sv;
+        return "line"_utf16;
     case SegmenterGranularity::Sentence:
-        return "sentence"sv;
+        return "sentence"_utf16;
     case SegmenterGranularity::Word:
-        return "word"sv;
+        return "word"_utf16;
     }
     VERIFY_NOT_REACHED();
 }
@@ -688,7 +688,7 @@ private:
 
 NonnullOwnPtr<Segmenter> Segmenter::create(SegmenterGranularity segmenter_granularity)
 {
-    return Segmenter::create(default_locale(), segmenter_granularity);
+    return Segmenter::create(default_locale().bytes(), segmenter_granularity);
 }
 
 NonnullOwnPtr<Segmenter> Segmenter::create(StringView locale, SegmenterGranularity segmenter_granularity)

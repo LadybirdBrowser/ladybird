@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/ISORecords.h>
 

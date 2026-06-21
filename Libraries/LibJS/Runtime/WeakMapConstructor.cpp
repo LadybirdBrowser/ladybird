@@ -70,7 +70,7 @@ ThrowCompletionOr<GC::Ref<Object>> WeakMapConstructor::construct(FunctionObject&
             return {};
         }
 
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, ByteString::formatted("Iterator value {}", iterator_value));
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, Utf16String::formatted("Iterator value {}", iterator_value));
     }));
 
     return map;

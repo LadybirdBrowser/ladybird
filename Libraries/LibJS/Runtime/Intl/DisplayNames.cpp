@@ -19,7 +19,7 @@ DisplayNames::DisplayNames(Object& prototype)
 }
 
 // 12.2.3 Internal slots, https://tc39.es/ecma402/#sec-Intl.DisplayNames-internal-slots
-ReadonlySpan<StringView> DisplayNames::relevant_extension_keys() const
+ReadonlySpan<Utf16View> DisplayNames::relevant_extension_keys() const
 {
     // The value of the [[RelevantExtensionKeys]] internal slot is « ».
     return {};
@@ -50,21 +50,21 @@ void DisplayNames::set_type(Utf16View type)
         VERIFY_NOT_REACHED();
 }
 
-StringView DisplayNames::type_string() const
+Utf16String DisplayNames::type_string() const
 {
     switch (m_type) {
     case Type::Language:
-        return "language"sv;
+        return "language"_utf16;
     case Type::Region:
-        return "region"sv;
+        return "region"_utf16;
     case Type::Script:
-        return "script"sv;
+        return "script"_utf16;
     case Type::Currency:
-        return "currency"sv;
+        return "currency"_utf16;
     case Type::Calendar:
-        return "calendar"sv;
+        return "calendar"_utf16;
     case Type::DateTimeField:
-        return "dateTimeField"sv;
+        return "dateTimeField"_utf16;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -80,13 +80,13 @@ void DisplayNames::set_fallback(Utf16View fallback)
         VERIFY_NOT_REACHED();
 }
 
-StringView DisplayNames::fallback_string() const
+Utf16String DisplayNames::fallback_string() const
 {
     switch (m_fallback) {
     case Fallback::None:
-        return "none"sv;
+        return "none"_utf16;
     case Fallback::Code:
-        return "code"sv;
+        return "code"_utf16;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -97,22 +97,17 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
 {
     // 1. If type is "language", then
     if (type == DisplayNames::Type::Language) {
-        if (!code.is_ascii())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "language"sv);
-
-        auto code_string = MUST(code.to_utf8());
-
         // a. If code does not match the unicode_language_id production, throw a RangeError exception.
-        if (!Unicode::parse_unicode_language_id(code_string).has_value())
+        if (!Unicode::parse_unicode_language_id(code).has_value())
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "language"sv);
 
         // b. If IsWellFormedLanguageTag(code) is false, throw a RangeError exception.
-        if (!is_well_formed_language_tag(code_string))
+        if (!is_well_formed_language_tag(code))
             return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, code);
 
         // c. Return ! CanonicalizeUnicodeLocaleId(code).
-        auto canonicalized_tag = canonicalize_unicode_locale_id(code_string);
-        return PrimitiveString::create(vm, move(canonicalized_tag));
+        auto canonicalized_tag = canonicalize_unicode_locale_id(code);
+        return PrimitiveString::create(vm, canonicalized_tag);
     }
 
     // 2. If type is "region", then

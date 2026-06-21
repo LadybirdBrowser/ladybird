@@ -248,7 +248,7 @@ void AtomicsObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.xor_, xor_, 3, attr);
 
     // 25.4.17 Atomics [ @@toStringTag ], https://tc39.es/ecma262/#sec-atomics-@@tostringtag
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Atomics"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Atomics"_utf16_fly_string), Attribute::Configurable);
 }
 
 // 25.4.4 Atomics.add ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.add

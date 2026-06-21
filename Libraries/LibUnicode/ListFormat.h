@@ -20,7 +20,7 @@ enum class ListFormatType {
 };
 ListFormatType list_format_type_from_string(StringView);
 ListFormatType list_format_type_from_string(Utf16View);
-StringView list_format_type_to_string(ListFormatType);
+Utf16String list_format_type_to_string(ListFormatType);
 
 class ListFormat {
 public:
@@ -28,7 +28,7 @@ public:
     virtual ~ListFormat() = default;
 
     struct Partition {
-        StringView type;
+        Utf16String type;
         Utf16String value;
     };
 

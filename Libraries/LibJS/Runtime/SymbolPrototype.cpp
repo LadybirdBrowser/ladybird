@@ -36,7 +36,7 @@ void SymbolPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.well_known_symbol_to_primitive(), symbol_to_primitive, 1, Attribute::Configurable);
 
     // 20.4.3.6 Symbol.prototype [ @@toStringTag ], https://tc39.es/ecma262/#sec-symbol.prototype-@@tostringtag
-    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Symbol"_string), Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Symbol"_utf16_fly_string), Attribute::Configurable);
 }
 
 // thisSymbolValue ( value ), https://tc39.es/ecma262/#thissymbolvalue

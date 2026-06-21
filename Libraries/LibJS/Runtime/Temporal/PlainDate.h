@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
@@ -26,25 +27,25 @@ public:
     virtual ~PlainDate() override = default;
 
     [[nodiscard]] ISODate iso_date() const { return m_iso_date; }
-    [[nodiscard]] String const& calendar() const { return m_calendar; }
+    [[nodiscard]] Utf16String const& calendar() const { return m_calendar; }
 
 private:
-    PlainDate(ISODate, String calendar, Object& prototype);
+    PlainDate(ISODate, Utf16String calendar, Object& prototype);
 
-    ISODate m_iso_date; // [[ISODate]]
-    String m_calendar;  // [[Calendar]]
+    ISODate m_iso_date;     // [[ISODate]]
+    Utf16String m_calendar; // [[Calendar]]
 };
 
 ISODate create_iso_date_record(double year, double month, double day);
 ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value options = js_undefined());
-ThrowCompletionOr<GC::Ref<PlainDate>> create_temporal_date(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
-bool compare_surpasses(i8 sign, i32 year, Variant<u8, String> const& month_or_code, u8 day, CalendarDate const& target);
+ThrowCompletionOr<GC::Ref<PlainDate>> create_temporal_date(VM&, ISODate, Utf16String calendar, GC::Ptr<FunctionObject> new_target = {});
+bool compare_surpasses(i8 sign, i32 year, Variant<u8, Utf16String> const& month_or_code, u8 day, CalendarDate const& target);
 bool iso_date_surpasses(VM&, i8 sign, ISODate base_date, ISODate iso_date2, double years, double months, double weeks, double days);
 ThrowCompletionOr<ISODate> regulate_iso_date(VM& vm, double year, double month, double day, Overflow overflow);
 bool is_valid_iso_date(double year, double month, double day);
 ISODate add_days_to_iso_date(ISODate, double days);
-String pad_iso_year(i32 year);
-String temporal_date_to_string(PlainDate const&, ShowCalendar);
+Utf16String pad_iso_year(i32 year);
+Utf16String temporal_date_to_string(PlainDate const&, ShowCalendar);
 bool iso_date_within_limits(ISODate);
 i8 compare_iso_date(ISODate, ISODate);
 ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date(VM&, DurationOperation, PlainDate const&, Value other, Value options);

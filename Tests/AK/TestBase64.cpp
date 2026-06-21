@@ -122,6 +122,10 @@ TEST_CASE(test_encode)
     auto encode_equal = [&](StringView input, StringView expected) {
         auto encoded = MUST(encode_base64(input.bytes()));
         EXPECT_EQ(encoded, expected);
+
+        auto encoded_utf16 = MUST(encode_base64_to_utf16(input.bytes()));
+        EXPECT(encoded_utf16.has_ascii_storage());
+        EXPECT_EQ(encoded_utf16.ascii_view(), expected);
     };
 
     encode_equal(""sv, ""sv);
@@ -138,6 +142,10 @@ TEST_CASE(test_encode_omit_padding)
     auto encode_equal = [&](StringView input, StringView expected) {
         auto encoded = MUST(encode_base64(input.bytes(), AK::OmitPadding::Yes));
         EXPECT_EQ(encoded, expected);
+
+        auto encoded_utf16 = MUST(encode_base64_to_utf16(input.bytes(), AK::OmitPadding::Yes));
+        EXPECT(encoded_utf16.has_ascii_storage());
+        EXPECT_EQ(encoded_utf16.ascii_view(), expected);
     };
 
     encode_equal(""sv, ""sv);
@@ -175,6 +183,10 @@ TEST_CASE(test_urlencode)
     auto encode_equal = [&](StringView input, StringView expected) {
         auto encoded = MUST(encode_base64url(input.bytes()));
         EXPECT_EQ(encoded, expected);
+
+        auto encoded_utf16 = MUST(encode_base64url_to_utf16(input.bytes()));
+        EXPECT(encoded_utf16.has_ascii_storage());
+        EXPECT_EQ(encoded_utf16.ascii_view(), expected);
     };
 
     encode_equal(""sv, ""sv);
@@ -196,6 +208,10 @@ TEST_CASE(test_urlencode_omit_padding)
     auto encode_equal = [&](StringView input, StringView expected) {
         auto encoded = MUST(encode_base64url(input.bytes(), AK::OmitPadding::Yes));
         EXPECT_EQ(encoded, expected);
+
+        auto encoded_utf16 = MUST(encode_base64url_to_utf16(input.bytes(), AK::OmitPadding::Yes));
+        EXPECT(encoded_utf16.has_ascii_storage());
+        EXPECT_EQ(encoded_utf16.ascii_view(), expected);
     };
 
     encode_equal(""sv, ""sv);

@@ -61,7 +61,7 @@ Optional<JS::Value> DOMStringList::item_value(size_t index) const
     if (index >= m_list.size())
         return {};
 
-    return JS::PrimitiveString::create(vm(), m_list.at(index));
+    return JS::PrimitiveString::create(vm(), Utf16String::from_utf8(m_list.at(index)));
 }
 
 }

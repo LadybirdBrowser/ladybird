@@ -219,7 +219,7 @@ GC::Ref<WebIDL::Promise> CacheStorage::keys()
 
         // 2. Resolve promise with cacheKeys.
         WebIDL::resolve_promise(realm, promise, JS::Array::create_from<String>(realm, cache_keys, [&](String const& cache_key) {
-            return JS::PrimitiveString::create(realm.vm(), cache_key);
+            return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(cache_key));
         }));
     }));
 

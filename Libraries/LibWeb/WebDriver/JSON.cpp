@@ -105,7 +105,7 @@ static JS::Value json_value_to_js_value(JS::VM& vm, JsonValue const& value)
     if (auto double_value = value.get_double_with_precision_loss(); double_value.has_value())
         return JS::Value(double_value.value());
     if (value.is_string())
-        return JS::PrimitiveString::create(vm, value.as_string());
+        return JS::PrimitiveString::create(vm, Utf16String::from_utf8(value.as_string()));
     if (value.is_bool())
         return JS::Value(value.as_bool());
     VERIFY_NOT_REACHED();
