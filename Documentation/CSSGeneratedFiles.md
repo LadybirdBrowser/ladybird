@@ -297,7 +297,7 @@ The following categories are supported:
 - `#inline-typesetting-properties`: Properties defined in [CSS Text](https://drafts.csswg.org/css-text-4/)
 - `#margin-properties`: `margin` and its longhands
 - `#padding-properties`: `padding` and its longhands
-- `#text-decoration-properties`: `text-decoration` and its longhands
+- `#text-decoration-properties`: Properties defined in [CSS Text Decoration](https://drafts.csswg.org/css-text-decor-4/)
 
 ### `implementation`
 
