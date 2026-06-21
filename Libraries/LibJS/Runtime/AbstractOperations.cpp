@@ -52,6 +52,15 @@ size_t max_js_string_length()
     return NumericLimits<u32>::max();
 }
 
+ThrowCompletionOr<size_t> checked_js_string_length_sum(VM& vm, size_t addend_a, size_t addend_b, ErrorType const& error_type)
+{
+    Checked<size_t> sum = addend_a;
+    sum += addend_b;
+    if (sum.has_overflow() || sum.value() > max_js_string_length())
+        return vm.throw_completion<RangeError>(error_type);
+    return sum.value();
+}
+
 ThrowCompletionOr<size_t> checked_js_string_length_product(VM& vm, size_t factor_a, size_t factor_b, ErrorType const& error_type)
 {
     Checked<size_t> product = factor_a;

@@ -7,7 +7,6 @@
 
 #include <AK/GenericShorthands.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/StringBuilder.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>

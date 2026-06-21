@@ -14,7 +14,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <AK/Utf16String.h>
-#include <AK/Utf8View.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -75,9 +75,50 @@ static ALWAYS_INLINE bool both_bigint(Value const& lhs, Value const& rhs)
     return lhs.is_bigint() && rhs.is_bigint();
 }
 
+static void append_ascii_for_number(StringBuilder& builder, char code_unit)
+{
+    builder.append(code_unit);
+}
+
+static void append_ascii_for_number(Utf16StringBuilder& builder, char code_unit)
+{
+    builder.append_ascii(code_unit);
+}
+
+static void append_ascii_for_number(StringBuilder& builder, StringView string)
+{
+    builder.append(string);
+}
+
+static void append_ascii_for_number(Utf16StringBuilder& builder, StringView string)
+{
+    builder.append_ascii(string);
+}
+
+static void append_ascii_for_number(StringBuilder& builder, char const* string, size_t length)
+{
+    builder.append(string, length);
+}
+
+static void append_ascii_for_number(Utf16StringBuilder& builder, char const* string, size_t length)
+{
+    builder.append_ascii(StringView { string, length });
+}
+
+static void append_repeated_ascii_for_number(StringBuilder& builder, char code_unit, size_t count)
+{
+    builder.append_repeated(code_unit, count);
+}
+
+static void append_repeated_ascii_for_number(Utf16StringBuilder& builder, char code_unit, size_t count)
+{
+    builder.append_repeated_ascii(code_unit, count);
+}
+
 // 6.1.6.1.20 Number::toString ( x ), https://tc39.es/ecma262/#sec-numeric-types-number-tostring
 // Implementation for radix = 10
-void number_to_string(StringBuilder& builder, double d, NumberToStringMode mode)
+template<typename Builder>
+static void number_to_string_impl(Builder& builder, double d, NumberToStringMode mode)
 {
     auto convert_to_decimal_digits_array = [](auto x, auto& digits, auto& length) {
         for (; x; x /= 10)
@@ -88,24 +129,24 @@ void number_to_string(StringBuilder& builder, double d, NumberToStringMode mode)
 
     // 1. If x is NaN, return "NaN".
     if (isnan(d)) {
-        builder.append("NaN"sv);
+        append_ascii_for_number(builder, "NaN"sv);
         return;
     }
 
     // 2. If x is +0𝔽 or -0𝔽, return "0".
     if (d == +0.0 || d == -0.0) {
-        builder.append("0"sv);
+        append_ascii_for_number(builder, "0"sv);
         return;
     }
 
     // 4. If x is +∞𝔽, return "Infinity".
     if (isinf(d)) {
         if (d > 0) {
-            builder.append("Infinity"sv);
+            append_ascii_for_number(builder, "Infinity"sv);
             return;
         }
 
-        builder.append("-Infinity"sv);
+        append_ascii_for_number(builder, "-Infinity"sv);
         return;
     }
 
@@ -124,7 +165,7 @@ void number_to_string(StringBuilder& builder, double d, NumberToStringMode mode)
 
     // 3. If x < -0𝔽, return the string-concatenation of "-" and Number::toString(-x, radix).
     if (sign)
-        builder.append('-');
+        append_ascii_for_number(builder, '-');
 
     // Non-standard: Intl needs number-to-string conversions for extremely large numbers without any
     // exponential formatting, as it will handle such formatting itself in a locale-aware way.
@@ -136,31 +177,31 @@ void number_to_string(StringBuilder& builder, double d, NumberToStringMode mode)
         if (n >= k) {
             // i. Return the string-concatenation of:
             // the code units of the k digits of the representation of s using radix radix
-            builder.append(mantissa_digits.data(), k);
+            append_ascii_for_number(builder, mantissa_digits.data(), k);
             // n - k occurrences of the code unit 0x0030 (DIGIT ZERO)
-            builder.append_repeated('0', n - k);
+            append_repeated_ascii_for_number(builder, '0', n - k);
             // b. Else if n > 0, then
         } else if (n > 0) {
             // i. Return the string-concatenation of:
             // the code units of the most significant n digits of the representation of s using radix radix
-            builder.append(mantissa_digits.data(), n);
+            append_ascii_for_number(builder, mantissa_digits.data(), n);
             // the code unit 0x002E (FULL STOP)
-            builder.append('.');
+            append_ascii_for_number(builder, '.');
             // the code units of the remaining k - n digits of the representation of s using radix radix
-            builder.append(mantissa_digits.data() + n, k - n);
+            append_ascii_for_number(builder, mantissa_digits.data() + n, k - n);
             // c. Else,
         } else {
             // i. Assert: n ≤ 0.
             VERIFY(n <= 0);
             // ii. Return the string-concatenation of:
             // the code unit 0x0030 (DIGIT ZERO)
-            builder.append('0');
+            append_ascii_for_number(builder, '0');
             // the code unit 0x002E (FULL STOP)
-            builder.append('.');
+            append_ascii_for_number(builder, '.');
             // -n occurrences of the code unit 0x0030 (DIGIT ZERO)
-            builder.append_repeated('0', -n);
+            append_repeated_ascii_for_number(builder, '0', -n);
             // the code units of the k digits of the representation of s using radix radix
-            builder.append(mantissa_digits.data(), k);
+            append_ascii_for_number(builder, mantissa_digits.data(), k);
         }
 
         return;
@@ -182,30 +223,35 @@ void number_to_string(StringBuilder& builder, double d, NumberToStringMode mode)
     if (k == 1) {
         // a. Return the string-concatenation of:
         // the code unit of the single digit of s
-        builder.append(mantissa_digits[0]);
+        append_ascii_for_number(builder, mantissa_digits[0]);
         // the code unit 0x0065 (LATIN SMALL LETTER E)
-        builder.append('e');
+        append_ascii_for_number(builder, 'e');
         // exponentSign
-        builder.append(exponent_sign);
+        append_ascii_for_number(builder, exponent_sign);
         // the code units of the decimal representation of abs(n - 1)
-        builder.append(exponent_digits.data(), exponent_length);
+        append_ascii_for_number(builder, exponent_digits.data(), exponent_length);
 
         return;
     }
 
     // 12. Return the string-concatenation of:
     // the code unit of the most significant digit of the decimal representation of s
-    builder.append(mantissa_digits[0]);
+    append_ascii_for_number(builder, mantissa_digits[0]);
     // the code unit 0x002E (FULL STOP)
-    builder.append('.');
+    append_ascii_for_number(builder, '.');
     // the code units of the remaining k - 1 digits of the decimal representation of s
-    builder.append(mantissa_digits.data() + 1, k - 1);
+    append_ascii_for_number(builder, mantissa_digits.data() + 1, k - 1);
     // the code unit 0x0065 (LATIN SMALL LETTER E)
-    builder.append('e');
+    append_ascii_for_number(builder, 'e');
     // exponentSign
-    builder.append(exponent_sign);
+    append_ascii_for_number(builder, exponent_sign);
     // the code units of the decimal representation of abs(n - 1)
-    builder.append(exponent_digits.data(), exponent_length);
+    append_ascii_for_number(builder, exponent_digits.data(), exponent_length);
+}
+
+void number_to_string(StringBuilder& builder, double d, NumberToStringMode mode)
+{
+    number_to_string_impl(builder, d, mode);
 }
 
 String number_to_string(double d, NumberToStringMode mode)
@@ -217,9 +263,9 @@ String number_to_string(double d, NumberToStringMode mode)
 
 Utf16String number_to_utf16_string(double d, NumberToStringMode mode)
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16);
-    number_to_string(builder, d, mode);
-    return builder.to_utf16_string();
+    Utf16StringBuilder builder;
+    number_to_string_impl(builder, d, mode);
+    return builder.to_string();
 }
 
 ByteString number_to_byte_string(double d, NumberToStringMode mode)

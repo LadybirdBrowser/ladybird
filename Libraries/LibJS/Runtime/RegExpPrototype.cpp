@@ -755,6 +755,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                         && &realm == &typed_regexp->realm();
 
                     Utf16StringBuilder accumulated_result;
+                    size_t accumulated_result_length = 0;
                     size_t next_source_position = 0;
                     bool had_match = false;
                     size_t last_match_start = 0;
@@ -775,7 +776,10 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                             for (int i = 0; i < num_matches; ++i) {
                                 auto [match_start, match_end] = compiled_regex->find_all_match(i);
                                 if (static_cast<size_t>(match_start) >= next_source_position) {
-                                    accumulated_result.append(utf16_view.substring_view(next_source_position, match_start - next_source_position));
+                                    auto substring = utf16_view.substring_view(next_source_position, match_start - next_source_position);
+                                    accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, substring.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
+                                    accumulated_result.append(substring);
+                                    accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, replace_string.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
                                     accumulated_result.append(replace_string);
                                     next_source_position = match_end;
                                 }
@@ -826,7 +830,10 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
 
                             // Append the part of the string before this match + the replacement.
                             if (match_start >= next_source_position) {
-                                accumulated_result.append(utf16_view.substring_view(next_source_position, match_start - next_source_position));
+                                auto substring = utf16_view.substring_view(next_source_position, match_start - next_source_position);
+                                accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, substring.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
+                                accumulated_result.append(substring);
+                                accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, replace_string.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
                                 accumulated_result.append(replace_string);
                                 next_source_position = match_start + match_length;
                             }
@@ -874,8 +881,11 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                         return string;
 
                     // Append the trailing portion of the string.
-                    if (next_source_position < length_s)
-                        accumulated_result.append(utf16_view.substring_view(next_source_position));
+                    if (next_source_position < length_s) {
+                        auto substring = utf16_view.substring_view(next_source_position);
+                        accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, substring.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
+                        accumulated_result.append(substring);
+                    }
 
                     return PrimitiveString::create(vm, accumulated_result.to_string());
                 }
@@ -948,6 +958,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
 
     // 13. Let accumulatedResult be the empty String.
     Utf16StringBuilder accumulated_result;
+    size_t accumulated_result_length = 0;
 
     // 14. Let nextSourcePosition be 0.
     size_t next_source_position = 0;
@@ -1042,7 +1053,9 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
 
             // ii. Set accumulatedResult to the string-concatenation of accumulatedResult, the substring of S from nextSourcePosition to position, and replacement.
             auto substring = string->utf16_string_view().substring_view(next_source_position, position - next_source_position);
+            accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, substring.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
             accumulated_result.append(substring);
+            accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, replacement.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
             accumulated_result.append(replacement);
 
             // iii. Set nextSourcePosition to position + matchLength.
@@ -1056,6 +1069,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
 
     // 17. Return the string-concatenation of accumulatedResult and the substring of S from nextSourcePosition.
     auto substring = string->utf16_string_view().substring_view(next_source_position);
+    accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, substring.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
     accumulated_result.append(substring);
 
     return PrimitiveString::create(vm, accumulated_result.to_string());

@@ -9,6 +9,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -487,7 +488,7 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::parse)
 // Returns {} on malformed escape sequences.
 static Optional<Utf16String> unescape_json_string(StringView raw)
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16, raw.length());
+    Utf16StringBuilder builder(raw.length());
 
     GenericLexer lexer { raw };
 
@@ -586,7 +587,7 @@ static Optional<Utf16String> unescape_json_string(StringView raw)
         }
     }
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 template<typename T>

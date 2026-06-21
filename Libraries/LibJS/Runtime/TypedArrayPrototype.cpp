@@ -7,6 +7,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayIterator.h>
@@ -1043,42 +1044,46 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::join)
     // 3. Let len be TypedArrayLength(taRecord).
     auto length = typed_array_length(typed_array_record);
 
-    String sep {};
+    Utf16String sep {};
 
     // 4. If separator is undefined, let sep be ",".
     if (separator.is_undefined())
-        sep = String::from_code_point(',');
+        sep = ","_utf16;
     // 5. Else, let sep be ? ToString(separator).
     else
-        sep = TRY(separator.to_string(vm));
+        sep = TRY(separator.to_utf16_string(vm));
 
     // 6. Let R be the empty String.
-    StringBuilder builder;
+    Utf16StringBuilder builder;
+    size_t result_length = 0;
 
     // 7. Let k be 0.
     // 8. Repeat, while k < len,
     for (size_t k = 0; k < length; ++k) {
         // a. If k > 0, set R to the string-concatenation of R and sep.
-        if (k > 0)
+        if (k > 0) {
+            result_length = TRY(checked_js_string_length_sum(vm, result_length, sep.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
             builder.append(sep);
+        }
 
         // b. Let element be ! Get(O, ! ToString(𝔽(k))).
         auto element = MUST(typed_array->get(k));
 
-        String next {};
+        Utf16String next {};
 
         // c. If element is undefined, let next be the empty String; otherwise, let next be ! ToString(element).
         if (!element.is_undefined())
-            next = MUST(element.to_string(vm));
+            next = MUST(element.to_utf16_string(vm));
 
         // d. Set R to the string-concatenation of R and next.
+        result_length = TRY(checked_js_string_length_sum(vm, result_length, next.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
         builder.append(next);
 
         // e. Set k to k + 1.
     }
 
     // 9. Return R.
-    return PrimitiveString::create(vm, MUST(builder.to_string()));
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 // 23.2.3.19 %TypedArray%.prototype.keys ( ), https://tc39.es/ecma262/#sec-%typedarray%.prototype.keys
@@ -2014,7 +2019,8 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_locale_string)
     constexpr auto separator = ',';
 
     // 4. Let R be the empty String.
-    StringBuilder builder;
+    Utf16StringBuilder builder;
+    size_t result_length = 0;
 
     // 5. Let k be 0.
     // 6. Repeat, while k < len,
@@ -2022,7 +2028,8 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_locale_string)
         // a. If k > 0, then
         if (k > 0) {
             // i. Set R to the string-concatenation of R and separator.
-            builder.append(separator);
+            result_length = TRY(checked_js_string_length_sum(vm, result_length, 1, ErrorType::StringSizeMustNotOverflow));
+            builder.append_ascii(separator);
         }
 
         // b. Let nextElement be ? Get(array, ! ToString(k)).
@@ -2032,9 +2039,10 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_locale_string)
         if (!next_element.is_nullish()) {
             // i. Let S be ? ToString(? Invoke(nextElement, "toLocaleString", « locales, options »)).
             auto locale_string_value = TRY(next_element.invoke(vm, vm.names.toLocaleString, locales, options));
-            auto locale_string = TRY(locale_string_value.to_string(vm));
+            auto locale_string = TRY(locale_string_value.to_utf16_string(vm));
 
             // ii. Set R to the string-concatenation of R and S.
+            result_length = TRY(checked_js_string_length_sum(vm, result_length, locale_string.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
             builder.append(locale_string);
         }
 
@@ -2042,7 +2050,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_locale_string)
     }
 
     // 7. Return R.
-    return PrimitiveString::create(vm, builder.to_string_without_validation());
+    return PrimitiveString::create(vm, builder.to_string());
 }
 
 // 23.2.3.32 %TypedArray%.prototype.toReversed ( ), https://tc39.es/ecma262/#sec-%typedarray%.prototype.toreversed

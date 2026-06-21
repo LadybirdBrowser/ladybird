@@ -5,7 +5,6 @@
  */
 
 #include <AK/Function.h>
-#include <AK/StringBuilder.h>
 #include <AK/TypeCasts.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
