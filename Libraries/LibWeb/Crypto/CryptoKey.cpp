@@ -14,6 +14,7 @@
 #include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/Crypto/KeyAlgorithms.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Crypto {
 
@@ -44,7 +45,7 @@ enum class KeyAlgorithmTag : u8 {
 
 ::Crypto::UnsignedBigInteger big_integer_from_api_big_integer(JS::Uint8Array const& big_integer)
 {
-    auto buffer = big_integer.viewed_array_buffer()->bytes().slice(big_integer.byte_offset(), big_integer.byte_length().length());
+    auto buffer = MUST(WebIDL::get_buffer_source_copy(big_integer));
     if (!buffer.is_empty())
         return ::Crypto::UnsignedBigInteger::import_data(buffer);
     return ::Crypto::UnsignedBigInteger(0);
