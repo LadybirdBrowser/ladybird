@@ -3162,7 +3162,7 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
     // NOTE: Any nodes which rely on dynamic state should have been simplified away in absolutized so we can pass a nullptr here
     auto simplified_tree = simplify_a_calculation_tree(m_calculation, m_context, resolution_context);
 
-    if (!is<NumericCalculationNode>(*simplified_tree))
+    if (!is<NumericCalculationNode>(*simplified_tree) || (simplified_tree->contains_percentage() && m_context.percentages_resolve_as.has_value()))
         return {};
 
     auto value = try_get_value_with_canonical_unit(simplified_tree, m_context, resolution_context);
