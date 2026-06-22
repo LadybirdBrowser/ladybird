@@ -1,33 +1,30 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest((done) => {
-        let work = new Worker("worker.js");
-        let channel = new MessageChannel();
+    asyncTest(async (done) => {
+        const work = new Worker("worker.js");
+        const channel = new MessageChannel();
 
-        function finishTest() {
-            println("DONE");
-            work.onmessage = null;
-            work.terminate();
-            channel.port2.onmessage = null;
-            done();
+        function nextMessage(target, label) {
+            return new Promise((resolve) => {
+                target.addEventListener("message", function handler(event) {
+                    target.removeEventListener("message", handler);
+                    println(label + ": " + JSON.stringify(event.data));
+                    resolve(event.data);
+                });
+            });
         }
-        let count = 0;
-        work.onmessage = (evt) => {
-            println("Got message from worker: " + JSON.stringify(evt.data));
-            count++;
-            if (count === 3) {
-                finishTest();
-            }
-        };
-        channel.port2.onmessage = (evt) => {
-            println("Got message from port: " + JSON.stringify(evt.data));
-            channel.port2.postMessage("Hello from port2");
-            count++;
-            if (count === 3) {
-                finishTest();
-            }
-        };
-        work.postMessage({ port: channel.port1 }, { transfer : [channel.port1]});
+
+        work.postMessage({ port: channel.port1 }, { transfer: [channel.port1] });
+
+        await nextMessage(work, "Got message from worker");
+        channel.port2.start();
+        await nextMessage(channel.port2, "Got message from port");
+        channel.port2.postMessage("Hello from port2");
+        await nextMessage(channel.port2, "Got message from port");
+
+        println("DONE");
+        work.terminate();
+        done();
     });
 </script>
