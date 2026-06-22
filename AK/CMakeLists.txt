@@ -31,6 +31,7 @@ set(SOURCES
     Time.cpp
     Utf16FlyString.cpp
     Utf16String.cpp
+    Utf16StringBuilder.cpp
     Utf16StringData.cpp
     Utf16View.cpp
     Utf8View.cpp
