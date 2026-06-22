@@ -467,8 +467,10 @@ Request::Request(
 
 Request::~Request()
 {
-    if (!m_response_buffer.is_eof())
-        dbgln("Warning: Request destroyed with buffered data (it's likely that the client disappeared or the request was cancelled)");
+    if constexpr (REQUESTSERVER_DEBUG) {
+        if (!m_response_buffer.is_eof())
+            dbgln("Warning: Request destroyed with buffered data (it's likely that the client disappeared or the request was cancelled)");
+    }
 
     if (m_curl_easy_handle) {
         auto result = curl_multi_remove_handle(m_curl_multi_handle, m_curl_easy_handle);
