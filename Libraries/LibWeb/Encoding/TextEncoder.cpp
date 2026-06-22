@@ -14,7 +14,7 @@ namespace Web::Encoding {
 
 GC_DEFINE_ALLOCATOR(TextEncoder);
 
-WebIDL::ExceptionOr<GC::Ref<TextEncoder>> TextEncoder::construct_impl(JS::Realm& realm)
+GC::Ref<TextEncoder> TextEncoder::construct_impl(JS::Realm& realm)
 {
     return realm.create<TextEncoder>(realm);
 }
