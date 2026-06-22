@@ -39,14 +39,14 @@ void SVGElement::initialize(JS::Realm& realm)
 }
 
 struct NamedPropertyID {
-    NamedPropertyID(CSS::PropertyID property_id, Utf16FlyString name, Vector<Utf16FlyString> supported_elements = {})
+    NamedPropertyID(CSS::PropertyID property_id, Utf16FlyString name, std::initializer_list<Utf16FlyString> supported_elements = {})
         : id(property_id)
         , name(move(name))
-        , supported_elements(move(supported_elements))
+        , supported_elements(supported_elements)
     {
     }
-    NamedPropertyID(CSS::PropertyID property_id, Vector<Utf16FlyString> supported_elements = {})
-        : NamedPropertyID(property_id, CSS::string_from_property_id(property_id).to_utf16_string(), move(supported_elements))
+    NamedPropertyID(CSS::PropertyID property_id, std::initializer_list<Utf16FlyString> supported_elements = {})
+        : NamedPropertyID(property_id, CSS::string_from_property_id(property_id).to_utf16_string(), supported_elements)
     {
     }
 

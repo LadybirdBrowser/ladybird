@@ -21,31 +21,6 @@ SVGStopElement::SVGStopElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-bool SVGStopElement::is_presentational_hint(Utf16FlyString const& name) const
-{
-    if (Base::is_presentational_hint(name))
-        return true;
-
-    return first_is_one_of(name, SVG::AttributeNames::stopColor, SVG::AttributeNames::stopOpacity);
-}
-
-void SVGStopElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
-{
-    Base::apply_presentational_hints(properties);
-    CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
-        if (name == SVG::AttributeNames::stopColor) {
-            if (auto stop_color = parse_css_value(parsing_context, value, CSS::PropertyID::StopColor)) {
-                properties.append({ .property_id = CSS::PropertyID::StopColor, .value = stop_color.release_nonnull() });
-            }
-        } else if (name == SVG::AttributeNames::stopOpacity) {
-            if (auto stop_opacity = parse_css_value(parsing_context, value, CSS::PropertyID::StopOpacity)) {
-                properties.append({ .property_id = CSS::PropertyID::StopOpacity, .value = stop_opacity.release_nonnull() });
-            }
-        }
-    });
-}
-
 Gfx::Color SVGStopElement::stop_color()
 {
     if (auto computed_values = this->computed_values())

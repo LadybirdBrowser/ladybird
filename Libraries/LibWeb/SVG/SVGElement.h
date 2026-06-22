@@ -35,8 +35,8 @@ public:
     GC::Ref<SVGAnimatedLength> fake_animated_length_fixme() const;
     GC::Ref<SVGAnimatedLength> svg_animated_length_for_property(CSS::PropertyID) const;
 
-    virtual bool is_presentational_hint(Utf16FlyString const&) const override;
-    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
+    virtual bool is_presentational_hint(Utf16FlyString const&) const final override;
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const final override;
 
     void register_resource_box_referencing_element(Badge<Layout::TreeBuilder>, DOM::Element&);
 

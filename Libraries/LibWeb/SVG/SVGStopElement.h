@@ -23,9 +23,6 @@ public:
 
     GC::Ref<SVGAnimatedNumber> offset();
 
-    virtual bool is_presentational_hint(Utf16FlyString const&) const override;
-    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
-
     float stop_offset() { return offset()->base_val(); }
     Gfx::Color stop_color();
     float stop_opacity() const;
