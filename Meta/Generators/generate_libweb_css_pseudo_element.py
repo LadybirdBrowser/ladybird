@@ -137,32 +137,15 @@ PROPERTY_GROUPS = {
     "#inline-typesetting-properties": [
         # https://drafts.csswg.org/css-text-4/#property-index
         # FIXME: hanging-punctuation
-        # FIXME: hyphenate-character
-        # FIXME: hyphenate-limit-chars
-        # FIXME: hyphenate-limit-last
-        # FIXME: hyphenate-limit-lines
-        # FIXME: hyphenate-limit-zone
-        # FIXME: hyphens
         "letter-spacing",
-        # FIXME: line-break
         # FIXME: line-padding
-        "overflow-wrap",
-        "tab-size",
         # FIXME: text-autospace
         "text-justify",
         # FIXME: text-spacing
         # FIXME: text-spacing-trim
         "text-transform",
-        "text-wrap-mode",
-        "white-space",
-        "white-space-collapse",
-        "white-space-trim",
-        "word-break",
         # FIXME: word-space-transform
         "word-spacing",
-        # FIXME: wrap-after
-        # FIXME: wrap-before
-        # FIXME: wrap-inside
     ],
     "#margin-properties": [
         "margin",
