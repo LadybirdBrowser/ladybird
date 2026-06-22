@@ -660,6 +660,7 @@ public:
 
 private:
     friend StringBuilder;
+    friend Utf16StringBuilder;
     friend Detail::Utf16StringBase;
     friend Detail::Utf16StringData;
 

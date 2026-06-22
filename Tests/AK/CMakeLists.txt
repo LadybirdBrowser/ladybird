@@ -74,6 +74,7 @@ set(AK_TEST_SOURCES
     TestUFixedBigInt.cpp
     TestUtf16FlyString.cpp
     TestUtf16String.cpp
+    TestUtf16StringBuilder.cpp
     TestUtf16View.cpp
     TestUtf8View.cpp
     TestVariant.cpp

@@ -7,6 +7,7 @@
 #include <AK/Stream.h>
 #include <AK/StringNumber.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 
 #include <simdutf.h>
 
@@ -89,6 +90,23 @@ Utf16String Utf16String::from_utf16(Utf16View const& utf16_string)
 Utf16String Utf16String::from_string_builder(Badge<StringBuilder>, StringBuilder& builder)
 {
     auto view = builder.utf16_string_view();
+
+    if (view.length_in_code_units() <= Detail::MAX_SHORT_STRING_BYTE_COUNT && view.has_ascii_storage()) {
+        Utf16String string;
+        string.m_value.short_ascii_string = Detail::ShortString::create_with_byte_count(view.length_in_code_units());
+
+        auto result = view.bytes().copy_to(string.m_value.short_ascii_string.storage);
+        VERIFY(result == view.length_in_code_units());
+
+        return string;
+    }
+
+    return Utf16String { Detail::Utf16StringData::from_string_builder(builder) };
+}
+
+Utf16String Utf16String::from_string_builder(Badge<Utf16StringBuilder>, Utf16StringBuilder& builder)
+{
+    auto view = builder.view();
 
     if (view.length_in_code_units() <= Detail::MAX_SHORT_STRING_BYTE_COUNT && view.has_ascii_storage()) {
         Utf16String string;

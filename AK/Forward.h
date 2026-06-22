@@ -57,6 +57,7 @@ class StringView;
 class UnixDateTime;
 class Utf16FlyString;
 class Utf16String;
+class Utf16StringBuilder;
 class Utf16View;
 class Utf8CodePointIterator;
 class Utf8View;
