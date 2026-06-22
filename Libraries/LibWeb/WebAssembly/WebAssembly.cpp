@@ -289,6 +289,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
 
     // 2. Let imports be « ».
     HashMap<Wasm::Linker::Name, Wasm::ExternValue> resolved_imports;
+    size_t imported_function_count = 0;
     if (import_object) {
         dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve stuff because import object was specified");
 
@@ -330,7 +331,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     else {
                         // 3.4.3.1. Create a host function from v and functype, and let funcaddr be the result.
                         cache.add_imported_object(function);
-                        auto host_function = create_host_function(vm, function, function_type, ByteString::formatted("func{}", resolved_imports.size()));
+                        auto host_function = create_host_function(vm, function, function_type, ByteString::number(imported_function_count));
                         address = cache.abstract_machine().store().allocate(move(host_function));
                         // FIXME: 3.4.3.2. Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
                         //        'index' doesn't seem to be used anywhere?
@@ -342,6 +343,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     // 3.4.4. Let externfunc be the external value func funcaddr.
                     // 3.4.5. Append externfunc to imports.
                     resolved_imports.set(import_name, Wasm::ExternValue { Wasm::FunctionAddress { *address } });
+                    ++imported_function_count;
                     return {};
                 },
                 // 3.5. If externtype is of the form global mut valtype,
@@ -647,14 +649,20 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
 
 GC_DEFINE_ALLOCATOR(ExportedWasmFunction);
 
-GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, Utf16FlyString name, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address)
+GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, Utf16FlyString name, size_t length, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address)
 {
+    auto& vm = realm.vm();
+
     auto prototype = realm.intrinsics().function_prototype();
-    return realm.create<ExportedWasmFunction>(
+    auto function = realm.create<ExportedWasmFunction>(
         move(name),
         move(behavior),
         exported_address,
         prototype);
+    function->define_direct_property(vm.names.length, JS::Value { static_cast<double>(length) }, JS::Attribute::Configurable);
+    function->define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, function->name()), JS::Attribute::Configurable);
+
+    return function;
 }
 
 ExportedWasmFunction::ExportedWasmFunction(Utf16FlyString name, AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address, JS::Object& prototype)
@@ -676,19 +684,57 @@ JS::ThrowCompletionOr<JS::Value> ExportedWasmFunction::call()
     return m_behavior(vm());
 }
 
-JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress address, Utf16FlyString name, Instance* instance)
+// https://www.w3.org/TR/wasm-js-api-2/#name-of-the-webassembly-function
+static Utf16FlyString name_of_webassembly_function(Wasm::Store& store, Wasm::FunctionAddress function_address)
+{
+    // 1. Let store be the surrounding agent’s associated store.
+
+    // 2. Let funcinst be store.funcs[funcaddr].
+    auto* function_instance = store.get(function_address);
+    VERIFY(function_instance);
+
+    auto index = function_instance->visit(
+        // 3. If funcinst is of the form {type functype, hostcode hostfunc},
+        [&](Wasm::HostFunction const& host_function) {
+            // 1. Assert: hostfunc is a JavaScript object and IsCallable(hostfunc) is true.
+            // 2. Let index be the index of the host function funcaddr.
+            auto index = host_function.name().to_number<size_t>(TrimWhitespace::No);
+            VERIFY(index.has_value());
+            return *index;
+        },
+        // 4. Otherwise,
+        [&](Wasm::WasmFunction const& wasm_function) {
+            // 1. Let moduleinst be funcinst.module.
+            auto const& module_instance = wasm_function.module();
+
+            // 2. Assert: funcaddr is contained in moduleinst.funcaddrs.
+            // 3. Let index be the index of moduleinst.funcaddrs where funcaddr is found.
+            auto index = module_instance.functions().find_first_index(function_address);
+            VERIFY(index.has_value());
+            return *index;
+        });
+
+    // 5. Return ! ToString(index).
+    return Utf16String::number(index);
+}
+
+JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress address, Instance* instance)
 {
     auto& realm = *vm.current_realm();
-    Optional<Wasm::FunctionType> type;
     auto& cache = get_cache(realm);
-    cache.abstract_machine().store().get(address)->visit([&](auto const& value) { type = value.type(); });
+
     if (auto entry = cache.get_function_instance(address); entry.has_value())
         return *entry;
 
+    auto& store = cache.abstract_machine().store();
+    auto type = store.get(address)->visit([&](auto const& value) { return value.type(); });
+    auto length = type.parameters().size();
+
     auto function = ExportedWasmFunction::create(
         realm,
-        move(name),
-        [address, type = type.release_value(), instance](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        name_of_webassembly_function(store, address),
+        length,
+        [address, type = move(type), instance](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             (void)instance;
             auto& realm = *vm.current_realm();
             Vector<Wasm::Value> values;
@@ -861,17 +907,7 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
         if (ref_.ref().has<Wasm::Reference::Null>())
             return JS::js_null();
         auto address = ref_.ref().get<Wasm::Reference::Func>().address;
-        auto& cache = get_cache(realm);
-        auto* function = cache.abstract_machine().store().get(address);
-        auto name = function->visit(
-            [&](Wasm::WasmFunction& wasm_function) {
-                auto index = *wasm_function.module().functions().find_first_index(address);
-                return ByteString::formatted("func{}", index);
-            },
-            [](Wasm::HostFunction& host_function) {
-                return host_function.name();
-            });
-        return create_native_function(vm, address, Utf16FlyString::from_utf8(name));
+        return create_native_function(vm, address);
     }
     case Wasm::ValueType::ExternReference: {
         auto ref_ = wasm_value.to<Wasm::Reference>();

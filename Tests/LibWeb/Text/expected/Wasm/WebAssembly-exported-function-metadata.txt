@@ -1,0 +1,6 @@
+length: 2
+name: 0
+export name: sqlite3_aggregate_context
+length descriptor: writable=false, enumerable=false, configurable=true
+name descriptor: writable=false, enumerable=false, configurable=true
+call result: 42
