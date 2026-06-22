@@ -43,6 +43,15 @@ impl Regex {
     /// Compile a regex pattern with the given flags.
     pub fn compile(pattern: &str, flags: Flags) -> Result<Self, parser::Error> {
         let parsed = parser::parse(pattern, flags)?;
+        Self::compile_parsed(parsed, flags)
+    }
+
+    pub fn compile_chars(pattern: Vec<char>, flags: Flags) -> Result<Self, parser::Error> {
+        let parsed = parser::parse_chars(pattern, flags)?;
+        Self::compile_parsed(parsed, flags)
+    }
+
+    fn compile_parsed(parsed: Pattern, flags: Flags) -> Result<Self, parser::Error> {
         let mut program = compiler::compile(&parsed);
         Self::resolve_properties(&mut program);
         let required_literal_hint = extract_required_literal_hint(&parsed, flags);

@@ -125,7 +125,8 @@ static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_o
     flags.sticky = has_flag(flag_bits, RegExpObject::Flags::Sticky);
     flags.has_indices = has_flag(flag_bits, RegExpObject::Flags::HasIndices);
 
-    auto compiled = regex::ECMAScriptRegex::compile(parsed_pattern.release_value(), flags);
+    auto normalized_pattern = parsed_pattern.release_value();
+    auto compiled = regex::ECMAScriptRegex::compile(normalized_pattern.utf16_view(), flags);
     if (compiled.is_error())
         return nullptr;
 

@@ -15,7 +15,7 @@ struct ECMAScriptRegex::Impl {
     Vector<ECMAScriptNamedCaptureGroup> named_groups;
 };
 
-ErrorOr<ECMAScriptRegex, String> ECMAScriptRegex::compile(StringView utf8_pattern, ECMAScriptCompileFlags flags)
+ErrorOr<ECMAScriptRegex, String> ECMAScriptRegex::compile(Utf16View pattern, ECMAScriptCompileFlags flags)
 {
     RustRegexFlags rust_flags {};
     rust_flags.global = flags.global;
@@ -27,7 +27,7 @@ ErrorOr<ECMAScriptRegex, String> ECMAScriptRegex::compile(StringView utf8_patter
     rust_flags.sticky = flags.sticky;
     rust_flags.has_indices = flags.has_indices;
 
-    auto compiled = CompiledRustRegex::compile(utf8_pattern, rust_flags);
+    auto compiled = CompiledRustRegex::compile(pattern, rust_flags);
     if (compiled.is_error())
         return compiled.release_error();
 

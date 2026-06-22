@@ -25,7 +25,7 @@ class REGEX_API CompiledRustRegex {
     AK_MAKE_NONCOPYABLE(CompiledRustRegex);
 
 public:
-    static ErrorOr<CompiledRustRegex, String> compile(StringView pattern, RustRegexFlags flags);
+    static ErrorOr<CompiledRustRegex, String> compile(Utf16View pattern, RustRegexFlags flags);
 
     ~CompiledRustRegex();
     CompiledRustRegex(CompiledRustRegex&& other);

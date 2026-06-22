@@ -8,17 +8,29 @@
 
 namespace regex {
 
-ErrorOr<CompiledRustRegex, String> CompiledRustRegex::compile(StringView pattern, RustRegexFlags flags)
+ErrorOr<CompiledRustRegex, String> CompiledRustRegex::compile(Utf16View pattern, RustRegexFlags flags)
 {
     unsigned char const* error_ptr = nullptr;
     size_t error_len = 0;
 
-    auto* regex = rust_regex_compile(
-        reinterpret_cast<unsigned char const*>(pattern.characters_without_null_termination()),
-        pattern.length(),
-        flags,
-        &error_ptr,
-        &error_len);
+    RustRegex* regex = nullptr;
+    if (pattern.has_ascii_storage()) {
+        auto ascii = pattern.ascii_span();
+        regex = rust_regex_compile_ascii(
+            reinterpret_cast<unsigned char const*>(ascii.data()),
+            ascii.size(),
+            flags,
+            &error_ptr,
+            &error_len);
+    } else {
+        auto utf16 = pattern.utf16_span();
+        regex = rust_regex_compile(
+            reinterpret_cast<unsigned short const*>(utf16.data()),
+            utf16.size(),
+            flags,
+            &error_ptr,
+            &error_len);
+    }
     if (!regex) {
         String error_message = "Invalid pattern"_string;
         if (error_ptr) {
