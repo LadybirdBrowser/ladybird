@@ -588,36 +588,43 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
 JS_DEFINE_NATIVE_FUNCTION(GlobalObject::unescape)
 {
     // 1. Set string to ? ToString(string).
-    auto string = TRY(vm.argument(0).to_byte_string(vm));
+    auto string = TRY(vm.argument(0).to_utf16_string(vm));
 
     // 2. Let length be the length of string.
-    ssize_t length = string.length();
+    ssize_t length = string.length_in_code_units();
 
     // 3. Let R be the empty String.
-    StringBuilder unescaped(length);
+    Utf16StringBuilder unescaped(length);
 
     // 4. Let k be 0.
     // 5. Repeat, while k ≠ length,
     for (auto k = 0; k < length; ++k) {
         // a. Let c be the code unit at index k within string.
-        u32 code_point = string[k];
+        u16 code_unit = string.code_unit_at(k);
 
         // b. If c is the code unit 0x0025 (PERCENT SIGN), then
-        if (code_point == '%') {
+        if (code_unit == '%') {
             // i. Let hexEscape be the empty String.
             // ii. Let skip be 0.
             // iii. If k ≤ length - 6 and the code unit at index k + 1 within string is the code unit 0x0075 (LATIN SMALL LETTER U), then
-            if (k <= length - 6 && string[k + 1] == 'u' && is_ascii_hex_digit(string[k + 2]) && is_ascii_hex_digit(string[k + 3]) && is_ascii_hex_digit(string[k + 4]) && is_ascii_hex_digit(string[k + 5])) {
+            if (k <= length - 6
+                && string.code_unit_at(k + 1) == 'u'
+                && is_ascii_hex_digit(string.code_unit_at(k + 2))
+                && is_ascii_hex_digit(string.code_unit_at(k + 3))
+                && is_ascii_hex_digit(string.code_unit_at(k + 4))
+                && is_ascii_hex_digit(string.code_unit_at(k + 5))) {
                 // 1. Set hexEscape to the substring of string from k + 2 to k + 6.
-                code_point = (parse_ascii_hex_digit(string[k + 2]) << 12) | (parse_ascii_hex_digit(string[k + 3]) << 8) | (parse_ascii_hex_digit(string[k + 4]) << 4) | parse_ascii_hex_digit(string[k + 5]);
+                code_unit = (parse_ascii_hex_digit(string.code_unit_at(k + 2)) << 12) | (parse_ascii_hex_digit(string.code_unit_at(k + 3)) << 8) | (parse_ascii_hex_digit(string.code_unit_at(k + 4)) << 4) | parse_ascii_hex_digit(string.code_unit_at(k + 5));
 
                 // 2. Set skip to 5.
                 k += 5;
             }
             // iv. Else if k ≤ length - 3, then
-            else if (k <= length - 3 && is_ascii_hex_digit(string[k + 1]) && is_ascii_hex_digit(string[k + 2])) {
+            else if (k <= length - 3
+                && is_ascii_hex_digit(string.code_unit_at(k + 1))
+                && is_ascii_hex_digit(string.code_unit_at(k + 2))) {
                 // 1. Set hexEscape to the substring of string from k + 1 to k + 3.
-                code_point = (parse_ascii_hex_digit(string[k + 1]) << 4) | parse_ascii_hex_digit(string[k + 2]);
+                code_unit = (parse_ascii_hex_digit(string.code_unit_at(k + 1)) << 4) | parse_ascii_hex_digit(string.code_unit_at(k + 2));
 
                 // 2. Set skip to 2.
                 k += 2;
@@ -632,13 +639,13 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::unescape)
         }
 
         // c. Set R to the string-concatenation of R and c.
-        unescaped.append_code_point(code_point);
+        unescaped.append_code_unit(code_unit);
 
         // d. Set k to k + 1.
     }
 
     // 6. Return R.
-    return PrimitiveString::create(vm, unescaped.to_byte_string());
+    return PrimitiveString::create(vm, unescaped.to_string());
 }
 
 }
