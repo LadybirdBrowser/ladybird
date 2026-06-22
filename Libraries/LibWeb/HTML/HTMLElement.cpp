@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -418,7 +418,7 @@ Utf16String HTMLElement::get_the_text_steps()
 
     // 6. Replace each remaining run of consecutive required line break count items with a string consisting of as many
     //    U+000A LF code points as the maximum of the values in the required line break count items.
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
     for (size_t i = 0; i < results.size(); ++i) {
         results[i].visit(
             [&](Utf16String const& string) {
@@ -435,12 +435,12 @@ Utf16String HTMLElement::get_the_text_steps()
                 // Skip over the run of required line break counts.
                 i = j - 1;
 
-                builder.append_repeated('\n', max_line_breaks);
+                builder.append_repeated_ascii('\n', max_line_breaks);
             });
     }
 
     // 7. Return the concatenation of the string items in results.
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-innertext

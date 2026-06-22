@@ -12,6 +12,7 @@
 #include <AK/Checked.h>
 #include <AK/NumericLimits.h>
 #include <AK/OwnPtr.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
@@ -981,11 +982,11 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Ut
     }
 
     // 2. Replace all ASCII whitespace in text with U+0020 SPACE characters.
-    StringBuilder builder { StringBuilder::Mode::UTF16, text.length_in_code_units() };
+    Utf16StringBuilder builder { text.length_in_code_units() };
     for (auto c : text) {
         builder.append_code_point(Infra::is_ascii_whitespace(c) ? ' ' : c);
     }
-    auto replaced_text = builder.to_utf16_string();
+    auto replaced_text = builder.to_string();
 
     // 3. Let font be the current font of target, as given by that object's font attribute.
     auto glyph_runs = Gfx::shape_text({ 0, 0 }, replaced_text.utf16_view(), *font_cascade_list(), resolved_letter_spacing());

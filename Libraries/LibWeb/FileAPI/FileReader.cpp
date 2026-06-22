@@ -8,6 +8,7 @@
 #include <AK/Base64.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Time.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Realm.h>
@@ -139,10 +140,10 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         return JS::ArrayBuffer::create(realm, move(bytes));
     case Type::BinaryString:
         // Return bytes as a binary string, in which every byte is represented by a code unit of equal value [0..255].
-        StringBuilder builder(StringBuilder::Mode::UTF16, bytes.size());
+        Utf16StringBuilder builder(bytes.size());
         for (auto byte : bytes.bytes())
             builder.append_code_unit(byte);
-        return MUST(builder.utf16_string_view().to_utf8());
+        return MUST(builder.view().to_utf8());
     }
     VERIFY_NOT_REACHED();
 }

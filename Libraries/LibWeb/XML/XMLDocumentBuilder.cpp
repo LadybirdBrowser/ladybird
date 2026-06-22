@@ -254,8 +254,8 @@ void XMLDocumentBuilder::text(StringView data)
     if (auto* last = m_current_node->last_child(); last && last->is_text()) {
         auto& text_node = static_cast<DOM::Text&>(*last);
         m_text_builder.append(text_node.data());
-        m_text_builder.append(data);
-        text_node.set_data(m_text_builder.to_utf16_string());
+        m_text_builder.append(Utf16String::from_utf8(data));
+        text_node.set_data(m_text_builder.to_string());
         m_text_builder.clear();
     } else if (!data.is_empty()) {
         auto node = m_document->create_text_node(Utf16String::from_utf8(data));

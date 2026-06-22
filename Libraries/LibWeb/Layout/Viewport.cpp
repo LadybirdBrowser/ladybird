@@ -5,6 +5,7 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Dump.h>
@@ -43,7 +44,7 @@ Vector<Viewport::TextBlock> const& Viewport::text_blocks()
 
 void Viewport::update_text_blocks()
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
     Vector<TextPosition> text_positions;
     Vector<TextBlock> text_blocks;
 
@@ -55,7 +56,7 @@ void Viewport::update_text_blocks()
 
     auto flush_block = [&] {
         if (!builder.is_empty())
-            text_blocks.append({ builder.to_utf16_string(), text_positions });
+            text_blocks.append({ builder.to_string(), text_positions });
         text_positions.clear_with_capacity();
         builder.clear();
         builder_length_in_code_units = 0;

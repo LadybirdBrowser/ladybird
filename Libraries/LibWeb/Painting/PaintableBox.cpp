@@ -10,6 +10,7 @@
 #include <AK/Array.h>
 #include <AK/GenericShorthands.h>
 #include <AK/StdLibExtras.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGfx/Font/Font.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -1371,10 +1372,10 @@ void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext&
 
     auto font = Platform::FontPlugin::the().default_font(12);
 
-    StringBuilder builder(StringBuilder::Mode::UTF16);
-    builder.append(debug_description());
+    Utf16StringBuilder builder;
+    builder.appendff("{}", debug_description());
     builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
-    auto size_text = builder.to_utf16_string();
+    auto size_text = builder.to_string();
     auto size_text_rect = border_rect;
     size_text_rect.set_y(border_rect.y() + border_rect.height());
     size_text_rect.set_top(size_text_rect.top());

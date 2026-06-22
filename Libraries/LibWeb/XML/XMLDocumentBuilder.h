@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Node.h>
@@ -51,7 +52,7 @@ private:
     GC::Ptr<DOM::Node> m_current_node;
     XMLScriptingSupport m_scripting_support { XMLScriptingSupport::Enabled };
     bool m_has_error { false };
-    StringBuilder m_text_builder { StringBuilder::Mode::UTF16 };
+    Utf16StringBuilder m_text_builder;
 
     struct NamespaceStackEntry {
         Vector<NamespaceAndPrefix, 2> namespaces;

@@ -13,6 +13,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -52,19 +53,19 @@ Utf16String normalize_newlines(Utf16String const& string)
         return string;
 
     // FIXME: Implement a UTF-16 GenericLexer.
-    StringBuilder builder(StringBuilder::Mode::UTF16, string.length_in_code_units());
+    Utf16StringBuilder builder(string.length_in_code_units());
 
     for (size_t i = 0; i < string.length_in_code_units(); ++i) {
         if (auto code_unit = string.code_unit_at(i); code_unit == '\r') {
             if (i + 1 < string.length_in_code_units() && string.code_unit_at(i + 1) == '\n')
                 ++i;
-            builder.append('\n');
+            builder.append_ascii('\n');
         } else {
             builder.append_code_unit(code_unit);
         }
     }
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 // https://infra.spec.whatwg.org/#strip-and-collapse-ascii-whitespace
@@ -92,12 +93,12 @@ Utf16String strip_and_collapse_whitespace(Utf16String const& string)
     if (!string.contains_any_of(Infra::ASCII_WHITESPACE_CODE_POINTS))
         return string;
 
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
 
     for (auto code_point : string) {
         if (Infra::is_ascii_whitespace(code_point)) {
-            if (!builder.utf16_string_view().ends_with(' '))
-                builder.append(' ');
+            if (!builder.view().ends_with(' '))
+                builder.append_ascii(' ');
             continue;
         }
 
@@ -105,7 +106,7 @@ Utf16String strip_and_collapse_whitespace(Utf16String const& string)
     }
 
     // ...and then remove any leading and trailing ASCII whitespace from that string.
-    return builder.to_utf16_string().trim(Infra::ASCII_WHITESPACE);
+    return builder.to_string().trim(Infra::ASCII_WHITESPACE);
 }
 
 // https://infra.spec.whatwg.org/#code-unit-prefix

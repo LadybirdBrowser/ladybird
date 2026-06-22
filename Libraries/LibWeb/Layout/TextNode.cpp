@@ -8,8 +8,8 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <AK/StringBuilder.h>
 #include <AK/UnicodeUtils.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
 #include <LibWeb/DOM/Document.h>
@@ -307,12 +307,12 @@ static Utf16String apply_math_auto_text_transform(Utf16String const& string)
         }
     };
 
-    StringBuilder builder { StringBuilder::Mode::UTF16, string.length_in_code_units() };
+    Utf16StringBuilder builder { string.length_in_code_units() };
 
     for (auto code_point : string)
         builder.append_code_point(map_code_point_to_italic(code_point));
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTransform text_transform, Optional<StringView> const& locale)
@@ -457,13 +457,13 @@ Utf16String TextNode::compute_text_for_rendering(TextForRenderingCacheKey const&
     // AD-HOC: It's important to not change the amount of code units in the resulting transformed text, so ChunkIterator
     //         can pass views to this string with associated code unit offsets that still match the original text.
     if (convert_newlines || convert_tabs) {
-        StringBuilder text_builder { StringBuilder::Mode::UTF16, text.length_in_code_units() };
+        Utf16StringBuilder text_builder { text.length_in_code_units() };
         for (auto code_point : text) {
             if ((convert_newlines && code_point == '\n') || (convert_tabs && code_point == '\t'))
                 code_point = ' ';
             text_builder.append_code_point(code_point);
         }
-        text = text_builder.to_utf16_string();
+        text = text_builder.to_string();
     }
 
     return text;

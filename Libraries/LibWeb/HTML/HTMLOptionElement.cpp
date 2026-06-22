@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/HTMLOptionElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -119,7 +119,7 @@ void HTMLOptionElement::set_value(Utf16String const& value)
     set_attribute_value(HTML::AttributeNames::value, value.to_utf8_but_should_be_ported_to_utf16());
 }
 
-static void concatenate_descendants_text_content(DOM::Node const* node, StringBuilder& builder)
+static void concatenate_descendants_text_content(DOM::Node const* node, Utf16StringBuilder& builder)
 {
     if (is<HTMLScriptElement>(node) || is<SVG::SVGScriptElement>(node))
         return;
@@ -151,7 +151,7 @@ void HTMLOptionElement::set_label(String const& label)
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-text
 Utf16String HTMLOptionElement::text() const
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
 
     // Concatenation of data of all the Text node descendants of the option element, in tree order,
     // excluding any that are descendants of descendants of the option element that are themselves
@@ -162,7 +162,7 @@ Utf16String HTMLOptionElement::text() const
     });
 
     // Return the result of stripping and collapsing ASCII whitespace from the above concatenation.
-    return Infra::strip_and_collapse_whitespace(builder.to_utf16_string());
+    return Infra::strip_and_collapse_whitespace(builder.to_string());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-text
