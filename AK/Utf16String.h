@@ -236,7 +236,6 @@ public:
 
     ALWAYS_INLINE Utf16String escape_html_entities() const { return utf16_view().escape_html_entities(); }
 
-    static Utf16String from_string_builder(Badge<StringBuilder>, StringBuilder& builder);
     static Utf16String from_string_builder(Badge<Utf16StringBuilder>, Utf16StringBuilder& builder);
     static ErrorOr<Utf16String> from_ipc_stream(Stream&, size_t length_in_code_units, bool is_ascii);
 
