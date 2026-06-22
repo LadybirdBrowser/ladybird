@@ -102,6 +102,11 @@ public:
     // rare timing. No-op in production.
     static void set_eof_drain_window_for_test(u32 milliseconds);
 
+    // Test seam: When set, the IO thread skips its in-loop read on POLLIN — modelling a stop path that ends the loop
+    // without having read a message already buffered on the socket (e.g. SocketClosed from a failed send). Exercises
+    // the loop-exit drain. No-op in production.
+    static void set_skip_inloop_read_for_test(bool);
+
 private:
     enum class TransferState {
         Continue,
@@ -145,6 +150,7 @@ private:
     bool m_incoming_eof { false };
 
     static Atomic<u32> s_eof_drain_window_for_test_ms;
+    static Atomic<bool> s_skip_inloop_read_for_test;
 
     RefPtr<AutoCloseFileDescriptor> m_wakeup_io_thread_read_fd;
     RefPtr<AutoCloseFileDescriptor> m_wakeup_io_thread_write_fd;
