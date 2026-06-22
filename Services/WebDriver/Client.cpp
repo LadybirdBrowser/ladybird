@@ -312,8 +312,11 @@ Web::WebDriver::Response Client::load_url_from_ui(Web::WebDriver::Parameters par
     auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
 
     RefPtr previous_connection { &session->web_content_connection() };
-    auto response = TRY(session->perform_async_action([&](auto& connection) {
-        return connection.load_url_from_ui(move(payload));
+    auto response = TRY(session->perform_async_action([&](auto& connection) -> Web::WebDriver::Response {
+        auto reply = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::LoadUrlFromUi>(move(payload));
+        if (!reply)
+            return JsonValue {};
+        return reply->take_response();
     }));
     if (response.is_object() && response.as_object().get_bool("willReplaceWebContentProcess"sv).value_or(false))
         session->mark_current_window_as_awaiting_replacement(*previous_connection);
