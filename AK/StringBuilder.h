@@ -16,12 +16,6 @@ namespace AK {
 
 class StringBuilder {
 public:
-    enum class Mode {
-        UTF8,
-        UTF16,
-    };
-
-    static constexpr auto DEFAULT_MODE = Mode::UTF8;
     static constexpr size_t inline_capacity = 256;
 
     class Buffer {
@@ -86,9 +80,6 @@ public:
     StringBuilder();
     explicit StringBuilder(size_t initial_capacity);
 
-    explicit StringBuilder(Mode);
-    StringBuilder(Mode, size_t initial_capacity_in_code_units);
-
     ~StringBuilder() = default;
 
     ErrorOr<void> try_append(StringView);
@@ -139,12 +130,9 @@ public:
     [[nodiscard]] FlyString to_fly_string_without_validation() const;
     ErrorOr<FlyString> to_fly_string() const;
 
-    Utf16String to_utf16_string();
-
     [[nodiscard]] ErrorOr<ByteBuffer> to_byte_buffer() const;
 
     [[nodiscard]] StringView string_view() const;
-    [[nodiscard]] Utf16View utf16_string_view() const;
     void clear();
 
     [[nodiscard]] size_t length() const;
@@ -176,19 +164,16 @@ public:
     }
 
 private:
-    void initialize_buffer(Mode, size_t capacity);
+    void initialize_buffer(size_t capacity);
 
     Optional<Buffer::OutlineBuffer> leak_buffer_for_string_construction();
 
     ErrorOr<void> will_append(size_t);
-    ErrorOr<void> ensure_storage_is_utf16();
 
     u8* data();
     u8 const* data() const;
 
     Buffer m_buffer;
-    Mode m_mode { DEFAULT_MODE };
-    bool m_utf16_builder_is_ascii { true };
 };
 
 }

@@ -1249,7 +1249,7 @@ TEST_CASE(utf16_string_builder_clear_resets_ascii_flag)
     // subsequent ASCII as char16_t, corrupting the first code unit when adopted.
     Utf16StringBuilder builder;
 
-    // 1. Append a non-ASCII code point to force m_utf16_builder_is_ascii = false.
+    // 1. Append a non-ASCII code point to force UTF-16 storage.
     builder.append_code_point(0x00D7); // U+00D7 MULTIPLICATION SIGN (×)
     auto first = builder.to_string();
     EXPECT_EQ(first.length_in_code_units(), 1u);
