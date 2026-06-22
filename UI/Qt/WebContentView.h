@@ -108,6 +108,8 @@ public slots:
 signals:
     void urls_dropped(QList<QUrl> const&);
 
+    void native_window_pointer_event();
+
 private:
     // ^WebView::ViewImplementation
     virtual void initialize_client(CreateNewClient) override;
