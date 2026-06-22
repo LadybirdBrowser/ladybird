@@ -14,6 +14,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -279,22 +280,26 @@ Optional<regex::ECMAScriptRegex> HTMLInputElement::compiled_pattern_regular_expr
         return {};
 
     // 2. Let pattern be the value of the pattern attribute of the element.
-    auto pattern = maybe_pattern.release_value();
+    auto pattern = Utf16String::from_utf8(maybe_pattern.release_value());
 
     // 3. Let regexpCompletion be RegExpCreate(pattern, "v").
     regex::ECMAScriptCompileFlags compile_flags {};
     compile_flags.unicode_sets = true;
-    auto regexp_completion = regex::ECMAScriptRegex::compile(pattern.bytes_as_string_view(), compile_flags);
+    auto regexp_completion = regex::ECMAScriptRegex::compile(pattern.utf16_view(), compile_flags);
 
     // 4. If regexpCompletion is an abrupt completion, then return nothing. The element has no compiled pattern regular expression.
     if (regexp_completion.is_error())
         return {};
 
     // 5. Let anchoredPattern be the string "^(?:", followed by pattern, followed by ")$".
-    auto anchored_pattern = MUST(String::formatted("^(?:{})$", pattern));
+    Utf16StringBuilder anchored_pattern_builder;
+    anchored_pattern_builder.append_ascii("^(?:"sv);
+    anchored_pattern_builder.append(pattern.utf16_view());
+    anchored_pattern_builder.append_ascii(")$"sv);
+    auto anchored_pattern = anchored_pattern_builder.to_string();
 
     // 6. Return ! RegExpCreate(anchoredPattern, "v").
-    auto anchored = regex::ECMAScriptRegex::compile(anchored_pattern.bytes_as_string_view(), compile_flags);
+    auto anchored = regex::ECMAScriptRegex::compile(anchored_pattern.utf16_view(), compile_flags);
     if (anchored.is_error())
         return {};
     return anchored.release_value();
@@ -3605,7 +3610,7 @@ bool HTMLInputElement::suffering_from_being_missing() const
 static regex::ECMAScriptRegex& valid_email_address_regex()
 {
     static NeverDestroyed<regex::ECMAScriptRegex> regex { MUST(regex::ECMAScriptRegex::compile(
-        "^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"sv,
+        "^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"_utf16,
         regex::ECMAScriptCompileFlags {})) };
     return *regex;
 }

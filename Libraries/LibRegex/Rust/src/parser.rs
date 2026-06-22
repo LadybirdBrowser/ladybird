@@ -23,6 +23,10 @@ pub fn parse(source: &str, flags: Flags) -> Result<Pattern, Error> {
     Parser::new(source, flags).parse()
 }
 
+pub fn parse_chars(source: Vec<char>, flags: Flags) -> Result<Pattern, Error> {
+    Parser::new_from_chars(source, flags).parse()
+}
+
 /// Parse a flags string like `"gimsu"` into [`Flags`].
 pub fn parse_flags(s: &str) -> Result<Flags, Error> {
     let mut flags = Flags::default();
@@ -127,7 +131,10 @@ struct Parser {
 
 impl Parser {
     fn new(source: &str, flags: Flags) -> Self {
-        let chars: Vec<char> = source.chars().collect();
+        Self::new_from_chars(source.chars().collect(), flags)
+    }
+
+    fn new_from_chars(chars: Vec<char>, flags: Flags) -> Self {
         let (total, has_named) = Self::prescan_captures(&chars);
         Self {
             source: chars,

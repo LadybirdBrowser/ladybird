@@ -22,8 +22,8 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_alloc(VM&, FunctionObject& new_t
 struct ParseRegexPatternError {
     String error;
 };
-ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pattern, bool unicode, bool unicode_sets);
-ThrowCompletionOr<String> parse_regex_pattern(VM& vm, Utf16View const& pattern, bool unicode, bool unicode_sets);
+ErrorOr<Utf16String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pattern, bool unicode, bool unicode_sets);
+ThrowCompletionOr<Utf16String> parse_regex_pattern(VM& vm, Utf16View const& pattern, bool unicode, bool unicode_sets);
 
 class JS_API RegExpObject : public Object {
     JS_OBJECT(RegExpObject, Object);
@@ -45,7 +45,7 @@ public:
     static GC::Ref<RegExpObject> create(Realm&, Utf16String pattern, Utf16String flags);
 
     ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_initialize(VM&, Value pattern, Value flags);
-    String escape_regexp_pattern() const;
+    Utf16String escape_regexp_pattern() const;
 
     virtual void initialize(Realm&) override;
     virtual ~RegExpObject() override = default;

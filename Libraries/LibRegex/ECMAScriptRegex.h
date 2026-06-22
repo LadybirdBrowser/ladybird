@@ -42,7 +42,7 @@ class REGEX_API ECMAScriptRegex {
     AK_MAKE_NONCOPYABLE(ECMAScriptRegex);
 
 public:
-    static ErrorOr<ECMAScriptRegex, String> compile(StringView utf8_pattern, ECMAScriptCompileFlags);
+    static ErrorOr<ECMAScriptRegex, String> compile(Utf16View pattern, ECMAScriptCompileFlags);
 
     ~ECMAScriptRegex();
     ECMAScriptRegex(ECMAScriptRegex&&);

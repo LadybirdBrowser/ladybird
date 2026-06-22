@@ -1160,7 +1160,7 @@ void free_function_ast(void* ast)
 namespace JS::FFI {
 
 struct RustCompiledRegex {
-    String parsed_pattern;
+    Utf16String parsed_pattern;
 };
 
 static Utf16View view_from_ffi(FFIUtf16Slice slice)
@@ -1889,7 +1889,7 @@ extern "C" void* rust_compile_regex(
         }
     }
 
-    auto compiled = regex::ECMAScriptRegex::compile(pattern_str.bytes_as_string_view(), compile_flags);
+    auto compiled = regex::ECMAScriptRegex::compile(pattern_str.utf16_view(), compile_flags);
     if (compiled.is_error()) {
         auto msg = MUST(String::formatted("RegExp compile error: {}", compiled.release_error()));
         auto* buf = static_cast<char*>(kmalloc(msg.byte_count() + 1));

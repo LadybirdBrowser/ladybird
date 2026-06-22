@@ -11,14 +11,25 @@
 
 #include <LibRegex/ECMAScriptRegex.h>
 
+static ErrorOr<regex::ECMAScriptRegex, String> compile_regex_result(Utf16View pattern, regex::ECMAScriptCompileFlags flags = {})
+{
+    return regex::ECMAScriptRegex::compile(pattern, flags);
+}
+
+static ErrorOr<regex::ECMAScriptRegex, String> compile_regex_result(StringView pattern, regex::ECMAScriptCompileFlags flags = {})
+{
+    auto utf16_pattern = Utf16String::from_utf8(pattern);
+    return compile_regex_result(utf16_pattern.utf16_view(), flags);
+}
+
 static regex::ECMAScriptRegex compile_regex(StringView pattern, regex::ECMAScriptCompileFlags flags = {})
 {
-    return MUST(regex::ECMAScriptRegex::compile(pattern, flags));
+    return MUST(compile_regex_result(pattern, flags));
 }
 
 static bool compile_succeeds(StringView pattern, regex::ECMAScriptCompileFlags flags = {})
 {
-    return !regex::ECMAScriptRegex::compile(pattern, flags).is_error();
+    return !compile_regex_result(pattern, flags).is_error();
 }
 
 static bool matches(StringView pattern, StringView subject, regex::ECMAScriptCompileFlags flags = {})
@@ -55,13 +66,13 @@ static void expect_capture_unmatched(regex::ECMAScriptRegex const& regex, unsign
 
 TEST_CASE(compile_rejects_invalid_pattern)
 {
-    auto regex = regex::ECMAScriptRegex::compile("("sv, {});
+    auto regex = compile_regex_result("("sv, {});
     EXPECT(regex.is_error());
 }
 
 TEST_CASE(exec_tracks_named_capture_slots)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("(?<word>foo)(bar)"sv, {}));
+    auto regex = MUST(compile_regex_result("(?<word>foo)(bar)"sv, {}));
 
     EXPECT_EQ(regex.capture_count(), 2u);
     EXPECT_EQ(regex.total_groups(), 3u);
@@ -80,7 +91,7 @@ TEST_CASE(exec_tracks_named_capture_slots)
 
 TEST_CASE(exec_reports_unmatched_optional_groups)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("(foo)?bar"sv, {}));
+    auto regex = MUST(compile_regex_result("(foo)?bar"sv, {}));
 
     EXPECT_EQ(regex.exec(u"bar"sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.capture_slot(0), 0);
@@ -91,7 +102,7 @@ TEST_CASE(exec_reports_unmatched_optional_groups)
 
 TEST_CASE(ascii_backed_inputs_preserve_match_results)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("(?<word>foo)(bar)"sv, {}));
+    auto regex = MUST(compile_regex_result("(?<word>foo)(bar)"sv, {}));
 
     EXPECT_EQ(regex.exec("foobar"sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.capture_slot(0), 0);
@@ -111,7 +122,7 @@ TEST_CASE(ascii_backed_inputs_preserve_match_results)
 
 TEST_CASE(test_honors_ignore_case)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("casesensitive"sv, { .ignore_case = true }));
+    auto regex = MUST(compile_regex_result("casesensitive"sv, { .ignore_case = true }));
 
     EXPECT_EQ(regex.test(u"CaseSensitive"sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.test(u"something else"sv, 0), regex::MatchResult::NoMatch);
@@ -119,7 +130,7 @@ TEST_CASE(test_honors_ignore_case)
 
 TEST_CASE(ascii_ignore_case_literal_search_preserves_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("zfvr"sv, { .ignore_case = true }));
+    auto regex = MUST(compile_regex_result("zfvr"sv, { .ignore_case = true }));
 
     EXPECT_EQ(regex.exec("...ZFVR..."sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.capture_slot(0), 3);
@@ -133,7 +144,7 @@ TEST_CASE(ascii_ignore_case_literal_search_preserves_behavior)
 
 TEST_CASE(ascii_ignore_case_literal_search_handles_punctuation_prefixes)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("##yv22##"sv, { .ignore_case = true }));
+    auto regex = MUST(compile_regex_result("##yv22##"sv, { .ignore_case = true }));
 
     EXPECT_EQ(regex.find_all("##YV22## and ##yv22##"sv, 0), 2);
     EXPECT_EQ(regex.find_all_match(0).start, 0);
@@ -144,7 +155,7 @@ TEST_CASE(ascii_ignore_case_literal_search_handles_punctuation_prefixes)
 
 TEST_CASE(ascii_ignore_case_literal_alternation_preserves_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("##yv22##|zfvr|puebzr"sv, { .ignore_case = true }));
+    auto regex = MUST(compile_regex_result("##yv22##|zfvr|puebzr"sv, { .ignore_case = true }));
 
     EXPECT_EQ(regex.find_all("##YV22## zFVr PUEBZR"sv, 0), 3);
     EXPECT_EQ(regex.find_all_match(0).start, 0);
@@ -157,7 +168,7 @@ TEST_CASE(ascii_ignore_case_literal_alternation_preserves_behavior)
 
 TEST_CASE(ascii_ignore_case_literal_alternation_respects_source_order)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("foo|f"sv, { .ignore_case = true }));
+    auto regex = MUST(compile_regex_result("foo|f"sv, { .ignore_case = true }));
 
     EXPECT_EQ(regex.exec("FoO"sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.capture_slot(0), 0);
@@ -166,7 +177,7 @@ TEST_CASE(ascii_ignore_case_literal_alternation_respects_source_order)
 
 TEST_CASE(unicode_ignore_case_literal_alternation_preserves_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("s|k"sv, { .ignore_case = true, .unicode = true }));
+    auto regex = MUST(compile_regex_result("s|k"sv, { .ignore_case = true, .unicode = true }));
 
     EXPECT_EQ(regex.test(u"\u017F"sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.test(u"\u212A"sv, 0), regex::MatchResult::Match);
@@ -174,7 +185,7 @@ TEST_CASE(unicode_ignore_case_literal_alternation_preserves_behavior)
 
 TEST_CASE(word_boundary_literal_preserves_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("\\bfoo\\b"sv, {}));
+    auto regex = MUST(compile_regex_result("\\bfoo\\b"sv, {}));
 
     EXPECT_EQ(regex.find_all("foo foo-bar barfoo foo2 _foo foo_"sv, 0), 2);
     EXPECT_EQ(regex.find_all_match(0).start, 0);
@@ -185,7 +196,7 @@ TEST_CASE(word_boundary_literal_preserves_behavior)
 
 TEST_CASE(ascii_ignore_case_word_boundary_literal_preserves_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("\\bzfvr\\b"sv, { .ignore_case = true }));
+    auto regex = MUST(compile_regex_result("\\bzfvr\\b"sv, { .ignore_case = true }));
 
     EXPECT_EQ(regex.find_all("ZFVR zfvr1 _ZFVR zFVr"sv, 0), 2);
     EXPECT_EQ(regex.find_all_match(0).start, 0);
@@ -196,14 +207,14 @@ TEST_CASE(ascii_ignore_case_word_boundary_literal_preserves_behavior)
 
 TEST_CASE(unicode_ignore_case_word_boundary_literal_preserves_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("\\bk\\b"sv, { .ignore_case = true, .unicode = true }));
+    auto regex = MUST(compile_regex_result("\\bk\\b"sv, { .ignore_case = true, .unicode = true }));
 
     EXPECT_EQ(regex.test(u"\u212A"sv, 0), regex::MatchResult::Match);
 }
 
 TEST_CASE(mixed_positive_class_with_word_builtin_preserves_legacy_ignore_case_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("[\\w\\$]+"sv, { .ignore_case = true }));
+    auto regex = MUST(compile_regex_result("[\\w\\$]+"sv, { .ignore_case = true }));
 
     EXPECT_EQ(regex.test("AZ_09$"sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.test(u"\u017F"sv, 0), regex::MatchResult::NoMatch);
@@ -212,7 +223,7 @@ TEST_CASE(mixed_positive_class_with_word_builtin_preserves_legacy_ignore_case_be
 
 TEST_CASE(mixed_positive_class_with_digit_builtin_preserves_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("[A-Z\\d-]+"sv, { .ignore_case = true }));
+    auto regex = MUST(compile_regex_result("[A-Z\\d-]+"sv, { .ignore_case = true }));
 
     EXPECT_EQ(regex.test("ABC-123"sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.test("abc"sv, 0), regex::MatchResult::Match);
@@ -221,7 +232,7 @@ TEST_CASE(mixed_positive_class_with_digit_builtin_preserves_behavior)
 
 TEST_CASE(find_all_returns_non_overlapping_matches)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("aba"sv, {}));
+    auto regex = MUST(compile_regex_result("aba"sv, {}));
 
     EXPECT_EQ(regex.find_all(u"aba aba"sv, 0), 2);
     EXPECT_EQ(regex.find_all_match(0).start, 0);
@@ -232,7 +243,7 @@ TEST_CASE(find_all_returns_non_overlapping_matches)
 
 TEST_CASE(unicode_property_matching_works)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("\\p{ASCII}+"sv, { .unicode = true }));
+    auto regex = MUST(compile_regex_result("\\p{ASCII}+"sv, { .unicode = true }));
 
     EXPECT_EQ(regex.test(u"ASCII"sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.test(u"😀"sv, 0), regex::MatchResult::NoMatch);
@@ -240,7 +251,7 @@ TEST_CASE(unicode_property_matching_works)
 
 TEST_CASE(end_anchored_suffix_patterns_preserve_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("(.*)\\/client-(.*)\\.js$"sv, {}));
+    auto regex = MUST(compile_regex_result("(.*)\\/client-(.*)\\.js$"sv, {}));
 
     EXPECT_EQ(regex.test(u"https://cdn.example.com/assets/client-main.js"sv, 0), regex::MatchResult::Match);
     EXPECT_EQ(regex.test(u"<script src=\"/assets/client-main.js\"></script>"sv, 0), regex::MatchResult::NoMatch);
@@ -248,7 +259,7 @@ TEST_CASE(end_anchored_suffix_patterns_preserve_behavior)
 
 TEST_CASE(leading_start_or_separator_prefix_preserves_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("(?:^|;)\\s*foo=([^;]*)"sv, {}));
+    auto regex = MUST(compile_regex_result("(?:^|;)\\s*foo=([^;]*)"sv, {}));
 
     {
         auto subject = Utf16String::from_utf8("foo=bar"sv);
@@ -267,7 +278,7 @@ TEST_CASE(leading_start_or_separator_prefix_preserves_behavior)
 
 TEST_CASE(required_literal_prefilter_preserves_assignment_extractors)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("(?:^|;)\\s*foo=([^;]*)"sv, {}));
+    auto regex = MUST(compile_regex_result("(?:^|;)\\s*foo=([^;]*)"sv, {}));
 
     {
         auto subject = Utf16String::from_utf8("a=1; bar=baz; foo=qux"sv);
@@ -280,7 +291,7 @@ TEST_CASE(required_literal_prefilter_preserves_assignment_extractors)
 
 TEST_CASE(ascii_ignore_case_required_literal_prefilter_preserves_behavior)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("\\bfoo\\s*=\\s*([^;]*)"sv, { .ignore_case = true }));
+    auto regex = MUST(compile_regex_result("\\bfoo\\s*=\\s*([^;]*)"sv, { .ignore_case = true }));
 
     {
         auto subject = Utf16String::from_utf8("FOO = Bar"sv);
@@ -293,7 +304,7 @@ TEST_CASE(ascii_ignore_case_required_literal_prefilter_preserves_behavior)
 
 TEST_CASE(required_literal_prefilter_handles_common_substrings_across_alternatives)
 {
-    auto regex = MUST(regex::ECMAScriptRegex::compile("(\\$\\{name\\})|(\\$name\\b)"sv, {}));
+    auto regex = MUST(compile_regex_result("(\\$\\{name\\})|(\\$name\\b)"sv, {}));
 
     EXPECT_EQ(regex.find_all("${name} $name"sv, 0), 2);
     EXPECT_EQ(regex.find_all_match(0).start, 0);
@@ -327,7 +338,7 @@ TEST_CASE(required_literal_prefilter_compiles_long_literal_alternations)
     pattern_builder.append("c"sv);
     auto pattern = MUST(pattern_builder.to_string());
 
-    auto regex = MUST(regex::ECMAScriptRegex::compile(pattern, {}));
+    auto regex = MUST(compile_regex_result(pattern, {}));
 
     StringBuilder subject_builder;
     subject_builder.append(shared_prefix);

@@ -261,14 +261,14 @@ static Result<RegExpObject::Flags, String> validate_flags(Utf16View const& flags
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pattern, bool unicode, bool unicode_sets)
+ErrorOr<Utf16String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pattern, bool unicode, bool unicode_sets)
 {
     if (unicode && unicode_sets)
         return ParseRegexPatternError { MUST(String::formatted(ErrorType::RegExpObjectIncompatibleFlags.format(), 'u', 'v')) };
 
     TRY(validate_named_group_name_surrogates(pattern, unicode || unicode_sets));
 
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     auto previous_code_unit_was_backslash = false;
     for (size_t i = 0; i < pattern.length_in_code_units(); ++i) {
@@ -280,7 +280,7 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pat
             // leading to a matcher for the literal string "\uhhhh" instead of the intended code unit <c>.
             // As such, we're going to remove the (invalid) backslash and pretend it never existed.
             if (!previous_code_unit_was_backslash)
-                builder.append('\\');
+                builder.append_ascii('\\');
 
             if ((unicode || unicode_sets) && AK::UnicodeUtils::is_utf16_high_surrogate(code_unit) && i + 1 < pattern.length_in_code_units()) {
                 u16 next_code_unit = pattern.code_unit_at(i + 1);
@@ -298,7 +298,7 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pat
             else
                 builder.appendff("u{:04x}", code_unit);
         } else {
-            builder.append_code_point(code_unit);
+            builder.append_code_unit(code_unit);
         }
 
         if (code_unit == '\\')
@@ -307,11 +307,11 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pat
             previous_code_unit_was_backslash = false;
     }
 
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ThrowCompletionOr<String> parse_regex_pattern(VM& vm, Utf16View const& pattern, bool unicode, bool unicode_sets)
+ThrowCompletionOr<Utf16String> parse_regex_pattern(VM& vm, Utf16View const& pattern, bool unicode, bool unicode_sets)
 {
     auto result = parse_regex_pattern(pattern, unicode, unicode_sets);
     if (result.is_error())
@@ -402,9 +402,9 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
     bool unicode = has_flag(flag_bits, Flags::Unicode);
     bool unicode_sets = has_flag(flag_bits, Flags::UnicodeSets);
 
-    auto parsed_pattern = String {};
+    auto parsed_pattern = Utf16String {};
 
-    // Convert UTF-16 pattern to UTF-8 (with escape normalization for non-ASCII).
+    // Normalize non-ASCII code units to ASCII escapes before compiling the pattern.
     if (!pattern.is_empty()) {
         auto result = parse_regex_pattern(pattern, unicode, unicode_sets);
         if (result.is_error())
@@ -425,7 +425,7 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
     compile_flags.unicode_sets = unicode_sets;
     compile_flags.sticky = has_flag(flag_bits, Flags::Sticky);
 
-    auto compiled = regex::ECMAScriptRegex::compile(parsed_pattern.bytes_as_string_view(), compile_flags);
+    auto compiled = regex::ECMAScriptRegex::compile(parsed_pattern.utf16_view(), compile_flags);
     if (compiled.is_error())
         return vm.throw_completion<SyntaxError>(ErrorType::RegExpCompileError, compiled.release_error());
 
@@ -449,7 +449,7 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
 }
 
 // 22.2.6.13.1 EscapeRegExpPattern ( P, F ), https://tc39.es/ecma262/#sec-escaperegexppattern
-String RegExpObject::escape_regexp_pattern() const
+Utf16String RegExpObject::escape_regexp_pattern() const
 {
     // 1. Let S be a String in the form of a Pattern[~UnicodeMode] (Pattern[+UnicodeMode] if F contains "u") equivalent
     //    to P interpreted as UTF-16 encoded Unicode code points (6.1.4), in which certain code points are escaped as
@@ -465,30 +465,30 @@ String RegExpObject::escape_regexp_pattern() const
     //    specification can be met by letting S be "(?:)".
     // 3. Return S.
     if (m_pattern.is_empty())
-        return "(?:)"_string;
+        return "(?:)"_utf16;
 
     // FIXME: Check the 'u' and 'v' flags and escape accordingly
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     auto escaped = false;
     auto in_character_class = false;
 
     for (auto code_point : m_pattern) {
         if (escaped) {
             escaped = false;
-            builder.append('\\');
+            builder.append_ascii('\\');
 
             switch (code_point) {
             case '\n':
-                builder.append('n');
+                builder.append_ascii('n');
                 break;
             case '\r':
-                builder.append('r');
+                builder.append_ascii('r');
                 break;
             case LINE_SEPARATOR:
-                builder.append("u2028"sv);
+                builder.append_ascii("u2028"sv);
                 break;
             case PARAGRAPH_SEPARATOR:
-                builder.append("u2029"sv);
+                builder.append_ascii("u2029"sv);
                 break;
             default:
                 builder.append_code_point(code_point);
@@ -511,21 +511,21 @@ String RegExpObject::escape_regexp_pattern() const
         switch (code_point) {
         case '/':
             if (in_character_class)
-                builder.append('/');
+                builder.append_ascii('/');
             else
-                builder.append("\\/"sv);
+                builder.append_ascii("\\/"sv);
             break;
         case '\n':
-            builder.append("\\n"sv);
+            builder.append_ascii("\\n"sv);
             break;
         case '\r':
-            builder.append("\\r"sv);
+            builder.append_ascii("\\r"sv);
             break;
         case LINE_SEPARATOR:
-            builder.append("\\u2028"sv);
+            builder.append_ascii("\\u2028"sv);
             break;
         case PARAGRAPH_SEPARATOR:
-            builder.append("\\u2029"sv);
+            builder.append_ascii("\\u2029"sv);
             break;
         default:
             builder.append_code_point(code_point);
@@ -533,7 +533,7 @@ String RegExpObject::escape_regexp_pattern() const
         }
     }
 
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 void RegExpObject::visit_edges(JS::Cell::Visitor& visitor)
