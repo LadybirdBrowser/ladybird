@@ -78,9 +78,23 @@ static ThrowCompletionOr<void> increment_last_index(VM& vm, Object& regexp_objec
 }
 
 // FIXME: Add an eviction policy to bound the size of this cache.
+struct RegexCacheKey {
+    Utf16String pattern;
+    RegExpObject::Flags flags;
+
+    bool operator==(RegexCacheKey const&) const = default;
+};
+
+struct RegexCacheKeyTraits : public Traits<RegexCacheKey> {
+    static unsigned hash(RegexCacheKey const& key)
+    {
+        return pair_int_hash(key.pattern.hash(), to_underlying(key.flags));
+    }
+};
+
 static auto& regex_cache()
 {
-    static NeverDestroyed<HashMap<String, NonnullOwnPtr<regex::ECMAScriptRegex>>> cache;
+    static NeverDestroyed<HashMap<RegexCacheKey, NonnullOwnPtr<regex::ECMAScriptRegex>, RegexCacheKeyTraits>> cache;
     return *cache;
 }
 
@@ -93,13 +107,7 @@ static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_o
     auto const& pattern = regexp_object.pattern();
     auto flag_bits = regexp_object.flag_bits();
 
-    // Build a cache key from pattern + flag bits.
-    StringBuilder key_builder;
-    key_builder.append('/');
-    key_builder.append(pattern.utf16_view());
-    key_builder.append('/');
-    key_builder.append_code_point(static_cast<u8>(flag_bits));
-    auto cache_key = key_builder.to_string_without_validation();
+    RegexCacheKey cache_key { pattern, flag_bits };
 
     if (auto it = regex_cache().find(cache_key); it != regex_cache().end()) {
         auto* ptr = it->value.ptr();
@@ -110,7 +118,7 @@ static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_o
     bool unicode = has_flag(flag_bits, RegExpObject::Flags::Unicode);
     bool unicode_sets = has_flag(flag_bits, RegExpObject::Flags::UnicodeSets);
 
-    // Parse the pattern from UTF-16 source to UTF-8 with escape normalization.
+    // Normalize non-ASCII code units to ASCII escapes before compiling the pattern.
     auto parsed_pattern = parse_regex_pattern(pattern.utf16_view(), unicode, unicode_sets);
     if (parsed_pattern.is_error())
         return nullptr;
@@ -132,7 +140,7 @@ static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_o
 
     auto owned = make<regex::ECMAScriptRegex>(compiled.release_value());
     auto* ptr = owned.ptr();
-    regex_cache().set(cache_key, move(owned));
+    regex_cache().set(move(cache_key), move(owned));
     regexp_object.set_cached_regex(ptr);
     return ptr;
 }
