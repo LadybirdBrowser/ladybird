@@ -175,7 +175,7 @@ Vector<Token> Tokenizer::tokenize(StringView input, StringView encoding, Tokeniz
                     input = input.substring_view(3);
                 return String::from_utf8_without_validation(input.bytes());
             }
-            return MUST(decoder->to_utf8(input));
+            return MUST(decoder->to_utf8(input, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
         }();
 
         // OPTIMIZATION: If the input doesn't contain any filterable characters, we can skip the filtering

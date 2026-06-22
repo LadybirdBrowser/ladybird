@@ -8,7 +8,7 @@
 
 namespace Web::Encoding {
 
-TextDecoderCommonMixin::TextDecoderCommonMixin(TextCodec::Decoder& decoder, FlyString encoding, ErrorMode error_mode, bool ignore_bom)
+TextDecoderCommonMixin::TextDecoderCommonMixin(TextCodec::Decoder& decoder, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom)
     : m_decoder(decoder)
     , m_encoding(move(encoding))
     , m_error_mode(error_mode)

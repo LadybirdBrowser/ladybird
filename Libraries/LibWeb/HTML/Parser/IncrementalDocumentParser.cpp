@@ -68,7 +68,7 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
 
     auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
     VERIFY(standardized_encoding.has_value());
-    m_decoder = make<TextCodec::StreamingDecoder>(standardized_encoding.value());
+    m_decoder = make<TextCodec::StreamingDecoder>(standardized_encoding.value(), TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement);
 
     // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
     // The document's character encoding must immediately be set to the value returned from this

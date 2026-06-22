@@ -19,10 +19,21 @@
 
 namespace TextCodec {
 
+enum class IgnoreBOM {
+    Yes,
+    No,
+};
+
+// https://encoding.spec.whatwg.org/#concept-encoding-error-mode
+enum class ErrorMode {
+    Replacement,
+    Fatal,
+};
+
 class TEXTCODEC_API Decoder {
 public:
     virtual bool validate(StringView);
-    virtual ErrorOr<String> to_utf8(StringView);
+    virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode);
     virtual ErrorOr<Utf16String> to_utf16(StringView);
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView);
     ErrorOr<void> process_code_points(StringView, Function<ErrorOr<void>(u32)>);
@@ -36,13 +47,14 @@ class TEXTCODEC_API StreamingDecoder final {
     AK_MAKE_NONCOPYABLE(StreamingDecoder);
 
 public:
-    explicit StreamingDecoder(StringView encoding);
+    StreamingDecoder(StringView encoding, IgnoreBOM, ErrorMode);
     ~StreamingDecoder();
 
     ErrorOr<String> to_utf8(ReadonlyBytes);
     ErrorOr<String> finish();
 
 private:
+    ErrorMode m_error_mode { ErrorMode::Replacement };
     void* m_decoder { nullptr };
 };
 

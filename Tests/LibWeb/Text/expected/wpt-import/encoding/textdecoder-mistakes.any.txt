@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 87 tests
 
-72 Pass
-15 Fail
+74 Pass
+13 Fail
 Pass	Invalid Unicode input is replaced: utf-8
 Pass	Invalid Unicode input is replaced: utf-16le
 Pass	Invalid Unicode input is replaced: utf-16be
@@ -51,8 +51,8 @@ Pass	selected single-byte: iso-8859-8-i
 Pass	selected single-byte: iso-8859-16
 Pass	selected single-byte: x-mac-cyrillic
 Pass	Concatenating two ISO-2022-JP outputs is not always valid
-Fail	gb18030 version and ranges
-Fail	gbk version and ranges
+Pass	gb18030 version and ranges
+Pass	gbk version and ranges
 Pass	gbk decoder is gb18030 decoder
 Pass	Replacement, push back ASCII characters: big5
 Pass	Replacement, push back ASCII characters: iso-2022-jp
