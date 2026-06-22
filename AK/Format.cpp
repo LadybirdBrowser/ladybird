@@ -17,6 +17,8 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <AK/Time.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -820,6 +822,14 @@ ErrorOr<void> vformat(StringBuilder& builder, StringView fmtstr, TypeErasedForma
     FormatParser parser { fmtstr };
 
     TRY(vformat_impl(params, fmtbuilder, parser));
+    return {};
+}
+
+ErrorOr<void> vformat(Utf16StringBuilder& builder, StringView fmtstr, TypeErasedFormatParams& params)
+{
+    StringBuilder string_builder(StringBuilder::Mode::UTF16);
+    TRY(vformat(string_builder, fmtstr, params));
+    builder.append(string_builder.to_utf16_string());
     return {};
 }
 

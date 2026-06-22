@@ -616,6 +616,7 @@ struct Formatter<Checked<T>> : Formatter<T> {
 };
 
 ErrorOr<void> vformat(StringBuilder&, StringView fmtstr, TypeErasedFormatParams&);
+ErrorOr<void> vformat(Utf16StringBuilder&, StringView fmtstr, TypeErasedFormatParams&);
 
 void vout(FILE*, StringView fmtstr, TypeErasedFormatParams&, bool newline = false);
 
