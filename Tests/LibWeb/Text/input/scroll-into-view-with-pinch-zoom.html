@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #target {
+        position: absolute;
+        top: 450px;
+        width: 100px;
+        height: 100px;
+    }
+
+    .spacer {
+        height: 3000px;
+    }
+</style>
+<div id="target"></div>
+<div class="spacer"></div>
+<script src="include.js"></script>
+<script>
+    // scrollIntoView() must account for the visual viewport when the page is pinch-zoomed: a target inside the
+    // layout viewport but below the smaller visible region must still be scrolled into view.
+    test(() => {
+        const visualViewport = window.visualViewport;
+        const target = document.getElementById("target");
+
+        // getBoundingClientRect() is relative to the layout viewport; the visible region is the visual viewport,
+        // which starts at offsetTop and is height tall.
+        function isTargetVisible() {
+            const rect = target.getBoundingClientRect();
+            return rect.top >= visualViewport.offsetTop - 0.5
+                && rect.bottom <= visualViewport.offsetTop + visualViewport.height + 0.5;
+        }
+
+        // Zoom in near the top so the visible region only covers the top of the page.
+        internals.pinch(10, 10, 1.0);
+        println(`target visible before scrollIntoView: ${isTargetVisible()}`);
+
+        target.scrollIntoView({ block: "nearest", behavior: "instant" });
+        println(`target visible after scrollIntoView: ${isTargetVisible()}`);
+    });
+</script>

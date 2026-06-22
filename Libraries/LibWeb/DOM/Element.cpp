@@ -50,6 +50,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -2896,9 +2897,16 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     CSSPixelRect scrolling_box_rect;
     CSSPixelPoint current_scroll_position;
     if (scrolling_box.is_document()) {
-        // NOTE: Element::getBoundingClientRect() returns coordinates relative to the viewport.
-        scrolling_box_rect = { {}, scrolling_box.document().viewport_rect().size() };
-        current_scroll_position = scrolling_box.document().navigable()->viewport_scroll_offset();
+        auto& document = scrolling_box.document();
+        auto& visual_viewport = *document.visual_viewport();
+        // NB: Use the visual viewport as the scrolling box, this ensures that the target is scrolled into the visible
+        //     region on screen when the page is pinch-zoomed.
+        CSSPixelSize visible_size {
+            CSSPixels::nearest_value_for(visual_viewport.width()),
+            CSSPixels::nearest_value_for(visual_viewport.height()),
+        };
+        scrolling_box_rect = { visual_viewport.offset(), visible_size };
+        current_scroll_position = document.navigable()->viewport_scroll_offset() + visual_viewport.offset();
     } else if (auto paintable_box = scrolling_box.paintable_box()) {
         current_scroll_position = paintable_box->scroll_offset();
         scrolling_box_rect = paintable_box->absolute_rect();
