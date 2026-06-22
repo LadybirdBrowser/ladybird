@@ -71,9 +71,17 @@ TextPositioning SVGTextPositioningElement::text_positioning() const
     auto resolve_value = [&](FlyString const& attribute) -> Vector<TextPositioning::Position> {
         auto raw_value = get_attribute_value(attribute);
 
+        CSS::ComputationContext computation_context {
+            .length_resolution_context = CSS::Length::ResolutionContext::for_element(*this),
+            .abstract_element = *this,
+            // NB: color_scheme is irrelevant for resolving text positioning attribute values so isn't set.
+        };
+
+        // FIXME: Should we support tree-counting and/or calculated values here?
+
         auto style_value = parse_css_type(parsing_params, raw_value, CSS::ValueType::LengthPercentage);
         if (auto const* length_style_value = as_if<CSS::LengthStyleValue>(style_value.ptr()))
-            return { CSS::LengthPercentage::from_style_value(*length_style_value) };
+            return { CSS::LengthPercentage::from_style_value(*length_style_value->absolutized(computation_context)) };
 
         if (auto const* percentage_style_value = as_if<CSS::PercentageStyleValue>(style_value.ptr()))
             return { CSS::LengthPercentage::from_style_value(*percentage_style_value) };
