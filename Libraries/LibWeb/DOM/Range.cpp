@@ -9,6 +9,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Range.h>
 #include <LibWeb/DOM/Comment.h>
@@ -569,7 +570,7 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_point(GC::Ref<Node> node, WebI
 Utf16String Range::to_string() const
 {
     // 1. Let s be the empty string.
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
 
     // 2. If this’s start node is this’s end node and it is a Text node,
     //    then return the substring of that Text node’s data beginning at this’s start offset and ending at this’s end offset.
@@ -593,7 +594,7 @@ Utf16String Range::to_string() const
         builder.append(MUST(end_text->substring_data(0, end_offset())));
 
     // 6. Return s.
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 // https://dom.spec.whatwg.org/#dom-range-extractcontents

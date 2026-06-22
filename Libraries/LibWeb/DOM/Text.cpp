@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Text.h>
@@ -141,11 +142,11 @@ Utf16String Text::whole_text()
         current_node = current_node->next_sibling();
     }
 
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
     for (auto const& text_node : nodes)
         builder.append(text_node->data());
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#text-node-directionality

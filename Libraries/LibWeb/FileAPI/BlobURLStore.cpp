@@ -7,7 +7,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
-#include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Crypto/Crypto.h>
@@ -29,10 +29,10 @@ BlobURLStore& blob_url_store()
 ErrorOr<Utf16String> generate_new_blob_url()
 {
     // 1. Let result be the empty string.
-    StringBuilder result { StringBuilder::Mode::UTF16 };
+    Utf16StringBuilder result;
 
     // 2. Append the string "blob:" to result.
-    TRY(result.try_append("blob:"sv));
+    result.append_ascii("blob:"sv);
 
     // 3. Let settings be the current settings object
     auto& settings = HTML::current_settings_object();
@@ -48,17 +48,17 @@ ErrorOr<Utf16String> generate_new_blob_url()
         serialized = "ladybird"_string;
 
     // 7. Append serialized to result.
-    TRY(result.try_append(serialized));
+    result.append_ascii(serialized.bytes_as_string_view());
 
     // 8. Append U+0024 SOLIDUS (/) to result.
-    TRY(result.try_append('/'));
+    result.append_ascii('/');
 
     // 9. Generate a UUID [RFC4122] as a string and append it to result.
     auto uuid = Crypto::generate_random_uuid();
-    TRY(result.try_append(uuid));
+    result.append_ascii(uuid.bytes_as_string_view());
 
     // 10. Return result.
-    return result.to_utf16_string();
+    return result.to_string();
 }
 
 // https://w3c.github.io/FileAPI/#add-an-entry

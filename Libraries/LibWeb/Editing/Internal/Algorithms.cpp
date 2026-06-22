@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibGfx/Color.h>
 #include <LibWeb/Bindings/Document.h>
 #include <LibWeb/CSS/CascadedProperties.h>
@@ -286,16 +287,18 @@ Utf16String canonical_space_sequence(size_t length, bool non_breaking_start, boo
         return "\u00A0"_utf16;
 
     // 4. Let buffer be the empty string.
-    StringBuilder buffer { StringBuilder::Mode::UTF16 };
+    Utf16StringBuilder buffer;
 
     // 5. If non-breaking start is true, let repeated pair be U+00A0 U+0020. Otherwise, let it be
     //    U+0020 U+00A0.
-    auto repeated_pair = non_breaking_start ? "\u00A0 "sv : " \u00A0"sv;
+    auto first_repeated_code_unit = non_breaking_start ? u'\u00A0' : u' ';
+    auto second_repeated_code_unit = non_breaking_start ? u' ' : u'\u00A0';
 
     // 6. While n is greater than three, append repeated pair to buffer and subtract two from n.
     // AD-HOC: Other browsers seem to fit in as many repeated pairs until the remaining length is <= 2.
     while (n > 2) {
-        buffer.append(repeated_pair);
+        buffer.append_code_unit(first_repeated_code_unit);
+        buffer.append_code_unit(second_repeated_code_unit);
         n -= 2;
     }
 
@@ -330,16 +333,16 @@ Utf16String canonical_space_sequence(size_t length, bool non_breaking_start, boo
     // AD-HOC: Other browsers seem to ignore the above and deal differently with padding the remainder; the first
     //         remaining position is filled with the first character from repeated pair.
     if (n > 0) {
-        buffer.append(repeated_pair.substring_view(0, 1) == " "sv ? " "sv : "\u00A0"sv);
+        buffer.append_code_unit(first_repeated_code_unit);
         --n;
     }
 
     // AD-HOC: Then, the final position is set depending on the value of non-breaking end.
     if (n > 0)
-        buffer.append(non_breaking_end ? "\u00A0"sv : " "sv);
+        buffer.append_code_unit(non_breaking_end ? u'\u00A0' : u' ');
 
     // 9. Return buffer.
-    return buffer.to_utf16_string();
+    return buffer.to_string();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#canonicalize-whitespace

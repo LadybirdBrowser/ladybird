@@ -1843,7 +1843,7 @@ Utf16String HTMLInputElement::value_sanitization_algorithm(Utf16String const& va
         if (!value.contains('\r') && !value.contains('\n'))
             return value;
 
-        StringBuilder builder(StringBuilder::Mode::UTF16);
+        Utf16StringBuilder builder;
 
         for (size_t i = 0; i < value.length_in_code_units(); ++i) {
             auto code_unit = value.code_unit_at(i);
@@ -1851,7 +1851,7 @@ Utf16String HTMLInputElement::value_sanitization_algorithm(Utf16String const& va
                 builder.append_code_unit(code_unit);
         }
 
-        return builder.to_utf16_string();
+        return builder.to_string();
     };
 
     auto strip_newlines_and_trim = [&]() {

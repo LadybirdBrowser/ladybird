@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CharacterData.h>
@@ -89,13 +90,13 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     auto before_data = m_data.substring_view(0, offset);
     auto after_data = m_data.substring_view(offset + count);
 
-    StringBuilder full_data(StringBuilder::Mode::UTF16, before_data.length_in_code_units() + data.length_in_code_units() + after_data.length_in_code_units());
+    Utf16StringBuilder full_data(before_data.length_in_code_units() + data.length_in_code_units() + after_data.length_in_code_units());
     full_data.append(before_data);
     full_data.append(data);
     full_data.append(after_data);
 
     auto old_data = m_data;
-    m_data = full_data.to_utf16_string();
+    m_data = full_data.to_string();
 
     // 4. Queue a mutation record of "characterData" for node with null, null, node’s data, « », « », null, and null.
     // NOTE: We do this later so that the mutation observer may notify UI clients of this node's new value.

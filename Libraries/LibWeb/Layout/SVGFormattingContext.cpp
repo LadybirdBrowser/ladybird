@@ -9,6 +9,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGfx/BoundingBox.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Path.h>
@@ -439,7 +440,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box
 
 static Utf16String rendered_text_contents(SVG::SVGTextContentElement const& element)
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
     element.for_each_in_subtree_of_type<DOM::Text>([&](auto const& text_node) {
         if (text_node.parent() && text_node.parent()->unsafe_layout_node()) {
             if (auto content = text_node.text_content(); content.has_value())
@@ -447,7 +448,7 @@ static Utf16String rendered_text_contents(SVG::SVGTextContentElement const& elem
         }
         return TraversalDecision::Continue;
     });
-    return builder.to_utf16_string().trim_ascii_whitespace();
+    return builder.to_string().trim_ascii_whitespace();
 }
 
 Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const& text_path_box) const
