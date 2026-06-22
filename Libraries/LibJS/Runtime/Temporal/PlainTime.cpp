@@ -445,7 +445,7 @@ ThrowCompletionOr<TemporalTimeLike> to_temporal_time_record(VM& vm, Object const
 }
 
 // 4.5.13 TimeRecordToString ( time, precision ), https://tc39.es/proposal-temporal/#sec-temporal-timerecordtostring
-String time_record_to_string(Time const& time, SecondsStringPrecision::Precision precision)
+Utf16String time_record_to_string(Time const& time, SecondsStringPrecision::Precision precision)
 {
     // 1. Let subSecondNanoseconds be time.[[Millisecond]] × 10**6 + time.[[Microsecond]] × 10**3 + time.[[Nanosecond]].
     auto sub_second_nanoseconds = (static_cast<u64>(time.millisecond) * 1'000'000) + (static_cast<u64>(time.microsecond) * 1000) + static_cast<u64>(time.nanosecond);

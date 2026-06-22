@@ -6,7 +6,6 @@
 
 #include <AK/Function.h>
 #include <AK/GenericLexer.h>
-#include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf16StringBuilder.h>
@@ -52,7 +51,7 @@ void JSONObject::initialize(Realm& realm)
 }
 
 // 25.5.2 JSON.stringify ( value [ , replacer [ , space ] ] ), https://tc39.es/ecma262/#sec-json.stringify
-ThrowCompletionOr<Optional<String>> JSONObject::stringify_impl(VM& vm, Value value, Value replacer, Value space)
+ThrowCompletionOr<Optional<Utf16String>> JSONObject::stringify_impl(VM& vm, Value value, Value replacer, Value space)
 {
     auto& realm = *vm.current_realm();
 
@@ -99,15 +98,15 @@ ThrowCompletionOr<Optional<String>> JSONObject::stringify_impl(VM& vm, Value val
     if (space.is_number()) {
         auto space_mv = MUST(space.to_integer_or_infinity(vm));
         space_mv = min(10, space_mv);
-        state.gap = space_mv < 1 ? String {} : MUST(String::repeated(' ', space_mv));
+        state.gap = space_mv < 1 ? Utf16String {} : Utf16String::repeated(' ', space_mv);
     } else if (space.is_string()) {
-        auto string = space.as_string().utf8_string();
-        if (string.bytes().size() <= 10)
+        auto string = space.as_string().utf16_string();
+        if (string.length_in_code_units() <= 10)
             state.gap = string;
         else
-            state.gap = MUST(string.substring_from_byte_offset(0, 10));
+            state.gap = Utf16String::from_utf16(string.utf16_view().substring_view(0, 10));
     } else {
-        state.gap = String {};
+        state.gap = Utf16String {};
     }
 
     auto wrapper = Object::create(realm, realm.intrinsics().object_prototype());
@@ -115,9 +114,9 @@ ThrowCompletionOr<Optional<String>> JSONObject::stringify_impl(VM& vm, Value val
 
     bool wrote_value = TRY(serialize_json_property(vm, state, Utf16String {}, wrapper));
     if (!wrote_value)
-        return Optional<String> {};
+        return Optional<Utf16String> {};
 
-    return state.builder.to_string_without_validation();
+    return state.builder.to_string();
 }
 
 // 25.5.2 JSON.stringify ( value [ , replacer [ , space ] ] ), https://tc39.es/ecma262/#sec-json.stringify
@@ -172,7 +171,7 @@ ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifySta
         // a. If value has an [[IsRawJSON]] internal slot, then
         if (is<RawJSONObject>(value_object)) {
             // i. Return ! Get(value, "rawJSON").
-            builder.append(MUST(value_object.get(vm.names.rawJSON)).as_string().utf8_string());
+            builder.append(MUST(value_object.get(vm.names.rawJSON)).as_string().utf16_string_view());
             return true;
         }
         // b. If value has a [[NumberData]] internal slot, then
@@ -199,14 +198,17 @@ ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifySta
 
     // 5. If value is null, return "null".
     if (value.is_null()) {
-        builder.append("null"sv);
+        builder.append_ascii("null"sv);
         return true;
     }
 
     // 6. If value is true, return "true".
     // 7. If value is false, return "false".
     if (value.is_boolean()) {
-        builder.append(value.as_bool() ? "true"sv : "false"sv);
+        if (value.as_bool())
+            builder.append_ascii("true"sv);
+        else
+            builder.append_ascii("false"sv);
         return true;
     }
 
@@ -220,12 +222,12 @@ ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifySta
     if (value.is_number()) {
         // a. If value is finite, return ! ToString(value).
         if (value.is_finite_number()) {
-            number_to_string(builder, value.as_double());
+            builder.append(number_to_utf16_string(value.as_double()));
             return true;
         }
 
         // b. Return "null".
-        builder.append("null"sv);
+        builder.append_ascii("null"sv);
         return true;
     }
 
@@ -253,10 +255,10 @@ ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifySta
     return false;
 }
 
-static void write_indent(StringBuilder& builder, StringView gap, size_t depth)
+static void write_indent(Utf16StringBuilder& builder, Utf16String const& gap, size_t depth)
 {
     for (size_t i = 0; i < depth; ++i)
-        builder.append(gap);
+        builder.append(gap.utf16_view());
 }
 
 // 25.5.2.4 SerializeJSONObject ( state, value ), https://tc39.es/ecma262/#sec-serializejsonobject
@@ -272,8 +274,8 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
     ++state.indent_depth;
 
     auto& builder = state.builder;
-    builder.append('{');
-    size_t position_after_open_brace = builder.length();
+    builder.append_ascii('{');
+    size_t position_after_open_brace = builder.length_in_code_units();
     bool first = true;
 
     auto process_property = [&](PropertyKey const& key) -> ThrowCompletionOr<void> {
@@ -281,25 +283,25 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
             return {};
 
         // Mark position before writing anything for this property
-        size_t mark = builder.length();
+        size_t mark = builder.length_in_code_units();
 
         // Write separator (comma and possibly newline/indent)
         if (!first) {
-            builder.append(',');
+            builder.append_ascii(',');
             if (!state.gap.is_empty()) {
-                builder.append('\n');
+                builder.append_ascii('\n');
                 write_indent(builder, state.gap, state.indent_depth);
             }
         } else if (!state.gap.is_empty()) {
-            builder.append('\n');
+            builder.append_ascii('\n');
             write_indent(builder, state.gap, state.indent_depth);
         }
 
         // Write key and colon
         quote_json_string(builder, key.to_string());
-        builder.append(':');
+        builder.append_ascii(':');
         if (!state.gap.is_empty())
-            builder.append(' ');
+            builder.append_ascii(' ');
 
         // Serialize value
         bool wrote_value = TRY(serialize_json_property(vm, state, key, &object));
@@ -308,7 +310,7 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
             first = false;
         } else {
             // Rollback - value was undefined, remove everything we wrote for this property
-            builder.trim(builder.length() - mark);
+            builder.trim(builder.length_in_code_units() - mark);
         }
         return {};
     };
@@ -325,11 +327,11 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
 
     // Close the object
     --state.indent_depth;
-    if (builder.length() > position_after_open_brace && !state.gap.is_empty()) {
-        builder.append('\n');
+    if (builder.length_in_code_units() > position_after_open_brace && !state.gap.is_empty()) {
+        builder.append_ascii('\n');
         write_indent(builder, state.gap, state.indent_depth);
     }
-    builder.append('}');
+    builder.append_ascii('}');
 
     state.seen_objects.remove(&object);
     return {};
@@ -350,44 +352,44 @@ ThrowCompletionOr<void> JSONObject::serialize_json_array(VM& vm, StringifyState&
     auto& builder = state.builder;
     auto length = TRY(length_of_array_like(vm, object));
 
-    builder.append('[');
+    builder.append_ascii('[');
 
     for (size_t i = 0; i < length; ++i) {
         // Write separator
         if (i > 0) {
-            builder.append(',');
+            builder.append_ascii(',');
             if (!state.gap.is_empty()) {
-                builder.append('\n');
+                builder.append_ascii('\n');
                 write_indent(builder, state.gap, state.indent_depth);
             }
         } else if (!state.gap.is_empty()) {
-            builder.append('\n');
+            builder.append_ascii('\n');
             write_indent(builder, state.gap, state.indent_depth);
         }
 
         // Serialize value (undefined becomes null for arrays)
         bool wrote_value = TRY(serialize_json_property(vm, state, i, &object));
         if (!wrote_value)
-            builder.append("null"sv);
+            builder.append_ascii("null"sv);
     }
 
     // Close the array
     --state.indent_depth;
     if (length > 0 && !state.gap.is_empty()) {
-        builder.append('\n');
+        builder.append_ascii('\n');
         write_indent(builder, state.gap, state.indent_depth);
     }
-    builder.append(']');
+    builder.append_ascii(']');
 
     state.seen_objects.remove(&object);
     return {};
 }
 
 // 25.5.2.2 QuoteJSONString ( value ), https://tc39.es/ecma262/#sec-quotejsonstring
-void JSONObject::quote_json_string(StringBuilder& builder, Utf16View const& string)
+void JSONObject::quote_json_string(Utf16StringBuilder& builder, Utf16View const& string)
 {
     // 1. Let product be the String value consisting solely of the code unit 0x0022 (QUOTATION MARK).
-    builder.append('"');
+    builder.append_ascii('"');
 
     // 2. For each code point C of StringToCodePoints(value), do
     for (auto code_point : string) {
@@ -395,25 +397,25 @@ void JSONObject::quote_json_string(StringBuilder& builder, Utf16View const& stri
         // i. Set product to the string-concatenation of product and the escape sequence for C as specified in the "Escape Sequence" column of the corresponding row.
         switch (code_point) {
         case '\b':
-            builder.append("\\b"sv);
+            builder.append_ascii("\\b"sv);
             break;
         case '\t':
-            builder.append("\\t"sv);
+            builder.append_ascii("\\t"sv);
             break;
         case '\n':
-            builder.append("\\n"sv);
+            builder.append_ascii("\\n"sv);
             break;
         case '\f':
-            builder.append("\\f"sv);
+            builder.append_ascii("\\f"sv);
             break;
         case '\r':
-            builder.append("\\r"sv);
+            builder.append_ascii("\\r"sv);
             break;
         case '"':
-            builder.append("\\\""sv);
+            builder.append_ascii("\\\""sv);
             break;
         case '\\':
-            builder.append("\\\\"sv);
+            builder.append_ascii("\\\\"sv);
             break;
         default:
             // b. Else if C has a numeric value less than 0x0020 (SPACE), or if C has the same numeric value as a leading surrogate or trailing surrogate, then
@@ -431,7 +433,7 @@ void JSONObject::quote_json_string(StringBuilder& builder, Utf16View const& stri
     }
 
     // 3. Set product to the string-concatenation of product and the code unit 0x0022 (QUOTATION MARK).
-    builder.append('"');
+    builder.append_ascii('"');
 }
 
 // 25.5.1 JSON.parse ( text [ , reviver ] ), https://tc39.es/ecma262/#sec-json.parse

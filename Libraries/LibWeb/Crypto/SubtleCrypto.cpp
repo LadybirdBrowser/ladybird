@@ -977,7 +977,8 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
             }
 
             // 2. Let bytes be the result of UTF-8 encoding json.
-            bytes = MUST(ByteBuffer::copy(maybe_json.value()->bytes()));
+            auto json = MUST(maybe_json.value()->utf16_view().to_utf8());
+            bytes = MUST(ByteBuffer::copy(json.bytes()));
         }
 
         // Otherwise:

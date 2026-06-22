@@ -7,8 +7,8 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
-#include <AK/StringBuilder.h>
 #include <AK/Time.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -36,30 +36,30 @@ Date::Date(double date_value, Object& prototype)
 
 Date::~Date() = default;
 
-ErrorOr<String> Date::iso_date_string() const
+ErrorOr<Utf16String> Date::iso_date_string() const
 {
     int year = year_from_time(m_date_value);
 
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     if (year < 0)
         builder.appendff("-{:06}", -year);
     else if (year > 9999)
         builder.appendff("+{:06}", year);
     else
         builder.appendff("{:04}", year);
-    builder.append('-');
+    builder.append_ascii('-');
     builder.appendff("{:02}", month_from_time(m_date_value) + 1);
-    builder.append('-');
+    builder.append_ascii('-');
     builder.appendff("{:02}", date_from_time(m_date_value));
-    builder.append('T');
+    builder.append_ascii('T');
     builder.appendff("{:02}", hour_from_time(m_date_value));
-    builder.append(':');
+    builder.append_ascii(':');
     builder.appendff("{:02}", min_from_time(m_date_value));
-    builder.append(':');
+    builder.append_ascii(':');
     builder.appendff("{:02}", sec_from_time(m_date_value));
-    builder.append('.');
+    builder.append_ascii('.');
     builder.appendff("{:03}", ms_from_time(m_date_value));
-    builder.append('Z');
+    builder.append_ascii('Z');
 
     return builder.to_string();
 }

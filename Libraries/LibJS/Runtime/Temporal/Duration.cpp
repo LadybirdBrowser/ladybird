@@ -10,6 +10,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/Math.h>
 #include <AK/NumericLimits.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Intrinsics.h>
@@ -1474,13 +1475,13 @@ ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM& vm, InternalD
 }
 
 // 7.5.40 TemporalDurationToString ( duration, precision ), https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationtostring
-String temporal_duration_to_string(Duration const& duration, Precision precision)
+Utf16String temporal_duration_to_string(Duration const& duration, Precision precision)
 {
     // 1. Let sign be DurationSign(duration).
     auto sign = duration_sign(duration);
 
     // 2. Let datePart be the empty String.
-    StringBuilder date_part;
+    Utf16StringBuilder date_part;
 
     // 3. If duration.[[Years]] ≠ 0, then
     if (duration.years() != 0) {
@@ -1508,7 +1509,7 @@ String temporal_duration_to_string(Duration const& duration, Precision precision
     }
 
     // 7. Let timePart be the empty String.
-    StringBuilder time_part;
+    Utf16StringBuilder time_part;
 
     // 8. If duration.[[Hours]] ≠ 0, then
     if (duration.hours() != 0) {
@@ -1552,17 +1553,20 @@ String temporal_duration_to_string(Duration const& duration, Precision precision
     auto sign_part = sign < 0 ? "-"sv : ""sv;
 
     // 15. Let result be the string concatenation of signPart, the code unit 0x0050 (LATIN CAPITAL LETTER P) and datePart.
-    StringBuilder result;
-    result.appendff("{}P{}", sign_part, date_part.string_view());
+    Utf16StringBuilder result;
+    result.append_ascii(sign_part);
+    result.append_ascii('P');
+    result.append(date_part.view());
 
     // 16. If timePart is not the empty String, then
     if (!time_part.is_empty()) {
         // a. Set result to the string concatenation of result, the code unit 0x0054 (LATIN CAPITAL LETTER T), and timePart.
-        result.appendff("T{}", time_part.string_view());
+        result.append_ascii('T');
+        result.append(time_part.view());
     }
 
     // 17. Return result.
-    return MUST(result.to_string());
+    return result.to_string();
 }
 
 // 7.5.41 AddDurations ( operation, duration, other ), https://tc39.es/proposal-temporal/#sec-temporal-adddurations

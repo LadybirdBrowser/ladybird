@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 
@@ -38,7 +39,7 @@ public:
 
     // The base implementation of stringify is exposed because it is used by
     // test-js to communicate between the JS tests and the C++ test runner.
-    static ThrowCompletionOr<Optional<String>> stringify_impl(VM&, Value value, Value replacer, Value space);
+    static ThrowCompletionOr<Optional<Utf16String>> stringify_impl(VM&, Value value, Value replacer, Value space);
 
     static ThrowCompletionOr<Value> parse_json(VM&, StringView text, JSONParseRecord* root_record = nullptr);
 
@@ -49,16 +50,16 @@ private:
         GC::Ptr<FunctionObject> replacer_function;
         HashTable<GC::Ptr<Object>> seen_objects;
         size_t indent_depth { 0 };
-        String gap;
+        Utf16String gap;
         Optional<Vector<Utf16String>> property_list;
-        StringBuilder builder;
+        Utf16StringBuilder builder;
     };
 
     // Stringify helpers
     static ThrowCompletionOr<bool> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, Object* holder);
     static ThrowCompletionOr<void> serialize_json_object(VM&, StringifyState&, Object&);
     static ThrowCompletionOr<void> serialize_json_array(VM&, StringifyState&, Object&);
-    static void quote_json_string(StringBuilder&, Utf16View const&);
+    static void quote_json_string(Utf16StringBuilder&, Utf16View const&);
 
     // Parse helpers
     static ThrowCompletionOr<Value> internalize_json_property(VM&, Object* holder, PropertyKey const& name, FunctionObject& reviver, JSONParseRecord const* parse_record);
