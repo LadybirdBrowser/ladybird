@@ -21,7 +21,7 @@ namespace Web::Encoding {
 GC_DEFINE_ALLOCATOR(TextEncoderStream);
 
 // https://encoding.spec.whatwg.org/#dom-textencoderstream
-WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::construct_impl(JS::Realm& realm)
+GC::Ref<TextEncoderStream> TextEncoderStream::construct_impl(JS::Realm& realm)
 {
     // 1. Set this’s encoder to an instance of the UTF-8 encoder.
     // NOTE: No-op, as AK::String is already in UTF-8 format.

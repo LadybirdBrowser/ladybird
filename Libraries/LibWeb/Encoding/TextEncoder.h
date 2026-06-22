@@ -27,7 +27,7 @@ class TextEncoder final
     GC_DECLARE_ALLOCATOR(TextEncoder);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextEncoder>> construct_impl(JS::Realm&);
+    static GC::Ref<TextEncoder> construct_impl(JS::Realm&);
 
     virtual ~TextEncoder() override;
 

@@ -20,7 +20,7 @@ class TextEncoderStream final
     GC_DECLARE_ALLOCATOR(TextEncoderStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> construct_impl(JS::Realm&);
+    static GC::Ref<TextEncoderStream> construct_impl(JS::Realm&);
     virtual ~TextEncoderStream() override;
 
 private:
