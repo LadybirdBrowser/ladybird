@@ -263,7 +263,7 @@ inline ErrorOr<JsonValue> get_test_results(JS::Realm& realm)
     auto results = MUST(realm.global_object().get("__TestResults__"_utf16_fly_string));
     auto maybe_json_string = MUST(JS::JSONObject::stringify_impl(*g_vm, results, JS::js_undefined(), JS::js_undefined()));
     if (maybe_json_string.has_value())
-        return JsonValue::from_string(*maybe_json_string);
+        return JsonValue::from_string(MUST(maybe_json_string->utf16_view().to_utf8()));
     return JsonValue();
 }
 

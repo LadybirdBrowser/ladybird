@@ -153,7 +153,7 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM&, InternalDuratio
 ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM&, i8 sign, InternalDuration, Crypto::SignedBigInteger const& nudged_epoch_ns, ISODateTime const&, Optional<String const&> time_zone, String const& calendar, Unit largest_unit, Unit smallest_unit);
 ThrowCompletionOr<InternalDuration> round_relative_duration(VM&, InternalDuration, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<String const&> time_zone, String const& calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode);
 ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM&, InternalDuration const&, Crypto::SignedBigInteger const& origin_epoch_ns, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const&, Optional<String const&> time_zone, String const& calendar, Unit);
-String temporal_duration_to_string(Duration const&, Precision);
+Utf16String temporal_duration_to_string(Duration const&, Precision);
 ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM&, ArithmeticOperation, Duration const&, Value);
 
 }

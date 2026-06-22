@@ -8,8 +8,8 @@
  */
 
 #include <AK/NeverDestroyed.h>
-#include <AK/StringBuilder.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -757,44 +757,44 @@ ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
 }
 
 // 13.25 FormatFractionalSeconds ( subSecondNanoseconds, precision ), https://tc39.es/proposal-temporal/#sec-temporal-formatfractionalseconds
-String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision)
+Utf16String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision)
 {
-    String fraction_string;
+    Utf16String fraction_string;
 
     // 1. If precision is auto, then
     if (precision.has<Auto>()) {
         // a. If subSecondNanoseconds = 0, return the empty String.
         if (sub_second_nanoseconds == 0)
-            return String {};
+            return Utf16String {};
 
         // b. Let fractionString be ToZeroPaddedDecimalString(subSecondNanoseconds, 9).
-        fraction_string = MUST(String::formatted("{:09}", sub_second_nanoseconds));
+        fraction_string = Utf16String::formatted("{:09}", sub_second_nanoseconds);
 
         // c. Set fractionString to the longest prefix of fractionString ending with a code unit other than 0x0030 (DIGIT ZERO).
-        fraction_string = MUST(fraction_string.trim("0"sv, TrimMode::Right));
+        fraction_string = Utf16String::from_utf16(fraction_string.utf16_view().trim("0"sv, TrimMode::Right));
     }
     // 2. Else,
     else {
         // a. If precision = 0, return the empty String.
         if (precision.get<u8>() == 0)
-            return String {};
+            return Utf16String {};
 
         // b. Let fractionString be ToZeroPaddedDecimalString(subSecondNanoseconds, 9).
-        fraction_string = MUST(String::formatted("{:09}", sub_second_nanoseconds));
+        fraction_string = Utf16String::formatted("{:09}", sub_second_nanoseconds);
 
         // c. Set fractionString to the substring of fractionString from 0 to precision.
-        fraction_string = MUST(fraction_string.substring_from_byte_offset(0, precision.get<u8>()));
+        fraction_string = Utf16String::from_utf16(fraction_string.utf16_view().substring_view(0, precision.get<u8>()));
     }
 
     // 3. Return the string-concatenation of the code unit 0x002E (FULL STOP) and fractionString.
-    StringBuilder builder;
-    builder.append('.');
-    builder.append(fraction_string);
-    return MUST(builder.to_string());
+    Utf16StringBuilder builder;
+    builder.append_ascii('.');
+    builder.append(fraction_string.utf16_view());
+    return builder.to_string();
 }
 
 // 13.26 FormatTimeString ( hour, minute, second, subSecondNanoseconds, precision [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formattimestring
-String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseconds, SecondsStringPrecision::Precision precision, Optional<TimeStyle> style)
+Utf16String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseconds, SecondsStringPrecision::Precision precision, Optional<TimeStyle> style)
 {
     // 1. If style is present and style is UNSEPARATED, let separator be the empty String; else, let separator be ":".
     auto separator = style == TimeStyle::Unseparated ? ""sv : ":"sv;
@@ -804,14 +804,14 @@ String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseco
 
     // 4. If precision is minute, return the string-concatenation of hh, separator, and mm.
     if (precision.has<SecondsStringPrecision::Minute>())
-        return MUST(String::formatted("{:02}{}{:02}", hour, separator, minute));
+        return Utf16String::formatted("{:02}{}{:02}", hour, separator, minute);
 
     // 5. Let ss be ToZeroPaddedDecimalString(second, 2).
     // 6. Let subSecondsPart be FormatFractionalSeconds(subSecondNanoseconds, precision).
     auto sub_seconds_part = format_fractional_seconds(sub_second_nanoseconds, precision.downcast<Auto, u8>());
 
     // 7. Return the string-concatenation of hh, separator, mm, separator, ss, and subSecondsPart.
-    return MUST(String::formatted("{:02}{}{:02}{}{:02}{}", hour, separator, minute, separator, second, sub_seconds_part));
+    return Utf16String::formatted("{:02}{}{:02}{}{:02}{}", hour, separator, minute, separator, second, sub_seconds_part);
 }
 
 // 13.27 GetUnsignedRoundingMode ( roundingMode, sign ), https://tc39.es/proposal-temporal/#sec-getunsignedroundingmode
