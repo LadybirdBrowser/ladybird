@@ -124,49 +124,6 @@ pub unsafe extern "C" fn textcodec_rust_decode_to_utf8(
 }
 
 /// # Safety
-/// - `encoding_label`/`encoding_label_len` and `input`/`input_len` must be valid byte slices.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn textcodec_rust_validate(
-    encoding_label: *const u8,
-    encoding_label_len: usize,
-    input: *const u8,
-    input_len: usize,
-    remove_bom: bool,
-) -> bool {
-    unsafe {
-        abort_on_panic(|| {
-            let Some(label) = bytes_from_raw(encoding_label, encoding_label_len) else {
-                return false;
-            };
-            let Some(input) = bytes_from_raw(input, input_len) else {
-                return false;
-            };
-            let Some(encoding) = Encoding::for_label(label) else {
-                return false;
-            };
-
-            let input = if remove_bom {
-                if encoding == encoding_rs::UTF_8 && input.starts_with(b"\xEF\xBB\xBF") {
-                    &input[3..]
-                } else if (encoding == encoding_rs::UTF_16LE && input.starts_with(b"\xFF\xFE"))
-                    || (encoding == encoding_rs::UTF_16BE && input.starts_with(b"\xFE\xFF"))
-                {
-                    &input[2..]
-                } else {
-                    input
-                }
-            } else {
-                input
-            };
-
-            encoding
-                .decode_without_bom_handling_and_without_replacement(input)
-                .is_some()
-        })
-    }
-}
-
-/// # Safety
 /// - `encoding_label`/`encoding_label_len` must be a valid byte slice.
 /// - The returned pointer must be freed with `textcodec_rust_streaming_decoder_free`.
 #[unsafe(no_mangle)]

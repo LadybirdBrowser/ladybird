@@ -37,7 +37,7 @@ TEST_CASE(test_utf8_decode)
     // Bytes for U+1F600 GRINNING FACE
     auto test_string = "\xf0\x9f\x98\x80"sv;
 
-    EXPECT(decoder.validate(test_string));
+    EXPECT(!decoder.to_utf8(test_string, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal).is_error());
 
     auto processed_code_points = process_code_points(decoder, test_string);
     EXPECT(processed_code_points.size() == 1);
@@ -60,7 +60,7 @@ TEST_CASE(test_utf8_process_code_points_replaces_surrogates)
     auto utf8_encoded_surrogate_bytes = Vector<u8> { 0xed, 0xa0, 0x80 };
     auto utf8_encoded_surrogate = StringView(bytes(utf8_encoded_surrogate_bytes));
 
-    EXPECT(!decoder.validate(utf8_encoded_surrogate));
+    EXPECT(decoder.to_utf8(utf8_encoded_surrogate, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal).is_error());
     EXPECT_EQ(MUST(decoder.to_utf8(utf8_encoded_surrogate, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement)), "\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd"sv);
     EXPECT_EQ(process_code_points(decoder, utf8_encoded_surrogate), (Vector<u32> { 0xfffd, 0xfffd, 0xfffd }));
 }
@@ -71,7 +71,7 @@ TEST_CASE(test_utf8_process_code_points_replaces_truncated_tail_as_single_error)
     auto truncated_tail_bytes = Vector<u8> { 0xf0, 0x9f, 0x98 };
     auto truncated_tail = StringView(bytes(truncated_tail_bytes));
 
-    EXPECT(!decoder.validate(truncated_tail));
+    EXPECT(decoder.to_utf8(truncated_tail, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal).is_error());
     EXPECT_EQ(MUST(decoder.to_utf8(truncated_tail, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement)), "\xef\xbf\xbd"sv);
     EXPECT_EQ(process_code_points(decoder, truncated_tail), (Vector<u32> { 0xfffd }));
 }
@@ -82,7 +82,7 @@ TEST_CASE(test_utf8_process_code_points_replaces_overlong_sequences)
     auto overlong_null_bytes = Vector<u8> { 0xc0, 0x80 };
     auto overlong_null = StringView(bytes(overlong_null_bytes));
 
-    EXPECT(!decoder.validate(overlong_null));
+    EXPECT(decoder.to_utf8(overlong_null, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal).is_error());
     EXPECT_EQ(MUST(decoder.to_utf8(overlong_null, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement)), "\xef\xbf\xbd\xef\xbf\xbd"sv);
     EXPECT_EQ(process_code_points(decoder, overlong_null), (Vector<u32> { 0xfffd, 0xfffd }));
 }
@@ -95,11 +95,11 @@ TEST_CASE(test_utf8_process_code_points_restores_invalid_second_byte)
     auto out_of_range_four_byte_sequence_bytes = Vector<u8> { 0xf4, 0x90, 0x80, 0x80 };
     auto out_of_range_four_byte_sequence = StringView(bytes(out_of_range_four_byte_sequence_bytes));
 
-    EXPECT(!decoder.validate(overlong_three_byte_sequence));
+    EXPECT(decoder.to_utf8(overlong_three_byte_sequence, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal).is_error());
     EXPECT_EQ(MUST(decoder.to_utf8(overlong_three_byte_sequence, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement)), "\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd"sv);
     EXPECT_EQ(process_code_points(decoder, overlong_three_byte_sequence), (Vector<u32> { 0xfffd, 0xfffd, 0xfffd }));
 
-    EXPECT(!decoder.validate(out_of_range_four_byte_sequence));
+    EXPECT(decoder.to_utf8(out_of_range_four_byte_sequence, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal).is_error());
     EXPECT_EQ(MUST(decoder.to_utf8(out_of_range_four_byte_sequence, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement)), "\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd"sv);
     EXPECT_EQ(process_code_points(decoder, out_of_range_four_byte_sequence), (Vector<u32> { 0xfffd, 0xfffd, 0xfffd, 0xfffd }));
 }
@@ -110,8 +110,7 @@ TEST_CASE(test_utf16be_decode)
     // This is the output of `python3 -c "print('säk😀'.encode('utf-16be'))"`.
     auto test_string = "\x00s\x00\xe4\x00k\xd8=\xde\x00"sv;
 
-    EXPECT(decoder.validate(test_string));
-    auto utf8 = MUST(decoder.to_utf8(test_string, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
+    auto utf8 = MUST(decoder.to_utf8(test_string, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal));
     EXPECT_EQ(utf8, "säk😀"sv);
 }
 
@@ -236,8 +235,7 @@ TEST_CASE(test_utf16le_decode)
     // This is the output of `python3 -c "print('säk😀'.encode('utf-16le'))"`.
     auto test_string = "s\x00\xe4\x00k\x00=\xd8\x00\xde"sv;
 
-    EXPECT(decoder.validate(test_string));
-    auto utf8 = MUST(decoder.to_utf8(test_string, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
+    auto utf8 = MUST(decoder.to_utf8(test_string, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal));
     EXPECT_EQ(utf8, "säk😀"sv);
 }
 

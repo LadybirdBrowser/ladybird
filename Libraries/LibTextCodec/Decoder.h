@@ -32,7 +32,6 @@ enum class ErrorMode {
 
 class TEXTCODEC_API Decoder {
 public:
-    virtual bool validate(StringView);
     virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode);
     virtual ErrorOr<Utf16String> to_utf16(StringView);
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView);
