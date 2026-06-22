@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 36 tests
 
-33 Pass
-3 Fail
+34 Pass
+2 Fail
 Pass	pre test setup
 Pass	backgroundAttachment should be applied to first-letter pseudo elements.
 Pass	backgroundBlendMode should be applied to first-letter pseudo elements.
@@ -39,4 +39,4 @@ Pass	wordSpacing should be applied to first-letter pseudo elements.
 Pass	position should not be applied to first-letter pseudo elements.
 Fail	transition should not be applied to first-letter pseudo elements.
 Pass	transform should not be applied to first-letter pseudo elements.
-Fail	wordBreak should not be applied to first-letter pseudo elements.
+Pass	wordBreak should not be applied to first-letter pseudo elements.
