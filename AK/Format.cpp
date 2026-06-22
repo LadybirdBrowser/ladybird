@@ -217,16 +217,40 @@ bool FormatParser::consume_replacement_field(size_t& index)
     return true;
 }
 
+ErrorOr<void> FormatBuilder::append(char ch)
+{
+    if (m_string_builder)
+        return m_string_builder->try_append(ch);
+    m_utf16_builder->append_ascii(ch);
+    return {};
+}
+
+ErrorOr<void> FormatBuilder::append(StringView string)
+{
+    if (m_string_builder)
+        return m_string_builder->try_append(string);
+    m_utf16_builder->append(Utf16String::from_utf8_without_validation(string));
+    return {};
+}
+
+ErrorOr<void> FormatBuilder::append(Utf16View const& string)
+{
+    if (m_string_builder)
+        return m_string_builder->try_append(string);
+    m_utf16_builder->append(string);
+    return {};
+}
+
 ErrorOr<void> FormatBuilder::put_padding(char fill, size_t amount)
 {
     for (size_t i = 0; i < amount; ++i)
-        TRY(m_builder.try_append(fill));
+        TRY(append(fill));
     return {};
 }
 ErrorOr<void> FormatBuilder::put_literal(StringView value)
 {
     for (size_t i = 0; i < value.length(); ++i) {
-        TRY(m_builder.try_append(value[i]));
+        TRY(append(value[i]));
         if (value[i] == '{' || value[i] == '}')
             ++i;
     }
@@ -247,19 +271,25 @@ ErrorOr<void> FormatBuilder::put_string(
         value = value.substring_view(0, used_by_string);
 
     if (align == Align::Left || align == Align::Default) {
-        TRY(m_builder.try_append(value));
+        TRY(append(value));
         TRY(put_padding(fill, used_by_padding));
     } else if (align == Align::Center) {
         auto const used_by_left_padding = used_by_padding / 2;
         auto const used_by_right_padding = ceil_div<size_t, size_t>(used_by_padding, 2);
 
         TRY(put_padding(fill, used_by_left_padding));
-        TRY(m_builder.try_append(value));
+        TRY(append(value));
         TRY(put_padding(fill, used_by_right_padding));
     } else if (align == Align::Right) {
         TRY(put_padding(fill, used_by_padding));
-        TRY(m_builder.try_append(value));
+        TRY(append(value));
     }
+    return {};
+}
+
+ErrorOr<void> FormatBuilder::put_string(Utf16View const& value)
+{
+    TRY(append(value));
     return {};
 }
 
@@ -307,25 +337,25 @@ ErrorOr<void> FormatBuilder::put_u64(
 
     auto const put_prefix = [&]() -> ErrorOr<void> {
         if (is_negative)
-            TRY(m_builder.try_append('-'));
+            TRY(append('-'));
         else if (sign_mode == SignMode::Always)
-            TRY(m_builder.try_append('+'));
+            TRY(append('+'));
         else if (sign_mode == SignMode::Reserved)
-            TRY(m_builder.try_append(' '));
+            TRY(append(' '));
 
         if (prefix) {
             if (base == 2) {
                 if (upper_case)
-                    TRY(m_builder.try_append("0B"sv));
+                    TRY(append("0B"sv));
                 else
-                    TRY(m_builder.try_append("0b"sv));
+                    TRY(append("0b"sv));
             } else if (base == 8) {
-                TRY(m_builder.try_append("0"sv));
+                TRY(append("0"sv));
             } else if (base == 16) {
                 if (upper_case)
-                    TRY(m_builder.try_append("0X"sv));
+                    TRY(append("0X"sv));
                 else
-                    TRY(m_builder.try_append("0x"sv));
+                    TRY(append("0x"sv));
             }
         }
         return {};
@@ -333,7 +363,7 @@ ErrorOr<void> FormatBuilder::put_u64(
 
     auto const put_digits = [&]() -> ErrorOr<void> {
         for (size_t i = 0; i < used_by_digits; ++i)
-            TRY(m_builder.try_append(buffer[i]));
+            TRY(append(buffer[i]));
         return {};
     };
 
@@ -795,7 +825,7 @@ ErrorOr<void> FormatBuilder::put_hexdump(ReadonlyBytes bytes, size_t width, char
         TRY(put_padding(fill, 4));
         for (size_t j = i - min(i, width); j < i; ++j) {
             auto ch = bytes[j];
-            TRY(m_builder.try_append(ch >= 32 && ch <= 127 ? ch : '.')); // silly hack
+            TRY(append(ch >= 32 && ch <= 127 ? ch : '.')); // silly hack
         }
         return {};
     };
@@ -827,9 +857,10 @@ ErrorOr<void> vformat(StringBuilder& builder, StringView fmtstr, TypeErasedForma
 
 ErrorOr<void> vformat(Utf16StringBuilder& builder, StringView fmtstr, TypeErasedFormatParams& params)
 {
-    StringBuilder string_builder(StringBuilder::Mode::UTF16);
-    TRY(vformat(string_builder, fmtstr, params));
-    builder.append(string_builder.to_utf16_string());
+    FormatBuilder fmtbuilder { builder };
+    FormatParser parser { fmtstr };
+
+    TRY(vformat_impl(params, fmtbuilder, parser));
     return {};
 }
 

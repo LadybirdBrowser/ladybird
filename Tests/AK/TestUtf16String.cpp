@@ -354,7 +354,7 @@ TEST_CASE(repeated)
 
 TEST_CASE(from_string_builder)
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
     builder.append_code_point('a');
     builder.append_code_point('b');
     builder.append_code_point(0x1f600);
@@ -363,7 +363,7 @@ TEST_CASE(from_string_builder)
     builder.append_code_point('c');
     builder.append_code_point('d');
 
-    auto string = builder.to_utf16_string();
+    auto string = builder.to_string();
     EXPECT_EQ(string.length_in_code_units(), 10uz);
     EXPECT_EQ(string.length_in_code_points(), 7uz);
     EXPECT_EQ(string, "ab😀𐀀🍕cd"sv);
@@ -371,8 +371,8 @@ TEST_CASE(from_string_builder)
 
 TEST_CASE(from_string_builder_alignment)
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16);
-    builder.append("\u00a0"sv);
+    Utf16StringBuilder builder;
+    builder.append(Utf16String::from_utf8_without_validation("\u00a0"sv));
     builder.append(R"~~(
 <script>
     const containsValidURL = input => {
@@ -381,7 +381,7 @@ TEST_CASE(from_string_builder_alignment)
 </script>
 )~~"sv);
 
-    auto string1 = builder.to_utf16_string();
+    auto string1 = builder.to_string();
     auto string2 = string1.to_utf8();
 
     EXPECT_EQ(string1.code_unit_at(0), 0x00a0);
@@ -415,10 +415,7 @@ TEST_CASE(from_ipc_stream)
     {
         auto data = u"hello 😀 there!"sv;
 
-        StringBuilder builder(StringBuilder::Mode::UTF16);
-        builder.append(data);
-
-        auto buffer = MUST(builder.to_byte_buffer());
+        auto buffer = MUST(ByteBuffer::copy({ reinterpret_cast<u8 const*>(data.utf16_span().data()), data.length_in_code_units() * sizeof(char16_t) }));
         FixedMemoryStream stream { buffer.bytes() };
 
         auto string = TRY_OR_FAIL(Utf16String::from_ipc_stream(stream, data.length_in_code_units(), false));
@@ -438,10 +435,7 @@ TEST_CASE(from_ipc_stream)
     {
         auto data = u"😀"sv;
 
-        StringBuilder builder(StringBuilder::Mode::UTF16);
-        builder.append(data);
-
-        auto buffer = MUST(builder.to_byte_buffer());
+        auto buffer = MUST(ByteBuffer::copy({ reinterpret_cast<u8 const*>(data.utf16_span().data()), data.length_in_code_units() * sizeof(char16_t) }));
         FixedMemoryStream stream { buffer.bytes() };
 
         auto result = Utf16String::from_ipc_stream(stream, data.length_in_code_units(), true);
@@ -450,10 +444,7 @@ TEST_CASE(from_ipc_stream)
     {
         auto data = u"hello 😀 there!"sv;
 
-        StringBuilder builder(StringBuilder::Mode::UTF16);
-        builder.append(data);
-
-        auto buffer = MUST(builder.to_byte_buffer());
+        auto buffer = MUST(ByteBuffer::copy({ reinterpret_cast<u8 const*>(data.utf16_span().data()), data.length_in_code_units() * sizeof(char16_t) }));
         FixedMemoryStream stream { buffer.bytes() };
 
         auto result = Utf16String::from_ipc_stream(stream, data.length_in_code_units(), true);
@@ -1251,17 +1242,16 @@ TEST_CASE(optional)
     EXPECT_EQ(released, u"well 😀 hello"sv);
 }
 
-TEST_CASE(utf16_builder_clear_resets_ascii_flag)
+TEST_CASE(utf16_string_builder_clear_resets_ascii_flag)
 {
-    // Regression test: StringBuilder(UTF16) must reset m_utf16_builder_is_ascii
-    // on clear(). Without this, a builder that previously held non-ASCII content
-    // stores subsequent ASCII as char16_t, and to_utf16_string() corrupts the
-    // first code unit via placement-new overlap in from_string_builder().
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    // Regression test: Utf16StringBuilder must reset its ASCII state on clear().
+    // Without this, a builder that previously held non-ASCII content stores
+    // subsequent ASCII as char16_t, corrupting the first code unit when adopted.
+    Utf16StringBuilder builder;
 
     // 1. Append a non-ASCII code point to force m_utf16_builder_is_ascii = false.
     builder.append_code_point(0x00D7); // U+00D7 MULTIPLICATION SIGN (×)
-    auto first = builder.to_utf16_string();
+    auto first = builder.to_string();
     EXPECT_EQ(first.length_in_code_units(), 1u);
     EXPECT_EQ(first.code_unit_at(0), 0x00D7);
 
@@ -1271,7 +1261,7 @@ TEST_CASE(utf16_builder_clear_resets_ascii_flag)
     for (int i = 0; i < 100; ++i)
         builder.append_code_point(' ');
 
-    auto second = builder.to_utf16_string();
+    auto second = builder.to_string();
     EXPECT_EQ(second.length_in_code_units(), 101u);
     EXPECT_EQ(second.code_unit_at(0), 0x000A); // Must be newline, not null.
     EXPECT_EQ(second.code_unit_at(1), 0x0020);

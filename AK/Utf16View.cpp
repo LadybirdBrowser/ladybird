@@ -59,27 +59,27 @@ ErrorOr<ByteString> Utf16View::to_byte_string(AllowLonelySurrogates allow_lonely
 
 Utf16String Utf16View::to_ascii_lowercase() const
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+    Utf16StringBuilder builder(length_in_code_units());
 
     for (size_t i = 0; i < length_in_code_units(); ++i)
         builder.append_code_unit(AK::to_ascii_lowercase(code_unit_at(i)));
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 Utf16String Utf16View::to_ascii_uppercase() const
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+    Utf16StringBuilder builder(length_in_code_units());
 
     for (size_t i = 0; i < length_in_code_units(); ++i)
         builder.append_code_unit(AK::to_ascii_uppercase(code_unit_at(i)));
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 Utf16String Utf16View::to_ascii_titlecase() const
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+    Utf16StringBuilder builder(length_in_code_units());
     bool next_is_upper = true;
 
     for (size_t i = 0; i < length_in_code_units(); ++i) {
@@ -93,7 +93,7 @@ Utf16String Utf16View::to_ascii_titlecase() const
         next_is_upper = code_unit == u' ';
     }
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 Utf16String Utf16View::replace(char16_t needle, Utf16View const& replacement, ReplaceMode replace_mode) const
@@ -106,7 +106,7 @@ Utf16String Utf16View::replace(Utf16View const& needle, Utf16View const& replace
     if (is_empty())
         return {};
 
-    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+    Utf16StringBuilder builder(length_in_code_units());
     auto remaining = *this;
 
     do {
@@ -122,12 +122,12 @@ Utf16String Utf16View::replace(Utf16View const& needle, Utf16View const& replace
     } while (replace_mode == ReplaceMode::All && !remaining.is_empty());
 
     builder.append(remaining);
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 Utf16String Utf16View::escape_html_entities() const
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16, length_in_code_units());
+    Utf16StringBuilder builder(length_in_code_units());
 
     for (auto code_point : *this) {
         if (code_point == '<')
@@ -142,7 +142,7 @@ Utf16String Utf16View::escape_html_entities() const
             builder.append_code_point(code_point);
     }
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 bool Utf16View::is_ascii() const
