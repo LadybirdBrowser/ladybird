@@ -42,6 +42,48 @@ static ErrorOr<Gfx::ImageFrameDescriptor> expect_single_frame_of_size(Gfx::Image
     return frame;
 }
 
+static ErrorOr<ByteBuffer> make_webp_with_declared_but_missing_iccp_chunk(ReadonlyBytes simple_webp)
+{
+    VERIFY(simple_webp.size() >= 20);
+    VERIFY(simple_webp.slice(0, 4) == "RIFF"sv.bytes());
+    VERIFY(simple_webp.slice(8, 4) == "WEBP"sv.bytes());
+    VERIFY(simple_webp.slice(12, 4) == "VP8 "sv.bytes());
+
+    auto vp8_chunk = simple_webp.slice(12);
+
+    ByteBuffer extended_webp;
+    auto append_u32_le = [&](u32 value) -> ErrorOr<void> {
+        TRY(extended_webp.try_append(static_cast<u8>(value)));
+        TRY(extended_webp.try_append(static_cast<u8>(value >> 8)));
+        TRY(extended_webp.try_append(static_cast<u8>(value >> 16)));
+        TRY(extended_webp.try_append(static_cast<u8>(value >> 24)));
+        return {};
+    };
+    auto append_u24_le = [&](u32 value) -> ErrorOr<void> {
+        VERIFY(value <= 0xffffff);
+        TRY(extended_webp.try_append(static_cast<u8>(value)));
+        TRY(extended_webp.try_append(static_cast<u8>(value >> 8)));
+        TRY(extended_webp.try_append(static_cast<u8>(value >> 16)));
+        return {};
+    };
+
+    TRY(extended_webp.try_append("RIFF"sv.bytes()));
+    TRY(append_u32_le(4 + 18 + vp8_chunk.size()));
+    TRY(extended_webp.try_append("WEBP"sv.bytes()));
+
+    TRY(extended_webp.try_append("VP8X"sv.bytes()));
+    TRY(append_u32_le(10));
+    TRY(extended_webp.try_append(0x20)); // ICCP flag, without a corresponding ICCP chunk.
+    TRY(extended_webp.try_append(0));
+    TRY(extended_webp.try_append(0));
+    TRY(extended_webp.try_append(0));
+    TRY(append_u24_le(239)); // simple-vp8.webp is 240x240, encoded as dimension - 1.
+    TRY(append_u24_le(239));
+
+    TRY(extended_webp.try_append(vp8_chunk));
+    return extended_webp;
+}
+
 TEST_CASE(test_bmp)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/rgba32-1.bmp"sv)));
@@ -633,6 +675,20 @@ TEST_CASE(test_webp_simple_lossy)
 
     // While VP8 YUV contents are defined bit-exact, the YUV->RGB conversion isn't.
     // So pixels changing by 1 or so below is fine if you change code.
+    EXPECT_EQ(frame.image->get_pixel(120, 232), Gfx::Color(0xf1, 0xef, 0xf0, 255));
+    EXPECT_EQ(frame.image->get_pixel(198, 202), Gfx::Color(0x7a, 0xaa, 0xd5, 255));
+}
+
+TEST_CASE(test_webp_extended_missing_declared_icc_chunk)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/simple-vp8.webp"sv)));
+    auto malformed_webp = TRY_OR_FAIL(make_webp_with_declared_but_missing_iccp_chunk(file->bytes()));
+
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(malformed_webp));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(malformed_webp));
+    EXPECT(!TRY_OR_FAIL(plugin_decoder->icc_data()).has_value());
+
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
     EXPECT_EQ(frame.image->get_pixel(120, 232), Gfx::Color(0xf1, 0xef, 0xf0, 255));
     EXPECT_EQ(frame.image->get_pixel(198, 202), Gfx::Color(0x7a, 0xaa, 0xd5, 255));
 }
