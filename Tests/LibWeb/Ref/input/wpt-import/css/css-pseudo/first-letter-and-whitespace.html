@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: White-spaces around floated ::first-letter</title>
+<link rel="author" title="Rune Lillesveen" href="mailto:futhark@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/first-letter-and-whitespace-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#first-letter-styling">
+<meta name="assert" content="Test checks that white-spaces are correctly rendered for floated ::first-letter changes">
+<style>
+  div::first-letter {
+    color: black;
+  }
+  .floatLetter::first-letter {
+    float: left;
+  }
+</style>
+<p>Pass if no space between "A", space between "B".</p>
+<div id="t1"> <!---->AA</div>
+<div id="t2"> <!---->A<!----> <!---->A</div>
+<div id="t3" class="floatLetter">  <!---->B<!----> <!---->B</div>
+<div id="t4" class="floatLetter">  <!---->B <!---->B</div>
+<div id="t5" class="floatLetter">  <!---->AAB<!----> <!---->B</div>
+<div id="t6" class="floatLetter">  <!---->AAB<!----> B</div>
+<script>
+  document.body.offsetTop;
+  t1.className = "floatLetter";
+  t2.className = "floatLetter";
+  t3.className = "";
+  t4.className = "";
+  t5.className = "";
+  t6.className = "";
+</script>
