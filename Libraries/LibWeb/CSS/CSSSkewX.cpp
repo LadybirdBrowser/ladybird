@@ -60,15 +60,15 @@ void CSSSkewX::visit_edges(Visitor& visitor)
 WebIDL::ExceptionOr<Utf16String> CSSSkewX::to_string() const
 {
     // 1. Let s initially be "skewX(".
-    StringBuilder builder { StringBuilder::Mode::UTF16 };
-    builder.append("skewX("sv);
+    Utf16StringBuilder builder;
+    builder.append_ascii("skewX("sv);
 
     // 2. Serialize this’s ax internal slot, and append it to s.
     m_ax->serialize(builder, {});
 
     // 3. Append ")" to s, and return s.
-    builder.append(")"sv);
-    return builder.to_utf16_string();
+    builder.append_ascii(')');
+    return builder.to_string();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix

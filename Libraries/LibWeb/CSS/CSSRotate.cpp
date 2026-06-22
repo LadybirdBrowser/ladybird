@@ -98,49 +98,49 @@ void CSSRotate::visit_edges(Visitor& visitor)
 WebIDL::ExceptionOr<Utf16String> CSSRotate::to_string() const
 {
     // 1. Let s initially be the empty string.
-    StringBuilder builder { StringBuilder::Mode::UTF16 };
+    Utf16StringBuilder builder;
 
     // 2. If this’s is2D internal slot is false:
     if (!is_2d()) {
         // 1. Append "rotate3d(" to s.
-        builder.append("rotate3d("sv);
+        builder.append_ascii("rotate3d("sv);
 
         // 2. Serialize this’s x internal slot, and append it to s.
         m_x->serialize(builder, {});
 
         // 3. Append ", " to s.
-        builder.append(", "sv);
+        builder.append_ascii(", "sv);
 
         // 4. Serialize this’s y internal slot, and append it to s.
         m_y->serialize(builder, {});
 
         // 5. Append ", " to s.
-        builder.append(", "sv);
+        builder.append_ascii(", "sv);
 
         // 6. Serialize this’s z internal slot, and append it to s.
         m_z->serialize(builder, {});
 
         // 7. Append "," to s.
-        builder.append(", "sv);
+        builder.append_ascii(", "sv);
 
         // 8. Serialize this’s angle internal slot, and append it to s.
         m_angle->serialize(builder, {});
 
         // 9. Append ")" to s, and return s.
-        builder.append(")"sv);
-        return builder.to_utf16_string();
+        builder.append_ascii(')');
+        return builder.to_string();
     }
     // 2. Otherwise:
     else {
         // 1. Append "rotate(" to s.
-        builder.append("rotate("sv);
+        builder.append_ascii("rotate("sv);
 
         // 2. Serialize this’s angle internal slot, and append it to s.
         m_angle->serialize(builder, {});
 
         // 3. Append ")" to s, and return s.
-        builder.append(")"sv);
-        return builder.to_utf16_string();
+        builder.append_ascii(')');
+        return builder.to_string();
     }
 }
 

@@ -104,7 +104,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSSt
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylevalue-serialization
-WebIDL::ExceptionOr<String> CSSStyleValue::to_string() const
+WebIDL::ExceptionOr<Utf16String> CSSStyleValue::to_string() const
 {
     // FIXME: if the value was constructed from a USVString
     // NB: Basically, if this was constructed with "parse a CSSStyleValue", regardless of what CSSStyleValue type it is now.
@@ -119,11 +119,11 @@ WebIDL::ExceptionOr<String> CSSStyleValue::to_string() const
     // FIXME: otherwise, if the value was extracted from the CSSOM
     // NB: For CSSStyleValue itself, we use the source value we were created from.
     if (m_source_value)
-        return m_source_value->to_string(SerializationMode::Normal);
+        return Utf16String::from_utf8_without_validation(m_source_value->to_string(SerializationMode::Normal));
     {
         // the serialization is specified in §6.7 Serialization from CSSOM Values below.
     }
-    return String {};
+    return Utf16String::from_utf8_without_validation(""sv);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation

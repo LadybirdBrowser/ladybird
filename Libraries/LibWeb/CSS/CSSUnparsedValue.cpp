@@ -5,6 +5,7 @@
  */
 
 #include "CSSUnparsedValue.h"
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSUnparsedValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSVariableReferenceValue.h>
@@ -131,17 +132,17 @@ bool CSSUnparsedValue::contains_unparsed_value(CSSUnparsedValue const& needle) c
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssunparsedvalue
-WebIDL::ExceptionOr<String> CSSUnparsedValue::to_string() const
+WebIDL::ExceptionOr<Utf16String> CSSUnparsedValue::to_string() const
 {
     // AD-HOC: It's possible for one of the m_tokens to contain this in its fallback slot, or a similar situation with
     //         more levels of nesting. To avoid crashing, do a scan for that first and return the empty string.
     // Spec issue: https://github.com/w3c/css-houdini-drafts/issues/1158
     if (contains_unparsed_value(*this))
-        return ""_string;
+        return Utf16String::from_utf8_without_validation(""sv);
 
     // To serialize a CSSUnparsedValue this:
     // 1. Let s initially be the empty string.
-    StringBuilder s;
+    Utf16StringBuilder s;
 
     // 2. For each item in this’s [[tokens]] internal slot:
     for (auto const& item : m_tokens) {
@@ -150,7 +151,7 @@ WebIDL::ExceptionOr<String> CSSUnparsedValue::to_string() const
         TRY(item.visit(
             // 1. If item is a USVString, append it to s.
             [&](String const& string) -> WebIDL::ExceptionOr<void> {
-                s.append(string);
+                s.append(Utf16String::from_utf8_without_validation(string));
                 return {};
             },
             // 2. Otherwise, item is a CSSVariableReferenceValue. Serialize it, then append the result to s.
@@ -161,7 +162,7 @@ WebIDL::ExceptionOr<String> CSSUnparsedValue::to_string() const
     }
 
     // 3. Return s.
-    return s.to_string_without_validation();
+    return s.to_string();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
@@ -181,7 +182,8 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnparsedValue::create_an
 
     // NB: CSSUnparsedValue stores a list of strings, each of which may contain any number of tokens. So the simplest
     //     way to convert it to ComponentValues is to serialize and then parse it.
-    auto string = TRY(to_string());
+    auto utf16_string = TRY(to_string());
+    auto string = MUST(utf16_string.utf16_view().to_utf8());
     auto parser = Parser::Parser::create(Parser::ParsingParams {}, string);
     auto component_values = parser.parse_as_list_of_component_values();
 

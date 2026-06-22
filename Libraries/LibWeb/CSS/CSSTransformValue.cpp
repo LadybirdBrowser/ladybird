@@ -5,6 +5,7 @@
  */
 
 #include "CSSTransformValue.h"
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSTransformValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSTransformComponent.h>
@@ -141,19 +142,19 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTransformValue::to_matrix()
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-csstransformvalue
-WebIDL::ExceptionOr<String> CSSTransformValue::to_string() const
+WebIDL::ExceptionOr<Utf16String> CSSTransformValue::to_string() const
 {
     // 1. Return the result of serializing each item in this’s values to iterate over, then concatenating them
     //    separated by " ".
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     bool first = true;
     for (auto const& transform : m_transforms) {
         if (!first)
-            builder.append(" "sv);
+            builder.append_ascii(' ');
         first = false;
         builder.append(TRY(transform->to_string()));
     }
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation

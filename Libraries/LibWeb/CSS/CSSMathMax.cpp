@@ -86,7 +86,7 @@ void CSSMathMax::visit_edges(Visitor& visitor)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssmathvalue
-void CSSMathMax::serialize_math_value(StringBuilder& s, Nested, Parens) const
+void CSSMathMax::serialize_math_value(Utf16StringBuilder& s, Nested, Parens) const
 {
     // NB: Only steps 1 and 2 apply here.
     // 1. Let s initially be the empty string.
@@ -94,7 +94,7 @@ void CSSMathMax::serialize_math_value(StringBuilder& s, Nested, Parens) const
     // 2. If this is a CSSMathMin or CSSMathMax:
     {
         // 1. Append "min(" or "max(" to s, as appropriate.
-        s.append("max("sv);
+        s.append_ascii("max("sv);
 
         // 2. For each arg in this’s values internal slot, serialize arg with nested and paren-less both true, and
         //    append the result to s, appending a ", " between successive values.
@@ -103,13 +103,13 @@ void CSSMathMax::serialize_math_value(StringBuilder& s, Nested, Parens) const
             if (first) {
                 first = false;
             } else {
-                s.append(", "sv);
+                s.append_ascii(", "sv);
             }
             arg->serialize(s, { .nested = true, .parenless = true });
         }
 
         // 3. Append ")" to s and return s.
-        s.append(')');
+        s.append_ascii(')');
     }
 }
 

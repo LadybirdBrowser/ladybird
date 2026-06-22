@@ -29,7 +29,7 @@ public:
     virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value) override;
     virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value) override;
 
-    virtual WebIDL::ExceptionOr<String> to_string() const override;
+    virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:

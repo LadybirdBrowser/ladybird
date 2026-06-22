@@ -30,7 +30,7 @@ public:
     bool is_2d() const;
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const;
 
-    virtual WebIDL::ExceptionOr<String> to_string() const override;
+    virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 

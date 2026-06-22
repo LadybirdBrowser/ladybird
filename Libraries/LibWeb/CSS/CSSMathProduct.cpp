@@ -86,7 +86,7 @@ void CSSMathProduct::visit_edges(Visitor& visitor)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssmathvalue
-void CSSMathProduct::serialize_math_value(StringBuilder& s, Nested nested, Parens parens) const
+void CSSMathProduct::serialize_math_value(Utf16StringBuilder& s, Nested nested, Parens parens) const
 {
     // NB: Only steps 1 and 5 apply here.
     // 1. Let s initially be the empty string.
@@ -97,9 +97,9 @@ void CSSMathProduct::serialize_math_value(StringBuilder& s, Nested nested, Paren
         //    otherwise, append "calc(" to s.
         if (parens == Parens::With) {
             if (nested == Nested::Yes) {
-                s.append('(');
+                s.append_ascii('(');
             } else {
-                s.append("calc("sv);
+                s.append_ascii("calc("sv);
             }
         }
 
@@ -117,20 +117,20 @@ void CSSMathProduct::serialize_math_value(StringBuilder& s, Nested nested, Paren
             // 1. If arg is a CSSMathInvert, append " / " to s, then serialize arg’s value internal slot with nested
             //    set to true, and append the result to s.
             if (auto* invert = as_if<CSSMathInvert>(*arg)) {
-                s.append(" / "sv);
+                s.append_ascii(" / "sv);
                 invert->value()->serialize(s, { .nested = true });
             }
 
             // 2. Otherwise, append " * " to s, then serialize arg with nested set to true, and append the result to s.
             else {
-                s.append(" * "sv);
+                s.append_ascii(" * "sv);
                 arg->serialize(s, { .nested = true });
             }
         }
 
         // 4. If paren-less is false, append ")" to s,
         if (parens == Parens::With)
-            s.append(')');
+            s.append_ascii(')');
 
         // 5. Return s.
     }

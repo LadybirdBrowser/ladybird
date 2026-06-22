@@ -68,16 +68,16 @@ void CSSMathClamp::visit_edges(Visitor& visitor)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssmathvalue
-void CSSMathClamp::serialize_math_value(StringBuilder& s, Nested, Parens) const
+void CSSMathClamp::serialize_math_value(Utf16StringBuilder& s, Nested, Parens) const
 {
     // AD-HOC: The spec is missing serialization rules for CSSMathClamp: https://github.com/w3c/css-houdini-drafts/issues/1152
-    s.append("clamp("sv);
+    s.append_ascii("clamp("sv);
     m_lower->serialize(s, { .nested = true, .parenless = true });
-    s.append(", "sv);
+    s.append_ascii(", "sv);
     m_value->serialize(s, { .nested = true, .parenless = true });
-    s.append(", "sv);
+    s.append_ascii(", "sv);
     m_upper->serialize(s, { .nested = true, .parenless = true });
-    s.append(')');
+    s.append_ascii(')');
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathclamp-lower

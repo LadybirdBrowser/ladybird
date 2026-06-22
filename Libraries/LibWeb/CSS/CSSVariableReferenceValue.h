@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::CSS {
@@ -27,7 +28,7 @@ public:
     GC::Ptr<CSSUnparsedValue> fallback() const;
     WebIDL::ExceptionOr<void> set_fallback(GC::Ptr<CSSUnparsedValue>);
 
-    WebIDL::ExceptionOr<String> to_string() const;
+    WebIDL::ExceptionOr<Utf16String> to_string() const;
 
 private:
     CSSVariableReferenceValue(JS::Realm&, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);

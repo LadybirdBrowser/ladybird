@@ -30,7 +30,7 @@ public:
         With,
         Without,
     };
-    virtual void serialize_math_value(StringBuilder&, Nested, Parens) const = 0;
+    virtual void serialize_math_value(Utf16StringBuilder&, Nested, Parens) const = 0;
 
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const final override;
 

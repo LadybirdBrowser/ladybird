@@ -5,7 +5,6 @@
  */
 
 #include "CSSKeywordValue.h"
-#include <AK/StringBuilder.h>
 #include <LibWeb/Bindings/CSSKeywordValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Keyword.h>
@@ -61,19 +60,19 @@ WebIDL::ExceptionOr<void> CSSKeywordValue::set_value(FlyString value)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#keywordvalue-serialization
-void CSSKeywordValue::serialize(StringBuilder& builder) const
+void CSSKeywordValue::serialize(Utf16StringBuilder& builder) const
 {
     // To serialize a CSSKeywordValue this:
     // 1. Return this’s value internal slot.
     // AD-HOC: Serialize it as an identifier. Spec issue: https://github.com/w3c/csswg-drafts/issues/12545
-    serialize_an_identifier(builder, m_value);
+    builder.append(Utf16String::from_utf8_without_validation(serialize_an_identifier(m_value)));
 }
 
-WebIDL::ExceptionOr<String> CSSKeywordValue::to_string() const
+WebIDL::ExceptionOr<Utf16String> CSSKeywordValue::to_string() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     serialize(builder);
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation

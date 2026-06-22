@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::CSS {
@@ -35,7 +36,7 @@ public:
     };
     static WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> parse_a_css_style_value(JS::VM&, Utf16FlyString property, String css_text, ParseMultiple);
 
-    virtual WebIDL::ExceptionOr<String> to_string() const;
+    virtual WebIDL::ExceptionOr<Utf16String> to_string() const;
 
     // FIXME: Temporary hack. Really we want to pass something like a CalculationContext with the valid types and ranges.
     enum class PerformTypeCheck : u8 {
