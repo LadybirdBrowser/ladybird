@@ -15,8 +15,6 @@
 
 namespace TextCodec {
 
-static constexpr u32 replacement_code_point = 0xfffd;
-
 namespace {
 
 class RustDecoder final : public Decoder {
@@ -26,7 +24,6 @@ public:
     {
     }
 
-    virtual bool validate(StringView input) override;
     virtual ErrorOr<String> to_utf8(StringView input, IgnoreBOM, ErrorMode) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView input) override;
 
@@ -39,14 +36,12 @@ private:
 class UTF8Decoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
-    virtual bool validate(StringView) override;
     virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
 };
 
 class UTF16BEDecoder final : public Decoder {
 public:
-    virtual bool validate(StringView) override;
     virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
 
@@ -56,7 +51,6 @@ private:
 
 class UTF16LEDecoder final : public Decoder {
 public:
-    virtual bool validate(StringView) override;
     virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
 
@@ -67,7 +61,6 @@ private:
 class Latin1Decoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
-    virtual bool validate(StringView) override { return true; }
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
 };
 
@@ -149,16 +142,6 @@ ErrorOr<void> rust_process(StringView encoding, StringView input, IgnoreBOM igno
     for (auto code_point : Utf8View { utf8 })
         TRY(on_code_point(code_point));
     return {};
-}
-
-bool rust_validate(StringView encoding, StringView input, IgnoreBOM ignore_bom)
-{
-    return FFI::textcodec_rust_validate(
-        reinterpret_cast<u8 const*>(encoding.characters_without_null_termination()),
-        encoding.length(),
-        reinterpret_cast<u8 const*>(input.characters_without_null_termination()),
-        input.length(),
-        ignore_bom == IgnoreBOM::No);
 }
 
 ErrorOr<size_t> rust_length_in_utf16_code_units(StringView encoding, StringView input, IgnoreBOM ignore_bom)
@@ -407,22 +390,8 @@ StringView get_output_encoding(StringView encoding)
     return encoding;
 }
 
-bool Decoder::validate(StringView input)
+ErrorOr<String> Decoder::to_utf8(StringView input, IgnoreBOM, ErrorMode)
 {
-    auto result = this->process(input, [](auto code_point) -> ErrorOr<void> {
-        if (code_point == replacement_code_point)
-            return Error::from_string_literal("Decoded input contains replacement character");
-        return {};
-    });
-
-    return !result.is_error();
-}
-
-ErrorOr<String> Decoder::to_utf8(StringView input, IgnoreBOM, ErrorMode error_mode)
-{
-    if (error_mode == ErrorMode::Fatal && !validate(input))
-        return Error::from_string_literal("Failed to decode input");
-
     StringBuilder builder(input.length());
     TRY(process(input, [&builder](u32 c) { return builder.try_append_code_point(c); }));
     return builder.to_string_without_validation();
@@ -451,11 +420,6 @@ ErrorOr<size_t> Decoder::length_in_utf16_code_units(StringView input)
 ErrorOr<void> Decoder::process_code_points(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
     return process(input, move(on_code_point));
-}
-
-bool RustDecoder::validate(StringView input)
-{
-    return rust_validate(m_encoding, input, IgnoreBOM::Yes);
 }
 
 ErrorOr<String> RustDecoder::to_utf8(StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
@@ -515,11 +479,6 @@ ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)
     return rust_process("UTF-8"sv, input, IgnoreBOM::Yes, move(on_code_point));
 }
 
-bool UTF8Decoder::validate(StringView input)
-{
-    return rust_validate("UTF-8"sv, input, IgnoreBOM::Yes);
-}
-
 ErrorOr<String> UTF8Decoder::to_utf8(StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
 {
     return rust_decode_to_utf8("UTF-8"sv, input, ignore_bom, error_mode);
@@ -528,11 +487,6 @@ ErrorOr<String> UTF8Decoder::to_utf8(StringView input, IgnoreBOM ignore_bom, Err
 ErrorOr<size_t> UTF8Decoder::length_in_utf16_code_units(StringView input)
 {
     return rust_length_in_utf16_code_units("UTF-8"sv, input, IgnoreBOM::No);
-}
-
-bool UTF16BEDecoder::validate(StringView input)
-{
-    return rust_validate("UTF-16BE"sv, input, IgnoreBOM::Yes);
 }
 
 ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
@@ -548,11 +502,6 @@ ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input, IgnoreBOM ignore_bom, 
 ErrorOr<size_t> UTF16BEDecoder::length_in_utf16_code_units(StringView input)
 {
     return rust_length_in_utf16_code_units("UTF-16BE"sv, input, IgnoreBOM::No);
-}
-
-bool UTF16LEDecoder::validate(StringView input)
-{
-    return rust_validate("UTF-16LE"sv, input, IgnoreBOM::Yes);
 }
 
 ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
