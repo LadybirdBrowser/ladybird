@@ -127,27 +127,37 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
     return properties;
 }
 
+static Optional<CSS::PropertyID> property_id_for_presentational_attribute(Utf16FlyString const& name, Utf16FlyString const& tag_name)
+{
+    for (auto const& property : attribute_style_properties()) {
+        if (!property.name.equals_ignoring_ascii_case(name))
+            continue;
+
+        if (!property.supported_elements.is_empty() && !property.supported_elements.contains_slow(tag_name))
+            continue;
+
+        return property.id;
+    }
+
+    return {};
+}
+
 bool SVGElement::is_presentational_hint(Utf16FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
         return true;
 
-    return any_of(attribute_style_properties(), [&](auto& property) { return property.name.equals_ignoring_ascii_case(name); });
+    return property_id_for_presentational_attribute(name, local_name()).has_value();
 }
 
 void SVGElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
     CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-    for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
-        for (auto const& property : attribute_style_properties()) {
-            if (!property.name.equals_ignoring_ascii_case(name.view()))
-                continue;
-            if (!property.supported_elements.is_empty() && !property.supported_elements.contains_slow(local_name()))
-                continue;
-            if (auto style_value = parse_css_value(parsing_context, value, property.id))
-                properties.append({ .property_id = property.id, .value = style_value.release_nonnull() });
-            break;
+    for_each_attribute([&](Utf16FlyString const& name, Utf16View const& value) {
+        if (auto property_id = property_id_for_presentational_attribute(name, local_name()); property_id.has_value()) {
+            if (auto style_value = parse_css_value(parsing_context, value, property_id.value()))
+                properties.append({ .property_id = property_id.value(), .value = style_value.release_nonnull() });
         }
     });
 }

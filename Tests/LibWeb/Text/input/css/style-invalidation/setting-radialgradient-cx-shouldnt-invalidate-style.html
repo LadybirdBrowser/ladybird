@@ -1,0 +1,17 @@
+<!doctype html>
+<svg width="200" height="120">
+    <defs>
+        <radialGradient id="gradient" cx="25%" cy="50%" r="50%"></radialGradient>
+    </defs>
+</svg>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        gradient.setAttribute("cx", "75%");
+
+        println(internals.getStyleInvalidationCounters().styleInvalidations == 0 ? "PASS" : "FAIL");
+    });
+</script>
