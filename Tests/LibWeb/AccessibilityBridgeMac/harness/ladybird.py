@@ -19,6 +19,8 @@ from ApplicationServices import kAXChildrenAttribute
 from ApplicationServices import kAXFocusedWindowAttribute
 from ApplicationServices import kAXMainWindowAttribute
 from ApplicationServices import kAXRoleAttribute
+from ApplicationServices import kAXTitleAttribute
+from ApplicationServices import kAXWindowsAttribute
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 
@@ -146,10 +148,18 @@ class LadybirdContext:
                         stderr = f.read().decode(errors="replace")
                 except Exception:
                     pass
+            ax_state = self._describe_ax_state()
+            # Startup failures (Compositor/sandbox/IPC) log near the top of stderr, so keep the head too.
+            if len(stderr) <= 6000:
+                stderr_excerpt = stderr
+            else:
+                stderr_excerpt = stderr[:3000] + "\n...[truncated]...\n" + stderr[-3000:]
             self.stop()
             raise RuntimeError(
                 f"Ladybird did not register an AXWebArea on NSAccessibility within {startup_timeout:g}s.\n"
-                f"URL: {self._url}\nBinary: {self._binary}\nStderr: {stderr[-2000:]}"
+                f"URL: {self._url}\nBinary: {self._binary}\n"
+                f"AX surface at timeout:\n{ax_state}\n"
+                f"Stderr:\n{stderr_excerpt}"
             )
 
     def stop(self) -> None:
@@ -189,6 +199,28 @@ class LadybirdContext:
             return None
         return _find_by_role(window, "AXWebArea")
 
+    def _describe_ax_state(self) -> str:
+        """Best-effort snapshot of what IS on the AX surface, to diagnose a missing AXWebArea on timeout."""
+        lines = []
+        if self._process is not None:
+            code = self._process.poll()
+            state = "alive" if code is None else f"exited with code {code}"
+            lines.append(f"process: {state} (pid {self._process.pid})")
+        lines.append(f"app AXRole: {_ax_attr(self._app, kAXRoleAttribute)!r}")
+        windows = _ax_attr(self._app, kAXWindowsAttribute) or []
+        focused = _ax_attr(self._app, kAXFocusedWindowAttribute)
+        main = _ax_attr(self._app, kAXMainWindowAttribute)
+        focused_str = "yes" if focused else "no"
+        main_str = "yes" if main else "no"
+        lines.append(f"windows: {len(windows)}; focused: {focused_str}; main: {main_str}")
+        window = focused or main or (windows[0] if windows else None)
+        if window is None:
+            lines.append("no window on the AX surface to descend into")
+        else:
+            lines.append("window subtree (AXRole, depth<=4):")
+            lines.extend("  " + line for line in _describe_subtree(window, max_depth=4))
+        return "\n".join(lines)
+
     @property
     def app(self):
         """The application AXUIElement. Raises if start() hasn't completed."""
@@ -215,6 +247,24 @@ def _find_by_role(root, role_name: str, depth: int = 0):
         if found is not None:
             return found
     return None
+
+
+def _describe_subtree(root, *, max_depth: int, depth: int = 0) -> list[str]:
+    """Shallow AXRole/AXTitle dump of an AX subtree, depth-capped, for timeout diagnostics."""
+    if root is None:
+        return []
+    role = _ax_attr(root, kAXRoleAttribute)
+    title = _ax_attr(root, kAXTitleAttribute)
+    label = ("  " * depth) + str(role) + (f" {title!r}" if title else "")
+    children = _ax_attr(root, kAXChildrenAttribute) or []
+    if depth >= max_depth:
+        if children:
+            return [label, ("  " * (depth + 1)) + f"... {len(children)} children (depth-capped)"]
+        return [label]
+    out = [label]
+    for child in children:
+        out.extend(_describe_subtree(child, max_depth=max_depth, depth=depth + 1))
+    return out
 
 
 @contextmanager
