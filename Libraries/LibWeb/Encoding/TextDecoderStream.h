@@ -27,7 +27,7 @@ public:
     virtual ~TextDecoderStream() override;
 
 private:
-    TextDecoderStream(JS::Realm&, GC::Ref<Streams::TransformStream>, TextCodec::Decoder&, FlyString encoding, ErrorMode, bool ignore_bom);
+    TextDecoderStream(JS::Realm&, GC::Ref<Streams::TransformStream>, TextCodec::Decoder&, FlyString encoding, TextCodec::ErrorMode, bool ignore_bom);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-3 Fail
-Fail	BOM is ignored if ignoreBOM option is specified: utf-8
-Fail	BOM is ignored if ignoreBOM option is specified: utf-16le
-Fail	BOM is ignored if ignoreBOM option is specified: utf-16be
+4 Pass
+Pass	BOM is ignored if ignoreBOM option is specified: utf-8
+Pass	BOM is ignored if ignoreBOM option is specified: utf-16le
+Pass	BOM is ignored if ignoreBOM option is specified: utf-16be
 Pass	The ignoreBOM attribute of TextDecoder

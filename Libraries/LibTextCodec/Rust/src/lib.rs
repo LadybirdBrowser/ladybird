@@ -93,6 +93,7 @@ pub unsafe extern "C" fn textcodec_rust_decode_to_utf8(
     input: *const u8,
     input_len: usize,
     remove_bom: bool,
+    fatal: bool,
     ctx: *mut c_void,
     on_bytes: FfiBytesFn,
 ) -> bool {
@@ -108,11 +109,14 @@ pub unsafe extern "C" fn textcodec_rust_decode_to_utf8(
                 return false;
             };
 
-            let (output, _) = if remove_bom {
+            let (output, had_errors) = if remove_bom {
                 encoding.decode_with_bom_removal(input)
             } else {
                 encoding.decode_without_bom_handling(input)
             };
+            if fatal && had_errors {
+                return false;
+            }
             on_bytes(ctx, output.as_bytes().as_ptr(), output.len());
             true
         })
@@ -212,6 +216,7 @@ pub unsafe extern "C" fn textcodec_rust_streaming_decoder_decode_to_utf8(
     input: *const u8,
     input_len: usize,
     last: bool,
+    fatal: bool,
     ctx: *mut c_void,
     on_bytes: FfiBytesFn,
 ) -> bool {
@@ -230,7 +235,10 @@ pub unsafe extern "C" fn textcodec_rust_streaming_decoder_decode_to_utf8(
             };
             let mut output = String::with_capacity(output_capacity);
 
-            let (result, _, _) = decoder.decoder.decode_to_string(input, &mut output, last);
+            let (result, _, had_errors) = decoder.decoder.decode_to_string(input, &mut output, last);
+            if fatal && had_errors {
+                return false;
+            }
             if !output.is_empty() {
                 on_bytes(ctx, output.as_ptr(), output.len());
             }

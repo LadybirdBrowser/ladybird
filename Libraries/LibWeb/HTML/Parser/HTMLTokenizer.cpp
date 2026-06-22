@@ -108,7 +108,7 @@ HTMLTokenizer::HTMLTokenizer(StringView input, ByteString const& encoding, Input
     if (input_type == InputType::EncodedBytes) {
         auto decoder = TextCodec::decoder_for(encoding);
         VERIFY(decoder.has_value());
-        m_source = MUST(decoder->to_utf8(input));
+        m_source = MUST(decoder->to_utf8(input, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
     } else {
         m_source = decoded_string_for_utf8_tokenizer(input);
     }

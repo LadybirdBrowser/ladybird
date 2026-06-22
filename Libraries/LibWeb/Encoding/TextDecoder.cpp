@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm&
     auto lowercase_encoding_name = encoding.value().to_ascii_lowercase_string();
 
     // 4. If options["fatal"] is true, then set this’s error mode to "fatal".
-    auto error_mode = options.fatal ? ErrorMode::Fatal : ErrorMode::Replacement;
+    auto error_mode = options.fatal ? TextCodec::ErrorMode::Fatal : TextCodec::ErrorMode::Replacement;
 
     // 5. Set this’s ignore BOM to options["ignoreBOM"].
     auto ignore_bom = options.ignore_bom;
@@ -48,7 +48,7 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm&
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder
-TextDecoder::TextDecoder(JS::Realm& realm, TextCodec::Decoder& decoder, FlyString encoding, ErrorMode error_mode, bool ignore_bom)
+TextDecoder::TextDecoder(JS::Realm& realm, TextCodec::Decoder& decoder, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom)
     : PlatformObject(realm)
     , TextDecoderCommonMixin(decoder, move(encoding), error_mode, ignore_bom)
 {
@@ -65,18 +65,23 @@ void TextDecoder::initialize(JS::Realm& realm)
 // https://encoding.spec.whatwg.org/#dom-textdecoder-decode
 WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> input, Optional<Bindings::TextDecodeOptions> const&) const
 {
-    if (!input.has_value())
-        return TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({}));
+    auto ignore_bom = m_ignore_bom ? TextCodec::IgnoreBOM::Yes : TextCodec::IgnoreBOM::No;
+    if (!input.has_value()) {
+        auto result = m_decoder.to_utf8({}, ignore_bom, m_error_mode);
+        if (result.is_error() && result.error().code() != ENOMEM)
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
+        return TRY_OR_THROW_OOM(vm(), move(result));
+    }
 
     // FIXME: Implement the streaming stuff.
     auto data_buffer_or_error = WebIDL::get_buffer_source_copy(*input);
     if (data_buffer_or_error.is_error())
         return WebIDL::OperationError::create(realm(), "Failed to copy bytes from ArrayBuffer"_utf16);
     auto& data_buffer = data_buffer_or_error.value();
-    auto result = TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }));
-    if (this->fatal() && result.contains(0xfffd))
+    auto result = m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }, ignore_bom, m_error_mode);
+    if (result.is_error() && result.error().code() != ENOMEM)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
-    return result;
+    return TRY_OR_THROW_OOM(vm(), move(result));
 }
 
 }
