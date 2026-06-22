@@ -703,9 +703,9 @@ ErrorOr<String> UnixDateTime::to_string(StringView format, LocalTime local_time)
 
 Utf16String UnixDateTime::to_utf16_string(StringView format, LocalTime local_time) const
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    StringBuilder builder;
     MUST(to_string_impl(builder, format, local_time));
-    return builder.to_utf16_string();
+    return Utf16String::from_utf8_without_validation(MUST(builder.to_string()));
 }
 
 ByteString UnixDateTime::to_byte_string(StringView format, LocalTime local_time) const

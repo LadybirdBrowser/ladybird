@@ -25,7 +25,7 @@ Utf16String Utf16String::from_utf8_with_replacement_character(StringView utf8_st
     if (utf8_view.validate(AllowLonelySurrogates::No))
         return Utf16String::from_utf8_without_validation(utf8_string);
 
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
 
     for (auto code_point : utf8_view) {
         if (is_unicode_surrogate(code_point))
@@ -34,7 +34,7 @@ Utf16String Utf16String::from_utf8_with_replacement_character(StringView utf8_st
             builder.append_code_point(code_point);
     }
 
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 Utf16String Utf16String::from_ascii_without_validation(ReadonlyBytes ascii_string)
@@ -158,9 +158,9 @@ Utf16String Utf16String::repeated(u32 code_point, size_t count)
         code_units[length_in_code_units++] = code_unit;
     });
 
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
     builder.append_repeated({ code_units.data(), length_in_code_units }, count);
-    return builder.to_utf16_string();
+    return builder.to_string();
 }
 
 Utf16String Utf16String::to_well_formed() const
@@ -180,7 +180,7 @@ String Utf16String::to_well_formed_utf8() const
 ErrorOr<void> Formatter<Utf16String>::format(FormatBuilder& builder, Utf16String const& utf16_string)
 {
     if (utf16_string.has_long_utf16_storage())
-        return builder.builder().try_append(utf16_string.utf16_view());
+        return builder.put_string(utf16_string.utf16_view());
     return builder.put_string(utf16_string.ascii_view());
 }
 

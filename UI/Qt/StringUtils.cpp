@@ -5,6 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibURL/Parser.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -44,9 +45,9 @@ QString qstring_from_utf16_string(Utf16View const& string)
 
 QString vqformatted(StringView format, AK::TypeErasedFormatParams& parameters)
 {
-    StringBuilder builder(StringBuilder::Mode::UTF16);
+    Utf16StringBuilder builder;
     MUST(vformat(builder, format, parameters));
-    return qstring_from_utf16_string(builder.utf16_string_view());
+    return qstring_from_utf16_string(builder.view());
 }
 
 QByteArray qbytearray_from_ak_string(StringView ak_string)

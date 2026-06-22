@@ -217,7 +217,12 @@ public:
     };
 
     explicit FormatBuilder(StringBuilder& builder)
-        : m_builder(builder)
+        : m_string_builder(&builder)
+    {
+    }
+
+    explicit FormatBuilder(Utf16StringBuilder& builder)
+        : m_utf16_builder(&builder)
     {
     }
 
@@ -231,6 +236,7 @@ public:
         size_t min_width = 0,
         size_t max_width = NumericLimits<size_t>::max(),
         char fill = ' ');
+    ErrorOr<void> put_string(Utf16View const& value);
 
     ErrorOr<void> put_u64(
         u64 value,
@@ -306,12 +312,22 @@ public:
 
     StringBuilder const& builder() const
     {
-        return m_builder;
+        VERIFY(m_string_builder);
+        return *m_string_builder;
     }
-    StringBuilder& builder() { return m_builder; }
+    StringBuilder& builder()
+    {
+        VERIFY(m_string_builder);
+        return *m_string_builder;
+    }
 
 private:
-    StringBuilder& m_builder;
+    ErrorOr<void> append(char);
+    ErrorOr<void> append(StringView);
+    ErrorOr<void> append(Utf16View const&);
+
+    StringBuilder* m_string_builder { nullptr };
+    Utf16StringBuilder* m_utf16_builder { nullptr };
 
     ErrorOr<void> put_f64_with_precision(
         double value,

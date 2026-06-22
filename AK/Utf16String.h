@@ -134,10 +134,16 @@ public:
     template<class SeparatorType, class CollectionType>
     ALWAYS_INLINE static Utf16String join(SeparatorType const& separator, CollectionType const& collection, StringView format = "{}"sv)
     {
-        StringBuilder builder(StringBuilder::Mode::UTF16);
-        builder.join(separator, collection, format);
+        Utf16StringBuilder builder;
+        bool first = true;
+        for (auto& item : collection) {
+            if (!first)
+                builder.appendff("{}", separator);
+            builder.appendff(format, item);
+            first = false;
+        }
 
-        return builder.to_utf16_string();
+        return builder.to_string();
     }
 
     static Utf16String repeated(u32 code_point, size_t count);
