@@ -210,6 +210,12 @@ intptr_t TransportSocket::io_thread_loop()
 
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
     if (!m_is_being_transferred.load(AK::MemoryOrder::memory_order_acquire)) {
+        // The loop may have stopped on a send-side failure (the peer closed its end while we still had data queued to
+        // send — so transfer_data() returned SocketClosed) without reading a final inbound message left buffered on the
+        // socket. Drain it before publishing EOF — so a message that arrived just before teardown (e.g., a cross-realm
+        // transform stream's "error") is actually delivered — rather than discarded.
+        read_incoming_messages();
+
         Sync::MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
         m_incoming_eof = true;
