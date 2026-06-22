@@ -153,3 +153,59 @@ TEST_CASE(message_arriving_just_before_eof_is_not_dropped_on_shutdown)
 
     EXPECT_EQ(delivered.load(AK::MemoryOrder::memory_order_relaxed), 1u);
 }
+
+// A message already buffered on the socket when the IO thread stops must still be delivered — even if the loop stops on
+// a path that doesn't run its in-loop read. That happens when a send fails because the peer closed (transfer_data
+// returns SocketClosed): The loop ends without draining the receive side. The loop-exit drain is the backstop. Without
+// it, the message is lost, and a consumer that tears down on EOF (like MessagePort, e.g. a cross-realm transform stream
+// receiving a final "error") hangs its peer forever.
+TEST_CASE(buffered_message_is_drained_when_io_thread_stops_without_reading_it)
+{
+    Core::EventLoop loop;
+
+    int fds[2] = {};
+    MUST(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+
+    // Queue one message, and hang up the peer before the reading transport exists — so the reader's first poll sees the
+    // message bytes and EOF together.
+    {
+        auto peer_socket = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[1]));
+        MUST(peer_socket->set_blocking(false));
+        IPC::TransportSocket peer(move(peer_socket));
+
+        auto hello = "hello"sv.bytes();
+        IPC::MessageDataType payload;
+        payload.append(hello.data(), hello.size());
+        Vector<IPC::Attachment> no_attachments;
+        peer.post_message(move(payload), no_attachments);
+        peer.close_after_sending_all_pending_messages();
+    }
+
+    // Model a stop path that doesn't run the in-loop read (e.g. SocketClosed from a failed send): The loop reaches its
+    // exit with the message still buffered on the socket — so only the loop-exit drain can deliver it.
+    IPC::TransportSocket::set_skip_inloop_read_for_test(true);
+    ScopeGuard reset_skip = [] { IPC::TransportSocket::set_skip_inloop_read_for_test(false); };
+
+    auto reader_socket = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[0]));
+    MUST(reader_socket->set_blocking(false));
+    IPC::TransportSocket transport(move(reader_socket));
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<u32> delivered = 0;
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> observed_shutdown = false;
+
+    transport.set_up_read_hook([&] {
+        if (observed_shutdown.load(AK::MemoryOrder::memory_order_relaxed))
+            return;
+        auto should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](auto&&) {
+            delivered.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+        });
+        if (should_shutdown == IPC::TransportSocket::ShouldShutdown::Yes)
+            observed_shutdown.store(true, AK::MemoryOrder::memory_order_relaxed);
+    });
+
+    spin_until(loop, [&] {
+        return observed_shutdown.load(AK::MemoryOrder::memory_order_relaxed);
+    });
+
+    EXPECT_EQ(delivered.load(AK::MemoryOrder::memory_order_relaxed), 1u);
+}

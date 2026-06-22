@@ -22,10 +22,16 @@
 namespace IPC {
 
 Atomic<u32> TransportSocket::s_eof_drain_window_for_test_ms { 0 };
+Atomic<bool> TransportSocket::s_skip_inloop_read_for_test { false };
 
 void TransportSocket::set_eof_drain_window_for_test(u32 milliseconds)
 {
     s_eof_drain_window_for_test_ms.store(milliseconds, AK::MemoryOrder::memory_order_relaxed);
+}
+
+void TransportSocket::set_skip_inloop_read_for_test(bool skip)
+{
+    s_skip_inloop_read_for_test.store(skip, AK::MemoryOrder::memory_order_relaxed);
 }
 
 ErrorOr<NonnullOwnPtr<TransportSocket>> TransportSocket::from_socket(NonnullOwnPtr<Core::LocalSocket> socket)
@@ -183,7 +189,7 @@ intptr_t TransportSocket::io_thread_loop()
             (void)Core::System::read(m_wakeup_io_thread_read_fd->value(), { buf, sizeof(buf) });
         }
 
-        if (pollfds[0].revents & POLLIN)
+        if ((pollfds[0].revents & POLLIN) && !s_skip_inloop_read_for_test.load(AK::MemoryOrder::memory_order_relaxed))
             read_incoming_messages();
 
         if (pollfds[0].revents & POLLHUP) {
