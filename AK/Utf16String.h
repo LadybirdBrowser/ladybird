@@ -16,6 +16,7 @@
 #include <AK/Traits.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16StringBase.h>
+#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16StringData.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
@@ -113,12 +114,12 @@ public:
     template<typename... Parameters>
     ALWAYS_INLINE static Utf16String formatted(CheckedFormatString<Parameters...>&& format, Parameters const&... parameters)
     {
-        StringBuilder builder(StringBuilder::Mode::UTF16);
+        Utf16StringBuilder builder;
 
         VariadicFormatParams<AllowDebugOnlyFormatters::No, Parameters...> variadic_format_parameters { parameters... };
         MUST(vformat(builder, format.view(), variadic_format_parameters));
 
-        return builder.to_utf16_string();
+        return builder.to_string();
     }
 
     template<Integral T>

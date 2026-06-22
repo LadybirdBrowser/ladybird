@@ -108,3 +108,14 @@ TEST_CASE(reuse_after_creating_long_utf16_string)
     EXPECT_EQ(builder.view(), "ok"sv);
     EXPECT_EQ(builder.to_string(), "ok"sv);
 }
+
+TEST_CASE(formatted_append)
+{
+    Utf16StringBuilder builder;
+    builder.appendff("{} {} {}", "hello"sv, Utf16View { u"\u263A"sv }, 42);
+    MUST(builder.try_appendff(" {}", Utf16String::formatted("{}", 3.14)));
+
+    auto string = builder.to_string();
+    EXPECT_EQ(string, u"hello \u263A 42 3.14"sv);
+    EXPECT(!string.is_ascii());
+}

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/Format.h>
 #include <AK/Forward.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
@@ -84,6 +85,20 @@ public:
     void append_code_point(u32);
     void append_repeated_ascii(char, size_t);
     void append_repeated(Utf16View const&, size_t);
+
+    template<typename... Parameters>
+    ErrorOr<void> try_appendff(CheckedFormatString<Parameters...>&& fmtstr, Parameters const&... parameters)
+    {
+        VariadicFormatParams<AllowDebugOnlyFormatters::No, Parameters...> variadic_format_parameters { parameters... };
+        return vformat(*this, fmtstr.view(), variadic_format_parameters);
+    }
+
+    template<typename... Parameters>
+    void appendff(CheckedFormatString<Parameters...>&& fmtstr, Parameters const&... parameters)
+    {
+        VariadicFormatParams<AllowDebugOnlyFormatters::No, Parameters...> variadic_format_parameters { parameters... };
+        MUST(vformat(*this, fmtstr.view(), variadic_format_parameters));
+    }
 
     [[nodiscard]] Utf16String to_string();
 
