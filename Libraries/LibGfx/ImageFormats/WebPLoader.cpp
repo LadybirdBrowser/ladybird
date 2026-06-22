@@ -119,21 +119,15 @@ static ErrorOr<void> decode_webp_header(WebPLoadingContext& context)
     }
 
     WebPData webp_data { .bytes = context.data.data(), .size = context.data.size() };
-    WebPMux* mux = WebPMuxCreate(&webp_data, 0);
-    ScopeGuard guard { [=]() { WebPMuxDelete(mux); } };
+    if (WebPMux* mux = WebPMuxCreate(&webp_data, 0)) {
+        ScopeGuard guard { [=]() { WebPMuxDelete(mux); } };
 
-    uint32_t flag = 0;
-    WebPMuxError err = WebPMuxGetFeatures(mux, &flag);
-    if (err != WEBP_MUX_OK)
-        return Error::from_string_literal("Failed to get webp features");
-
-    if (flag & ICCP_FLAG) {
-        WebPData icc_profile;
-        err = WebPMuxGetChunk(mux, "ICCP", &icc_profile);
-        if (err != WEBP_MUX_OK)
-            return Error::from_string_literal("Failed to get ICCP chunk of webp");
-
-        context.icc_data = TRY(context.icc_data.copy(icc_profile.bytes, icc_profile.size));
+        uint32_t flag = 0;
+        if (WebPMuxGetFeatures(mux, &flag) == WEBP_MUX_OK && (flag & ICCP_FLAG)) {
+            WebPData icc_profile {};
+            if (WebPMuxGetChunk(mux, "ICCP", &icc_profile) == WEBP_MUX_OK)
+                context.icc_data = TRY(context.icc_data.copy(icc_profile.bytes, icc_profile.size));
+        }
     }
 
     context.state = WebPLoadingContext::State::HeaderDecoded;
