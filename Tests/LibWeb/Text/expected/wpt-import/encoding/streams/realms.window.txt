@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-4 Pass
-8 Fail
+12 Pass
 Pass	a TextEncoderStream object should be associated with the realm the constructor came from
 Pass	TextEncoderStream's readable and writable attributes should come from the same realm as the constructor definition
-Fail	the output chunks when read is called after write should come from the same realm as the constructor of TextEncoderStream
-Fail	the output chunks when write is called with a pending read should come from the same realm as the constructor of TextEncoderStream
-Fail	TypeError for unconvertable chunk should come from constructor realm of TextEncoderStream
+Pass	the output chunks when read is called after write should come from the same realm as the constructor of TextEncoderStream
+Pass	the output chunks when write is called with a pending read should come from the same realm as the constructor of TextEncoderStream
+Pass	TypeError for unconvertable chunk should come from constructor realm of TextEncoderStream
 Pass	a TextDecoderStream object should be associated with the realm the constructor came from
 Pass	TextDecoderStream's readable and writable attributes should come from the same realm as the constructor definition
-Fail	the result object when read is called after write should come from the same realm as the constructor of TextDecoderStream
-Fail	the result object when write is called with a pending read should come from the same realm as the constructor of TextDecoderStream
-Fail	TypeError for chunk with the wrong type should come from constructor realm of TextDecoderStream
-Fail	TypeError for invalid chunk should come from constructor realm of TextDecoderStream
-Fail	TypeError for incomplete input should come from constructor realm of TextDecoderStream
+Pass	the result object when read is called after write should come from the same realm as the constructor of TextDecoderStream
+Pass	the result object when write is called with a pending read should come from the same realm as the constructor of TextDecoderStream
+Pass	TypeError for chunk with the wrong type should come from constructor realm of TextDecoderStream
+Pass	TypeError for invalid chunk should come from constructor realm of TextDecoderStream
+Pass	TypeError for incomplete input should come from constructor realm of TextDecoderStream
