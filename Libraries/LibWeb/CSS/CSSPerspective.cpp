@@ -87,22 +87,23 @@ void CSSPerspective::visit_edges(Visitor& visitor)
 WebIDL::ExceptionOr<Utf16String> CSSPerspective::to_string() const
 {
     // 1. Let s initially be "perspective(".
-    StringBuilder builder { StringBuilder::Mode::UTF16 };
-    builder.append("perspective("sv);
+    Utf16StringBuilder builder;
+    builder.append_ascii("perspective("sv);
 
     // 2. Serialize this’s length internal slot, with a minimum of 0px, and append it to s.
-    auto serialized_length = TRY(m_length.visit(
-        [](GC::Ref<CSSNumericValue> const& numeric_value) -> WebIDL::ExceptionOr<String> {
-            return numeric_value->to_string({ .minimum = 0 });
+    TRY(m_length.visit(
+        [&](GC::Ref<CSSNumericValue> const& numeric_value) -> WebIDL::ExceptionOr<void> {
+            numeric_value->serialize(builder, { .minimum = 0 });
+            return {};
         },
-        [](GC::Ref<CSSKeywordValue> const& keyword_value) -> WebIDL::ExceptionOr<String> {
-            return keyword_value->to_string();
+        [&](GC::Ref<CSSKeywordValue> const& keyword_value) -> WebIDL::ExceptionOr<void> {
+            builder.append(TRY(keyword_value->to_string()));
+            return {};
         }));
-    builder.append(serialized_length);
 
     // 3. Append ")" to s, and return s.
-    builder.append(")"sv);
-    return builder.to_utf16_string();
+    builder.append_ascii(')');
+    return builder.to_string();
 }
 
 WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSPerspective::to_matrix() const

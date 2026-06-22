@@ -28,7 +28,7 @@ public:
     GC::Ref<CSSNumericValue> value() const;
     GC::Ref<CSSNumericValue> upper() const;
 
-    virtual void serialize_math_value(StringBuilder&, Nested, Parens) const override;
+    virtual void serialize_math_value(Utf16StringBuilder&, Nested, Parens) const override;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const override;
     virtual Optional<SumValue> create_a_sum_value() const override;
 

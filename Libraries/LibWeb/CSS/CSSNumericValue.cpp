@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/StringBuilder.h>
 #include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
@@ -404,7 +403,7 @@ Bindings::CSSNumericType CSSNumericValue::type_for_bindings() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssnumericvalue
-void CSSNumericValue::serialize(StringBuilder& builder, SerializationParams const& params) const
+void CSSNumericValue::serialize(Utf16StringBuilder& builder, SerializationParams const& params) const
 {
     // To serialize a CSSNumericValue this, given an optional minimum, a numeric value, and optional maximum, a numeric value:
     // 1. If this is a CSSUnitValue, serialize a CSSUnitValue from this, passing minimum and maximum. Return the result.
@@ -419,11 +418,11 @@ void CSSNumericValue::serialize(StringBuilder& builder, SerializationParams cons
         params.parenless ? CSSMathValue::Parens::Without : CSSMathValue::Parens::With);
 }
 
-String CSSNumericValue::to_string(SerializationParams const& params) const
+Utf16String CSSNumericValue::to_string(SerializationParams const& params) const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     serialize(builder, params);
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#rectify-a-numberish-value

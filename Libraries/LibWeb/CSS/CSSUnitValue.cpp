@@ -92,7 +92,7 @@ void CSSUnitValue::set_value(double value)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssunitvalue
-void CSSUnitValue::serialize_unit_value(StringBuilder& builder, Optional<double> minimum, Optional<double> maximum) const
+void CSSUnitValue::serialize_unit_value(Utf16StringBuilder& builder, Optional<double> minimum, Optional<double> maximum) const
 {
     // To serialize a CSSUnitValue this, with optional arguments minimum, a numeric value, and maximum, a numeric value:
 
@@ -107,7 +107,7 @@ void CSSUnitValue::serialize_unit_value(StringBuilder& builder, Optional<double>
         || (maximum.has_value() && m_value > maximum.value());
 
     if (needs_calc_wrapper)
-        builder.append("calc("sv);
+        builder.append_ascii("calc("sv);
 
     // 2. Set s to the result of serializing a <number> from value, per CSSOM §6.7.2 Serializing CSS Values.
     serialize_a_number(builder, m_value);
@@ -120,16 +120,16 @@ void CSSUnitValue::serialize_unit_value(StringBuilder& builder, Optional<double>
     // -> "percent"
     else if (m_unit == "percent"_fly_string) {
         // Append "%" to s.
-        builder.append('%');
+        builder.append_ascii('%');
     }
     // -> anything else
     else {
         // Append unit to s.
-        builder.append(m_unit.to_ascii_lowercase());
+        builder.append_ascii(m_unit.to_ascii_lowercase().bytes_as_string_view());
     }
 
     if (needs_calc_wrapper)
-        builder.append(')');
+        builder.append_ascii(')');
 
     // 5. Return s.
 }

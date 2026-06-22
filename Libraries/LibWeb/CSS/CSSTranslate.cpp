@@ -81,49 +81,49 @@ void CSSTranslate::visit_edges(Visitor& visitor)
 WebIDL::ExceptionOr<Utf16String> CSSTranslate::to_string() const
 {
     // 1. Let s initially be the empty string.
-    StringBuilder builder { StringBuilder::Mode::UTF16 };
+    Utf16StringBuilder builder;
 
     // 2. If this’s is2D internal slot is false:
     if (!is_2d()) {
         // 1. Append "translate3d(" to s.
-        builder.append("translate3d("sv);
+        builder.append_ascii("translate3d("sv);
 
         // 2. Serialize this’s x internal slot, and append it to s.
         m_x->serialize(builder, {});
 
         // 3. Append ", " to s.
-        builder.append(", "sv);
+        builder.append_ascii(", "sv);
 
         // 4. Serialize this’s y internal slot, and append it to s.
         m_y->serialize(builder, {});
 
         // 5. Append ", " to s.
-        builder.append(", "sv);
+        builder.append_ascii(", "sv);
 
         // 6. Serialize this’s z internal slot, and append it to s.
         m_z->serialize(builder, {});
 
         // 7. Append ")" to s, and return s.
-        builder.append(")"sv);
-        return builder.to_utf16_string();
+        builder.append_ascii(')');
+        return builder.to_string();
     }
     // 3. Otherwise:
     else {
         // 1. Append "translate(" to s.
-        builder.append("translate("sv);
+        builder.append_ascii("translate("sv);
 
         // 2. Serialize this’s x internal slot, and append it to s.
         m_x->serialize(builder, {});
 
         // 3. Append ", " to s.
-        builder.append(", "sv);
+        builder.append_ascii(", "sv);
 
         // 4. Serialize this’s y internal slot, and append it to s.
         m_y->serialize(builder, {});
 
         // 5. Append ")" to s, and return s.
-        builder.append(")"sv);
-        return builder.to_utf16_string();
+        builder.append_ascii(')');
+        return builder.to_string();
     }
 }
 

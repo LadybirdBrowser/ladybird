@@ -84,7 +84,7 @@ void CSSMathSum::visit_edges(Visitor& visitor)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssmathvalue
-void CSSMathSum::serialize_math_value(StringBuilder& s, Nested nested, Parens parens) const
+void CSSMathSum::serialize_math_value(Utf16StringBuilder& s, Nested nested, Parens parens) const
 {
     // NB: Only steps 1 and 3 apply here.
     // 1. Let s initially be the empty string.
@@ -95,9 +95,9 @@ void CSSMathSum::serialize_math_value(StringBuilder& s, Nested nested, Parens pa
         //    otherwise, append "calc(" to s.
         if (parens == Parens::With) {
             if (nested == Nested::Yes) {
-                s.append('(');
+                s.append_ascii('(');
             } else {
-                s.append("calc("sv);
+                s.append_ascii("calc("sv);
             }
         }
 
@@ -116,20 +116,20 @@ void CSSMathSum::serialize_math_value(StringBuilder& s, Nested nested, Parens pa
             // 1. If arg is a CSSMathNegate, append " - " to s, then serialize arg’s value internal slot with nested
             //    set to true, and append the result to s.
             if (auto* negate = as_if<CSSMathNegate>(*arg)) {
-                s.append(" - "sv);
+                s.append_ascii(" - "sv);
                 negate->value()->serialize(s, { .nested = true });
             }
 
             // 2. Otherwise, append " + " to s, then serialize arg with nested set to true, and append the result to s.
             else {
-                s.append(" + "sv);
+                s.append_ascii(" + "sv);
                 arg->serialize(s, { .nested = true });
             }
         }
 
         // 4. If paren-less is false, append ")" to s,
         if (parens == Parens::With)
-            s.append(')');
+            s.append_ascii(')');
 
         // 5. Return s.
     }

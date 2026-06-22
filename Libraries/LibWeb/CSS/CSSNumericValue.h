@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/NumericType.h>
@@ -56,9 +57,9 @@ public:
     Bindings::CSSNumericType type_for_bindings() const;
     NumericType const& type() const { return m_type; }
 
-    virtual WebIDL::ExceptionOr<String> to_string() const final override { return to_string({}); }
-    void serialize(StringBuilder&, SerializationParams const&) const;
-    String to_string(SerializationParams const&) const;
+    virtual WebIDL::ExceptionOr<Utf16String> to_string() const final override { return to_string({}); }
+    void serialize(Utf16StringBuilder&, SerializationParams const&) const;
+    Utf16String to_string(SerializationParams const&) const;
 
     static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, String const& css_text);
 

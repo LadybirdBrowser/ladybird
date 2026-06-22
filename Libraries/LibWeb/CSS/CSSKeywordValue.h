@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 
 namespace Web::CSS {
@@ -28,8 +29,8 @@ public:
     FlyString const& value() const { return m_value; }
     WebIDL::ExceptionOr<void> set_value(FlyString value);
 
-    void serialize(StringBuilder&) const;
-    virtual WebIDL::ExceptionOr<String> to_string() const override;
+    void serialize(Utf16StringBuilder&) const;
+    virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:

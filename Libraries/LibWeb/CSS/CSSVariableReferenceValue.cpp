@@ -5,6 +5,7 @@
  */
 
 #include "CSSVariableReferenceValue.h"
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSVariableReferenceValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSUnparsedValue.h>
@@ -89,26 +90,26 @@ WebIDL::ExceptionOr<void> CSSVariableReferenceValue::set_fallback(GC::Ptr<CSSUnp
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssvariablereferencevalue
-WebIDL::ExceptionOr<String> CSSVariableReferenceValue::to_string() const
+WebIDL::ExceptionOr<Utf16String> CSSVariableReferenceValue::to_string() const
 {
     // To serialize a CSSVariableReferenceValue this:
     // 1. Let s initially be "var(".
-    StringBuilder s;
-    s.append("var("sv);
+    Utf16StringBuilder s;
+    s.append_ascii("var("sv);
 
     // 2. Append this’s variable internal slot to s.
-    s.append(m_variable);
+    s.append(Utf16String::from_utf8_without_validation(m_variable));
 
     // 3. If this’s fallback internal slot is not null, append ", " to s, then serialize the fallback internal slot and append it to s.
     if (m_fallback) {
         // AD-HOC: Tested behaviour requires we append "," without the space. https://github.com/w3c/css-houdini-drafts/issues/1148
-        s.append(","sv);
+        s.append_ascii(',');
         s.append(TRY(m_fallback->to_string()));
     }
 
     // 4. Append ")" to s and return s.
-    s.append(")"sv);
-    return s.to_string_without_validation();
+    s.append_ascii(')');
+    return s.to_string();
 }
 
 }
