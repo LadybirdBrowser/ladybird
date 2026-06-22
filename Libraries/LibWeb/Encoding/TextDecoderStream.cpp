@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/TextDecoder.h>
 #include <LibWeb/Bindings/TextDecoderStream.h>
 #include <LibWeb/Encoding/TextDecoderStream.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -59,6 +60,7 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
     //    algorithm with this and chunk.
     auto transform_algorithm = GC::create_function(realm.heap(), [stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
         auto& realm = stream->realm();
+        HTML::TemporaryExecutionContext execution_context { realm };
         if (auto result = stream->decode_and_enqueue_chunk(chunk); result.is_error())
             return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
@@ -67,6 +69,7 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
     // 8. Let flushAlgorithm be an algorithm which takes no arguments and runs the flush and enqueue algorithm with this.
     auto flush_algorithm = GC::create_function(realm.heap(), [stream]() -> GC::Ref<WebIDL::Promise> {
         auto& realm = stream->realm();
+        HTML::TemporaryExecutionContext execution_context { realm };
         if (auto result = stream->flush_and_enqueue(); result.is_error())
             return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
