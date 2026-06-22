@@ -600,6 +600,10 @@ void BrowserWindow::initialize_tab(Tab* tab)
             new_tab_from_url(ak_url_from_qurl(urls[i]), Web::HTML::ActivateTab::No);
     });
 
+    QObject::connect(&tab->view(), &WebContentView::native_window_pointer_event, this, [this] {
+        refresh_resize_cursor_at_current_position();
+    });
+
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
         if (hints.popup) {
             WindowConfiguration configuration {
