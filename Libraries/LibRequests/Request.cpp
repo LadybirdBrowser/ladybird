@@ -56,6 +56,8 @@ Request::Request(RequestClient& client, u64 request_id)
 
 bool Request::stop()
 {
+    auto did_stop_request = m_client->stop_request({}, *this);
+
     on_headers_received = nullptr;
     on_finish = nullptr;
     on_certificate_requested = nullptr;
@@ -64,7 +66,7 @@ bool Request::stop()
     m_internal_stream_data = nullptr;
     m_mode = Mode::Unknown;
 
-    return m_client->stop_request({}, *this);
+    return did_stop_request;
 }
 
 void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
