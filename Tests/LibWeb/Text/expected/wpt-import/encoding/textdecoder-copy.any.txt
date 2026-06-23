@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Modify buffer after passing it in (ArrayBuffer)
+Fail	Modify buffer after passing it in (SharedArrayBuffer)
