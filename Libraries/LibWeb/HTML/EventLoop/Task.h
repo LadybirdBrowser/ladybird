@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/DistinctNumeric.h>
+#include <AK/RefCounted.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
