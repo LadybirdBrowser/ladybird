@@ -163,6 +163,14 @@ TEST_CASE(test_streaming_decoder_utf8_valid_second_byte_tail)
     EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
 }
 
+TEST_CASE(test_streaming_decoder_utf8_fatal_error_does_not_buffer_later_bytes)
+{
+    auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
+
+    EXPECT(streaming_decoder.to_utf8(bytes({ 0xfd, 0xef })).is_error());
+    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+}
+
 TEST_CASE(test_streaming_decoder_utf16_odd_byte)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-16LE"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };

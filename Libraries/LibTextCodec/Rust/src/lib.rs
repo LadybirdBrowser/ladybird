@@ -5,6 +5,7 @@
  */
 
 use encoding_rs::CoderResult;
+use encoding_rs::DecoderResult;
 use encoding_rs::EncoderResult;
 use encoding_rs::Encoding;
 use std::ffi::c_void;
@@ -187,15 +188,30 @@ pub unsafe extern "C" fn textcodec_rust_streaming_decoder_decode_to_utf8(
                 return false;
             };
             let decoder = &mut *decoder;
-            let Some(output_capacity) = decoder.decoder.max_utf8_buffer_length(input.len()) else {
-                return false;
-            };
-            let mut output = String::with_capacity(output_capacity);
+            let mut output = String::with_capacity(if fatal {
+                let Some(output_capacity) = decoder.decoder.max_utf8_buffer_length_without_replacement(input.len())
+                else {
+                    return false;
+                };
+                output_capacity
+            } else {
+                let Some(output_capacity) = decoder.decoder.max_utf8_buffer_length(input.len()) else {
+                    return false;
+                };
+                output_capacity
+            });
 
-            let (result, _, had_errors) = decoder.decoder.decode_to_string(input, &mut output, last);
-            if fatal && had_errors {
-                return false;
+            if fatal {
+                let (result, _) = decoder
+                    .decoder
+                    .decode_to_string_without_replacement(input, &mut output, last);
+                if !output.is_empty() {
+                    on_bytes(ctx, output.as_ptr(), output.len());
+                }
+                return matches!(result, DecoderResult::InputEmpty);
             }
+
+            let (result, _, _) = decoder.decoder.decode_to_string(input, &mut output, last);
             if !output.is_empty() {
                 on_bytes(ctx, output.as_ptr(), output.len());
             }
