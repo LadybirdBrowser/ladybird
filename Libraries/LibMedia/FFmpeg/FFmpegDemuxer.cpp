@@ -7,6 +7,7 @@
 
 #include <AK/Math.h>
 #include <AK/MemoryStream.h>
+#include <AK/QuickSort.h>
 #include <AK/Stream.h>
 #include <AK/Time.h>
 #include <LibMedia/Containers/ConstantBitrateContainerNavigator.h>
@@ -306,19 +307,15 @@ OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator_from_index(
     if (entries.is_empty())
         return nullptr;
 
-    // Sort and ensure monotonic ordering of both positions and timestamps.
+    quick_sort(entries, [](auto const& left, auto const& right) {
+        return left.position < right.position;
+    });
+
+    // Ensure monotonic ordering of both positions and timestamps.
     for (size_t i = 1; i < entries.size(); i++) {
-        size_t j = i;
-        for (; j > 0; --j) {
-            if (entries[j - 1].position == entries[j].position)
-                return nullptr;
-            if (entries[j - 1].position < entries[j].position)
-                break;
-            swap(entries[j], entries[j - 1]);
-        }
-        if (j > 0 && entries[j - 1].timestamp > entries[j].timestamp)
+        if (entries[i - 1].position == entries[i].position)
             return nullptr;
-        if (j < i && entries[j].timestamp > entries[j + 1].timestamp)
+        if (entries[i - 1].timestamp > entries[i].timestamp)
             return nullptr;
     }
 
