@@ -63,7 +63,7 @@ void TextDecoder::initialize(JS::Realm& realm)
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder-decode
-WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> input, Optional<Bindings::TextDecodeOptions> const&) const
+WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> input, Bindings::TextDecodeOptions const&) const
 {
     auto ignore_bom = m_ignore_bom ? TextCodec::IgnoreBOM::Yes : TextCodec::IgnoreBOM::No;
     if (!input.has_value()) {
