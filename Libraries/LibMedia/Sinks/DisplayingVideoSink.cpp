@@ -191,7 +191,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
     return result;
 }
 
-RefPtr<VideoFrame> DisplayingVideoSink::current_frame()
+RefPtr<VideoFrame> DisplayingVideoSink::current_frame() const
 {
     return m_current_frame;
 }

@@ -40,7 +40,7 @@ public:
     virtual void seek(AK::Duration timestamp) override;
 
     [[nodiscard]] DisplayingVideoSinkUpdateResult update(MonotonicTime now);
-    RefPtr<VideoFrame> current_frame();
+    RefPtr<VideoFrame> current_frame() const;
 
 private:
     void consume_moved_position_signals(PipelineStatus&);
