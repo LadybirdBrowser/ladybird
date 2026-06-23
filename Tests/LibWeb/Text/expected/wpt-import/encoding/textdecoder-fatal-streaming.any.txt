@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	Fatal flag, non-streaming cases
-Fail	Fatal flag, streaming cases
+Pass	Fatal flag, streaming cases

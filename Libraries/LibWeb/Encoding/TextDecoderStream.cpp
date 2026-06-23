@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Variant.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -44,17 +45,14 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
     // 5. Set this’s ignore BOM to options["ignoreBOM"].
     auto ignore_bom = options.ignore_bom;
 
-    // 6. Set this’s decoder to a new instance of this’s encoding’s decoder, and set this’s I/O queue to a new I/O queue.
-    auto decoder = TextCodec::decoder_for_exact_name(encoding.value());
-    VERIFY(decoder.has_value());
-
     // NB: Steps 7-11 — we create the TransformStream and the TextDecoderStream first so that we can refer to the
     //     stream from the transform/flush algorithms.
 
     // 9. Let transformStream be a new TransformStream.
     auto transform_stream = realm.create<Streams::TransformStream>(realm);
 
-    auto stream = realm.create<TextDecoderStream>(realm, transform_stream, *decoder, lowercase_encoding_name, error_mode, ignore_bom);
+    // 6. Set this’s decoder to a new instance of this’s encoding’s decoder, and set this’s I/O queue to a new I/O queue.
+    auto stream = realm.create<TextDecoderStream>(realm, transform_stream, lowercase_encoding_name, error_mode, ignore_bom);
 
     // 7. Let transformAlgorithm be an algorithm which takes a chunk argument and runs the decode and enqueue a chunk
     //    algorithm with this and chunk.
@@ -84,15 +82,12 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
     return stream;
 }
 
-TextDecoderStream::TextDecoderStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform, TextCodec::Decoder& decoder, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom)
+TextDecoderStream::TextDecoderStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom)
     : Bindings::PlatformObject(realm)
     , Streams::GenericTransformStreamMixin(transform)
-    , TextDecoderCommonMixin(decoder, move(encoding), error_mode, ignore_bom)
-    , m_streaming_decoder(make<TextCodec::StreamingDecoder>(
-          m_encoding,
-          m_ignore_bom ? TextCodec::IgnoreBOM::Yes : TextCodec::IgnoreBOM::No,
-          m_error_mode))
+    , TextDecoderCommonMixin(move(encoding), error_mode, ignore_bom)
 {
+    set_decoder_to_new_instance_of_encoding_decoder();
 }
 
 TextDecoderStream::~TextDecoderStream() = default;
@@ -120,30 +115,80 @@ WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Value 
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource"sv };
 
     // 2. Push a copy of bufferSource to decoder's I/O queue.
+    // WARNING: See the warning for SharedArrayBuffer objects above.
     auto buffer_or_error = WebIDL::get_buffer_source_copy(chunk.as_object());
     if (buffer_or_error.is_error())
         return WebIDL::OperationError::create(realm, "Failed to copy bytes from BufferSource"_utf16);
-    auto buffer = buffer_or_error.release_value();
 
-    auto decoded_or_error = m_streaming_decoder->to_utf8(buffer.bytes());
-    if (decoded_or_error.is_error() && decoded_or_error.error().code() != ENOMEM)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
-    auto decoded = TRY_OR_THROW_OOM(vm, move(decoded_or_error));
+    auto const input_copy = buffer_or_error.release_value();
 
-    // 3-4. Run "processing an item" until the input is exhausted, accumulating the output, then enqueue any non-empty
-    //      result. If processing returns error, throw a TypeError.
-    return enqueue_decoded_output(decoded);
+    // 3. Let output be the I/O queue of scalar values « end-of-queue ».
+    TextDecoderOutputQueue output;
+
+    // 4. While true:
+    bool did_read_bytes = false;
+    auto read_item = [&]() -> Variant<ReadonlyBytes, EndOfQueue> {
+        if (did_read_bytes)
+            return EndOfQueue {};
+        did_read_bytes = true;
+        return input_copy.bytes();
+    };
+
+    while (true) {
+        // 1. Let item be the result of reading from decoder’s I/O queue.
+        auto item = read_item();
+
+        // 2. If item is end-of-queue:
+        if (item.has<EndOfQueue>()) {
+            // 1. Let outputChunk be the result of running serialize I/O queue with decoder and output.
+            auto output_chunk = TRY(serialize_io_queue(vm, output));
+
+            // 2. If outputChunk is not the empty string, then enqueue outputChunk in decoder’s transform.
+            TRY(enqueue_decoded_output(output_chunk));
+
+            // 3. Return.
+            return {};
+        }
+
+        // 3. Let result be the result of processing an item with item, decoder’s decoder, decoder’s I/O queue, output, and decoder’s
+        //    error mode.
+        auto result = process_an_item(vm, item.get<ReadonlyBytes>(), output);
+
+        // 4. If result is error, then throw a TypeError.
+        if (result.is_error())
+            return result.release_error();
+    }
 }
 
 // https://encoding.spec.whatwg.org/#flush-and-enqueue
 WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue()
 {
-    // 1-3. Drain decoder's I/O queue and run "processing an item" to completion.
-    auto decoded_or_error = m_streaming_decoder->finish();
-    if (decoded_or_error.is_error() && decoded_or_error.error().code() != ENOMEM)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
-    auto decoded = TRY_OR_THROW_OOM(vm(), move(decoded_or_error));
-    return enqueue_decoded_output(decoded);
+    // 1. Let output be the I/O queue of scalar values « end-of-queue ».
+    TextDecoderOutputQueue output;
+
+    // 2. While true:
+    // NB: TextCodec::StreamingDecoder keeps any cross-chunk decoder state internally. Since flushing reads only
+    //     end-of-queue from the decoder's I/O queue, we write out that single read instead of materializing a queue and
+    //     looping over it.
+    // 1. Let item be the result of reading from this’s I/O queue.
+    auto item = EndOfQueue {};
+
+    // 2. Let result be the result of processing an item with item, this’s decoder, decoder’s I/O queue, output, and decoder’s
+    //    error mode.
+    auto result = process_an_item(vm(), item, output);
+
+    // 3. If result is finished:
+    //     1. Let outputChunk be the result of running serialize I/O queue with decoder and output.
+    //     2. If outputChunk is not the empty string, then enqueue outputChunk in decoder’s transform.
+    //     3. Return.
+    if (!result.is_error()) {
+        auto output_chunk = TRY(serialize_io_queue(vm(), output));
+        TRY(enqueue_decoded_output(output_chunk));
+        return {};
+    }
+
+    // 4. Otherwise, if result is error, throw a TypeError.
+    return result.release_error();
 }
 
 WebIDL::ExceptionOr<void> TextDecoderStream::enqueue_decoded_output(String const& decoded)

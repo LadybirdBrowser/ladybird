@@ -31,12 +31,16 @@ public:
 
     virtual ~TextDecoder() override;
 
-    WebIDL::ExceptionOr<String> decode(Optional<WebIDL::BufferSourceVariant>, Bindings::TextDecodeOptions const&) const;
+    WebIDL::ExceptionOr<String> decode(Optional<WebIDL::BufferSourceVariant>, Bindings::TextDecodeOptions const&);
 
 private:
-    TextDecoder(JS::Realm&, TextCodec::Decoder&, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom);
+    TextDecoder(JS::Realm&, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom);
 
     virtual void initialize(JS::Realm&) override;
+
+    // https://encoding.spec.whatwg.org/#textdecoder-do-not-flush-flag
+    // A TextDecoder object has an associated do not flush, which is a boolean, initially false.
+    bool m_do_not_flush { false };
 };
 
 }
