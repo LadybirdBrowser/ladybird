@@ -5,7 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <AK/FlyString.h>
+#include <AK/StringBuilder.h>
+#include <AK/Variant.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TextDecoder.h>
@@ -40,17 +43,13 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm&
     // 5. Set this’s ignore BOM to options["ignoreBOM"].
     auto ignore_bom = options.ignore_bom;
 
-    // NOTE: This should happen in decode(), but we don't support streaming yet and share decoders across calls.
-    auto decoder = TextCodec::decoder_for_exact_name(encoding.value());
-    VERIFY(decoder.has_value());
-
-    return realm.create<TextDecoder>(realm, *decoder, lowercase_encoding_name, error_mode, ignore_bom);
+    return realm.create<TextDecoder>(realm, lowercase_encoding_name, error_mode, ignore_bom);
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder
-TextDecoder::TextDecoder(JS::Realm& realm, TextCodec::Decoder& decoder, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom)
+TextDecoder::TextDecoder(JS::Realm& realm, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom)
     : PlatformObject(realm)
-    , TextDecoderCommonMixin(decoder, move(encoding), error_mode, ignore_bom)
+    , TextDecoderCommonMixin(move(encoding), error_mode, ignore_bom)
 {
 }
 
@@ -63,25 +62,71 @@ void TextDecoder::initialize(JS::Realm& realm)
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder-decode
-WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> input, Bindings::TextDecodeOptions const&) const
+WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> input, Bindings::TextDecodeOptions const& options)
 {
-    auto ignore_bom = m_ignore_bom ? TextCodec::IgnoreBOM::Yes : TextCodec::IgnoreBOM::No;
-    if (!input.has_value()) {
-        auto result = m_decoder.to_utf8({}, ignore_bom, m_error_mode);
-        if (result.is_error() && result.error().code() != ENOMEM)
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
-        return TRY_OR_THROW_OOM(vm(), move(result));
+    // 1. If this’s do not flush is false, then set this’s decoder to a new instance of this’s encoding’s decoder, this’s
+    //    I/O queue to the I/O queue of bytes « end-of-queue », and this’s BOM seen to false.
+    if (!m_do_not_flush)
+        set_decoder_to_new_instance_of_encoding_decoder();
+    VERIFY(m_decoder);
+
+    // 2. Set this’s do not flush to options["stream"].
+    m_do_not_flush = options.stream;
+
+    Optional<ByteBuffer> input_copy;
+
+    // 3. If input is given, then push a copy of input to this’s I/O queue.
+    // NOTE: Implementations are strongly encouraged to use an implementation strategy that avoids this copy. When doing
+    //       so they will have to make sure that changes to input do not affect future calls to decode().
+    // WARNING: The memory exposed by SharedArrayBuffer objects does not adhere to data race freedom properties required
+    //          by the memory model of programming languages typically used for implementations. When implementing, take
+    //          care to use the appropriate facilities when accessing memory exposed by SharedArrayBuffer objects.
+    // FIXME: Safely avoid this copy.
+    if (input.has_value()) {
+        auto data_buffer_or_error = WebIDL::get_buffer_source_copy(*input);
+        if (data_buffer_or_error.is_error())
+            return WebIDL::OperationError::create(realm(), "Failed to copy bytes from ArrayBuffer"_utf16);
+        input_copy = data_buffer_or_error.release_value();
     }
 
-    // FIXME: Implement the streaming stuff.
-    auto data_buffer_or_error = WebIDL::get_buffer_source_copy(*input);
-    if (data_buffer_or_error.is_error())
-        return WebIDL::OperationError::create(realm(), "Failed to copy bytes from ArrayBuffer"_utf16);
-    auto& data_buffer = data_buffer_or_error.value();
-    auto result = m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }, ignore_bom, m_error_mode);
-    if (result.is_error() && result.error().code() != ENOMEM)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
-    return TRY_OR_THROW_OOM(vm(), move(result));
+    // 4. Let output be the I/O queue of scalar values « end-of-queue ».
+    TextDecoderOutputQueue output;
+
+    // 5. While true:
+    bool did_read_input = false;
+    auto read_item = [&]() -> Variant<ReadonlyBytes, EndOfQueue> {
+        if (did_read_input || !input_copy.has_value())
+            return EndOfQueue {};
+        did_read_input = true;
+        return ReadonlyBytes { input_copy->data(), input_copy->size() };
+    };
+
+    while (true) {
+        // 1. Let item be the result of reading from this’s I/O queue.
+        auto item = read_item();
+
+        // 2. If item is end-of-queue and this’s do not flush is true, then return the result of running serialize I/O
+        //    queue with this and output.
+        if (item.has<EndOfQueue>() && m_do_not_flush) {
+            return serialize_io_queue(vm(), output);
+        }
+        // 3. Otherwise:
+        else {
+            //  1. Let result be the result of processing an item with item, this’s decoder, this’s I/O queue, output,
+            //      and this’s error mode.
+            auto result = item.visit([&](auto item) {
+                return process_an_item(vm(), item, output);
+            });
+
+            // 2. If result is finished, then return the result of running serialize I/O queue with this and output.
+            if (!result.is_error() && item.has<EndOfQueue>())
+                return serialize_io_queue(vm(), output);
+
+            // 3. If result is error, throw a TypeError.
+            if (result.is_error())
+                return result.release_error();
+        }
+    }
 }
 
 }

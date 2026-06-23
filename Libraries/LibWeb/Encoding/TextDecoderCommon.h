@@ -7,15 +7,30 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <AK/OwnPtr.h>
+#include <LibJS/Forward.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Encoding {
+
+struct EndOfQueue {
+};
+
+class TextDecoderOutputQueue {
+public:
+    ErrorOr<void> push(String);
+    ErrorOr<String> serialize();
+
+private:
+    Optional<String> m_single_output;
+    StringBuilder m_builder;
+    bool m_has_builder { false };
+};
 
 // https://encoding.spec.whatwg.org/#textdecodercommon
 class TextDecoderCommonMixin {
 public:
-    virtual ~TextDecoderCommonMixin();
-
     // https://encoding.spec.whatwg.org/#dom-textdecoder-encoding
     FlyString const& encoding() const { return m_encoding; }
 
@@ -26,10 +41,15 @@ public:
     bool ignore_bom() const { return m_ignore_bom; }
 
 protected:
-    TextDecoderCommonMixin(TextCodec::Decoder& decoder, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom);
+    TextDecoderCommonMixin(FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom);
+
+    void set_decoder_to_new_instance_of_encoding_decoder();
+    WebIDL::ExceptionOr<void> process_an_item(JS::VM&, ReadonlyBytes item, TextDecoderOutputQueue& output);
+    WebIDL::ExceptionOr<void> process_an_item(JS::VM&, EndOfQueue, TextDecoderOutputQueue& output);
+    WebIDL::ExceptionOr<String> serialize_io_queue(JS::VM&, TextDecoderOutputQueue& output);
 
     // https://encoding.spec.whatwg.org/#textdecodercommon-decoder
-    TextCodec::Decoder& m_decoder;
+    OwnPtr<TextCodec::StreamingDecoder> m_decoder;
 
     // https://encoding.spec.whatwg.org/#textdecoder-encoding
     FlyString m_encoding;
