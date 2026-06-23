@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+7 Pass
+2 Fail
+Pass	query() returns dictionaries with expected properties
+Pass	query() reports individual held locks
+Pass	query() reports multiple held locks
+Pass	query() reports pending and held locks
+Pass	query() reports held shared locks with appropriate count
+Pass	query() reports pending shared locks with appropriate count
+Pass	query() reports the same clientId for held locks from the same context
+Fail	query() reports different ids for held locks from different contexts
+Fail	query() can observe a deadlock

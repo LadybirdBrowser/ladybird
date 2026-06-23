@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	callback's result is promisified if not async
+Pass	lock is held until callback's returned promise resolves
+Pass	lock is held until callback's returned promise rejects
+Pass	held lock prevents the same client from acquiring it

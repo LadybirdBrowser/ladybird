@@ -23,6 +23,7 @@
 #include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/Serial/Serial.h>
 #include <LibWeb/StorageAPI/NavigatorStorage.h>
+#include <LibWeb/WebLocks/NavigatorLocks.h>
 
 namespace Web::HTML {
 
@@ -37,7 +38,8 @@ class Navigator
     , public NavigatorIDMixin
     , public NavigatorLanguageMixin
     , public NavigatorOnLineMixin
-    , public StorageAPI::NavigatorStorage {
+    , public StorageAPI::NavigatorStorage
+    , public WebLocks::NavigatorLocks {
     WEB_PLATFORM_OBJECT(Navigator, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(Navigator);
 
@@ -89,6 +91,9 @@ private:
 
     // ^StorageAPI::NavigatorStorage
     virtual Bindings::PlatformObject const& this_navigator_storage_object() const override { return *this; }
+
+    // ^WebLocks::NavigatorLocks
+    virtual Bindings::PlatformObject const& this_navigator_locks_object() const override { return *this; }
 
     GC::Ptr<PluginArray> m_plugin_array;
     GC::Ptr<MimeTypeArray> m_mime_type_array;

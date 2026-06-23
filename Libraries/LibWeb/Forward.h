@@ -102,6 +102,7 @@ enum class DOMParserSupportedType : u8;
 enum class EndingType : u8;
 enum class HdrMetadataType : u8;
 enum class ImageSmoothingQuality : u8;
+enum class LockMode : u8;
 enum class MediaDecodingType : u8;
 enum class MediaEncodingType : u8;
 enum class MediaStreamTrackState : u8;
@@ -1365,7 +1366,17 @@ namespace Web::WebDriver {
 struct ActionObject;
 struct InputState;
 
-};
+}
+
+namespace Web::WebLocks {
+
+class Lock;
+class LockData;
+class LockManager;
+class LockRequest;
+class NavigatorLocks;
+
+}
 
 namespace Web::WebSockets {
 

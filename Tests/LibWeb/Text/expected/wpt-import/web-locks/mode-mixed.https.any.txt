@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Lock requests are granted in order
+Pass	Releasing exclusive lock grants multiple shared locks
+Pass	An exclusive lock between shared locks

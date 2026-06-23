@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	DOMString: 
+Pass	DOMString: 0x61 0x62 0x63 0x0 0x64 0x65 0x66
+Pass	DOMString: 0xD800
+Pass	DOMString: 0xDC00
+Pass	DOMString: 0xDC00 0xD800
+Pass	DOMString: 0xFFFF
+Pass	Resource names that are not valid UTF-16 are not mangled
+Pass	Names cannot start with "-"
