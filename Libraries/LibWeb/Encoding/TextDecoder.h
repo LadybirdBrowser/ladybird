@@ -31,7 +31,7 @@ public:
 
     virtual ~TextDecoder() override;
 
-    WebIDL::ExceptionOr<String> decode(Optional<WebIDL::BufferSourceVariant>, Optional<Bindings::TextDecodeOptions> const& options = {}) const;
+    WebIDL::ExceptionOr<String> decode(Optional<WebIDL::BufferSourceVariant>, Bindings::TextDecodeOptions const&) const;
 
 private:
     TextDecoder(JS::Realm&, TextCodec::Decoder&, FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom);
