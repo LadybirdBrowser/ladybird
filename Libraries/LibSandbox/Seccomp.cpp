@@ -564,6 +564,9 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_ioctl
         CASE_SYSCALL_NAME(ioctl);
 #endif
+#ifdef __NR_kcmp
+        CASE_SYSCALL_NAME(kcmp);
+#endif
 #ifdef __NR_link
         CASE_SYSCALL_NAME(link);
 #endif
@@ -1137,6 +1140,11 @@ void SeccompPolicy::allow_gpu_device_operations()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_ctl);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_wait);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_pwait);
+
+#ifdef __NR_kcmp
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_kcmp, 0, 1));
+    append(SECCOMP_ERRNO(ENOSYS));
+#endif
 }
 
 void SeccompPolicy::allow_process_metadata()
