@@ -47,6 +47,7 @@ public:
 
     void set_error_handler(ErrorHandler&&);
     void set_duration_change_handler(FrameEndTimeHandler&&);
+    void set_read_blocked_change_handler(ReadBlockedChangeHandler);
 
     virtual void start() override;
 
@@ -67,6 +68,7 @@ private:
 
         void set_error_handler(ErrorHandler&&);
         void set_duration_change_handler(FrameEndTimeHandler&&);
+        void set_read_blocked_change_handler(ReadBlockedChangeHandler);
         void set_wake_handler(PipelineWakeHandler);
 
         void start();
@@ -119,6 +121,7 @@ private:
 
         void note_consumer_activity_while_locked() const;
         void wait_to_decode_or_auto_suspend_while_locked();
+        void dispatch_read_blocked_change(ReadBlocked blocked);
 
         Core::EventLoop& m_main_thread_event_loop;
 
@@ -144,6 +147,7 @@ private:
         AK::Duration m_latest_available_timestamp;
         FrameEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
+        ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
         bool m_moved_position_pending { false };
 

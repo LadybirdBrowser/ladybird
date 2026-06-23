@@ -8,11 +8,19 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Endian.h>
+#include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Stream.h>
 #include <LibMedia/DecoderError.h>
 
 namespace Media {
+
+enum class ReadBlocked : u8 {
+    No,
+    Yes,
+};
+
+using ReadBlockedChangeHandler = Function<void(ReadBlocked)>;
 
 class MediaStreamCursor : public AtomicRefCounted<MediaStreamCursor> {
 public:
@@ -65,6 +73,9 @@ public:
     virtual void reset_abort() { }
     virtual bool is_aborted() const { return false; }
     virtual bool is_blocked() const { return false; }
+
+    // The handler may be invoked while the stream's lock is held, so it must not call back into the stream.
+    virtual void set_blocked_change_handler(ReadBlockedChangeHandler) { }
 };
 
 class MediaStream : public AtomicRefCounted<MediaStream> {

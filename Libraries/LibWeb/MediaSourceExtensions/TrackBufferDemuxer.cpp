@@ -220,13 +220,30 @@ Media::DecoderErrorOr<Media::CodedFrame> TrackBufferDemuxer::get_next_sample_for
 {
     Sync::MutexLocker locker { m_mutex };
 
+    bool notified_blocked = false;
+    Optional<Media::DecoderError> error;
     while (m_read_position >= m_coded_frames.size() || next_frame_is_in_gap_while_locked()) {
-        if (m_aborted.load())
-            return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Read aborted"sv);
-        if (m_read_position >= m_coded_frames.size() && m_reached_end_of_stream)
-            return Media::DecoderError::with_description(Media::DecoderErrorCategory::EndOfStream, "End of stream"sv);
+        if (m_aborted.load()) {
+            error = Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Read aborted"sv);
+            break;
+        }
+        if (m_read_position >= m_coded_frames.size() && m_reached_end_of_stream) {
+            error = Media::DecoderError::with_description(Media::DecoderErrorCategory::EndOfStream, "End of stream"sv);
+            break;
+        }
+        if (!notified_blocked) {
+            notified_blocked = true;
+            if (m_read_blocked_change_handler)
+                m_read_blocked_change_handler(Media::ReadBlocked::Yes);
+        }
         m_data_changed.wait();
     }
+
+    if (notified_blocked && m_read_blocked_change_handler)
+        m_read_blocked_change_handler(Media::ReadBlocked::No);
+
+    if (error.has_value())
+        return error.release_value();
 
     m_last_returned_timestamp = m_coded_frames[m_read_position].timestamp();
     return m_coded_frames[m_read_position++];
@@ -364,6 +381,12 @@ bool TrackBufferDemuxer::is_read_blocked_for_track(Media::Track const&)
     if (m_aborted.load())
         return false;
     return m_read_position >= m_coded_frames.size() || next_frame_is_in_gap_while_locked();
+}
+
+void TrackBufferDemuxer::set_read_blocked_change_handler_for_track(Media::Track const&, Media::ReadBlockedChangeHandler handler)
+{
+    Sync::MutexLocker locker { m_mutex };
+    m_read_blocked_change_handler = move(handler);
 }
 
 }

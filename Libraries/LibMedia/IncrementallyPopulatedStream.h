@@ -68,6 +68,8 @@ public:
 
         virtual bool is_blocked() const override { return m_blocked; }
 
+        virtual void set_blocked_change_handler(ReadBlockedChangeHandler) override;
+
     private:
         friend class IncrementallyPopulatedStream;
 
@@ -78,6 +80,7 @@ public:
         size_t m_position { 0 };
         bool m_aborted { false };
         Atomic<bool> m_blocked { false };
+        ReadBlockedChangeHandler m_read_blocked_change_handler;
         MonotonicTime m_active_timeout { MonotonicTime::now_coarse() };
     };
 

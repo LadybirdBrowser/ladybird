@@ -68,6 +68,11 @@ void DecodedAudioProducer::set_duration_change_handler(BlockEndTimeHandler&& han
     m_thread_data->set_duration_change_handler(move(handler));
 }
 
+void DecodedAudioProducer::set_read_blocked_change_handler(ReadBlockedChangeHandler handler)
+{
+    m_thread_data->set_read_blocked_change_handler(move(handler));
+}
+
 ErrorOr<void> DecodedAudioProducer::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
     return m_thread_data->set_output_sample_specification(sample_specification);
@@ -105,9 +110,15 @@ DecodedAudioProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_
     , m_duration(duration)
     , m_converter(move(converter))
 {
+    m_demuxer->set_read_blocked_change_handler_for_track(m_track, [this](ReadBlocked blocked) {
+        dispatch_read_blocked_change(blocked);
+    });
 }
 
-DecodedAudioProducer::ThreadData::~ThreadData() = default;
+DecodedAudioProducer::ThreadData::~ThreadData()
+{
+    m_demuxer->set_read_blocked_change_handler_for_track(m_track, nullptr);
+}
 
 void DecodedAudioProducer::ThreadData::set_error_handler(ErrorHandler&& handler)
 {
@@ -117,6 +128,19 @@ void DecodedAudioProducer::ThreadData::set_error_handler(ErrorHandler&& handler)
 void DecodedAudioProducer::ThreadData::set_duration_change_handler(BlockEndTimeHandler&& handler)
 {
     m_duration_change_handler = move(handler);
+}
+
+void DecodedAudioProducer::ThreadData::set_read_blocked_change_handler(ReadBlockedChangeHandler handler)
+{
+    m_read_blocked_change_handler = move(handler);
+}
+
+void DecodedAudioProducer::ThreadData::dispatch_read_blocked_change(ReadBlocked blocked)
+{
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), blocked] {
+        if (self->m_read_blocked_change_handler)
+            self->m_read_blocked_change_handler(blocked);
+    });
 }
 
 ErrorOr<void> DecodedAudioProducer::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)

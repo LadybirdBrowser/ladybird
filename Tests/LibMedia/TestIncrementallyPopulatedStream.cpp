@@ -244,6 +244,51 @@ TEST_CASE(cursor_abort_and_reset)
     EXPECT_EQ(result.value(), 10u);
 }
 
+TEST_CASE(cursor_blocked_change_handler)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(100);
+
+    auto cursor = stream->create_cursor();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<u32> blocked_count { 0 };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<u32> unblocked_count { 0 };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> last_state { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> read_succeeded { false };
+
+    cursor->set_blocked_change_handler([&](Media::ReadBlocked blocked) {
+        if (blocked == Media::ReadBlocked::Yes)
+            blocked_count++;
+        else
+            unblocked_count++;
+        last_state = blocked == Media::ReadBlocked::Yes;
+    });
+
+    auto thread = Threading::Thread::construct("TestBlockHandler"sv, [&, cursor]() -> intptr_t {
+        Array<u8, 10> buffer;
+        read_succeeded = !cursor->read_into(buffer).is_error();
+        return 0;
+    });
+    thread->start();
+
+    // The read finds no data and parks, firing the handler with blocked=true exactly once.
+    while (blocked_count.load() == 0)
+        ;
+    EXPECT_EQ(blocked_count.load(), 1u);
+    EXPECT_EQ(unblocked_count.load(), 0u);
+    EXPECT(last_state.load());
+
+    // Appending the awaited data resumes the read, firing the handler with blocked=false.
+    auto data = make_test_data(100);
+    stream->add_chunk_at(0, data.bytes());
+
+    MUST(thread->join());
+    EXPECT(read_succeeded.load());
+    EXPECT_EQ(blocked_count.load(), 1u);
+    EXPECT_EQ(unblocked_count.load(), 1u);
+    EXPECT(!last_state.load());
+}
+
 TEST_CASE(redundant_chunk_within_existing_chunk_at_nonzero_offset)
 {
     // Regression test: add_chunk_at used to compare chunk.size() (a relative byte count)

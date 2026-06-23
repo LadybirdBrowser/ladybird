@@ -79,6 +79,11 @@ void DecodedVideoProducer::set_duration_change_handler(FrameEndTimeHandler&& han
     m_thread_data->set_duration_change_handler(move(handler));
 }
 
+void DecodedVideoProducer::set_read_blocked_change_handler(ReadBlockedChangeHandler handler)
+{
+    m_thread_data->set_read_blocked_change_handler(move(handler));
+}
+
 void DecodedVideoProducer::start()
 {
     m_thread_data->start();
@@ -195,6 +200,9 @@ DecodedVideoProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_
     , m_track(track)
     , m_duration(duration)
 {
+    m_demuxer->set_read_blocked_change_handler_for_track(m_track, [this](ReadBlocked blocked) {
+        dispatch_read_blocked_change(blocked);
+    });
 }
 
 DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder()
@@ -217,11 +225,27 @@ TimeRanges DecodedVideoProducer::buffered_time_ranges() const
     return m_thread_data->buffered_time_ranges();
 }
 
-DecodedVideoProducer::ThreadData::~ThreadData() = default;
+DecodedVideoProducer::ThreadData::~ThreadData()
+{
+    m_demuxer->set_read_blocked_change_handler_for_track(m_track, nullptr);
+}
 
 void DecodedVideoProducer::ThreadData::set_error_handler(ErrorHandler&& handler)
 {
     m_error_handler = move(handler);
+}
+
+void DecodedVideoProducer::ThreadData::set_read_blocked_change_handler(ReadBlockedChangeHandler handler)
+{
+    m_read_blocked_change_handler = move(handler);
+}
+
+void DecodedVideoProducer::ThreadData::dispatch_read_blocked_change(ReadBlocked blocked)
+{
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), blocked] {
+        if (self->m_read_blocked_change_handler)
+            self->m_read_blocked_change_handler(blocked);
+    });
 }
 
 void DecodedVideoProducer::ThreadData::start()

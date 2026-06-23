@@ -212,4 +212,10 @@ bool MatroskaDemuxer::is_read_blocked_for_track(Track const& track)
     return status.iterator.cursor().is_blocked();
 }
 
+void MatroskaDemuxer::set_read_blocked_change_handler_for_track(Track const& track, ReadBlockedChangeHandler handler)
+{
+    auto& status = get_track_status(track);
+    status.iterator.cursor().set_blocked_change_handler(move(handler));
+}
+
 }
