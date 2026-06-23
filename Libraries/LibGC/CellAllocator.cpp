@@ -5,6 +5,7 @@
  */
 
 #include <AK/Badge.h>
+#include <AK/NeverDestroyed.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
@@ -12,12 +13,33 @@
 
 namespace GC {
 
+BlockAllocator& CellAllocator::shared_block_allocator()
+{
+    static AK::NeverDestroyed<BlockAllocator> allocator;
+    return *allocator;
+}
+
 CellAllocator::CellAllocator(size_t cell_size, Optional<StringView> class_name, bool overrides_must_survive_garbage_collection, bool overrides_finalize)
     : m_class_name(class_name)
     , m_cell_size(cell_size)
+    , m_block_allocator(shared_block_allocator())
     , m_overrides_must_survive_garbage_collection(overrides_must_survive_garbage_collection)
     , m_overrides_finalize(overrides_finalize)
 {
+}
+
+CellAllocator::~CellAllocator()
+{
+    m_blocks_pending_sweep.clear();
+
+    auto reclaim_all = [this](BlockList& blocks) {
+        while (auto* block = blocks.take_first()) {
+            block->~HeapBlock();
+            m_block_allocator.deallocate_block(block, DeferDecommit::Yes);
+        }
+    };
+    reclaim_all(m_full_blocks);
+    reclaim_all(m_usable_blocks);
 }
 
 CellAllocator& CellAllocatorDescriptorBase::for_heap(Heap& heap)
