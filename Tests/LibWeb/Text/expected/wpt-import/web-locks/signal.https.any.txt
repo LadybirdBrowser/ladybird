@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	The signal option must be an AbortSignal
+Pass	Passing an already aborted signal aborts
+Pass	Passing an already aborted signal rejects with the custom abort reason.
+Pass	Passing an already aborted signal rejects with the default abort reason.
+Pass	An aborted request results in AbortError
+Pass	Abort after a timeout
+Pass	Signal that is not aborted
+Pass	Synchronously signaled abort
+Pass	Abort signaled after lock granted
+Pass	Abort signaled after lock released
+Pass	Abort should process the next pending lock request
+Pass	Aborted promise should reject with the custom abort reason
+Pass	Aborted promise should reject with the default abort reason

@@ -1,0 +1,5 @@
+// https://w3c.github.io/web-locks/#navigatorlocks
+[SecureContext]
+interface mixin NavigatorLocks {
+    [SameObject] readonly attribute LockManager locks;
+};

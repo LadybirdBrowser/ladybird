@@ -18,6 +18,7 @@
 #include <LibWeb/Serial/Serial.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
 #include <LibWeb/StorageAPI/NavigatorStorage.h>
+#include <LibWeb/WebLocks/NavigatorLocks.h>
 
 namespace Web::HTML {
 
@@ -29,7 +30,8 @@ class WorkerNavigator
     , public NavigatorIDMixin
     , public NavigatorLanguageMixin
     , public NavigatorOnLineMixin
-    , public StorageAPI::NavigatorStorage {
+    , public StorageAPI::NavigatorStorage
+    , public WebLocks::NavigatorLocks {
     WEB_PLATFORM_OBJECT(WorkerNavigator, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(WorkerNavigator);
 
@@ -54,6 +56,9 @@ private:
 
     // ^StorageAPI::NavigatorStorage
     virtual Bindings::PlatformObject const& this_navigator_storage_object() const override { return *this; }
+
+    // ^WebLocks::NavigatorLocks
+    virtual Bindings::PlatformObject const& this_navigator_locks_object() const override { return *this; }
 
     // https://w3c.github.io/media-capabilities/#dom-workernavigator-mediacapabilities
     GC::Ptr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;

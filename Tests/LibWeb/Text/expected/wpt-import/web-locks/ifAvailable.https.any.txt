@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Lock request with ifAvailable - lock available
+Pass	Lock request with ifAvailable - lock not available
+Pass	Lock request with ifAvailable - lock not available, callback throws
+Pass	Lock request with ifAvailable - unrelated lock held
+Pass	Shared lock request with ifAvailable - shared lock held
+Pass	Exclusive lock request with ifAvailable - shared lock held
+Pass	Shared lock request with ifAvailable - exclusive lock held
+Pass	Returned Promise rejects if callback throws synchronously
+Pass	Returned Promise rejects if async callback yields rejected promise
+Pass	Locks are available once previous release is processed

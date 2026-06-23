@@ -20,4 +20,5 @@ WorkerNavigator includes NavigatorLanguage;
 WorkerNavigator includes NavigatorOnLine;
 WorkerNavigator includes NavigatorConcurrentHardware;
 WorkerNavigator includes NavigatorStorage;
+WorkerNavigator includes NavigatorLocks;
 WorkerNavigator includes NavigatorDeviceMemory;
