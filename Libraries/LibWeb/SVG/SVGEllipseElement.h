@@ -19,8 +19,6 @@ class SVGEllipseElement final : public SVGGeometryElement {
 public:
     virtual ~SVGEllipseElement() override = default;
 
-    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
-
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
     // AD-HOC: The spec states that the cx, cy, rx and ry IDL attributes reflect the respective computed values and their
@@ -41,11 +39,6 @@ public:
 
 private:
     SVGEllipseElement(DOM::Document&, DOM::QualifiedName);
-
-    Optional<NumberPercentage> m_center_x;
-    Optional<NumberPercentage> m_center_y;
-    Optional<NumberPercentage> m_radius_x;
-    Optional<NumberPercentage> m_radius_y;
 };
 
 }

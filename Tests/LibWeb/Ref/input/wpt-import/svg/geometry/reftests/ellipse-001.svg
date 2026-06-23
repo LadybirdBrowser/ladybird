@@ -1,0 +1,17 @@
+<svg width="300" height="200"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:html="http://www.w3.org/1999/xhtml">
+  <title>Ellipse coordinates and radii specified by properties</title>
+  <html:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/geometry.html"/>
+  <html:link rel="match"  href="../../../../../expected/wpt-import/svg/geometry/reftests/ellipse-ref.svg" />
+  <style>
+    ellipse {
+      cx: 75px;
+      cy: 120px;
+      rx: 60px;
+      ry: 50px;
+      fill: blue;
+    }
+  </style>
+  <ellipse />
+</svg>
