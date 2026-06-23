@@ -1245,8 +1245,10 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         m_client_writer_notifier->set_enabled(false);
 
         m_client_writer_notifier->on_activation = weak_callback(*this, [](auto& self) {
-            if (auto result = self.write_queued_bytes_without_blocking(); result.is_error())
-                dbgln("Warning: Failed to write buffered request data (it's likely the client disappeared): {}", result.error());
+            if (auto result = self.write_queued_bytes_without_blocking(); result.is_error()) {
+                self.m_client_writer_notifier->set_enabled(false);
+                dbgln_if(REQUESTSERVER_DEBUG, "Warning: Failed to write buffered request data (it's likely the client disappeared): {}", result.error());
+            }
         });
     }
 
