@@ -224,6 +224,7 @@ protected:
     CSSPixels gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, CSSPixels reference_value) const;
 
     void layout_absolutely_positioned_children();
+    void layout_absolutely_positioned_children(Box const&);
     virtual AbsposContainingBlockInfo resolve_abspos_containing_block_info(Box const&);
     void resolve_anchor_insets(Box&) const;
     void compute_width_for_absolutely_positioned_element(Box const&, AvailableSpace const&);

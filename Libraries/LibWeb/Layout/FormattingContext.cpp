@@ -1831,13 +1831,20 @@ void FormattingContext::resolve_anchor_insets(Box& box) const
 
 void FormattingContext::layout_absolutely_positioned_children()
 {
+    // TableFormattingContext handles cell abspos layout after vertical alignment.
+    if (context_box().display().is_table_cell())
+        return;
+    layout_absolutely_positioned_children(context_box());
+}
+
+void FormattingContext::layout_absolutely_positioned_children(Box const& box)
+{
     if (m_layout_mode != LayoutMode::Normal)
         return;
-    for (auto& child : context_box().contained_abspos_children()) {
+    for (auto& child : box.contained_abspos_children()) {
         if (!child)
             continue;
-        auto& box = as<Box>(*child);
-        layout_absolutely_positioned_element(box);
+        layout_absolutely_positioned_element(as<Box>(*child));
     }
 }
 
