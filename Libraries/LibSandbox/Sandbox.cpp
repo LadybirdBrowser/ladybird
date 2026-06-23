@@ -25,7 +25,6 @@
 #    include <errno.h>
 #    include <limits.h>
 #    include <sandbox.h>
-#    include <signal.h>
 #    include <stdlib.h>
 #    include <sys/stat.h>
 #    include <unistd.h>
@@ -211,33 +210,12 @@ static ErrorOr<void> append_allowed_iokit_user_client_classes(StringBuilder& bui
     return {};
 }
 
-static void sandbox_violation_signal_handler(int)
-{
-    char const message[] = "Sandbox violation: terminating process\n";
-    [[maybe_unused]] auto nwritten = write(STDERR_FILENO, message, sizeof(message) - 1);
-    _exit(128 + SIGSYS);
-}
-
-static ErrorOr<void> install_sandbox_violation_signal_handler()
-{
-    struct sigaction action {};
-    action.sa_handler = sandbox_violation_signal_handler;
-    sigemptyset(&action.sa_mask);
-    action.sa_flags = SA_RESETHAND;
-    if (sigaction(SIGSYS, &action, nullptr) < 0)
-        return Error::from_syscall("sigaction(SIGSYS)"sv, errno);
-    return {};
-}
-
 ErrorOr<void> apply_macos_sandbox(ReadonlySpan<SeatbeltPath> paths, NetworkAccess network_access, ReadonlySpan<ByteString> executable_paths, ReadonlySpan<StringView> iokit_user_client_classes)
 {
-    TRY(install_sandbox_violation_signal_handler());
-
     StringBuilder profile;
     TRY(profile.try_append(R"~~~(
 (version 1)
 (deny default
-    (with send-signal SIGSYS)
     (with message "Ladybird macOS sandbox default deny"))
 
 (allow process-info*)
