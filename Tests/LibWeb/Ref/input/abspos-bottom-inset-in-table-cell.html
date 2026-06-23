@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/abspos-bottom-inset-in-table-cell-ref.html">
+<style>
+  table {
+    table-layout: fixed;
+    width: 100px;
+    border-spacing: 0;
+  }
+  tr {
+    height: 100px;
+  }
+  td {
+    padding: 0;
+    position: relative;
+    vertical-align: middle;
+  }
+  .bar {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100px;
+    height: 100px;
+    background: green;
+  }
+</style>
+<table>
+  <tr>
+    <td><div class="bar"></div></td>
+  </tr>
+</table>

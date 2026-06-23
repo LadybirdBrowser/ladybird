@@ -1861,6 +1861,9 @@ void TableFormattingContext::run(AvailableSpace const& available_space)
     position_row_boxes();
     position_cell_boxes();
 
+    for (auto& cell : m_cells)
+        layout_absolutely_positioned_children(cell.box);
+
     m_state.get_mutable(table_box()).set_content_height(m_table_height);
 
     total_captions_height += run_caption_layout(CSS::CaptionSide::Bottom, caption_available_space);
