@@ -72,7 +72,6 @@ public:
     virtual void abort() { }
     virtual void reset_abort() { }
     virtual bool is_aborted() const { return false; }
-    virtual bool is_blocked() const { return false; }
 
     // The handler may be invoked while the stream's lock is held, so it must not call back into the stream.
     virtual void set_blocked_change_handler(ReadBlockedChangeHandler) { }

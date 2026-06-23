@@ -124,8 +124,6 @@ PipelineStatus DecodedVideoProducer::ThreadData::status_while_locked() const
         return PipelineStatus::HaveData;
     if (m_current_halting_status != PipelineStatus::Pending)
         return m_current_halting_status;
-    if (m_demuxer->is_read_blocked_for_track(m_track))
-        return PipelineStatus::Blocked;
     return PipelineStatus::Pending;
 }
 

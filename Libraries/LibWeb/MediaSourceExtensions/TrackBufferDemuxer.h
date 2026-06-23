@@ -59,7 +59,6 @@ public:
 
     virtual void set_blocking_reads_aborted_for_track(Media::Track const&) override;
     virtual void reset_blocking_reads_aborted_for_track(Media::Track const&) override;
-    virtual bool is_read_blocked_for_track(Media::Track const&) override;
     virtual void set_read_blocked_change_handler_for_track(Media::Track const&, Media::ReadBlockedChangeHandler) override;
 
 private:

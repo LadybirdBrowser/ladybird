@@ -108,6 +108,7 @@ private:
         Optional<VideoSinkHandle> handle { OptionalNone() };
         RefPtr<VideoSink> video_sink { nullptr };
         PipelineStatus sink_status { PipelineStatus::Pending };
+        bool read_blocked { false };
     };
     using VideoTrackDatas = Vector<VideoTrackData, EXPECTED_VIDEO_TRACK_COUNT>;
 
@@ -115,6 +116,7 @@ private:
         Track track;
         NonnullRefPtr<DecodedAudioProducer> producer;
         bool enabled { false };
+        bool read_blocked { false };
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 

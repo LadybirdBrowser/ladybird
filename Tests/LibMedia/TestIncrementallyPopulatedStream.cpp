@@ -207,10 +207,15 @@ TEST_CASE(cursor_abort_and_reset)
 
     auto cursor = stream->create_cursor();
 
-    EXPECT(!cursor->is_blocked());
-
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> read_blocked { false };
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> read_completed { false };
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> was_aborted { false };
+
+    cursor->set_blocked_change_handler([&](Media::ReadBlocked blocked) {
+        read_blocked = blocked == Media::ReadBlocked::Yes;
+    });
+
+    EXPECT(!read_blocked.load());
 
     auto thread = Threading::Thread::construct("TestAbort"sv, [&, cursor]() -> intptr_t {
         Array<u8, 10> buffer;
@@ -222,14 +227,14 @@ TEST_CASE(cursor_abort_and_reset)
 
     thread->start();
 
-    while (!cursor->is_blocked())
+    while (!read_blocked.load())
         ;
-    EXPECT(cursor->is_blocked());
+    EXPECT(read_blocked.load());
 
     cursor->abort();
     MUST(thread->join());
 
-    EXPECT_EQ(cursor->is_blocked(), false);
+    EXPECT(!read_blocked.load());
     EXPECT(read_completed.load());
     EXPECT(was_aborted.load());
 

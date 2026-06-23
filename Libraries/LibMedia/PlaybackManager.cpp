@@ -245,6 +245,12 @@ void PlaybackManager::set_up_producers()
                 return;
             self->check_for_duration_change(time);
         });
+        video_track_data.producer->set_read_blocked_change_handler([self = weak(), track = video_track_data.track](ReadBlocked read_blocked) {
+            if (!self)
+                return;
+            self->get_video_data_for_track(track).read_blocked = read_blocked == ReadBlocked::Yes;
+            self->update_pipeline_state();
+        });
     }
 
     for (auto const& audio_track_data : m_audio_track_datas) {
@@ -257,6 +263,12 @@ void PlaybackManager::set_up_producers()
             if (!self)
                 return;
             self->check_for_duration_change(time);
+        });
+        audio_track_data.producer->set_read_blocked_change_handler([self = weak(), track = audio_track_data.track](ReadBlocked read_blocked) {
+            if (!self)
+                return;
+            self->get_audio_data_for_track(track).read_blocked = read_blocked == ReadBlocked::Yes;
+            self->update_pipeline_state();
         });
     }
 }
@@ -284,13 +296,28 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
 {
     auto status = PipelineStatus::EndOfStream;
 
-    if (m_audio_sink != nullptr)
-        status = select_combined_pipeline_status(status, m_audio_sink_status);
+    if (m_audio_sink != nullptr) {
+        auto audio_status = m_audio_sink_status;
+        if (audio_status == PipelineStatus::Pending) {
+            for (auto const& track_data : m_audio_track_datas) {
+                if (!track_data.enabled)
+                    continue;
+                if (!track_data.read_blocked)
+                    continue;
+                audio_status = PipelineStatus::Blocked;
+                break;
+            }
+        }
+        status = select_combined_pipeline_status(status, audio_status);
+    }
 
     for (auto const& track_data : m_video_track_datas) {
         if (!track_data.handle.has_value())
             continue;
-        status = select_combined_pipeline_status(status, track_data.sink_status);
+        auto track_status = track_data.sink_status;
+        if (track_status == PipelineStatus::Pending && track_data.read_blocked)
+            track_status = PipelineStatus::Blocked;
+        status = select_combined_pipeline_status(status, track_status);
     }
 
     return status;
