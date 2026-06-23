@@ -41,6 +41,11 @@ TEST_CASE(read_after_aborted_blocking_read)
 
     // Start a thread to read the frames in parallel and check the errors returned.
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> got_aborted { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> read_blocked { false };
+
+    demuxer->set_read_blocked_change_handler_for_track(track, [&](Media::ReadBlocked blocked) {
+        read_blocked = blocked == Media::ReadBlocked::Yes;
+    });
 
     auto reader_thread = Threading::Thread::construct("TestReader"sv, [&]() -> intptr_t {
         // Read frames until a read blocks and is aborted.
@@ -75,7 +80,7 @@ TEST_CASE(read_after_aborted_blocking_read)
     reader_thread->start();
 
     // Wait for the reader thread to block on a read.
-    while (!demuxer->is_read_blocked_for_track(track)) { }
+    while (!read_blocked.load()) { }
 
     // Abort the blocked read from the main thread.
     demuxer->set_blocking_reads_aborted_for_track(track);

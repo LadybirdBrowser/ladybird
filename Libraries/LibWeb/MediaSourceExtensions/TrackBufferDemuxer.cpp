@@ -375,14 +375,6 @@ void TrackBufferDemuxer::reset_blocking_reads_aborted_for_track(Media::Track con
     m_aborted.store(false);
 }
 
-bool TrackBufferDemuxer::is_read_blocked_for_track(Media::Track const&)
-{
-    Sync::MutexLocker locker { m_mutex };
-    if (m_aborted.load())
-        return false;
-    return m_read_position >= m_coded_frames.size() || next_frame_is_in_gap_while_locked();
-}
-
 void TrackBufferDemuxer::set_read_blocked_change_handler_for_track(Media::Track const&, Media::ReadBlockedChangeHandler handler)
 {
     Sync::MutexLocker locker { m_mutex };
