@@ -19,27 +19,29 @@ SVGEllipseElement::SVGEllipseElement(DOM::Document& document, DOM::QualifiedName
 {
 }
 
-void SVGEllipseElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
-{
-    Base::attribute_changed(name, old_value, value, namespace_);
-
-    if (name == SVG::AttributeNames::cx) {
-        m_center_x = AttributeParser::parse_number_percentage(value.value_or({}));
-    } else if (name == SVG::AttributeNames::cy) {
-        m_center_y = AttributeParser::parse_number_percentage(value.value_or({}));
-    } else if (name == SVG::AttributeNames::rx) {
-        m_radius_x = AttributeParser::parse_number_percentage(value.value_or({}));
-    } else if (name == SVG::AttributeNames::ry) {
-        m_radius_y = AttributeParser::parse_number_percentage(value.value_or({}));
-    }
-}
-
 Gfx::Path SVGEllipseElement::get_path(CSSPixelSize viewport_size)
 {
-    float rx = m_radius_x.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float());
-    float ry = m_radius_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float());
-    float cx = m_center_x.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float());
-    float cy = m_center_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float());
+    auto const& computed_values = this->computed_values();
+
+    auto computed_rx = computed_values->rx();
+    auto computed_ry = computed_values->ry();
+
+    float rx = computed_rx.to_px_or_zero(viewport_size.width()).to_float();
+    float ry = computed_ry.to_px_or_zero(viewport_size.height()).to_float();
+
+    // https://svgwg.org/svg2-draft/geometry.html#RxProperty
+    // When the computed value of ‘rx’ is auto, the used radius is equal to the absolute length used for ry, creating a
+    // circular arc. If both ‘rx’ and ‘ry’ have a computed value of auto, the used value is 0.
+    if (computed_rx.is_auto())
+        rx = computed_ry.to_px_or_zero(viewport_size.height()).to_float();
+
+    // When the computed value of ‘ry’ is auto, the used radius is equal to the absolute length used for rx, creating a
+    // circular arc. If both ‘rx’ and ‘ry’ have a computed value of auto, the used value is 0.
+    if (computed_ry.is_auto())
+        ry = computed_rx.to_px_or_zero(viewport_size.width()).to_float();
+
+    float cx = computed_values->cx().to_px(viewport_size.width()).to_float();
+    float cy = computed_values->cy().to_px(viewport_size.height()).to_float();
     Gfx::Path path;
 
     // A negative radius is invalid. If only one radius is invalid, SVG uses

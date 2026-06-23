@@ -1,0 +1,29 @@
+<!doctype html>
+<html class="reftest-wait">
+<title>Changing container size of SVG with calc() cx/cy/rx/ry on &lt;ellipse></title>
+<link rel="match" href="../../../../../expected/wpt-import/svg/geometry/reftests/ellipse-calc-dynamic-viewport-ref.html">
+<script src="../../../common/rendering-utils.js"></script>
+<script src="../../../common/reftest-wait.js"></script>
+<div id="hcontainer" style="width: 50px; height: 100px; position: absolute">
+  <svg width="100%" height="100%">
+    <ellipse cy="50" style="rx: calc(50% + 50px)" ry="50"/>
+  </svg>
+  <svg width="100%" height="100%">
+    <ellipse style="cx: calc(25% + 25px)" cy="50" rx="50" ry="50"/>
+  </svg>
+</div>
+<div id="vcontainer" style="width: 100px; height: 50px; position: absolute; left: 116px">
+  <svg width="100%" height="100%">
+    <ellipse cx="50" rx="50" style="ry: calc(50% + 50px)"/>
+  </svg>
+  <svg width="100%" height="100%">
+    <ellipse cx="50" style="cy: calc(25% + 25px)" rx="50" ry="50"/>
+  </svg>
+</div>
+<script>
+  waitForAtLeastOneFrame().then(() => {
+    document.getElementById('hcontainer').style.width = '100px';
+    document.getElementById('vcontainer').style.height = '100px';
+    takeScreenshot();
+  });
+</script>
