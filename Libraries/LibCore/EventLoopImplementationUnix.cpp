@@ -285,7 +285,7 @@ struct ThreadData {
 
         wake_pipe_fds = result.release_value();
 
-        // The wake pipe informs us of POSIX signals as well as manual calls to wake()
+        // The wake pipe informs us of POSIX signals, deferred invokes, and manual calls to wake()
         poll_fds.append({ .fd = wake_pipe_fds[0], .events = POLLIN, .revents = 0 });
         notifiers.append(nullptr);
     }
@@ -308,9 +308,13 @@ struct ThreadData {
     Vector<Notifier*, 32> notifiers;
     Vector<pollfd, 32> poll_fds;
 
-    // The wake pipe is used to notify another event loop that someone has called wake(), or a signal has been received.
-    // wake() writes 0i32 into the pipe, signals write the signal number (guaranteed non-zero).
+    // The wake pipe is used to notify another event loop that someone has called wake(),
+    // someone has called deferred_invoke(), or a signal has been received.
+    // wake() writes 0i32 into the pipe, deferred_invoke() writes -1,
+    // and signals write the signal number (guaranteed greater than zero).
     Array<int, 2> wake_pipe_fds { -1, -1 };
+
+    Atomic<bool> deferred_invoke_requested { false };
 
     pid_t pid { 0 };
     pthread_t thread_id { 0 };
@@ -364,6 +368,21 @@ void EventLoopImplementationUnix::wake()
     if (result.is_error() && result.error().code() == EBADF)
         return;
     MUST(move(result));
+}
+
+void EventLoopImplementationUnix::deferred_invoke(Function<void()>&& invokee)
+{
+    auto& thread_data = ThreadData::the();
+
+    EventLoopImplementation::deferred_invoke(move(invokee));
+
+    bool expected = false;
+    if (thread_data.deferred_invoke_requested.compare_exchange_strong(expected, true)) {
+        int deferred_invoke_wake_event = -1;
+        MUST(Core::System::write(m_wake_pipe_write_fd, { &deferred_invoke_wake_event, sizeof(deferred_invoke_wake_event) }));
+    }
+    if (&m_thread_event_queue != &ThreadEventQueue::current())
+        wake();
 }
 
 void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mode)
@@ -427,10 +446,14 @@ try_select_again:
         bool wake_requested = false;
         int event_count = nread / sizeof(wake_events[0]);
         for (int i = 0; i < event_count; i++) {
-            if (wake_events[i] != 0)
+            if (wake_events[i] > 0) {
                 dispatch_signal(wake_events[i]);
-            else
+            } else if (wake_events[i] < 0) {
+                thread_data.deferred_invoke_requested.store(false);
                 wake_requested = true;
+            } else {
+                wake_requested = true;
+            }
         }
 
         if (!wake_requested && nread == sizeof(wake_events))
@@ -601,7 +624,7 @@ bool SignalHandlers::remove(int handler_id)
 
 void EventLoopManagerUnix::handle_signal(int signal_number)
 {
-    VERIFY(signal_number != 0);
+    VERIFY(signal_number > 0);
 
     // Use the thread-local directly instead of ThreadData::the() to avoid
     // taking a write lock on thread_data_lock(). Signal handlers must not
@@ -627,7 +650,7 @@ void EventLoopManagerUnix::handle_signal(int signal_number)
 
 int EventLoopManagerUnix::register_signal(int signal_number, Function<void(int)> handler)
 {
-    VERIFY(signal_number != 0);
+    VERIFY(signal_number > 0);
     auto& info = *signals_info();
     auto handlers = info.signal_handlers.find(signal_number);
     if (handlers == info.signal_handlers.end()) {
@@ -642,7 +665,7 @@ int EventLoopManagerUnix::register_signal(int signal_number, Function<void(int)>
 
 void EventLoopManagerUnix::unregister_signal(int handler_id)
 {
-    VERIFY(handler_id != 0);
+    VERIFY(handler_id > 0);
     int remove_signal_number = 0;
     auto& info = *signals_info();
     for (auto& h : info.signal_handlers) {
