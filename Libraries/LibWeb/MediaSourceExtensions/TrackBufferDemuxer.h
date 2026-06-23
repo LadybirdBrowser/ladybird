@@ -60,6 +60,7 @@ public:
     virtual void set_blocking_reads_aborted_for_track(Media::Track const&) override;
     virtual void reset_blocking_reads_aborted_for_track(Media::Track const&) override;
     virtual bool is_read_blocked_for_track(Media::Track const&) override;
+    virtual void set_read_blocked_change_handler_for_track(Media::Track const&, Media::ReadBlockedChangeHandler) override;
 
 private:
     AK::Duration maximum_time_range_gap() const;
@@ -83,6 +84,7 @@ private:
     AK::Duration m_last_frame_duration;
     size_t m_total_bytes { 0 };
     Atomic<bool> m_aborted { false };
+    Media::ReadBlockedChangeHandler m_read_blocked_change_handler;
 };
 
 }

@@ -564,6 +564,12 @@ bool FFmpegDemuxer::is_read_blocked_for_track(Track const& track)
     return track_context.cursor->is_blocked();
 }
 
+void FFmpegDemuxer::set_read_blocked_change_handler_for_track(Track const& track, ReadBlockedChangeHandler handler)
+{
+    auto& track_context = get_track_context(track);
+    track_context.cursor->set_blocked_change_handler(move(handler));
+}
+
 FFmpegDemuxer::TrackContext::~TrackContext()
 {
     av_packet_free(&packet);

@@ -8,6 +8,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/EnumBits.h>
+#include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Time.h>
 #include <LibCore/EventReceiver.h>
@@ -65,6 +66,7 @@ public:
     virtual void set_blocking_reads_aborted_for_track(Track const&) = 0;
     virtual void reset_blocking_reads_aborted_for_track(Track const&) = 0;
     virtual bool is_read_blocked_for_track(Track const&) = 0;
+    virtual void set_read_blocked_change_handler_for_track(Track const&, ReadBlockedChangeHandler) = 0;
 };
 
 }

@@ -46,6 +46,7 @@ public:
     virtual void set_blocking_reads_aborted_for_track(Track const&) override;
     virtual void reset_blocking_reads_aborted_for_track(Track const&) override;
     virtual bool is_read_blocked_for_track(Track const&) override;
+    virtual void set_read_blocked_change_handler_for_track(Track const&, ReadBlockedChangeHandler) override;
 
 private:
     struct TrackStatus {
