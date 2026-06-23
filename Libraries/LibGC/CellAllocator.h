@@ -64,7 +64,9 @@ private:
 class GC_API CellAllocator {
 public:
     CellAllocator(size_t cell_size, Optional<StringView> = {}, bool overrides_must_survive_garbage_collection = false, bool overrides_finalize = false);
-    ~CellAllocator() = default;
+    ~CellAllocator();
+
+    static BlockAllocator& shared_block_allocator();
 
     Optional<StringView> class_name() const { return m_class_name; }
     size_t cell_size() const { return m_cell_size; }
@@ -106,7 +108,7 @@ private:
     Optional<StringView> m_class_name;
     size_t const m_cell_size;
 
-    BlockAllocator m_block_allocator;
+    BlockAllocator& m_block_allocator;
 
     using BlockList = IntrusiveList<&HeapBlock::m_list_node>;
     using SweepBlockList = IntrusiveList<&HeapBlock::m_sweep_list_node>;
