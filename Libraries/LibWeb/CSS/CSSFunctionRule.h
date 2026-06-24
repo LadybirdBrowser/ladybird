@@ -18,7 +18,7 @@ namespace Web::CSS {
 struct FunctionParameterInternal {
     Utf16FlyString name;
     NonnullRefPtr<Parser::SyntaxNode> type;
-    Optional<Vector<Parser::ComponentValue>> default_value;
+    RefPtr<StyleValue const> default_value;
 
     void serialize(Utf16StringBuilder& builder) const;
 };

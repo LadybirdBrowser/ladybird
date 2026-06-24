@@ -28,8 +28,8 @@ FunctionParameter FunctionParameter::from_internal_function_parameter(FunctionPa
 
         // defaultValue
         // The default value of the function parameter, or `null` if the argument does not have a default.
-        internal.default_value.has_value()
-            ? serialize_a_series_of_component_values(internal.default_value.value()).trim_ascii_whitespace()
+        internal.default_value
+            ? internal.default_value->to_utf16_string(SerializationMode::Normal)
             : Optional<Utf16String> {},
     };
 }
@@ -85,11 +85,10 @@ void FunctionParameterInternal::serialize(Utf16StringBuilder& builder) const
     }
 
     // If the function parameter has a default value:
-    if (default_value.has_value()) {
+    if (default_value) {
         // - A single COLON (U+003A), followed by a single SPACE (U+0020), followed by the result of performing
         //   serialize a CSS value on that value.
-        builder.append_ascii(": "sv);
-        builder.append(serialize_a_series_of_component_values(default_value.value()).trim_ascii_whitespace());
+        builder.appendff(": {}", default_value->to_string(SerializationMode::Normal));
     }
 }
 

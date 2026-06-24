@@ -1647,7 +1647,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
         parameter_tokens.discard_whitespace();
 
         // [ : <default-value> ]?
-        Optional<Vector<ComponentValue>> default_value;
+        RefPtr<StyleValue const> default_value;
         if (parameter_tokens.next_token().is(Token::Type::Colon)) {
             parameter_tokens.discard_a_token(); // :
             parameter_tokens.discard_whitespace();
@@ -1667,10 +1667,12 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
             // according to that parameter type’s syntax. Otherwise, the @function rule is invalid.
             // FIXME: Chrome allows ASFs regardless of the parameter's type
             TokenStream default_value_token_stream { maybe_default_value.value() };
-            if (!parse_according_to_syntax_node(default_value_token_stream, *type) || !default_value_token_stream.is_empty())
+            auto parsed_value = parse_according_to_syntax_node(default_value_token_stream, *type);
+            default_value_token_stream.discard_whitespace();
+            if (!parsed_value || !default_value_token_stream.is_empty())
                 return {};
 
-            default_value = maybe_default_value;
+            default_value = parsed_value;
         }
 
         parameter_tokens.discard_whitespace();
