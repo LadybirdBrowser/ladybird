@@ -1012,6 +1012,21 @@ void PageClient::page_did_request_select_dropdown(Web::CSSPixelPoint content_pos
     client().async_did_request_select_dropdown(m_id, page().css_to_device_point(content_position).to_type<int>(), minimum_width * device_pixels_per_css_pixel(), items);
 }
 
+void PageClient::page_did_request_download(URL::URL const& url, String const& suggested_name, u64 download_id)
+{
+    client().async_did_request_download(m_id, download_id, url, suggested_name);
+}
+
+void PageClient::page_did_finish_download(u64 download_id)
+{
+    client().async_did_finish_download(m_id, download_id);
+}
+
+void PageClient::page_did_fail_download(u64 download_id, String const& error)
+{
+    client().async_did_fail_download(m_id, download_id, error);
+}
+
 void PageClient::page_did_change_theme_color(Gfx::Color color)
 {
     client().async_did_change_theme_color(m_id, color);

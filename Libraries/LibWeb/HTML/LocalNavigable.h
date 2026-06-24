@@ -229,6 +229,8 @@ public:
     Page& page() { return m_page; }
     Page const& page() const { return m_page; }
 
+    void handle_as_a_download(Fetch::Infrastructure::Response&);
+
     String selected_text() const;
     String cut_selected_text() const;
     void select_all();

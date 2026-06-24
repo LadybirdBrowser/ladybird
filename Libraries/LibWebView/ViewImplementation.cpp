@@ -12,10 +12,12 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/SharedImageBuffer.h>
+#include <LibIPC/File.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/Crypto/Crypto.h>
@@ -1219,6 +1221,14 @@ void ViewImplementation::prompt_closed(Optional<String> const& response)
 void ViewImplementation::color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
 {
     client().async_color_picker_update(page_id(), picked_color, state);
+}
+
+void ViewImplementation::did_request_download(Badge<WebContentClient>, u64 download_id, URL::URL const& url, String const& suggested_name)
+{
+    auto destination = on_request_download
+        ? on_request_download(download_id, url, suggested_name)
+        : Application::the().file_downloader().begin_streamed_download(page_id(), download_id, url, suggested_name);
+    client().async_download_destination(page_id(), download_id, destination);
 }
 
 void ViewImplementation::file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files)

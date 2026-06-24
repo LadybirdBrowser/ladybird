@@ -231,6 +231,9 @@ private:
     virtual void request_file(Web::FileRequest) override;
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
+    virtual void page_did_request_download(URL::URL const& url, String const& suggested_name, u64 download_id) override;
+    virtual void page_did_finish_download(u64 download_id) override;
+    virtual void page_did_fail_download(u64 download_id, String const& error) override;
     virtual void page_did_request_select_dropdown(Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void page_did_finish_test(String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;

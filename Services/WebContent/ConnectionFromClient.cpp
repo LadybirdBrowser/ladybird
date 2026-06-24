@@ -2245,6 +2245,12 @@ void ConnectionFromClient::handle_file_return(u64, i32 error, Optional<IPC::File
     file_request.value().on_file_request_finish(error != 0 ? Error::from_errno(error) : ErrorOr<i32> { file->take_fd() });
 }
 
+void ConnectionFromClient::download_destination(u64 page_id, u64 download_id, Optional<IPC::File> file)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().on_download_destination(download_id, file.has_value() ? file->take_fd() : -1);
+}
+
 void ConnectionFromClient::request_file(u64 page_id, Web::FileRequest file_request)
 {
     i32 const id = last_id++;

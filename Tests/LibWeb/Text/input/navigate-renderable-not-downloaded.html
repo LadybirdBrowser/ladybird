@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        // A renderable response (served same-origin via a blob: URL — so that the iframe document is readable) must
+        // render in the iframe — not be downloaded. Guards against a regression that downloads renderable content.
+        const blob = new Blob(["<p>rendered-content</p>"], { type: "text/html" });
+        const iframe = document.createElement("iframe");
+        iframe.src = URL.createObjectURL(blob);
+        document.body.appendChild(iframe);
+
+        const check = () => {
+            const downloadURL = internals.takeLastNavigationDownloadURL();
+            const rendered = !!(iframe.contentDocument && iframe.contentDocument.body && iframe.contentDocument.body.textContent.includes("rendered-content"));
+            if (downloadURL !== null && downloadURL !== undefined) {
+                println("download requested: true");
+                done();
+            } else if (rendered) {
+                println("download requested: false");
+                println("iframe rendered the response: true");
+                done();
+            } else {
+                requestAnimationFrame(check);
+            }
+        };
+        requestAnimationFrame(check);
+    });
+</script>

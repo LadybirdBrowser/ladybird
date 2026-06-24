@@ -9,6 +9,7 @@
 #include <AK/NeverDestroyed.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/SystemColor.h>
@@ -30,6 +31,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -673,6 +675,44 @@ GC::Ptr<DOM::Document> LocalNavigable::active_document() const
 {
     // A navigable's active document is its active session history entry's document.
     return m_active_document;
+}
+
+// A response specifies the attachment disposition type via a Content-Disposition header.
+static bool navigation_response_specifies_attachment(Fetch::Infrastructure::Response const& response)
+{
+    auto disposition = response.header_list()->get("Content-Disposition"sv);
+    if (!disposition.has_value())
+        return false;
+    auto value = StringView { disposition.value() };
+    auto disposition_type = value.find(';').map([&](size_t i) { return value.substring_view(0, i); }).value_or(value);
+    return disposition_type.trim_whitespace().equals_ignoring_ascii_case("attachment"sv);
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#handle-as-a-download
+void LocalNavigable::handle_as_a_download(Fetch::Infrastructure::Response& response)
+{
+    // To handle as a download a response response with a navigable navigable and a navigation ID or null navigationId:
+    // 1. Let suggestedFilename be the result of getting the suggested filename for response.
+    // FIXME: We don't implement "getting the suggested filename" (the filename from Content-Disposition, sanitized);
+    //        instead (in FileDownloader::begin_streamed_download), we derive a filename from the response URL.
+    // FIXME: We don't implement steps 2 to 4 (the WebDriver BiDi download-will-begin and cancellation reporting, and
+    //        the destination-folder lookup).
+    // 5. Run these steps in parallel:
+    //    1. Run implementation-defined steps to save response for later use. If destinationFolder is not null, the
+    //       user agent should save the file to that path. If the user agent needs a filename, the user agent should
+    //       use the suggestedFilename.
+    // AD-HOC: We don't implement substeps 5.2 and 5.3 (the WebDriver BiDi download-end reporting); instead, we register
+    //         the response as a pending download and use PageClient::page_did_request_download to get a destination
+    //         into which we stream the response body. We still report completion/failure — just not via WebDriver BiDi.
+    // FIXME: We stream using the navigable's active document's global as the task destination, and bail if there is
+    //        none. That ties the download to a document it is meant to outlive, and silently drops it in the (near-
+    //        unreachable) no-active-document case; a stabler global/explicit handling would be better.
+    auto document = active_document();
+    if (!document)
+        return;
+    auto download_id = page().register_download(response, document->realm().global_object());
+    auto download_url = response.url().value_or(URL::about_blank());
+    page().client().page_did_request_download(download_url, String {}, download_id);
 }
 
 Optional<UniqueNodeID> LocalNavigable::active_document_id() const
@@ -1874,9 +1914,26 @@ void LocalNavigable::populate_session_history_entry_document(
                 }
             }
 
-            // FIXME: 5. Otherwise, if navigationParams's response has a `Content-Disposition` header specifying the attachment
-            //    disposition type, then:
-            else if (false) {
+            // 5. Otherwise, if navigationParams's response has a `Content-Disposition` header specifying the attachment
+            //    disposition type:
+            else if (navigation_params.has<GC::Ref<NavigationParams>>() && navigation_response_specifies_attachment(*navigation_params.get<GC::Ref<NavigationParams>>()->response)) {
+                auto const& nav_params = navigation_params.get<GC::Ref<NavigationParams>>();
+
+                // 1. Let sourceAllowsDownloading be sourceSnapshotParams's allows downloading.
+                // FIXME: We don't (yet) plumb through sourceSnapshotParams to here, so we don't implement step 1 here.
+                // 2. Let targetAllowsDownloading be false if navigationParams's final sandboxing flag set has the
+                //    sandboxed downloads browsing context flag set; otherwise true.
+                auto target_allows_downloading = !has_flag(nav_params->final_sandboxing_flag_set, SandboxingFlagSet::SandboxedDownloads);
+                // 3. Let uaAllowsDownloading be true.
+                // 4. Optionally, the user agent may set uaAllowsDownloading to false, if it believes doing so would
+                //    safeguard the user from a potentially hostile download.
+                // FIXME: We don't implement this (optional) uaAllowsDownloading safeguard (step 4).
+                // 5. If sourceAllowsDownloading, targetAllowsDownloading, and uaAllowsDownloading are true:
+                if (target_allows_downloading) {
+                    // 1. Handle as a download navigationParams's response with navigable and navigationId.
+                    handle_as_a_download(*nav_params->response);
+                }
+                // NOTE: This branch leaves entry's document state's document as null.
             }
 
             // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's document state's document to the result of

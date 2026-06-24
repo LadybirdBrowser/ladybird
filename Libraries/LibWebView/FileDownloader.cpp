@@ -5,7 +5,9 @@
  */
 
 #include <LibCore/File.h>
+#include <LibCore/System.h>
 #include <LibHTTP/HeaderList.h>
+#include <LibIPC/File.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Loader/UserAgent.h>
@@ -67,6 +69,50 @@ void FileDownloader::download_file(URL::URL const& url, LexicalPath destination)
         });
 
     m_requests.set(request_id, request.release_nonnull());
+}
+
+Optional<IPC::File> FileDownloader::begin_streamed_download(u64 page_id, u64 download_id, URL::URL const& url, String const& suggested_name)
+{
+    auto name = suggested_name.is_empty() ? url.basename() : suggested_name.to_byte_string();
+
+    auto download_path = Application::the().path_for_downloaded_file(name);
+    if (download_path.is_error())
+        return {};
+
+    // Stream into a temporary ".part" file — so a download that fails or is interrupted neither destroys an existing
+    // file at the destination, nor leaves a truncated one there; on success, the file is renamed into place.
+    auto partial_path = MUST(String::formatted("{}.part", download_path.value().string()));
+    auto file = Core::File::open(partial_path, Core::File::OpenMode::Write);
+    if (file.is_error()) {
+        Application::the().display_error_dialog(MUST(String::formatted("Unable to open download destination: {}", file.error())));
+        return {};
+    }
+
+    m_streamed_downloads.set({ page_id, download_id }, download_path.release_value());
+    return IPC::File::adopt_file(file.release_value());
+}
+
+void FileDownloader::streamed_download_finished(u64 page_id, u64 download_id)
+{
+    auto download = m_streamed_downloads.take({ page_id, download_id });
+    if (!download.has_value())
+        return;
+
+    auto partial_path = MUST(String::formatted("{}.part", download->string()));
+    if (auto result = Core::System::rename(partial_path, download->string()); result.is_error()) {
+        (void)Core::System::unlink(partial_path);
+        Application::the().display_error_dialog(MUST(String::formatted("Unable to save download {}: {}", download->basename(), result.error())));
+    }
+    // FIXME: Add download-manager UI, to show download completion to users.
+}
+
+void FileDownloader::streamed_download_failed(u64 page_id, u64 download_id, String const& error)
+{
+    auto download = m_streamed_downloads.take({ page_id, download_id });
+    if (download.has_value())
+        (void)Core::System::unlink(MUST(String::formatted("{}.part", download->string())));
+    auto name = download.has_value() ? download->basename() : "file"sv;
+    Application::the().display_error_dialog(MUST(String::formatted("Unable to download {}: {}", name, error)));
 }
 
 }

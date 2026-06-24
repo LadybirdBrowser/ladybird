@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/JsonValue.h>
 #include <AK/Queue.h>
 #include <AK/Variant.h>
@@ -108,6 +109,10 @@ public:
 
     void load_html(StringView);
     void load_html(StringView, URL::URL const&);
+
+    u64 register_download(Fetch::Infrastructure::Response&, JS::Object& global);
+    Optional<URL::URL> take_last_navigation_download_url();
+    void on_download_destination(u64 download_id, int destination_fd);
 
     void reload();
 
@@ -363,6 +368,14 @@ private:
     HashMap<u64, ClipboardRequest> m_pending_clipboard_requests;
     u64 m_next_clipboard_request_id { 0 };
 
+    struct PendingDownload {
+        GC::Ref<Fetch::Infrastructure::Response> response;
+        GC::Ref<JS::Object> global;
+    };
+    u64 m_next_download_id { 0 };
+    HashMap<u64, PendingDownload> m_pending_downloads;
+    Optional<URL::URL> m_last_navigation_download_url;
+
     Vector<UniqueNodeID> m_media_elements;
     Vector<UniqueNodeID> m_canvas_elements;
     Optional<UniqueNodeID> m_media_context_menu_element_id;
@@ -554,6 +567,10 @@ public:
     virtual void page_did_request_color_picker([[maybe_unused]] Color current_color) { }
     virtual void page_did_request_file_picker([[maybe_unused]] HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) { }
     virtual void page_did_request_select_dropdown([[maybe_unused]] Web::CSSPixelPoint content_position, [[maybe_unused]] Web::CSSPixels minimum_width, [[maybe_unused]] Vector<Web::HTML::SelectItem> items) { }
+
+    virtual void page_did_request_download([[maybe_unused]] URL::URL const& url, [[maybe_unused]] String const& suggested_name, [[maybe_unused]] u64 download_id) { }
+    virtual void page_did_finish_download([[maybe_unused]] u64 download_id) { }
+    virtual void page_did_fail_download([[maybe_unused]] u64 download_id, [[maybe_unused]] String const& error) { }
 
     virtual void page_did_finish_test([[maybe_unused]] String const& text) { }
     virtual void page_did_set_test_timeout([[maybe_unused]] double milliseconds) { }

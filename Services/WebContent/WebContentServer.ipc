@@ -164,6 +164,7 @@ endpoint WebContentServer
     reset_zoom(u64 page_id) =|
 
     handle_file_return(u64 page_id, i32 error, Optional<IPC::File> file, i32 request_id) =|
+    download_destination(u64 page_id, u64 download_id, Optional<IPC::File> file) =|
     did_delete_all_cookies(u64 page_id, u64 request_id) =|
 
     set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState visibility_state) =|

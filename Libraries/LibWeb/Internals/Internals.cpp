@@ -92,6 +92,14 @@ void Internals::signal_test_is_done(String const& text)
     page().client().page_did_finish_test(text);
 }
 
+Optional<String> Internals::take_last_navigation_download_url()
+{
+    auto url = page().take_last_navigation_download_url();
+    if (!url.has_value())
+        return {};
+    return url->serialize();
+}
+
 void Internals::set_test_timeout(double milliseconds)
 {
     page().client().page_did_set_test_timeout(milliseconds);

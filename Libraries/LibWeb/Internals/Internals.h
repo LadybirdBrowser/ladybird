@@ -75,6 +75,7 @@ public:
 
     void spoof_current_url(String const& url);
     void load_url(String const& url);
+    Optional<String> take_last_navigation_download_url();
 
     GC::Ref<InternalAnimationTimeline> create_internal_animation_timeline();
 

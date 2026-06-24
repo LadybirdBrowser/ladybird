@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        // A navigation to a content type the engine can't render is handed off as a download, not rendered.
+        // Served same-origin via a blob: URL, so that the render check can actually read the iframe document (a data:
+        // or cross-origin URL would make the document unreadable, and make the render check always report false).
+        const blob = new Blob(["must-not-render"], { type: "application/octet-stream" });
+        const iframe = document.createElement("iframe");
+        iframe.src = URL.createObjectURL(blob);
+        document.body.appendChild(iframe);
+
+        const check = () => {
+            const downloadURL = internals.takeLastNavigationDownloadURL();
+            if (downloadURL !== null && downloadURL !== undefined) {
+                println("download requested for octet-stream: " + downloadURL.startsWith("blob:"));
+                const rendered = !!(iframe.contentDocument && iframe.contentDocument.body && iframe.contentDocument.body.textContent.includes("must-not-render"));
+                println("iframe rendered the response: " + rendered);
+                done();
+            } else {
+                requestAnimationFrame(check);
+            }
+        };
+        requestAnimationFrame(check);
+    });
+</script>

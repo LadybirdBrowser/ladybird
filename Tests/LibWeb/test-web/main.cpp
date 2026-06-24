@@ -957,6 +957,11 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
 
 static void set_ui_callbacks_for_tests(TestWebView& view, TestRunCapture& test_run_capture)
 {
+    view.on_request_download = [](u64, URL::URL const&, String const&) -> Optional<IPC::File> {
+        // Tests must not write downloads to disk; cancel the destination request.
+        return {};
+    };
+
     view.on_request_file_picker = [&](auto const& accepted_file_types, auto allow_multiple_files) {
         // Create some dummy files for tests.
         Vector<Web::HTML::SelectedFile> selected_files;

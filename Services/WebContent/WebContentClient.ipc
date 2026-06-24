@@ -150,6 +150,9 @@ endpoint WebContentClient
     did_request_file(u64 page_id, ByteString path, i32 request_id) =|
     did_request_color_picker(u64 page_id, Color current_color) =|
     did_request_file_picker(u64 page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) =|
+    did_request_download(u64 page_id, u64 download_id, URL::URL url, String suggested_name) =|
+    did_finish_download(u64 page_id, u64 download_id) =|
+    did_fail_download(u64 page_id, u64 download_id, String error) =|
     did_request_select_dropdown(u64 page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
     did_finish_handling_input_event(u64 page_id, Web::EventResult event_result) =|
     did_update_input_caret_rect(u64 page_id, Optional<Web::DevicePixelRect> rect) =|

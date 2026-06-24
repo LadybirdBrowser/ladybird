@@ -67,6 +67,9 @@ interface Internals {
     // session-history traversal-queue steps, as can one requested by ConnectionFromClient::load_url in the UI process.
     undefined loadURL(USVString url);
 
+    // Returns (and clears) the URL of the most-recently-requested navigation download — or null, if none.
+    USVString? takeLastNavigationDownloadURL();
+
     InternalAnimationTimeline createInternalAnimationTimeline();
 
     undefined simulateDragStart(double x, double y, DOMString mimeType, DOMString contents);

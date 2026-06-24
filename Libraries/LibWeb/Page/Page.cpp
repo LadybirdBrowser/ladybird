@@ -7,6 +7,7 @@
  */
 
 #include <AK/SourceLocation.h>
+#include <LibCore/File.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -51,6 +52,84 @@ Page::Page(GC::Ref<PageClient> client)
 
 Page::~Page() = default;
 
+namespace {
+
+struct DownloadSink : public RefCounted<DownloadSink> {
+    explicit DownloadSink(NonnullOwnPtr<Core::File> destination)
+        : file(move(destination))
+    {
+    }
+    NonnullOwnPtr<Core::File> file;
+    bool failed { false };
+};
+
+}
+
+Optional<URL::URL> Page::take_last_navigation_download_url()
+{
+    return AK::exchange(m_last_navigation_download_url, {});
+}
+
+u64 Page::register_download(Fetch::Infrastructure::Response& response, JS::Object& global)
+{
+    auto download_id = ++m_next_download_id;
+    m_pending_downloads.set(download_id, PendingDownload { response, global });
+    if (auto url = response.url(); url.has_value())
+        m_last_navigation_download_url = *url;
+    return download_id;
+}
+
+void Page::on_download_destination(u64 download_id, int destination_fd)
+{
+    auto pending = m_pending_downloads.take(download_id);
+
+    // Adopt the descriptor immediately, so it's closed (below) on any early return.
+    OwnPtr<Core::File> file;
+    if (destination_fd >= 0) {
+        if (auto opened = Core::File::adopt_fd(destination_fd, Core::File::OpenMode::Write); !opened.is_error())
+            file = opened.release_value();
+    }
+
+    // A missing entry means the download was already handled; a missing file means the user canceled the dialog.
+    if (!pending.has_value() || !file)
+        return;
+
+    auto body = pending->response->body();
+    if (!body) {
+        client().page_did_finish_download(download_id);
+        return;
+    }
+
+    auto sink = make_ref_counted<DownloadSink>(file.release_nonnull());
+
+    body->incrementally_read(
+        // NOLINTNEXTLINE(performance-unnecessary-value-param)
+        GC::create_function(heap(), [this, download_id, sink](ByteBuffer chunk) {
+            if (sink->failed)
+                return;
+            if (auto result = sink->file->write_until_depleted(chunk); result.is_error()) {
+                sink->failed = true;
+                dbgln("Download {}: failed to write to destination: {}", download_id, result.error());
+                client().page_did_fail_download(download_id, MUST(String::formatted("Failed to write download to disk: {}", result.error())));
+                // FIXME: Cancel the body reader / abort the fetch — so we stop pulling bytes after a write failure.
+            }
+        }),
+        GC::create_function(heap(), [this, download_id, sink]() {
+            if (sink->failed)
+                return;
+            sink->file->close();
+            client().page_did_finish_download(download_id);
+        }),
+        GC::create_function(heap(), [this, download_id, sink](JS::Value error) {
+            if (sink->failed)
+                return;
+            sink->failed = true;
+            dbgln("Download {}: failed: {}", download_id, error);
+            client().page_did_fail_download(download_id, MUST(String::formatted("The download failed: {}", error)));
+        }),
+        GC::Ref<JS::Object> { pending->global });
+}
+
 bool Page::has_compositor_host() const
 {
     return m_client->compositor_host();
@@ -86,6 +165,10 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
     visitor.visit(m_pending_clipboard_requests);
+    for (auto& download : m_pending_downloads) {
+        visitor.visit(download.value.response);
+        visitor.visit(download.value.global);
+    }
     m_pending_fullscreen_operations.for_each([&](auto const& operation) {
         operation.visit([&](PendingFullscreenEnter const& enter_operation) {
                 visitor.visit(enter_operation.element);

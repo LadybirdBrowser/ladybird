@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        // Content-Disposition: attachment is matched case-insensitively and with parameters — so, each of these must be
+        // downloaded, exercising navigation_response_specifies_attachment's ';' split and case folding.
+        const httpServer = httpTestServer();
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+
+        async function expectDownloaded(label, disposition) {
+            const url = await httpServer.createEcho("GET", "/" + label, {
+                status: 200,
+                headers: { "Content-Type": "text/html", "Content-Disposition": disposition },
+                body: "<p>must not render</p>",
+            });
+            iframe.src = url;
+            await new Promise((resolve) => {
+                const poll = () => {
+                    const downloadURL = internals.takeLastNavigationDownloadURL();
+                    if (downloadURL !== null && downloadURL !== undefined)
+                        resolve();
+                    else
+                        requestAnimationFrame(poll);
+                };
+                requestAnimationFrame(poll);
+            });
+            println(label + " downloaded: true");
+        }
+
+        await expectDownloaded("filename", 'attachment; filename="x.bin"');
+        await expectDownloaded("uppercase", "ATTACHMENT");
+        done();
+    });
+</script>

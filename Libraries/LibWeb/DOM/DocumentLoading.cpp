@@ -13,6 +13,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibCore/Promise.h>
 #include <LibCore/Resource.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
@@ -32,6 +33,7 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
 #include <LibXML/Parser/Parser.h>
@@ -527,6 +529,7 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     if (type.essence() == "multipart/x-mixed-replace"_string) {
         // FIXME: Return the result of loading a multipart/x-mixed-replace document, given navigationParams,
         //        sourceSnapshotParams, and initiatorOrigin.
+        // NB: Until we do implement this, control falls through such that the response downloaded (step 4 below).
     }
 
     // -> a supported image, video, or audio type
@@ -545,16 +548,20 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
 
     // Otherwise, proceed onward.
 
-    // FIXME: 3. If, given type, the new resource is to be handled by displaying some sort of inline content, e.g., a
+    // 3. If, given type, the new resource is to be handled by displaying some sort of inline content, e.g., a
     //    native rendering of the content or an error message because the specified type is not supported, then
     //    return the result of creating a document for inline content that doesn't have a DOM given navigationParams's
     //    navigable, navigationParams's id, navigationParams's navigation timing type, and navigationParams's user involvement.
+    // NB: We don't do "handled by displaying some sort of inline content"; instead, we "handle as a download" (below).
 
-    // FIXME: 4. Otherwise, the document's type is such that the resource will not affect navigationParams's navigable,
-    //        e.g., because the resource is to be handed to an external application or because it is an unknown type
-    //        that will be processed by handle as a download. Hand-off to external software given navigationParams's
-    //        response, navigationParams's navigable, navigationParams's final sandboxing flag set,
-    //        sourceSnapshotParams's has transient activation, and initiatorOrigin.
+    // 4. Otherwise, the document's type is such that the resource will not affect navigationParams's navigable,
+    //    e.g., because the resource is to be handed to an external application or because it is an unknown type
+    //    that will be processed by handle as a download. Hand-off to external software given navigationParams's
+    //    response, navigationParams's navigable, navigationParams's final sandboxing flag set,
+    //    sourceSnapshotParams's has transient activation, and initiatorOrigin.
+    // AD-HOC: We don't implement "Hand-off to external software". Instead we "handle as a download" — even though, as
+    //         currently written, the spec language cited above doesn't strictly/normatively hook into that here.
+    navigation_params.navigable->handle_as_a_download(*navigation_params.response);
 
     // 5. Return null.
     return nullptr;

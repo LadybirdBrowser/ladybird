@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        // A renderable type (text/html) served with Content-Disposition: attachment is downloaded, not rendered.
+        const httpServer = httpTestServer();
+        const url = await httpServer.createEcho("GET", "/attachment-resource", {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Content-Disposition": "attachment" },
+            body: "<p>must not render</p>",
+        });
+        const iframe = document.createElement("iframe");
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        const check = () => {
+            const downloadURL = internals.takeLastNavigationDownloadURL();
+            if (downloadURL !== null && downloadURL !== undefined) {
+                println("attachment requested a download: " + downloadURL.endsWith("/echo/attachment-resource"));
+                done();
+            } else {
+                requestAnimationFrame(check);
+            }
+        };
+        requestAnimationFrame(check);
+    });
+</script>

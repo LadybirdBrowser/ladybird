@@ -1512,6 +1512,22 @@ void WebContentClient::did_request_file_picker(u64 page_id, Web::HTML::FileFilte
     }
 }
 
+void WebContentClient::did_request_download(u64 page_id, u64 download_id, URL::URL url, String suggested_name)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_request_download({}, download_id, url, suggested_name);
+}
+
+void WebContentClient::did_finish_download(u64 page_id, u64 download_id)
+{
+    Application::the().file_downloader().streamed_download_finished(page_id, download_id);
+}
+
+void WebContentClient::did_fail_download(u64 page_id, u64 download_id, String error)
+{
+    Application::the().file_downloader().streamed_download_failed(page_id, download_id, error);
+}
+
 void WebContentClient::did_request_select_dropdown(u64 page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
