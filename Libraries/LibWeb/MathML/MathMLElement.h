@@ -32,7 +32,6 @@ protected:
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
-private:
     virtual void visit_edges(Visitor&) override;
 
     virtual void initialize(JS::Realm&) override;

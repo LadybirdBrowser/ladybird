@@ -1,0 +1,8 @@
+// https://w3c.github.io/mathml-core/#idl-def-mathmlanchorelement
+[Exposed=Window]
+interface MathMLAnchorElement : MathMLElement {
+    [ReflectSetter] attribute USVString href;
+    [Reflect] attribute DOMString target;
+};
+
+MathMLAnchorElement includes HyperlinkElementUtils;
