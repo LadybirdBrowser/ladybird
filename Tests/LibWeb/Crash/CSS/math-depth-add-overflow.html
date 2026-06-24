@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+    /* add(<integer>) on an INT_MAX inherited math-depth overflows the addition */
+    #p1 { math-depth: 2147483647; }
+    #c1 { math-depth: add(1); }
+    /* auto-add (with inherited compact math-style) does "inherited + 1" */
+    #p2 { math-style: compact; math-depth: 2147483647; }
+    #c2 { math-depth: auto-add; }
+</style>
+<div id="p1"><div id="c1">x</div></div>
+<div id="p2"><div id="c2">y</div></div>
+<script>
+    document.body.offsetTop;
+</script>
