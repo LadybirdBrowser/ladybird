@@ -135,6 +135,12 @@ def write_overload_arbiter(
     includes.add("LibWeb/WebIDL/Tracing.h")
 
     operation = operations[0]
+
+    # Web IDL overload sets cannot mix promise and non-promise return types.
+    should_wrap_promise_rejections = operation.return_type_is_promise()
+    if should_wrap_promise_rejections:
+        includes.add("LibWeb/WebIDL/Promise.h")
+
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({receiver_class}::{idl_identifier_cpp_name(operation)})
 {{
@@ -142,6 +148,13 @@ def write_overload_arbiter(
 
 """
     )
+    if should_wrap_promise_rejections:
+        out.write(
+            """    [[maybe_unused]] auto& realm = *vm.current_realm();
+
+    auto steps = [&]() -> JS::ThrowCompletionOr<JS::Value> {
+"""
+        )
     write_overload_resolution_switch(out, context, interface, operations)
     out.write(
         """
@@ -157,7 +170,17 @@ def write_overload_arbiter(
     out.write("""    default:
         VERIFY_NOT_REACHED();
     }
-}
+""")
+    if should_wrap_promise_rejections:
+        out.write("""    };
+
+    auto maybe_result = steps();
+    if (maybe_result.is_throw_completion())
+        return WebIDL::create_rejected_promise(realm, maybe_result.error_value())->promise();
+
+    return maybe_result.release_value();
+""")
+    out.write("""}
 
 """)
 

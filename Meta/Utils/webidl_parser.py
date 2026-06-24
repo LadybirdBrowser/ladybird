@@ -137,6 +137,9 @@ class Operation:
     parameters: List[OperationParameter]
     extended_attributes: Dict[str, str] = field(default_factory=dict)
 
+    def return_type_is_promise(self) -> bool:
+        return self.return_type.name == "Promise"
+
 
 @dataclass
 class Constructor:
