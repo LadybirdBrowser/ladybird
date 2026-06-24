@@ -23,7 +23,6 @@ public:
     virtual Optional<URL::Origin> extract_an_origin() const override { return hyperlink_element_utils_extract_an_origin(); }
 
     String rel() const { return get_attribute_value(HTML::AttributeNames::rel); }
-    String target() const { return get_attribute_value(HTML::AttributeNames::target); }
     String download() const { return get_attribute_value(HTML::AttributeNames::download); }
 
     GC::Ref<DOM::DOMTokenList> rel_list();
@@ -57,7 +56,7 @@ private:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;
 
-    // ^HTML::HTMLHyperlinkElementUtils
+    // ^HTML::HyperlinkElementUtils
     virtual DOM::Element& hyperlink_element_utils_element() override { return *this; }
     virtual DOM::Element const& hyperlink_element_utils_element() const override { return *this; }
 
