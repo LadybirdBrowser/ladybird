@@ -1,0 +1,9 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        createImageBitmap()
+            .catch(e => println(e))
+            .finally(done);
+    });
+</script>
