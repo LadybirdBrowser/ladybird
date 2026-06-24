@@ -214,27 +214,25 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_node()
             // 2. Set sibling to temporary’s next sibling.
             sibling = temporary->next_sibling();
 
-            // 3. If sibling is non-null, then set node to sibling and break.
-            if (sibling) {
-                node = *sibling;
+            // 3. If sibling is non-null, then break.
+            if (sibling)
                 break;
-            }
 
             // 4. Set temporary to temporary’s parent.
             temporary = temporary->parent();
-
-            // NON-STANDARD: If temporary is null, then return null.
-            //               This prevents us from infinite looping if the current node is not connected.
-            //               Spec bug: https://github.com/whatwg/dom/issues/1102
-            if (temporary == nullptr) {
-                return nullptr;
-            }
         }
 
-        // 5. Set result to the result of filtering node within this.
+        // 5. If sibling is null, then return null.
+        if (!sibling)
+            return nullptr;
+
+        // 6. Set node to sibling.
+        node = *sibling;
+
+        // 7. Set result to the result of filtering node within this.
         result = TRY(filter(*node));
 
-        // 6. If result is FILTER_ACCEPT, then set this’s current to node and return node.
+        // 8. If result is FILTER_ACCEPT, then set this’s current to node and return node.
         if (result == NodeFilter::Result::FILTER_ACCEPT) {
             m_current = *node;
             return node;
