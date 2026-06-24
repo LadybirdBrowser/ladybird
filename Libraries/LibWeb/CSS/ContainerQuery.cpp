@@ -424,7 +424,7 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeatu
                 return {};
 
             if (guarded_contexts.has_value()) {
-                if (guarded_contexts->mark_existing_as_cyclic({ Parser::SubstitutionContext::DependencyType::Property, property.name().to_utf16_string() }))
+                if (guarded_contexts->mark_existing_as_cyclic(Parser::SubstitutionContext { Parser::PropertySubstitutionContextDependency { property.name().to_utf16_string() } }))
                     return {};
             }
 
@@ -525,7 +525,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     Optional<Keyword> query_css_wide_keyword;
 
     if (guarded_contexts.has_value()) {
-        if (guarded_contexts->mark_existing_as_cyclic({ Parser::SubstitutionContext::DependencyType::Property, property.name().to_utf16_string() }))
+        if (guarded_contexts->mark_existing_as_cyclic(Parser::SubstitutionContext { Parser::PropertySubstitutionContextDependency { property_name.to_utf16_string() } }))
             return MatchResult::False;
     }
 

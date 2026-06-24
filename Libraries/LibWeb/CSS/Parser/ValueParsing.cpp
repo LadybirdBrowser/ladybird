@@ -5782,7 +5782,7 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
     auto replacement_context = ArbitrarySubstitutionReplacementContext {
         .computed_style_for_custom_property_resolution = m_computed_style_for_custom_property_resolution,
     };
-    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved.values(), SubstitutionContext { SubstitutionContext::DependencyType::Property, property.name().to_utf16_string() });
+    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved.values(), SubstitutionContext { PropertySubstitutionContextDependency { property.name().to_utf16_string() } });
 
     // 2. If result contains the guaranteed-invalid value, prop is invalid at computed-value time; return.
     if (contains_guaranteed_invalid_value(result))

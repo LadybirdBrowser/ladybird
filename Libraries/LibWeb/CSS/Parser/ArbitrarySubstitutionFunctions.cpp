@@ -17,13 +17,6 @@
 
 namespace Web::CSS::Parser {
 
-bool SubstitutionContext::operator==(SubstitutionContext const& other) const
-{
-    return dependency_type == other.dependency_type
-        && first == other.first
-        && second == other.second;
-}
-
 void GuardedSubstitutionContexts::guard(SubstitutionContext& context)
 {
     for (auto& existing_context : m_contexts) {
@@ -249,7 +242,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value->utf16_view());
     auto unsubstituted_values = parser.parse_as_list_of_component_values();
     auto substituted_values = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unsubstituted_values,
-        SubstitutionContext { SubstitutionContext::DependencyType::Attribute, attribute_name.to_utf16_string() });
+        SubstitutionContext { AttributeSubstitutionContextDependency { attribute_name.to_utf16_string() } });
 
     auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullRefPtr<SyntaxNode>>());
     if (parsed_value->is_guaranteed_invalid())

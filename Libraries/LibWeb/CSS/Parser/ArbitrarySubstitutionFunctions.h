@@ -7,26 +7,39 @@
 #pragma once
 
 #include <AK/Span.h>
-#include <AK/Utf16String.h>
-#include <AK/Utf16View.h>
+#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
 
 // https://drafts.csswg.org/css-values-5/#substitution-context
+// The types of substitution contexts are currently:
+
+// "property", followed by a property name, and optionally a custom function.
+struct PropertySubstitutionContextDependency {
+    Utf16String property_name;
+    GC::Ptr<CSSFunctionRule const> custom_function { nullptr };
+    bool operator==(PropertySubstitutionContextDependency const& other) const = default;
+};
+
+// "attribute", followed by an attribute name.
+struct AttributeSubstitutionContextDependency {
+    Utf16String attribute_name;
+    bool operator==(AttributeSubstitutionContextDependency const& other) const = default;
+};
+
+// "function", followed by a custom function.
+struct FunctionSubstitutionContextDependency {
+    GC::Ref<CSSFunctionRule const> custom_function;
+    bool operator==(FunctionSubstitutionContextDependency const& other) const = default;
+};
+
 struct SubstitutionContext {
-    enum class DependencyType : u8 {
-        Property,
-        Attribute,
-        Function,
-    };
-    DependencyType dependency_type;
-    Utf16String first;
-    Optional<Utf16String> second {};
+    Variant<PropertySubstitutionContextDependency, AttributeSubstitutionContextDependency, FunctionSubstitutionContextDependency> dependency;
 
     bool is_cyclic { false };
 
-    bool operator==(SubstitutionContext const&) const;
+    bool operator==(SubstitutionContext const& other) const { return dependency == other.dependency; }
 };
 
 class GuardedSubstitutionContexts {
