@@ -1195,9 +1195,10 @@ bool Selector::SimpleSelector::ANPlusBPattern::matches(int index) const
     if (step_size < 0 && offset < 0)
         return false;
 
-    // Like "a % b", but handles negative integers correctly.
-    auto const canonical_modulo = [](int a, int b) -> int {
-        int c = a % b;
+    // Like "a % b", but handles negative integers correctly. Done in 64 bits because "index - offset" and "-step_size"
+    // overflow a 32-bit int for an extreme An+B value such as :nth-child(2n-2147483648).
+    auto const canonical_modulo = [](i64 a, i64 b) -> i64 {
+        i64 c = a % b;
         if ((c < 0 && b > 0) || (c > 0 && b < 0)) {
             c += b;
         }
@@ -1206,10 +1207,10 @@ bool Selector::SimpleSelector::ANPlusBPattern::matches(int index) const
 
     // When "step_size < 0", we start at "offset" and count backwards.
     if (step_size < 0)
-        return index <= offset && canonical_modulo(index - offset, -step_size) == 0;
+        return index <= offset && canonical_modulo(static_cast<i64>(index) - offset, -static_cast<i64>(step_size)) == 0;
 
     // Otherwise, we start at "offset" and count forwards.
-    return index >= offset && canonical_modulo(index - offset, step_size) == 0;
+    return index >= offset && canonical_modulo(static_cast<i64>(index) - offset, step_size) == 0;
 }
 
 // https://drafts.csswg.org/css-syntax-3/#serializing-anb

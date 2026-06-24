@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    /* offset = INT_MIN: overflows "index - offset" */
+    .a > li:nth-child(2n-2147483648) { color: red; }
+    /* step_size = INT_MIN: overflows "-step_size" */
+    .b > li:nth-child(-2147483648n+1) { color: blue; }
+</style>
+<ol class="a"><li>x</li></ol>
+<ol class="b"><li>y</li></ol>
+<script>
+    document.body.offsetTop;
+</script>
