@@ -50,7 +50,11 @@ if (NOT APPLE AND USE_VULKAN_DMABUF_IMAGES AND Qt6_VERSION VERSION_GREATER_EQUAL
 
     add_custom_command(
         OUTPUT "${WEB_CONTENT_VIEW_LINUX_VERT_SHADER_HEADER}"
-        COMMAND "${GLSLANG_VALIDATOR}"
+        COMMAND ${CMAKE_COMMAND}
+            -DLOG=${CMAKE_CURRENT_BINARY_DIR}/glslang-webcontent-vert.log
+            -P "${LADYBIRD_SOURCE_DIR}/Meta/CMake/run_quiet.cmake"
+            --
+            "${GLSLANG_VALIDATOR}"
             -V
             --vn webcontent_vert_shader_spv
             -o "${WEB_CONTENT_VIEW_LINUX_VERT_SHADER_HEADER}"
@@ -60,7 +64,11 @@ if (NOT APPLE AND USE_VULKAN_DMABUF_IMAGES AND Qt6_VERSION VERSION_GREATER_EQUAL
     )
     add_custom_command(
         OUTPUT "${WEB_CONTENT_VIEW_LINUX_FRAG_SHADER_HEADER}"
-        COMMAND "${GLSLANG_VALIDATOR}"
+        COMMAND ${CMAKE_COMMAND}
+            -DLOG=${CMAKE_CURRENT_BINARY_DIR}/glslang-webcontent-frag.log
+            -P "${LADYBIRD_SOURCE_DIR}/Meta/CMake/run_quiet.cmake"
+            --
+            "${GLSLANG_VALIDATOR}"
             -V
             --vn webcontent_frag_shader_spv
             -o "${WEB_CONTENT_VIEW_LINUX_FRAG_SHADER_HEADER}"
