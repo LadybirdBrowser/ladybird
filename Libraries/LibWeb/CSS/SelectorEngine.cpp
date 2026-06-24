@@ -579,15 +579,14 @@ static bool matches_hover_pseudo_class(DOM::Element const& element)
 static inline bool matches_indeterminate_pseudo_class(DOM::Element const& element)
 {
     // The :indeterminate pseudo-class must match any element falling into one of the following categories:
-    // - input elements whose type attribute is in the Checkbox state and whose indeterminate IDL attribute is set to true
+    // - input elements whose type attribute is in the Checkbox state and whose indeterminateness is true
     // FIXME: - input elements whose type attribute is in the Radio Button state and whose radio button group contains no input elements whose checkedness state is true.
-    if (is<HTML::HTMLInputElement>(element)) {
-        auto const& input_element = static_cast<HTML::HTMLInputElement const&>(element);
-        switch (input_element.type_state()) {
+    if (auto* input_element = as_if<HTML::HTMLInputElement>(element)) {
+        switch (input_element->type_state()) {
         case HTML::HTMLInputElement::TypeAttributeState::Checkbox:
             // https://whatpr.org/html-attr-input-switch/9546/semantics-other.html#selector-indeterminate
             // input elements whose type attribute is in the Checkbox state, whose switch attribute is not set
-            return input_element.indeterminate() && !element.has_attribute(HTML::AttributeNames::switch_);
+            return input_element->indeterminate() && !element.has_attribute(HTML::AttributeNames::switch_);
         default:
             return false;
         }
