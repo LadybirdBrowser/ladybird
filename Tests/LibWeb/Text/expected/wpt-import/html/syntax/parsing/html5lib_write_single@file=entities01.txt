@@ -1,0 +1,80 @@
+Harness status: OK
+
+Found 75 tests
+
+75 Pass
+Pass	FOO&gt;BAR
+Pass	FOO&gtBAR
+Pass	FOO&gt BAR
+Pass	FOO&gt;;;BAR
+Pass	I'm &notit; I tell you
+Pass	I'm &notin; I tell you
+Pass	&ammmp;
+Pass	&ammmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmp;
+Pass	FOO& BAR
+Pass	FOO&<BAR>
+Pass	FOO&&&&gt;BAR
+Pass	FOO&#41;BAR
+Pass	FOO&#x41;BAR
+Pass	FOO&#X41;BAR
+Pass	FOO&#BAR
+Pass	FOO&#ZOO
+Pass	FOO&#xBAR
+Pass	FOO&#xZOO
+Pass	FOO&#XZOO
+Pass	FOO&#41BAR
+Pass	FOO&#x41BAR
+Pass	FOO&#x41ZOO
+Pass	FOO&#x0000;ZOO
+Pass	FOO&#x0078;ZOO
+Pass	FOO&#x0079;ZOO
+Pass	FOO&#x0080;ZOO
+Pass	FOO&#x0081;ZOO
+Pass	FOO&#x0082;ZOO
+Pass	FOO&#x0083;ZOO
+Pass	FOO&#x0084;ZOO
+Pass	FOO&#x0085;ZOO
+Pass	FOO&#x0086;ZOO
+Pass	FOO&#x0087;ZOO
+Pass	FOO&#x0088;ZOO
+Pass	FOO&#x0089;ZOO
+Pass	FOO&#x008A;ZOO
+Pass	FOO&#x008B;ZOO
+Pass	FOO&#x008C;ZOO
+Pass	FOO&#x008D;ZOO
+Pass	FOO&#x008E;ZOO
+Pass	FOO&#x008F;ZOO
+Pass	FOO&#x0090;ZOO
+Pass	FOO&#x0091;ZOO
+Pass	FOO&#x0092;ZOO
+Pass	FOO&#x0093;ZOO
+Pass	FOO&#x0094;ZOO
+Pass	FOO&#x0095;ZOO
+Pass	FOO&#x0096;ZOO
+Pass	FOO&#x0097;ZOO
+Pass	FOO&#x0098;ZOO
+Pass	FOO&#x0099;ZOO
+Pass	FOO&#x009A;ZOO
+Pass	FOO&#x009B;ZOO
+Pass	FOO&#x009C;ZOO
+Pass	FOO&#x009D;ZOO
+Pass	FOO&#x009E;ZOO
+Pass	FOO&#x009F;ZOO
+Pass	FOO&#x00A0;ZOO
+Pass	FOO&#xD7FF;ZOO
+Pass	FOO&#xD800;ZOO
+Pass	FOO&#xD801;ZOO
+Pass	FOO&#xDFFE;ZOO
+Pass	FOO&#xDFFF;ZOO
+Pass	FOO&#xE000;ZOO
+Pass	FOO&#x10FFFE;ZOO
+Pass	FOO&#x1087D4;ZOO
+Pass	FOO&#x10FFFF;ZOO
+Pass	FOO&#x110000;ZOO
+Pass	FOO&#xFFFFFF;ZOO
+Pass	FOO&#11111111111
+Pass	FOO&#1111111111
+Pass	FOO&#111111111111
+Pass	FOO&#11111111111ZOO
+Pass	FOO&#1111111111ZOO
+Pass	FOO&#111111111111ZOO

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	In body insertion mode: Template contains a start tag whose tag name is body.Test <body> tag only
+Pass	In body insertion mode: Template contains a start tag whose tag name is body. Test <body> tag containing some text
+Pass	In body insertion mode: Template contains a start tag whose tag name is body. Test <body> tag containing some other elements
+Pass	In body insertion mode: Template contains a start tag whose tag name is body. Test nested template tag containing <body> tag with some other elements

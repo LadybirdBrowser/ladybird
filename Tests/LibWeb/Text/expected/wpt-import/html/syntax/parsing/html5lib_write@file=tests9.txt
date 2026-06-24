@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 27 tests
+
+27 Pass
+Pass	<!DOCTYPE html><math></math>
+Pass	<!DOCTYPE html><body><math></math>
+Pass	<!DOCTYPE html><math><mi>
+Pass	<!DOCTYPE html><math><annotation-xml><svg><u>
+Pass	<!DOCTYPE html><body><select><math></math></select>
+Pass	<!DOCTYPE html><body><select><option><math></math></option></select>
+Pass	<!DOCTYPE html><body><table><math></math></table>
+Pass	<!DOCTYPE html><body><table><math><mi>foo</mi></math></table>
+Pass	<!DOCTYPE html><body><table><math><mi>foo</mi><mi>bar</mi></math></table>
+Pass	<!DOCTYPE html><body><table><tbody><math><mi>foo</mi><mi>bar</mi></math></tbody></table>
+Pass	<!DOCTYPE html><body><table><tbody><tr><math><mi>foo</mi><mi>bar</mi></math></tr></tbody></table>
+Pass	<!DOCTYPE html><body><table><tbody><tr><td><math><mi>foo</mi><mi>bar</mi></math></td></tr></tbody></table>
+Pass	<!DOCTYPE html><body><table><tbody><tr><td><math><mi>foo</mi><mi>bar</mi></math><p>baz</td></tr></tbody></table>
+Pass	<!DOCTYPE html><body><table><caption><math><mi>foo</mi><mi>bar</mi></math><p>baz</caption></table>
+Pass	<!DOCTYPE html><body><table><caption><math><mi>foo</mi><mi>bar</mi><p>baz</table><p>quux
+Pass	<!DOCTYPE html><body><table><caption><math><mi>foo</mi><mi>bar</mi>baz</table><p>quux
+Pass	<!DOCTYPE html><body><table><colgroup><math><mi>foo</mi><mi>bar</mi><p>baz</table><p>quux
+Pass	<!DOCTYPE html><body><table><tr><td><select><math><mi>foo</mi><mi>bar</mi><p>baz</table><p>quux
+Pass	<!DOCTYPE html><body><table><select><math><mi>foo</mi><mi>bar</mi><p>baz</table><p>quux
+Pass	<!DOCTYPE html><body></body></html><math><mi>foo</mi><mi>bar</mi><p>baz
+Pass	<!DOCTYPE html><body></body><math><mi>foo</mi><mi>bar</mi><p>baz
+Pass	<!DOCTYPE html><frameset><math><mi></mi><mi></mi><p><span>
+Pass	<!DOCTYPE html><frameset></frameset><math><mi></mi><mi></mi><p><span>
+Pass	<!DOCTYPE html><body xlink:href=foo><math xlink:href=foo></math>
+Pass	<!DOCTYPE html><body xlink:href=foo xml:lang=en><math><mi xml:lang=en xlink:href=foo></mi></math>
+Pass	<!DOCTYPE html><body xlink:href=foo xml:lang=en><math><mi xml:lang=en xlink:href=foo /></math>
+Pass	<!DOCTYPE html><body xlink:href=foo xml:lang=en><math><mi xml:lang=en xlink:href=foo />bar</math>

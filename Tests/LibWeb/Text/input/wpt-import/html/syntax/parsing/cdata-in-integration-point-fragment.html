@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CDATA sections should not be allowed when fragment-parsing with integration point context elements</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#tree-construction">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#adjusted-current-node">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+// After processing each token, the tree construction stage sets the tokenizer's
+// "CDATA sections allowed" flag based on the adjusted current node. When
+// fragment-parsing with only the root DocumentFragment on the open elements
+// stack, the adjusted current node is the context element (not the
+// DocumentFragment). If the context element is an integration point, then it
+// should be treated as HTML content and CDATA sections should NOT be allowed.
+//
+// The input "x<![CDATA[y]]>" is used because:
+// 1. "x" is emitted as a character token first
+// 2. After processing "x", the tree builder sets tokenizer flags
+// 3. "<![CDATA[y]]>" is then tokenized with those flags
+//
+// If CDATA is incorrectly allowed, "y" becomes text content.
+// If CDATA is correctly disallowed, "<![CDATA[y]]>" becomes a bogus comment.
+
+// MathML text integration points
+for (const tagName of ["mi", "mo", "mn", "ms", "mtext"]) {
+    test(function() {
+        const el = document.createElementNS("http://www.w3.org/1998/Math/MathML", tagName);
+        el.innerHTML = "x<![CDATA[y]]>";
+        assert_equals(el.firstChild.nodeType, Node.TEXT_NODE, "first child should be a text node");
+        assert_equals(el.firstChild.data, "x", "text node should contain only 'x'");
+        assert_equals(el.childNodes.length, 2, "should have 2 child nodes (text + comment)");
+        assert_equals(el.lastChild.nodeType, Node.COMMENT_NODE,
+            "CDATA should be parsed as a bogus comment, not as character data");
+    }, "CDATA not allowed when fragment-parsing with <" + tagName + "> context (MathML text integration point)");
+}
+
+// SVG HTML integration points
+for (const tagName of ["foreignObject", "desc", "title"]) {
+    test(function() {
+        const el = document.createElementNS("http://www.w3.org/2000/svg", tagName);
+        el.innerHTML = "x<![CDATA[y]]>";
+        assert_equals(el.firstChild.nodeType, Node.TEXT_NODE, "first child should be a text node");
+        assert_equals(el.firstChild.data, "x", "text node should contain only 'x'");
+        assert_equals(el.childNodes.length, 2, "should have 2 child nodes (text + comment)");
+        assert_equals(el.lastChild.nodeType, Node.COMMENT_NODE,
+            "CDATA should be parsed as a bogus comment, not as character data");
+    }, "CDATA not allowed when fragment-parsing with <" + tagName + "> context (SVG HTML integration point)");
+}
+
+// Verify that CDATA IS allowed for non-integration-point foreign elements
+test(function() {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    el.innerHTML = "x<![CDATA[y]]>";
+    // For a non-integration-point foreign element, CDATA should be allowed
+    // and "y" should appear as text content
+    assert_equals(el.textContent, "xy",
+        "CDATA should be parsed as character data for non-integration-point foreign elements");
+}, "CDATA allowed when fragment-parsing with <path> context (non-integration-point SVG element)");
+</script>

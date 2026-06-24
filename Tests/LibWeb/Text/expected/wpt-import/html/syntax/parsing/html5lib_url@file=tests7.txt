@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 34 tests
+
+34 Pass
+Pass	<!doctype html><body><title>X</title>
+Pass	<!doctype html><table><title>X</title></table>
+Pass	<!doctype html><head></head><title>X</title>
+Pass	<!doctype html></head><title>X</title>
+Pass	<!doctype html></head><base>X
+Pass	<!doctype html></head><basefont>X
+Pass	<!doctype html></head><bgsound>X
+Pass	<!doctype html><table><meta></table>
+Pass	<!doctype html><table>X<tr><td><table> <meta></table></table>
+Pass	<!doctype html><html> <head>
+Pass	<!doctype html> <head>
+Pass	<!doctype html><table><style> <tr>x </style> </table>
+Pass	<!doctype html><table><TBODY><script> <tr>x </script> </table>
+Pass	<!doctype html><p><applet><p>X</p></applet>
+Pass	<!doctype html><p><object type="application/x-non-existant-plugin"><p>X</p></object>
+Pass	<!doctype html><listing>\nX</listing>
+Pass	<!doctype html><select><input>X
+Pass	<!doctype html><select><select>X
+Pass	<!doctype html><table><input type=hidDEN></table>
+Pass	<!doctype html><table>X<input type=hidDEN></table>
+Pass	<!doctype html><table>  <input type=hidDEN></table>
+Pass	<!doctype html><table>  <input type='hidDEN'></table>
+Pass	<!doctype html><table><input type=" hidden"><input type=hidDEN></table>
+Pass	<!doctype html><table><select>X<tr>
+Pass	<!doctype html><select>X</select>
+Pass	<!DOCTYPE hTmL><html></html>
+Pass	<!DOCTYPE HTML><html></html>
+Pass	<body>X</body></body> (innerHTML in html)
+Pass	<div><p>a</x> b
+Pass	<table><tr><td><code></code> </table>
+Pass	<table><b><tr><td>aaa</td></tr>bbb</table>ccc
+Pass	A<table><tr> B</tr> B</table>
+Pass	A<table><tr> B</tr> </em>C</table>
+Pass	<select><keygen>

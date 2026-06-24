@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	<div bar="ZZ&gt;YY"></div>
+Pass	<div bar="ZZ&"></div>
+Pass	<div bar='ZZ&'></div>
+Pass	<div bar=ZZ&></div>
+Pass	<div bar="ZZ&gt=YY"></div>
+Pass	<div bar="ZZ&gt0YY"></div>
+Pass	<div bar="ZZ&gt9YY"></div>
+Pass	<div bar="ZZ&gtaYY"></div>
+Pass	<div bar="ZZ&gtZYY"></div>
+Pass	<div bar="ZZ&gt YY"></div>
+Pass	<div bar="ZZ&gt"></div>
+Pass	<div bar='ZZ&gt'></div>
+Pass	<div bar=ZZ&gt></div>
+Pass	<div bar="ZZ&pound_id=23"></div>
+Pass	<div bar="ZZ&prod_id=23"></div>
+Pass	<div bar="ZZ&pound;_id=23"></div>
+Pass	<div bar="ZZ&prod;_id=23"></div>
+Pass	<div bar="ZZ&pound=23"></div>
+Pass	<div bar="ZZ&prod=23"></div>
+Pass	<div>ZZ&pound_id=23</div>
+Pass	<div>ZZ&prod_id=23</div>
+Pass	<div>ZZ&pound;_id=23</div>
+Pass	<div>ZZ&prod;_id=23</div>
+Pass	<div>ZZ&pound=23</div>
+Pass	<div>ZZ&prod=23</div>
+Pass	<div>ZZ&AElig=</div>

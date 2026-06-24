@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	<div<div>
+Pass	<div foo<bar=''>
+Pass	<div foo=`bar`>
+Pass	<div \"foo=''>
+Pass	<a href='\nbar'></a>
+Pass	<!DOCTYPE html>
+Pass	&lang;&rang;
+Pass	&apos;
+Pass	&ImaginaryI;
+Pass	&Kopf;
+Pass	&notinva;
+Pass	<?import namespace="foo" implementation="#bar">
+Pass	<!--foo--bar-->
+Pass	<![CDATA[x]]>
+Pass	<textarea><!--</textarea>--></textarea>
+Pass	<textarea><!--</textarea>-->
+Pass	<style><!--</style>--></style>
+Pass	<style><!--</style>-->
+Pass	<ul><li>A </li> <li>B</li></ul>
+Pass	<table><form><input type=hidden><input></form><div></div></table>
+Pass	<i>A<b>B<p></i>C</b>D
+Pass	<div></div>
+Pass	<svg></svg>
+Pass	<math></math>

@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	<div>\n<div></div>\n</span>x
+Pass	<div>x<div></div>\n</span>x
+Pass	<div>x<div></div>x</span>x
+Pass	<div>x<div></div>y</span>z
+Pass	<table><div>x<div></div>x</span>x
+Pass	<table><li><li></table>
+Pass	x<table>x
+Pass	x<table><table>x
+Pass	<b>a<div></div><div></b>y
+Pass	<a><div><p></a>

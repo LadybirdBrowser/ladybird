@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	1<script>document.write("2")</script>3
+Pass	1<script>document.write("<script>document.write('2')</scr"+ "ipt><script>document.write('3')</scr" + "ipt>")</script>4

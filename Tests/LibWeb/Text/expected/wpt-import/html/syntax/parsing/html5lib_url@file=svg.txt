@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	<svg><tr><td><title><tr> (innerHTML in td)
+Pass	<svg><tr><td><title><tr> (innerHTML in tr)
+Pass	<svg><thead><title><tbody> (innerHTML in thead)
+Pass	<svg><tfoot><title><tbody> (innerHTML in tfoot)
+Pass	<svg><tbody><title><tfoot> (innerHTML in tbody)
+Pass	<svg><tbody><title></table> (innerHTML in tbody)
+Pass	<svg><thead><title></table> (innerHTML in tbody)
+Pass	<svg><tfoot><title></table> (innerHTML in tbody)

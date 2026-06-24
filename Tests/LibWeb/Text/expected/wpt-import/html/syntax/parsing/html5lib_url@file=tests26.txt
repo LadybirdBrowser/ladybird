@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	<!DOCTYPE html><body><a href='#1'><nobr>1<nobr></a><br><a href='#2'><nobr>2<nobr></a><br><a href='#3'><nobr>3<nobr></a>
+Pass	<!DOCTYPE html><body><b><nobr>1<nobr></b><i><nobr>2<nobr></i>3
+Pass	<!DOCTYPE html><body><b><nobr>1<table><nobr></b><i><nobr>2<nobr></i>3
+Pass	<!DOCTYPE html><body><b><nobr>1<table><tr><td><nobr></b><i><nobr>2<nobr></i>3
+Pass	<!DOCTYPE html><body><b><nobr>1<div><nobr></b><i><nobr>2<nobr></i>3
+Pass	<!DOCTYPE html><body><b><nobr>1<nobr></b><div><i><nobr>2<nobr></i>3
+Pass	<!DOCTYPE html><body><b><nobr>1<nobr><ins></b><i><nobr>
+Pass	<!DOCTYPE html><body><b><nobr>1<ins><nobr></b><i>2
+Pass	<!DOCTYPE html><body><b>1<nobr></b><i><nobr>2</i>
+Pass	<p><code x</code></p>\n
+Pass	<!DOCTYPE html><svg><foreignObject><p><i></p>a
+Pass	<!DOCTYPE html><table><tr><td><svg><foreignObject><p><i></p>a
+Pass	<!DOCTYPE html><math><mtext><p><i></p>a
+Pass	<!DOCTYPE html><table><tr><td><math><mtext><p><i></p>a
+Pass	<!DOCTYPE html><body><div><!/div>a
+Pass	<button><p><button>
+Pass	<svg></p><foo>
+Pass	<svg></br><foo>
+Pass	<math></p><foo>
+Pass	<math></br><foo>

@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	<menuitem>
+Pass	</menuitem>
+Pass	<!DOCTYPE html><body><menuitem>A
+Pass	<!DOCTYPE html><body><menuitem>A<menuitem>B
+Pass	<!DOCTYPE html><body><menuitem>A<menu>B</menu>
+Pass	<!DOCTYPE html><body><menuitem>A<hr>B
+Pass	<!DOCTYPE html><li><menuitem><li>
+Pass	<!DOCTYPE html><menuitem><p></menuitem>x
+Pass	<!DOCTYPE html><p><b></p><menuitem>
+Pass	<!DOCTYPE html><menuitem><asdf></menuitem>x
+Pass	<!DOCTYPE html></menuitem>
+Pass	<!DOCTYPE html><html></menuitem>
+Pass	<!DOCTYPE html><head></menuitem>
+Pass	<!DOCTYPE html><select><menuitem></select>
+Pass	<!DOCTYPE html><option><menuitem>
+Pass	<!DOCTYPE html><menuitem><option>
+Pass	<!DOCTYPE html><menuitem></body>
+Pass	<!DOCTYPE html><menuitem></html>
+Pass	<!DOCTYPE html><menuitem><p>
+Pass	<!DOCTYPE html><menuitem><li>

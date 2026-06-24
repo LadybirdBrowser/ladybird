@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	<input type="hidden"><frameset>
+Pass	<!DOCTYPE html><table><caption><svg>foo</table>bar
+Pass	<table><tr><td><svg><desc><td></desc><circle>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>Out-of-bounds access in the adoption agency algorithm</title>
+<link rel="help" href="https://issues.chromium.org/issues/496298136">
+<link rel="help" href="https://github.com/whatwg/html/issues/12327">
+<iframe id="ifr"></iframe>
+<script>
+let ifr = document.getElementById('ifr');
+let ifrWin = ifr.contentWindow;
+
+class XFoo extends ifrWin.HTMLElement {
+  constructor() {
+    super();
+    if (ifrWin.didReenter) return;
+    ifrWin.didReenter = true;
+
+    let s = "";
+    for (let i = 0; i < 10; i++) {
+      s += '<b is="x-foo" id="fmt">';
+    }
+    document.write(s);
+  }
+}
+
+ifrWin.customElements.define("x-foo", XFoo, { extends: "b" });
+
+document.write('<b is="x-foo" id="fmt"><div id="block"><script>' +
+  'let b = document.getElementById("block");' +
+  'let i = document.getElementById("ifr");' +
+  'i.contentDocument.adoptNode(b);' +
+  '<\/script></b>');
+</script>

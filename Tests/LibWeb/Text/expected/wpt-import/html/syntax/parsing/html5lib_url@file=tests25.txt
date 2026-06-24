@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	<!DOCTYPE html><body><foo>A
+Pass	<!DOCTYPE html><body><area>A
+Pass	<!DOCTYPE html><body><base>A
+Pass	<!DOCTYPE html><body><basefont>A
+Pass	<!DOCTYPE html><body><bgsound>A
+Pass	<!DOCTYPE html><body><br>A
+Pass	<!DOCTYPE html><body><col>A
+Pass	<!DOCTYPE html><body><command>A
+Pass	<!DOCTYPE html><body><embed>A
+Pass	<!DOCTYPE html><body><frame>A
+Pass	<!DOCTYPE html><body><hr>A
+Pass	<!DOCTYPE html><body><img>A
+Pass	<!DOCTYPE html><body><input>A
+Pass	<!DOCTYPE html><body><keygen>A
+Pass	<!DOCTYPE html><keygen>A</keygen>B
+Pass	</keygen>A
+Pass	<!DOCTYPE html></keygen>A
+Pass	<!DOCTYPE html><head></keygen>A
+Pass	<!DOCTYPE html><head></head></keygen>A
+Pass	<!DOCTYPE html><body></keygen>A
+Pass	<!DOCTYPE html><body><link>A
+Pass	<!DOCTYPE html><body><meta>A
+Pass	<!DOCTYPE html><body><param>A
+Pass	<!DOCTYPE html><body><source>A
+Pass	<!DOCTYPE html><body><track>A
+Pass	<!DOCTYPE html><body><wbr>A

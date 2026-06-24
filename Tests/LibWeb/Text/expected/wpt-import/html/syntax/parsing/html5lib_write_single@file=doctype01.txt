@@ -1,0 +1,42 @@
+Harness status: OK
+
+Found 37 tests
+
+37 Pass
+Pass	<!DOCTYPE html>Hello
+Pass	<!dOctYpE HtMl>Hello
+Pass	<!DOCTYPEhtml>Hello
+Pass	<!DOCTYPE>Hello
+Pass	<!DOCTYPE >Hello
+Pass	<!DOCTYPE potato>Hello
+Pass	<!DOCTYPE potato >Hello
+Pass	<!DOCTYPE potato taco>Hello
+Pass	<!DOCTYPE potato taco "ddd>Hello
+Pass	<!DOCTYPE potato sYstEM>Hello
+Pass	<!DOCTYPE potato sYstEM    >Hello
+Pass	<!DOCTYPE   potato       sYstEM  ggg>Hello
+Pass	<!DOCTYPE potato SYSTEM taco  >Hello
+Pass	<!DOCTYPE potato SYSTEM 'taco"'>Hello
+Pass	<!DOCTYPE potato SYSTEM "taco">Hello
+Pass	<!DOCTYPE potato SYSTEM "tai'co">Hello
+Pass	<!DOCTYPE potato SYSTEMtaco "ddd">Hello
+Pass	<!DOCTYPE potato grass SYSTEM taco>Hello
+Pass	<!DOCTYPE potato pUbLIc>Hello
+Pass	<!DOCTYPE potato pUbLIc >Hello
+Pass	<!DOCTYPE potato pUbLIcgoof>Hello
+Pass	<!DOCTYPE potato PUBLIC goof>Hello
+Pass	<!DOCTYPE potato PUBLIC "go'of">Hello
+Pass	<!DOCTYPE potato PUBLIC 'go'of'>Hello
+Pass	<!DOCTYPE potato PUBLIC 'go:hh   of' >Hello
+Pass	<!DOCTYPE potato PUBLIC "W3C-//dfdf" SYSTEM ggg>Hello
+Pass	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"\n   "http://www.w3.org/TR/html4/strict.dtd">Hello
+Pass	<!DOCTYPE ...>Hello
+Pass	<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+Pass	<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">
+Pass	<!DOCTYPE root-element [SYSTEM OR PUBLIC FPI] "uri" [ \n<!-- internal declarations -->\n]>
+Pass	<!DOCTYPE html PUBLIC\n  "-//WAPFORUM//DTD XHTML Mobile 1.0//EN"\n    "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
+Pass	<!DOCTYPE HTML SYSTEM "http://www.w3.org/DTD/HTML4-strict.dtd"><body><b>Mine!</b></body>
+Pass	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN""http://www.w3.org/TR/html4/strict.dtd">
+Pass	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"'http://www.w3.org/TR/html4/strict.dtd'>
+Pass	<!DOCTYPE HTML PUBLIC"-//W3C//DTD HTML 4.01//EN"'http://www.w3.org/TR/html4/strict.dtd'>
+Pass	<!DOCTYPE HTML PUBLIC'-//W3C//DTD HTML 4.01//EN''http://www.w3.org/TR/html4/strict.dtd'>

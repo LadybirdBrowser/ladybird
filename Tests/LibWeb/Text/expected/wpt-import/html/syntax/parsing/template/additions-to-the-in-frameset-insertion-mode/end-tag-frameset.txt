@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	<template> tag should be ignored in "in frameset" insertion mode

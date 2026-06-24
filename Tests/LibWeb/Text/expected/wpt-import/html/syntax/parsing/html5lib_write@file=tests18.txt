@@ -1,0 +1,40 @@
+Harness status: OK
+
+Found 35 tests
+
+35 Pass
+Pass	<plaintext></plaintext>
+Pass	<!doctype html><plaintext></plaintext>
+Pass	<!doctype html><html><plaintext></plaintext>
+Pass	<!doctype html><head><plaintext></plaintext>
+Pass	<!doctype html></head><plaintext></plaintext>
+Pass	<!doctype html><body><plaintext></plaintext>
+Pass	<!doctype html><table><plaintext></plaintext>
+Pass	<!doctype html><table><tbody><plaintext></plaintext>
+Pass	<!doctype html><table><tbody><tr><plaintext></plaintext>
+Pass	<!doctype html><table><td><plaintext></plaintext>
+Pass	<!doctype html><table><caption><plaintext></plaintext>
+Pass	<!doctype html><table><colgroup><plaintext></plaintext>
+Pass	<!doctype html><select><plaintext></plaintext>X
+Pass	<!doctype html><table><select><plaintext>a<caption>b
+Pass	<!doctype html><template><plaintext>a</template>b
+Pass	<!doctype html><body></body><plaintext></plaintext>
+Pass	<!doctype html><frameset><plaintext></plaintext>
+Pass	<!doctype html><frameset></frameset><plaintext></plaintext>
+Pass	<!doctype html><body></body></html><plaintext></plaintext>
+Pass	<!doctype html><frameset></frameset></html><plaintext></plaintext>
+Pass	<!doctype html><svg><plaintext>a</plaintext>b
+Pass	<!doctype html><svg><title><plaintext>a</plaintext>b
+Pass	<!doctype html><table><tr><style></script></style>abc
+Pass	<!doctype html><table><tr><script></style></script>abc
+Pass	<!doctype html><table><caption><style></script></style>abc
+Pass	<!doctype html><table><td><style></script></style>abc
+Pass	<!doctype html><select><script></style></script>abc
+Pass	<!doctype html><table><select><script></style></script>abc
+Pass	<!doctype html><table><tr><select><script></style></script>abc
+Pass	<!doctype html><frameset></frameset><noframes>abc
+Pass	<!doctype html><frameset></frameset><noframes>abc</noframes><!--abc-->
+Pass	<!doctype html><frameset></frameset></html><noframes>abc
+Pass	<!doctype html><frameset></frameset></html><noframes>abc</noframes><!--abc-->
+Pass	<!doctype html><table><tr></tbody><tfoot>
+Pass	<!doctype html><table><td><svg></svg>abc<td>

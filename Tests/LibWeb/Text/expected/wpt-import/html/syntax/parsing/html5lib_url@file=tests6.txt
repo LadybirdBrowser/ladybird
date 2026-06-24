@@ -1,0 +1,57 @@
+Harness status: OK
+
+Found 52 tests
+
+52 Pass
+Pass	<!doctype html></head> <head>
+Pass	<!doctype html><form><div></form><div>
+Pass	<!doctype html><title>&amp;</title>
+Pass	<!doctype html><title><!--&amp;--></title>
+Pass	<!doctype>
+Pass	<!---x
+Pass	<body>\n<div> (innerHTML in div)
+Pass	<frameset></frameset>\nfoo
+Pass	<frameset></frameset>\n<noframes>
+Pass	<frameset></frameset>\n<div>
+Pass	<frameset></frameset>\n</html>
+Pass	<frameset></frameset>\n</div>
+Pass	<form><form>
+Pass	<button><button>
+Pass	<table><tr><td></th>
+Pass	<table><caption><td>
+Pass	<table><caption><div>
+Pass	</caption><div> (innerHTML in caption)
+Pass	<table><caption><div></caption>
+Pass	<table><caption></table>
+Pass	</table><div> (innerHTML in caption)
+Pass	<table><caption></body></col></colgroup></html></tbody></td></tfoot></th></thead></tr>
+Pass	<table><caption><div></div>
+Pass	<table><tr><td></body></caption></col></colgroup></html>
+Pass	</table></tbody></tfoot></thead></tr><div> (innerHTML in td)
+Pass	<table><colgroup>foo
+Pass	foo<col> (innerHTML in colgroup)
+Pass	<table><colgroup></col>
+Pass	<frameset><div>
+Pass	</frameset><frame> (innerHTML in frameset)
+Pass	<frameset></div>
+Pass	</body><div> (innerHTML in body)
+Pass	<table><tr><div>
+Pass	</tr><td> (innerHTML in tr)
+Pass	</tbody></tfoot></thead><td> (innerHTML in tr)
+Pass	<table><tr><div><td>
+Pass	<caption><col><colgroup><tbody><tfoot><thead><tr> (innerHTML in tbody)
+Pass	<table><tbody></thead>
+Pass	</table><tr> (innerHTML in tbody)
+Pass	<table><tbody></body></caption></col></colgroup></html></td></th></tr>
+Pass	<table><tbody></div>
+Pass	<table><table>
+Pass	<table></body></caption></col></colgroup></html></tbody></td></tfoot></th></thead></tr>
+Pass	</table><tr> (innerHTML in table)
+Pass	<body></body></html> (innerHTML in html)
+Pass	<html><frameset></frameset></html> 
+Pass	<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"><html></html>
+Pass	<param><frameset></frameset>
+Pass	<source><frameset></frameset>
+Pass	<track><frameset></frameset>
+Pass	</html><frameset></frameset>
+Pass	</body><frameset></frameset>

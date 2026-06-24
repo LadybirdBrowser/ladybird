@@ -1,0 +1,57 @@
+Harness status: OK
+
+Found 52 tests
+
+52 Pass
+Pass	Test
+Pass	<div></div>
+Pass	<div>Test</div>
+Pass	<di
+Pass	<div>Hello</div>\n<script>\nconsole.log("PASS");\n</script>\n<div>Bye</div>
+Pass	<div foo="bar">Hello</div>
+Pass	<div>Hello</div>\n<script>\nconsole.log("FOO<span>BAR</span>BAZ");\n</script>\n<div>Bye</div>
+Pass	<foo bar="baz"></foo><potato quack="duck"></potato>
+Pass	<foo bar="baz"><potato quack="duck"></potato></foo>
+Pass	<foo></foo bar="baz"><potato></potato quack="duck">
+Pass	</ tttt>
+Pass	<div FOO ><img><img></div>
+Pass	<p>Test</p<p>Test2</p>
+Pass	<rdar://problem/6869687>
+Pass	<A>test< /A>
+Pass	&lt;
+Pass	<body foo='bar'><body foo='baz' yo='mama'>
+Pass	<body></br foo="bar"></body>
+Pass	<bdy><br foo="bar"></body>
+Pass	<body></body></br foo="bar">
+Pass	<bdy></body><br foo="bar">
+Pass	<html><body></body></html><!-- Hi there -->
+Pass	<html><body></body></html><!-- Comment A --><!-- Comment B --><!-- Comment C --><!-- Comment D --><!-- Comment E -->
+Pass	<html><body></body></html>x<!-- Hi there -->
+Pass	<html><body></body></html>x<!-- Hi there --></html><!-- Again -->
+Pass	<html><body></body></html>x<!-- Hi there --></body></html><!-- Again -->
+Pass	<html><body></body>\n   <!-- Hi there --></html>
+Pass	<html><body></body></html>\n   <!-- Hi there -->
+Pass	<html><body><ruby><div><rp>xx</rp></div></ruby></body></html>
+Pass	<html><body><ruby><div><rt>xx</rt></div></ruby></body></html>
+Pass	<html><frameset><!--1--><noframes>A</noframes><!--2--></frameset><!--3--><noframes>B</noframes><!--4--></html><!--5--><noframes>C</noframes><!--6-->
+Pass	<select><option>A<select><option>B<select><option>C<select><option>D<select><option>E<select><option>F<select><option>G<select>
+Pass	<dd><dd><dt><dt><dd><li><li>
+Pass	<div><b></div><div><nobr>a<nobr>
+Pass	<head></head>\n<body></body>
+Pass	<head></head> <style></style>ddd
+Pass	<kbd><table></kbd><col><select><tr>
+Pass	<kbd><table></kbd><col><select><tr></table><div>
+Pass	<a><li><style></style><title></title></a>
+Pass	<font></p><p><meta><title></title></font>
+Pass	<a><center><title></title><a>
+Pass	<svg><title><div>
+Pass	<svg><title><rect><div>
+Pass	<svg><title><svg><div>
+Pass	<img <="" FAIL>
+Pass	<ul><li><div id='foo'/>A</li><li>B<div>C</div></li></ul>
+Pass	<svg><em><desc></em>
+Pass	<table><tr><td><svg><desc><td></desc><circle>
+Pass	<svg><tfoot></mi><td>
+Pass	<math><mrow><mrow><mn>1</mn></mrow><mi>a</mi></mrow></math>
+Pass	<!doctype html><input type="hidden"><frameset>
+Pass	<!doctype html><input type="button"><frameset>

@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+7 Pass
+1 Fail
+Pass	Ignore HTML token. Test HTML element assigned to template innerHTML
+Pass	Ignore HTML token.Test HTML element and some valid element before it, assigned to template innerHTML
+Pass	Ignore HTML token. Test HEAD element and some valid element after it, assigned to template innerHTML
+Pass	Ignore HTML token. Test HTML tag inside template tag assigned to another template's innerHTML
+Pass	Ignore HTML token. Test some valid element inside HTML element
+Pass	Ignore HTML token. Test valid element inside HTML and BODY elements
+Pass	Ignore HTML token. Test valid element inside and between HTML and BODY elements
+Fail	Ignore HTML token. Test loading a HTML file with HTML tag inside template

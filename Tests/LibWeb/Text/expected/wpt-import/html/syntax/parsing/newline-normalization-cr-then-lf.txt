@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Text content: \r followed by plain text then \n produces two newlines
+Pass	Double-quoted attribute: \r followed by plain text then \n produces two newlines
+Pass	Single-quoted attribute: \r followed by plain text then \n produces two newlines
+Pass	Text content: \r\n collapses to single newline
+Pass	Double-quoted attribute: \r\n collapses to single newline
+Pass	Single-quoted attribute: \r\n collapses to single newline

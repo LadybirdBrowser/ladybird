@@ -1,0 +1,104 @@
+#data
+<math><tr><td><mo><tr>
+#errors
+(1,22): unexpected-start-tag
+(1,23): expected-closing-tag-but-got-eof
+#document-fragment
+td
+#document
+| <math math>
+|   <math tr>
+|     <math td>
+|       <math mo>
+
+#data
+<math><tr><td><mo><tr>
+#errors
+(1,6): foster-parenting-start-tag
+(1,22): expected-tr-in-table-scope
+(1,23): expected-closing-tag-but-got-eof
+#document-fragment
+tr
+#document
+| <math math>
+|   <math tr>
+|     <math td>
+|       <math mo>
+
+#data
+<math><thead><mo><tbody>
+#errors
+(1,6): foster-parenting-start-tag
+(1,24): expected-table-part-in-table-scope
+(1,25): expected-closing-tag-but-got-eof
+#document-fragment
+thead
+#document
+| <math math>
+|   <math thead>
+|     <math mo>
+
+#data
+<math><tfoot><mo><tbody>
+#errors
+(1,6): foster-parenting-start-tag
+(1,24): expected-table-part-in-table-scope
+(1,25): expected-closing-tag-but-got-eof
+#document-fragment
+tfoot
+#document
+| <math math>
+|   <math tfoot>
+|     <math mo>
+
+#data
+<math><tbody><mo><tfoot>
+#errors
+(1,6): foster-parenting-start-tag
+(1,24): expected-table-part-in-table-scope
+(1,25): expected-closing-tag-but-got-eof
+#document-fragment
+tbody
+#document
+| <math math>
+|   <math tbody>
+|     <math mo>
+
+#data
+<math><tbody><mo></table>
+#errors
+(1,6): foster-parenting-start-tag
+(1,25): unexpected-end-tag-in-math
+(1,26): expected-closing-tag-but-got-eof
+#document-fragment
+tbody
+#document
+| <math math>
+|   <math tbody>
+|     <math mo>
+
+#data
+<math><thead><mo></table>
+#errors
+(1,6): foster-parenting-start-tag
+(1,25): unexpected-end-tag-in-math
+(1,26): expected-closing-tag-but-got-eof
+#document-fragment
+tbody
+#document
+| <math math>
+|   <math thead>
+|     <math mo>
+
+#data
+<math><tfoot><mo></table>
+#errors
+(1,6): foster-parenting-start-tag
+(1,25): unexpected-end-tag-in-math
+(1,26): expected-closing-tag-but-got-eof
+#document-fragment
+tbody
+#document
+| <math math>
+|   <math tfoot>
+|     <math mo>

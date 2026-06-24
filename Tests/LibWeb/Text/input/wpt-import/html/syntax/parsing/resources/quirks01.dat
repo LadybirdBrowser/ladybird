@@ -1,0 +1,53 @@
+#data
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd"><p><table>
+#errors
+(2,54): unknown-doctype
+(2,64): eof-in-table
+#document
+| <!DOCTYPE html "-//W3C//DTD XHTML 1.0 Frameset//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|     <table>
+
+#data
+<!DOCTYPE html SYSTEM "http://www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd"><p><table>
+#errors
+(1,83): unknown-doctype
+(1,93): eof-in-table
+#document
+| <!DOCTYPE html "" "http://www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd">
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <table>
+
+#data
+<!DOCTYPE html PUBLIC "html"><p><table>
+#errors
+(1,30): unknown-doctype
+(1,39): eof-in-table
+#document
+| <!DOCTYPE html "html" "">
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <table>
+
+#data
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN"
+   "http://www.w3.org/TR/html4/strict.dtd"><p><table>
+#errors
+(2,43): unknown-doctype
+(2,53): eof-in-table
+#document
+| <!DOCTYPE html "-//W3C//DTD HTML 3.2//EN" "http://www.w3.org/TR/html4/strict.dtd">
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <table>

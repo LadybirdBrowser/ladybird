@@ -1,0 +1,572 @@
+#data
+<plaintext></plaintext>
+#errors
+11: Start tag seen without seeing a doctype first. Expected “<!DOCTYPE html>”.
+23: End of file seen and there were open elements.
+#document
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+
+#data
+<!doctype html><plaintext></plaintext>
+#errors
+(1,38): expected-closing-tag-but-got-eof
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+
+#data
+<!doctype html><html><plaintext></plaintext>
+#errors
+44: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+
+#data
+<!doctype html><head><plaintext></plaintext>
+#errors
+44: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+
+#data
+<!doctype html><html><noscript><plaintext></plaintext>
+#errors
+42: Bad start tag in “plaintext” in “head”.
+54: End of file seen and there were open elements.
+#script-off
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|     <noscript>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+
+#data
+<!doctype html></head><plaintext></plaintext>
+#errors
+45: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+
+#data
+<!doctype html><body><plaintext></plaintext>
+#errors
+44: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+
+#data
+<!doctype html><table><plaintext></plaintext>
+#errors
+(1,33): foster-parenting-start-tag
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): foster-parenting-character
+(1,46): eof-in-table
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+|     <table>
+
+#data
+<!doctype html><table><tbody><plaintext></plaintext>
+#errors
+(1,40): foster-parenting-start-tag
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): eof-in-table
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+|     <table>
+|       <tbody>
+
+#data
+<!doctype html><table><tbody><tr><plaintext></plaintext>
+#errors
+(1,44): foster-parenting-start-tag
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): foster-parenting-character
+(1,57): eof-in-table
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+|     <table>
+|       <tbody>
+|         <tr>
+
+#data
+<!doctype html><table><td><plaintext></plaintext>
+#errors
+(1,26): unexpected-cell-in-table-body
+(1,49): expected-closing-tag-but-got-eof
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             <plaintext>
+|               "</plaintext>"
+
+#data
+<!doctype html><table><caption><plaintext></plaintext>
+#errors
+(1,54): expected-closing-tag-but-got-eof
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <caption>
+|         <plaintext>
+|           "</plaintext>"
+
+#data
+<!doctype html><table><colgroup><plaintext></plaintext>
+#errors
+(1,43): foster-parenting-start-tag
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+(1,56): foster-parenting-character
+55: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+|     <table>
+|       <colgroup>
+
+#data
+<!doctype html><select><plaintext></plaintext>X
+#errors
+1:48: ERROR: Premature end of file. Currently open tags: html, body, select, plaintext.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <select>
+|       <plaintext>
+|         "</plaintext>X"
+
+#data
+<!doctype html><table><select><plaintext>a<caption>b
+#errors
+1:23: ERROR: Start tag 'select' isn't allowed here. Currently open tags: html, body, table.
+1:31: ERROR: Start tag 'plaintext' isn't allowed here. Currently open tags: html, body, table, select.
+1:42: ERROR: Character tokens aren't legal here
+1:43: ERROR: Character tokens aren't legal here
+1:44: ERROR: Character tokens aren't legal here
+1:45: ERROR: Character tokens aren't legal here
+1:46: ERROR: Character tokens aren't legal here
+1:47: ERROR: Character tokens aren't legal here
+1:48: ERROR: Character tokens aren't legal here
+1:49: ERROR: Character tokens aren't legal here
+1:50: ERROR: Character tokens aren't legal here
+1:51: ERROR: Character tokens aren't legal here
+1:52: ERROR: Character tokens aren't legal here
+1:53: ERROR: Premature end of file. Currently open tags: html, body, table, select, plaintext.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <select>
+|       <plaintext>
+|         "a<caption>b"
+|     <table>
+
+#data
+<!doctype html><template><plaintext>a</template>b
+#errors
+49: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|     <template>
+|       content
+|         <plaintext>
+|           "a</template>b"
+|   <body>
+
+#data
+<!doctype html><body></body><plaintext></plaintext>
+#errors
+39: Stray start tag “plaintext”.
+51: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+
+#data
+<!doctype html><frameset><plaintext></plaintext>
+#errors
+36: Stray start tag “plaintext”.
+48: Stray end tag “plaintext”.
+48: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <frameset>
+
+#data
+<!doctype html><frameset></frameset><plaintext></plaintext>
+#errors
+47: Stray start tag “plaintext”.
+59: Stray end tag “plaintext”.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <frameset>
+
+#data
+<!doctype html><body></body></html><plaintext></plaintext>
+#errors
+46: Stray start tag “plaintext”.
+58: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <plaintext>
+|       "</plaintext>"
+
+#data
+<!doctype html><frameset></frameset></html><plaintext></plaintext>
+#errors
+54: Stray start tag “plaintext”.
+66: Stray end tag “plaintext”.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <frameset>
+
+#data
+<!doctype html><svg><plaintext>a</plaintext>b
+#errors
+45: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <svg svg>
+|       <svg plaintext>
+|         "a"
+|       "b"
+
+#data
+<!doctype html><svg><title><plaintext>a</plaintext>b
+#errors
+52: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <svg svg>
+|       <svg title>
+|         <plaintext>
+|           "a</plaintext>b"
+
+#data
+<!doctype html><table><tr><style></script></style>abc
+#errors
+(1,51): foster-parenting-character
+(1,52): foster-parenting-character
+(1,53): foster-parenting-character
+(1,53): eof-in-table
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     "abc"
+|     <table>
+|       <tbody>
+|         <tr>
+|           <style>
+|             "</script>"
+
+#data
+<!doctype html><table><tr><script></style></script>abc
+#errors
+(1,52): foster-parenting-character
+(1,53): foster-parenting-character
+(1,54): foster-parenting-character
+(1,54): eof-in-table
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     "abc"
+|     <table>
+|       <tbody>
+|         <tr>
+|           <script>
+|             "</style>"
+
+#data
+<!doctype html><table><caption><style></script></style>abc
+#errors
+(1,58): expected-closing-tag-but-got-eof
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <caption>
+|         <style>
+|           "</script>"
+|         "abc"
+
+#data
+<!doctype html><table><td><style></script></style>abc
+#errors
+(1,26): unexpected-cell-in-table-body
+(1,53): expected-closing-tag-but-got-eof
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             <style>
+|               "</script>"
+|             "abc"
+
+#data
+<!doctype html><select><script></style></script>abc
+#errors
+(1,51): eof-in-select
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <select>
+|       <script>
+|         "</style>"
+|       "abc"
+
+#data
+<!doctype html><table><select><script></style></script>abc
+#errors
+1:23: ERROR: Start tag 'select' isn't allowed here. Currently open tags: html, body, table.
+1:56: ERROR: Character tokens aren't legal here
+1:57: ERROR: Character tokens aren't legal here
+1:58: ERROR: Character tokens aren't legal here
+1:59: ERROR: Premature end of file. Currently open tags: html, body, table, select.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <select>
+|       <script>
+|         "</style>"
+|       "abc"
+|     <table>
+
+#data
+<!doctype html><table><tr><select><script></style></script>abc
+#errors
+1:27: ERROR: Start tag 'select' isn't allowed here. Currently open tags: html, body, table, tbody, tr.
+1:60: ERROR: Character tokens aren't legal here
+1:61: ERROR: Character tokens aren't legal here
+1:62: ERROR: Character tokens aren't legal here
+1:63: ERROR: Premature end of file. Currently open tags: html, body, table, tbody, tr, select.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <select>
+|       <script>
+|         "</style>"
+|       "abc"
+|     <table>
+|       <tbody>
+|         <tr>
+
+#data
+<!doctype html><frameset></frameset><noframes>abc
+#errors
+(1,49): expected-named-closing-tag-but-got-eof
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <frameset>
+|   <noframes>
+|     "abc"
+
+#data
+<!doctype html><frameset></frameset><noframes>abc</noframes><!--abc-->
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <frameset>
+|   <noframes>
+|     "abc"
+|   <!-- abc -->
+
+#data
+<!doctype html><frameset></frameset></html><noframes>abc
+#errors
+(1,56): expected-named-closing-tag-but-got-eof
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <frameset>
+|   <noframes>
+|     "abc"
+
+#data
+<!doctype html><frameset></frameset></html><noframes>abc</noframes><!--abc-->
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <frameset>
+|   <noframes>
+|     "abc"
+| <!-- abc -->
+
+#data
+<!doctype html><table><tr></tbody><tfoot>
+#errors
+(1,41): eof-in-table
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|       <tfoot>
+
+#data
+<!doctype html><table><td><svg></svg>abc<td>
+#errors
+(1,26): unexpected-cell-in-table-body
+(1,44): expected-closing-tag-but-got-eof
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             <svg svg>
+|             "abc"
+|           <td>

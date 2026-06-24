@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 33 tests
+
+33 Pass
+Pass	Clearing stack back to a table body context. Test <tr> in <tbody>
+Pass	Clearing stack back to a table body context. Test <tr> in <thead>
+Pass	Clearing stack back to a table body context. Test <tr> in <tfoot>
+Pass	Clearing stack back to a table body context. Test </tbody>
+Pass	Clearing stack back to a table body context. Test </thead>
+Pass	Clearing stack back to a table body context. Test </tfoot>
+Pass	Clearing stack back to a table body context. Test <caption> in <tbody>
+Pass	Clearing stack back to a table body context. Test <caption> in <tfoot>
+Pass	Clearing stack back to a table body context. Test <caption> in <thead>
+Pass	Clearing stack back to a table body context. Test <col> in <tbody>
+Pass	Clearing stack back to a table body context. Test <col> in <tfoot>
+Pass	Clearing stack back to a table body context. Test <col> in <thead>
+Pass	Clearing stack back to a table body context. Test <colgroup> in <tbody>
+Pass	Clearing stack back to a table body context. Test <colgroup> in <tfoot>
+Pass	Clearing stack back to a table body context. Test <colgroup> in <thead>
+Pass	Clearing stack back to a table body context. Test <tbody> in <tbody>
+Pass	Clearing stack back to a table body context. Test <tbody> in <tfoot>
+Pass	Clearing stack back to a table body context. Test <tbody> in <thead>
+Pass	Clearing stack back to a table body context. Test <tfoot> in <tbody>
+Pass	Clearing stack back to a table body context. Test <tfoot> in <tfoot>
+Pass	Clearing stack back to a table body context. Test <tfoot> in <thead>
+Pass	Clearing stack back to a table body context. Test <thead> in <tbody>
+Pass	Clearing stack back to a table body context. Test <thead> in <tfoot>
+Pass	Clearing stack back to a table body context. Test <thead> in <thead>
+Pass	Clearing stack back to a table body context. Test </table> in <tbody>
+Pass	Clearing stack back to a table body context. Test </table> in <tfoot>
+Pass	Clearing stack back to a table body context. Test </table> in <thead>
+Pass	Clearing stack back to a table body context. Test </tbody> in <thead>
+Pass	Clearing stack back to a table body context. Test </tbody> in <tfoot>
+Pass	Clearing stack back to a table body context. Test </thead> in <tbody>
+Pass	Clearing stack back to a table body context. Test </thead> in <tfoot>
+Pass	Clearing stack back to a table body context. Test </tfoot> in <thead>
+Pass	Clearing stack back to a table body context. Test </tfoot> in <tbody>

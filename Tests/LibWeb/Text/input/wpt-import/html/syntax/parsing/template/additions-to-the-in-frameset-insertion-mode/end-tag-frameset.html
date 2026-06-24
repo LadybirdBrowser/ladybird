@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>HTML Templates: additions to 'in frameset' insertion mode</title>
+<meta name="author" title="Sergey G. Grekhov" href="mailto:sgrekhov@unipro.ru">
+<meta name="assert" content="If parser is in 'in frameset' insertion mode then a start tag or an end tag whose name is 'template' is a parsing error">
+<link rel="help" href="https://www.w3.org/TR/2015/WD-html51-20151008/syntax.html#parsing-main-inframeset">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../html/resources/common.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script type="text/javascript">
+
+testInIFrame('/html/semantics/scripting-1/the-template-element/resources/frameset-end-tag.html', function(context) {
+    var doc = context.iframes[0].contentDocument;
+
+    var frameset = doc.querySelector('frameset');
+    assert_equals(frameset.children.length, 0, 'Wrong number of frameset children elements');
+
+}, '<template> tag should be ignored in "in frameset" insertion mode');
+
+</script>
+</body>
+</html>

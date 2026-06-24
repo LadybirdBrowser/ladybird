@@ -1,0 +1,151 @@
+#data
+<!DOCTYPE html><body><p><br></p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <br>
+
+#data
+<!DOCTYPE html><body><p><br>text</p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <br>
+|       "text"
+
+#data
+<!DOCTYPE html><body><p>before<br>after</p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       "before"
+|       <br>
+|       "after"
+
+#data
+<!DOCTYPE html><body><p><br><br></p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <br>
+|       <br>
+
+#data
+<!DOCTYPE html><body><p>a<br>b<br>c</p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       "a"
+|       <br>
+|       "b"
+|       <br>
+|       "c"
+
+#data
+<!DOCTYPE html><body><h1><br></h1>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <h1>
+|       <br>
+
+#data
+<!DOCTYPE html><body><p><input></p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <input>
+
+#data
+<!DOCTYPE html><body><p><img></p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <img>
+
+#data
+<!DOCTYPE html><body><p><wbr></p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <wbr>
+
+#data
+<!DOCTYPE html><body><p><embed></p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <embed>
+
+#data
+<!DOCTYPE html><body><h2><input></h2>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <h2>
+|       <input>
+
+#data
+<!DOCTYPE html><body><em><br></em>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <em>
+|       <br>
+
+#data
+<!DOCTYPE html><body><strong><br>text</strong>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <strong>
+|       <br>
+|       "text"

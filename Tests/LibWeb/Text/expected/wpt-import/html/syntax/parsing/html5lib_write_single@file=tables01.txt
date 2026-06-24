@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	<table><th>
+Pass	<table><td>
+Pass	<table><col foo='bar'>
+Pass	<table><colgroup></html>foo
+Pass	<table></table><p>foo
+Pass	<table></body></caption></col></colgroup></html></tbody></td></tfoot></th></thead></tr><td>
+Pass	<table><select><option>3</select></table>
+Pass	<table><select><table></table></select></table>
+Pass	<table><select></table>
+Pass	<table><select><option>A<tr><td>B</td></tr></table>
+Pass	<table><td></body></caption></col></colgroup></html>foo
+Pass	<table><td>A</table>B
+Pass	<table><tr><caption>
+Pass	<table><tr></body></caption></col></colgroup></html></td></th><td>foo
+Pass	<table><td><tr>
+Pass	<table><td><button><td>
+Pass	<table><tr><td><svg><desc><td>
+Pass	<div><table><svg><foreignObject><select><table><s>
+Pass	<table>a<!doctype html>

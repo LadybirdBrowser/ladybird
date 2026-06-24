@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	<!DOCTYPE html><html><body><xyz:abc></xyz:abc>
+Pass	<!DOCTYPE html><html><body><xyz:abc></xyz:abc><span></span>
+Pass	<!DOCTYPE html><html><html abc:def=gh><xyz:abc></xyz:abc>
+Pass	<!DOCTYPE html><html xml:lang=bar><html xml:lang=foo>
+Pass	<!DOCTYPE html><html 123=456>
+Pass	<!DOCTYPE html><html 123=456><html 789=012>
+Pass	<!DOCTYPE html><html><body 789=012>

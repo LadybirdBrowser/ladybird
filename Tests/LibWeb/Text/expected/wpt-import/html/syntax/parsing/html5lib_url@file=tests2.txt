@@ -1,0 +1,68 @@
+Harness status: OK
+
+Found 63 tests
+
+63 Pass
+Pass	<!DOCTYPE html>Test
+Pass	<textarea>test</div>test
+Pass	<table><td>
+Pass	<table><td>test</tbody></table>
+Pass	<frame>test
+Pass	<!DOCTYPE html><frameset>test
+Pass	<!DOCTYPE html><frameset> te st
+Pass	<!DOCTYPE html><frameset></frameset> te st
+Pass	<!DOCTYPE html><frameset><!DOCTYPE html>
+Pass	<!DOCTYPE html><font><p><b>test</font>
+Pass	<!DOCTYPE html><dt><div><dd>
+Pass	<script></x
+Pass	<table><plaintext><td>
+Pass	<plaintext></plaintext>
+Pass	<!DOCTYPE html><table><tr>TEST
+Pass	<!DOCTYPE html><body t1=1><body t2=2><body t3=3 t4=4>
+Pass	</b test
+Pass	<!DOCTYPE html></b test<b &=&amp>X
+Pass	<!doctypehtml><scrIPt type=text/x-foobar;baz>X</SCRipt
+Pass	&
+Pass	&#
+Pass	&#X
+Pass	&#x
+Pass	&#45
+Pass	&x-test
+Pass	<!doctypehtml><p><li>
+Pass	<!doctypehtml><p><dt>
+Pass	<!doctypehtml><p><dd>
+Pass	<!doctypehtml><p><form>
+Pass	<!DOCTYPE html><p></P>X
+Pass	&AMP
+Pass	&AMp;
+Pass	<!DOCTYPE html><html><head></head><body><thisISasillyTESTelementNameToMakeSureCrazyTagNamesArePARSEDcorrectLY>
+Pass	<!DOCTYPE html>X</body>X
+Pass	<!DOCTYPE html><!-- X
+Pass	<!DOCTYPE html><table><caption>test TEST</caption><td>test
+Pass	<!DOCTYPE html><select><option><optgroup>
+Pass	<!DOCTYPE html><select><optgroup><option></optgroup><option><select><option>
+Pass	<!DOCTYPE html><select><optgroup><option><optgroup>
+Pass	<!DOCTYPE html><datalist><option>foo</datalist>bar
+Pass	<!DOCTYPE html><font><input><input></font>
+Pass	<!DOCTYPE html><!-- XXX - XXX -->
+Pass	<!DOCTYPE html><!-- XXX - XXX
+Pass	<!DOCTYPE html><!-- XXX - XXX - XXX -->
+Pass	<!DOCTYPE html> <!DOCTYPE html>
+Pass	test\ntest
+Pass	<!DOCTYPE html><body><title>test</body></title>
+Pass	<!DOCTYPE html><body><title>X</title><meta name=z><link rel=foo><style>\nx { content:"</style" } </style>
+Pass	<!DOCTYPE html><select><optgroup></optgroup></select>
+Pass	 \n 
+Pass	<!DOCTYPE html>  <html>
+Pass	<!DOCTYPE html><script>\n</script>  <title>x</title>  </head>
+Pass	<!DOCTYPE html><html><body><html id=x>
+Pass	<!DOCTYPE html>X</body><html id="x">
+Pass	<!DOCTYPE html><head><html id=x>
+Pass	<!DOCTYPE html>X</html>X
+Pass	<!DOCTYPE html>X</html> 
+Pass	<!DOCTYPE html>X</html><p>X
+Pass	<!DOCTYPE html>X<p/x/y/z>
+Pass	<!DOCTYPE html><!--x--
+Pass	<!DOCTYPE html><table><tr><td></p></table>
+Pass	<!DOCTYPE <!DOCTYPE HTML>><!--<!--x-->-->
+Pass	<!doctype html><div><form></form><div></div></div>

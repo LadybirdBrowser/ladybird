@@ -1,0 +1,323 @@
+#data
+<table><th>
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,11): unexpected-cell-in-table-body
+(1,11): expected-closing-tag-but-got-eof
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <th>
+
+#data
+<table><td>
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,11): unexpected-cell-in-table-body
+(1,11): expected-closing-tag-but-got-eof
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+
+#data
+<table><col foo='bar'>
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,22): eof-in-table
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <colgroup>
+|         <col>
+|           foo="bar"
+
+#data
+<table><colgroup></html>foo
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,24): unexpected-end-tag
+(1,27): foster-parenting-character-in-table
+(1,27): foster-parenting-character-in-table
+(1,27): foster-parenting-character-in-table
+(1,27): eof-in-table
+#document
+| <html>
+|   <head>
+|   <body>
+|     "foo"
+|     <table>
+|       <colgroup>
+
+#data
+<table></table><p>foo
+#errors
+(1,7): expected-doctype-but-got-start-tag
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|     <p>
+|       "foo"
+
+#data
+<table></body></caption></col></colgroup></html></tbody></td></tfoot></th></thead></tr><td>
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,14): unexpected-end-tag
+(1,24): unexpected-end-tag
+(1,30): unexpected-end-tag
+(1,41): unexpected-end-tag
+(1,48): unexpected-end-tag
+(1,56): unexpected-end-tag
+(1,61): unexpected-end-tag
+(1,69): unexpected-end-tag
+(1,74): unexpected-end-tag
+(1,82): unexpected-end-tag
+(1,87): unexpected-end-tag
+(1,91): unexpected-cell-in-table-body
+(1,91): expected-closing-tag-but-got-eof
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+
+#data
+<table><select><option>3</select></table>
+#errors
+1:1: ERROR: Expected a doctype token
+1:8: ERROR: Start tag 'select' isn't allowed here. Currently open tags: html, body, table.
+1:16: ERROR: Start tag 'option' isn't allowed here. Currently open tags: html, body, table, select.
+1:24: ERROR: Character tokens aren't legal here
+1:25: ERROR: End tag 'select' isn't allowed here. Currently open tags: html, body, table, select, option.
+#document
+| <html>
+|   <head>
+|   <body>
+|     <select>
+|       <option>
+|         "3"
+|     <table>
+
+#data
+<table><select><table></table></select></table>
+#errors
+1:1: ERROR: Expected a doctype token
+1:8: ERROR: Start tag 'select' isn't allowed here. Currently open tags: html, body, table.
+1:16: ERROR: Start tag 'table' isn't allowed here. Currently open tags: html, body, table, select.
+1:31: ERROR: End tag 'select' isn't allowed here. Currently open tags: html, body.
+1:40: ERROR: End tag 'table' isn't allowed here. Currently open tags: html, body.
+#document
+| <html>
+|   <head>
+|   <body>
+|     <select>
+|     <table>
+|     <table>
+
+#data
+<table><select></table>
+#errors
+1:1: ERROR: Expected a doctype token
+1:8: ERROR: Start tag 'select' isn't allowed here. Currently open tags: html, body, table.
+#document
+| <html>
+|   <head>
+|   <body>
+|     <select>
+|     <table>
+
+#data
+<table><select><option>A<tr><td>B</td></tr></table>
+#errors
+1:1: ERROR: Expected a doctype token
+1:8: ERROR: Start tag 'select' isn't allowed here. Currently open tags: html, body, table.
+1:16: ERROR: Start tag 'option' isn't allowed here. Currently open tags: html, body, table, select.
+1:24: ERROR: Character tokens aren't legal here
+#document
+| <html>
+|   <head>
+|   <body>
+|     <select>
+|       <option>
+|         "A"
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             "B"
+
+#data
+<table><td></body></caption></col></colgroup></html>foo
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,11): unexpected-cell-in-table-body
+(1,18): unexpected-end-tag
+(1,28): unexpected-end-tag
+(1,34): unexpected-end-tag
+(1,45): unexpected-end-tag
+(1,52): unexpected-end-tag
+(1,55): expected-closing-tag-but-got-eof
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             "foo"
+
+#data
+<table><td>A</table>B
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,11): unexpected-cell-in-table-body
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             "A"
+|     "B"
+
+#data
+<table><tr><caption>
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,20): expected-closing-tag-but-got-eof
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|       <caption>
+
+#data
+<table><tr></body></caption></col></colgroup></html></td></th><td>foo
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,18): unexpected-end-tag-in-table-row
+(1,28): unexpected-end-tag-in-table-row
+(1,34): unexpected-end-tag-in-table-row
+(1,45): unexpected-end-tag-in-table-row
+(1,52): unexpected-end-tag-in-table-row
+(1,57): unexpected-end-tag-in-table-row
+(1,62): unexpected-end-tag-in-table-row
+(1,69): expected-closing-tag-but-got-eof
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             "foo"
+
+#data
+<table><td><tr>
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,11): unexpected-cell-in-table-body
+(1,15): eof-in-table
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|         <tr>
+
+#data
+<table><td><button><td>
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,11): unexpected-cell-in-table-body
+(1,23): unexpected-cell-end-tag
+(1,23): expected-closing-tag-but-got-eof
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             <button>
+|           <td>
+
+#data
+<table><tr><td><svg><desc><td>
+#errors
+(1,7): expected-doctype-but-got-start-tag
+(1,30): unexpected-cell-end-tag
+(1,30): expected-closing-tag-but-got-eof
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             <svg svg>
+|               <svg desc>
+|           <td>
+
+#data
+<div><table><svg><foreignObject><select><table><s>
+#errors
+1:1: Expected a doctype token
+1:13: 'svg' tag isn't allowed here. Currently open tags: html, body, div, table.
+1:33: 'select' tag isn't allowed here. Currently open tags: html, body, div, table, svg, foreignobject.
+1:41: 'table' tag isn't allowed here. Currently open tags: html, body, div, table, svg, foreignobject, select.
+1:48: 's' tag isn't allowed here. Currently open tags: html, body, div, table.
+1:51: Premature end of file. Currently open tags: html, body, div, table, s.
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       <svg svg>
+|         <svg foreignObject>
+|           <select>
+|       <table>
+|       <s>
+|       <table>
+
+#data
+<table>a<!doctype html>
+#errors
+(1,1): expected-doctype-but-got-start-tag
+(1,8): illegal-character-token
+(1,9): illegal-doctype
+(1,24): expected-closing-tag-but-got-eof
+#document
+| <html>
+|   <head>
+|   <body>
+|     "a"
+|     <table>

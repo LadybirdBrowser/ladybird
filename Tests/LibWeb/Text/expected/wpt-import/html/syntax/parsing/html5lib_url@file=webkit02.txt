@@ -1,0 +1,53 @@
+Harness status: OK
+
+Found 48 tests
+
+48 Pass
+Pass	<foo bar=qux/>
+Pass	<p id="status"><noscript><strong>A</strong></noscript><span>B</span></p>
+Pass	<div><sarcasm><div></div></sarcasm></div>
+Pass	<html><body><img src="" border="0" alt="><div>A</div></body></html>
+Pass	<table><td></tbody>A
+Pass	<table><td></thead>A
+Pass	<table><td></tfoot>A
+Pass	<table><thead><td></tbody>A
+Pass	<legend>test</legend>
+Pass	<table><input>
+Pass	<b><em><dcell><postfield><postfield><postfield><postfield><missing_glyph><missing_glyph><missing_glyph><missing_glyph><hkern><aside></b></em> (innerHTML in div)
+Pass	<b><em><foo><foo><aside></b>
+Pass	<b><em><foo><foo><aside></b></em>
+Pass	<b><em><foo><foo><foo><aside></b>
+Pass	<b><em><foo><foo><foo><aside></b></em>
+Pass	<b><em><foo><foo><foo><foo><foo><foo><foo><foo><foo><foo><aside></b></em> (innerHTML in div)
+Pass	<b><em><foo><foob><foob><foob><foob><fooc><fooc><fooc><fooc><food><aside></b></em> (innerHTML in div)
+Pass	<option><XH<optgroup></optgroup> (innerHTML in select)
+Pass	<svg><foreignObject><div>foo</div><plaintext></foreignObject></svg><div>bar</div>
+Pass	<svg><foreignObject></foreignObject><title></svg>foo
+Pass	</foreignObject><plaintext><div>foo</div>
+Pass	<svg xml:base xml:lang xml:space xml:baaah definitionurl>
+Pass	<math definitionurl xlink:title xlink:show>
+Pass	<math DEFINITIONURL>
+Pass	<select><hr>
+Pass	<select><option><hr>
+Pass	<select><optgroup><option><hr>
+Pass	<select><optgroup><hr>
+Pass	<select><option><optgroup><hr>
+Pass	<table><tr><td><select><hr>
+Pass	<table><tr><td><select><option><hr>
+Pass	<table><tr><td><select><optgroup><option><hr>
+Pass	<table><tr><td><select><optgroup><hr>
+Pass	<table><tr><td><select><option><optgroup><hr>
+Pass	<select><div><i></div><option>option
+Pass	<div><i></div><option>option
+Pass	<select><div>div 1</div><button>button</button><div>div 2</div><datalist><option>option</option></datalist><div>div 3</div></select>
+Pass	<select><button>button</select>
+Pass	<select><datalist>datalist</select>
+Pass	<select><button><select></select></button></select>
+Pass	<select><button><div><select></select>
+Pass	<select><div><option><img>option</option></div></select>
+Pass	<select><input>
+Pass	<select><button><selectedcontent></button><option>X
+Pass	<select><button><selectedcontent></button><option>x<i>i<b>ib</i>b
+Pass	<select><button><selectedcontent></button><option>X<option>Y
+Pass	<select><button><selectedcontent></button><option>X<option selected>Y
+Pass	<font><select><option>a</option></font></select>

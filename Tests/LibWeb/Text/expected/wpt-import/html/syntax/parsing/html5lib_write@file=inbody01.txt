@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	<button>1</foo>
+Pass	<foo>1<p>2</foo>
+Pass	<dd>1</foo>
+Pass	<foo>1<dd>2</foo>

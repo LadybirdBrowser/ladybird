@@ -1,0 +1,314 @@
+Harness status: OK
+
+Found 307 tests
+
+108 Pass
+199 Fail
+Fail	Processing instructions (fragment), markup: <?something>
+Fail	Processing instructions (iframe), markup: <?something>
+Fail	Processing instructions (DOMParser), markup: <?something>
+Fail	Processing instructions (fragment), markup: <?something><span>
+Fail	Processing instructions (iframe), markup: <?something><span>
+Fail	Processing instructions (DOMParser), markup: <?something><span>
+Fail	Processing instructions (fragment), markup: <?something good>
+Fail	Processing instructions (iframe), markup: <?something good>
+Fail	Processing instructions (DOMParser), markup: <?something good>
+Fail	Processing instructions (fragment), markup: <?something else is good>
+Fail	Processing instructions (iframe), markup: <?something else is good>
+Fail	Processing instructions (DOMParser), markup: <?something else is good>
+Fail	Processing instructions (fragment), markup: <?one><?two>
+Fail	Processing instructions (iframe), markup: <?one><?two>
+Fail	Processing instructions (DOMParser), markup: <?one><?two>
+Fail	Processing instructions (fragment), markup: <?a$><?b$><?good?>
+Fail	Processing instructions (iframe), markup: <?a$><?b$><?good?>
+Fail	Processing instructions (DOMParser), markup: <?a$><?b$><?good?>
+Fail	<?hey there?> should be equivalent to <?hey there>
+Fail	<?hey   there?> should be equivalent to <?hey there>
+Fail	<?hey?there> should be equivalent to <?hey ?there>
+Fail	<?hey	there=1?> should be equivalent to <?hey there=1>
+Fail	<?hey
+there=1?> should be equivalent to <?hey there=1>
+Fail	<?heythere=1?> should be equivalent to <?hey there=1>
+Fail	<?heythere=1?> should be equivalent to <?hey there=1>
+Fail	Processing instructions (fragment), markup: <?something ? >
+Fail	Processing instructions (iframe), markup: <?something ? >
+Fail	Processing instructions (DOMParser), markup: <?something ? >
+Fail	Processing instructions (fragment), markup: <?something x >
+Fail	Processing instructions (iframe), markup: <?something x >
+Fail	Processing instructions (DOMParser), markup: <?something x >
+Fail	Processing instructions (fragment), markup: <?something ?	   ??>
+Fail	Processing instructions (iframe), markup: <?something ?	   ??>
+Fail	Processing instructions (DOMParser), markup: <?something ?	   ??>
+Fail	Processing instructions (fragment), markup: <?t d > ?>
+Fail	Processing instructions (iframe), markup: <?t d > ?>
+Fail	Processing instructions (DOMParser), markup: <?t d > ?>
+Fail	Processing instructions (fragment), markup: <?module-handler>
+Fail	Processing instructions (iframe), markup: <?module-handler>
+Fail	Processing instructions (DOMParser), markup: <?module-handler>
+Fail	Processing instructions (fragment), markup: <?module-handler data>
+Fail	Processing instructions (iframe), markup: <?module-handler data>
+Fail	Processing instructions (DOMParser), markup: <?module-handler data>
+Fail	Processing instructions (fragment), markup: <?view-port>
+Fail	Processing instructions (iframe), markup: <?view-port>
+Fail	Processing instructions (DOMParser), markup: <?view-port>
+Fail	Processing instructions (fragment), markup: <?view-port data>
+Fail	Processing instructions (iframe), markup: <?view-port data>
+Fail	Processing instructions (DOMParser), markup: <?view-port data>
+Fail	Processing instructions (fragment), markup: <?config-v2>
+Fail	Processing instructions (iframe), markup: <?config-v2>
+Fail	Processing instructions (DOMParser), markup: <?config-v2>
+Fail	Processing instructions (fragment), markup: <?config-v2 data>
+Fail	Processing instructions (iframe), markup: <?config-v2 data>
+Fail	Processing instructions (DOMParser), markup: <?config-v2 data>
+Fail	Processing instructions (fragment), markup: <?x>
+Fail	Processing instructions (iframe), markup: <?x>
+Fail	Processing instructions (DOMParser), markup: <?x>
+Fail	Processing instructions (fragment), markup: <?x data>
+Fail	Processing instructions (iframe), markup: <?x data>
+Fail	Processing instructions (DOMParser), markup: <?x data>
+Fail	Processing instructions (fragment), markup: <?zz2op>
+Fail	Processing instructions (iframe), markup: <?zz2op>
+Fail	Processing instructions (DOMParser), markup: <?zz2op>
+Fail	Processing instructions (fragment), markup: <?zz2op data>
+Fail	Processing instructions (iframe), markup: <?zz2op data>
+Fail	Processing instructions (DOMParser), markup: <?zz2op data>
+Fail	Processing instructions (fragment), markup: <?xla->
+Fail	Processing instructions (iframe), markup: <?xla->
+Fail	Processing instructions (DOMParser), markup: <?xla->
+Fail	Processing instructions (fragment), markup: <?xla- data>
+Fail	Processing instructions (iframe), markup: <?xla- data>
+Fail	Processing instructions (DOMParser), markup: <?xla- data>
+Fail	Processing instructions (fragment), markup: <?a-b-c>
+Fail	Processing instructions (iframe), markup: <?a-b-c>
+Fail	Processing instructions (DOMParser), markup: <?a-b-c>
+Fail	Processing instructions (fragment), markup: <?a-b-c data>
+Fail	Processing instructions (iframe), markup: <?a-b-c data>
+Fail	Processing instructions (DOMParser), markup: <?a-b-c data>
+Fail	Processing instructions (fragment), markup: <?v-123>
+Fail	Processing instructions (iframe), markup: <?v-123>
+Fail	Processing instructions (DOMParser), markup: <?v-123>
+Fail	Processing instructions (fragment), markup: <?v-123 data>
+Fail	Processing instructions (iframe), markup: <?v-123 data>
+Fail	Processing instructions (DOMParser), markup: <?v-123 data>
+Fail	Processing instructions (fragment), markup: <?a0-b1-c2>
+Fail	Processing instructions (iframe), markup: <?a0-b1-c2>
+Fail	Processing instructions (DOMParser), markup: <?a0-b1-c2>
+Fail	Processing instructions (fragment), markup: <?a0-b1-c2 data>
+Fail	Processing instructions (iframe), markup: <?a0-b1-c2 data>
+Fail	Processing instructions (DOMParser), markup: <?a0-b1-c2 data>
+Fail	Processing instructions (fragment), markup: <?page-404>
+Fail	Processing instructions (iframe), markup: <?page-404>
+Fail	Processing instructions (DOMParser), markup: <?page-404>
+Fail	Processing instructions (fragment), markup: <?page-404 data>
+Fail	Processing instructions (iframe), markup: <?page-404 data>
+Fail	Processing instructions (DOMParser), markup: <?page-404 data>
+Fail	Processing instructions (fragment), markup: <?r2-d2>
+Fail	Processing instructions (iframe), markup: <?r2-d2>
+Fail	Processing instructions (DOMParser), markup: <?r2-d2>
+Fail	Processing instructions (fragment), markup: <?r2-d2 data>
+Fail	Processing instructions (iframe), markup: <?r2-d2 data>
+Fail	Processing instructions (DOMParser), markup: <?r2-d2 data>
+Fail	Processing instructions (fragment), markup: <?level-99>
+Fail	Processing instructions (iframe), markup: <?level-99>
+Fail	Processing instructions (DOMParser), markup: <?level-99>
+Fail	Processing instructions (fragment), markup: <?level-99 data>
+Fail	Processing instructions (iframe), markup: <?level-99 data>
+Fail	Processing instructions (DOMParser), markup: <?level-99 data>
+Fail	Processing instructions (fragment), markup: <?UPPERCASE>
+Fail	Processing instructions (iframe), markup: <?UPPERCASE>
+Fail	Processing instructions (DOMParser), markup: <?UPPERCASE>
+Fail	Processing instructions (fragment), markup: <?UPPERCASE data>
+Fail	Processing instructions (iframe), markup: <?UPPERCASE data>
+Fail	Processing instructions (DOMParser), markup: <?UPPERCASE data>
+Fail	Processing instructions (fragment), markup: <?all-KINDS-of-CaSeS>
+Fail	Processing instructions (iframe), markup: <?all-KINDS-of-CaSeS>
+Fail	Processing instructions (DOMParser), markup: <?all-KINDS-of-CaSeS>
+Fail	Processing instructions (fragment), markup: <?all-KINDS-of-CaSeS data>
+Fail	Processing instructions (iframe), markup: <?all-KINDS-of-CaSeS data>
+Fail	Processing instructions (DOMParser), markup: <?all-KINDS-of-CaSeS data>
+Fail	Processing instructions (fragment), markup: <?user_name>
+Fail	Processing instructions (iframe), markup: <?user_name>
+Fail	Processing instructions (DOMParser), markup: <?user_name>
+Fail	Processing instructions (fragment), markup: <?user_name data>
+Fail	Processing instructions (iframe), markup: <?user_name data>
+Fail	Processing instructions (DOMParser), markup: <?user_name data>
+Fail	Processing instructions (fragment), markup: <?S_S-S_S>
+Fail	Processing instructions (iframe), markup: <?S_S-S_S>
+Fail	Processing instructions (DOMParser), markup: <?S_S-S_S>
+Fail	Processing instructions (fragment), markup: <?S_S-S_S data>
+Fail	Processing instructions (iframe), markup: <?S_S-S_S data>
+Fail	Processing instructions (DOMParser), markup: <?S_S-S_S data>
+Fail	Processing instructions (fragment), markup: <?b_>
+Fail	Processing instructions (iframe), markup: <?b_>
+Fail	Processing instructions (DOMParser), markup: <?b_>
+Fail	Processing instructions (fragment), markup: <?b_ data>
+Fail	Processing instructions (iframe), markup: <?b_ data>
+Fail	Processing instructions (DOMParser), markup: <?b_ data>
+Fail	Processing instructions (fragment), markup: <?_prefix>
+Fail	Processing instructions (iframe), markup: <?_prefix>
+Fail	Processing instructions (DOMParser), markup: <?_prefix>
+Fail	Processing instructions (fragment), markup: <?_prefix data>
+Fail	Processing instructions (iframe), markup: <?_prefix data>
+Fail	Processing instructions (DOMParser), markup: <?_prefix data>
+Fail	Processing instructions (fragment), markup: <?_x132>
+Fail	Processing instructions (iframe), markup: <?_x132>
+Fail	Processing instructions (DOMParser), markup: <?_x132>
+Fail	Processing instructions (fragment), markup: <?_x132 data>
+Fail	Processing instructions (iframe), markup: <?_x132 data>
+Fail	Processing instructions (DOMParser), markup: <?_x132 data>
+Fail	Processing instructions (fragment), markup: <?_-_>
+Fail	Processing instructions (iframe), markup: <?_-_>
+Fail	Processing instructions (DOMParser), markup: <?_-_>
+Fail	Processing instructions (fragment), markup: <?_-_ data>
+Fail	Processing instructions (iframe), markup: <?_-_ data>
+Fail	Processing instructions (DOMParser), markup: <?_-_ data>
+Fail	Processing instructions (fragment), markup: <?_>
+Fail	Processing instructions (iframe), markup: <?_>
+Fail	Processing instructions (DOMParser), markup: <?_>
+Fail	Processing instructions (fragment), markup: <?_ data>
+Fail	Processing instructions (iframe), markup: <?_ data>
+Fail	Processing instructions (DOMParser), markup: <?_ data>
+Fail	Processing instructions (fragment), markup: <?A---------------->
+Fail	Processing instructions (iframe), markup: <?A---------------->
+Fail	Processing instructions (DOMParser), markup: <?A---------------->
+Fail	Processing instructions (fragment), markup: <?A---------------- data>
+Fail	Processing instructions (iframe), markup: <?A---------------- data>
+Fail	Processing instructions (DOMParser), markup: <?A---------------- data>
+Fail	Processing instructions (fragment), markup: <?z0123456789>
+Fail	Processing instructions (iframe), markup: <?z0123456789>
+Fail	Processing instructions (DOMParser), markup: <?z0123456789>
+Fail	Processing instructions (fragment), markup: <?z0123456789 data>
+Fail	Processing instructions (iframe), markup: <?z0123456789 data>
+Fail	Processing instructions (DOMParser), markup: <?z0123456789 data>
+Fail	Processing instructions (fragment), markup: <?m-0>
+Fail	Processing instructions (iframe), markup: <?m-0>
+Fail	Processing instructions (DOMParser), markup: <?m-0>
+Fail	Processing instructions (fragment), markup: <?m-0 data>
+Fail	Processing instructions (iframe), markup: <?m-0 data>
+Fail	Processing instructions (DOMParser), markup: <?m-0 data>
+Pass	Processing instructions (fragment), markup: <?xml>
+Pass	Processing instructions (iframe), markup: <?xml>
+Pass	Processing instructions (DOMParser), markup: <?xml>
+Pass	Processing instructions (fragment), markup: <?xml-stylesheet>
+Pass	Processing instructions (iframe), markup: <?xml-stylesheet>
+Pass	Processing instructions (DOMParser), markup: <?xml-stylesheet>
+Pass	Processing instructions (fragment), markup: <?XML>
+Pass	Processing instructions (iframe), markup: <?XML>
+Pass	Processing instructions (DOMParser), markup: <?XML>
+Pass	Processing instructions (fragment), markup: <?XML-stylesheet>
+Pass	Processing instructions (iframe), markup: <?XML-stylesheet>
+Pass	Processing instructions (DOMParser), markup: <?XML-stylesheet>
+Pass	Processing instructions (fragment), markup: <?xML>
+Pass	Processing instructions (iframe), markup: <?xML>
+Pass	Processing instructions (DOMParser), markup: <?xML>
+Pass	Processing instructions (fragment), markup: <?xml-STYLesheet>
+Pass	Processing instructions (iframe), markup: <?xml-STYLesheet>
+Pass	Processing instructions (DOMParser), markup: <?xml-STYLesheet>
+Pass	Processing instructions (fragment), markup: <?1st-place>
+Pass	Processing instructions (iframe), markup: <?1st-place>
+Pass	Processing instructions (DOMParser), markup: <?1st-place>
+Pass	Processing instructions (fragment), markup: <?2-factor>
+Pass	Processing instructions (iframe), markup: <?2-factor>
+Pass	Processing instructions (DOMParser), markup: <?2-factor>
+Pass	Processing instructions (fragment), markup: <?99-problems>
+Pass	Processing instructions (iframe), markup: <?99-problems>
+Pass	Processing instructions (DOMParser), markup: <?99-problems>
+Pass	Processing instructions (fragment), markup: <?٥-star>
+Pass	Processing instructions (iframe), markup: <?٥-star>
+Pass	Processing instructions (DOMParser), markup: <?٥-star>
+Pass	Processing instructions (fragment), markup: <?-prefix>
+Pass	Processing instructions (iframe), markup: <?-prefix>
+Pass	Processing instructions (DOMParser), markup: <?-prefix>
+Pass	Processing instructions (fragment), markup: <?--internal>
+Pass	Processing instructions (iframe), markup: <?--internal>
+Pass	Processing instructions (DOMParser), markup: <?--internal>
+Pass	Processing instructions (fragment), markup: <?-data->
+Pass	Processing instructions (iframe), markup: <?-data->
+Pass	Processing instructions (DOMParser), markup: <?-data->
+Pass	Processing instructions (fragment), markup: <?-100>
+Pass	Processing instructions (iframe), markup: <?-100>
+Pass	Processing instructions (DOMParser), markup: <?-100>
+Pass	Processing instructions (fragment), markup: <?·middle-dot>
+Pass	Processing instructions (iframe), markup: <?·middle-dot>
+Pass	Processing instructions (DOMParser), markup: <?·middle-dot>
+Pass	Processing instructions (fragment), markup: <?͵greek-numeral>
+Pass	Processing instructions (iframe), markup: <?͵greek-numeral>
+Pass	Processing instructions (DOMParser), markup: <?͵greek-numeral>
+Pass	Processing instructions (fragment), markup: <?́accent-start>
+Pass	Processing instructions (iframe), markup: <?́accent-start>
+Pass	Processing instructions (DOMParser), markup: <?́accent-start>
+Pass	Processing instructions (fragment), markup: <?price$value>
+Pass	Processing instructions (iframe), markup: <?price$value>
+Pass	Processing instructions (DOMParser), markup: <?price$value>
+Pass	Processing instructions (fragment), markup: <?user@domain>
+Pass	Processing instructions (iframe), markup: <?user@domain>
+Pass	Processing instructions (DOMParser), markup: <?user@domain>
+Pass	Processing instructions (fragment), markup: <?tag#id>
+Pass	Processing instructions (iframe), markup: <?tag#id>
+Pass	Processing instructions (DOMParser), markup: <?tag#id>
+Pass	Processing instructions (fragment), markup: <?a+b>
+Pass	Processing instructions (iframe), markup: <?a+b>
+Pass	Processing instructions (DOMParser), markup: <?a+b>
+Pass	Processing instructions (fragment), markup: <?100%>
+Pass	Processing instructions (iframe), markup: <?100%>
+Pass	Processing instructions (DOMParser), markup: <?100%>
+Pass	Processing instructions (fragment), markup: <?data.v1>
+Pass	Processing instructions (iframe), markup: <?data.v1>
+Pass	Processing instructions (DOMParser), markup: <?data.v1>
+Pass	Processing instructions (fragment), markup: <?namespace:tag>
+Pass	Processing instructions (iframe), markup: <?namespace:tag>
+Pass	Processing instructions (DOMParser), markup: <?namespace:tag>
+Pass	Processing instructions (fragment), markup: <?error!code>
+Pass	Processing instructions (iframe), markup: <?error!code>
+Pass	Processing instructions (DOMParser), markup: <?error!code>
+Pass	Processing instructions (fragment), markup: <?x=y>
+Pass	Processing instructions (iframe), markup: <?x=y>
+Pass	Processing instructions (DOMParser), markup: <?x=y>
+Pass	Processing instructions (fragment), markup: <?a<b>
+Pass	Processing instructions (iframe), markup: <?a<b>
+Pass	Processing instructions (DOMParser), markup: <?a<b>
+Pass	Processing instructions (fragment), markup: <?true&false>
+Pass	Processing instructions (iframe), markup: <?true&false>
+Pass	Processing instructions (DOMParser), markup: <?true&false>
+Pass	Processing instructions (fragment), markup: <?not|or>
+Pass	Processing instructions (iframe), markup: <?not|or>
+Pass	Processing instructions (DOMParser), markup: <?not|or>
+Pass	Processing instructions (fragment), markup: <?lit$123456789>
+Pass	Processing instructions (iframe), markup: <?lit$123456789>
+Pass	Processing instructions (DOMParser), markup: <?lit$123456789>
+Pass	Processing instructions (fragment), markup: <?lit$$4x>
+Pass	Processing instructions (iframe), markup: <?lit$$4x>
+Pass	Processing instructions (DOMParser), markup: <?lit$$4x>
+Pass	Processing instructions (fragment), markup: <?🚀-launch>
+Pass	Processing instructions (iframe), markup: <?🚀-launch>
+Pass	Processing instructions (DOMParser), markup: <?🚀-launch>
+Pass	Processing instructions (fragment), markup: <?error-⚠️>
+Pass	Processing instructions (iframe), markup: <?error-⚠️>
+Pass	Processing instructions (DOMParser), markup: <?error-⚠️>
+Pass	Processing instructions (fragment), markup: <?fire-🔥>
+Pass	Processing instructions (iframe), markup: <?fire-🔥>
+Pass	Processing instructions (DOMParser), markup: <?fire-🔥>
+Pass	Processing instructions (fragment), markup: <?v1-✅>
+Pass	Processing instructions (iframe), markup: <?v1-✅>
+Pass	Processing instructions (DOMParser), markup: <?v1-✅>
+Fail	Processing instructions (fragment), markup: <?start
+Fail	Processing instructions (iframe), markup: <?start
+Fail	Processing instructions (DOMParser), markup: <?start
+Fail	Processing instructions (fragment), markup: <?start?
+Fail	Processing instructions (iframe), markup: <?start?
+Fail	Processing instructions (DOMParser), markup: <?start?
+Fail	Processing instructions (fragment), markup: <?start 
+Fail	Processing instructions (iframe), markup: <?start 
+Fail	Processing instructions (DOMParser), markup: <?start 
+Fail	Processing instructions (fragment), markup: <?start data
+Fail	Processing instructions (iframe), markup: <?start data
+Fail	Processing instructions (DOMParser), markup: <?start data
+Fail	Processing instructions (fragment), markup: <?start ? ?
+Fail	Processing instructions (iframe), markup: <?start ? ?
+Fail	Processing instructions (DOMParser), markup: <?start ? ?
+Fail	Processing instructions (fragment), markup: <?
+Fail	Processing instructions (iframe), markup: <?
+Fail	Processing instructions (DOMParser), markup: <?
+Pass	Processing instructions (fragment), markup: <? 
+Pass	Processing instructions (iframe), markup: <? 
+Pass	Processing instructions (DOMParser), markup: <? 

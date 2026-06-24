@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	FOO<script>'Hello'</script>BAR
+Pass	FOO<script></script>BAR
+Pass	FOO<script></script >BAR
+Pass	FOO<script></script/>BAR
+Pass	FOO<script></script/ >BAR
+Pass	FOO<script type="text/plain"></scriptx>BAR
+Pass	FOO<script></script foo=">" dd>BAR
+Pass	FOO<script>'<'</script>BAR
+Pass	FOO<script>'<!'</script>BAR
+Pass	FOO<script>'<!-'</script>BAR
+Pass	FOO<script>'<!--'</script>BAR
+Pass	FOO<script>'<!---'</script>BAR
+Pass	FOO<script>'<!-->'</script>BAR
+Pass	FOO<script>'<!-- potato'</script>BAR
+Pass	FOO<script>'<!-- <sCrIpt'</script>BAR
+Pass	FOO<script type="text/plain">'<!-- <sCrIpt>'</script>BAR
+Pass	FOO<script type="text/plain">'<!-- <sCrIpt> -'</script>BAR
+Pass	FOO<script type="text/plain">'<!-- <sCrIpt> --'</script>BAR
+Pass	FOO<script>'<!-- <sCrIpt> -->'</script>BAR
+Pass	FOO<script type="text/plain">'<!-- <sCrIpt> --!>'</script>BAR
+Pass	FOO<script type="text/plain">'<!-- <sCrIpt> -- >'</script>BAR
+Pass	FOO<script type="text/plain">'<!-- <sCrIpt '</script>BAR
+Pass	FOO<script type="text/plain">'<!-- <sCrIpt/'</script>BAR
+Pass	FOO<script type="text/plain">'<!-- <sCrIpt\'</script>BAR
+Pass	FOO<script type="text/plain">'<!-- <sCrIpt/'</script>BAR</script>QUX
+Pass	FOO<script><!--<script>-></script>--></script>QUX

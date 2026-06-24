@@ -1,0 +1,59 @@
+Harness status: OK
+
+Found 54 tests
+
+54 Pass
+Pass	<!DOCTYPE html><svg></svg>
+Pass	<!DOCTYPE html><svg></svg><![CDATA[a]]>
+Pass	<!DOCTYPE html><body><svg></svg>
+Pass	<!DOCTYPE html><body><select><svg></svg></select>
+Pass	<!DOCTYPE html><body><select><option><svg></svg></option></select>
+Pass	<!DOCTYPE html><body><table><svg></svg></table>
+Pass	<!DOCTYPE html><body><table><svg><g>foo</g></svg></table>
+Pass	<!DOCTYPE html><body><table><svg><g>foo</g><g>bar</g></svg></table>
+Pass	<!DOCTYPE html><body><table><tbody><svg><g>foo</g><g>bar</g></svg></tbody></table>
+Pass	<!DOCTYPE html><body><table><tbody><tr><svg><g>foo</g><g>bar</g></svg></tr></tbody></table>
+Pass	<!DOCTYPE html><body><table><tbody><tr><td><svg><g>foo</g><g>bar</g></svg></td></tr></tbody></table>
+Pass	<!DOCTYPE html><body><table><tbody><tr><td><svg><g>foo</g><g>bar</g></svg><p>baz</td></tr></tbody></table>
+Pass	<!DOCTYPE html><body><table><caption><svg><g>foo</g><g>bar</g></svg><p>baz</caption></table>
+Pass	<!DOCTYPE html><body><table><caption><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
+Pass	<!DOCTYPE html><body><table><caption><svg><g>foo</g><g>bar</g>baz</table><p>quux
+Pass	<!DOCTYPE html><body><table><colgroup><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
+Pass	<!DOCTYPE html><body><table><tr><td><select><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
+Pass	<!DOCTYPE html><body><table><select><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
+Pass	<!DOCTYPE html><body></body></html><svg><g>foo</g><g>bar</g><p>baz
+Pass	<!DOCTYPE html><body></body><svg><g>foo</g><g>bar</g><p>baz
+Pass	<!DOCTYPE html><frameset><svg><g></g><g></g><p><span>
+Pass	<!DOCTYPE html><frameset></frameset><svg><g></g><g></g><p><span>
+Pass	<!DOCTYPE html><body xlink:href=foo><svg xlink:href=foo></svg>
+Pass	<!DOCTYPE html><body xlink:href=foo xml:lang=en><svg><g xml:lang=en xlink:href=foo></g></svg>
+Pass	<!DOCTYPE html><body xlink:href=foo xml:lang=en><svg><g xml:lang=en xlink:href=foo /></svg>
+Pass	<!DOCTYPE html><body xlink:href=foo xml:lang=en><svg><g xml:lang=en xlink:href=foo />bar</svg>
+Pass	<svg></path>
+Pass	<div><svg></div>a
+Pass	<div><svg><path></div>a
+Pass	<div><svg><path></svg><path>
+Pass	<div><svg><path><foreignObject><math></div>a
+Pass	<div><svg><path><foreignObject><p></div>a
+Pass	<!DOCTYPE html><svg><desc><div><svg><ul>a
+Pass	<!DOCTYPE html><svg><desc><svg><ul>a
+Pass	<!DOCTYPE html><p><svg><desc><p>
+Pass	<!DOCTYPE html><p><svg><title><p>
+Pass	<div><svg><path><foreignObject><p></foreignObject><p>
+Pass	<math><mi><div><object><div><span></span></div></object></div></mi><mi>
+Pass	<math><mi><svg><foreignObject><div><div></div></div></foreignObject></svg></mi><mi>
+Pass	<svg><script></script><path>
+Pass	<table><svg></svg><tr>
+Pass	<math><mi><mglyph>
+Pass	<math><mi><malignmark>
+Pass	<math><mo><mglyph>
+Pass	<math><mo><malignmark>
+Pass	<math><mn><mglyph>
+Pass	<math><mn><malignmark>
+Pass	<math><ms><mglyph>
+Pass	<math><ms><malignmark>
+Pass	<math><mtext><mglyph>
+Pass	<math><mtext><malignmark>
+Pass	<math><annotation-xml><svg></svg></annotation-xml><mi>
+Pass	<math><annotation-xml><svg><foreignObject><div><math><mi></mi></math><span></span></div></foreignObject><path></path></svg></annotation-xml><mi>
+Pass	<math><annotation-xml><svg><foreignObject><math><mi><svg></svg></mi><mo></mo></math><span></span></foreignObject><path></path></svg></annotation-xml><mi>

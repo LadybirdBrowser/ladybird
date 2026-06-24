@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	<p><font size=4><font color=red><font size=4><font size=4><font size=4><font size=4><font size=4><font color=red><p>X
+Pass	<p><font size=4><font size=4><font size=4><font size=4><p>X
+Pass	<p><font size=4><font size=4><font size=4><font size="5"><font size=4><p>X
+Pass	<p><font size=4 id=a><font size=4 id=b><font size=4><font size=4><p>X
+Pass	<p><b id=a><b id=a><b id=a><b><object><b id=a><b id=a>X</object><p>Y

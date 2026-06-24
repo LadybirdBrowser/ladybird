@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	<!doctype html><p>foo<search>bar<p>baz
+Pass	<!doctype html><search><p>foo</search>bar
+Pass	<!DOCTYPE html>xxx<svg><x><g><a><search><b>
