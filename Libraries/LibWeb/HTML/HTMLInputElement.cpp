@@ -232,10 +232,17 @@ void HTMLInputElement::set_checked_binding(bool checked)
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-indeterminate
+bool HTMLInputElement::indeterminate() const
+{
+    // The indeterminate getter steps are to return this's indeterminateness.
+    return m_indeterminateness;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#dom-input-indeterminate
 void HTMLInputElement::set_indeterminate(bool value)
 {
-    // On setting, it must be set to the new value. It has no effect except for changing the appearance of checkbox controls.
-    m_indeterminate = value;
+    // The indeterminate setter steps are to set this's indeterminateness to the given value.
+    m_indeterminateness = value;
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-list
@@ -2184,15 +2191,14 @@ WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool subtree
 {
     TRY(Base::cloned(copy, subtree));
 
-    // The cloning steps for input elements given node, copy, and subtree are to propagate the value, dirty value flag, checkedness, and dirty checkedness flag from node to copy.
+    // The cloning steps for input elements given node, copy, and subtree are to propagate the value, dirty value flag,
+    // checkedness, dirty checkedness flag, and indeterminateness from node to copy.
     auto& input_clone = as<HTMLInputElement>(copy);
     input_clone.m_value = m_value;
     input_clone.m_dirty_value = m_dirty_value;
     input_clone.m_checked = m_checked;
     input_clone.m_dirty_checkedness = m_dirty_checkedness;
-
-    // AD-HOC: The spec doesn't mention propagating this state, but there is a WPT test that expects cloned nodes to preserve it.
-    input_clone.m_indeterminate = m_indeterminate;
+    input_clone.m_indeterminateness = m_indeterminateness;
 
     return {};
 }
@@ -2245,19 +2251,17 @@ void HTMLInputElement::legacy_pre_activation_behavior()
     m_before_legacy_pre_activation_behavior_checked = checked();
     m_before_legacy_pre_activation_behavior_indeterminate = indeterminate();
 
-    // 1. If this element's type attribute is in the Checkbox state, then set
-    // this element's checkedness to its opposite value (i.e. true if it is
-    // false, false if it is true) and set this element's indeterminate IDL
-    // attribute to false.
+    // 1. If this element's type attribute is in the Checkbox state, then set this element's checkedness to its
+    //    opposite value (i.e. true if it is false, false if it is true) and set this element's indeterminateness to
+    //    false.
     if (type_state() == TypeAttributeState::Checkbox) {
         set_checked(!checked());
         set_indeterminate(false);
     }
 
-    // 2. If this element's type attribute is in the Radio Button state, then
-    // get a reference to the element in this element's radio button group that
-    // has its checkedness set to true, if any, and then set this element's
-    // checkedness to true.
+    // 2. If this element's type attribute is in the Radio Button state, then get a reference to the element in this
+    //    element's radio button group that has its checkedness set to true, if any, and then set this element's
+    //    checkedness to true.
     if (type_state() == TypeAttributeState::RadioButton) {
         root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
             if (element.checked() && is_in_same_radio_button_group(*this, element)) {
@@ -2274,22 +2278,18 @@ void HTMLInputElement::legacy_pre_activation_behavior()
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element:legacy-canceled-activation-behavior
 void HTMLInputElement::legacy_cancelled_activation_behavior()
 {
-    // 1. If the element's type attribute is in the Checkbox state, then set the
-    // element's checkedness and the element's indeterminate IDL attribute back
-    // to the values they had before the legacy-pre-activation behavior was run.
+    // 1. If the element's type attribute is in the Checkbox state, then set the element's checkedness and the
+    //    element's indeterminateness back to the values they had before the legacy-pre-activation behavior was run.
     if (type_state() == TypeAttributeState::Checkbox) {
         set_checked(m_before_legacy_pre_activation_behavior_checked);
         set_indeterminate(m_before_legacy_pre_activation_behavior_indeterminate);
     }
 
-    // 2. If this element's type attribute is in the Radio Button state, then
-    // if the element to which a reference was obtained in the
-    // legacy-pre-activation behavior, if any, is still in what is now this
-    // element' s radio button group, if it still has one, and if so, set
-    // that element 's checkedness to true; or else, if there was no such
-    // element, or that element is no longer in this element' s radio button
-    // group, or if this element no longer has a radio button group, set
-    // this element's checkedness to false.
+    // 2. If this element's type attribute is in the Radio Button state, then if the element to which a reference was
+    //    obtained in the legacy-pre-activation behavior, if any, is still in what is now this element' s radio button
+    //    group, if it still has one, and if so, set that element 's checkedness to true; or else, if there was no such
+    //    element, or that element is no longer in this element' s radio button group, or if this element no longer has
+    //    a radio button group, set this element's checkedness to false.
     if (type_state() == TypeAttributeState::RadioButton) {
         bool did_reselect_previous_element = false;
         if (m_legacy_pre_activation_behavior_checked_element_in_group) {

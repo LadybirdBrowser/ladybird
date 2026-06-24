@@ -107,7 +107,7 @@ public:
     bool checked_binding() const { return checked(); }
     void set_checked_binding(bool);
 
-    bool indeterminate() const { return m_indeterminate; }
+    bool indeterminate() const;
     void set_indeterminate(bool);
 
     bool can_have_text_editing_cursor() const;
@@ -376,8 +376,8 @@ private:
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 
-    // https://html.spec.whatwg.org/multipage/input.html#dom-input-indeterminate
-    bool m_indeterminate { false };
+    // https://html.spec.whatwg.org/multipage/input.html#concept-input-indeterminate
+    bool m_indeterminateness { false };
 
     // https://html.spec.whatwg.org/multipage/input.html#concept-input-checked-dirty-flag
     bool m_dirty_checkedness { false };
