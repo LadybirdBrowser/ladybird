@@ -12,7 +12,7 @@
 namespace Web::Animations {
 
 struct TimeValue {
-    static TimeValue from_css_numberish(CSS::CSSNumberish const&, DOM::AbstractElement const&);
+    static TimeValue from_css_numberish(CSS::CSSNumberish const&, CSS::ComputationContext const&);
     static TimeValue create_zero(GC::Ptr<AnimationTimeline> const& timeline);
 
     enum class Type : u8 {

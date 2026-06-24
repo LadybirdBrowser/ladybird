@@ -14,6 +14,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
+#include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -266,7 +268,13 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
 
     // FIXME: Figure out which element we should use for this, for now we just use the document element of the current
     //        window
-    return TimeValue::from_css_numberish(time.downcast<double, GC::Ref<CSS::CSSNumericValue>>(), DOM::AbstractElement { *as<HTML::Window>(realm().global_object()).associated_document().document_element() });
+    auto& document = as<HTML::Window>(realm().global_object()).associated_document();
+    CSS::ComputationContext computation_context {
+        .length_resolution_context = CSS::Length::ResolutionContext::for_document(document),
+    };
+    if (auto const* document_element = document.document_element())
+        computation_context.abstract_element = DOM::AbstractElement { *document_element };
+    return TimeValue::from_css_numberish(time.downcast<double, GC::Ref<CSS::CSSNumericValue>>(), computation_context);
 
     VERIFY_NOT_REACHED();
 }
