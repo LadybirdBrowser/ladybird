@@ -380,13 +380,19 @@ if (DEFINED ASMINT_ARCH)
     # clang-21 in GNU builds). asmintgen is a pure Rust host tool.
     add_custom_command(
         OUTPUT "${ASMINTGEN_BIN}"
-        COMMAND ${CMAKE_COMMAND} -E env
+        COMMAND ${CMAKE_COMMAND}
+            -DLOG=${CMAKE_CURRENT_BINARY_DIR}/cargo-asmintgen.log
+            -P "${LADYBIRD_SOURCE_DIR}/Meta/CMake/run_quiet.cmake"
+            --
+            ${CMAKE_COMMAND} -E env
             --unset=CC
             --unset=CXX
             --unset=CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
             --unset=CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER
+            CARGO_TERM_PROGRESS_WHEN=never TERM=dumb
             cargo build --release
         WORKING_DIRECTORY "${ASMINTGEN_DIR}"
+	 JOB_POOL cargo
         DEPENDS ${ASMINTGEN_SOURCES}
         COMMENT "Building asmintgen"
     )

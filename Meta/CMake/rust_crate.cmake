@@ -6,6 +6,8 @@
 # When corrosion supports dependency tracking, we can use corrosion_import_crate() instead of this function. See:
 # https://github.com/corrosion-rs/corrosion/issues/206
 # https://github.com/corrosion-rs/corrosion/issues/624
+set_property(GLOBAL PROPERTY JOB_POOLS "${JOB_POOLS};cargo=1")
+
 function(import_rust_crate)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "FEATURES")
 
@@ -38,8 +40,11 @@ function(import_rust_crate)
 
     add_custom_command(
         OUTPUT "${output_lib}" ${ffi_output}
-        COMMAND
-            ${CMAKE_COMMAND} -E env ${cargo_env}
+        COMMAND ${CMAKE_COMMAND}
+            -DLOG=${cargo_output_dir}/cargo-${ARG_CRATE_NAME}.log
+            -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/run_quiet.cmake"
+            --
+            ${CMAKE_COMMAND} -E env ${cargo_env} CARGO_TERM_PROGRESS_WHEN=never TERM=dumb
             "${RUST_CARGO}"
                 rustc
                 --lib
@@ -57,7 +62,7 @@ function(import_rust_crate)
             "${RUST_RUSTC}" "${CMAKE_SOURCE_DIR}/rust-toolchain.toml"
         DEPFILE "${depfile}"
         COMMENT "Building Rust crate ${ARG_CRATE_NAME}"
-        USES_TERMINAL
+        JOB_POOL cargo
         COMMAND_EXPAND_LISTS
     )
 
@@ -100,8 +105,11 @@ function(build_rust_binary)
 
     add_custom_command(
         OUTPUT "${output_binary}"
-        COMMAND
-            ${CMAKE_COMMAND} -E env ${cargo_env}
+        COMMAND ${CMAKE_COMMAND}
+            -DLOG=${cargo_output_dir}/cargo-${ARG_CRATE_NAME}.log
+            -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/run_quiet.cmake"
+            --
+            ${CMAKE_COMMAND} -E env ${cargo_env} CARGO_TERM_PROGRESS_WHEN=never TERM=dumb
             "${RUST_CARGO}"
                 rustc
                 --bin ${ARG_BINARY_NAME}
@@ -112,7 +120,7 @@ function(build_rust_binary)
             "${RUST_RUSTC}" "${CMAKE_SOURCE_DIR}/rust-toolchain.toml"
         DEPFILE "${depfile}"
         COMMENT "Building Rust binary ${ARG_BINARY_NAME}"
-        USES_TERMINAL
+        JOB_POOL cargo
         COMMAND_EXPAND_LISTS
     )
 
