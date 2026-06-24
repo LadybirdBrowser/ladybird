@@ -146,6 +146,15 @@ function(_rust_crate_common_setup)
     # Detect the Rust toolchain.
     find_program(RUST_CARGO cargo REQUIRED)
     find_program(RUST_RUSTC rustc REQUIRED)
+    if (NOT DEFINED RUSTC_WRAPPER)
+        set(RUSTC_WRAPPER "$ENV{RUSTC_WRAPPER}" CACHE FILEPATH "Path to a rustc wrapper program, e.g. sccache")
+    endif()
+    if (NOT RUSTC_WRAPPER)
+        find_program(SCCACHE_PROGRAM sccache)
+        if (SCCACHE_PROGRAM)
+            set(RUSTC_WRAPPER "${SCCACHE_PROGRAM}" CACHE FILEPATH "Path to a rustc wrapper program, e.g. sccache" FORCE)
+        endif()
+    endif()
     if (NOT DEFINED CACHE{RUST_TARGET_TRIPLE})
         execute_process(COMMAND "${RUST_RUSTC}" -vV OUTPUT_VARIABLE rustc_verbose)
         string(REGEX MATCH "host: ([^\n]+)" _ "${rustc_verbose}")
@@ -176,6 +185,13 @@ function(_rust_crate_common_setup)
         "CXX_${target_underscore}=${CMAKE_CXX_COMPILER}"
         "CARGO_BUILD_RUSTC=${RUST_RUSTC}"
     )
+
+    if (RUSTC_WRAPPER)
+        list(APPEND cargo_env
+            "RUSTC_WRAPPER=${RUSTC_WRAPPER}"
+            "CARGO_INCREMENTAL=0"
+        )
+    endif()
 
     if (ARG_FFI_OUTPUT_DIR)
         list(APPEND cargo_env "FFI_OUTPUT_DIR=${ARG_FFI_OUTPUT_DIR}")
