@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	Ignore HEAD token. Test empty HEAD element assigned to template innerHTML
+Pass	Ignore HEAD token. Test not empty HEAD element assigned to template innerHTML
+Pass	Ignore HEAD token. Test HEAD element and some valid element before it, assigned to template innerHTML
+Pass	Ignore HEAD token. Test HEAD element and some valid element after it, assigned to template innerHTML
+Pass	Ignore HEAD token. Test HEAD tag inside template tag assigned to another template's innerHTML
+Fail	Ignore HEAD token. Test loading a HTML file with HEAD tag inside template

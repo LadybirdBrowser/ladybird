@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>HTML Templates: Template end tag without start one. Element should be ignored</title>
+<meta name="author" title="Sergey G. Grekhov" href="mailto:sgrekhov@unipro.ru">
+<meta name="author" title="Aleksei Yu. Semenov" href="a.semenov@unipro.ru">
+<meta name="assert" content="If parser in 'in head' insertion mode meets template end tag and if the stack of open elements has no template element in html scope, then this is a parse error; ignore the token">
+<link rel="help" href="http://www.w3.org/TR/2013/WD-html-templates-20130214/#in-head-addition">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../html/resources/common.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script type="text/javascript">
+
+
+test(function () {
+    var doc = newHTMLDocument();
+
+    doc.head.innerHTML = '</template>';
+
+    assert_equals(doc.head.childNodes.length, 0, 'Element must be ignored');
+
+}, '</template> tag in HTML head without start one should be ignored');
+
+
+
+test(function () {
+    var doc = newHTMLDocument();
+
+    doc.head.innerHTML = '<template id="tmpl"></template></template>';
+
+    assert_equals(doc.head.childNodes.length, 1, 'Element must be ignored');
+    assert_not_equals(doc.querySelector('#tmpl'), null,
+            'Element should present it document head');
+
+}, '</template> tag in HTML head without start one should be ignored. '
+    + 'Test valid <template> element and </template> tag after it');
+
+
+
+test(function () {
+    var doc = newHTMLDocument();
+
+    doc.head.innerHTML = '</template><template id="tmpl"></template>';
+
+    assert_equals(doc.head.childNodes.length, 1, 'Element must be ignored');
+    assert_not_equals(doc.querySelector('#tmpl'), null,
+            'Element should present it document head');
+
+}, '</template> tag in HTML head without start one should be ignored. '
+    + 'Test valid <template> element and </template> tag before it');
+
+
+
+test(function () {
+    var doc = newHTMLDocument();
+
+    doc.head.innerHTML = '</template><template id="tmpl"></template><title></title>';
+
+    assert_equals(doc.head.childNodes.length, 2, 'Element must be ignored');
+    assert_not_equals(doc.querySelector('#tmpl'), null,
+            'Valid element should present it document head');
+    assert_not_equals(doc.querySelector('title'), null,
+            'Valid title element should present it document head');
+
+}, '</template> tag in HTML head without start one should be ignored. '
+    + 'Test valid <template> element, <title> element and </template> tag before them');
+
+
+
+test(function () {
+    var doc = newHTMLDocument();
+
+    doc.head.innerHTML = '<template id="tmpl"></template><title></title></template>';
+
+    assert_equals(doc.head.childNodes.length, 2, 'Element must be ignored');
+    assert_not_equals(doc.querySelector('#tmpl'), null,
+            'Valid element should present it document head');
+    assert_not_equals(doc.querySelector('title'), null,
+            'Valid title element should present it document head');
+
+}, '</template> tag in HTML head without start one should be ignored. '
+    + 'Test valid <template> element, <title> element and </template> tag after them');
+
+
+testInIFrame('/html/semantics/scripting-1/the-template-element/resources/end-template-tag-in-head.html', function(context) {
+    var doc = context.iframes[0].contentDocument;
+
+    assert_equals(doc.head.querySelector('template'), null, '</template> must be ignored');
+    assert_not_equals(doc.head.querySelector('title'), null,
+            'Valid element should present it document head');
+
+}, '</template> tag in HTML head without start one should be ignored. '
+    + 'Test HTML document loaded from file');
+
+
+</script>
+</body>
+</html>

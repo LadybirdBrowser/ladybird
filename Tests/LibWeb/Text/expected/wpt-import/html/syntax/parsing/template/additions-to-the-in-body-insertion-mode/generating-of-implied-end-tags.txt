@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	Generating of implied end tags. Test table elements
+Pass	Generating of implied end tags. Test div element
+Pass	Generating of implied end tags. Test some text and DIV element
+Pass	Generating of implied end tags. Test wrong end tag
+Fail	Generating of implied end tags. Test table elements. Loading of HTML document from a file
+Fail	Generating of implied end tags. Test div element. Loading of HTML document from a file

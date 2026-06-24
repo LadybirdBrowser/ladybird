@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	FOO<!-- BAR -->BAZ
+Pass	FOO<!-- BAR --!>BAZ
+Pass	FOO<!-- BAR --! >BAZ
+Pass	FOO<!-- BAR --!\n>BAZ
+Pass	FOO<!-- BAR --   >BAZ
+Pass	FOO<!-- BAR -- <QUX> -- MUX -->BAZ
+Pass	FOO<!-- BAR -- <QUX> -- MUX --!>BAZ
+Pass	FOO<!-- BAR -- <QUX> -- MUX -- >BAZ
+Pass	FOO<!---->BAZ
+Pass	FOO<!--->BAZ
+Pass	FOO<!-->BAZ
+Pass	<?xml version="1.0">Hi
+Pass	<?xml version="1.0">
+Pass	<?xml version
+Pass	FOO<!----->BAZ
+Pass	<html><!-- comment --><title>Comment before head</title>

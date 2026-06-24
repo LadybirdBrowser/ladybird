@@ -1,0 +1,292 @@
+<!doctype html>
+<html>
+  <meta charset="utf-8" />
+  <title>Processing instructions in HTML</title>
+  <meta
+    description="Test to verify a successful processing instructions in HTML"
+  />
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script>
+    function generate_html_into_container(html, method) {
+      switch (method) {
+        case "fragment":
+          const div = document.createElement("div");
+          div.innerHTML = html;
+          return div;
+        case "parser":
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(
+            `<html><body>${html}</body></html>`,
+            "text/html",
+          );
+          return doc.body;
+        case "iframe":
+          const iframe = document.createElement("iframe");
+          iframe.srcdoc = `<html><body>${html}</body></html>`;
+          return iframe.contentDocument.body;
+      }
+    }
+    function process_html(html, method = "fragment") {
+      const container = generate_html_into_container(html, method);
+      return Array.from(container.childNodes).map((node) => ({
+        type: node.nodeType,
+        target: node.target,
+        data: node.data,
+        name: node.nodeName,
+      }));
+    }
+
+    function match_result_array(result, expected) {
+      assert_equals(result.length, expected.length);
+      for (let i = 0; i < result.length; ++i) {
+        for (const key in result[i]) {
+          assert_equals(
+            result[i][key],
+            expected[i][key],
+            JSON.stringify({ key, result, expected }),
+          );
+        }
+      }
+    }
+    function processing_instruction_test(html, expected) {
+      for (const method of ["fragment", "iframe", "DOMParser"]) {
+        expected = expected.map((ex) => ({
+          ...ex,
+          type: ex.type || Node.PROCESSING_INSTRUCTION_NODE,
+          data: ex.name ? ex.data : ex.data || "",
+          name: ex.name || ex.target,
+        }));
+
+        test(() => {
+          const result = process_html(html);
+          if (expected.type === Node.PROCESSING_INSTRUCTION_NODE) {
+            expected.nodeName = expected.target;
+            if (!expected.data) expected.data = "";
+          }
+          match_result_array(result, expected);
+        }, `Processing instructions (${method}), markup: ${html}`);
+      }
+    }
+
+    function processing_instruction_test_equivalent(html1, html2) {
+      test(() => {
+        const result = process_html(html1);
+        const expected = process_html(html2);
+        match_result_array(result, expected);
+      }, `${html1} should be equivalent to ${html2}`);
+    }
+
+    function test_valid_target(target) {
+      for (const data of [null, "data"]) {
+        processing_instruction_test(`<?${target}${data ? " " + data : ""}>`, [
+          {
+            target: target.toLowerCase(),
+            data,
+          },
+        ]);
+      }
+    }
+
+    function test_invalid_target(target) {
+      processing_instruction_test(`<?${target}>`, [
+        {
+          name: "#comment",
+          data: "?" + target,
+          type: Node.COMMENT_NODE,
+        },
+      ]);
+    }
+  </script>
+  <script>
+    processing_instruction_test("<?something>", [
+      {
+        target: "something",
+      },
+    ]);
+    processing_instruction_test("<?something><span>", [
+      {
+        target: "something",
+      },
+      {
+        type: Node.ELEMENT_NODE,
+        name: "SPAN",
+      },
+    ]);
+    processing_instruction_test("<?something good>", [
+      {
+        target: "something",
+        data: "good",
+      },
+    ]);
+    processing_instruction_test("<?something else is good>", [
+      {
+        target: "something",
+        data: "else is good",
+      },
+    ]);
+    processing_instruction_test("<?one><?two>", [
+      {
+        target: "one",
+      },
+      {
+        target: "two",
+      },
+    ]);
+    processing_instruction_test("<?a$><?b$><?good?>", [
+      {
+          name: "#comment",
+          data: "?a$",
+          type: Node.COMMENT_NODE,
+      },
+      {
+          name: "#comment",
+          data: "?b$",
+          type: Node.COMMENT_NODE,
+      },
+      {
+        target: "good"
+      }
+    ]);
+    processing_instruction_test_equivalent("<?hey there?>", "<?hey there>");
+    processing_instruction_test_equivalent("<?hey   there?>", "<?hey there>");
+    processing_instruction_test_equivalent("<?hey?there>", "<?hey ?there>");
+    processing_instruction_test_equivalent(
+      "<?hey\tthere=1?>",
+      "<?hey there=1>",
+    );
+    processing_instruction_test_equivalent(
+      "<?hey\nthere=1?>",
+      "<?hey there=1>",
+    );
+    processing_instruction_test_equivalent(
+      "<?hey\rthere=1?>",
+      "<?hey there=1>",
+    );
+    processing_instruction_test_equivalent(
+      "<?hey\fthere=1?>",
+      "<?hey there=1>",
+    );
+    processing_instruction_test("<?something ? >", [
+      {
+        target: "something",
+        data: "? ",
+      },
+    ]);
+    processing_instruction_test("<?something x >", [
+      {
+        target: "something",
+        data: "x ",
+      },
+    ]);    processing_instruction_test("<?something ?\t   ??>", [
+      {
+        target: "something",
+        data: "?\t   ?",
+      },
+    ]);
+    processing_instruction_test("<?t d > ?>", [
+      {
+        target: "t",
+        data: "d ",
+      },
+      {
+        type: Node.TEXT_NODE,
+        data: " ?>",
+        name: "#text",
+      },
+    ]);
+
+    [
+      // Standard & Numeric
+      "module-handler",
+      "view-port",
+      "config-v2",
+      "x",
+      "zz2op",
+      "xla-",
+      "a-b-c",
+      "v-123",
+      "a0-b1-c2",
+      "page-404",
+      "r2-d2",
+      "level-99",
+      "UPPERCASE",
+      "all-KINDS-of-CaSeS",
+
+      // Underscores
+      "user_name",
+      "S_S-S_S",
+      "b_",
+      "_prefix",
+      "_x132",
+      "_-_",
+      "_",
+
+      // Structural
+      "A----------------",
+      "z0123456789",
+      "m-0",
+    ].forEach(test_valid_target);
+
+    [
+      // Reserved
+      "xml",
+      "xml-stylesheet",
+      "XML",
+      "XML-stylesheet",
+      "xML",
+      "xml-STYLesheet",
+
+      // Starts with forbidden
+      "1st-place",
+      "2-factor",
+      "99-problems",
+      "\u0665-star", // ٥-star
+      "-prefix",
+      "--internal",
+      "-data-",
+      "-100",
+      "\u00B7middle-dot",
+      "\u0375greek-numeral",
+      "\u0301accent-start",
+
+      // Forbidden Symbols
+      "price$value",
+      "user@domain",
+      "tag#id",
+      "a+b",
+      "100%",
+      "data.v1",
+      "namespace:tag",
+      "error!code",
+      "x=y",
+      "a<b",
+      "true&false",
+      "not|or",
+      "lit$123456789",
+      "lit$$4x",
+
+      // Emojis (Surrogate Pairs)
+      "\uD83D\uDE80-launch", // 🚀-launch
+      "error-\u26A0\uFE0F", // error-⚠️
+      "fire-\uD83D\uDD25", // fire-🔥
+      "v1-\u2705", // v1-✅
+    ].forEach(test_invalid_target);
+
+    [].forEach(test_invalid_target);
+
+    processing_instruction_test("<?start", []);
+    processing_instruction_test("<?start?", []);
+    processing_instruction_test("<?start ", []);
+    processing_instruction_test("<?start data", []);
+    processing_instruction_test("<?start ? ?", []);
+    processing_instruction_test("<?", []);
+    processing_instruction_test("<? ", [
+      {
+        type: Node.COMMENT_NODE,
+        name: "#comment",
+        data: "? ",
+      },
+    ]);
+  </script>
+</html>

@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	<!doctype html><table><tbody><select><tr>
+Pass	<!doctype html><table><tr><select><td>
+Pass	<!doctype html><table><tr><td><select><td>
+Pass	<!doctype html><table><tr><th><select><td>
+Pass	<!doctype html><table><caption><select><tr>
+Pass	<!doctype html><select><tr>
+Pass	<!doctype html><select><td>
+Pass	<!doctype html><select><th>
+Pass	<!doctype html><select><tbody>
+Pass	<!doctype html><select><thead>
+Pass	<!doctype html><select><tfoot>
+Pass	<!doctype html><select><caption>
+Pass	<!doctype html><table><tr></table>a

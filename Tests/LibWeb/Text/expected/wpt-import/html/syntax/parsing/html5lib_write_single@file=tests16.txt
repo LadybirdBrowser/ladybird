@@ -1,0 +1,196 @@
+Harness status: OK
+
+Found 191 tests
+
+191 Pass
+Pass	<!doctype html><script>
+Pass	<!doctype html><script>a
+Pass	<!doctype html><script><
+Pass	<!doctype html><script></
+Pass	<!doctype html><script></S
+Pass	<!doctype html><script></SC
+Pass	<!doctype html><script></SCR
+Pass	<!doctype html><script></SCRI
+Pass	<!doctype html><script></SCRIP
+Pass	<!doctype html><script></SCRIPT
+Pass	<!doctype html><script></SCRIPT 
+Pass	<!doctype html><script></s
+Pass	<!doctype html><script></sc
+Pass	<!doctype html><script></scr
+Pass	<!doctype html><script></scri
+Pass	<!doctype html><script></scrip
+Pass	<!doctype html><script></script
+Pass	<!doctype html><script></script 
+Pass	<!doctype html><script><!
+Pass	<!doctype html><script><!a
+Pass	<!doctype html><script><!-
+Pass	<!doctype html><script><!-a
+Pass	<!doctype html><script><!--
+Pass	<!doctype html><script><!--a
+Pass	<!doctype html><script><!--<
+Pass	<!doctype html><script><!--<a
+Pass	<!doctype html><script><!--</
+Pass	<!doctype html><script><!--</script
+Pass	<!doctype html><script><!--</script 
+Pass	<!doctype html><script><!--<s
+Pass	<!doctype html><script><!--<script
+Pass	<!doctype html><script><!--<script 
+Pass	<!doctype html><script><!--<script <
+Pass	<!doctype html><script><!--<script <a
+Pass	<!doctype html><script><!--<script </
+Pass	<!doctype html><script><!--<script </s
+Pass	<!doctype html><script><!--<script </script
+Pass	<!doctype html><script><!--<script </scripta
+Pass	<!doctype html><script><!--<script </script 
+Pass	<!doctype html><script><!--<script </script>
+Pass	<!doctype html><script><!--<script </script/
+Pass	<!doctype html><script><!--<script </script <
+Pass	<!doctype html><script><!--<script </script <a
+Pass	<!doctype html><script><!--<script </script </
+Pass	<!doctype html><script><!--<script </script </script
+Pass	<!doctype html><script><!--<script </script </script 
+Pass	<!doctype html><script><!--<script </script </script/
+Pass	<!doctype html><script><!--<script </script </script>
+Pass	<!doctype html><script><!--<script -
+Pass	<!doctype html><script><!--<script -a
+Pass	<!doctype html><script><!--<script -<
+Pass	<!doctype html><script><!--<script --
+Pass	<!doctype html><script><!--<script --a
+Pass	<!doctype html><script><!--<script --<
+Pass	<!doctype html><script><!--<script -->
+Pass	<!doctype html><script><!--<script --><
+Pass	<!doctype html><script><!--<script --></
+Pass	<!doctype html><script><!--<script --></script
+Pass	<!doctype html><script><!--<script --></script 
+Pass	<!doctype html><script><!--<script --></script/
+Pass	<!doctype html><script><!--<script --></script>
+Pass	<!doctype html><script><!--<script><\/script>--></script>
+Pass	<!doctype html><script><!--<script></scr'+'ipt>--></script>
+Pass	<!doctype html><script><!--<script></script><script></script></script>
+Pass	<!doctype html><script><!--<script></script><script></script>--><!--</script>
+Pass	<!doctype html><script><!--<script></script><script></script>-- ></script>
+Pass	<!doctype html><script><!--<script></script><script></script>- -></script>
+Pass	<!doctype html><script><!--<script></script><script></script>- - ></script>
+Pass	<!doctype html><script><!--<script></script><script></script>-></script>
+Pass	<!doctype html><script><!--<script>--!></script>X
+Pass	<!doctype html><script><!--<scr'+'ipt></script>--></script>
+Pass	<!doctype html><script><!--<script></scr'+'ipt></script>X
+Pass	<!doctype html><style><!--<style></style>--></style>
+Pass	<!doctype html><style><!--</style>X
+Pass	<!doctype html><style><!--...</style>...--></style>
+Pass	<!doctype html><style><!--<br><html xmlns:v="urn:schemas-microsoft-com:vml"><!--[if !mso]><style></style>X
+Pass	<!doctype html><style><!--...<style><!--...--!></style>--></style>
+Pass	<!doctype html><style><!--...</style><!-- --><style>@import ...</style>
+Pass	<!doctype html><style>...<style><!--...</style><!-- --></style>
+Pass	<!doctype html><style>...<!--[if IE]><style>...</style>X
+Pass	<!doctype html><title><!--<title></title>--></title>
+Pass	<!doctype html><title>&lt;/title></title>
+Pass	<!doctype html><title>foo/title><link></head><body>X
+Pass	<!doctype html><noscript><!--<noscript></noscript>--></noscript>
+Pass	<!doctype html><noscript><!--</noscript>X<noscript>--></noscript>
+Pass	<!doctype html><noscript><iframe></noscript>X
+Pass	<!doctype html><noframes><!--<noframes></noframes>--></noframes>
+Pass	<!doctype html><noframes><body><script><!--...</script></body></noframes></html>
+Pass	<!doctype html><textarea><!--<textarea></textarea>--></textarea>
+Pass	<!doctype html><textarea>&lt;/textarea></textarea>
+Pass	<!doctype html><textarea>&lt;</textarea>
+Pass	<!doctype html><textarea>a&lt;b</textarea>
+Pass	<!doctype html><iframe><!--<iframe></iframe>--></iframe>
+Pass	<!doctype html><iframe>...<!--X->...<!--/X->...</iframe>
+Pass	<!doctype html><xmp><!--<xmp></xmp>--></xmp>
+Pass	<!doctype html><noembed><!--<noembed></noembed>--></noembed>
+Pass	<script>
+Pass	<script>a
+Pass	<script><
+Pass	<script></
+Pass	<script></S
+Pass	<script></SC
+Pass	<script></SCR
+Pass	<script></SCRI
+Pass	<script></SCRIP
+Pass	<script></SCRIPT
+Pass	<script></SCRIPT 
+Pass	<script></s
+Pass	<script></sc
+Pass	<script></scr
+Pass	<script></scri
+Pass	<script></scrip
+Pass	<script></script
+Pass	<script></script 
+Pass	<script><!
+Pass	<script><!a
+Pass	<script><!-
+Pass	<script><!-a
+Pass	<script><!--
+Pass	<script><!--a
+Pass	<script><!--<
+Pass	<script><!--<a
+Pass	<script><!--</
+Pass	<script><!--</script
+Pass	<script><!--</script 
+Pass	<script><!--<s
+Pass	<script><!--<script
+Pass	<script><!--<script 
+Pass	<script><!--<script <
+Pass	<script><!--<script <a
+Pass	<script><!--<script </
+Pass	<script><!--<script </s
+Pass	<script><!--<script </script
+Pass	<script><!--<script </scripta
+Pass	<script><!--<script </script 
+Pass	<script><!--<script </script>
+Pass	<script><!--<script </script/
+Pass	<script><!--<script </script <
+Pass	<script><!--<script </script <a
+Pass	<script><!--<script </script </
+Pass	<script><!--<script </script </script
+Pass	<script><!--<script </script </script 
+Pass	<script><!--<script </script </script/
+Pass	<script><!--<script </script </script>
+Pass	<script><!--<script -
+Pass	<script><!--<script -a
+Pass	<script><!--<script --
+Pass	<script><!--<script --a
+Pass	<script><!--<script -->
+Pass	<script><!--<script --><
+Pass	<script><!--<script --></
+Pass	<script><!--<script --></script
+Pass	<script><!--<script --></script 
+Pass	<script><!--<script --></script/
+Pass	<script><!--<script --></script>
+Pass	<script><!--<script><\/script>--></script>
+Pass	<script><!--<script></scr'+'ipt>--></script>
+Pass	<script><!--<script></script><script></script></script>
+Pass	<script><!--<script></script><script></script>--><!--</script>
+Pass	<script><!--<script></script><script></script>-- ></script>
+Pass	<script><!--<script></script><script></script>- -></script>
+Pass	<script><!--<script></script><script></script>- - ></script>
+Pass	<script><!--<script></script><script></script>-></script>
+Pass	<script><!--<script>--!></script>X
+Pass	<script><!--<scr'+'ipt></script>--></script>
+Pass	<script><!--<script></scr'+'ipt></script>X
+Pass	<style><!--<style></style>--></style>
+Pass	<style><!--</style>X
+Pass	<style><!--...</style>...--></style>
+Pass	<style><!--<br><html xmlns:v="urn:schemas-microsoft-com:vml"><!--[if !mso]><style></style>X
+Pass	<style><!--...<style><!--...--!></style>--></style>
+Pass	<style><!--...</style><!-- --><style>@import ...</style>
+Pass	<style>...<style><!--...</style><!-- --></style>
+Pass	<style>...<!--[if IE]><style>...</style>X
+Pass	<title><!--<title></title>--></title>
+Pass	<title>&lt;/title></title>
+Pass	<title>foo/title><link></head><body>X
+Pass	<noscript><!--<noscript></noscript>--></noscript>
+Pass	<noscript><!--</noscript>X<noscript>--></noscript>
+Pass	<noscript><iframe></noscript>X
+Pass	<noframes><!--<noframes></noframes>--></noframes>
+Pass	<noframes><body><script><!--...</script></body></noframes></html>
+Pass	<textarea><!--<textarea></textarea>--></textarea>
+Pass	<textarea>&lt;/textarea></textarea>
+Pass	<iframe><!--<iframe></iframe>--></iframe>
+Pass	<iframe>...<!--X->...<!--/X->...</iframe>
+Pass	<xmp><!--<xmp></xmp>--></xmp>
+Pass	<noembed><!--<noembed></noembed>--></noembed>
+Pass	<!doctype html><table>\n
+Pass	<!doctype html><table><td><span><font></span><span>
+Pass	<!doctype html><form><table></form><form></table></form>

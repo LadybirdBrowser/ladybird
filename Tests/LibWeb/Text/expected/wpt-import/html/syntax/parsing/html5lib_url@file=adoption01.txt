@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	<a><p></a></p>
+Pass	<a>1<p>2</a>3</p>
+Pass	<a>1<button>2</a>3</button>
+Pass	<a>1<b>2</a>3</b>
+Pass	<a>1<div>2<div>3</a>4</div>5</div>
+Pass	<table><a>1<p>2</a>3</p>
+Pass	<b><b><a><p></a>
+Pass	<b><a><b><p></a>
+Pass	<a><b><b><p></a>
+Pass	<p>1<s id="A">2<b id="B">3</p>4</s>5</b>
+Pass	<table><a>1<td>2</td>3</table>
+Pass	<table>A<td>B</td>C</table>
+Pass	<a><svg><tr><input></a>
+Pass	<div><a><b><div><div><div><div><div><div><div><div><div><div></a>
+Pass	<div><a><b><u><i><code><div></a>
+Pass	<b><b><b><b>x</b></b></b></b>y
+Pass	<p><b><b><b><b><p>x
+Pass	<b><em><foo><foob><fooc><aside></b></em> (innerHTML in div)

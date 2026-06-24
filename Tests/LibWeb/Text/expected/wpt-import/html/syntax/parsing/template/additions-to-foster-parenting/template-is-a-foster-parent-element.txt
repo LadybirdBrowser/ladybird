@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Template is a foster parent element. Test <table> immediately below <template>
+Pass	Template is a foster parent element. Test <template> element without <table>

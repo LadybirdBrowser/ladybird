@@ -1,0 +1,54 @@
+<meta charset="UTF-8">
+<title>Newline normalization: \r followed by plain text then \n</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+
+<script>
+function parseHTML(html) {
+    var parser = new DOMParser();
+    return parser.parseFromString(html, "text/html");
+}
+
+// \r followed by non-newline characters followed by \n should produce two
+// separate newlines: the \r is normalized to \n per the spec, and the
+// subsequent \n must be preserved since they are NOT a \r\n pair.
+// DOMParser is used so that raw \r bytes reach the input stream preprocessor.
+
+test(function() {
+    var doc = parseHTML("<body><div>before\rABCDEF\nafter</div></body>");
+    var div = doc.querySelector("div");
+    assert_equals(div.textContent, "before\nABCDEF\nafter");
+}, "Text content: \\r followed by plain text then \\n produces two newlines");
+
+test(function() {
+    var doc = parseHTML('<body><input value="before\rABCDEF\nafter"></body>');
+    var input = doc.querySelector("input");
+    assert_equals(input.getAttribute("value"), "before\nABCDEF\nafter");
+}, "Double-quoted attribute: \\r followed by plain text then \\n produces two newlines");
+
+test(function() {
+    var doc = parseHTML("<body><input value='before\rABCDEF\nafter'></body>");
+    var input = doc.querySelector("input");
+    assert_equals(input.getAttribute("value"), "before\nABCDEF\nafter");
+}, "Single-quoted attribute: \\r followed by plain text then \\n produces two newlines");
+
+// Verify that actual \r\n pairs still collapse to a single \n.
+
+test(function() {
+    var doc = parseHTML("<body><div>before\r\nafter</div></body>");
+    var div = doc.querySelector("div");
+    assert_equals(div.textContent, "before\nafter");
+}, "Text content: \\r\\n collapses to single newline");
+
+test(function() {
+    var doc = parseHTML('<body><input value="before\r\nafter"></body>');
+    var input = doc.querySelector("input");
+    assert_equals(input.getAttribute("value"), "before\nafter");
+}, "Double-quoted attribute: \\r\\n collapses to single newline");
+
+test(function() {
+    var doc = parseHTML("<body><input value='before\r\nafter'></body>");
+    var input = doc.querySelector("input");
+    assert_equals(input.getAttribute("value"), "before\nafter");
+}, "Single-quoted attribute: \\r\\n collapses to single newline");
+</script>

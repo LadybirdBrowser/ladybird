@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Clearing stack back to a table context. Test <caption>
+Pass	Clearing stack back to a table context. Test <colgroup>
+Pass	Clearing stack back to a table context. Test <tbody>
+Pass	Clearing stack back to a table context. Test <tfoot>
+Pass	Clearing stack back to a table context. Test <thead>
+Pass	Clearing stack back to a table context. Test <col>

@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	<style> <!-- </style>x
+Pass	<style> <!-- </style> --> </style>x
+Pass	<style> <!--> </style>x
+Pass	<style> <!---> </style>x
+Pass	<iframe> <!---> </iframe>x
+Pass	<iframe> <!--- </iframe>->x</iframe> --> </iframe>x
+Pass	<script> <!-- </script> --> </script>x
+Pass	<title> <!-- </title> --> </title>x
+Pass	<textarea> <!--- </textarea>->x</textarea> --> </textarea>x
+Pass	<style> <!</-- </style>x
+Pass	<p><xmp></xmp>
+Pass	<xmp> <!-- > --> </xmp>
+Pass	<title>&amp;</title>
+Pass	<title><!--&amp;--></title>
+Pass	<title><!--</title>
+Pass	<noscript><!--</noscript>--></noscript>

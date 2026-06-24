@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	<!DOCTYPE html>&NotEqualTilde;
+Pass	<!DOCTYPE html>&NotEqualTilde;A
+Pass	<!DOCTYPE html>&ThickSpace;
+Pass	<!DOCTYPE html>&ThickSpace;A
+Pass	<!DOCTYPE html>&NotSubset;
+Pass	<!DOCTYPE html>&NotSubset;A
+Pass	<!DOCTYPE html>&Gopf;
+Pass	<!DOCTYPE html>&Gopf;A

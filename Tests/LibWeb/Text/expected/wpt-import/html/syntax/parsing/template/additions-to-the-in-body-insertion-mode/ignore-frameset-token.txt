@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	Ignore frameset token. Test FRAMESET element assigned to template innerHTML
+Pass	Ignore frameset token. Test FRAMESET element and some valid element before it, assigned to the template's innerHTML
+Pass	Ignore frameset token. Test FRAMESET element and some valid element after it, assigned to the template's innerHTML
+Pass	Ignore frameset token. Test FRAMESET tag inside template tag assigned to another template's innerHTML
+Fail	Ignore frameset token. Test loading a HTML file with FRAMESET tag inside template

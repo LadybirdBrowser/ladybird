@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Clearing stack back to a table row context. Test <th>
+Pass	Clearing stack back to a table row context. Test <td>
+Pass	Clearing stack back to a table row context. Test </tr>

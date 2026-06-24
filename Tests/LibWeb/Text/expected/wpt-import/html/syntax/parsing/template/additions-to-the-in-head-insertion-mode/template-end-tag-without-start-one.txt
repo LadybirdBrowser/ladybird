@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	</template> tag in HTML head without start one should be ignored
+Pass	</template> tag in HTML head without start one should be ignored. Test valid <template> element and </template> tag after it
+Pass	</template> tag in HTML head without start one should be ignored. Test valid <template> element and </template> tag before it
+Pass	</template> tag in HTML head without start one should be ignored. Test valid <template> element, <title> element and </template> tag before them
+Pass	</template> tag in HTML head without start one should be ignored. Test valid <template> element, <title> element and </template> tag after them
+Fail	</template> tag in HTML head without start one should be ignored. Test HTML document loaded from file

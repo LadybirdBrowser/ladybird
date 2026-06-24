@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>HTML Templates: In body insertion mode: parser should ignore HEAD token</title>
+<meta name="author" title="Sergey G. Grekhov" href="mailto:sgrekhov@unipro.ru">
+<meta name="author" title="Aleksei Yu. Semenov" href="mailto:a.semenov@unipro.ru">
+<meta name="assert" content="If parser is in 'in body' insertion mode and meets HEAD token it should be ignored">
+<link rel="help" href="http://www.w3.org/TR/2013/WD-html-templates-20130214/#in-body-addition">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../html/resources/common.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script type="text/javascript">
+
+/*
+ * According to http://www.w3.org/TR/2013/WD-html-templates-20130214/#template-contents-insertion-mode
+ * when parser is in "template content" mode and meets <head> tag it should be switched to
+ * "in body" insertion mode.
+ * According to https://html.spec.whatwg.org/multipage/#parsing-main-inbody
+ * this token (HEAD) should be ignored
+ */
+
+test(function() {
+    var doc = newHTMLDocument();
+    var template = doc.createElement('template');
+
+    template.innerHTML = '<head></head>';
+
+    doc.body.appendChild(template);
+
+    assert_equals(template.content.childNodes.length, 0,
+            'Template cannot contain HEAD element');
+
+}, 'Ignore HEAD token. Test empty HEAD element assigned to template innerHTML');
+
+
+test(function() {
+    var doc = newHTMLDocument();
+    var template = doc.createElement('template');
+
+    template.innerHTML = '<head><title>test</title></head>';
+
+    doc.body.appendChild(template);
+
+    assert_equals(template.content.childNodes.length, 1,
+            'Wrong number of template content children');
+    assert_equals(template.content.firstChild.nodeName, 'TITLE',
+            'Template should contain children of ignored HEAD element');
+
+}, 'Ignore HEAD token. Test not empty HEAD element assigned to template innerHTML');
+
+
+test(function() {
+    var doc = newHTMLDocument();
+    var template = doc.createElement('template');
+
+    template.innerHTML = '<div id="div1">Some text</div><head><title>test</title></head>';
+
+    doc.body.appendChild(template);
+
+    assert_equals(template.content.childNodes.length, 2,
+            'Wrong number of template content children');
+    assert_not_equals(template.content.querySelector('#div1'), null,
+            'Template should contain valid element');
+    assert_equals(template.content.lastChild.tagName, 'TITLE',
+            'Template should contain children of ignored HEAD element');
+
+}, 'Ignore HEAD token. '
+    + 'Test HEAD element and some valid element before it, assigned to template innerHTML');
+
+
+test(function() {
+    var doc = newHTMLDocument();
+    var template = doc.createElement('template');
+
+    template.innerHTML = '<head><title>test</title></head><div id="div1">Some text</div>';
+
+    doc.body.appendChild(template);
+
+    assert_equals(template.content.childNodes.length, 2,
+            'Wrong number of template content children');
+    assert_equals(template.content.firstChild.tagName, 'TITLE',
+            'Template should contain children of ignored HEAD element');
+    assert_not_equals(template.content.querySelector('#div1'), null,
+            'Template should contain valid element');
+
+}, 'Ignore HEAD token. '
+    + 'Test HEAD element and some valid element after it, assigned to template innerHTML');
+
+
+test(function() {
+    var doc = newHTMLDocument();
+    var template = doc.createElement('template');
+
+    template.innerHTML = '<template id="t2"><head><title>test</title></head></template>';
+
+    doc.body.appendChild(template);
+
+    assert_equals(template.content.childNodes.length, 1,
+            'Template should contain nested template');
+    assert_not_equals(template.content.querySelector('#t2'), null,
+            'Template should contain nested element');
+
+    var nestedTemplate = template.content.querySelector('#t2');
+
+    assert_equals(nestedTemplate.content.childNodes.length, 1,
+            'Wrong number of template content children');
+    assert_equals(nestedTemplate.content.firstChild.tagName, 'TITLE',
+            'Template should contain children of ignored HEAD element');
+
+}, 'Ignore HEAD token. '
+    + 'Test HEAD tag inside template tag assigned to another template\'s innerHTML');
+
+
+testInIFrame('/html/semantics/scripting-1/the-template-element/resources/template-contents-head.html', function(context) {
+    var doc = context.iframes[0].contentDocument;
+
+    var template = doc.body.querySelector('template');
+
+    assert_equals(template.content.childNodes.length, 0,
+            'Template cannot contain HEAD element');
+
+}, 'Ignore HEAD token. Test loading a HTML file with HEAD tag inside template');
+
+</script>
+</body>
+</html>

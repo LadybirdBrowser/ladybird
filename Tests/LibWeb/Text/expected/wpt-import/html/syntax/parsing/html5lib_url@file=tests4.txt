@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	direct div content (innerHTML in div)
+Pass	direct textarea content (innerHTML in textarea)
+Pass	textarea content with <em>pseudo</em> <foo>markup (innerHTML in textarea)
+Pass	this is &#x0043;DATA inside a <style> element (innerHTML in style)
+Pass	</plaintext> (innerHTML in plaintext)
+Pass	setting html's innerHTML (innerHTML in html)
+Pass	<title>setting head's innerHTML</title> (innerHTML in head)
+Pass	direct <title> content (innerHTML in title)
+Pass	<!-- inside </script> --> (innerHTML in script)

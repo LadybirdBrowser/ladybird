@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	<p><b id="A"><script>document.getElementById("A").id = "B"</script></p>TEXT</b>

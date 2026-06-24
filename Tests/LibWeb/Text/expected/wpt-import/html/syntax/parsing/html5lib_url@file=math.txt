@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	<math><tr><td><mo><tr> (innerHTML in td)
+Pass	<math><tr><td><mo><tr> (innerHTML in tr)
+Pass	<math><thead><mo><tbody> (innerHTML in thead)
+Pass	<math><tfoot><mo><tbody> (innerHTML in tfoot)
+Pass	<math><tbody><mo><tfoot> (innerHTML in tbody)
+Pass	<math><tbody><mo></table> (innerHTML in tbody)
+Pass	<math><thead><mo></table> (innerHTML in tbody)
+Pass	<math><tfoot><mo></table> (innerHTML in tbody)

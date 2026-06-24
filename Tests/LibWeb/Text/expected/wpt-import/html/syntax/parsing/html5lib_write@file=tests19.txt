@@ -1,0 +1,108 @@
+Harness status: OK
+
+Found 103 tests
+
+103 Pass
+Pass	<!doctype html><math><mn DefinitionUrl="foo">
+Pass	<!doctype html><html></p><!--foo-->
+Pass	<!doctype html><head></head></p><!--foo-->
+Pass	<!doctype html><body><p><pre>
+Pass	<!doctype html><body><p><listing>
+Pass	<!doctype html><p><plaintext>
+Pass	<!doctype html><p><h1>
+Pass	<!doctype html><isindex type="hidden">
+Pass	<!doctype html><ruby><p><rp>
+Pass	<!doctype html><ruby><div><span><rp>
+Pass	<!doctype html><ruby><div><p><rp>
+Pass	<!doctype html><ruby><p><rt>
+Pass	<!doctype html><ruby><div><span><rt>
+Pass	<!doctype html><ruby><div><p><rt>
+Pass	<html><ruby>a<rb>b<rt></ruby></html>
+Pass	<html><ruby>a<rp>b<rt></ruby></html>
+Pass	<html><ruby>a<rt>b<rt></ruby></html>
+Pass	<html><ruby>a<rtc>b<rt>c<rb>d</ruby></html>
+Pass	<!doctype html><math/><foo>
+Pass	<!doctype html><svg/><foo>
+Pass	<!doctype html><div></body><!--foo-->
+Pass	<!doctype html><h1><div><h3><span></h1>foo
+Pass	<!doctype html><p></h3>foo
+Pass	<!doctype html><h3><li>abc</h2>foo
+Pass	<!doctype html><table>abc<!--foo-->
+Pass	<!doctype html><table>  <!--foo-->
+Pass	<!doctype html><table> b <!--foo-->
+Pass	<!doctype html><select><option><option>
+Pass	<!doctype html><select><option></optgroup>
+Pass	<!doctype html><dd><optgroup><dd>
+Pass	<!doctype html><p><math><mi><p><h1>
+Pass	<!doctype html><p><math><mo><p><h1>
+Pass	<!doctype html><p><math><mn><p><h1>
+Pass	<!doctype html><p><math><ms><p><h1>
+Pass	<!doctype html><p><math><mtext><p><h1>
+Pass	<!doctype html><frameset></noframes>
+Pass	<!doctype html><html c=d><body></html><html a=b>
+Pass	<!doctype html><html c=d><frameset></frameset></html><html a=b>
+Pass	<!doctype html><html><frameset></frameset></html><!--foo-->
+Pass	<!doctype html><html><frameset></frameset></html>  
+Pass	<!doctype html><html><frameset></frameset></html>abc
+Pass	<!doctype html><html><frameset></frameset></html><p>
+Pass	<!doctype html><html><frameset></frameset></html></p>
+Pass	<html><frameset></frameset></html><!doctype html>
+Pass	<!doctype html><body><frameset>
+Pass	<!doctype html><p><frameset><frame>
+Pass	<!doctype html><p>a<frameset>
+Pass	<!doctype html><p> <frameset><frame>
+Pass	<!doctype html><pre><frameset>
+Pass	<!doctype html><listing><frameset>
+Pass	<!doctype html><li><frameset>
+Pass	<!doctype html><dd><frameset>
+Pass	<!doctype html><dt><frameset>
+Pass	<!doctype html><button><frameset>
+Pass	<!doctype html><applet><frameset>
+Pass	<!doctype html><marquee><frameset>
+Pass	<!doctype html><object><frameset>
+Pass	<!doctype html><table><frameset>
+Pass	<!doctype html><area><frameset>
+Pass	<!doctype html><basefont><frameset>
+Pass	<!doctype html><bgsound><frameset>
+Pass	<!doctype html><br><frameset>
+Pass	<!doctype html><embed><frameset>
+Pass	<!doctype html><img><frameset>
+Pass	<!doctype html><input><frameset>
+Pass	<!doctype html><keygen><frameset>
+Pass	<!doctype html><wbr><frameset>
+Pass	<!doctype html><hr><frameset>
+Pass	<!doctype html><textarea></textarea><frameset>
+Pass	<!doctype html><xmp></xmp><frameset>
+Pass	<!doctype html><iframe></iframe><frameset>
+Pass	<!doctype html><select></select><frameset>
+Pass	<!doctype html><svg></svg><frameset><frame>
+Pass	<!doctype html><math></math><frameset><frame>
+Pass	<!doctype html><svg><foreignObject><div> <frameset><frame>
+Pass	<!doctype html><svg>a</svg><frameset><frame>
+Pass	<!doctype html><svg> </svg><frameset><frame>
+Pass	<html>aaa<frameset></frameset>
+Pass	<html> a <frameset></frameset>
+Pass	<!doctype html><div><frameset>
+Pass	<!doctype html><div><body><frameset>
+Pass	<!doctype html><p><math></p>a
+Pass	<!doctype html><p><math><mn><span></p>a
+Pass	<!doctype html><math></html>
+Pass	<!doctype html><meta charset="ascii">
+Pass	<!doctype html><meta http-equiv="content-type" content="text/html;charset=ascii">
+Pass	<!doctype html><head><!--aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa--><meta charset="utf8">
+Pass	<!doctype html><html a=b><head></head><html c=d>
+Pass	<!doctype html><image/>
+Pass	<!doctype html>a<i>b<table>c<b>d</i>e</b>f
+Pass	<!doctype html><table><i>a<b>b<div>c<a>d</i>e</b>f
+Pass	<!doctype html><i>a<b>b<div>c<a>d</i>e</b>f
+Pass	<!doctype html><table><i>a<b>b<div>c</i>
+Pass	<!doctype html><table><i>a<div>b<tr>c<b>d</i>e
+Pass	<!doctype html><table><td><table><i>a<div>b<b>c</i>d
+Pass	<!doctype html><body><bgsound>
+Pass	<!doctype html><body><basefont>
+Pass	<!doctype html><a><b></a><basefont>
+Pass	<!doctype html><a><b></a><bgsound>
+Pass	<!doctype html><figcaption><article></figcaption>a
+Pass	<!doctype html><summary><article></summary>a
+Pass	<!doctype html><p><a><plaintext>b
+Pass	<!DOCTYPE html><div>a<a></div>b<p>c</p>d

@@ -1,0 +1,46 @@
+#data
+<!doctype html><p>foo<search>bar<p>baz
+#errors
+(1,38): expected-closing-tag-but-got-eof
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       "foo"
+|     <search>
+|       "bar"
+|       <p>
+|         "baz"
+
+#data
+<!doctype html><search><p>foo</search>bar
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <search>
+|       <p>
+|         "foo"
+|     "bar"
+
+#data
+<!DOCTYPE html>xxx<svg><x><g><a><search><b>
+#errors
+ * (1,44) unexpected HTML-like start tag token in foreign content
+ * (1,44) unexpected end of file
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     "xxx"
+|     <svg svg>
+|       <svg x>
+|         <svg g>
+|           <svg a>
+|             <svg search>
+|     <b>

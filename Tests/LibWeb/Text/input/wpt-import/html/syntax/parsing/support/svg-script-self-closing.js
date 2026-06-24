@@ -1,1 +1,0 @@
-scriptSelfClosing = true;

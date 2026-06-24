@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	<head></head><style></style>
+Pass	<head></head><script></script>
+Pass	<head></head><!-- --><style></style><!-- --><script></script>
+Pass	<head></head><!-- -->x<style></style><!-- --><script></script>
+Pass	<!DOCTYPE html><html><head></head><body><pre>\n</pre></body></html>
+Pass	<!DOCTYPE html><html><head></head><body><pre>\nfoo</pre></body></html>
+Pass	<!DOCTYPE html><html><head></head><body><pre>\n\nfoo</pre></body></html>
+Pass	<!DOCTYPE html><html><head></head><body><pre>\nfoo\n</pre></body></html>
+Pass	<!DOCTYPE html><html><head></head><body><pre>x</pre><span>\n</span></body></html>
+Pass	<!DOCTYPE html><html><head></head><body><pre>x\ny</pre></body></html>
+Pass	<!DOCTYPE html><html><head></head><body><pre>x<div>\ny</pre></body></html>
+Pass	<!DOCTYPE html><pre>&#x0a;&#x0a;A</pre>
+Pass	<!DOCTYPE html><HTML><META><HEAD></HEAD></HTML>
+Pass	<!DOCTYPE html><HTML><HEAD><head></HEAD></HTML>
+Pass	<textarea>foo<span>bar</span><i>baz
+Pass	<title>foo<span>bar</em><i>baz
+Pass	<!DOCTYPE html><textarea>\n</textarea>
+Pass	<!DOCTYPE html><textarea>\nfoo</textarea>
+Pass	<!DOCTYPE html><textarea>\n\nfoo</textarea>
+Pass	<!DOCTYPE html><html><head></head><body><ul><li><div><p><li></ul></body></html>
+Pass	<!doctype html><nobr><nobr><nobr>
+Pass	<!doctype html><nobr><nobr></nobr><nobr>
+Pass	<!doctype html><html><body><p><table></table></body></html>
+Pass	<p><table></table>

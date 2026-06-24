@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	Ignore BODY token. Test empty BODY element assigned to template innerHTML
+Pass	Ignore BODY token. Test not empty BODY element assigned to template innerHTML
+Pass	Ignore BODY token. Test BODY element and some valid element after BODY tag assigned to template innerHTML
+Pass	Ignore BODY token. Test BODY element and some valid element before BODY tag assigned to template innerHTML
+Pass	Ignore BODY token. Test template with not empty BODY element inside assigned to another template's innerHTML
+Fail	Ignore BODY token. Test loading a HTML file with BODY tag inside template

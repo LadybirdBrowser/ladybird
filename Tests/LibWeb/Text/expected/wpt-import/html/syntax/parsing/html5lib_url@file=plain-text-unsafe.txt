@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 33 tests
+
+33 Pass
+Pass	FOO&#x000D;ZOO
+Pass	<html>\x00<frameset></frameset>
+Pass	<html> \x00 <frameset></frameset>
+Pass	<html>a\x00a<frameset></frameset>
+Pass	<html>\x00\x00<frameset></frameset>
+Pass	<html>\x00\n<frameset></frameset>
+Pass	<html><select>\x00
+Pass	\x00
+Pass	<body>\x00
+Pass	<plaintext>\x00filler\x00text\x00
+Pass	<svg><![CDATA[\x00filler\x00text\x00]]>
+Pass	<body><!\x00>
+Pass	<body><!\x00filler\x00text>
+Pass	<body><svg><foreignObject>\x00filler\x00text
+Pass	<svg>\x00filler\x00text
+Pass	<svg>\x00<frameset>
+Pass	<svg>\x00 <frameset>
+Pass	<svg>\x00a<frameset>
+Pass	<svg>\x00</svg><frameset>
+Pass	<svg>\x00 </svg><frameset>
+Pass	<svg>\x00a</svg><frameset>
+Pass	<svg><path></path></svg><frameset>
+Pass	<svg><p><frameset>
+Pass	<!DOCTYPE html><pre>\r\n\r\nA</pre>
+Pass	<!DOCTYPE html><pre>\r\rA</pre>
+Pass	<!DOCTYPE html><pre>\rA</pre>
+Pass	<!DOCTYPE html><table><tr><td><math><mtext>\x00a
+Pass	<!DOCTYPE html><table><tr><td><svg><foreignObject>\x00a
+Pass	<!DOCTYPE html><math><mi>a\x00b
+Pass	<!DOCTYPE html><math><mo>a\x00b
+Pass	<!DOCTYPE html><math><mn>a\x00b
+Pass	<!DOCTYPE html><math><ms>a\x00b
+Pass	<!DOCTYPE html><math><mtext>a\x00b

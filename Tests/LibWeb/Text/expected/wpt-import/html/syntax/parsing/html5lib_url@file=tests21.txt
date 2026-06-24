@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 23 tests
+
+23 Pass
+Pass	<svg><![CDATA[foo]]>
+Pass	<math><![CDATA[foo]]>
+Pass	<div><![CDATA[foo]]>
+Pass	<svg><![CDATA[foo
+Pass	<svg><![CDATA[
+Pass	<svg><![CDATA[]]>
+Pass	<svg><![CDATA[]] >]]>
+Pass	<svg><![CDATA[]]
+Pass	<svg><![CDATA[]
+Pass	<svg><![CDATA[]>a
+Pass	<!DOCTYPE html><svg><![CDATA[foo]]]>
+Pass	<!DOCTYPE html><svg><![CDATA[foo]]]]>
+Pass	<!DOCTYPE html><svg><![CDATA[foo]]]]]>
+Pass	<svg><foreignObject><div><![CDATA[foo]]>
+Pass	<svg><![CDATA[<svg>]]>
+Pass	<svg><![CDATA[</svg>a]]>
+Pass	<svg><![CDATA[<svg>a
+Pass	<svg><![CDATA[</svg>a
+Pass	<svg><![CDATA[<svg>]]><path>
+Pass	<svg><![CDATA[<svg>]]></path>
+Pass	<svg><![CDATA[<svg>]]><!--path-->
+Pass	<svg><![CDATA[<svg>]]>path
+Pass	<svg><![CDATA[<!--svg-->]]>

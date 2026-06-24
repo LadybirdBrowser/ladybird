@@ -1,0 +1,117 @@
+Harness status: OK
+
+Found 112 tests
+
+112 Pass
+Pass	<body><template>Hello</template>
+Pass	<template>Hello</template>
+Pass	<template></template><div></div>
+Pass	<html><template>Hello</template>
+Pass	<head><template><div></div></template></head>
+Pass	<div><template><div><span></template><b>
+Pass	<div><template></div>Hello
+Pass	<div></template></div>
+Pass	<table><template></template></table>
+Pass	<table><template></template></div>
+Pass	<table><div><template></template></div>
+Pass	<table><template></template><div></div>
+Pass	<table>   <template></template></table>
+Pass	<table><tbody><template></template></tbody>
+Pass	<table><tbody><template></tbody></template>
+Pass	<table><tbody><template></template></tbody></table>
+Pass	<table><thead><template></template></thead>
+Pass	<table><tfoot><template></template></tfoot>
+Pass	<select><template></template></select>
+Pass	<select><template><option></option></template></select>
+Pass	<template><option></option></select><option></option></template>
+Pass	<select><template></template><option></select>
+Pass	<select><option><template></template></select>
+Pass	<select><template>
+Pass	<select><option></option><template>
+Pass	<select><option></option><template><option>
+Pass	<table><thead><template><td></template></table>
+Pass	<table><template><thead></template></table>
+Pass	<body><table><template><td></tr><div></template></table>
+Pass	<table><template><thead></template></thead></table>
+Pass	<table><thead><template><tr></template></table>
+Pass	<table><template><tr></template></table>
+Pass	<table><tr><template><td>
+Pass	<table><template><tr><template><td></template></tr></template></table>
+Pass	<table><template><tr><template><td></td></template></tr></template></table>
+Pass	<table><template><td></template>
+Pass	<body><template><td></td></template>
+Pass	<body><template><template><tr></tr></template><td></td></template>
+Pass	<table><colgroup><template><col>
+Pass	<frameset><template><frame></frame></template></frameset>
+Pass	<template><frame></frame></frameset><frame></frame></template>
+Pass	<template><div><frameset><span></span></div><span></span></template>
+Pass	<body><template><div><frameset><span></span></div><span></span></template></body>
+Pass	<body><template><script>var i = 1;</script><td></td></template>
+Pass	<body><template><tr><div></div></tr></template>
+Pass	<body><template><tr></tr><td></td></template>
+Pass	<body><template><td></td></tr><td></td></template>
+Pass	<body><template><td></td><tbody><td></td></template>
+Pass	<body><template><td></td><caption></caption><td></td></template>
+Pass	<body><template><td></td><colgroup></caption><td></td></template>
+Pass	<body><template><td></td></table><td></td></template>
+Pass	<body><template><tr></tr><tbody><tr></tr></template>
+Pass	<body><template><tr></tr><caption><tr></tr></template>
+Pass	<body><template><tr></tr></table><tr></tr></template>
+Pass	<body><template><thead></thead><caption></caption><tbody></tbody></template>
+Pass	<body><template><thead></thead></table><tbody></tbody></template></body>
+Pass	<body><template><div><tr></tr></div></template>
+Pass	<body><template><em>Hello</em></template>
+Pass	<body><template><!--comment--></template>
+Pass	<body><template><style></style><td></td></template>
+Pass	<body><template><meta><td></td></template>
+Pass	<body><template><link><td></td></template>
+Pass	<body><table><colgroup><template><col></col></template></colgroup></table></body>
+Pass	<body a=b><template><div></div><body c=d><div></div></body></template></body>
+Pass	<html a=b><template><div><html b=c><span></template>
+Pass	<html a=b><template><col></col><html b=c><col></col></template>
+Pass	<html a=b><template><frame></frame><html b=c><frame></frame></template>
+Pass	<body><template><tr></tr><template></template><td></td></template>
+Pass	<body><template><thead></thead><template><tr></tr></template><tr></tr><tfoot></tfoot></template>
+Pass	<body><template><template><b><template></template></template>text</template>
+Pass	<body><template><col><colgroup>
+Pass	<body><template><col></colgroup>
+Pass	<body><template><col><colgroup></template></body>
+Pass	<body><template><col><div>
+Pass	<body><template><col></div>
+Pass	<body><template><col>Hello
+Pass	<body><template><i><menu>Foo</i>
+Pass	<body><template></div><div>Foo</div><template></template><tr></tr>
+Pass	<body><div><template></div><tr><td>Foo</td></tr></template>
+Pass	<template></figcaption><sub><table></table>
+Pass	<template><template>
+Pass	<template><div>
+Pass	<template><template><div>
+Pass	<template><template><table>
+Pass	<template><template><tbody>
+Pass	<template><template><tr>
+Pass	<template><template><td>
+Pass	<template><template><caption>
+Pass	<template><template><colgroup>
+Pass	<template><template><col>
+Pass	<template><template><tbody><select>
+Pass	<template><template><table>Foo
+Pass	<template><template><frame>
+Pass	<template><template><script>var i
+Pass	<template><template><style>var i
+Pass	<template><table></template><body><span>Foo
+Pass	<template><td></template><body><span>Foo
+Pass	<template><object></template><body><span>Foo
+Pass	<template><svg><template>
+Pass	<template><svg><foo><template><foreignObject><div></template><div>
+Pass	<dummy><template><span></dummy>
+Pass	<body><table><tr><td><select><template>Foo</template><caption>A</table>
+Pass	<body></body><template>
+Pass	<head></head><template>
+Pass	<head></head><template>Foo</template>
+Pass	<html><head></head><template></template><head>
+Pass	<!DOCTYPE HTML><dummy><table><template><table><template><table><script>
+Pass	<template><a><table><a>
+Pass	<template><form><input name="q"></form><div>second</div></template> (innerHTML in template)
+Pass	<!DOCTYPE HTML><template><tr><td>cell</td></tr></template>
+Pass	<!DOCTYPE HTML><template> <tr> <td>cell</td> </tr> </template>
+Pass	<!DOCTYPE HTML><template><tr><td>cell</td></tr>a</template>

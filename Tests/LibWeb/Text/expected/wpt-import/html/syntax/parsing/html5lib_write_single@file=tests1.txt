@@ -1,0 +1,117 @@
+Harness status: OK
+
+Found 112 tests
+
+112 Pass
+Pass	Test
+Pass	<p>One<p>Two
+Pass	Line1<br>Line2<br>Line3<br>Line4
+Pass	<html>
+Pass	<head>
+Pass	<body>
+Pass	<html><head>
+Pass	<html><head></head>
+Pass	<html><head></head><body>
+Pass	<html><head></head><body></body>
+Pass	<html><head><body></body></html>
+Pass	<html><head></body></html>
+Pass	<html><head><body></html>
+Pass	<html><body></html>
+Pass	<body></html>
+Pass	<head></html>
+Pass	</head>
+Pass	</body>
+Pass	</html>
+Pass	<b><table><td><i></table>
+Pass	<b><table><td></b><i></table>X
+Pass	<h1>Hello<h2>World
+Pass	<a><p>X<a>Y</a>Z</p></a>
+Pass	<b><button>foo</b>bar
+Pass	<!DOCTYPE html><span><button>foo</span>bar
+Pass	<p><b><div><marquee></p></b></div>X
+Pass	<script><div></script></div><title><p></title><p><p>
+Pass	<!--><div>--<!-->
+Pass	<p><hr></p>
+Pass	<select><b><option><select><option></b></select>X
+Pass	<a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y
+Pass	<a X>0<b>1<a Y>2
+Pass	<!-----><font><div>hello<table>excite!<b>me!<th><i>please!</tr><!--X-->
+Pass	<!DOCTYPE html><li>hello<li>world<ul>how<li>do</ul>you</body><!--do-->
+Pass	<!DOCTYPE html>A<option>B<optgroup>C<select>D</option>E
+Pass	<
+Pass	<#
+Pass	</
+Pass	</#
+Pass	<?
+Pass	<?#
+Pass	<!
+Pass	<!#
+Pass	<?COMMENT?>
+Pass	<!COMMENT>
+Pass	</ COMMENT >
+Pass	<?COM--MENT?>
+Pass	<!COM--MENT>
+Pass	</ COM--MENT >
+Pass	<!DOCTYPE html><style> EOF
+Pass	<!DOCTYPE html><script> <!-- </script> --> </script> EOF
+Pass	<b><p></b>TEST
+Pass	<p id=a><b><p id=b></b>TEST
+Pass	<b id=a><p><b id=b></p></b>TEST
+Pass	<!DOCTYPE html><title>U-test</title><body><div><p>Test<u></p></div></body>
+Pass	<!DOCTYPE html><font><table></font></table></font>
+Pass	<font><p>hello<b>cruel</font>world
+Pass	<b>Test</i>Test
+Pass	<b>A<cite>B<div>C
+Pass	<b>A<cite>B<div>C</cite>D
+Pass	<b>A<cite>B<div>C</b>D
+Pass	HTML parser tests (run_type=write_single)
+Pass	<DIV>
+Pass	<DIV> abc
+Pass	<DIV> abc <B>
+Pass	<DIV> abc <B> def
+Pass	<DIV> abc <B> def <I>
+Pass	<DIV> abc <B> def <I> ghi
+Pass	<DIV> abc <B> def <I> ghi <P>
+Pass	<DIV> abc <B> def <I> ghi <P> jkl
+Pass	<DIV> abc <B> def <I> ghi <P> jkl </B>
+Pass	<DIV> abc <B> def <I> ghi <P> jkl </B> mno
+Pass	<DIV> abc <B> def <I> ghi <P> jkl </B> mno </I>
+Pass	<DIV> abc <B> def <I> ghi <P> jkl </B> mno </I> pqr
+Pass	<DIV> abc <B> def <I> ghi <P> jkl </B> mno </I> pqr </P>
+Pass	<DIV> abc <B> def <I> ghi <P> jkl </B> mno </I> pqr </P> stu
+Pass	<test attribute---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->
+Pass	<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe
+Pass	<a href="blah">aba<table><tr><td><a href="foo">br</td></tr>x</table>aoe
+Pass	<table><a href="blah">aba<tr><td><a href="foo">br</td></tr>x</table>aoe
+Pass	<a href=a>aa<marquee>aa<a href=b>bb</marquee>aa
+Pass	<wbr><strike><code></strike><code><strike></code>
+Pass	<!DOCTYPE html><spacer>foo
+Pass	<title><meta></title><link><title><meta></title>
+Pass	<style><!--</style><meta><script>--><link></script>
+Pass	<head><meta></head><link>
+Pass	<table><tr><tr><td><td><span><th><span>X</table>
+Pass	<body><body><base><link><meta><title><p></title><body><p></body>
+Pass	<textarea><p></textarea>
+Pass	<p><image></p>
+Pass	<a><table><a></table><p><a><div><a>
+Pass	<head></p><meta><p>
+Pass	<head></html><meta><p>
+Pass	<b><table><td></b><i></table>
+Pass	<h1><h2>
+Pass	<a><p><a></a></p></a>
+Pass	<b><button></b></button></b>
+Pass	<p><b><div><marquee></p></b></div>
+Pass	<script></script></div><title></title><p><p>
+Pass	<select><b><option><select><option></b></select>
+Pass	<html><head><title></title><body></body></html>
+Pass	<a><table><td><a><table></table><a></tr><a></table><a>
+Pass	<ul><li></li><div><li></div><li><li><div><li><address><li><b><em></b><li></ul>
+Pass	<ul><li><ul></li><li>a</li></ul></li></ul>
+Pass	<frameset><frame><frameset><frame></frameset><noframes></noframes></frameset>
+Pass	<h1><table><td><h3></table><h3></h1>
+Pass	<table><colgroup><col><colgroup><col><col><col><colgroup><col><col><thead><tr><td></table>
+Pass	<table><col><tbody><col><tr><col><td><col></table><col>
+Pass	<table><colgroup><tbody><colgroup><tr><colgroup><td><colgroup></table><colgroup>
+Pass	</strong></b></em></i></u></strike></s></blink></tt></pre></big></small></font></select></h1></h2></h3></h4></h5></h6></body></br></a></img></title></span></style></script></table></th></td></tr></frame></area></link></param></hr></input></col></base></meta></basefont></bgsound></embed></spacer></p></dd></dt></caption></colgroup></tbody></tfoot></thead></address></blockquote></center></dir></div></dl></fieldset></listing></menu></ol></ul></li></nobr></wbr></form></button></marquee></object></html></frameset></head></iframe></image></isindex></noembed></noframes></noscript></optgroup></option></plaintext></textarea>
+Pass	<table><tr></strong></b></em></i></u></strike></s></blink></tt></pre></big></small></font></select></h1></h2></h3></h4></h5></h6></body></br></a></img></title></span></style></script></table></th></td></tr></frame></area></link></param></hr></input></col></base></meta></basefont></bgsound></embed></spacer></p></dd></dt></caption></colgroup></tbody></tfoot></thead></address></blockquote></center></dir></div></dl></fieldset></listing></menu></ol></ul></li></nobr></wbr></form></button></marquee></object></html></frameset></head></iframe></image></isindex></noembed></noframes></noscript></optgroup></option></plaintext></textarea>
+Pass	<frameset>

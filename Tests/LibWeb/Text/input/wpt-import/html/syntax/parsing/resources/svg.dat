@@ -1,0 +1,104 @@
+#data
+<svg><tr><td><title><tr>
+#errors
+(1:21) Unexpected <tr> tag
+(1:25) Unexpected EOF
+#document-fragment
+td
+#document
+| <svg svg>
+|   <svg tr>
+|     <svg td>
+|       <svg title>
+
+#data
+<svg><tr><td><title><tr>
+#errors
+(1:1) Unexpected <svg> tag
+(1:21) Unexpected <tr> tag
+(1:25) Unexpected EOF
+#document-fragment
+tr
+#document
+| <svg svg>
+|   <svg tr>
+|     <svg td>
+|       <svg title>
+
+#data
+<svg><thead><title><tbody>
+#errors
+(1:1) Unexpected <svg> tag
+(1:20) Unexpected <tbody> tag
+(1:27) Unexpected EOF
+#document-fragment
+thead
+#document
+| <svg svg>
+|   <svg thead>
+|     <svg title>
+
+#data
+<svg><tfoot><title><tbody>
+#errors
+(1:1) Unexpected <svg> tag
+(1:20) Unexpected <tbody> tag
+(1:27) Unexpected EOF
+#document-fragment
+tfoot
+#document
+| <svg svg>
+|   <svg tfoot>
+|     <svg title>
+
+#data
+<svg><tbody><title><tfoot>
+#errors
+(1:1) Unexpected <svg> tag
+(1:20) Unexpected <tfoot> tag
+(1:27) Unexpected EOF
+#document-fragment
+tbody
+#document
+| <svg svg>
+|   <svg tbody>
+|     <svg title>
+
+#data
+<svg><tbody><title></table>
+#errors
+(1:1) Unexpected <svg> tag
+(1:20) Unexpected </table> tag
+(1:28) Unexpected EOF
+#document-fragment
+tbody
+#document
+| <svg svg>
+|   <svg tbody>
+|     <svg title>
+
+#data
+<svg><thead><title></table>
+#errors
+(1:1) Unexpected <svg> tag
+(1:20) Unexpected </table> tag
+(1:28) Unexpected EOF
+#document-fragment
+tbody
+#document
+| <svg svg>
+|   <svg thead>
+|     <svg title>
+
+#data
+<svg><tfoot><title></table>
+#errors
+(1:1) Unexpected <svg> tag
+(1:20) Unexpected </table> tag
+(1:28) Unexpected EOF
+#document-fragment
+tbody
+#document
+| <svg svg>
+|   <svg tfoot>
+|     <svg title>

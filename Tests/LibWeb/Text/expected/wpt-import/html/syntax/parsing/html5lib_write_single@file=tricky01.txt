@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	<b><p>Bold </b> Not bold</p>\nAlso not bold.
+Pass	<html>\n<font color=red><i>Italic and Red<p>Italic and Red </font> Just italic.</p> Italic only.</i> Plain\n<p>I should not be red. <font color=red>Red. <i>Italic and red.</p>\n<p>Italic and red. </i> Red.</font> I should not be red.</p>\n<b>Bold <i>Bold and italic</b> Only Italic </i> Plain
+Pass	<html><body>\n<p><font size="7">First paragraph.</p>\n<p>Second paragraph.</p></font>\n<b><p><i>Bold and Italic</b> Italic</p>
+Pass	<html>\n<dl>\n<dt><b>Boo\n<dd>Goo?\n</dl>\n</html>
+Pass	<html><body>\n<label><a><div>Hello<div>World</div></a></label>  \n</body></html>
+Pass	<table><center> <font>a</center> <img> <tr><td> </td> </tr> </table>
+Pass	<table><tr><p><a><p>You should see this text.
+Pass	<TABLE>\n<TR>\n<CENTER><CENTER><TD></TD></TR><TR>\n<FONT>\n<TABLE><tr></tr></TABLE>\n</P>\n<a></font><font></a>\nThis page contains an insanely badly-nested tag sequence.
+Pass	<html>\n<body>\n<b><nobr><div>This text is in a div inside a nobr</nobr>More text that should not be in the nobr, i.e., the\nnobr should have closed the div inside it implicitly. </b><pre>A pre tag outside everything else.</pre>\n</body>\n</html>

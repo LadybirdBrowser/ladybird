@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	<!DOCTYPE html><p><b><i><u></p> <p>X
+Pass	<p><b><i><u></p>\n<p>X
+Pass	<!doctype html></html> <head>
+Pass	<!doctype html></body><meta>
+Pass	<html></html><!-- foo -->
+Pass	<!doctype html></body><title>X</title>
+Pass	<!doctype html><table> X<meta></table>
+Pass	<!doctype html><table> x</table>
+Pass	<!doctype html><table> x </table>
+Pass	<!doctype html><table><tr> x</table>
+Pass	<!doctype html><table>X<style> <tr>x </style> </table>
+Pass	<!doctype html><div><table><a>foo</a> <tr><td>bar</td> </tr></table></div>
+Pass	<frame></frame></frame><frameset><frame><frameset><frame></frameset><noframes></frameset><noframes>
+Pass	<!DOCTYPE html><object></html>
