@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>Custom Functions: &lt;dashed-function&gt; with named argument syntax</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#function-rule">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11749">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<script>
+test_valid_value('top', '--func(myident)');
+test_valid_value('top', '--func(--myident)');
+test_valid_value('top', '--func(--)');
+test_valid_value('top', '--func(50px --myident:)');
+
+// Arguments may not begin within <dashed-ident> <colon> (ignoring whitespace);
+// this pattern is reserved for named arguments in the future.
+//
+// https://github.com/w3c/csswg-drafts/issues/11749
+//
+// Note: This matches the "bad declaration" handling in
+// https://drafts.csswg.org/css-syntax/#consume-qualified-rule
+test_invalid_value('top', '--func(--myident:)');
+test_invalid_value('top', '--func( --myident:)');
+test_invalid_value('top', '--func(--myident :)');
+test_invalid_value('top', '--func(--myident: )');
+test_invalid_value('top', '--func( --myident : )');
+test_invalid_value('top', '--func(10px, --myident : )');
+
+// It's valid when wrapped in {}, though:
+test_valid_value('top', '--func({--myident:})');
+test_valid_value('top', '--func({ --myident:})');
+test_valid_value('top', '--func({--myident :})');
+test_valid_value('top', '--func({--myident: })');
+test_valid_value('top', '--func(10px, { --myident : })');
+</script>

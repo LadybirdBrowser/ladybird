@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Pass	Can query named container in shadow
+Fail	::part() can see inner named containers
+Fail	::slotted() can see inner named containers

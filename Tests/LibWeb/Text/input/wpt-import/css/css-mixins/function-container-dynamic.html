@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>Custom Functions: @container responds to changes</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#conditional-rules">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    container-type: size;
+    width: 50px;
+    height: 50px;
+  }
+  @function --f() {
+    result: A;
+    @container (width = 100px) {
+      result: B;
+    }
+    @container ((width >= 110px) and (width <= 140px)) {
+      result: C;
+    }
+    @container (width = 150px) {
+      result: D;
+    }
+  }
+  #target {
+    --actual: --f();
+  }
+</style>
+
+<div id=container>
+  <div id=target>
+  </div>
+</div>
+
+<script>
+  test(() => {
+    let actualValue = () => getComputedStyle(target).getPropertyValue('--actual');
+
+    assert_equals(actualValue(), 'A', '--actual before resize');
+
+    // [<width of container>, <expected function result>]
+    let data = [
+      ['100px', 'B'],
+      ['105px', 'A'],
+      ['110px', 'C'],
+      ['125px', 'C'],
+      ['140px', 'C'],
+      ['145px', 'A'],
+      ['150px', 'D'],
+      ['155px', 'A'],
+    ];
+
+    for (let d of data) {
+      container.style.width = d[0];
+      let expected = d[1];
+      assert_equals(actualValue(), expected, `--actual after resize to ${d[0]}`);
+    }
+  });
+</script>

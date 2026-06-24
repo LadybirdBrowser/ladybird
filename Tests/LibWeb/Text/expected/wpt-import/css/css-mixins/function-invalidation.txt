@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Appending a rule
+Fail	Prepending a rule
+Fail	Deleting a rule
+Fail	Prepending a rule, then deleting last

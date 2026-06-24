@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	Single function within anonymous layer
+Fail	Last anonymous layer wins
+Fail	Unlayered styles win
+Fail	Unlayered styles win, reverse
+Fail	Single named layer
+Fail	Named layers
+Fail	Named layers, reordered

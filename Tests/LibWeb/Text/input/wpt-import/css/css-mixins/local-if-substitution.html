@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<title>Custom Functions: Local substitution of var() in if()</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#locally-substitute-a-var">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<div id=target data-x="var(--x)" data-f="--f()"></div>
+<div id=main></div>
+
+<!-- To pass, a test must produce matching computed values for --actual and
+     --expected on #target. -->
+
+<template data-name="var() in if() condition's custom property value substitutes locally">
+  <style>
+    @function --f() {
+      --x: 3px;
+      result: if(style(--x: 3px): PASS; else: FAIL;);
+    }
+    #target {
+      --x: 1px;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="var() in if() condition's specified value substitutes locally">
+  <style>
+    @function --f() {
+      --x: 3px;
+      result: if(style(--y: var(--x)): PASS; else: FAIL;);
+    }
+    #target {
+      --x: 1px;
+      --y: 3px;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="var() in if() declaration value substitutes locally">
+  <style>
+    @function --f() {
+      --x: PASS;
+      result: if(style(--true): var(--x); else: FAIL;);
+    }
+    #target {
+      --true: true;
+      --x: FAIL;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="var() in if() condition's custom property value substitutes locally, argument">
+  <style>
+    @function --f(--x) {
+      result: if(style(--x: 3px): PASS; else: FAIL;);
+    }
+    #target {
+      --x: 1px;
+      --actual: --f(3px);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="var() in if() condition's specified value substitutes locally, argument">
+  <style>
+    @function --f(--x) {
+      result: if(style(--y: var(--x)): PASS; else: FAIL;);
+    }
+    #target {
+      --x: 1px;
+      --y: 3px;
+      --actual: --f(3px);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="var() in if() declaration value substitutes locally, argument">
+  <style>
+    @function --f(--x) {
+      result: if(style(--true): var(--x); else: FAIL;);
+    }
+    #target {
+      --true: true;
+      --x: FAIL;
+      --actual: --f(PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="dashed function in if() declaration value">
+  <style>
+    @function --f() {
+      result: if(style(--true): --g(); else: FAIL;);
+    }
+    @function --g() {
+      result: PASS;
+    }
+    #target {
+      --true: true;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="dashed function with argument in if() declaration value">
+  <style>
+    @function --f(--x) {
+      --true: true;
+      result: if(style(--true): --g(var(--x)); else: FAIL;);
+    }
+    @function --g(--x) {
+      result: var(--x, FAIL);
+    }
+    #target {
+      --actual: --f(PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="if() cycle through local">
+  <style>
+    @function --f() {
+      --x: if(style(--true): var(--x); else: FAIL;);
+      result: var(--x, PASS);
+    }
+    #target {
+      --true: true;
+      --x: FAIL;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="if() cycle in condition custom property through local">
+  <style>
+    @function --f() {
+      --x: if(style(--x): FAIL1; else: FAIL2;);
+      result: var(--x, PASS);
+    }
+    #target {
+      --x: 1px;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="if() cycle in condition specified value through local">
+  <style>
+    @function --f() {
+      --x: if(style(--y: var(--x)): FAIL1; else: FAIL2;);
+      result: var(--x, PASS);
+    }
+    #target {
+      --y: 1px;
+      --x: 1px;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="if() cycle through function">
+  <style>
+    @function --f() {
+      --local: --g();
+      result: var(--local);
+    }
+    @function --g() {
+      result: if(style(--true): --f());
+    }
+    #target {
+      --true: true;
+      --local: FAIL;
+      --tmp: --f();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="if() no cycle in overridden local">
+  <style>
+    @function --f() {
+      --x: 3px;
+      result: if(style(--x): PASS; else: FAIL);
+    }
+    #target {
+      --x: var(--x);
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="if() no cycle in overridden argument">
+  <style>
+    @function --f(--x) {
+      result: if(style(--x): PASS; else: FAIL);
+    }
+    #target {
+      --x: var(--x);
+      --actual: --f(3px);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="CSS-wide keywords are interpreted locally (initial)">
+  <style>
+    @function --f(--c: green) {
+      result: if(style(--c: initial): PASS; else: FAIL);
+    }
+    @function --g() {
+      --c: red;
+      result: --f();
+    }
+    #target {
+      --actual: --g();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="CSS-wide keywords are interpreted locally (inherit)">
+  <style>
+    @function --f(--c: red) {
+      --c: green;
+      result: if(style(--c: inherit): PASS; else: FAIL);
+    }
+    @function --g() {
+      --c: green;
+      result: --f();
+    }
+    #target {
+      --actual: --g();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="CSS-wide keywords are interpreted locally (guaranteed-invalid, initial)">
+  <style>
+    @function --f() {
+      result: if(style(--c: initial): PASS; else: FAIL);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="CSS-wide keywords are interpreted locally (guaranteed-invalid, unset)">
+  <style>
+    @function --f() {
+      result: if(style(--c: unset): PASS; else: FAIL);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="CSS-wide keywords are interpreted locally (revert)">
+  <style>
+    @function --f() {
+      result: if(style(--c: revert): FAIL; else: PASS);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="CSS-wide keywords are interpreted locally (revert-layer)">
+  <style>
+    @function --f() {
+      result: if(style(--c: revert-layer): FAIL; else: PASS);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<script>
+  test_all_templates();
+</script>

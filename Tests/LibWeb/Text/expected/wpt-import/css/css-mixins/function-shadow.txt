@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Fail
+Fail	@function works inside shadow
+Fail	Looking up document-global function
+Fail	@function works inside nested shadow
+Fail	@function defined in outer shadow is visible
+Fail	Combining functions from various scopes
+Fail	::part() can not see inner functions
+Fail	::slotted() can see inner functions
+Fail	:host can see inner functions
+Fail	Outer functions can't see inner functions
+Fail	Outer functions can't see inner functions (local vars)
+Fail	Function with same name in different scopes

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<title>Custom Functions: @function within @layer</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#conditional-rules">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<div id=target></div>
+<div id=main></div>
+
+<!-- To pass, a test must produce matching computed values for --actual and
+     --expected on #target. -->
+
+<template data-name="Single function within anonymous layer">
+  <style>
+    @layer {
+      @function --f() { result: 1px; }
+    }
+    #target {
+      --actual: --f();
+      --expected: 1px;
+    }
+  </style>
+</template>
+
+<template data-name="Last anonymous layer wins">
+  <style>
+    @layer {
+      @function --f() { result: 1px; }
+    }
+    @layer {
+      @function --f() { result: 2px; }
+    }
+    #target {
+      --actual: --f();
+      --expected: 2px;
+    }
+  </style>
+</template>
+
+<template data-name="Unlayered styles win">
+  <style>
+    @layer {
+      @function --f() { result: 1px; }
+    }
+    @layer {
+      @function --f() { result: 2px; }
+    }
+    @function --f() { result: 3px; }
+    #target {
+      --actual: --f();
+      --expected: 3px;
+    }
+  </style>
+</template>
+
+<template data-name="Unlayered styles win, reverse">
+  <style>
+    @function --f() { result: 3px; }
+    @layer {
+      @function --f() { result: 1px; }
+    }
+    @layer {
+      @function --f() { result: 2px; }
+    }
+    #target {
+      --actual: --f();
+      --expected: 3px;
+    }
+  </style>
+</template>
+
+<template data-name="Single named layer">
+  <style>
+    @layer base {
+      @function --f() { result: 10px; }
+    }
+    #target {
+      --actual: --f();
+      --expected: 10px;
+    }
+  </style>
+</template>
+
+<template data-name="Named layers">
+  <style>
+    @layer base {
+      @function --f() { result: 10px; }
+    }
+    @layer theme {
+      @function --f() { result: 20px; }
+    }
+    #target {
+      --actual: --f();
+      --expected: 20px;
+    }
+  </style>
+</template>
+
+<template data-name="Named layers, reordered">
+  <style>
+    @layer theme, base;
+
+    @layer base {
+      @function --f() { result: 10px; } /* Winner */
+    }
+    @layer theme {
+      @function --f() { result: 20px; }
+    }
+    #target {
+      --actual: --f();
+      --expected: 10px;
+    }
+  </style>
+</template>
+
+<script>
+  test_all_templates();
+</script>

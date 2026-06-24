@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<title>CSS Custom Functions: Invalidation when @function rules change</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#cssom">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<!-- This stylesheet will be mutated during testing. -->
+<style id=mutable_style>
+  @function --f() {
+    result: 10px;
+  }
+</style>
+
+<style>
+  #outer {
+    width: 42px;
+  }
+  #target {
+    width: --f();
+  }
+</style>
+
+<div id=outer>
+  <div>
+    <div id=target>
+    </div>
+  </div>
+<div>
+
+<script>
+  // Adds a cleanup step to recreate `original_element` in-place
+  // (with the original text).
+  function add_cleanup(t, original_element) {
+    let original_text = original_element.textContent;
+    t.add_cleanup(() => {
+      let new_element = document.createElement('style');
+      new_element.setAttribute('id', 'mutable_style');
+      new_element.textContent = original_text;
+      original_element.parentElement.replaceChild(new_element, original_element);
+    });
+  }
+
+  test(t => {
+    add_cleanup(t, mutable_style);
+    let sheet = mutable_style.sheet;
+    assert_equals(getComputedStyle(target).width, '10px');
+    sheet.insertRule('@function --f() { result: 20px; }', 1);
+    assert_equals(getComputedStyle(target).width, '20px');
+  }, 'Appending a rule');
+
+  test(t => {
+    add_cleanup(t, mutable_style);
+    let sheet = mutable_style.sheet;
+    assert_equals(getComputedStyle(target).width, '10px');
+    sheet.insertRule('@function --f() { result: 20px; }', 0);
+    assert_equals(getComputedStyle(target).width, '10px'); // No change.
+  }, 'Prepending a rule');
+
+  test(t => {
+    add_cleanup(t, mutable_style);
+    let sheet = mutable_style.sheet;
+    assert_equals(getComputedStyle(target).width, '10px');
+    sheet.deleteRule(0);
+    assert_equals(getComputedStyle(target).width, '42px');
+  }, 'Deleting a rule');
+
+  test(t => {
+    add_cleanup(t, mutable_style);
+    let sheet = mutable_style.sheet;
+    assert_equals(getComputedStyle(target).width, '10px');
+    sheet.insertRule('@function --f() { result: 20px; }', 0);
+    assert_equals(getComputedStyle(target).width, '10px');
+    sheet.deleteRule(1);
+    assert_equals(getComputedStyle(target).width, '20px');
+  }, 'Prepending a rule, then deleting last');
+</script>

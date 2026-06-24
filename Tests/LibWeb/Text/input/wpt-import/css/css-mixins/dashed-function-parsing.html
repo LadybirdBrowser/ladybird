@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<title>Custom Functions: &lt;dashed-function&gt; parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#function-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<script>
+// Note: 'top' chosen arbitrarily.
+
+test_valid_value('top', '--func()');
+test_valid_value('top', '--func(auto)');
+test_valid_value('top', '--func(100px)');
+test_valid_value('top', '--func(#fff)');
+test_valid_value('top', '--func(auto, 100px, #fff)');
+test_valid_value('top', '--func(auto ,100px ,#fff)');
+test_valid_value('top', '--func(auto , 100px , #fff)');
+test_valid_value('top', '--func(auto,100px,#fff)');
+test_valid_value('top', '--func("thing")');
+test_valid_value('top', '--func(var(--x))');
+test_valid_value('top', '--func(var(--x, auto))');
+test_valid_value('top', '--func(--bar(), --baz(--fez()))');
+
+// Certain tokens are forbidden in <declaration-value>.
+// https://drafts.csswg.org/css-syntax/#typedef-declaration-value
+test_invalid_value('top', '--func(!)');
+test_invalid_value('top', '--func( !)');
+test_invalid_value('top', '--func( ! )');
+test_invalid_value('top', '--func(! )');
+test_invalid_value('top', '--func(;)');
+test_invalid_value('top', '--func(})');
+test_invalid_value('top', '--func(])');
+// Invalid escape causes <bad-url-token>:
+// https://drafts.csswg.org/css-syntax/#starts-with-a-valid-escape
+test_invalid_value('top', '--func(url(\\\n))');
+// Empty arguments are not allowed by <declaration-value>#.
+test_invalid_value('top', '--func(asdf,)');
+test_invalid_value('top', '--func(,)');
+test_invalid_value('top', '--func(, )');
+test_invalid_value('top', '--func( ,)');
+test_invalid_value('top', '--func( , )');
+test_invalid_value('top', '--func(a,,b)');
+test_invalid_value('top', '--func(a, ,b)');
+
+// Tests related to comma-containing productions:
+// https://drafts.csswg.org/css-values-5/#component-function-commas
+test_valid_value('top', '--func({1}, 2)');
+test_valid_value('top', '--func({ 1}, 2)');
+test_valid_value('top', '--func({1 }, 2)');
+test_valid_value('top', '--func({ 1 }, 2)');
+test_valid_value('top', '--func({1},{2})');
+test_valid_value('top', '--func({1, 2, 3},{4})');
+test_valid_value('top', '--func({,},{4})');
+test_valid_value('top', '--func({{}},{4})');
+test_valid_value('top', '--func({[]},{4})');
+// A non-{}-wrapped argument may not contain {}.
+test_invalid_value('top', '--func(123 {})');
+test_invalid_value('top', '--func(1{})');
+test_invalid_value('top', '--func({}1)');
+test_invalid_value('top', '--func( {}1)');
+test_invalid_value('top', '--func({}1 )');
+test_invalid_value('top', '--func({} 1)');
+test_invalid_value('top', '--func(1, 2{})');
+test_invalid_value('top', '--func(1,2{})');
+test_invalid_value('top', '--func(1,2{} )');
+test_invalid_value('top', '--func(1, {}2)');
+// Empty values are not allowed (the {}-wrapper not being part of the value):
+test_invalid_value('top', '--func({})');
+test_invalid_value('top', '--func(1, {})');
+test_invalid_value('top', '--func(1, { })');
+</script>

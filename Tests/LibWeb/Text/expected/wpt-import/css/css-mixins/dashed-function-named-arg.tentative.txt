@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 15 tests
+
+6 Pass
+9 Fail
+Fail	e.style['top'] = "--func(myident)" should set the property value
+Fail	e.style['top'] = "--func(--myident)" should set the property value
+Fail	e.style['top'] = "--func(--)" should set the property value
+Fail	e.style['top'] = "--func(50px --myident:)" should set the property value
+Pass	e.style['top'] = "--func(--myident:)" should not set the property value
+Pass	e.style['top'] = "--func( --myident:)" should not set the property value
+Pass	e.style['top'] = "--func(--myident :)" should not set the property value
+Pass	e.style['top'] = "--func(--myident: )" should not set the property value
+Pass	e.style['top'] = "--func( --myident : )" should not set the property value
+Pass	e.style['top'] = "--func(10px, --myident : )" should not set the property value
+Fail	e.style['top'] = "--func({--myident:})" should set the property value
+Fail	e.style['top'] = "--func({ --myident:})" should set the property value
+Fail	e.style['top'] = "--func({--myident :})" should set the property value
+Fail	e.style['top'] = "--func({--myident: })" should set the property value
+Fail	e.style['top'] = "--func(10px, { --myident : })" should set the property value

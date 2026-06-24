@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<title>Custom Functions: Container Queries + ShadowDOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#using-custom-functions">
+<link rel="help" href="https://drafts.csswg.org/css-shadow-1/#css-tree-scoped-reference">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<div data-name="Can query named container in shadow">
+  <template shadowrootmode=open>
+    <style>
+      @function --b() {
+        @container --cont (width = 10px) {
+          result: 10px;
+        }
+      }
+      ::part(target) {
+        --actual: --b();
+        --expected: 10px;
+      }
+      .container {
+        container: --cont / size;
+        width: 10px;
+        height: 10px;
+      }
+    </style>
+    <div id=target part=target></div>
+  </template>
+</div>
+
+<div data-name="::part() can see inner named containers">
+  <template shadowrootmode=open>
+    <style>
+      @function --b() {
+        @container --cont (width = 5px) {
+          result: 5px;
+        }
+        @container --cont (width = 10px) {
+          result: 10px;
+        }
+      }
+      ::part(target) {
+        --actual: --b();
+        --expected: 5px;
+      }
+      .container {
+        container: --cont / size;
+        width: 10px;
+        height: 10px;
+      }
+    </style>
+    <div class=container>
+      <template shadowrootmode=open>
+        <style>
+          @function --b() {
+            result: FAIL;
+          }
+          .container {
+            container: --cont / size;
+            width: 5px;
+            height: 5px;
+          }
+        </style>
+        <div class=container>
+          <div id=target part=target></div>
+        </div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<div data-name="::slotted() can see inner named containers">
+  <template shadowrootmode=open>
+    <style>
+      @function --b() {
+        @container --cont (width = 5px) {
+          result: 5px;
+        }
+        @container --cont (width = 10px) {
+          result: 10px;
+        }
+      }
+      .container {
+        container: --cont / size;
+        width: 10px;
+        height: 10px;
+      }
+    </style>
+    <div class=container>
+      <template shadowrootmode=open>
+        <style>
+          @function --c() {
+            @container --cont (width = 5px) {
+              result: 5px;
+            }
+            @container --cont (width = 10px) {
+              result: 10px;
+            }
+          }
+          .container {
+            container: --cont / size;
+            width: 5px;
+            height: 5px;
+          }
+          ::slotted(#target) {
+            --actual: --b() --c();
+            --expected: 5px 5px;
+          }
+        </style>
+        <div class=container>
+          <slot></slot>
+        </div>
+      </template>
+      <div id=target></div>
+    </div>
+  </template>
+</div>
+
+<script>
+  test_all_shadows();
+</script>

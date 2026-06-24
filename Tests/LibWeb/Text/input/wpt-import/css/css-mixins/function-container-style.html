@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<title>Custom Functions: @container style queries</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#conditional-rules">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #container, #target {
+    container-type: size;
+  }
+  #size-container {
+    container-type: size;
+    width: 100px;
+    height: 100px;
+    --x: size;
+  }
+  #parent {
+    --x: parent;
+  }
+  @function --f() {
+    result: A;
+    @container (style(--x: before)) {
+      result: B;
+    }
+    @container (style(--x: target)) {
+      result: C;
+    }
+    @container (style(--x: parent)) {
+      result: D;
+    }
+    @container (style(--x: size)) {
+      result: E;
+    }
+  }
+  #target {
+    --x: target;
+    --actual: --f();
+  }
+  #target::before {
+    content: "test";
+    --x: before;
+    --actual: --f();
+  }
+</style>
+
+<div id=size-container>
+  <div id=parent>
+    <div id=target>
+    </div>
+  </div>
+</div>
+
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue('--x'), 'target');
+    assert_equals(getComputedStyle(target).getPropertyValue('--actual'), 'D');
+  }, 'Style query on #target should query parent element');
+
+  test(() => {
+    assert_equals(getComputedStyle(target, '::before').getPropertyValue('--x'), 'before');
+    assert_equals(getComputedStyle(target, '::before').getPropertyValue('--actual'), 'C');
+  }, 'Style query on ::before should query originating element');
+</script>

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<title>Custom Functions: Handling cycles</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#evaluating-custom-functions">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#cyclic-substitution-contexts">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<div id=target></div>
+<div id=main></div>
+
+<!-- To pass, a test must produce matching computed values for --actual and
+     --expected on #target. -->
+
+<!-- Locals / Arguments -->
+
+<template data-name="Local with self-cycle">
+  <style>
+    @function --f() {
+      --x: var(--x);
+      result: var(--x, PASS);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cycle reference without fallback makes result invalid">
+  <style>
+    @function --f() {
+      --x: var(--x);
+      result: var(--x);
+    }
+    #target {
+      --actual: --f();
+      /* --expected: <guaranteed-invalid> */
+    }
+  </style>
+</template>
+
+<template data-name="Local with self-cycle in unused fallback">
+  <style>
+    @function --f() {
+      --y: PASS;
+      --x: var(--y, var(--x));
+      result: var(--x, FAIL);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Local shadowing cyclic property --x">
+  <style>
+    /* The _properties_ --x and --y are in a cycle.
+      However, the _local_ --x is not a cycle with anything. */
+    @function --f() {
+      --x: var(--y, PASS);
+      result: var(--x);
+    }
+    #target {
+      --x: var(--y);
+      --y: var(--x);
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Local shadowing cyclic outer local --x">
+  <style>
+    /* The locals --x and --y are in a cycle within --f(). */
+    @function --f() {
+      --x: var(--y);
+      --y: var(--x);
+      result: --g();
+    }
+    @function --g() {
+      --x: var(--y, PASS); /* Shadows outer --x. */
+      result: var(--x);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Argument shadowing cyclic outer local --x">
+  <style>
+    @function --f() {
+      --x: var(--x); /* Cycle */
+      result: --g(10px);
+    }
+    @function --g(--x) {
+      result: var(--x);
+    }
+    #target {
+      --actual: --f();
+      --expected: 10px;
+    }
+  </style>
+</template>
+
+<template data-name="Arguments shadowing cyclic properties">
+  <style>
+    @function --f(--x, --y) {
+      result: var(--x) var(--y);
+    }
+    #target {
+      --x: var(--y);
+      --y: var(--x);
+      --actual: --f(PASS-x, PASS-y);
+      --expected: PASS-x PASS-y;
+    }
+  </style>
+</template>
+
+<template data-name="Observing property cycle locally">
+  <style>
+    @function --f() {
+      result: var(--x, PASS-x) var(--x, PASS-y);
+    }
+    #target {
+      --x: var(--y);
+      --y: var(--x);
+      --actual: --f();
+      --expected: PASS-x PASS-y;
+    }
+  </style>
+</template>
+
+<template data-name="Using cyclic values with no fallback">
+  <style>
+    @function --f() {
+        --y: var(--x, 1);
+        --x: var(--y, 3);
+        result: var(--x) var(--y);
+    }
+    #target {
+      --actual: --f();
+      /* --expected: <guaranteed-invalid> */
+    }
+  </style>
+</template>
+
+<template data-name="Self-cycle in non-used local variable">
+  <style>
+    @function --f() {
+      --x: var(--x);
+      result: PASS;
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Using cyclic value in unused fallback">
+  <style>
+    @function --f() {
+      --x: PASS;
+      result: var(--x, var(--y));
+    }
+    #target {
+      --y: var(--y);
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Using cyclic value in unused fallback (local)">
+  <style>
+    @function --f() {
+      --x: PASS;
+      --y: var(--y);
+      result: var(--x, var(--y));
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<!-- Between <dashed-functions> -->
+
+<!--
+  Note that several of these tests call functions via a "--tmp" custom property.
+  This is to be able to trigger a fallback when the function is in a cycle.
+-->
+
+<template data-name="Dashed-function, self-cycle">
+  <style>
+    @function --f() {
+      result: --f();
+    }
+    #target {
+      --tmp: --f();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cycle through other function (--g)">
+  <style>
+    @function --f() {
+      result: --g();
+    }
+    @function --g() {
+      result: --f();
+    }
+    #target {
+      --tmp: --g();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cycle through other function (--f)">
+  <style>
+    @function --f() {
+      result: --g();
+    }
+    @function --g() {
+      result: --f();
+    }
+    #target {
+      --tmp: --f();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cycle through local, self">
+  <style>
+    @function --f() {
+      --local: --f();
+      result: var(--local);
+    }
+    #target {
+      --local: FAIL;
+      --tmp: --f();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cycle through unused local">
+  <style>
+    @function --f() {
+      --unused: --f();
+      result: FAIL-result;
+    }
+    #target {
+      --local: FAIL;
+      --tmp: --f();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cycle through global, self">
+  <style>
+    @function --f() {
+      result: var(--global);
+    }
+    #target {
+      --global: --f();
+      --tmp: --f();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cycle through local, other function">
+  <style>
+    @function --f() {
+      result: --g();
+    }
+    @function --g() {
+      --local: --f();
+      result: var(--local);
+    }
+    #target {
+      --local: FAIL;
+      --tmp: --g();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cycle through local, other function, fallback in function">
+  <style>
+    @function --f() {
+      --a: --g();
+      result: var(--a, PASS);
+    }
+
+    @function --g() {
+      result: var(--a);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cycle through various variables and other functions">
+  <style>
+    @function --f() {
+      --local: --g();
+      result: var(--local);
+    }
+    @function --g() {
+      --local: FAIL;
+      result: var(--global);
+    }
+    #target {
+      --local: FAIL;
+      --global: --f();
+      --tmp: --g();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Function in a cycle with its own default">
+  <style>
+    @function --f(--x, --y: --f(13px)) {
+      result: 10px;
+    }
+    #target {
+      --tmp: --f(42px);
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Cyclic defaults">
+  <style>
+    @function --f(--x, --y: var(--z), --z: var(--y)) {
+      result: var(--x, FAIL) var(--y, PASS-y) var(--z, PASS-z);
+    }
+    #target {
+      --actual: --f(42px);
+      --expected: 42px PASS-y PASS-z;
+    }
+  </style>
+</template>
+
+<template data-name="Cyclic outer --b shadows custom property">
+  <style>
+    @function --f() {
+      --b: var(--b);
+      --a: --g();
+      result: var(--a);
+    }
+
+    @function --g(--a: var(--b)) {
+      result: var(--a, PASS);
+    }
+    #target {
+      --b: FAIL;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Locals are function specific">
+  <style>
+    @function --f() {
+      --a: --g();
+      result: var(--a);
+    }
+
+    @function --g() {
+      --a: 10px;
+      result: var(--a);
+    }
+    #target {
+      /* Nothing is in a cycle here. */
+      --actual: --f();
+      --expected: 10px;
+    }
+  </style>
+</template>
+
+<script>
+  test_all_templates();
+</script>

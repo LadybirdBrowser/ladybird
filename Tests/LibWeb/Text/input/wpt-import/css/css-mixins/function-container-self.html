@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>Custom Functions: @container can not query self</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#conditional-rules">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #container, #target {
+    container-type: size;
+  }
+  #container {
+    width: 100px;
+    height: 100px;
+  }
+  #target {
+    width: 50px;
+    height: 50px;
+  }
+  @function --f() {
+    result: A;
+    @container (width = 100px) {
+      result: B;
+    }
+    @container (width = 50px) {
+      result: C;
+    }
+  }
+  #target {
+    --actual: --f();
+  }
+</style>
+
+<div id=container>
+  <div id=target>
+  </div>
+</div>
+
+<script>
+  test(() => {
+    // Even though #target is a CQ container, the @container rules should
+    // not evaluate against that element.
+    assert_equals(getComputedStyle(target).getPropertyValue('--actual'), 'B');
+  });
+</script>

@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Fail
+Fail	Local with self-cycle
+Fail	Cycle reference without fallback makes result invalid
+Fail	Local with self-cycle in unused fallback
+Fail	Local shadowing cyclic property --x
+Fail	Local shadowing cyclic outer local --x
+Fail	Argument shadowing cyclic outer local --x
+Fail	Arguments shadowing cyclic properties
+Fail	Observing property cycle locally
+Fail	Using cyclic values with no fallback
+Fail	Self-cycle in non-used local variable
+Fail	Using cyclic value in unused fallback
+Fail	Using cyclic value in unused fallback (local)
+Fail	Dashed-function, self-cycle
+Fail	Cycle through other function (--g)
+Fail	Cycle through other function (--f)
+Fail	Cycle through local, self
+Fail	Cycle through unused local
+Fail	Cycle through global, self
+Fail	Cycle through local, other function
+Fail	Cycle through local, other function, fallback in function
+Fail	Cycle through various variables and other functions
+Fail	Function in a cycle with its own default
+Fail	Cyclic defaults
+Fail	Cyclic outer --b shadows custom property
+Fail	Locals are function specific

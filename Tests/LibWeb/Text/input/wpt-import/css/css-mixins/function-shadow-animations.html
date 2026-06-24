@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<title>Custom Functions: ShadowDOM (animations)</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#using-custom-functions">
+<link rel="help" href="https://drafts.csswg.org/css-shadow-1/#css-tree-scoped-reference">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<style>
+  @property --length {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+  }
+
+  @function --from() { result: 1000px; }
+  @function --to() { result: 2000px; }
+</style>
+
+<div id=can_animate_standard_property_in_shadow>
+  <template shadowrootmode=open>
+    <style>
+      @keyframes --anim {
+        from { width: --from(); }
+        to { width: --to(); }
+      }
+      @function --from() { result: 0px; }
+      @function --to() { result: 100px; }
+      div {
+        animation: --anim 1000s linear paused forwards;
+      }
+      #t00 { animation-delay: 0s; }
+      #t04 { animation-delay: -400s; }
+      #t05 { animation-delay: -500s; }
+      #t06 { animation-delay: -600s; }
+      #t10 { animation-delay: -1000s; }
+    </style>
+    <div id=t00></div>
+    <div id=t04></div>
+    <div id=t05></div>
+    <div id=t06></div>
+    <div id=t10></div>
+  </template>
+</div>
+<script>
+  test(() => {
+    let sr = can_animate_standard_property_in_shadow.shadowRoot;
+    let gCS = (id) => getComputedStyle(sr.querySelector(id))
+    assert_equals(gCS('#t00').width, '0px');
+    assert_equals(gCS('#t04').width, '40px');
+    assert_equals(gCS('#t05').width, '50px');
+    assert_equals(gCS('#t06').width, '60px');
+    assert_equals(gCS('#t10').width, '100px');
+  }, 'Can animate standard property in shadow');
+</script>
+
+<div id=can_animate_typed_custom_property_in_shadow>
+  <template shadowrootmode=open>
+    <style>
+      @keyframes --anim {
+        from { --length: --from(); }
+        to { --length: --to(); }
+      }
+      @function --from() { result: 0px; }
+      @function --to() { result: 100px; }
+      div {
+        animation: --anim 1000s linear paused forwards;
+      }
+      #t00 { animation-delay: 0s; }
+      #t04 { animation-delay: -400s; }
+      #t05 { animation-delay: -500s; }
+      #t06 { animation-delay: -600s; }
+      #t10 { animation-delay: -1000s; }
+    </style>
+    <div id=t00></div>
+    <div id=t04></div>
+    <div id=t05></div>
+    <div id=t06></div>
+    <div id=t10></div>
+  </template>
+</div>
+<script>
+  test(() => {
+    let sr = can_animate_typed_custom_property_in_shadow.shadowRoot;
+    let gCS = (id) => getComputedStyle(sr.querySelector(id))
+    assert_equals(gCS('#t00').getPropertyValue('--length'), '0px');
+    assert_equals(gCS('#t04').getPropertyValue('--length'), '40px');
+    assert_equals(gCS('#t05').getPropertyValue('--length'), '50px');
+    assert_equals(gCS('#t06').getPropertyValue('--length'), '60px');
+    assert_equals(gCS('#t10').getPropertyValue('--length'), '100px');
+  }, 'Can animate typed custom property in shadow');
+</script>
+
+<div id=can_animate_untyped_custom_property_in_shadow>
+  <template shadowrootmode=open>
+    <style>
+      @keyframes --anim {
+        from { --untyped: --from(); }
+        to { --untyped: --to(); }
+      }
+      @function --from() { result: 0px; }
+      @function --to() { result: 100px; }
+      div {
+        animation: --anim 1000s linear paused forwards;
+      }
+      #t00 { animation-delay: 0s; }
+      #t04 { animation-delay: -400s; }
+      #t05 { animation-delay: -500s; }
+      #t06 { animation-delay: -600s; }
+      #t10 { animation-delay: -1000s; }
+    </style>
+    <div id=t00></div>
+    <div id=t04></div>
+    <div id=t05></div>
+    <div id=t06></div>
+    <div id=t10></div>
+  </template>
+</div>
+<script>
+  test(() => {
+    let sr = can_animate_untyped_custom_property_in_shadow.shadowRoot;
+    let gCS = (id) => getComputedStyle(sr.querySelector(id))
+    assert_equals(gCS('#t00').getPropertyValue('--untyped'), '0px');
+    assert_equals(gCS('#t04').getPropertyValue('--untyped'), '0px');
+    assert_equals(gCS('#t05').getPropertyValue('--untyped'), '100px');
+    assert_equals(gCS('#t06').getPropertyValue('--untyped'), '100px');
+    assert_equals(gCS('#t10').getPropertyValue('--untyped'), '100px');
+  }, 'Can animate untyped custom property in shadow');
+</script>

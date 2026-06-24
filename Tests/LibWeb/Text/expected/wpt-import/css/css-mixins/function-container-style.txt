@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Style query on #target should query parent element
+Fail	Style query on ::before should query originating element

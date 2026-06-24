@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<title>Custom Functions: @media responds to changes</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#conditional-rules">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  iframe {
+    width: 50px;
+    height: 50px;
+  }
+</style>
+<iframe id="iframe" srcdoc="
+  <div id=target></div>
+  <style>
+    @function --f() {
+      result: A;
+      @media (width = 100px) {
+        result: B;
+      }
+      @media ((width >= 110px) and (width <= 140px)) {
+        result: C;
+      }
+      @media (width = 150px) {
+        result: D;
+      }
+    }
+    #target {
+      --actual: --f();
+    }
+  </style>
+"></iframe>
+
+<script>
+  function waitForLoad(w) {
+    return new Promise(resolve => w.addEventListener('load', resolve));
+  }
+
+  promise_test(async () => {
+    await waitForLoad(window);
+    const target = iframe.contentDocument.querySelector('#target');
+    let actualValue = () => getComputedStyle(target).getPropertyValue('--actual');
+
+    assert_equals(actualValue(), 'A', '--actual before resize');
+
+    // [<width of frame>, <expected function result>]
+    let data = [
+      ['100px', 'B'],
+      ['105px', 'A'],
+      ['110px', 'C'],
+      ['125px', 'C'],
+      ['140px', 'C'],
+      ['145px', 'A'],
+      ['150px', 'D'],
+      ['155px', 'A'],
+    ];
+
+    for (let d of data) {
+      iframe.style.width = d[0];
+      let expected = d[1];
+      assert_equals(actualValue(), expected, `--actual after resize to ${d[0]}`);
+    }
+  });
+</script>

@@ -1,0 +1,55 @@
+Harness status: OK
+
+Found 49 tests
+
+30 Pass
+19 Fail
+Fail	e.style['top'] = "--func()" should set the property value
+Fail	e.style['top'] = "--func(auto)" should set the property value
+Fail	e.style['top'] = "--func(100px)" should set the property value
+Fail	e.style['top'] = "--func(#fff)" should set the property value
+Fail	e.style['top'] = "--func(auto, 100px, #fff)" should set the property value
+Fail	e.style['top'] = "--func(auto ,100px ,#fff)" should set the property value
+Fail	e.style['top'] = "--func(auto , 100px , #fff)" should set the property value
+Fail	e.style['top'] = "--func(auto,100px,#fff)" should set the property value
+Fail	e.style['top'] = "--func(\"thing\")" should set the property value
+Pass	e.style['top'] = "--func(var(--x))" should set the property value
+Pass	e.style['top'] = "--func(var(--x, auto))" should set the property value
+Fail	e.style['top'] = "--func(--bar(), --baz(--fez()))" should set the property value
+Pass	e.style['top'] = "--func(!)" should not set the property value
+Pass	e.style['top'] = "--func( !)" should not set the property value
+Pass	e.style['top'] = "--func( ! )" should not set the property value
+Pass	e.style['top'] = "--func(! )" should not set the property value
+Pass	e.style['top'] = "--func(;)" should not set the property value
+Pass	e.style['top'] = "--func(})" should not set the property value
+Pass	e.style['top'] = "--func(])" should not set the property value
+Pass	e.style['top'] = "--func(url(\\\n))" should not set the property value
+Pass	e.style['top'] = "--func(asdf,)" should not set the property value
+Pass	e.style['top'] = "--func(,)" should not set the property value
+Pass	e.style['top'] = "--func(, )" should not set the property value
+Pass	e.style['top'] = "--func( ,)" should not set the property value
+Pass	e.style['top'] = "--func( , )" should not set the property value
+Pass	e.style['top'] = "--func(a,,b)" should not set the property value
+Pass	e.style['top'] = "--func(a, ,b)" should not set the property value
+Fail	e.style['top'] = "--func({1}, 2)" should set the property value
+Fail	e.style['top'] = "--func({ 1}, 2)" should set the property value
+Fail	e.style['top'] = "--func({1 }, 2)" should set the property value
+Fail	e.style['top'] = "--func({ 1 }, 2)" should set the property value
+Fail	e.style['top'] = "--func({1},{2})" should set the property value
+Fail	e.style['top'] = "--func({1, 2, 3},{4})" should set the property value
+Fail	e.style['top'] = "--func({,},{4})" should set the property value
+Fail	e.style['top'] = "--func({{}},{4})" should set the property value
+Fail	e.style['top'] = "--func({[]},{4})" should set the property value
+Pass	e.style['top'] = "--func(123 {})" should not set the property value
+Pass	e.style['top'] = "--func(1{})" should not set the property value
+Pass	e.style['top'] = "--func({}1)" should not set the property value
+Pass	e.style['top'] = "--func( {}1)" should not set the property value
+Pass	e.style['top'] = "--func({}1 )" should not set the property value
+Pass	e.style['top'] = "--func({} 1)" should not set the property value
+Pass	e.style['top'] = "--func(1, 2{})" should not set the property value
+Pass	e.style['top'] = "--func(1,2{})" should not set the property value
+Pass	e.style['top'] = "--func(1,2{} )" should not set the property value
+Pass	e.style['top'] = "--func(1, {}2)" should not set the property value
+Pass	e.style['top'] = "--func({})" should not set the property value
+Pass	e.style['top'] = "--func(1, {})" should not set the property value
+Pass	e.style['top'] = "--func(1, { })" should not set the property value

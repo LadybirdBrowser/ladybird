@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<title>Custom Functions: Local var() substitution</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#locally-substitute-a-var">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<div id=target></div>
+<div id=main></div>
+
+<!-- To pass, a test must produce matching computed values for --actual and
+     --expected on #target. -->
+
+<!-- Fallbacks -->
+
+<template data-name="Fallback directly in result">
+  <style>
+    @function --f() {
+      result: var(--unknown, PASS);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Fallback via present, but invalid local">
+  <style>
+    @function --f() {
+      --x: var(--unknown);
+      result: var(--x, PASS);
+    }
+    #target {
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Fallback is locally resolved (result)">
+  <style>
+    @function --f() {
+      --x: PASS;
+      result: var(--unknown, var(--x));
+    }
+    #target {
+      --x: FAIL;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="Fallback is locally resolved (local var)">
+  <style>
+    @function --f() {
+      --y: PASS;
+      --x: var(--unknown, var(--y));
+      result: var(--x);
+    }
+    #target {
+      --x: FAIL1;
+      --Y: FAIL2;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<script>
+  test_all_templates();
+</script>

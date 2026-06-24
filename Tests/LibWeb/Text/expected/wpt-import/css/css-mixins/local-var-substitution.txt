@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Fallback directly in result
+Fail	Fallback via present, but invalid local
+Fail	Fallback is locally resolved (result)
+Fail	Fallback is locally resolved (local var)

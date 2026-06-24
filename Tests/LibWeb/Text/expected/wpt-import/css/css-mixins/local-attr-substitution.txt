@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	var() in attribute value substitutes locally
+Fail	var() in attribute value substitutes locally, argument
+Fail	var() in attribute value substitutes locally, typed
+Fail	attr() fallback substitutes locally
+Fail	attr() cycle through local
+Fail	attr() cycle through unused fallback in local
+Fail	attr() cycle through function

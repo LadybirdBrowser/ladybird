@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<title>Custom Functions: Local substitution of var() in attribute value</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#locally-substitute-a-var">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<div id=target data-x="var(--x)" data-f="--f()"></div>
+<div id=main></div>
+
+<!-- To pass, a test must produce matching computed values for --actual and
+     --expected on #target. -->
+
+<template data-name="var() in attribute value substitutes locally">
+  <style>
+    @function --f() {
+      --x: PASS;
+      result: attr(data-x type(*));
+    }
+    #target {
+      --x: FAIL;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="var() in attribute value substitutes locally, argument">
+  <style>
+    @function --f(--x) {
+      result: attr(data-x type(*));
+    }
+    #target {
+      --x: FAIL;
+      --actual: --f(PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="var() in attribute value substitutes locally, typed">
+  <style>
+    @function --f() returns <length> {
+      --x: calc(10px + 2px);
+      result: attr(data-x type(<length>));
+    }
+    #target {
+      --x: calc(10px + 1px);
+      --actual: --f();
+      --expected: 12px;
+    }
+  </style>
+</template>
+
+<template data-name="attr() fallback substitutes locally">
+  <style>
+    @function --f() {
+      --x: PASS;
+      result: attr(data-unknown, var(--x));
+    }
+    #target {
+      --x: FAIL;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="attr() cycle through local">
+  <style>
+    @function --f() {
+      --x: attr(data-x type(*));
+      --y: attr(data-x type(*), PASS);
+      result: var(--y, PASS);
+    }
+    #target {
+      --x: FAIL1;
+      --y: FAIL2;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="attr() cycle through unused fallback in local">
+  <style>
+    @function --f() {
+      --valid: PASS;
+      --x: var(--valid, attr(data-x type(*)));
+      --y: attr(data-x type(*), FAIL);
+      result: var(--y, FAIL);
+    }
+    #target {
+      --x: FAIL1;
+      --y: FAIL2;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="attr() cycle through function">
+  <style>
+    @function --f() {
+      --local: --g();
+      result: var(--local);
+    }
+    @function --g() {
+      result: attr(data-f type(*));
+    }
+    #target {
+      --local: FAIL;
+      --tmp: --f();
+      --actual: var(--tmp, PASS);
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<script>
+  test_all_templates();
+</script>

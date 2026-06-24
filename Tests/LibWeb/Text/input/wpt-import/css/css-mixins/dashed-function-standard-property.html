@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>Custom Functions: Evaluating a &lt;dashed-function> in standard properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#substitute-a-dashed-function">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  @function --ten-px() {
+    result: 10px;
+  }
+
+  @function --ten-px-typed() returns <length> {
+    result: 10px;
+  }
+
+  @function --green() {
+    result: green;
+  }
+
+  #target {
+    width: --ten-px();
+    height: --ten-px-typed();
+    color: --green();
+    padding: --ten-px();
+  }
+</style>
+
+<div id=target></div>
+
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).width, '10px');
+  }, '<dashed-function> in longhand');
+
+  test(() => {
+    assert_equals(getComputedStyle(target).height, '10px');
+  }, '<dashed-function> with typed result in longhand');
+
+  test(() => {
+    assert_equals(getComputedStyle(target).color, 'rgb(0, 128, 0)');
+  }, '<dashed-function> with in inherited longhand');
+
+  test(() => {
+    assert_equals(getComputedStyle(target).padding, '10px');
+  }, '<dashed-function> with typed result in shorthand');
+</script>

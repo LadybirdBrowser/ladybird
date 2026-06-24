@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<title>Custom Functions: Local inherit() substitution</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#inherit-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<div id=parent>
+  <div id=target></div>
+</div>
+<div id=main></div>
+
+<!-- To pass, a test must produce matching computed values for '--actual'
+     and '--expected' on '#target'. -->
+
+<template data-name="inherit() refers to parent stack frame (element)">
+  <style>
+    @function --f() {
+      --x: FAIL2;
+      result: inherit(--x);
+    }
+    #parent {
+      --x: FAIL1;
+    }
+    #parent > #target {
+      --x: PASS;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="inherit() refers to parent stack frame (other function call)">
+  <style>
+    @function --f() {
+      --x: PASS;
+      result: --g();
+    }
+    @function --g() {
+      --x: FAIL3;
+      result: inherit(--x);
+    }
+    #parent {
+      --x: FAIL1;
+    }
+    #parent > #target {
+      --x: FAIL2;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="inherit() referring to guaranteed-invalid in parent frame">
+  <style>
+    @function --f() {
+      --x: var(--noexist);
+      result: --g();
+    }
+    @function --g() {
+      --x: FAIL3;
+      result: inherit(--x, PASS);
+    }
+    #parent {
+      --x: FAIL1;
+    }
+    #parent > #target {
+      --x: FAIL2;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+<template data-name="inherit() referring to cycle in parent frame">
+  <style>
+    @function --f() {
+      --x: var(--x);
+      result: --g();
+    }
+    @function --g() {
+      --x: FAIL3;
+      result: inherit(--x, PASS);
+    }
+    #parent {
+      --x: FAIL1;
+    }
+    #parent > #target {
+      --x: FAIL2;
+      --actual: --f();
+      --expected: PASS;
+    }
+  </style>
+</template>
+
+
+<template data-name="inherit() referring to typed value in parent frame">
+  <style>
+    @function --f(--x <length>) {
+      result: --g();
+    }
+    @function --g() {
+      --x: 14px;
+      result: inherit(--x);
+    }
+    #parent {
+      --x: 12px;
+    }
+    #parent > #target {
+      --x: 13px;
+      --actual: --f(42.0px);
+      --expected: 42px;
+    }
+  </style>
+</template>
+
+<script>
+  test_all_templates();
+</script>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<title>Custom Functions: ShadowDOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#using-custom-functions">
+<link rel="help" href="https://drafts.csswg.org/css-shadow-1/#css-tree-scoped-reference">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<style>
+  @function --a() { result: 42px; }
+</style>
+
+<!--
+  Each element <div data-name="test case name"> represents a test.
+  Inside each such element (including all shadow trees), there must be
+  an element #target, with identical computed values for --actual and --expected.
+-->
+
+<div data-name="@function works inside shadow">
+  <template shadowrootmode=open>
+    <style>
+      @function --a() {
+        result: 10px;
+      }
+      #target {
+        --actual: --a();
+        --expected: 10px;
+      }
+    </style>
+    <div id=target></div>
+  </template>
+</div>
+
+<div data-name="Looking up document-global function">
+  <template shadowrootmode=open>
+    <style>
+      #target {
+        --actual: --a();
+        --expected: 42px;
+      }
+    </style>
+    <div id=target></div>
+  </template>
+</div>
+
+<div data-name="@function works inside nested shadow">
+  <template shadowrootmode=open>
+    <div>
+      <template shadowrootmode=open>
+        <style>
+          @function --a() {
+            result: 11px;
+          }
+          #target {
+            --actual: --a();
+            --expected: 11px;
+          }
+        </style>
+        <div id=target></div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<div data-name="@function defined in outer shadow is visible">
+  <template shadowrootmode=open>
+    <style>
+      @function --a() {
+        result: 12px;
+      }
+    </style>
+    <div>
+      <template shadowrootmode=open>
+        <style>
+          #target {
+            --actual: --a();
+            --expected: 12px;
+          }
+        </style>
+        <div id=target></div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<div data-name="Combining functions from various scopes">
+  <template shadowrootmode=open>
+    <style>
+      @function --b() {
+        result: B;
+      }
+    </style>
+    <div>
+      <template shadowrootmode=open>
+        <style>
+          @function --c() {
+            result: C;
+          }
+          #target {
+            --actual: --a() --b() --c();
+            --expected: 42px B C;
+          }
+        </style>
+        <div id=target></div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<div data-name="::part() can not see inner functions">
+  <template shadowrootmode=open>
+    <style>
+      @function --b() {
+        result: 14px;
+      }
+      ::part(target) {
+        --actual: --a() --b();
+        --expected: 42px 14px;
+      }
+    </style>
+    <div>
+      <template shadowrootmode=open>
+        <style>
+          @function --a() {
+            result: FAIL-a;
+          }
+          @function --b() {
+            result: FAIL-b;
+          }
+        </style>
+        <div id=target part=target></div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<div data-name="::slotted() can see inner functions">
+  <template shadowrootmode=open>
+    <style>
+      @function --b() {
+        result: 16px;
+      }
+    </style>
+    <div>
+      <template shadowrootmode=open>
+        <style>
+          @function --c() {
+            result: 15px;
+          }
+          ::slotted(#target) {
+            --actual: --a() --b() --c();
+            --expected: 42px 16px 15px;
+          }
+        </style>
+        <slot></slot>
+      </template>
+      <div id=target></div>
+    </div>
+  </template>
+</div>
+
+<div data-name=":host can see inner functions">
+  <template shadowrootmode=open>
+    <style>
+      @function --b() {
+        result: 17px;
+      }
+    </style>
+    <div id=target>
+      <template shadowrootmode=open>
+        <style>
+          @function --c() {
+            result: 18px;
+          }
+          :host {
+            --actual: --a() --b() --c();
+            --expected: 42px 17px 18px;
+          }
+        </style>
+      </template>
+    </div>
+  </template>
+</div>
+
+<div data-name="Outer functions can't see inner functions">
+  <template shadowrootmode=open>
+    <style>
+      @function --b() {
+        result: --c(); /* 20px */
+      }
+      @function --c() {
+        result: 20px;
+      }
+    </style>
+    <div>
+      <template shadowrootmode=open>
+        <style>
+          @function --c() {
+            result: C;
+          }
+          #target {
+            --actual: --b() --c();
+            --expected: 20px C;
+          }
+        </style>
+        <div id=target></div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<div data-name="Outer functions can't see inner functions (local vars)">
+  <template shadowrootmode=open>
+    <style>
+      @function --b() {
+        --lb: --c();
+        result: var(--lb); /* 22px */
+      }
+      @function --c() {
+        result: 22px;
+      }
+    </style>
+    <div>
+      <template shadowrootmode=open>
+        <style>
+          @function --c() {
+            result: C;
+          }
+          @function --d() {
+            --ld: --b() --c();
+            result: var(--ld);
+          }
+          #target {
+            --actual: --d();
+            --expected: 22px C;
+          }
+        </style>
+        <div id=target></div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<div data-name="Function with same name in different scopes">
+  <template shadowrootmode=open>
+    <style>
+      @function --a() {
+        result: 24px;
+      }
+      @function --b() {
+        result: --a(); /* 24px */
+      }
+    </style>
+    <div>
+      <template shadowrootmode=open>
+        <style>
+          @function --a() {
+            result: --b(); /* Calls --b() in outer scope. */
+          }
+          #target {
+            /* Nothing is in a cycle here. */
+            --actual: --a();
+            --expected: 24px;
+          }
+        </style>
+        <div id=target></div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<script>
+  test_all_shadows();
+</script>

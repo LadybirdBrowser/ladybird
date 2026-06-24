@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<title>Custom Functions: attr(), url(), tainting</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#using-custom-functions">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#attr-security">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<style>
+  #parent {
+    list-style-image: url(parent);
+  }
+</style>
+<div id=parent>
+  <div id=actual data-42="42px" data-cat="url(cat.png)"></div>
+  <div id=expected></div>
+</div>
+<main id=main></main>
+
+<!--
+  Each <template> represents a test, and is executed by comparing the computed
+  values of #actual and #expected.
+-->
+<script>
+  // Only these properties are actually compared.
+  let relevant_properties = ['list-style-image', 'width'];
+</script>
+
+<template data-name="Return untyped url() from function">
+  <style>
+    @function --f() {
+      result: url(img.png);
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(img.png); }
+  </style>
+</template>
+
+<template data-name="Return untyped url() from function, quoted">
+  <style>
+    @function --f() {
+      result: url("img.png");
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url("img.png"); }
+  </style>
+</template>
+
+<template data-name="Return typed url() from function">
+  <style>
+    @function --f() returns <url> {
+      result: url(img.png);
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(img.png); }
+  </style>
+</template>
+
+<template data-name="Return typed url() from function, quoted">
+  <style>
+    @function --f() returns <url> {
+      result: url("img.png");
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url("img.png"); }
+  </style>
+</template>
+
+<!-- Permitted uses of attr() -->
+
+<template data-name="Return attr(type(<length>)) from untyped function">
+  <style>
+    @function --f() {
+      result: attr(data-42 type(<length>));
+    }
+    #actual { width: --f(); }
+    #expected { width: 42px; }
+  </style>
+</template>
+
+<template data-name="Return attr(type(<length>)) from typed function">
+  <style>
+    @function --f() returns <length> {
+      result: attr(data-42 type(<length>));
+    }
+    #actual { width: --f(); }
+    #expected { width: 42px; }
+  </style>
+</template>
+
+<template data-name="Return attr(type(*)) from typed function">
+  <style>
+    @function --f() returns <length> {
+      result: attr(data-42 type(*));
+    }
+    #actual { width: --f(); }
+    #expected { width: 42px; }
+  </style>
+</template>
+
+<template data-name="Return attr(type(*)) from untyped function">
+  <style>
+    @function --f() {
+      result: attr(data-42 type(*));
+    }
+    #actual { width: --f(); }
+    #expected { width: 42px; }
+  </style>
+</template>
+
+<template data-name="attr() in default parameter value">
+  <style>
+    @function --f(--a : attr(data-42 type(*))) {
+      result: var(--a);
+    }
+    #actual { width: --f(); }
+    #expected { width: 42px; }
+  </style>
+</template>
+
+<template data-name="attr() in local variable">
+  <style>
+    @function --f() {
+      --l: attr(data-42 type(*));
+      result: var(--l);
+    }
+    #actual { width: --f(); }
+    #expected { width: 42px; }
+  </style>
+</template>
+
+<!-- Invalid uses of attr() -->
+
+<template data-name="Returned url() is attr-tainted">
+  <style>
+    @function --f() {
+      result: attr(data-cat type(*));
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(parent); }
+  </style>
+</template>
+
+<template data-name="Returned url() is attr-tainted, typed attr()">
+  <style>
+    @function --f() {
+      result: attr(data-cat type(<url>));
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(parent); }
+  </style>
+</template>
+
+<template data-name="Returned url() is attr-tainted, typed return">
+  <style>
+    @function --f() returns <url> {
+      result: attr(data-cat type(*));
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(parent); }
+  </style>
+</template>
+
+<template data-name="Returned url() is attr-tainted, local">
+  <style>
+    @function --f() returns <url> {
+      --local: attr(data-cat type(*));
+      result: var(--local);
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(parent); }
+  </style>
+</template>
+
+<template data-name="Returned url() is attr-tainted, argument">
+  <style>
+    @function --f(--arg) returns <url> {
+      result: var(--arg);
+    }
+    #actual { list-style-image: --f(attr(data-cat type(*))); }
+    #expected { list-style-image: url(parent); }
+  </style>
+</template>
+
+<template data-name="Returned url() is attr-tainted, default">
+  <style>
+    @function --f(--arg: attr(data-cat type(*))) {
+      result: var(--arg);
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(parent); }
+  </style>
+</template>
+
+<template data-name="Returned url() is attr-tainted, parent stack frame">
+  <style>
+    @function --f() {
+      --x: attr(data-cat type(*));
+      result: --g();
+    }
+    @function --g() {
+      result: var(--x);
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(parent); }
+  </style>
+</template>
+
+<template data-name="Returned url() is attr-tainted, initial">
+  <style>
+    @function --f(--x: attr(data-cat type(*))) {
+      --x: initial;
+      result: --g();
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(parent); }
+  </style>
+</template>
+
+<template data-name="Returned url() is attr-tainted, inherit">
+  <style>
+    @function --f() {
+      --x: attr(data-cat type(*));
+      result: --g();
+    }
+    @function --g() {
+      --x: inherit;
+      result: var(--x);
+    }
+    #actual { list-style-image: --f(); }
+    #expected { list-style-image: url(parent); }
+  </style>
+</template>
+
+<script>
+  let templates = document.querySelectorAll('template');
+  for (let template of templates) {
+    test((t) => {
+      t.add_cleanup(() => main.replaceChildren());
+      main.append(template.content.cloneNode(true));
+      for (let p of relevant_properties) {
+        assert_equals(getComputedStyle(actual).getPropertyValue(p),
+                      getComputedStyle(expected).getPropertyValue(p));
+      }
+    }, template.getAttribute('data-name'));
+  }
+</script>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<title>Custom Functions: ShadowDOM (cache pitfall)</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1/#using-custom-functions">
+<link rel="help" href="https://drafts.csswg.org/css-shadow-1/#css-tree-scoped-reference">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<style>
+  @function --a() { result: 42px; }
+</style>
+
+<!-- Should reach --a() defined inside Shadow. -->
+<div id=host1>
+  <template shadowrootmode=open>
+    <style>
+      @function --a() {
+        result: 10px;
+      }
+      div {
+        width: --a();
+      }
+    </style>
+    <div id=target></div>
+  </template>
+</div>
+
+<!--
+     Should reach --a() defined at document level. Except for tree-scopes,
+     the matched rules look identical for #host1 and #host2; we must not
+     hit a cache and cause the same result for both.
+-->
+<div id=host2>
+  <template shadowrootmode=open>
+    <style>
+      div {
+        width: --a();
+      }
+    </style>
+    <div id=target></div>
+  </template>
+</div>
+
+<script>
+  test(() => {
+    let cs1 = getComputedStyle(host1.shadowRoot.querySelector('#target'));
+    let cs2 = getComputedStyle(host2.shadowRoot.querySelector('#target'));
+    assert_equals(cs1.width, '10px');
+    assert_equals(cs2.width, '42px');
+  }, 'Tree scope is respected for otherwise identical styles');
+</script>

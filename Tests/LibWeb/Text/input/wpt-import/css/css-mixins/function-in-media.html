@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<title>Custom Functions: @function inside @media</title>
+<link rel="help" href="https://drafts.csswg.org/css-mixins-1">
+<link rel="help" href="https://drafts.csswg.org/css-conditional-3/#at-media">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  iframe {
+    width: 50px;
+    height: 50px;
+  }
+</style>
+<iframe id="iframe" srcdoc="
+  <div id=target></div>
+  <style>
+    @media (width >= 50px) {
+      @function --f() { result: 50; }
+    }
+    @media (width >= 100px) {
+      @function --f() { result: 100; }
+    }
+    #target {
+      --actual: --f();
+    }
+  </style>
+"></iframe>
+
+<script>
+  function waitForLoad(w) {
+    return new Promise(resolve => w.addEventListener('load', resolve));
+  }
+
+  promise_test(async () => {
+    await waitForLoad(window);
+    const target = iframe.contentDocument.querySelector('#target');
+    let actualValue = () => getComputedStyle(target).getPropertyValue('--actual');
+
+    assert_equals(actualValue(), '50', '--actual before resize');
+    iframe.style.width = '100px';
+    assert_equals(actualValue(), '100', '--actual after resize');
+    iframe.style.width = '';
+    assert_equals(actualValue(), '50', '--actual after resizing back to original');
+  });
+</script>

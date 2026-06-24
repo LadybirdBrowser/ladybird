@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	inherit() refers to parent stack frame (element)
+Fail	inherit() refers to parent stack frame (other function call)
+Fail	inherit() referring to guaranteed-invalid in parent frame
+Fail	inherit() referring to cycle in parent frame
+Fail	inherit() referring to typed value in parent frame
