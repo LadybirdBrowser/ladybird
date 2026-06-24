@@ -11,6 +11,7 @@
 namespace Web::MathML::TagNames {
 
 #define ENUMERATE_MATHML_TAGS                                \
+    __ENUMERATE_MATHML_TAG(a, "a")                           \
     __ENUMERATE_MATHML_TAG(annotation, "annotation")         \
     __ENUMERATE_MATHML_TAG(annotation_xml, "annotation-xml") \
     __ENUMERATE_MATHML_TAG(maction, "maction")               \

@@ -17,6 +17,7 @@ namespace Web::MathML::AttributeNames {
     __ENUMERATE_MATHML_ATTRIBUTE(dir, "dir")                       \
     __ENUMERATE_MATHML_ATTRIBUTE(displaystyle, "displaystyle")     \
     __ENUMERATE_MATHML_ATTRIBUTE(height, "height")                 \
+    __ENUMERATE_MATHML_ATTRIBUTE(href, "href")                     \
     __ENUMERATE_MATHML_ATTRIBUTE(mathbackground, "mathbackground") \
     __ENUMERATE_MATHML_ATTRIBUTE(mathcolor, "mathcolor")           \
     __ENUMERATE_MATHML_ATTRIBUTE(mathsize, "mathsize")             \

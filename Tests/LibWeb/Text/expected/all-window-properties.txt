@@ -298,6 +298,7 @@ LockManager
 ManagedMediaSource
 ManagedSourceBuffer
 Map
+MathMLAnchorElement
 MathMLElement
 MediaCapabilities
 MediaDeviceInfo

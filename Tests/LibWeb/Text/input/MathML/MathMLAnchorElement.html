@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<math>
+    <a id="target" href="http://example.com">Link to somewhere</a>
+</math>
+<script>
+    test(() => {
+        println(`<a> tag inside <math> is: ${target.constructor.name}`);
+        println(`Its href is: ${target.href}`);
+    
+    });
+</script>
