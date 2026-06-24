@@ -7,11 +7,12 @@
 #include "TimeValue.h"
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
 namespace Web::Animations {
 
-TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, DOM::AbstractElement const& abstract_element)
+TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, CSS::ComputationContext const& computation_context)
 {
     if (time.has<double>())
         return { Type::Milliseconds, time.get<double>() };
@@ -38,10 +39,7 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, DOM::Abst
 
     auto style_value = CSS::CalculatedStyleValue::create(calculation_node, calculation_node->numeric_type().value(), {});
 
-    CSS::CalculationResolutionContext calculation_resolution_context {
-        .length_resolution_context = CSS::Length::ResolutionContext::for_element(abstract_element),
-        .abstract_element = abstract_element,
-    };
+    auto calculation_resolution_context = CSS::CalculationResolutionContext::from_computation_context(computation_context);
 
     if (style_value->resolves_to_number())
         return { Type::Milliseconds, style_value->resolve_number(calculation_resolution_context).value() };

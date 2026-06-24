@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const html = document.documentElement;
+        html.remove();
+        // With no document element, there's nothing to resolve a CSSNumberish start time against; setting one must not crash.
+        const animation = new Animation();
+        animation.startTime = new CSSMathSum(1, 2);
+        // Restore the document element, so the page can finish loading.
+        document.appendChild(html);
+    });
+</script>
