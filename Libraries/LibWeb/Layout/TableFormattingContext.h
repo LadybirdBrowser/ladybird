@@ -67,6 +67,7 @@ private:
     void position_row_boxes();
     void position_cell_boxes();
     void border_conflict_resolution();
+    void build_column_background_data();
     CSSPixels border_spacing_horizontal() const;
     CSSPixels border_spacing_vertical() const;
     void finish_grid_initialization(TableGrid const&);

@@ -275,6 +275,14 @@ struct LayoutState {
             return &*m_rare->computed_svg_path;
         }
 
+        void set_table_column_backgrounds(Vector<Painting::PaintableBox::TableColumnBackgroundInfo> data) { ensure_rare_data().table_column_backgrounds = move(data); }
+        Vector<Painting::PaintableBox::TableColumnBackgroundInfo>* table_column_backgrounds()
+        {
+            if (!m_rare || m_rare->table_column_backgrounds.is_empty())
+                return nullptr;
+            return &m_rare->table_column_backgrounds;
+        }
+
         void set_computed_svg_transforms(Painting::SVGGraphicsPaintable::ComputedTransforms const& computed_transforms) { ensure_rare_data().computed_svg_transforms = computed_transforms; }
         Optional<Painting::SVGGraphicsPaintable::ComputedTransforms> const& computed_svg_transforms() const
         {
@@ -371,6 +379,7 @@ struct LayoutState {
 
             HashTable<Box const*> floating_descendants;
             Optional<Painting::PaintableBox::TableCellCoordinates> table_cell_coordinates;
+            Vector<Painting::PaintableBox::TableColumnBackgroundInfo> table_column_backgrounds;
             Optional<Gfx::Path> computed_svg_path;
             OwnPtr<GridLayoutData> grid_layout_data;
             OwnPtr<FlexLayoutData> flex_layout_data;

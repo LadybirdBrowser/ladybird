@@ -1564,6 +1564,150 @@ CSSPixels TableFormattingContext::compute_row_content_height(Cell const& cell) c
     return span_height;
 }
 
+static bool has_visible_background(NodeWithStyle const& node)
+{
+    auto const& computed_values = node.computed_values();
+    return computed_values.background_color().alpha() > 0 || !computed_values.background_layers().is_empty();
+}
+
+static u32 column_span_for_element(NodeWithStyle const& column_box)
+{
+    if (auto const* col_element = as_if<HTML::HTMLTableColElement>(column_box.dom_node()))
+        return col_element->span();
+    return 1;
+}
+
+static Painting::BoxModelMetrics box_model_metrics_from_used_values(LayoutState::UsedValues const& used_values)
+{
+    Painting::BoxModelMetrics box_model;
+    box_model.inset = { used_values.inset_top, used_values.inset_right, used_values.inset_bottom, used_values.inset_left };
+    box_model.padding = { used_values.padding_top, used_values.padding_right, used_values.padding_bottom, used_values.padding_left };
+    box_model.border = { used_values.border_top, used_values.border_right, used_values.border_bottom, used_values.border_left };
+    box_model.margin = { used_values.margin_top, used_values.margin_right, used_values.margin_bottom, used_values.margin_left };
+    return box_model;
+}
+
+static Painting::BoxModelMetrics box_model_metrics_for_box(LayoutState const& state, Box const& box)
+{
+    if (auto const* used_values = state.try_get(box))
+        return box_model_metrics_from_used_values(*used_values);
+
+    auto const& computed_values = box.computed_values();
+    Painting::BoxModelMetrics box_model;
+    box_model.border = {
+        computed_values.border_top().width,
+        computed_values.border_right().width,
+        computed_values.border_bottom().width,
+        computed_values.border_left().width,
+    };
+    return box_model;
+}
+
+// https://drafts.csswg.org/css2/#table-layers
+void TableFormattingContext::build_column_background_data()
+{
+    if (m_columns.is_empty() || m_rows.is_empty())
+        return;
+
+    Vector<Painting::PaintableBox::TableColumnBackgroundInfo> column_backgrounds;
+    column_backgrounds.resize(m_columns.size());
+
+    auto has_any_background = false;
+    auto const& table_state = m_state.get(table_box());
+    auto horizontal_border_spacing = border_spacing_horizontal();
+
+    CSSPixels columns_area_top { CSSPixels::max() };
+    CSSPixels columns_area_bottom { 0 };
+    for (auto const& row : m_rows) {
+        auto const& row_state = m_state.get(row.box);
+        auto row_top = row_state.offset.y() - table_state.offset.y() - row_state.border_box_top();
+        auto row_bottom = row_top + row_state.border_box_height();
+        columns_area_top = min(columns_area_top, row_top);
+        columns_area_bottom = max(columns_area_bottom, row_bottom);
+    }
+
+    auto column_x_offset = [&](size_t column_index) {
+        return horizontal_border_spacing + m_columns[column_index].left_offset + column_index * horizontal_border_spacing;
+    };
+    auto column_width = [&](size_t start_column_index, size_t span) {
+        CSSPixels width { 0 };
+        for (size_t i = 0; i < span; ++i)
+            width += m_columns[start_column_index + i].used_width;
+        if (span >= 2)
+            width += (span - 1) * horizontal_border_spacing;
+        return width;
+    };
+    auto make_background_data = [&](Box const& box, size_t start_column_index, size_t span, bool should_paint_background) {
+        Painting::PaintableBox::TablePartBackgroundData background_data;
+        if (!should_paint_background || start_column_index >= m_columns.size() || span == 0)
+            return background_data;
+
+        background_data.layout_box = &box;
+        background_data.box_model = box_model_metrics_for_box(m_state, box);
+        background_data.rect = CSSPixelRect {
+            column_x_offset(start_column_index),
+            columns_area_top,
+            column_width(start_column_index, span),
+            columns_area_bottom - columns_area_top,
+        };
+        return background_data;
+    };
+
+    size_t column_index = 0;
+    for (auto* child = table_box().first_child(); child; child = child->next_sibling()) {
+        if (child->display().is_table_column_group()) {
+            auto const& column_group_box = as<Box>(*child);
+            auto column_group_has_background = has_visible_background(column_group_box);
+            if (column_group_has_background)
+                has_any_background = true;
+            auto has_column_children = false;
+            auto group_start_column_index = column_index;
+            TableGrid::for_each_child_box_matching(column_group_box, is_table_column, [&](auto& column_box) {
+                has_column_children = true;
+                auto column_has_background = has_visible_background(column_box);
+                if (column_has_background)
+                    has_any_background = true;
+                if (column_index >= m_columns.size())
+                    return;
+                auto span = min(static_cast<size_t>(column_span_for_element(column_box)), m_columns.size() - column_index);
+                auto column_data = make_background_data(column_box, column_index, span, column_has_background);
+                for (size_t i = 0; i < span; ++i, ++column_index)
+                    column_backgrounds[column_index].column = column_data;
+            });
+            if (!has_column_children) {
+                // A column group with no table-column children represents span columns via its own span attribute.
+                if (column_index >= m_columns.size())
+                    continue;
+                auto span = min(static_cast<size_t>(column_span_for_element(column_group_box)), m_columns.size() - column_index);
+                auto column_group_data = make_background_data(column_group_box, column_index, span, column_group_has_background);
+                for (size_t i = 0; i < span; ++i, ++column_index)
+                    column_backgrounds[column_index].column_group = column_group_data;
+            } else {
+                auto span = column_index - group_start_column_index;
+                auto column_group_data = make_background_data(column_group_box, group_start_column_index, span, column_group_has_background);
+                for (size_t i = group_start_column_index; i < column_index; ++i)
+                    column_backgrounds[i].column_group = column_group_data;
+            }
+        } else if (child->display().is_table_column()) {
+            auto const& column_box = as<Box>(*child);
+            auto column_has_background = has_visible_background(column_box);
+            if (column_has_background)
+                has_any_background = true;
+            if (column_index >= m_columns.size())
+                continue;
+            auto span = min(static_cast<size_t>(column_span_for_element(column_box)), m_columns.size() - column_index);
+            auto column_data = make_background_data(column_box, column_index, span, column_has_background);
+            for (size_t i = 0; i < span; ++i, ++column_index)
+                column_backgrounds[column_index].column = column_data;
+        }
+    }
+
+    if (!has_any_background)
+        return;
+
+    m_state.get_mutable(table_box()).set_table_column_backgrounds(move(column_backgrounds));
+}
+
 TableFormattingContext::BorderConflictFinder::BorderConflictFinder(TableFormattingContext const* context)
     : m_context(context)
 {
@@ -1860,6 +2004,7 @@ void TableFormattingContext::run(AvailableSpace const& available_space)
 
     position_row_boxes();
     position_cell_boxes();
+    build_column_background_data();
 
     m_state.get_mutable(table_box()).set_content_height(m_table_height);
 

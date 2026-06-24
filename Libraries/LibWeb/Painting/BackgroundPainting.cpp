@@ -56,17 +56,17 @@ static void append_text_clip_paths(DisplayListRecordingContext& context, Paintab
     });
 }
 
-static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_box, auto const& paintable_box)
+static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_box, BoxModelMetrics const& box_model)
 {
     auto box = border_box;
     switch (box_clip) {
     case CSS::BackgroundBox::ContentBox: {
-        auto& padding = paintable_box.box_model().padding;
+        auto const& padding = box_model.padding;
         box.shrink(padding.top, padding.right, padding.bottom, padding.left);
         [[fallthrough]];
     }
     case CSS::BackgroundBox::PaddingBox: {
-        auto& border = paintable_box.box_model().border;
+        auto const& border = box_model.border;
         box.shrink(border.top, border.right, border.bottom, border.left);
         [[fallthrough]];
     }
@@ -93,344 +93,362 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
     bool is_root_element = paintable_box.layout_node().is_root_element();
     bool needs_text_clip = resolved_background.needs_text_clip && !is_root_element;
 
-    if (needs_text_clip) {
-        display_list_recorder.save();
-        display_list_recorder.add_clip_rect(context.rounded_device_rect(resolved_background.background_rect).to_type<int>());
-        display_list_recorder.save_layer();
-    }
-
-    if (paint_into_isolated_group)
-        display_list_recorder.save_layer();
-
-    BackgroundBox border_box {
-        resolved_background.background_rect,
-        border_radii
-    };
-
-    auto const& color_box = resolved_background.color_box;
-
-    if (is_root_element) {
-        display_list_recorder.fill_rect(
-            context.enclosing_device_rect(color_box.rect).to_type<int>(),
-            resolved_background.color);
-    } else {
-        display_list_recorder.fill_rect_with_rounded_corners(
-            context.rounded_device_rect(color_box.rect).to_type<int>(),
-            resolved_background.color,
-            color_box.radii.as_corners(context.device_pixel_converter()));
-    }
-
-    struct {
-        DevicePixels top { 0 };
-        DevicePixels bottom { 0 };
-        DevicePixels left { 0 };
-        DevicePixels right { 0 };
-    } clip_shrink;
-
-    auto border_top = paintable_box.computed_values().border_top();
-    auto border_bottom = paintable_box.computed_values().border_bottom();
-    auto border_left = paintable_box.computed_values().border_left();
-    auto border_right = paintable_box.computed_values().border_right();
-
-    if (border_top.color.alpha() == 255 && border_bottom.color.alpha() == 255
-        && border_left.color.alpha() == 255 && border_right.color.alpha() == 255) {
-        clip_shrink.top = context.rounded_device_pixels(border_top.width);
-        clip_shrink.bottom = context.rounded_device_pixels(border_bottom.width);
-        clip_shrink.left = context.rounded_device_pixels(border_left.width);
-        clip_shrink.right = context.rounded_device_pixels(border_right.width);
-    }
-
-    // Note: Background layers are ordered front-to-back, so we paint them in reverse
-    for (auto& layer : resolved_background.layers.in_reverse()) {
-        DisplayListRecorderStateSaver state { display_list_recorder };
-
-        // Clip
-        auto clip_box = get_box(layer.clip, border_box, paintable_box);
-
-        CSSPixelRect const& css_clip_rect = clip_box.rect;
-        auto clip_rect = context.rounded_device_rect(css_clip_rect);
-        ScopedCornerRadiusClip corner_clip { context, context.rounded_device_rect(css_clip_rect), clip_box.radii, Gfx::CornerClip::Outside, !is_root_element };
-        if (!is_root_element) {
-            display_list_recorder.add_clip_rect(clip_rect.to_type<int>());
-
-            if (layer.clip == CSS::BackgroundBox::BorderBox) {
-                // Shrink the effective clip rect if to account for the bits the borders will definitely paint over
-                // (if they all have alpha == 255).
-                clip_rect.shrink(clip_shrink.top, clip_shrink.right, clip_shrink.bottom, clip_shrink.left);
-            }
+    auto paint_background_internal = [&] {
+        if (needs_text_clip) {
+            display_list_recorder.save();
+            display_list_recorder.add_clip_rect(context.rounded_device_rect(resolved_background.background_rect).to_type<int>());
+            display_list_recorder.save_layer();
         }
 
-        auto const& image = *layer.background_image;
-        auto image_rect = layer.image_rect;
-        auto background_positioning_area = layer.background_positioning_area;
+        if (paint_into_isolated_group)
+            display_list_recorder.save_layer();
 
-        auto original_context = display_list_recorder.accumulated_visual_context();
-        ScopeGuard restore_context = [&] {
-            display_list_recorder.set_accumulated_visual_context(original_context);
+        BackgroundBox border_box {
+            resolved_background.background_rect,
+            border_radii
         };
 
-        switch (layer.attachment) {
-        case CSS::BackgroundAttachment::Fixed:
-            if (auto fixed_context = paintable_box.fixed_background_visual_context(); fixed_context.has_value())
-                display_list_recorder.set_accumulated_visual_context(*fixed_context);
-            break;
-        case CSS::BackgroundAttachment::Local:
-            if (!paintable_box.is_viewport_paintable()) {
-                auto scroll_offset = paintable_box.scroll_offset();
-                background_positioning_area.translate_by(-scroll_offset.x(), -scroll_offset.y());
-            }
-            break;
-        case CSS::BackgroundAttachment::Scroll:
-            break;
+        auto const& color_box = resolved_background.color_box;
+
+        if (is_root_element) {
+            display_list_recorder.fill_rect(
+                context.enclosing_device_rect(color_box.rect).to_type<int>(),
+                resolved_background.color);
+        } else {
+            display_list_recorder.fill_rect_with_rounded_corners(
+                context.rounded_device_rect(color_box.rect).to_type<int>(),
+                resolved_background.color,
+                color_box.radii.as_corners(context.device_pixel_converter()));
         }
 
-        image_rect.set_left(background_positioning_area.left() + layer.position_x);
-        image_rect.set_top(background_positioning_area.top() + layer.position_y);
+        struct {
+            DevicePixels top { 0 };
+            DevicePixels bottom { 0 };
+            DevicePixels left { 0 };
+            DevicePixels right { 0 };
+        } clip_shrink;
 
-        // Repetition
-        bool repeat_x = false;
-        bool repeat_y = false;
-        bool repeat_x_has_gap = false;
-        bool repeat_y_has_gap = false;
-        CSSPixels x_step = 0;
-        CSSPixels y_step = 0;
+        auto border_top = paintable_box.computed_values().border_top();
+        auto border_bottom = paintable_box.computed_values().border_bottom();
+        auto border_left = paintable_box.computed_values().border_left();
+        auto border_right = paintable_box.computed_values().border_right();
 
-        switch (layer.repeat_x) {
-        case CSS::Repetition::Round:
-            x_step = image_rect.width();
-            repeat_x = true;
-            break;
-        case CSS::Repetition::Space: {
-            int whole_images = (background_positioning_area.width() / image_rect.width()).to_int();
-            if (whole_images <= 1) {
+        if (border_top.color.alpha() == 255 && border_bottom.color.alpha() == 255
+            && border_left.color.alpha() == 255 && border_right.color.alpha() == 255) {
+            clip_shrink.top = context.rounded_device_pixels(border_top.width);
+            clip_shrink.bottom = context.rounded_device_pixels(border_bottom.width);
+            clip_shrink.left = context.rounded_device_pixels(border_left.width);
+            clip_shrink.right = context.rounded_device_pixels(border_right.width);
+        }
+
+        // Note: Background layers are ordered front-to-back, so we paint them in reverse
+        for (auto& layer : resolved_background.layers.in_reverse()) {
+            DisplayListRecorderStateSaver state { display_list_recorder };
+
+            // Clip
+            auto clip_box = get_box(layer.clip, border_box, resolved_background.positioning_box_model);
+
+            CSSPixelRect const& css_clip_rect = clip_box.rect;
+            auto clip_rect = context.rounded_device_rect(css_clip_rect);
+            ScopedCornerRadiusClip corner_clip { context, context.rounded_device_rect(css_clip_rect), clip_box.radii, Gfx::CornerClip::Outside, !is_root_element };
+            if (!is_root_element) {
+                display_list_recorder.add_clip_rect(clip_rect.to_type<int>());
+
+                if (layer.clip == CSS::BackgroundBox::BorderBox) {
+                    // Shrink the effective clip rect if to account for the bits the borders will definitely paint over
+                    // (if they all have alpha == 255).
+                    clip_rect.shrink(clip_shrink.top, clip_shrink.right, clip_shrink.bottom, clip_shrink.left);
+                }
+            }
+
+            auto const& image = *layer.background_image;
+            auto image_rect = layer.image_rect;
+            auto background_positioning_area = layer.background_positioning_area;
+
+            auto original_context = display_list_recorder.accumulated_visual_context();
+            ScopeGuard restore_context = [&] {
+                display_list_recorder.set_accumulated_visual_context(original_context);
+            };
+
+            switch (layer.attachment) {
+            case CSS::BackgroundAttachment::Fixed:
+                if (auto fixed_context = paintable_box.fixed_background_visual_context(); fixed_context.has_value())
+                    display_list_recorder.set_accumulated_visual_context(*fixed_context);
+                break;
+            case CSS::BackgroundAttachment::Local:
+                if (!paintable_box.is_viewport_paintable()) {
+                    auto scroll_offset = paintable_box.scroll_offset();
+                    background_positioning_area.translate_by(-scroll_offset.x(), -scroll_offset.y());
+                }
+                break;
+            case CSS::BackgroundAttachment::Scroll:
+                break;
+            }
+
+            image_rect.set_left(background_positioning_area.left() + layer.position_x);
+            image_rect.set_top(background_positioning_area.top() + layer.position_y);
+
+            // Repetition
+            bool repeat_x = false;
+            bool repeat_y = false;
+            bool repeat_x_has_gap = false;
+            bool repeat_y_has_gap = false;
+            CSSPixels x_step = 0;
+            CSSPixels y_step = 0;
+
+            switch (layer.repeat_x) {
+            case CSS::Repetition::Round:
                 x_step = image_rect.width();
-                repeat_x = false;
-            } else {
-                auto space = fmod(background_positioning_area.width().to_double(), image_rect.width().to_double());
-                x_step = image_rect.width() + CSSPixels::nearest_value_for(space / static_cast<double>(whole_images - 1));
                 repeat_x = true;
-                repeat_x_has_gap = true;
+                break;
+            case CSS::Repetition::Space: {
+                int whole_images = (background_positioning_area.width() / image_rect.width()).to_int();
+                if (whole_images <= 1) {
+                    x_step = image_rect.width();
+                    repeat_x = false;
+                } else {
+                    auto space = fmod(background_positioning_area.width().to_double(), image_rect.width().to_double());
+                    x_step = image_rect.width() + CSSPixels::nearest_value_for(space / static_cast<double>(whole_images - 1));
+                    repeat_x = true;
+                    repeat_x_has_gap = true;
+                }
+                break;
             }
-            break;
-        }
-        case CSS::Repetition::Repeat:
-            x_step = image_rect.width();
-            repeat_x = true;
-            break;
-        case CSS::Repetition::NoRepeat:
-            repeat_x = false;
-            break;
-        }
-        // Move image_rect to the left-most tile position that is still visible
-        if (repeat_x && image_rect.x() > css_clip_rect.x()) {
-            auto x_delta = floor(x_step * ceil((image_rect.x() - css_clip_rect.x()) / x_step));
-            image_rect.set_x(image_rect.x() - x_delta);
-        }
+            case CSS::Repetition::Repeat:
+                x_step = image_rect.width();
+                repeat_x = true;
+                break;
+            case CSS::Repetition::NoRepeat:
+                repeat_x = false;
+                break;
+            }
+            // Move image_rect to the left-most tile position that is still visible
+            if (repeat_x && image_rect.x() > css_clip_rect.x()) {
+                auto x_delta = floor(x_step * ceil((image_rect.x() - css_clip_rect.x()) / x_step));
+                image_rect.set_x(image_rect.x() - x_delta);
+            }
 
-        switch (layer.repeat_y) {
-        case CSS::Repetition::Round:
-            y_step = image_rect.height();
-            repeat_y = true;
-            break;
-        case CSS::Repetition::Space: {
-            int whole_images = (background_positioning_area.height() / image_rect.height()).to_int();
-            if (whole_images <= 1) {
+            switch (layer.repeat_y) {
+            case CSS::Repetition::Round:
                 y_step = image_rect.height();
-                repeat_y = false;
-            } else {
-                auto space = fmod(background_positioning_area.height().to_float(), image_rect.height().to_float());
-                y_step = image_rect.height() + CSSPixels::nearest_value_for(static_cast<double>(space) / static_cast<double>(whole_images - 1));
                 repeat_y = true;
-                repeat_y_has_gap = true;
+                break;
+            case CSS::Repetition::Space: {
+                int whole_images = (background_positioning_area.height() / image_rect.height()).to_int();
+                if (whole_images <= 1) {
+                    y_step = image_rect.height();
+                    repeat_y = false;
+                } else {
+                    auto space = fmod(background_positioning_area.height().to_float(), image_rect.height().to_float());
+                    y_step = image_rect.height() + CSSPixels::nearest_value_for(static_cast<double>(space) / static_cast<double>(whole_images - 1));
+                    repeat_y = true;
+                    repeat_y_has_gap = true;
+                }
+                break;
             }
-            break;
-        }
-        case CSS::Repetition::Repeat:
-            y_step = image_rect.height();
-            repeat_y = true;
-            break;
-        case CSS::Repetition::NoRepeat:
-            repeat_y = false;
-            break;
-        }
-        // Move image_rect to the top-most tile position that is still visible
-        if (repeat_y && image_rect.y() > css_clip_rect.y()) {
-            auto y_delta = floor(y_step * ceil((image_rect.y() - css_clip_rect.y()) / y_step));
-            image_rect.set_y(image_rect.y() - y_delta);
-        }
+            case CSS::Repetition::Repeat:
+                y_step = image_rect.height();
+                repeat_y = true;
+                break;
+            case CSS::Repetition::NoRepeat:
+                repeat_y = false;
+                break;
+            }
+            // Move image_rect to the top-most tile position that is still visible
+            if (repeat_y && image_rect.y() > css_clip_rect.y()) {
+                auto y_delta = floor(y_step * ceil((image_rect.y() - css_clip_rect.y()) / y_step));
+                image_rect.set_y(image_rect.y() - y_delta);
+            }
 
-        CSSPixels initial_image_x = image_rect.x();
-        CSSPixels image_y = image_rect.y();
+            CSSPixels initial_image_x = image_rect.x();
+            CSSPixels image_y = image_rect.y();
 
-        image.resolve_for_size(paintable_box.layout_node_with_style_and_box_metrics(), image_rect.size());
+            VERIFY(layer.positioning_node);
+            image.resolve_for_size(*layer.positioning_node, image_rect.size());
 
-        auto for_each_image_device_rect = [&](auto callback) {
-            while (image_y < css_clip_rect.bottom()) {
-                image_rect.set_y(image_y);
+            auto for_each_image_device_rect = [&](auto callback) {
+                while (image_y < css_clip_rect.bottom()) {
+                    image_rect.set_y(image_y);
 
-                auto image_x = initial_image_x;
-                while (image_x < css_clip_rect.right()) {
-                    image_rect.set_x(image_x);
-                    auto image_device_rect = context.rounded_device_rect(image_rect);
-                    // If the image's dimensions were rounded to zero then they need to be restored to avoid a crash.
-                    // There's no need to check that !image_rect.is_empty() because empty images are discarded in resolve_background_layers.
-                    if (image_device_rect.width() == 0)
-                        image_device_rect.set_width(1);
-                    if (image_device_rect.height() == 0)
-                        image_device_rect.set_height(1);
-                    callback(image_device_rect);
-                    if (!repeat_x)
+                    auto image_x = initial_image_x;
+                    while (image_x < css_clip_rect.right()) {
+                        image_rect.set_x(image_x);
+                        auto image_device_rect = context.rounded_device_rect(image_rect);
+                        // If the image's dimensions were rounded to zero then they need to be restored to avoid a crash.
+                        // There's no need to check that !image_rect.is_empty() because empty images are discarded in resolve_background_layers.
+                        if (image_device_rect.width() == 0)
+                            image_device_rect.set_width(1);
+                        if (image_device_rect.height() == 0)
+                            image_device_rect.set_height(1);
+                        callback(image_device_rect);
+                        if (!repeat_x)
+                            break;
+                        image_x += x_step;
+                    }
+
+                    if (!repeat_y)
                         break;
-                    image_x += x_step;
+                    image_y += y_step;
+                }
+            };
+
+            Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(layer.blend_mode);
+            if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+                display_list_recorder.apply_effects(1.0f, compositing_and_blending_operator);
+            }
+
+            // Past this (super-large) tile count, the non-image branch below covers the area with a single repeating
+            // pattern whose command count is independent of the tile count. Otherwise, recording one painting command per
+            // tile for a super-large tile count can produce enough commands that we overflow the display list and crash.
+            constexpr double max_tiles_before_pattern_fallback = 1000;
+            auto tile_columns = (repeat_x && x_step > 0) ? ceil((css_clip_rect.right() - initial_image_x).to_double() / x_step.to_double()) : 1.0;
+            auto tile_rows = (repeat_y && y_step > 0) ? ceil((css_clip_rect.bottom() - image_y).to_double() / y_step.to_double()) : 1.0;
+            auto tile_count = tile_columns * tile_rows;
+            auto const& document = paintable_box.layout_node().document();
+            if (auto color = image.color_if_single_pixel_bitmap(document); color.has_value()) {
+                // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
+                //               However, we must first figure out the real coverage area, taking repeat etc into account.
+
+                // FIXME: This could be written in a far more efficient way.
+                DevicePixelRect fill_rect;
+                for_each_image_device_rect([&](auto const& image_device_rect) {
+                    fill_rect.unite(image_device_rect);
+                });
+                display_list_recorder.fill_rect(fill_rect.to_type<int>(), color.value());
+            } else if (is<CSS::ImageStyleValue>(image) && (repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap) {
+                // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
+                // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
+                auto dest_rect = context.rounded_device_rect(image_rect);
+                // If the image's dimensions were rounded to zero then they need to be restored to avoid a crash.
+                // There's no need to check that !image_rect.is_empty() because empty images are discarded in resolve_background_layers.
+                if (dest_rect.width() == 0)
+                    dest_rect.set_width(1);
+                if (dest_rect.height() == 0)
+                    dest_rect.set_height(1);
+
+                auto frame = static_cast<CSS::ImageStyleValue const&>(image).current_frame(document, dest_rect);
+                if (!frame.has_value())
+                    return;
+                auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), dest_rect.size().to_type<int>());
+                context.display_list_recorder().draw_repeated_decoded_image_frame(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *frame, scaling_mode, repeat_x, repeat_y);
+            } else if ((repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap && tile_count > max_tiles_before_pattern_fallback) {
+                // A not-decoded-image repeating background otherwise records a separate painting command for every tile —
+                // which for very-large tile counts can lead to enough commands that we crash. So, instead record a single
+                // tile into a nested display list, and fill the area with a repeating pattern. The painter does the tiling.
+                auto tile_device_rect = context.rounded_device_rect(image_rect);
+                // If the tile's dimensions were rounded to zero then they need to be restored to avoid a crash.
+                if (tile_device_rect.width() == 0)
+                    tile_device_rect.set_width(1);
+                if (tile_device_rect.height() == 0)
+                    tile_device_rect.set_height(1);
+
+                auto visual_context_tree = AccumulatedVisualContextTree::create();
+                auto tile_display_list = DisplayList::create(visual_context_tree);
+                DisplayListRecorder tile_recorder(*tile_display_list, visual_context_tree, display_list_recorder.resource_storage());
+                tile_recorder.translate(-tile_device_rect.location().to_type<int>());
+                auto tile_context = context.clone(tile_recorder);
+                image.paint(tile_context, document, tile_device_rect, image_rendering);
+
+                // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
+                auto coverage = clip_rect;
+                if (!repeat_x) {
+                    coverage.set_x(tile_device_rect.x());
+                    coverage.set_width(tile_device_rect.width());
+                }
+                if (!repeat_y) {
+                    coverage.set_y(tile_device_rect.y());
+                    coverage.set_height(tile_device_rect.height());
                 }
 
-                if (!repeat_y)
-                    break;
-                image_y += y_step;
+                auto coverage_float = coverage.to_type<int>().to_type<float>();
+                Gfx::Path path;
+                path.move_to({ coverage_float.x(), coverage_float.y() });
+                path.line_to({ coverage_float.x() + coverage_float.width(), coverage_float.y() });
+                path.line_to({ coverage_float.x() + coverage_float.width(), coverage_float.y() + coverage_float.height() });
+                path.line_to({ coverage_float.x(), coverage_float.y() + coverage_float.height() });
+                path.close();
+                display_list_recorder.fill_path({
+                    .path = move(path),
+                    .paint_style_or_color = PaintStyle { PatternPaintStyle { { *tile_display_list, move(visual_context_tree) }, tile_device_rect.to_type<int>().to_type<float>(), {} } },
+                    .winding_rule = Gfx::WindingRule::Nonzero,
+                });
+            } else {
+                for_each_image_device_rect([&](auto const& image_device_rect) {
+                    image.paint(context, document, image_device_rect, image_rendering);
+                });
             }
-        };
 
-        Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(layer.blend_mode);
-        if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
-            display_list_recorder.apply_effects(1.0f, compositing_and_blending_operator);
+            if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+                display_list_recorder.restore();
+            }
         }
 
-        // Past this (super-large) tile count, the non-image branch below covers the area with a single repeating
-        // pattern whose command count is independent of the tile count. Otherwise, recording one painting command per
-        // tile for a super-large tile count can produce enough commands that we overflow the display list and crash.
-        constexpr double max_tiles_before_pattern_fallback = 1000;
-        auto tile_columns = (repeat_x && x_step > 0) ? ceil((css_clip_rect.right() - initial_image_x).to_double() / x_step.to_double()) : 1.0;
-        auto tile_rows = (repeat_y && y_step > 0) ? ceil((css_clip_rect.bottom() - image_y).to_double() / y_step.to_double()) : 1.0;
-        auto tile_count = tile_columns * tile_rows;
+        if (paint_into_isolated_group)
+            display_list_recorder.restore();
 
-        auto const& document = paintable_box.layout_node().document();
-        if (auto color = image.color_if_single_pixel_bitmap(document); color.has_value()) {
-            // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
-            //               However, we must first figure out the real coverage area, taking repeat etc into account.
-
-            // FIXME: This could be written in a far more efficient way.
-            DevicePixelRect fill_rect;
-            for_each_image_device_rect([&](auto const& image_device_rect) {
-                fill_rect.unite(image_device_rect);
-            });
-            display_list_recorder.fill_rect(fill_rect.to_type<int>(), color.value());
-        } else if (is<CSS::ImageStyleValue>(image) && (repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap) {
-            // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
-            // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.
-            auto dest_rect = context.rounded_device_rect(image_rect);
-            // If the image's dimensions were rounded to zero then they need to be restored to avoid a crash.
-            // There's no need to check that !image_rect.is_empty() because empty images are discarded in resolve_background_layers.
-            if (dest_rect.width() == 0)
-                dest_rect.set_width(1);
-            if (dest_rect.height() == 0)
-                dest_rect.set_height(1);
-
-            auto frame = static_cast<CSS::ImageStyleValue const&>(image).current_frame(document, dest_rect);
-            if (!frame.has_value())
-                return;
-            auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), dest_rect.size().to_type<int>());
-            context.display_list_recorder().draw_repeated_decoded_image_frame(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *frame, scaling_mode, repeat_x, repeat_y);
-        } else if ((repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap && tile_count > max_tiles_before_pattern_fallback) {
-            // A not-decoded-image repeating background otherwise records a separate painting command for every tile —
-            // which for very-large tile counts can lead to enough commands that we crash. So, instead record a single
-            // tile into a nested display list, and fill the area with a repeating pattern. The painter does the tiling.
-            auto tile_device_rect = context.rounded_device_rect(image_rect);
-            // If the tile's dimensions were rounded to zero then they need to be restored to avoid a crash.
-            if (tile_device_rect.width() == 0)
-                tile_device_rect.set_width(1);
-            if (tile_device_rect.height() == 0)
-                tile_device_rect.set_height(1);
-
-            auto visual_context_tree = AccumulatedVisualContextTree::create();
-            auto tile_display_list = DisplayList::create(visual_context_tree);
-            DisplayListRecorder tile_recorder(*tile_display_list, visual_context_tree, display_list_recorder.resource_storage());
-            tile_recorder.translate(-tile_device_rect.location().to_type<int>());
-            auto tile_context = context.clone(tile_recorder);
-            image.paint(tile_context, document, tile_device_rect, image_rendering);
-
-            // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
-            auto coverage = clip_rect;
-            if (!repeat_x) {
-                coverage.set_x(tile_device_rect.x());
-                coverage.set_width(tile_device_rect.width());
-            }
-            if (!repeat_y) {
-                coverage.set_y(tile_device_rect.y());
-                coverage.set_height(tile_device_rect.height());
-            }
-
-            auto coverage_float = coverage.to_type<int>().to_type<float>();
-            Gfx::Path path;
-            path.move_to({ coverage_float.x(), coverage_float.y() });
-            path.line_to({ coverage_float.x() + coverage_float.width(), coverage_float.y() });
-            path.line_to({ coverage_float.x() + coverage_float.width(), coverage_float.y() + coverage_float.height() });
-            path.line_to({ coverage_float.x(), coverage_float.y() + coverage_float.height() });
-            path.close();
-            display_list_recorder.fill_path({
-                .path = move(path),
-                .paint_style_or_color = PaintStyle { PatternPaintStyle { { *tile_display_list, move(visual_context_tree) }, tile_device_rect.to_type<int>().to_type<float>(), {} } },
-                .winding_rule = Gfx::WindingRule::Nonzero,
-            });
-        } else {
-            for_each_image_device_rect([&](auto const& image_device_rect) {
-                image.paint(context, document, image_device_rect, image_rendering);
-            });
-        }
-
-        if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+        if (needs_text_clip) {
+            display_list_recorder.apply_effects(1.0f, Gfx::CompositingAndBlendingOperator::DestinationIn);
+            append_text_clip_paths(context, paintable_box);
+            display_list_recorder.restore();
+            display_list_recorder.restore();
             display_list_recorder.restore();
         }
+    };
+
+    if (resolved_background.paint_clip_box.has_value()) {
+        auto const& clip_box = resolved_background.paint_clip_box.value();
+        DisplayListRecorderStateSaver clip_state { display_list_recorder };
+        auto clip_rect = context.rounded_device_rect(clip_box.rect);
+        display_list_recorder.add_clip_rect(clip_rect.to_type<int>());
+        ScopedCornerRadiusClip corner_clip { context, clip_rect, clip_box.radii, Gfx::CornerClip::Outside, !is_root_element };
+        paint_background_internal();
+        return;
     }
 
-    if (paint_into_isolated_group)
-        display_list_recorder.restore();
-
-    if (needs_text_clip) {
-        display_list_recorder.apply_effects(1.0f, Gfx::CompositingAndBlendingOperator::DestinationIn);
-        append_text_clip_paths(context, paintable_box);
-        display_list_recorder.restore();
-        display_list_recorder.restore();
-        display_list_recorder.restore();
-    }
+    paint_background_internal();
 }
 
 ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
+{
+    Optional<CSSPixelSize> fixed_attachment_viewport_size;
+    if (paintable_box.fixed_background_visual_context().has_value()) {
+        if (auto navigable = paintable_box.navigable())
+            fixed_attachment_viewport_size = navigable->viewport_rect().size();
+    }
+    return resolve_background_layers(layers, paintable_box.layout_node_with_style_and_box_metrics(), paintable_box.box_model(), background_color, background_color_clip, border_rect, border_radii, {}, fixed_attachment_viewport_size);
+}
+
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Layout::NodeWithStyleAndBoxModelMetrics const& positioning_node, BoxModelMetrics const& positioning_box_model, Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii, Optional<BackgroundBox> paint_clip_box, Optional<CSSPixelSize> fixed_attachment_viewport_size)
 {
     BackgroundBox border_box {
         border_rect,
         border_radii
     };
 
-    auto color_box = get_box(background_color_clip, border_box, paintable_box);
+    auto color_box = get_box(background_color_clip, border_box, positioning_box_model);
 
     Vector<ResolvedBackgroundLayerData> resolved_layers;
     for (auto const& layer : layers) {
-        auto const& document = paintable_box.layout_node().document();
+        auto const& document = positioning_node.document();
         if (!layer.background_image->is_paintable(document))
             continue;
 
-        auto background_positioning_area = get_box(layer.origin, border_box, paintable_box).rect;
+        auto background_positioning_area = get_box(layer.origin, border_box, positioning_box_model).rect;
 
         // https://drafts.csswg.org/css-backgrounds-3/#background-origin
         // If the background-attachment value for this layer is fixed, then this property has no effect: in this case
         // the background positioning area is the initial containing block.
-        if (layer.attachment == CSS::BackgroundAttachment::Fixed
-            && paintable_box.fixed_background_visual_context().has_value()) {
-            if (auto navigable = paintable_box.navigable()) {
-                auto viewport_size = navigable->viewport_rect().size();
-                background_positioning_area = CSSPixelRect { { 0, 0 }, viewport_size };
-            }
-        }
-
+        if (layer.attachment == CSS::BackgroundAttachment::Fixed && fixed_attachment_viewport_size.has_value())
+            background_positioning_area = CSSPixelRect { { 0, 0 }, *fixed_attachment_viewport_size };
         auto const& image = *layer.background_image;
 
         Optional<CSSPixels> specified_width {};
         Optional<CSSPixels> specified_height {};
         if (layer.size_type == CSS::BackgroundSize::LengthPercentage) {
             if (!layer.size_x.is_auto())
-                specified_width = layer.size_x.length_percentage().to_px(paintable_box.layout_node(), background_positioning_area.width());
+                specified_width = layer.size_x.length_percentage().to_px(positioning_node, background_positioning_area.width());
             if (!layer.size_y.is_auto())
-                specified_height = layer.size_y.length_percentage().to_px(paintable_box.layout_node(), background_positioning_area.height());
+                specified_height = layer.size_y.length_percentage().to_px(positioning_node, background_positioning_area.height());
         }
         auto concrete_image_size = CSS::run_default_sizing_algorithm(
             specified_width, specified_height,
@@ -509,10 +527,11 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         CSSPixels space_x = background_positioning_area.width() - image_rect.width();
         CSSPixels space_y = background_positioning_area.height() - image_rect.height();
 
-        CSSPixels position_x = layer.position_x.to_px(paintable_box.layout_node(), space_x);
-        CSSPixels position_y = layer.position_y.to_px(paintable_box.layout_node(), space_y);
+        CSSPixels position_x = layer.position_x.to_px(positioning_node, space_x);
+        CSSPixels position_y = layer.position_y.to_px(positioning_node, space_y);
 
         resolved_layers.append({ .background_image = layer.background_image,
+            .positioning_node = &positioning_node,
             .attachment = layer.attachment,
             .clip = layer.clip,
             .position_x = position_x,
@@ -529,6 +548,8 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         .layers = move(resolved_layers),
         .needs_text_clip = background_color_clip == CSS::BackgroundBox::Text,
         .background_rect = border_rect,
+        .positioning_box_model = positioning_box_model,
+        .paint_clip_box = move(paint_clip_box),
         .color = background_color
     };
 }

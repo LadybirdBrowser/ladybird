@@ -540,6 +540,7 @@ void PaintableBox::reset_for_relayout()
     m_override_borders_data.clear();
     m_table_cell_coordinates.clear();
     m_containing_line_box_data.clear();
+    m_table_column_backgrounds.clear();
     m_sticky_insets = nullptr;
 
     m_absolute_rect.clear();
@@ -1208,6 +1209,8 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
         paint_backdrop_filter(context);
         paint_background(context);
         paint_box_shadow(context);
+        if (display().is_table_inside())
+            paint_table_column_backgrounds(context);
     }
 
     auto const is_table_with_collapsed_borders = display().is_table_inside() && computed_values().border_collapse() == CSS::BorderCollapse::Collapse;
@@ -1726,6 +1729,53 @@ void PaintableBox::paint_box_shadow(DisplayListRecordingContext& context) const
     };
     Painting::paint_box_shadow(context, absolute_border_box_rect(), absolute_padding_box_rect(),
         borders_data, normalized_border_radii_data(), resolved_box_shadow_data);
+}
+
+static void paint_background_for_table_part(DisplayListRecordingContext& context, PaintableBox const& table, PaintableBox::TablePartBackgroundData const& table_part, PaintableBox const& cell)
+{
+    if (!table_part.layout_box)
+        return;
+
+    auto const& part_values = table_part.layout_box->computed_values();
+    auto background_color = part_values.background_color();
+    auto const& background_layers = part_values.background_layers();
+
+    auto border_radii = cell.normalized_border_radii_data();
+    auto table_part_rect = table_part.rect.translated(table.absolute_rect().x(), table.absolute_rect().y());
+    auto resolved_background = resolve_background_layers(background_layers, *table_part.layout_box, table_part.box_model, background_color, part_values.background_color_clip(), table_part_rect, border_radii, BackgroundBox {
+                                                                                                                                                                                                                    .rect = cell.absolute_border_box_rect(),
+                                                                                                                                                                                                                    .radii = border_radii,
+                                                                                                                                                                                                                });
+    Painting::paint_background(context, cell, part_values.image_rendering(), resolved_background, border_radii);
+}
+
+void PaintableBox::paint_table_column_backgrounds(DisplayListRecordingContext& context) const
+{
+    if (m_table_column_backgrounds.is_empty())
+        return;
+
+    // https://drafts.csswg.org/css2/#table-layers
+    auto paint_cell_column_backgrounds = [&](auto& self, PaintableBox const& container) -> void {
+        container.for_each_child_of_type<PaintableBox>([&](auto& child) {
+            if (child.display().is_table_cell()) {
+                if (child.computed_values().empty_cells() == CSS::EmptyCells::Hide && !child.has_children())
+                    return IterationDecision::Continue;
+                auto const& coordinates = child.table_cell_coordinates();
+                if (!coordinates.has_value())
+                    return IterationDecision::Continue;
+                auto column_index = coordinates->column_index;
+                if (column_index >= m_table_column_backgrounds.size())
+                    return IterationDecision::Continue;
+                auto const& column_info = m_table_column_backgrounds[column_index];
+                paint_background_for_table_part(context, *this, column_info.column_group, child);
+                paint_background_for_table_part(context, *this, column_info.column, child);
+            } else {
+                self(self, child);
+            }
+            return IterationDecision::Continue;
+        });
+    };
+    paint_cell_column_backgrounds(paint_cell_column_backgrounds, *this);
 }
 
 BorderRadiiData PaintableBox::normalized_border_radii_data(ShrinkRadiiForBorders shrink) const

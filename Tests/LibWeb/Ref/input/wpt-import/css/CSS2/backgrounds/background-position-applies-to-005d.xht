@@ -1,0 +1,69 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: Background-position applied to elements with 'display' set to 'table-column-group'</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/colors.html#background-properties" title="14.2.1 Background properties: 'background-color', 'background-image', 'background-repeat', 'background-attachment', 'background-position', and 'background'" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/backgrounds/background-position-applies-to-001b-ref.xht" />
+
+  <meta name="flags" content="image" />
+  <meta name="assert" content="The 'background-position' property applies to elements with 'display' set to 'table-column-group'." />
+
+  <style type="text/css"><![CDATA[
+  div#table {display: table;}
+
+  div#colgroup
+  {
+  background-image: url("../../../css/support/60x60-red.png");
+  background-position: bottom right;
+  background-repeat: no-repeat;
+  display: table-column-group;
+  }
+
+  div.col {display: table-column;}
+
+  div#tbody {display: table-row-group;}
+
+  div.tr {display: table-row;}
+
+  div#top-left
+  {
+  border-top: transparent solid 60px;
+  display: table-cell;
+  }
+
+  div.td
+  {
+  display: table-cell;
+  width: 60px;
+  }
+
+  div#green-overlapping
+  {
+  border-bottom: green solid 60px;
+  display: table-cell;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+  <div id="table">
+    <div id="colgroup">
+      <div class="col"></div><div class="col"></div>
+    </div>
+    <div id="tbody">
+      <div class="tr"><div id="top-left"></div><div class="td"></div></div>
+      <div class="tr"><div class="td"></div><div id="green-overlapping"></div></div>
+    </div>
+  </div>
+
+ </body>
+</html>
