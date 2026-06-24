@@ -186,12 +186,6 @@ enum InsertionMode {
     AfterAfterFrameset,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AdoptionAgencyAlgorithmOutcome {
-    DoNothing,
-    RunAnyOtherEndTagSteps,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct OwnedAttribute {
     local_name: String,
@@ -1661,11 +1655,7 @@ impl TreeBuilder {
                 // Parse error.
                 self.parse_error("a start tag with active a formatting element");
                 let active_element = self.list_of_active_formatting_elements[active_index].handle;
-                if self.run_the_adoption_agency_algorithm("a") == AdoptionAgencyAlgorithmOutcome::RunAnyOtherEndTagSteps
-                {
-                    self.process_any_other_end_tag("a");
-                    return;
-                }
+                self.run_the_adoption_agency_algorithm("a");
                 self.remove_active_formatting_element(active_element);
                 self.stack_of_open_elements.retain(|node| node.handle != active_element);
             }
@@ -1696,11 +1686,7 @@ impl TreeBuilder {
         }
 
         if token.is_end_tag() && is_formatting_element(token.tag_name()) {
-            if self.run_the_adoption_agency_algorithm(token.tag_name())
-                == AdoptionAgencyAlgorithmOutcome::RunAnyOtherEndTagSteps
-            {
-                self.process_any_other_end_tag(token.tag_name());
-            }
+            self.run_the_adoption_agency_algorithm(token.tag_name());
             return;
         }
 
@@ -3737,7 +3723,7 @@ impl TreeBuilder {
     }
 
     // https://html.spec.whatwg.org/multipage/parsing.html#adoptionAgency
-    fn run_the_adoption_agency_algorithm(&mut self, tag_name: &str) -> AdoptionAgencyAlgorithmOutcome {
+    fn run_the_adoption_agency_algorithm(&mut self, tag_name: &str) {
         // 1. Let subject be token's tag name.
         let subject = tag_name;
 
@@ -3752,7 +3738,7 @@ impl TreeBuilder {
                 .any(|entry| entry.handle == current_node)
             {
                 self.pop_current_node();
-                return AdoptionAgencyAlgorithmOutcome::DoNothing;
+                return;
             }
         }
 
@@ -3763,7 +3749,7 @@ impl TreeBuilder {
         loop {
             // 1. If outerLoopCounter is greater than or equal to 8, then return.
             if outer_loop_counter >= 8 {
-                return AdoptionAgencyAlgorithmOutcome::DoNothing;
+                return;
             }
 
             // 2. Increment outerLoopCounter by 1.
@@ -3782,8 +3768,9 @@ impl TreeBuilder {
                 .rposition(|(_, entry)| entry.local_name == subject)
                 .map(|index| active_formatting_elements_after_last_marker + index)
             else {
-                //    If there is no such element, then return and instead act as described in the "any other end tag" entry above.
-                return AdoptionAgencyAlgorithmOutcome::RunAnyOtherEndTagSteps;
+                //    If there is no such element, then act as described in the "any other end tag" entry above and return.
+                self.process_any_other_end_tag(tag_name);
+                return;
             };
             let formatting_element = self.list_of_active_formatting_elements[formatting_index].clone();
 
@@ -3798,7 +3785,7 @@ impl TreeBuilder {
                 // remove the element from the list,
                 self.list_of_active_formatting_elements.remove(formatting_index);
                 // and return.
-                return AdoptionAgencyAlgorithmOutcome::DoNothing;
+                return;
             };
 
             // 5. If formattingElement is in the stack of open elements, but the element is not in scope,
@@ -3806,7 +3793,7 @@ impl TreeBuilder {
                 // then this is a parse error;
                 self.parse_error("adoption agency formatting element is not in scope");
                 // return.
-                return AdoptionAgencyAlgorithmOutcome::DoNothing;
+                return;
             }
 
             // 6. If formattingElement is not the current node,
@@ -3833,13 +3820,13 @@ impl TreeBuilder {
                 // then remove formattingElement from the list of active formatting elements,
                 self.remove_active_formatting_element(formatting_element.handle);
                 // and finally return.
-                return AdoptionAgencyAlgorithmOutcome::DoNothing;
+                return;
             };
             let furthest_block = self.stack_of_open_elements[furthest_block_index].clone();
 
             // 9. Let commonAncestor be the element immediately above formattingElement in the stack of open elements.
             if stack_index == 0 {
-                return AdoptionAgencyAlgorithmOutcome::DoNothing;
+                return;
             }
             let common_ancestor = self.stack_of_open_elements[stack_index - 1].handle;
 
@@ -3863,7 +3850,7 @@ impl TreeBuilder {
                 //    or if node is no longer in the stack of open elements (e.g. because it got removed by this algorithm),
                 //    the element that was immediately above node in the stack of open elements before node was removed.
                 if node_index == 0 {
-                    return AdoptionAgencyAlgorithmOutcome::DoNothing;
+                    return;
                 }
                 node_index -= 1;
                 let node = self.stack_of_open_elements[node_index].clone();
@@ -3937,7 +3924,7 @@ impl TreeBuilder {
                 .iter()
                 .position(|entry| entry.handle == formatting_element.handle)
             else {
-                return AdoptionAgencyAlgorithmOutcome::DoNothing;
+                return;
             };
             let entry = self.list_of_active_formatting_elements[formatting_element_index].clone();
             let new_element = self.create_html_element_for_active_formatting_element(&entry, furthest_block.handle);
@@ -3979,7 +3966,7 @@ impl TreeBuilder {
                 .iter()
                 .position(|node| node.handle == furthest_block.handle)
             else {
-                return AdoptionAgencyAlgorithmOutcome::DoNothing;
+                return;
             };
             self.stack_of_open_elements.insert(
                 furthest_block_stack_index + 1,
