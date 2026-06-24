@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	nextNode() returns null when currentNode is a detached element with no descendants and whatToShow does not match it
+Pass	nextNode() returns null after exhausting a detached subtree
+Pass	nextNode() terminates when iterating over template.content not under the walker's root
