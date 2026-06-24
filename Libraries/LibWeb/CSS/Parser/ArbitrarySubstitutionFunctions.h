@@ -27,7 +27,6 @@ struct SubstitutionContext {
     bool is_cyclic { false };
 
     bool operator==(SubstitutionContext const&) const;
-    String to_string() const;
 };
 
 class GuardedSubstitutionContexts {

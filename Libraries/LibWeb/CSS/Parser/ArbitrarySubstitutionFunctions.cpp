@@ -24,24 +24,6 @@ bool SubstitutionContext::operator==(SubstitutionContext const& other) const
         && second == other.second;
 }
 
-String SubstitutionContext::to_string() const
-{
-    StringView type_name = [this] {
-        switch (dependency_type) {
-        case DependencyType::Property:
-            return "Property"sv;
-        case DependencyType::Attribute:
-            return "Attribute"sv;
-        case DependencyType::Function:
-            return "Function"sv;
-        }
-        VERIFY_NOT_REACHED();
-    }();
-    auto first = this->first.to_utf8();
-    auto second = this->second.has_value() ? this->second->to_utf8() : String {};
-    return MUST(String::formatted("{} {} {}", type_name, first, second));
-}
-
 void GuardedSubstitutionContexts::guard(SubstitutionContext& context)
 {
     for (auto& existing_context : m_contexts) {
