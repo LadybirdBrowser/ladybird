@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script>
+    const INT_MIN = -2147483648;
+    const ctx = document.createElement("canvas").getContext("2d");
+    for (const [w, h] of [[INT_MIN, 1], [1, INT_MIN], [INT_MIN, INT_MIN]]) {
+        try { ctx.createImageData(w, h); } catch (e) {}
+        try { ctx.getImageData(0, 0, w, h); } catch (e) {}
+    }
+</script>

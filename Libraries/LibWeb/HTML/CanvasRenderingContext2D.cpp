@@ -687,8 +687,8 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_d
     if (width == 0 || height == 0)
         return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_utf16);
 
-    int abs_width = abs(width);
-    int abs_height = abs(height);
+    int abs_width = width == NumericLimits<int>::min() ? NumericLimits<int>::max() : abs(width);
+    int abs_height = height == NumericLimits<int>::min() ? NumericLimits<int>::max() : abs(height);
 
     // 2. Let newImageData be a new ImageData object.
     // 3. Initialize newImageData given the absolute magnitude of sw, the absolute magnitude of sh, settings set to settings, and defaultColorSpace set to this's color space.
@@ -726,8 +726,8 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
 
     // ImageData initialization requires positive width and height
     // https://html.spec.whatwg.org/multipage/canvas.html#initialize-an-imagedata-object
-    int abs_width = abs(width);
-    int abs_height = abs(height);
+    int abs_width = width == NumericLimits<int>::min() ? NumericLimits<int>::max() : abs(width);
+    int abs_height = height == NumericLimits<int>::min() ? NumericLimits<int>::max() : abs(height);
 
     // 3. Let imageData be a new ImageData object.
     // 4. Initialize imageData given sw, sh, settings set to settings, and defaultColorSpace set to this's color space.
