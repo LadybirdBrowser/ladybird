@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 20 tests
 
-20 Fail
+1 Pass
+19 Fail
 Fail	var() in if() condition's custom property value substitutes locally
 Fail	var() in if() condition's specified value substitutes locally
 Fail	var() in if() declaration value substitutes locally
@@ -14,7 +15,7 @@ Fail	dashed function with argument in if() declaration value
 Fail	if() cycle through local
 Fail	if() cycle in condition custom property through local
 Fail	if() cycle in condition specified value through local
-Fail	if() cycle through function
+Pass	if() cycle through function
 Fail	if() no cycle in overridden local
 Fail	if() no cycle in overridden argument
 Fail	CSS-wide keywords are interpreted locally (initial)

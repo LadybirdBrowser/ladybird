@@ -54,6 +54,8 @@ Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(Utf16
 {
     if (name.equals_ignoring_ascii_case("attr"sv))
         return ArbitrarySubstitutionFunction::Attr;
+    if (name.starts_with("--"sv))
+        return ArbitrarySubstitutionFunction::DashedFunction;
     if (name.equals_ignoring_ascii_case("env"sv))
         return ArbitrarySubstitutionFunction::Env;
     if (name.equals_ignoring_ascii_case("if"sv))
@@ -557,6 +559,35 @@ Vector<ComponentValue> substitute_arbitrary_substitution_functions(AbstractOrHyp
     return new_values;
 }
 
+// FIXME: The spec defines this as a <declaration-value> but our <declaration-value> parser is in line with an older
+//        version of <declaration-value> (i.e. not supporting drafts.csswg.org/css-values-5/#free-form-productions)
+//        which all other users of <declaration-value> expect - so we parse it manually here.
+static Optional<ReadonlySpan<ComponentValue>> parse_dashed_function_argument(TokenStream<ComponentValue>& tokens)
+{
+    {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+
+        auto peek = tokens.next_token();
+        if (peek.is_block() && peek.block().is_curly()) {
+            auto const& block = tokens.consume_a_token().block();
+
+            TokenStream block_stream { block.value };
+            block_stream.discard_whitespace();
+
+            auto parsed_arg = Parser::parse_declaration_value_as_span(block_stream);
+
+            if (!parsed_arg.has_value() || !block_stream.is_empty())
+                return OptionalNone {};
+
+            transaction.commit();
+            return parsed_arg;
+        }
+    }
+
+    return Parser::parse_declaration_value_as_span(tokens, Token::Type::Comma, Parser::DisallowTopLevelCurlyBlocks::Yes);
+}
+
 Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction function, ReadonlySpan<ComponentValue> values)
 {
     // Equivalent to `<declaration-value> , <declaration-value>?`, used by multiple argument grammars.
@@ -592,6 +623,41 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
         // <attr-args> = attr( <declaration-value> , <declaration-value>? )
         // FIXME: It would be nice if we had a nice way to create an Optional<Variant<T>> from Optional<T> without these maps.
         return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
+    case ArbitrarySubstitutionFunction::DashedFunction: {
+        // https://drafts.csswg.org/css-mixins/#typedef-dashed-function
+        // <dashed-function> = --*( <declaration-value>#? )
+        tokens.discard_whitespace();
+
+        if (!tokens.has_next_token())
+            return DeclarationValueList {};
+
+        DeclarationValueList arguments;
+
+        auto first = parse_dashed_function_argument(tokens);
+        if (!first.has_value())
+            return {};
+
+        arguments.append(first.release_value());
+
+        tokens.discard_whitespace();
+
+        while (tokens.has_next_token()) {
+            if (!tokens.consume_a_token().is(Token::Type::Comma))
+                return {};
+
+            tokens.discard_whitespace();
+
+            if (auto argument = parse_dashed_function_argument(tokens); argument.has_value()) {
+                arguments.append(argument.release_value());
+                tokens.discard_whitespace();
+                continue;
+            }
+
+            return {};
+        }
+
+        return arguments;
+    }
     case ArbitrarySubstitutionFunction::Env:
         // https://drafts.csswg.org/css-env/#env-function
         // AD-HOC: This doesn't have an argument-grammar definition.
@@ -643,6 +709,9 @@ Vector<ComponentValue> replace_an_arbitrary_substitution_function(AbstractOrHypo
     switch (function) {
     case ArbitrarySubstitutionFunction::Attr:
         return replace_an_attr_function(element, guarded_contexts, replacement_context, arguments);
+    case ArbitrarySubstitutionFunction::DashedFunction:
+        // TODO: Implement this.
+        return { ComponentValue { GuaranteedInvalidValue {} } };
     case ArbitrarySubstitutionFunction::Env:
         return replace_an_env_function(element, guarded_contexts, replacement_context, arguments);
     case ArbitrarySubstitutionFunction::If:

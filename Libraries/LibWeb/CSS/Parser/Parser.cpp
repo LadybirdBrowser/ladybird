@@ -2488,6 +2488,9 @@ Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_prese
             case ArbitrarySubstitutionFunction::Attr:
                 presence.attr = true;
                 break;
+            case ArbitrarySubstitutionFunction::DashedFunction:
+                presence.dashed_function = true;
+                break;
             case ArbitrarySubstitutionFunction::Env:
                 presence.env = true;
                 break;

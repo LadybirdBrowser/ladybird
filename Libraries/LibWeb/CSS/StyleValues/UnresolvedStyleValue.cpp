@@ -76,7 +76,7 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 }
 
 UnresolvedStyleValue::UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values)
-    : StyleValue(Type::Unresolved, StyleValueFFI::rust_style_value_create_unresolved(source_text.to_raw_leaked(), value_comparison_text.to_raw_leaked(), substitution_presence.attr, substitution_presence.env, substitution_presence.if_, substitution_presence.inherit, substitution_presence.var, contains_attr_tainted_values))
+    : StyleValue(Type::Unresolved, StyleValueFFI::rust_style_value_create_unresolved(source_text.to_raw_leaked(), value_comparison_text.to_raw_leaked(), substitution_presence.attr, substitution_presence.dashed_function, substitution_presence.env, substitution_presence.if_, substitution_presence.inherit, substitution_presence.var, contains_attr_tainted_values))
 {
 }
 

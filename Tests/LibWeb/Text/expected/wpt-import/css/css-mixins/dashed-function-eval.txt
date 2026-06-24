@@ -2,13 +2,14 @@ Harness status: OK
 
 Found 89 tests
 
-89 Fail
+7 Pass
+82 Fail
 Fail	Literal result
 Fail	Literal result, typed return
 Fail	Literal result, typed return, calc
-Fail	Literal result, typed return, mismatch
-Fail	Missing result descriptor
-Fail	Literal result, empty
+Pass	Literal result, typed return, mismatch
+Pass	Missing result descriptor
+Pass	Literal result, empty
 Fail	result cascading behavior
 Fail	Another dashed-function in result
 Fail	Unused argument
@@ -62,8 +63,8 @@ Fail	Local shadows parameter
 Fail	IACVT argument shadows outer scope
 Fail	IACVT argument shadows outer scope, typed
 Fail	IACVT argument shadows outer scope, type mismatch
-Fail	Missing only argument
-Fail	Missing one argument of several
+Pass	Missing only argument
+Pass	Missing one argument of several
 Fail	Passing list as only argument
 Fail	Passing list as first argument
 Fail	Passing list as second argument
@@ -84,11 +85,11 @@ Fail	Local with the unset keyword
 Fail	Local with the revert keyword
 Fail	Local with the revert-layer keyword
 Fail	Local with the revert-rule keyword
-Fail	initial keyword left unresolved on result descriptor
+Pass	initial keyword left unresolved on result descriptor
 Fail	inherit keyword left unresolved on result descriptor
 Fail	unset keyword left unresolved on result descriptor
 Fail	revert keyword left unresolved on result descriptor
 Fail	revert-layer keyword left unresolved on result descriptor
 Fail	revert-rule keyword left unresolved on result descriptor
 Fail	Keyword can be returned from function into local variable
-Fail	Can not return CSS-wide keyword as length
+Pass	Can not return CSS-wide keyword as length

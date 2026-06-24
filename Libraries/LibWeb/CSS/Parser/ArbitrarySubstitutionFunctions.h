@@ -58,6 +58,7 @@ struct ArbitrarySubstitutionReplacementContext {
 
 enum class ArbitrarySubstitutionFunction : u8 {
     Attr,
+    DashedFunction,
     Env,
     If,
     Inherit,

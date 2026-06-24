@@ -122,7 +122,7 @@ enum class DeclarationValueNested : u8 {
     Yes,
 };
 
-static void consume_declaration_value(TokenStream<ComponentValue>& tokens, Optional<Token::Type> end_token_type, DeclarationValueNested nested)
+static void consume_declaration_value(TokenStream<ComponentValue>& tokens, Optional<Token::Type> end_token_type, DeclarationValueNested nested, Parser::DisallowTopLevelCurlyBlocks disallow_top_level_curly_blocks)
 {
     // The <declaration-value> production matches any sequence of one or more tokens, so long as the sequence does not
     // contain <bad-string-token>, <bad-url-token>, unmatched <)-token>, <]-token>, or <}-token>, or top-level
@@ -133,8 +133,11 @@ static void consume_declaration_value(TokenStream<ComponentValue>& tokens, Optio
         auto const& peek = tokens.next_token();
 
         if (peek.is_block()) {
+            if (peek.block().is_curly() && nested == DeclarationValueNested::No && disallow_top_level_curly_blocks == Parser::DisallowTopLevelCurlyBlocks::Yes)
+                break;
+
             TokenStream block_stream { peek.block().value };
-            consume_declaration_value(block_stream, end_token_type, DeclarationValueNested::Yes);
+            consume_declaration_value(block_stream, end_token_type, DeclarationValueNested::Yes, disallow_top_level_curly_blocks);
             if (block_stream.is_empty()) {
                 tokens.discard_a_token();
                 continue;
@@ -145,7 +148,7 @@ static void consume_declaration_value(TokenStream<ComponentValue>& tokens, Optio
 
         if (peek.is_function()) {
             TokenStream function_stream { peek.function().value };
-            consume_declaration_value(function_stream, end_token_type, DeclarationValueNested::Yes);
+            consume_declaration_value(function_stream, end_token_type, DeclarationValueNested::Yes, disallow_top_level_curly_blocks);
             if (function_stream.is_empty()) {
                 tokens.discard_a_token();
                 continue;
@@ -197,10 +200,10 @@ static void consume_declaration_value(TokenStream<ComponentValue>& tokens, Optio
 }
 
 // https://drafts.csswg.org/css-syntax/#typedef-declaration-value
-Optional<ReadonlySpan<ComponentValue>> Parser::parse_declaration_value_as_span(TokenStream<ComponentValue>& tokens, Optional<Token::Type> end_token_type)
+Optional<ReadonlySpan<ComponentValue>> Parser::parse_declaration_value_as_span(TokenStream<ComponentValue>& tokens, Optional<Token::Type> end_token_type, DisallowTopLevelCurlyBlocks disallow_top_level_curly_blocks)
 {
     auto start_index = tokens.current_index();
-    consume_declaration_value(tokens, end_token_type, DeclarationValueNested::No);
+    consume_declaration_value(tokens, end_token_type, DeclarationValueNested::No, disallow_top_level_curly_blocks);
 
     auto declaration_value = tokens.tokens_since(start_index);
     if (declaration_value.is_empty())
