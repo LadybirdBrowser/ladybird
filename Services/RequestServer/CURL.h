@@ -9,9 +9,13 @@
 
 // Include this header instead of <curl/curl.h>. Only include this header from .cpp files.
 
+#include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/Error.h>
+#include <AK/Optional.h>
 #include <AK/Platform.h>
 #include <AK/StringView.h>
+#include <AK/Vector.h>
 #include <LibDNS/Resolver.h>
 #include <LibRequests/NetworkError.h>
 
@@ -25,5 +29,7 @@ namespace RequestServer {
 
 ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringView host, u16 port);
 Requests::NetworkError curl_code_to_network_error(int code);
+
+ErrorOr<ByteBuffer> read_default_root_certificate_bundle(Vector<ByteString> const& certificate_overrides);
 
 }

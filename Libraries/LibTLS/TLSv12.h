@@ -15,6 +15,7 @@ namespace TLS {
 
 struct Options {
     Optional<ByteString> root_certificates_path;
+    Optional<ReadonlyBytes> root_certificates_blob;
 };
 
 class TLSv12 final : public Core::Socket {

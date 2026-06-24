@@ -19,9 +19,33 @@
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
+#include <openssl/pem.h>
 #include <openssl/ssl.h>
+#include <openssl/x509.h>
 
 namespace TLS {
+
+static ErrorOr<void> add_root_certificates_from_blob(SSL_CTX* ssl_ctx, ReadonlyBytes blob)
+{
+    auto* bio = OPENSSL_TRY_PTR(BIO_new_mem_buf(blob.data(), static_cast<int>(blob.size())));
+    ScopeGuard free_bio = [&] { BIO_free(bio); };
+
+    auto* store = SSL_CTX_get_cert_store(ssl_ctx);
+
+    size_t certificates_added = 0;
+    while (auto* certificate = PEM_read_bio_X509(bio, nullptr, nullptr, nullptr)) {
+        if (X509_STORE_add_cert(store, certificate) == 1)
+            ++certificates_added;
+        X509_free(certificate);
+    }
+
+    ERR_clear_error();
+
+    if (certificates_added == 0)
+        return Error::from_string_literal("No certificates found in root certificate bundle");
+
+    return {};
+}
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, u16 port, Options options)
 {
@@ -220,6 +244,8 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect_internal(NonnullOwnPtr<Core::TCPS
     if (options.root_certificates_path.has_value()) {
         auto path = options.root_certificates_path.value();
         SSL_CTX_load_verify_file(ssl_ctx, path.characters());
+    } else if (options.root_certificates_blob.has_value()) {
+        TRY(add_root_certificates_from_blob(ssl_ctx, *options.root_certificates_blob));
     } else {
         // Use the default trusted certificate store
 #if defined(AK_OS_WINDOWS)

@@ -15,7 +15,7 @@
 
 namespace RequestServer {
 
-ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates)
+ErrorOr<void> apply_sandbox()
 {
     TRY(Sandbox::configure_runtime());
 
@@ -35,16 +35,7 @@ ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates)
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/etc/resolv.conf"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/private/etc/hosts"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/private/etc/resolv.conf"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
-    TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/private/etc/ssl"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/Library/Preferences/com.apple.networkd.plist"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
-
-    for (auto const& certificate : certificates) {
-        auto certificate_path = LexicalPath::dirname(certificate);
-        if (certificate_path.is_empty())
-            certificate_path = ".";
-
-        TRY(Sandbox::add_seatbelt_path_if_exists(paths, certificate_path, Sandbox::SeatbeltPath::Access::ReadOnly));
-    }
 
     if (g_resource_substitution_map) {
         TRY(g_resource_substitution_map->for_each_substitution([&](auto const& substitution) -> ErrorOr<void> {
