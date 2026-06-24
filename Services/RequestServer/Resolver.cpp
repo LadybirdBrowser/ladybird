@@ -10,16 +10,16 @@
 
 namespace RequestServer {
 
-static ByteString g_default_certificate_path;
+static ByteBuffer g_root_certificate_bundle;
 
-ByteString const& default_certificate_path()
+ByteBuffer const& root_certificate_bundle()
 {
-    return g_default_certificate_path;
+    return g_root_certificate_bundle;
 }
 
-void set_default_certificate_path(ByteString default_certificate_path)
+void set_root_certificate_bundle(ByteBuffer root_certificate_bundle)
 {
-    g_default_certificate_path = move(default_certificate_path);
+    g_root_certificate_bundle = move(root_certificate_bundle);
 }
 
 DNSInfo& DNSInfo::the()
@@ -53,8 +53,8 @@ NonnullRefPtr<Resolver> Resolver::default_resolver()
         if (dns_info.use_dns_over_tls) {
             TLS::Options options;
 
-            if (!g_default_certificate_path.is_empty())
-                options.root_certificates_path = g_default_certificate_path;
+            if (auto const& bundle = g_root_certificate_bundle; !bundle.is_empty())
+                options.root_certificates_blob = bundle.bytes();
 
             return DNS::Resolver::SocketResult {
                 MaybeOwned<Core::Socket>(TRY(TLS::TLSv12::connect(*dns_info.server_address, *dns_info.server_hostname, move(options)))),

@@ -926,8 +926,14 @@ void Request::handle_fetch_state()
 
     set_option(CURLOPT_NOSIGNAL, 1L);
 
-    if (auto const& path = default_certificate_path(); !path.is_empty())
-        set_option(CURLOPT_CAINFO, path.characters());
+    if (auto const& bundle = root_certificate_bundle(); !bundle.is_empty()) {
+        curl_blob ca_info_blob {
+            .data = const_cast<u8*>(bundle.data()),
+            .len = bundle.size(),
+            .flags = CURL_BLOB_NOCOPY,
+        };
+        set_option(CURLOPT_CAINFO_BLOB, &ca_info_blob);
+    }
 
     set_option(CURLOPT_ACCEPT_ENCODING, ""); // Empty string lets curl define the accepted encodings.
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());

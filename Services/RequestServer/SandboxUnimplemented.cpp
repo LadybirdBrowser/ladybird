@@ -8,7 +8,7 @@
 
 namespace RequestServer {
 
-ErrorOr<void> apply_sandbox(Vector<ByteString> const&, StringView)
+ErrorOr<void> apply_sandbox(StringView)
 {
     return {};
 }
