@@ -615,6 +615,7 @@ set(SOURCES
     HTML/HTMLUListElement.cpp
     HTML/HTMLUnknownElement.cpp
     HTML/HTMLVideoElement.cpp
+    HTML/HyperlinkElementUtils.cpp
     HTML/ImageBitmap.cpp
     HTML/ImageData.cpp
     HTML/ImageRequest.cpp
