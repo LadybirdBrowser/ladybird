@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 11 tests
 
-10 Pass
-1 Fail
+11 Pass
 Pass	@scope without prelude implicitly scopes to parent of owner node
 Pass	:scope can style implicit root
 Pass	@scope works with two identical stylesheets
 Pass	@scope with effectively empty :is() must not match anything
-Fail	Implicit @scope has implicitly added :scope descendant combinator
+Pass	Implicit @scope has implicitly added :scope descendant combinator
 Pass	Implicit @scope with inner relative selector
 Pass	Implicit @scope with inner nesting selector
 Pass	Implicit @scope with limit
