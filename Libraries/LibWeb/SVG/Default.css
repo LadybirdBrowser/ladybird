@@ -14,21 +14,6 @@ svg:not(:root), image, marker, pattern, symbol { overflow: hidden; }
     white-space-collapse: preserve-spaces;
 }
 
-/* NOTE: These rules are in the SVG spec, but don't match how other engines behave.
-         So we simply comment them out for now.
-defs,
-clipPath, mask, marker,
-desc, title, metadata,
-pattern, linearGradient, radialGradient,
-script, style,
-symbol {
-    display: none !important;
-}
-:host(use) > symbol {
-    display: inline !important;
-}
-*/
-
 :link, :visited {
     cursor: pointer;
 }
