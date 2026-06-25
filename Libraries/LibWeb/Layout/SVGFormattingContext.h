@@ -17,7 +17,7 @@ namespace Web::Layout {
 
 class SVGFormattingContext final : public FormattingContext {
 public:
-    explicit SVGFormattingContext(LayoutState&, LayoutMode, Box const&, FormattingContext* parent, Gfx::AffineTransform parent_viewbox_transform = {});
+    explicit SVGFormattingContext(LayoutState&, LayoutMode, Box const&, FormattingContext* parent, Gfx::AffineTransform parent_viewbox_transform = {}, Optional<Gfx::AffineTransform> parent_svg_transform = {});
     ~SVGFormattingContext();
 
     virtual void run(AvailableSpace const&) override;
@@ -25,10 +25,10 @@ public:
     virtual CSSPixels automatic_content_height() const override;
 
 private:
-    void layout_svg_element(Box const&);
-    void layout_nested_viewport(Box const&);
-    void layout_container_element(SVGBox const&);
-    void layout_graphics_element(SVGGraphicsBox const&);
+    void layout_svg_element(Box const&, Gfx::AffineTransform const& parent_svg_transform);
+    void layout_nested_viewport(Box const&, Gfx::AffineTransform const& parent_svg_transform);
+    void layout_container_element(SVGBox const&, Gfx::AffineTransform const& container_svg_transform);
+    void layout_graphics_element(SVGGraphicsBox const&, Gfx::AffineTransform const& parent_svg_transform);
     void layout_path_like_element(SVGGraphicsBox const&);
     void layout_mask_or_clip(SVGBox const&);
     void layout_image_element(SVGImageBox const& image_box);
@@ -36,9 +36,8 @@ private:
     [[nodiscard]] Gfx::Path compute_path_for_text(SVGTextBox const&) const;
     [[nodiscard]] Gfx::Path compute_path_for_text_path(SVGTextPathBox const&) const;
 
-    [[nodiscard]] Gfx::AffineTransform get_parent_svg_transform(Box const&) const;
-
     Gfx::AffineTransform m_parent_viewbox_transform {};
+    Optional<Gfx::AffineTransform> m_parent_svg_transform {};
 
     Optional<AvailableSpace> m_available_space {};
     Gfx::AffineTransform m_current_viewbox_transform {};
