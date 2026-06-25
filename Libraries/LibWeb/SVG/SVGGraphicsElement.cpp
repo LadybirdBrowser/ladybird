@@ -353,11 +353,19 @@ Optional<float> SVGGraphicsElement::stroke_width() const
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox
 WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Optional<Bindings::SVGBoundingBoxOptions> const&)
 {
+    // The getBBox method is used to compute the bounding box of the current element.  When the getBBox(options) method
+    // is called, the bounding box algorithm is invoked for the current element, with fill, stroke, markers and clipped
+    // members of the options dictionary argument used to control which parts of the element are included in the
+    // bounding box, using the element's user coordinate system as the coordinate system to return the bounding box in.
+    // A newly created DOMRect object that defines the computed bounding box is returned.
+    // If the element's geometric attributes are missing or have invalid values (e.g. negative width or height), such
+    // that the element is not rendered, then a DOMRect with x, y, width and height all set to 0 is returned.
+
     // FIXME: It should be possible to compute this without layout updates. The bounding box is within the
-    // SVG coordinate space (before any viewbox or other transformations), so it should be possible to
-    // calculate this from SVG geometry without a full layout tree (at least for simple cases).
-    // See: https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
-    const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetBBox);
+    //        SVG coordinate space (before any viewbox or other transformations), so it should be possible to
+    //        calculate this from SVG geometry without a full layout tree (at least for simple cases).
+    //        See: https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
+    document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetBBox);
     if (!layout_node())
         return Geometry::DOMRect::create(realm());
     // Invert the SVG -> screen space transform.
@@ -367,15 +375,8 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Op
 
     auto owner_paintable = owner_svg_element->paintable_box();
     auto self_paintable = paintable_box();
-    if (!owner_paintable || !self_paintable) {
-        // Throw only for non-rendered *graphics* elements where geometry isn't computable
-        // (e.g. elements inside <marker>, <pattern>, etc.).
-        if (is<SVGSVGElement>(*this))
-            return Geometry::DOMRect::create(realm());
-        return WebIDL::InvalidStateError::create(
-            realm(),
-            "Element is not rendered and geometry is not computable"_utf16);
-    }
+    if (!owner_paintable || !self_paintable)
+        return Geometry::DOMRect::create(realm());
 
     auto svg_rect = owner_paintable->absolute_rect();
     auto rect = self_paintable->absolute_rect().to_type<float>().translated(-svg_rect.location().to_type<float>());
@@ -393,6 +394,9 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Op
         if (inv.has_value())
             rect = inv->map(rect);
     }
+
+    if (rect.is_empty())
+        return Geometry::DOMRect::create(realm());
     return Geometry::DOMRect::create(realm(), rect);
 }
 
