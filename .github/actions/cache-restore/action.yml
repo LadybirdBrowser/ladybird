@@ -40,7 +40,7 @@ runs:
         echo "timestamp=$(date -u "+%Y%m%d%H%M_%S")" >> "$GITHUB_OUTPUT"
 
     - name: 'Compiler Cache'
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       id: 'ccache'
       with:
         path: ${{ inputs.ccache_path }}
@@ -80,7 +80,7 @@ runs:
         ccache -z
 
     - name: 'Restore vcpkg cache'
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       id: 'vcpkg'
       with:
         path: ${{ inputs.vcpkg_cache_path }}
