@@ -13,6 +13,7 @@
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/MediaClock.h>
 #include <LibMedia/PipelineStatus.h>
+#include <LibMedia/Processors/AudioMixer.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMedia/VideoFrame.h>
@@ -67,6 +68,50 @@ TEST_CASE(audio_producer_underspecified_5_1_channel_map)
     }
 
     FAIL("Decoding timed out.");
+}
+
+TEST_CASE(audio_mixer_seek_during_playback_rewakes_consumer)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto stream = load_test_file("WAV/tone_44100_5_1_underspecified.wav"sv);
+    auto demuxer = create_demuxer(stream);
+    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    VERIFY(!tracks.is_empty());
+
+    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(loop, demuxer, tracks[0]));
+
+    auto mixer = TRY_OR_FAIL(Media::AudioMixer::try_create());
+    TRY_OR_FAIL(mixer->set_output_sample_specification(tracks[0].audio_data().sample_specification));
+    TRY_OR_FAIL(mixer->connect_input(producer));
+
+    bool consumer_woken = false;
+    mixer->set_wake_handler([&] { consumer_woken = true; });
+
+    mixer->start();
+
+    auto pump_until = [&](auto condition) {
+        auto deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(5);
+        while (MonotonicTime::now_coarse() < deadline) {
+            if (condition())
+                return true;
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        }
+        return false;
+    };
+
+    // Play until the mixer is producing data, mirroring steady playback (its wake-forwarding state is
+    // now latched as it would be then).
+    EXPECT(pump_until([&] { return mixer->status() == Media::PipelineStatus::HaveData; }));
+    Media::AudioBlock block;
+    mixer->pull(block);
+
+    // Seek mid-playback. The consumer is now waiting to be woken (it is not polling anymore), so the
+    // mixer must forward the producer's post-seek wake downstream or the seek never resolves.
+    consumer_woken = false;
+    mixer->seek(AK::Duration::zero());
+
+    EXPECT(pump_until([&] { return consumer_woken; }));
 }
 
 TEST_CASE(video_producer_seeks_while_frames_are_held)
