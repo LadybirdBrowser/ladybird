@@ -41,7 +41,7 @@ def write_header_file(out: TextIO, at_rules_data: dict, all_descriptors: list) -
     out.write(f"""
 #pragma once
 
-#include <AK/FlyString.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Optional.h>
 #include <AK/Types.h>
 #include <LibWeb/Forward.h>
@@ -68,8 +68,8 @@ enum class DescriptorID : {descriptor_id_underlying_type} {{
     Custom,
 };
 
-Optional<DescriptorID> descriptor_id_from_string(AtRuleID, StringView);
-FlyString to_string(DescriptorID);
+Optional<DescriptorID> descriptor_id_from_string(AtRuleID, Utf16View);
+Utf16FlyString const& to_string(DescriptorID);
 
 bool at_rule_supports_descriptor(AtRuleID, DescriptorID);
 RefPtr<StyleValue const> descriptor_initial_value(AtRuleID, DescriptorID);
@@ -186,7 +186,7 @@ FlyString to_string(AtRuleID at_rule_id)
     VERIFY_NOT_REACHED();
 }
 
-Optional<DescriptorID> descriptor_id_from_string(AtRuleID at_rule_id, StringView string)
+Optional<DescriptorID> descriptor_id_from_string(AtRuleID at_rule_id, Utf16View string)
 {
     switch (at_rule_id) {
 """)
@@ -220,15 +220,17 @@ Optional<DescriptorID> descriptor_id_from_string(AtRuleID at_rule_id, StringView
     return {};
 }
 
-FlyString to_string(DescriptorID descriptor_id)
+Utf16FlyString const& to_string(DescriptorID descriptor_id)
 {
     switch (descriptor_id) {
 """)
 
     for descriptor_name in all_descriptors:
         out.write(f"""
-    case DescriptorID::{title_casify(descriptor_name)}:
-        return "{descriptor_name}"_fly_string;
+    case DescriptorID::{title_casify(descriptor_name)}: {{
+        static Utf16FlyString const& name = *new Utf16FlyString("{descriptor_name}"_utf16_fly_string);
+        return name;
+    }}
 """)
 
     out.write("""

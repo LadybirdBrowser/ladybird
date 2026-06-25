@@ -20,14 +20,10 @@ public:
         if (is_a_custom_property_name_string(name))
             return DescriptorNameAndID(move(name), DescriptorID::Custom);
 
-        if (!name.is_ascii())
-            return {};
-
-        auto name_string = name.to_utf16_string();
-        if (auto descriptor_id = descriptor_id_from_string(at_rule_id, name_string.ascii_view()); descriptor_id.has_value()) {
+        if (auto descriptor_id = descriptor_id_from_string(at_rule_id, name); descriptor_id.has_value()) {
             // NB: We use the serialized ID as the name here instead of the input name to ensure that legacy alias
             //     mapping is reflected
-            return DescriptorNameAndID(Utf16FlyString::from_utf8(CSS::to_string(descriptor_id.value())), descriptor_id.value());
+            return DescriptorNameAndID(CSS::to_string(descriptor_id.value()), descriptor_id.value());
         }
 
         return {};
@@ -36,7 +32,7 @@ public:
     static DescriptorNameAndID from_id(DescriptorID descriptor_id)
     {
         VERIFY(descriptor_id != DescriptorID::Custom);
-        return DescriptorNameAndID(Utf16FlyString::from_utf8(CSS::to_string(descriptor_id)), descriptor_id);
+        return DescriptorNameAndID(CSS::to_string(descriptor_id), descriptor_id);
     }
 
     DescriptorID id() const { return m_id; }
