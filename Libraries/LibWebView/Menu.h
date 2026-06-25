@@ -28,6 +28,7 @@ enum class ActionID {
     NavigateForward,
     Reload,
     ViewHistory,
+    ClearBrowsingData,
 
     CopySelection,
     CutSelection,
