@@ -4,7 +4,6 @@ set(TEST_SOURCES
     TestAudioBlockTimingRing.cpp
     TestCICP.cpp
     TestBufferedRanges.cpp
-    TestDataProducers.cpp
     TestDecodedAudioProducer.cpp
     TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp
@@ -12,6 +11,7 @@ set(TEST_SOURCES
     TestIncrementallyPopulatedStream.cpp
     TestMatroskaDemuxer.cpp
     TestParseMatroska.cpp
+    TestPipelineNodes.cpp
     TestMediaTime.cpp
     TestPlaybackStream.cpp
     TestVideoFramePool.cpp
