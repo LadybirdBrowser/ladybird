@@ -3043,14 +3043,17 @@ void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
     //    the media element to fire an event named timeupdate at the element. (In the other cases, such as explicit seeks,
     //    relevant events get fired as part of the overall process of changing the current playback position.)
     if (reason == TimeMarchesOnReason::NormalPlayback && !m_running_time_update_event_handler) {
+        constexpr auto interval = AK::Duration::from_milliseconds(250);
         auto dispatch_event = true;
 
+        auto now = MonotonicTime::now();
         if (m_last_time_update_event_time.has_value()) {
-            auto time_since_last_event = MonotonicTime::now() - *m_last_time_update_event_time;
-            dispatch_event = time_since_last_event.to_milliseconds() > 250;
+            auto time_since_last_event = now - *m_last_time_update_event_time;
+            dispatch_event = time_since_last_event > interval;
         }
 
         if (dispatch_event) {
+            m_last_time_update_event_time = now;
             queue_a_media_element_task([](HTMLMediaElement& self) {
                 self.dispatch_time_update_event();
             });
