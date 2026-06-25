@@ -230,6 +230,8 @@ static void initialize_native_icon(WebView::Action& action, id control)
         break;
     case WebView::ActionID::ClearBrowsingData:
         set_control_image(control, @"trash");
+        [control setKeyEquivalent:@"\b"];
+        [control setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagShift];
         break;
 
     case WebView::ActionID::CopySelection:
