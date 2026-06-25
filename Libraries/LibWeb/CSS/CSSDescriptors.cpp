@@ -231,7 +231,7 @@ String CSSDescriptors::serialized() const
         auto value = descriptor.value->to_string(SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value, and the important flag set if declaration has its important flag set.
-        auto serialized_declaration = serialize_a_css_declaration(property_string.ascii_view(), value, Important::No);
+        auto serialized_declaration = serialize_a_css_declaration(property_string, value, Important::No);
 
         // 7. Append serialized declaration to list.
         list.append(serialized_declaration);

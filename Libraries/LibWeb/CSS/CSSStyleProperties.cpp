@@ -154,13 +154,13 @@ Utf16String CSSStyleProperties::item(size_t index) const
 
     if (is_computed()) {
         auto property_id = static_cast<PropertyID>(index + to_underlying(first_longhand_property_id));
-        return Utf16String::from_utf8(string_from_property_id(property_id));
+        return string_from_property_id(property_id).to_utf16_string();
     }
 
     if (index < custom_properties_count)
         return m_custom_properties.keys()[index].to_utf16_string();
 
-    return Utf16String::from_utf8(CSS::string_from_property_id(m_properties[index - custom_properties_count].property_id));
+    return string_from_property_id(m_properties[index - custom_properties_count].property_id).to_utf16_string();
 }
 
 Optional<StyleProperty> CSSStyleProperties::get_property(PropertyID property_id) const
@@ -1269,9 +1269,7 @@ String CSSStyleProperties::serialized() const
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.
-        // NB: We have to inline this here as the actual implementation does not accept custom properties.
-        auto property_string = property.to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
-        String serialized_declaration = serialize_a_css_declaration(property_string, value, declaration.value.important);
+        String serialized_declaration = serialize_a_css_declaration(property, value, declaration.value.important);
 
         // 7. Append serialized declaration to list.
         list.append(move(serialized_declaration));

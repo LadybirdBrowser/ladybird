@@ -36,7 +36,7 @@ GC::Ref<CSSTransition> CSSTransition::start_a_transition(
     return realm.create<CSSTransition>(realm, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
 }
 
-StringView CSSTransition::transition_property() const
+Utf16FlyString const& CSSTransition::transition_property() const
 {
     return string_from_property_id(m_transition_property);
 }
@@ -85,8 +85,7 @@ int CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation>
     // 5. Otherwise, sort A and B in ascending order by the Unicode codepoints that make up the expanded transition
     //    property name of each transition (i.e. without attempting case conversion and such that ‘-moz-column-width’
     //    sorts before ‘column-width’).
-    // FIXME: This should operate on Unicode strings, not StringViews.
-    return transition_property().compare(other->transition_property());
+    return transition_property() <=> other->transition_property();
 }
 
 CSSTransition::CSSTransition(

@@ -850,7 +850,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
 
         properties->for_each_property([&](auto property_id, auto& value) {
             serialized.set(
-                Web::CSS::string_from_property_id(property_id),
+                Web::CSS::string_from_property_id(property_id).to_utf16_string().to_utf8_but_should_be_ported_to_utf16(),
                 value.to_string(Web::CSS::SerializationMode::Normal));
         });
 

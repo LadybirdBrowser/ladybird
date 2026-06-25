@@ -1808,9 +1808,9 @@ static JsonArray serialize_devtools_style_declarations(DOM::Document const& docu
 {
     JsonArray declarations;
 
-    auto serialize_property = [&](String name, StyleProperty const& property, IsCustomProperty is_custom_property, Inherits inherits) {
+    auto serialize_property = [&](Utf16FlyString const& name, StyleProperty const& property, IsCustomProperty is_custom_property, Inherits inherits) {
         declarations.must_append(serialize_devtools_style_declaration(
-            move(name),
+            name.to_utf16_string().to_utf8_but_should_be_ported_to_utf16(),
             property.value->to_string(SerializationMode::Normal),
             property.important,
             is_custom_property,
@@ -1821,7 +1821,7 @@ static JsonArray serialize_devtools_style_declarations(DOM::Document const& docu
 
     for (auto const& property : declaration.properties()) {
         serialize_property(
-            string_from_property_id(property.property_id).to_string(),
+            string_from_property_id(property.property_id),
             property,
             IsCustomProperty::No,
             is_inherited_property(property.property_id) ? Inherits::Yes : Inherits::No);
@@ -1829,7 +1829,7 @@ static JsonArray serialize_devtools_style_declarations(DOM::Document const& docu
 
     for (auto const& custom_property : declaration.custom_properties())
         serialize_property(
-            custom_property.key.to_utf16_string().to_utf8_but_should_be_ported_to_utf16(),
+            custom_property.key,
             custom_property.value,
             IsCustomProperty::Yes,
             custom_property_inherits(document, custom_property.key) ? Inherits::Yes : Inherits::No);

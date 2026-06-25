@@ -25,7 +25,7 @@ public:
 
         auto name_string = name.to_utf16_string();
         if (auto property_id = property_id_from_string(name_string.ascii_view()); property_id.has_value())
-            return PropertyNameAndID(Utf16FlyString::from_utf8(string_from_property_id(property_id.value())), property_id.value());
+            return PropertyNameAndID(string_from_property_id(property_id.value()), property_id.value());
 
         return {};
     }
@@ -42,7 +42,7 @@ public:
     Utf16FlyString const& name() const
     {
         if (!m_name.has_value())
-            m_name = Utf16FlyString::from_utf8(string_from_property_id(m_property_id));
+            m_name = string_from_property_id(m_property_id);
         return m_name.value();
     }
 

@@ -416,7 +416,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
     if (show_computed_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_properties()) {
         struct NameAndValue {
-            FlyString name;
+            Utf16FlyString name;
             String value;
         };
         Vector<NameAndValue> properties;

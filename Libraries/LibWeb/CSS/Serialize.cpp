@@ -79,6 +79,10 @@ void serialize_an_identifier(StringBuilder& builder, StringView ident)
         escape_a_character(builder, character);
     }
 }
+void serialize_an_identifier(StringBuilder& builder, Utf16View ident)
+{
+    serialize_an_identifier(builder, ident.to_utf8_but_should_be_ported_to_utf16());
+}
 
 // https://www.w3.org/TR/cssom-1/#serialize-a-string
 void serialize_a_string(StringBuilder& builder, StringView string)
@@ -196,7 +200,7 @@ String serialize_a_number(double value)
 }
 
 // https://drafts.csswg.org/cssom/#serialize-a-css-declaration
-String serialize_a_css_declaration(StringView property, StringView value, Important important)
+String serialize_a_css_declaration(Utf16View property, StringView value, Important important)
 {
     // 1. Let s be the empty string.
     StringBuilder builder;
