@@ -38,8 +38,8 @@ struct SPCQData {
     // Invariant: head is only modified by dequeue functions.
     // An empty queue is signalled with:  tail = head
     // A full queue is signalled with:  tail - head = size
-    AK_CACHE_ALIGNED Atomic<size_t, AK::MemoryOrder::memory_order_seq_cst> m_tail { 0 };
-    AK_CACHE_ALIGNED Atomic<size_t, AK::MemoryOrder::memory_order_seq_cst> m_head { 0 };
+    AK_CACHE_ALIGNED Atomic<size_t> m_tail { 0 };
+    AK_CACHE_ALIGNED Atomic<size_t> m_head { 0 };
 
     alignas(T) Array<T, Size> m_data;
 };
@@ -72,11 +72,11 @@ public:
     ErrorOr<void, QueueStatus> enqueue_in_place(WriteToSlot write_to_slot)
     {
         VERIFY(m_data);
-        auto tail = m_data->m_tail.load();
-        if (tail - m_data->m_head.load() == Size)
+        auto tail = m_data->m_tail.load(AK::MemoryOrder::memory_order_relaxed);
+        if (tail - m_data->m_head.load(AK::MemoryOrder::memory_order_acquire) == Size)
             return QueueStatus::Full;
         write_to_slot(m_data->m_data[tail % Size]);
-        m_data->m_tail.store(tail + 1);
+        m_data->m_tail.store(tail + 1, AK::MemoryOrder::memory_order_release);
 
         return {};
     }
@@ -90,7 +90,7 @@ public:
 
     ALWAYS_INLINE bool can_enqueue() const
     {
-        return m_data->m_tail.load() - m_data->m_head.load() < Size;
+        return m_data->m_tail.load(AK::MemoryOrder::memory_order_relaxed) - m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed) < Size;
     }
 
     // Repeatedly try to enqueue, calling wait_function to block while the queue is full.
@@ -110,8 +110,8 @@ public:
     Optional<ValueType> peek() const
     {
         VERIFY(m_data);
-        auto head = m_data->m_head.load();
-        if (head == m_data->m_tail.load())
+        auto head = m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed);
+        if (head == m_data->m_tail.load(AK::MemoryOrder::memory_order_acquire))
             return {};
         return m_data->m_data[head % Size];
     }
@@ -119,15 +119,15 @@ public:
     ErrorOr<ValueType, QueueStatus> dequeue()
     {
         VERIFY(m_data);
-        auto head = m_data->m_head.load();
-        if (head == m_data->m_tail.load())
+        auto head = m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed);
+        if (head == m_data->m_tail.load(AK::MemoryOrder::memory_order_acquire))
             return QueueStatus::Empty;
         auto data = move(m_data->m_data[head % Size]);
-        m_data->m_head.store(head + 1);
+        m_data->m_head.store(head + 1, AK::MemoryOrder::memory_order_release);
         return { move(data) };
     }
 
-    size_t head() const { return m_data->m_head.load(); }
+    size_t head() const { return m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed); }
 
 protected:
     SingleProducerCircularQueueBase() = default;
