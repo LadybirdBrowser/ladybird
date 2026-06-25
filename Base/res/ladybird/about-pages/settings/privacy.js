@@ -1,4 +1,5 @@
 import { getByteFormatter } from "../../utils.js";
+import { registerDialogDeepLink } from "./dialog-deep-link.js";
 
 const byteFormatter = getByteFormatter(unit => {
     return {
@@ -115,9 +116,15 @@ function showBrowsingDataSettings() {
     browsingDataSettingsMaxDiskCacheUnit.value = unit;
 }
 
+registerDialogDeepLink({
+    hash: "clearBrowsingData",
+    tab: "privacy",
+    dialog: browsingDataSettingsDialog,
+    onOpen: estimateBrowsingDataSizes,
+});
+
 browsingDataSettings.addEventListener("click", () => {
-    estimateBrowsingDataSizes();
-    browsingDataSettingsDialog.showModal();
+    location.hash = "clearBrowsingData";
 });
 
 browsingDataSettingsClose.addEventListener("click", () => {
