@@ -51,7 +51,7 @@ private:
     virtual Messages::CompositorWebContentServer::GetCanvasPixelsResponse get_canvas_pixels(Web::Painting::CanvasId, Gfx::IntRect) override;
 
     virtual Messages::CompositorWebContentServer::CreateWebglContextResponse create_webgl_context(Web::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) override;
-    virtual void webgl_commands(Web::Painting::CanvasId canvas_id, ByteBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps) override;
+    virtual void webgl_commands(Web::Painting::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps) override;
     virtual void webgl_present_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer) override;
     virtual Messages::CompositorWebContentServer::WebglSyncCallResponse webgl_sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request) override;
     virtual Messages::CompositorWebContentServer::WebglReadPixelsResponse webgl_read_pixels(Web::Painting::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels) override;

@@ -6,6 +6,7 @@
 
 #include <WebContent/CompositorConnection.h>
 
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
@@ -200,7 +201,10 @@ void CompositorConnection::send_webgl_commands(Web::Painting::CanvasId canvas_id
     if (!can_send_message_to_compositor())
         return;
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::WebglCommands::static_encode(canvas_id, commands, bitmaps));
+    auto shared_commands = MUST(Core::AnonymousBuffer::create_with_size(commands.size()));
+    commands.bytes().copy_to({ shared_commands.data<u8>(), shared_commands.size() });
+
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::WebglCommands::static_encode(canvas_id, shared_commands, bitmaps));
     if (post_message(encoded_message).is_error())
         did_lose_compositor();
 }

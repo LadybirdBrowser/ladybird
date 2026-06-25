@@ -147,7 +147,7 @@ void CanvasHost::execute_canvas_2d_commands(Web::Painting::CanvasId canvas_id, G
         present_canvas_2d_context(canvas_id, canvas_context);
 }
 
-void CanvasHost::execute_webgl_commands(Web::Painting::CanvasId canvas_id, ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+void CanvasHost::execute_webgl_commands(Web::Painting::CanvasId canvas_id, ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
