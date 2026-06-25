@@ -1004,6 +1004,10 @@ void LayoutState::UsedValues::materialize_from_paintable(Painting::PaintableBox 
 
     if (auto const* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable))
         set_computed_svg_transforms(svg_graphics_paintable->computed_transforms());
+    if (auto const* svg_foreign_object_paintable = as_if<Painting::SVGForeignObjectPaintable>(paintable))
+        set_computed_svg_transforms(svg_foreign_object_paintable->computed_transforms());
+    if (auto const* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable))
+        set_computed_svg_transforms(svg_svg_paintable->computed_transforms());
 }
 
 void LayoutState::UsedValues::set_content_width(CSSPixels width)
