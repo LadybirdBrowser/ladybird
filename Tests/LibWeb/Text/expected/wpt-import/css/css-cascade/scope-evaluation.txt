@@ -2,24 +2,23 @@ Harness status: OK
 
 Found 23 tests
 
-18 Pass
-5 Fail
+23 Pass
 Pass	Single scope
-Fail	Scope can not match its own root without :scope
+Pass	Scope can not match its own root without :scope
 Pass	Selecting self with :scope
 Pass	Single scope with limit
 Pass	Single scope, :scope pseudo in main selector
 Pass	Single scope, :scope pseudo in to-selector
-Fail	Multiple scopes, :scope pseudo in to-selector
+Pass	Multiple scopes, :scope pseudo in to-selector
 Pass	Inner @scope with :scope in from-selector
-Fail	Multiple scopes from same @scope-rule, only one limited
+Pass	Multiple scopes from same @scope-rule, only one limited
 Pass	Multiple scopes from same @scope-rule, both limited
 Pass	Nested scopes
 Pass	Nested scopes, reverse
 Pass	Nested scopes, with to-selector
 Pass	:scope selecting itself
-Fail	The scoping limit is not in scope
-Fail	Simulated inclusive scoping limit
+Pass	The scoping limit is not in scope
+Pass	Simulated inclusive scoping limit
 Pass	Scope with no elements
 Pass	:scope direct adjacent sibling
 Pass	:scope indirect adjacent sibling

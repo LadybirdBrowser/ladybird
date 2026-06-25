@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<title>@scope - Shadow DOM with shared style data</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scoped-styles">
+<link rel="match" href="../../../../expected/wpt-import/css/css-cascade/scope-shadow-sharing-ref.html">
+<div id="host1">
+</div>
+<div id="host2">
+</div>
+<template id="t">
+  <style>
+    div {
+      padding: 3px;
+      border: 1px solid;
+      background: white;
+    }
+
+    @scope {
+      div {
+        background: red;
+      }
+    }
+
+    @scope (.explicit-scope) {
+      div {
+        background: green;
+      }
+    }
+  </style>
+  <div>
+    <style>
+      @scope {
+        div {
+          background: blue;
+        }
+      }
+    </style>
+    <div></div>
+  </div>
+  <div class="explicit-scope">
+    <div></div>
+  </div>
+</template>
+<script>
+const hosts = [host1, host2];
+for (const host of hosts) {
+  const shadowRoot = host.attachShadow({ mode: "open" });
+  shadowRoot.append(t.content.cloneNode(true));
+}
+document.documentElement.className = '';
+</script>
+</html>

@@ -295,9 +295,36 @@ struct ResolvedScope {
     size_t proximity { NumericLimits<size_t>::max() };
 };
 
+// https://drafts.csswg.org/css-cascade-6/#scope-limits
+static bool subject_matches_scope_limit(
+    DOM::AbstractElement abstract_element,
+    GC::Ptr<DOM::Element const> shadow_host,
+    GC::Ptr<DOM::ShadowRoot const> rule_root,
+    CSSRule const& scope_rule,
+    CSSStyleSheet const& owner_style_sheet,
+    DOM::Element const& root)
+{
+    // Finding any scoping limits
+    // For each scope created by a scoping root, its scoping limits are set to all elements that are descendants of
+    // the scoping root and that match <scope-end>, interpreting :scope and & exactly as in scoped style rules.
+    auto selectors = scope_end_selectors_for_matching(scope_rule);
+    if (!selectors.has_value())
+        return false;
+
+    for (auto const* candidate = &abstract_element.element(); candidate; candidate = candidate->parent_or_shadow_host_element()) {
+        for (auto const& selector : *selectors) {
+            if (scope_selector_matches(selector, *candidate, abstract_element.element(), owner_style_sheet, shadow_host, rule_root, root))
+                return true;
+        }
+        if (candidate == &root)
+            break;
+    }
+
+    return false;
+}
+
 static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstract_element, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, CSSRule const& scope_rule, GC::Ptr<DOM::Element const> outer_root)
 {
-    GC::Ptr<DOM::Element const> root;
     size_t proximity = 0;
     auto const* owner_style_sheet = scope_rule.parent_style_sheet();
     VERIFY(owner_style_sheet);
@@ -306,61 +333,49 @@ static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstrac
     // Finding the scoping root(s)
     // For each element matched by <scope-start>, create a scope using that element as the scoping root.
     if (scope_start_selectors_for_matching(scope_rule).has_value()) {
-        for (auto const* candidate = &abstract_element.element(); candidate; candidate = candidate->parent_element().ptr(), ++proximity) {
-            if (outer_root && !outer_root->is_inclusive_ancestor_of(*candidate))
+        for (auto const* candidate = &abstract_element.element(); candidate; candidate = candidate->parent_or_shadow_host_element(), ++proximity) {
+            if (outer_root && !outer_root->is_shadow_including_inclusive_ancestor_of(*candidate))
                 break;
             for (auto const& selector : *scope_start_selectors_for_matching(scope_rule)) {
                 if (scope_selector_matches(selector, *candidate, abstract_element.element(), *owner_style_sheet, shadow_host, rule_root, outer_root)) {
-                    root = candidate;
-                    break;
+                    if (!subject_matches_scope_limit(abstract_element, shadow_host, rule_root, scope_rule, *owner_style_sheet, *candidate))
+                        return ResolvedScope { candidate, proximity };
                 }
             }
-            if (root)
-                break;
         }
-    } else {
-        root = [&] -> GC::Ptr<DOM::Element const> {
-            // If no <scope-start> is specified, the scoping root is the parent element of the owner node of the
-            // stylesheet where the @scope rule is defined.
-            if (auto* owner_node = const_cast<CSSStyleSheet&>(*owner_style_sheet).owner_node()) {
-                if (auto parent = owner_node->parent_element())
-                    return parent;
-            }
-
-            // If no such element exists and the containing node tree is a shadow tree, then the scoping root is the
-            // shadow host.
-            if (rule_root)
-                return rule_root->host();
-
-            // Otherwise, the scoping root is the root of the containing node tree.
-            if (auto document = owner_style_sheet->owning_document())
-                return document->document_element();
-            return nullptr;
-        }();
-        if (!root || !root->is_shadow_including_inclusive_ancestor_of(abstract_element.element()))
-            return {};
-        if (outer_root && !outer_root->is_shadow_including_inclusive_ancestor_of(*root))
-            return {};
-        for (auto const* candidate = &abstract_element.element(); candidate && candidate != root; candidate = candidate->parent_or_shadow_host_element())
-            ++proximity;
+        return {};
     }
+
+    GC::Ptr<DOM::Element const> root = [&] -> GC::Ptr<DOM::Element const> {
+        // If no <scope-start> is specified, the scoping root is the parent element of the owner node of the
+        // stylesheet where the @scope rule is defined.
+        if (auto* owner_node = const_cast<CSSStyleSheet&>(*owner_style_sheet).owner_node()) {
+            if (auto parent = owner_node->parent_element())
+                return parent;
+        }
+
+        // If no such element exists and the containing node tree is a shadow tree, then the scoping root is the
+        // shadow host.
+        if (rule_root)
+            return rule_root->host();
+
+        // Otherwise, the scoping root is the root of the containing node tree.
+        if (auto document = owner_style_sheet->owning_document())
+            return document->document_element();
+        return nullptr;
+    }();
+    if (!root || !root->is_shadow_including_inclusive_ancestor_of(abstract_element.element()))
+        return {};
+    if (outer_root && !outer_root->is_shadow_including_inclusive_ancestor_of(*root))
+        return {};
+    for (auto const* candidate = &abstract_element.element(); candidate && candidate != root; candidate = candidate->parent_or_shadow_host_element())
+        ++proximity;
 
     if (!root)
         return {};
 
-    // Finding any scoping limits
-    // For each scope created by a scoping root, its scoping limits are set to all elements that are descendants of
-    // the scoping root and that match <scope-end>, interpreting :scope and & exactly as in scoped style rules.
-    if (scope_end_selectors_for_matching(scope_rule).has_value()) {
-        for (auto const* candidate = &abstract_element.element(); candidate; candidate = candidate->parent_element().ptr()) {
-            for (auto const& selector : *scope_end_selectors_for_matching(scope_rule)) {
-                if (scope_selector_matches(selector, *candidate, abstract_element.element(), *owner_style_sheet, shadow_host, rule_root, root))
-                    return {};
-            }
-            if (candidate == root)
-                break;
-        }
-    }
+    if (subject_matches_scope_limit(abstract_element, shadow_host, rule_root, scope_rule, *owner_style_sheet, *root))
+        return {};
 
     return ResolvedScope { root, proximity };
 }
@@ -774,6 +789,10 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
             }
         }
         if (!SelectorEngine::matches(selector, abstract_element, shadow_host_to_use, context, resolved_scope->root))
+            continue;
+        if (resolved_scope->root == &abstract_element.element()
+            && !selector.contains_pseudo_class(PseudoClass::Scope)
+            && !selector.contains_the_nesting_selector())
             continue;
         if (rule.container_rule && rule.container_rule->contains_size_feature()) {
             abstract_element.element().set_style_depends_on_size_container_query();
