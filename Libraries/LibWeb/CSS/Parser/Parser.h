@@ -138,7 +138,7 @@ public:
     PropertiesAndCustomProperties parse_as_property_declaration_block();
     Vector<DevToolsStyleDeclaration> parse_as_devtools_property_declaration_block();
     Vector<Descriptor> parse_as_descriptor_declaration_block(AtRuleID);
-    CSSRule* parse_as_css_rule();
+    CSSRule* parse_as_css_rule(bool nested = false);
     Optional<StyleProperty> parse_as_supports_condition();
     GC::RootVector<GC::Ref<CSSRule>> parse_as_stylesheet_contents();
 
@@ -218,9 +218,14 @@ private:
     template<typename T>
     Vector<RuleOrListOfDeclarations> parse_a_blocks_contents(TokenStream<T>&);
 
+    enum class Nested {
+        No,
+        Yes,
+    };
+
     // "Parse a rule" is intended for use by the CSSStyleSheet#insertRule method, and similar functions which might exist, which parse text into a single rule.
     template<typename T>
-    Optional<Rule> parse_a_rule(TokenStream<T>&);
+    Optional<Rule> parse_a_rule(TokenStream<T>&, Nested nested = Nested::No);
 
     // "Parse a declaration" is used in @supports conditions. [CSS3-CONDITIONAL]
     template<typename T>
@@ -257,10 +262,6 @@ private:
 
     template<typename T>
     [[nodiscard]] Vector<Rule> consume_a_stylesheets_contents(TokenStream<T>&);
-    enum class Nested {
-        No,
-        Yes,
-    };
     template<typename T>
     Optional<AtRule> consume_an_at_rule(TokenStream<T>&, Nested nested = Nested::No);
     struct InvalidRuleError { };
@@ -692,7 +693,7 @@ Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, St
 Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView, CSS::StyleNestingParent);
 Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const&, StringView);
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, StringView);
-CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, StringView);
+CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, StringView, bool nested = false);
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, StringView);
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const&, StringView);
 RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, StringView);

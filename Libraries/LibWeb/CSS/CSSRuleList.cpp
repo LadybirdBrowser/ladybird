@@ -79,9 +79,17 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     CSSRule* new_rule = nullptr;
     if (rule.has<StringView>()) {
         Parser::ParsingParams parsing_params { realm() };
+        parsing_params.rule_context = rule_context();
         parsing_params.declared_namespaces = declared_namespaces;
 
-        new_rule = parse_css_rule(parsing_params, rule.get<StringView>());
+        new_rule = parse_css_rule(parsing_params, rule.get<StringView>(), nested == Nested::Yes);
+        if (!new_rule && nested == Nested::Yes) {
+            auto trimmed_rule = rule.get<StringView>().trim_whitespace(TrimMode::Left);
+            if (trimmed_rule.starts_with("@import"sv) || trimmed_rule.starts_with("@namespace"sv)) {
+                parsing_params.rule_context.clear();
+                new_rule = parse_css_rule(parsing_params, rule.get<StringView>());
+            }
+        }
     } else {
         new_rule = rule.get<CSSRule*>();
     }
