@@ -46,7 +46,7 @@ struct NamedPropertyID {
     {
     }
     NamedPropertyID(CSS::PropertyID property_id, Vector<FlyString> supported_elements = {})
-        : NamedPropertyID(property_id, CSS::string_from_property_id(property_id), move(supported_elements))
+        : NamedPropertyID(property_id, CSS::string_from_property_id(property_id).to_utf16_string().to_utf8_but_should_be_ported_to_utf16(), move(supported_elements))
     {
     }
 

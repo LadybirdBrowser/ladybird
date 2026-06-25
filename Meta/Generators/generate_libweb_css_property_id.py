@@ -176,8 +176,8 @@ def write_header_file(out: TextIO, properties: dict, logical_property_groups: di
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
-#include <AK/StringView.h>
 #include <AK/Traits.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/NumericRange.h>
@@ -243,8 +243,8 @@ bool is_animatable_property(PropertyID);
 
 Optional<PropertyID> property_id_from_camel_case_string(StringView);
 WEB_API Optional<PropertyID> property_id_from_string(StringView);
-[[nodiscard]] WEB_API FlyString const& string_from_property_id(PropertyID);
-[[nodiscard]] FlyString const& camel_case_string_from_property_id(PropertyID);
+[[nodiscard]] WEB_API Utf16FlyString const& string_from_property_id(PropertyID);
+[[nodiscard]] Utf16FlyString const& camel_case_string_from_property_id(PropertyID);
 WEB_API bool is_inherited_property(PropertyID);
 NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
 
@@ -338,10 +338,10 @@ Optional<LogicalPropertyGroup> logical_property_group_for_property(PropertyID);
 namespace AK {
 
 template<>
-struct Formatter<Web::CSS::PropertyID> : Formatter<StringView> {
+struct Formatter<Web::CSS::PropertyID> : Formatter<Utf16FlyString> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::PropertyID const& property_id)
     {
-        return Formatter<StringView>::format(builder, Web::CSS::string_from_property_id(property_id));
+        return Formatter<Utf16FlyString>::format(builder, Web::CSS::string_from_property_id(property_id));
     }
 };
 } // namespace AK
@@ -412,7 +412,7 @@ Optional<PropertyID> property_id_from_string(StringView string)
     return properties_table.get(string);
 }
 
-FlyString const& string_from_property_id(PropertyID property_id) {
+Utf16FlyString const& string_from_property_id(PropertyID property_id) {
     switch (property_id) {
 """)
 
@@ -421,20 +421,20 @@ FlyString const& string_from_property_id(PropertyID property_id) {
             continue
         out.write(f"""
     case PropertyID::{title_casify(name)}: {{
-        static FlyString const& name = *new FlyString("{name}"_fly_string);
+        static Utf16FlyString const& name = *new Utf16FlyString("{name}"_utf16_fly_string);
         return name;
     }}
 """)
 
     out.write("""
     default: {
-        static FlyString const& invalid_property_id_string = *new FlyString("(invalid CSS::PropertyID)"_fly_string);
+        static Utf16FlyString const& invalid_property_id_string = *new Utf16FlyString("(invalid CSS::PropertyID)"_utf16_fly_string);
         return invalid_property_id_string;
     }
     }
 }
 
-FlyString const& camel_case_string_from_property_id(PropertyID property_id) {
+Utf16FlyString const& camel_case_string_from_property_id(PropertyID property_id) {
     switch (property_id) {
 """)
 
@@ -443,14 +443,14 @@ FlyString const& camel_case_string_from_property_id(PropertyID property_id) {
             continue
         out.write(f"""
     case PropertyID::{title_casify(name)}: {{
-        static FlyString const& name = *new FlyString("{camel_casify(name)}"_fly_string);
+        static Utf16FlyString const& name = *new Utf16FlyString("{camel_casify(name)}"_utf16_fly_string);
         return name;
     }}
 """)
 
     out.write("""
     default: {
-        static FlyString const& invalid_property_id_string = *new FlyString("(invalid CSS::PropertyID)"_fly_string);
+        static Utf16FlyString const& invalid_property_id_string = *new Utf16FlyString("(invalid CSS::PropertyID)"_utf16_fly_string);
         return invalid_property_id_string;
     }
     }

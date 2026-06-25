@@ -1829,7 +1829,7 @@ Vector<DevTools::CSSProperty> Application::css_property_list() const
         auto property_id = static_cast<Web::CSS::PropertyID>(i);
 
         DevTools::CSSProperty property;
-        property.name = Web::CSS::string_from_property_id(property_id).to_string();
+        property.name = Web::CSS::string_from_property_id(property_id).to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
         property.is_inherited = Web::CSS::is_inherited_property(property_id);
         property_list.append(move(property));
     }

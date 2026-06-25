@@ -3895,7 +3895,7 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
 
         Bindings::TransitionEventInit event_init {};
         event_init.bubbles = true;
-        event_init.property_name = MUST(String::from_utf8(transition->transition_property()));
+        event_init.property_name = transition->transition_property().to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
         event_init.elapsed_time = elapsed_time_output;
         event_init.pseudo_element = transition->owning_element()->pseudo_element().map([](auto it) {
                                                                                       return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));

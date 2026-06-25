@@ -878,7 +878,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
             }
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {
-                auto key = Utf16FlyString::from_utf8(CSS::camel_case_string_from_property_id(id));
+                auto key = CSS::camel_case_string_from_property_id(id);
                 auto value_string = JS::PrimitiveString::create(vm, Utf16String::from_utf8(value->to_string(CSS::SerializationMode::Normal)));
                 TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
             }

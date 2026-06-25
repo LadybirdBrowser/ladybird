@@ -3894,7 +3894,7 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Fly
     //     that it sets property to.
     // FIXME: Use property_in_style_attribute once it supports shorthands.
     if (auto inline_style = element->inline_style()) {
-        auto value = inline_style->get_property_value(Utf16FlyString::from_utf8(string_from_property_id(property.value())));
+        auto value = inline_style->get_property_value(string_from_property_id(property.value()));
         if (!value.is_empty())
             return Utf16String::from_utf8_without_validation(value);
     }
