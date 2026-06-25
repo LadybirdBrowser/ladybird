@@ -119,7 +119,7 @@ jobs:
 
       - name: Cache the WebAssembly spec test suite
         if: ${{ inputs.os_name != 'Windows' }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/caches/WasmSpecTests
           key: wasm-spec-test-suite | ${{ hashFiles('Meta/CMake/wasm_spec_tests.cmake') }}
