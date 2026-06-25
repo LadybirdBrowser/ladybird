@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,13 +9,14 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS::Parser {
 
 struct UnknownPropertyError {
     FlyString rule_name { "style"_fly_string };
-    FlyString property_name;
+    Utf16FlyString property_name;
     bool operator==(UnknownPropertyError const&) const = default;
     unsigned hash() const
     {
@@ -47,7 +48,7 @@ struct UnknownPseudoClassOrElementError {
 
 struct InvalidPropertyError {
     FlyString rule_name { "style"_fly_string };
-    FlyString property_name;
+    Utf16FlyString property_name;
     String value_string;
     String description;
     bool operator==(InvalidPropertyError const&) const = default;

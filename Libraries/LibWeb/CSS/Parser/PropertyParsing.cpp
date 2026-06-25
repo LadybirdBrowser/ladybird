@@ -2687,7 +2687,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         if (tokens.has_next_token()) {
             ErrorReporter::the().report(InvalidPropertyError {
                 .rule_name = "style"_fly_string,
-                .property_name = "font-language-override"_fly_string,
+                .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = "Unexpected trailing tokens"_string,
             });
@@ -2697,7 +2697,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         if (length == 0) {
             ErrorReporter::the().report(InvalidPropertyError {
                 .rule_name = "style"_fly_string,
-                .property_name = "font-language-override"_fly_string,
+                .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = "<string> value is empty"_string,
             });
@@ -2706,7 +2706,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         if (!string_value.is_ascii()) {
             ErrorReporter::the().report(InvalidPropertyError {
                 .rule_name = "style"_fly_string,
-                .property_name = "font-language-override"_fly_string,
+                .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = MUST(String::formatted("<string> value \"{}\" contains non-ascii characters", string_value)),
             });
@@ -2715,7 +2715,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         if (length > 4) {
             ErrorReporter::the().report(InvalidPropertyError {
                 .rule_name = "style"_fly_string,
-                .property_name = "font-language-override"_fly_string,
+                .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = MUST(String::formatted("<string> value \"{}\" is too long", string_value)),
             });
@@ -2726,7 +2726,7 @@ RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<
         if (trimmed.is_empty()) {
             ErrorReporter::the().report(InvalidPropertyError {
                 .rule_name = "style"_fly_string,
-                .property_name = "font-language-override"_fly_string,
+                .property_name = "font-language-override"_utf16_fly_string,
                 .value_string = tokens.dump_string(),
                 .description = MUST(String::formatted("<string> value \"{}\" is only whitespace", string_value)),
             });

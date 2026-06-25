@@ -1958,13 +1958,14 @@ GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declarat
 
 Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration const& declaration)
 {
-    auto property = PropertyNameAndID::from_name(Utf16FlyString::from_utf8(declaration.name));
+    auto utf16_declaration_name = Utf16FlyString::from_utf8(declaration.name);
+    auto property = PropertyNameAndID::from_name(utf16_declaration_name);
 
     if (!property.has_value()) {
         if (has_ignored_vendor_prefix(declaration.name)) {
             return {};
         }
-        ErrorReporter::the().report(UnknownPropertyError { .property_name = declaration.name });
+        ErrorReporter::the().report(UnknownPropertyError { .property_name = utf16_declaration_name });
         return {};
     }
 
@@ -1972,10 +1973,8 @@ Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration con
     auto value = parse_css_value(property->id(), value_token_stream, declaration.original_value_text);
     if (value.is_error()) {
         if (value.error() == ParseError::SyntaxError) {
-            auto property_name = property->name().to_utf16_string();
-            auto property_name_utf8 = property_name.to_utf8_but_should_be_ported_to_utf16();
             ErrorReporter::the().report(InvalidPropertyError {
-                .property_name = MUST(FlyString::from_utf8(property_name_utf8.bytes_as_string_view())),
+                .property_name = property->name(),
                 .value_string = value_token_stream.dump_string(),
                 .description = "Failed to parse."_string,
             });
