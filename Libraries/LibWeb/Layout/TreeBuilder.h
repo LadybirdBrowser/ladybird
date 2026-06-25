@@ -60,6 +60,7 @@ private:
     };
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
     RefPtr<NodeWithStyle> create_pseudo_element_if_needed(DOM::Element&, CSS::PseudoElement, Optional<AppendOrPrepend>);
+    RefPtr<NodeWithStyle> create_content_replacement_if_needed(DOM::Element&, CSS::ComputedProperties const&) const;
     static void create_first_letter_wrapper_if_needed(DOM::Element&, Layout::BlockContainer&);
     void restructure_block_node_in_inline_parent(NodeWithStyleAndBoxModelMetrics&);
 

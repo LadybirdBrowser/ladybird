@@ -34,8 +34,8 @@ ImageBox::ImageBox(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::
     VERIFY(&image_provider == &image_provider_for_element(*element));
 }
 
-ImageBox::ImageBox(DOM::Document& document, CSS::ComputedProperties const& style, NonnullOwnPtr<ImageProvider> image_provider)
-    : ReplacedBox(document, nullptr, style)
+ImageBox::ImageBox(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::ComputedProperties const& style, NonnullOwnPtr<ImageProvider> image_provider)
+    : ReplacedBox(document, element, style)
     , m_owned_image_provider(move(image_provider))
 {
 }

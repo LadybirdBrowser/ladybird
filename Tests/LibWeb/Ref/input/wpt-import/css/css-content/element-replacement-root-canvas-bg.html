@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>When content CSS attribute can replace a document's root, its canvas still becomes the canvas background</title>
+<link rel="match" href="../../../../expected/wpt-import/css/css-content/element-replacement-root-canvas-bg-ref.html" />
+<link rel="help" href="https://drafts.csswg.org/css-content-3/#content-property" />
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#root-background" />
+<meta name="assert" content="When the content CSS attribute replaces a document's root, it does not affect the fact that the root's background becomes the canvas background" />
+
+<style>
+:root {
+  content: url('resources/rect.svg');
+  background-color: aquamarine;
+}
+</style>
+
+<p>This text should not be visible</p>
