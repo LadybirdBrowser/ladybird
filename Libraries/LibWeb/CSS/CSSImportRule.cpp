@@ -245,6 +245,8 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
 {
     m_style_sheet = style_sheet;
     m_style_sheet->set_owner_css_rule(this);
+    if (m_parent_style_sheet)
+        m_style_sheet->set_owner_node(m_parent_style_sheet->owner_node());
 
     if (m_parent_style_sheet) {
         for (auto owning_document_or_shadow_root : m_parent_style_sheet->owning_documents_or_shadow_roots())
