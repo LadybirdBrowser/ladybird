@@ -141,9 +141,14 @@ Messages::CompositorWebContentServer::CreateWebglContextResponse ConnectionFromW
     return { result.success, result.canvas_id, move(result.supported_extensions) };
 }
 
-void ConnectionFromWebContent::webgl_commands(Web::Painting::CanvasId canvas_id, ByteBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps)
+void ConnectionFromWebContent::webgl_commands(Web::Painting::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps)
 {
-    m_canvas_host.execute_webgl_commands(canvas_id, commands, bitmaps);
+    if (!commands.is_valid()) {
+        did_misbehave("WebContent sent an invalid WebGL command buffer");
+        return;
+    }
+
+    m_canvas_host.execute_webgl_commands(canvas_id, commands.bytes(), bitmaps);
 }
 
 void ConnectionFromWebContent::webgl_present_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer)

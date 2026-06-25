@@ -1,0 +1,16 @@
+<!doctype html>
+<canvas id="c"></canvas>
+<script>
+    let gl = c.getContext("webgl2");
+
+    // FIXME: This test relies on having a GPU backend enabled, which is not available in tests.
+    if (gl) {
+        let w = 4096;
+        let h = 4096;
+        let pixels = new Uint8Array(w * h * 4);
+        let texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, w, h);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels, 0);
+    }
+</script>
