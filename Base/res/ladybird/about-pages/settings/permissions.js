@@ -1,3 +1,5 @@
+import { registerDialogDeepLink } from "./dialog-deep-link.js";
+
 const siteSettings = document.querySelector("#site-settings");
 const siteSettingsAdd = document.querySelector("#site-settings-add");
 const siteSettingsClose = document.querySelector("#site-settings-close");
@@ -74,7 +76,10 @@ function showSiteSettings(title, settings) {
         });
     };
 
-    if (settings.siteFilters.length === 0) {
+    // A deep link can open this dialog before the settings have loaded, so tolerate a not-yet-populated object.
+    const siteFilters = settings.siteFilters ?? [];
+
+    if (siteFilters.length === 0) {
         const placeholder = document.createElement("div");
         placeholder.className = "dialog-list-item-placeholder";
         placeholder.textContent = "No sites added";
@@ -82,7 +87,7 @@ function showSiteSettings(title, settings) {
         siteSettingsList.appendChild(placeholder);
     }
 
-    settings.siteFilters.forEach(site => {
+    siteFilters.forEach(site => {
         const filter = document.createElement("span");
         filter.className = "dialog-list-item-label";
         filter.textContent = site;
@@ -147,9 +152,15 @@ siteSettingsRemoveAll.addEventListener("click", () => {
     });
 });
 
-autoplaySettings.addEventListener("click", event => {
-    showSiteSettings("Autoplay", AUTOPLAY_SETTINGS);
-    event.stopPropagation();
+registerDialogDeepLink({
+    hash: "autoplay",
+    tab: "permissions",
+    dialog: siteSettings,
+    onOpen: () => showSiteSettings("Autoplay", AUTOPLAY_SETTINGS),
+});
+
+autoplaySettings.addEventListener("click", () => {
+    location.hash = "autoplay";
 });
 
 document.addEventListener("WebUILoaded", () => {

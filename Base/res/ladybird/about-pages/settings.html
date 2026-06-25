@@ -732,6 +732,8 @@
         <script src="resource://ladybird/about-pages/settings/tabs.js" type="module"></script>
 
         <script type="module">
+            import { tabForDeepLink } from "resource://ladybird/about-pages/settings/dialog-deep-link.js";
+
             function switchTab(name) {
                 const button = document.querySelector(`.tab-button[data-tab="${name}"]`);
                 const panel = document.getElementById(`tab-${name}`);
@@ -755,7 +757,7 @@
 
             const hash = location.hash.slice(1);
             if (hash) {
-                switchTab(hash);
+                switchTab(tabForDeepLink(hash));
             }
 
             // FIXME: Remove this once closedby="any" triggers for Esc key.
