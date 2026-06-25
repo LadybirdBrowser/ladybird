@@ -204,6 +204,13 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_H));
 #endif
         break;
+    case WebView::ActionID::ClearBrowsingData:
+#if defined(AK_OS_MACOS)
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Backspace));
+#else
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Delete));
+#endif
+        break;
     case WebView::ActionID::OpenProcessesPage:
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M));
         break;
