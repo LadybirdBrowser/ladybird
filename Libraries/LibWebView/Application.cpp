@@ -1600,6 +1600,14 @@ void Application::initialize_actions()
         if (!activate_tab_with_url(URL::about_history()))
             open_url_in_new_tab(URL::about_history(), Web::HTML::ActivateTab::Yes);
     }));
+    m_history_menu->add_separator();
+    m_history_menu->add_action(Action::create("Clear Browsing Data"sv, ActionID::ClearBrowsingData, [this]() {
+        auto url = URL::about_settings();
+        url.set_fragment("clearBrowsingData"_string);
+
+        if (!activate_tab_with_url(url))
+            open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
+    }));
 
     m_inspect_menu = Menu::create("Inspect"sv);
 
