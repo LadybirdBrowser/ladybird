@@ -1086,14 +1086,15 @@ SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors, 
     for (auto const& selector : selectors) {
         auto first_combinator = selector->compound_selectors().first().combinator;
 
-        // Nested relative selectors get a `&` inserted at the beginning.
+        // Nested relative selectors get a `&` inserted at the beginning when the nearest nesting parent is a style rule.
         // This is, handily, how the spec wants them serialized:
         // "When serializing a relative selector in a nested style rule, the selector must be absolutized, with the
         // implied nesting selector inserted."
         // - https://drafts.csswg.org/css-nesting-1/#cssom
-        // However, if we are directly inside a @scope rule and contain `:scope`, then we do not insert the `&`.
-        bool insert_leading_ampersand = !first_is_one_of(first_combinator, Selector::Combinator::None, Selector::Combinator::Descendant);
-        if (!selector->contains_the_nesting_selector() && style_nesting_parent != StyleNestingParent::Scope)
+        // However, relative selectors directly inside a @scope rule stay relative to the scoping root.
+        bool insert_leading_ampersand = style_nesting_parent == StyleNestingParent::Style
+            && !first_is_one_of(first_combinator, Selector::Combinator::None, Selector::Combinator::Descendant);
+        if (!selector->contains_the_nesting_selector() && style_nesting_parent == StyleNestingParent::Style)
             insert_leading_ampersand = true;
 
         if (insert_leading_ampersand) {
@@ -1135,11 +1136,17 @@ SelectorList absolutize_selectors_relative_to(SelectorList const& selectors, GC:
         },
     } };
 
+    auto parent_is_scope_rule = parent && parent->type() == CSSRule::Type::Scope;
+    auto selector_is_scope_relative = [](Selector const& selector) {
+        return !first_is_one_of(selector.compound_selectors().first().combinator, Selector::Combinator::None, Selector::Combinator::Descendant);
+    };
+
     // Replace all occurrences of `&` with the nearest ancestor style rule's selector list wrapped in `:is(...)`,
-    // or if we have no such ancestor, with `:scope`.
+    // or if we have no such ancestor, with `:scope`. Selectors directly inside @scope may remain serialized as
+    // relative selectors, but need to be absolutized against :scope before matching.
 
     // If we don't have any nesting selectors, we can just use our selectors as they are.
-    if (!any_of(selectors, [](auto const& selector) { return selector->contains_the_nesting_selector(); }))
+    if (!any_of(selectors, [&](auto const& selector) { return selector->contains_the_nesting_selector() || (parent_is_scope_rule && selector_is_scope_relative(*selector)); }))
         return selectors;
 
     // Otherwise, build up a new list of selectors with the `&` replaced.
@@ -1166,6 +1173,13 @@ SelectorList absolutize_selectors_relative_to(SelectorList const& selectors, GC:
 
     SelectorList absolutized_selectors;
     for (auto const& selector : selectors) {
+        if (!selector->contains_the_nesting_selector()) {
+            if (parent_is_scope_rule && selector_is_scope_relative(*selector))
+                absolutized_selectors.append(selector->relative_to(parent_selector));
+            else
+                absolutized_selectors.append(selector);
+            continue;
+        }
         if (auto absolutized = selector->absolutized(parent_selector))
             absolutized_selectors.append(absolutized.release_nonnull());
     }
