@@ -11,61 +11,6 @@
 using TestQueue = Core::SharedSingleProducerCircularQueue<int>;
 using QueueError = ErrorOr<int, TestQueue::QueueStatus>;
 
-// These first three cases don't multithread at all.
-
-TEST_CASE(simple_enqueue)
-{
-    auto queue = MUST(TestQueue::create());
-    for (size_t i = 0; i < queue.size(); ++i)
-        MUST(queue.enqueue((int)i));
-
-    auto result = queue.enqueue(0);
-    EXPECT(result.is_error());
-    EXPECT_EQ(result.release_error(), TestQueue::QueueStatus::Full);
-}
-
-TEST_CASE(enqueue_in_place)
-{
-    auto queue = MUST(TestQueue::create());
-    auto const test_count = 10;
-    for (int i = 0; i < test_count; ++i) {
-        MUST(queue.enqueue_in_place([&](int& slot) {
-            slot = i;
-        }));
-    }
-    for (int i = 0; i < test_count; ++i) {
-        auto const element = MUST(queue.dequeue());
-        EXPECT_EQ(element, i);
-    }
-}
-
-TEST_CASE(simple_dequeue)
-{
-    auto queue = MUST(TestQueue::create());
-    auto const test_count = 10;
-    for (int i = 0; i < test_count; ++i)
-        (void)queue.enqueue(i);
-    for (int i = 0; i < test_count; ++i) {
-        // TODO: This could be TRY_OR_FAIL(), if someone implements Formatter<SharedSingleProducerCircularQueue::QueueStatus>.
-        auto const element = MUST(queue.dequeue());
-        EXPECT_EQ(element, i);
-    }
-}
-
-TEST_CASE(peek_does_not_consume)
-{
-    auto queue = MUST(TestQueue::create());
-    EXPECT(!queue.peek().has_value());
-
-    MUST(queue.enqueue(7));
-    MUST(queue.enqueue(8));
-    EXPECT_EQ(queue.peek().value(), 7);
-    EXPECT_EQ(queue.peek().value(), 7);
-
-    EXPECT_EQ(MUST(queue.dequeue()), 7);
-    EXPECT_EQ(queue.peek().value(), 8);
-}
-
 // There is one parallel consumer, but nobody is producing at the same time.
 TEST_CASE(simple_multithread)
 {
