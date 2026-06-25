@@ -30,7 +30,7 @@ runs:
         ccache --evict-older-than=1d
 
     - name: 'Compiler Cache'
-      uses: actions/cache/save@v5
+      uses: actions/cache/save@v6
       with:
         path: ${{ inputs.ccache_path }}
         key: ${{ inputs.ccache_primary_key }}
@@ -43,7 +43,7 @@ runs:
         ccache -s
 
     - name: 'vcpkg binary cache'
-      uses: actions/cache/save@v5
+      uses: actions/cache/save@v6
       with:
         path: ${{ inputs.vcpkg_cache_path }}
         key: ${{ inputs.vcpkg_cache_primary_key }}
