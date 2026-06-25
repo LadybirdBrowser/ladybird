@@ -28,6 +28,8 @@ public:
 
     void received_message_from_web_ui(String const& name, JS::Value data);
 
+    Web::DOM::Document const& document() const { return m_document; }
+
 private:
     WebUIConnection(NonnullOwnPtr<IPC::Transport>, Web::DOM::Document&);
 

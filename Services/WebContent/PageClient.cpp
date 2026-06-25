@@ -503,7 +503,9 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
     auto& realm = document.realm();
 
     clear_pending_dom_mutations();
-    m_web_ui.clear();
+
+    if (m_web_ui && &m_web_ui->document() != &document)
+        m_web_ui.clear();
 
     if (auto console_client = document.console_client()) {
         auto& web_content_console_client = as<WebContentConsoleClient>(*console_client);
