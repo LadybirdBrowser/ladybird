@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<title>SVGGraphicsElement.prototype.getBBox for elements with negative sizes</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#BoundingBoxes">
+<svg>
+  <!-- negative values are errors, auto will be substituted, which for width,
+       height and r is 0 -->
+  <rect id="rect1" x="1" y="2" width="-10" height="20"/>
+  <rect id="rect2" x="1" y="2" width="10" height="-20"/>
+  <circle id="circle" cx="1" cy="2" r="-10"/>
+  <!-- specifying a negative value for rx or ry is invalid so the other valid
+       radius will be substituted only 0 will produce a degenerate ellipse -->
+  <ellipse id="ellipse1" cx="1" cy="12" rx="-5" ry="10"/>
+  <ellipse id="ellipse2" cx="6" cy="2" rx="5" ry="-10"/>
+  <circle id="ellipse1-ref" cx="1" cy="12" r="10"/>
+  <circle id="ellipse2-ref" cx="6" cy="2" r="5"/>
+  <ellipse id="ellipse3" cx="1" cy="12" rx="0" ry="10"/>
+  <ellipse id="ellipse4" cx="6" cy="2" rx="5" ry="0"/>
+  <image id="image1" x="1" y="2" width="-10" height="20" href="/images/green-100x50.png"/>
+  <image id="image2" x="1" y="2" width="10" height="-20" href="/images/green-100x50.png"/>
+  <image id="image3" x="1" y="2" width="-10" height="20"/>
+  <image id="image4" x="1" y="2" width="10" height="-20"/>
+  <foreignObject id="foreign1" x="1" y="2" width="-10" height="20"/>
+  <foreignObject id="foreign2" x="1" y="2" width="10" height="-20"/>
+</svg>
+<script>
+function assertBBox(id, x, y, width, height) {
+  let bbox = document.getElementById(id).getBBox();
+  assert_equals(bbox.x, x, id + ': x');
+  assert_equals(bbox.y, y, id + ': y');
+  assert_equals(bbox.width, width, id + ': width');
+  assert_equals(bbox.height, height, id + ': height');
+}
+
+function assertSameBBox(id1, id2) {
+  let bbox = document.getElementById(id2).getBBox();
+  assertBBox(id1, bbox.x, bbox.y, bbox.width, bbox.height);
+}
+
+function testBBox(id, x, y, width, height) {
+  test(() => { assertBBox(id, x, y, width, height) }, id);
+}
+
+function testSameBBox(id1, id2) {
+  test(() => { assertSameBBox(id1, id2) }, id1);
+}
+
+// Per resolution (issue #1018): if a shape is not rendered (negative or
+// zero dimension), getBBox returns (0, 0, 0, 0).
+testBBox('rect1', 0, 0, 0, 0);
+testBBox('rect2', 0, 0, 0, 0);
+testBBox('circle', 0, 0, 0, 0);
+testSameBBox('ellipse1', 'ellipse1-ref');
+testSameBBox('ellipse2', 'ellipse2-ref');
+testBBox('ellipse3', 0, 0, 0, 0);
+testBBox('ellipse4', 0, 0, 0, 0);
+testBBox('image3', 0, 0, 0, 0);
+testBBox('image4', 0, 0, 0, 0);
+testBBox('foreign1', 0, 0, 0, 0);
+testBBox('foreign2', 0, 0, 0, 0);
+
+async_test(t => {
+  onload = t.step_func_done(() => {
+    assertBBox('image1', 1, 2, 40, 20);
+    assertBBox('image2', 1, 2, 10, 5);
+  }, 'image1 and image2');
+});
+</script>
