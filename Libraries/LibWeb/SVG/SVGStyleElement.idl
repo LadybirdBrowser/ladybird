@@ -1,9 +1,11 @@
 // https://svgwg.org/svg2-draft/single-page.html#styling-InterfaceSVGStyleElement
 [Exposed=Window]
 interface SVGStyleElement : SVGElement {
-    [Reflect] attribute DOMString type;
     [Reflect] attribute DOMString media;
     [Reflect] attribute DOMString title;
+    
+    // obsolete members
+    [Reflect] attribute DOMString type;
 };
 
 SVGStyleElement includes LinkStyle;
