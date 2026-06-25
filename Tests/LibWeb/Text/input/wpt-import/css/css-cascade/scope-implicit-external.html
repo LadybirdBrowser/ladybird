@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>@scope - implicit scope root (external sheet)</title>
+    <link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scope-atrule">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div class="a outside"></div>
+    <div id=main></div>
+    <div class="a outside"></div>
+
+    <template id=templateLink>
+      <div id=root>
+        <link id=importElement rel="stylesheet" href="resources/scope.css">
+        <div class=a></div>
+      </div>
+    </template>
+
+    <template id=templateImport>
+      <div id=root>
+        <style id="importElement">
+          @import url("resources/scope.css");
+        </style>
+        <div class=a></div>
+      </div>
+    </template>
+
+    <script>
+      function test_external(template_element, description) {
+        promise_test(async t => {
+          t.add_cleanup(() => main.replaceChildren());
+          const cloned = template_element.content.cloneNode(true);
+          const importElement = cloned.querySelector('#importElement');
+          const p = new Promise((resolve, reject) => importElement.addEventListener('load', () => {
+            try {
+              assert_equals(getComputedStyle(root).zIndex, '1');
+              assert_equals(getComputedStyle(document.querySelector('#root > .a')).zIndex, '2');
+              let outside = document.querySelectorAll('.outside');
+              assert_equals(outside.length, 2);
+              for (let div of outside) {
+                assert_equals(getComputedStyle(div).zIndex, 'auto');
+              }
+              resolve();
+            } catch(e) {
+              reject(e);
+            }
+          }));
+          main.append(cloned);
+          return p;
+        }, description);
+      }
+
+      test_external(templateLink, '@scope with external stylesheet through link element');
+      test_external(templateImport, '@scope with external stylesheet through @import');
+    </script>
+  </body>
+</html>

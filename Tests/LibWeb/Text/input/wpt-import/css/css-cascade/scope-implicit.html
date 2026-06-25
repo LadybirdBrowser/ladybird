@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<title>@scope - implicit scope root</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#scope-atrule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<main id=main></main>
+
+<template id=test_basic>
+  <div>
+    <style>
+      @scope {
+        .a { z-index:1; }
+      }
+    </style>
+    <div id=inner class=a></div>
+  </div>
+  <div id=outer class=a></div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_basic.content.cloneNode(true));
+
+  assert_equals(getComputedStyle(inner).zIndex, '1');
+  assert_equals(getComputedStyle(outer).zIndex, 'auto');
+}, '@scope without prelude implicitly scopes to parent of owner node');
+</script>
+
+<template id=test_scope_pseudo>
+  <div>
+    <div></div>
+  </div>
+  <div>
+    <div id=root>
+      <style>
+        @scope {
+          :scope { z-index:1; }
+        }
+      </style>
+      <div>
+        <div></div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div></div>
+  </div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_scope_pseudo.content.cloneNode(true));
+
+  assert_equals(getComputedStyle(root).zIndex, '1');
+
+  // Only #root should be affected.
+  for (let div of main.querySelectorAll('div:not(#root)')) {
+    assert_equals(getComputedStyle(div).zIndex, 'auto');
+  }
+}, ':scope can style implicit root');
+</script>
+
+<template id=test_duplicate>
+  <div>
+    <style>
+      @scope {
+        .a { z-index:1; }
+      }
+    </style>
+    <div id=first class=a></div>
+  </div>
+  <div>
+    <style>
+      @scope {
+        .a { z-index:1; }
+      }
+    </style>
+    <div id=second class=a></div>
+  </div>
+  <div id=outer class=a></div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_duplicate.content.cloneNode(true));
+
+  assert_equals(getComputedStyle(first).zIndex, '1');
+  assert_equals(getComputedStyle(second).zIndex, '1');
+  assert_equals(getComputedStyle(outer).zIndex, 'auto');
+}, '@scope works with two identical stylesheets');
+</script>
+
+
+<template id=test_forgiving>
+  <div>
+    <style>
+      @scope ($invalid) {
+        #a { z-index:1; }
+      }
+    </style>
+    <div id=a></div>
+  </div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_forgiving.content.cloneNode(true));
+
+  assert_equals(getComputedStyle(a).zIndex, 'auto');
+}, '@scope with effectively empty :is() must not match anything');
+</script>
+
+<template id=test_implicit_descendant>
+  <div id=div>
+    <style>
+      @scope {
+        #div { z-index:1; }
+      }
+    </style>
+  </div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_implicit_descendant.content.cloneNode(true));
+
+  assert_equals(getComputedStyle(div).zIndex, 'auto');
+}, 'Implicit @scope has implicitly added :scope descendant combinator');
+</script>
+
+<template id=test_implicit_relative>
+  <div id=outer>
+    <style>
+      @scope {
+        > div { z-index:1; }
+      }
+    </style>
+    <div id=child>
+      <div id=inner></div>
+    </div>
+  </div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_implicit_relative.content.cloneNode(true));
+
+  assert_equals(getComputedStyle(outer).zIndex, 'auto');
+  assert_equals(getComputedStyle(child).zIndex, '1');
+  assert_equals(getComputedStyle(inner).zIndex, 'auto');
+}, 'Implicit @scope with inner relative selector');
+</script>
+
+<template id=test_implicit_descendant_nesting_selector>
+  <div id=div>
+    <style>
+      @scope {
+        /* Behaves like :scope */
+        & { z-index:1; }
+      }
+    </style>
+    <div id=inner></div>
+  </div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_implicit_descendant_nesting_selector.content.cloneNode(true));
+
+  assert_equals(getComputedStyle(div).zIndex, '1');
+  assert_equals(getComputedStyle(inner).zIndex, 'auto');
+}, 'Implicit @scope with inner nesting selector');
+</script>
+
+<template id=test_limit>
+  <div>
+    <style>
+      @scope to (.b) {
+        .a { z-index:1; }
+      }
+    </style>
+    <div id=inner class=a>
+      <div class=b>
+        <div id=outside_limit class=a></div>
+      </div>
+    </div>
+  </div>
+  <div id=outer class=a></div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_limit.content.cloneNode(true));
+
+  assert_equals(getComputedStyle(inner).zIndex, '1');
+  assert_equals(getComputedStyle(outer).zIndex, 'auto');
+  assert_equals(getComputedStyle(outside_limit).zIndex, 'auto');
+}, 'Implicit @scope with limit');
+</script>
+
+<template id=test_concurrent_scope_proximity>
+<style>
+@scope {
+  * { z-index: 1;}
+}
+</style>
+  <div>
+    <style>
+      @scope {
+        * { z-index:2; }
+      }
+    </style>
+    <div id=inner>
+    </div>
+  </div>
+  <div id=outer></div>
+<style>
+@scope {
+  * { z-index: 3;}
+}
+</style>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_concurrent_scope_proximity.content.cloneNode(true));
+
+  assert_equals(getComputedStyle(inner).zIndex, '2');
+  assert_equals(getComputedStyle(outer).zIndex, '3');
+}, 'Proximity calculation of multiple implicit @scope');
+</script>
+
+<!-- https://issues.chromium.org/issues/377647716 -->
+<template id=test_implicit_sandwich>
+  <div id=outer>
+    <div class=foo>
+      <style>
+        @scope (#outer) {
+          @scope {
+            @scope (#inner) {
+              :scope {
+                z-index: 1;
+              }
+            }
+          }
+        }
+      </style>
+      <div id=inner></div>
+    </div>
+  </div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_implicit_sandwich.content.cloneNode(true));
+  assert_equals(getComputedStyle(inner).zIndex, '1');
+}, 'Implicit @scope sandwiched between non-implicit scopes');
+</script>
+
+<template id=test_implicit_in_explicit>
+  <div id=outer>
+    <style>
+      @scope (#outer) {
+        @scope {
+          :scope {
+            z-index: 1;
+          }
+        }
+      }
+    </style>
+  </div>
+</template>
+<script>
+test((t) => {
+  t.add_cleanup(() => main.replaceChildren());
+  main.append(test_implicit_in_explicit.content.cloneNode(true));
+  assert_equals(getComputedStyle(outer).zIndex, '1');
+}, 'Implicit @scope sandwiched right under an explicit scope');
+</script>

@@ -1,0 +1,4 @@
+@scope {
+  :scope { z-index:1; }
+  .a { z-index:2; }
+}
