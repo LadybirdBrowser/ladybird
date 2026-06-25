@@ -152,8 +152,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         auto client = maybe_client.release_value();
-        client->on_death = [&clients, client] {
-            clients.remove(client);
+        // Capture a raw pointer here; a NonnullRefPtr would form a reference cycle through on_death,
+        // keeping the client (and its socket) alive forever after the connection is closed.
+        client->on_death = [&clients, client = client.ptr()] {
+            clients.remove_all_matching([client](auto& other) { return other == client; });
         };
         clients.set(client);
     };

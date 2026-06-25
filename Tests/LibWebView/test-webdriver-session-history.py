@@ -575,6 +575,17 @@ def wait_for_event(event, label, timeout=EVENT_TIMEOUT_SECONDS):
     raise RuntimeError(f"Timed out waiting for {label}")
 
 
+def count_open_fds(pid):
+    proc_fd = f"/proc/{pid}/fd"
+    if os.path.isdir(proc_fd):
+        return len(os.listdir(proc_fd))
+    try:
+        result = subprocess.run(["lsof", "-p", str(pid)], capture_output=True, text=True)
+    except FileNotFoundError:
+        return None
+    return max(0, len(result.stdout.splitlines()) - 1)
+
+
 def request_raw(webdriver_port, method, path, body=None):
     encoded_body = None
     headers = {}
@@ -2061,6 +2072,7 @@ def run_test(webdriver_binary):
     try:
         wait_for_port(webdriver_port)
 
+        baseline_open_fds = count_open_fds(webdriver.pid)
         page_port = page_server.server_port
         url_a = f"http://localhost:{page_port}/a"
         url_b = f"http://127.0.0.1:{page_port}/b"
@@ -4718,6 +4730,13 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         expect_current_ui_entry_reload_pending(
             webdriver_port, session_id, "after blocked reload crash recovery", False, log
         )
+
+        if baseline_open_fds is not None:
+            open_fds = count_open_fds(webdriver.pid)
+            if open_fds is not None and open_fds - baseline_open_fds > 64:
+                raise AssertionError(
+                    f"WebDriver leaked file descriptors: {baseline_open_fds} before the test, {open_fds} after"
+                )
     except Exception:
         failed = True
         raise
