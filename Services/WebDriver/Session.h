@@ -43,6 +43,7 @@ public:
     };
     static ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> find_session(StringView session_id, Web::WebDriver::SessionFlags = Web::WebDriver::SessionFlags::Default, AllowInvalidWindowHandle = AllowInvalidWindowHandle::No);
     static size_t session_count(Web::WebDriver::SessionFlags);
+    static void close_all();
 
     struct Window {
         String handle;

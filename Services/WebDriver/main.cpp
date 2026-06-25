@@ -17,6 +17,7 @@
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWebView/Utilities.h>
 #include <WebDriver/Client.h>
+#include <WebDriver/Session.h>
 
 static Vector<ByteString> certificates;
 
@@ -78,6 +79,12 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
     return arguments;
 }
 
+static void handle_signal(int signal)
+{
+    VERIFY(signal == SIGINT || signal == SIGTERM);
+    Core::EventLoop::current().quit(0);
+}
+
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
@@ -122,6 +129,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(Core::Directory::create(webdriver_socket_path, Core::Directory::CreateDirectories::Yes));
 
     auto& loop = Core::EventLoop::initialize_for_current_thread();
+    Core::EventLoop::register_signal(SIGINT, handle_signal);
+    Core::EventLoop::register_signal(SIGTERM, handle_signal);
     auto server = TRY(Core::TCPServer::try_create());
 
     HashTable<NonnullRefPtr<WebDriver::Client>> clients;
@@ -163,5 +172,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(server->listen(ipv4_address.value(), port, Core::TCPServer::AllowAddressReuse::Yes));
     outln("Listening on {}:{}", ipv4_address.value(), port);
 
-    return loop.exec();
+    auto result = loop.exec();
+    WebDriver::Session::close_all();
+    return result;
 }
