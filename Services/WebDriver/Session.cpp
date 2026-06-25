@@ -11,6 +11,7 @@
 #include <AK/HashMap.h>
 #include <AK/JsonObject.h>
 #include <AK/NumericLimits.h>
+#include <AK/Vector.h>
 #if !defined(AK_OS_MACOS)
 #    include <LibCore/LocalServer.h>
 #    include <LibCore/Socket.h>
@@ -155,6 +156,18 @@ size_t Session::session_count(Web::WebDriver::SessionFlags session_flags)
     if (has_flag(session_flags, Web::WebDriver::SessionFlags::Http))
         return s_http_sessions.size();
     return s_sessions.size();
+}
+
+void Session::close_all()
+{
+    // close() unregisters each session as it runs, so snapshot first. s_sessions holds every
+    // session (HTTP ones are also in s_http_sessions), so iterating it alone covers all of them.
+    Vector<NonnullRefPtr<Session>> sessions;
+    sessions.ensure_capacity(s_sessions.size());
+    for (auto& session : s_sessions)
+        sessions.unchecked_append(session.value);
+    for (auto& session : sessions)
+        session->close();
 }
 
 // https://w3c.github.io/webdriver/#dfn-close-the-session
