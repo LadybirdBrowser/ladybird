@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>The content CSS attribute can replace a document's root</title>
+<link rel="match" href="../../../../expected/wpt-import/css/css-content/element-replacement-root-ref.html" />
+<link rel="help" href="https://drafts.csswg.org/css-content-3/#content-property" />
+<meta name="assert" content="This test checks that the CSS content propertly can replace the contents of a document's root" />
+
+<style>
+:root {
+  content: url('resources/rect.svg');
+}
+</style>
+
+<p>This text should not be visible</p>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>The content CSS attribute can replace an element's contents dynamically</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com" />
+<link rel="match" href="../../../../expected/wpt-import/css/css-content/element-replacement-ref.html" />
+<link rel="help" href="https://drafts.csswg.org/css-content-3/#content-property" />
+<meta name="assert" content="This test checks that the CSS content propertly can replace a normal element's contents when changed dynamically" />
+
+<script src="../../common/reftest-wait.js"></script>
+<script src="../../common/rendering-utils.js"></script>
+
+<style>
+#target {
+  content: none;
+}
+#target.replaced {
+  content: url('resources/rect.svg');
+}
+</style>
+
+<div id="target">This text should not be visible</div>
+
+<script>
+waitForAtLeastOneFrame().then(() => {
+  document.getElementById("target").className = "replaced";
+  takeScreenshot();
+});
+</script>

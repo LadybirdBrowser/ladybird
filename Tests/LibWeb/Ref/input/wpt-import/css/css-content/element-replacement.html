@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>The content CSS attribute can replace an element's contents</title>
+<link rel="match" href="../../../../expected/wpt-import/css/css-content/element-replacement-ref.html" />
+<link rel="help" href="https://drafts.csswg.org/css-content-3/#content-property" />
+<meta name="assert" content"This test checks that the CSS content propertly can replace a normal element's contents" />
+
+<style>
+p {
+  margin: 0;
+  content: url('resources/rect.svg');
+}
+</style>
+
+<p>This text should not be visible</p>
