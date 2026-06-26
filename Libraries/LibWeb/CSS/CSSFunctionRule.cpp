@@ -20,7 +20,7 @@ FunctionParameter FunctionParameter::from_internal_function_parameter(FunctionPa
     return {
         // name
         // The name of the function parameter.
-        internal.name.to_utf16_string(),
+        internal.name,
 
         // type
         // The type of the function parameter, represented as a syntax string, or "*" if the parameter has no type.

@@ -25,7 +25,7 @@ struct FunctionParameterInternal {
 
 // https://drafts.csswg.org/css-mixins-1/#dictdef-functionparameter
 struct FunctionParameter {
-    Utf16String name;
+    Utf16FlyString name;
     Utf16String type;
     Optional<Utf16String> default_value;
 
