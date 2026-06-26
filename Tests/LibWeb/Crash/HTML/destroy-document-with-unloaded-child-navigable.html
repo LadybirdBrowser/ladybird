@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!-- While an iframe (outer) is navigating, its descendants unload first — which clears the inner iframe's navigable's
+     active document. Removing outer in its pagehide handler then runs destroy_a_document_and_its_descendants on outer's
+     document, whose child navigable (inner) now has no active window. Iterating that child must not dereference the
+     null active window. -->
+<html class="test-wait">
+<body>
+<script>
+    const outer = document.createElement("iframe");
+    outer.srcdoc = "<div>outer</div>";
+    let navigated = false;
+    outer.addEventListener("load", () => {
+        if (navigated)
+            return;
+        navigated = true;
+
+        const outerDoc = outer.contentDocument;
+        const outerWin = outer.contentWindow;
+
+        const inner = outerDoc.createElement("iframe");
+        inner.srcdoc = "<div>inner</div>";
+        outerDoc.body.appendChild(inner);
+
+        inner.addEventListener("load", () => {
+            outerWin.addEventListener("pagehide", () => {
+                // inner's navigable now has a null active document; removing outer runs
+                // destroy_a_document_and_its_descendants over outer's child (inner).
+                outer.remove();
+                document.documentElement.classList.remove("test-wait");
+            });
+
+            // Navigate outer so its descendants (inner) unload first.
+            outer.srcdoc = "<div>outer after</div>";
+        });
+    });
+    document.body.appendChild(outer);
+</script>
+</body>
+</html>
