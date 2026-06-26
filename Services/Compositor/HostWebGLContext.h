@@ -30,7 +30,7 @@ namespace Compositor {
 
 class HostWebGLContext {
 public:
-    static OwnPtr<HostWebGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>, OpenGLContext::WebGLVersion, OpenGLContext::DrawingBufferOptions, Gfx::IntSize initial_size);
+    static OwnPtr<HostWebGLContext> create(RefPtr<Gfx::SkiaBackendContext>, OpenGLContext::WebGLVersion, OpenGLContext::DrawingBufferOptions, Gfx::IntSize initial_size);
 
     ErrorOr<void> execute_commands(ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const& bitmaps);
     ErrorOr<ByteBuffer> execute_sync_call(ReadonlyBytes request);

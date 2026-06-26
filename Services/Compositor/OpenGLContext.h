@@ -27,14 +27,14 @@ public:
         bool antialias;
     };
 
-    static OwnPtr<OpenGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>, WebGLVersion, DrawingBufferOptions);
+    static OwnPtr<OpenGLContext> create(RefPtr<Gfx::SkiaBackendContext>, WebGLVersion, DrawingBufferOptions);
 
     void notify_content_will_change();
     void clear_buffer_to_default_values();
     void allocate_painting_surface_if_needed();
 
     struct Impl;
-    OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext>, Impl, WebGLVersion, DrawingBufferOptions);
+    OpenGLContext(RefPtr<Gfx::SkiaBackendContext>, Impl, WebGLVersion, DrawingBufferOptions);
 
     ~OpenGLContext();
 
@@ -52,7 +52,7 @@ public:
     Vector<String> get_supported_opengl_extensions();
 
 private:
-    NonnullRefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
+    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Gfx::IntSize m_size;
     RefPtr<Gfx::PaintingSurface> m_painting_surface;
 #ifdef AK_OS_MACOS
