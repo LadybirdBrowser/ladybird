@@ -350,7 +350,7 @@ GC::Ptr<BrowsingContext> BrowsingContext::top_level_browsing_context() const
 
     // 3. While navigable's parent is not null, set navigable to navigable's parent.
     while (navigable->parent()) {
-        navigable = navigable->parent();
+        navigable = as<LocalNavigable>(*navigable->parent());
     }
 
     // 4. Return navigable's active browsing context.

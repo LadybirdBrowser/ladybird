@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -23,12 +24,22 @@ public:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-id
     String const& id() const { return m_id; }
 
+    GC::Ptr<Navigable> parent() const { return m_parent; }
+
+    bool is_ancestor_of(GC::Ref<Navigable>) const;
+
 protected:
     Navigable() = default;
     void set_id(String id) { m_id = move(id); }
+    void set_parent(GC::Ptr<Navigable> parent) { m_parent = parent; }
+
+    virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     String m_id;
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-parent
+    GC::Ptr<Navigable> m_parent;
 };
 
 }

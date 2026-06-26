@@ -1126,7 +1126,7 @@ GC::Ptr<WindowProxy const> Window::parent() const
 
     // 3. If navigable's parent is not null, then set navigable to navigable's parent.
     if (auto parent = navigable->parent())
-        navigable = parent;
+        navigable = as<LocalNavigable>(*parent);
 
     // 4. Return navigable's active WindowProxy.
     return navigable->active_window_proxy();
