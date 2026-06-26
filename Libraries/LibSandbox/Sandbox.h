@@ -58,7 +58,7 @@ enum class NetworkAccess {
 
 #if defined(AK_OS_MACOS)
 [[nodiscard]] ErrorOr<void> add_seatbelt_path_if_exists(Vector<SeatbeltPath>& paths, StringView path, SeatbeltPath::Access);
-[[nodiscard]] ErrorOr<void> apply_macos_sandbox(ReadonlySpan<SeatbeltPath>, NetworkAccess, ReadonlySpan<ByteString> executable_paths = {});
+[[nodiscard]] ErrorOr<void> apply_macos_sandbox(ReadonlySpan<SeatbeltPath>, NetworkAccess, ReadonlySpan<ByteString> executable_paths = {}, ReadonlySpan<StringView> iokit_user_client_classes = {});
 #endif
 
 }

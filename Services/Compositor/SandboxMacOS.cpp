@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/LexicalPath.h>
 #include <Compositor/Sandbox.h>
 #include <LibCore/Directory.h>
@@ -50,7 +51,12 @@ ErrorOr<void> apply_sandbox()
         }
     }
 
-    return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Denied);
+    // ANGLE's Metal backend opens this while creating WebGL contexts.
+    static constexpr Array metal_iokit_user_client_classes {
+        "AGXDeviceUserClient"sv,
+    };
+
+    return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Denied, {}, metal_iokit_user_client_classes);
 }
 
 }
