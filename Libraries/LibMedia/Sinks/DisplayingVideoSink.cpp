@@ -143,8 +143,10 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
                 break;
             m_input->pull(m_next_frame);
             VERIFY(m_next_frame != nullptr);
-            if (m_seek_status == SeekStatus::FrameInvalidated)
+            if (m_seek_status == SeekStatus::FrameInvalidated) {
                 m_current_frame.clear();
+                result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+            }
         }
         if (resolves_seek(last_status))
             m_seek_status = SeekStatus::None;
