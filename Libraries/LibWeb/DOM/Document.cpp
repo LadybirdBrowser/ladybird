@@ -5550,13 +5550,16 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
     // 4. For each childNavigable of childNavigables, queue a global task on the navigation and traversal task source
     //    given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
-        queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(),
-            GC::create_function(heap(), [&heap = heap(), destruction_state, child_navigable] {
+        HTML::queue_a_task(HTML::Task::Source::NavigationAndTraversal, nullptr, nullptr,
+            GC::create_function(heap(), [&heap = heap(), destruction_state, child_navigable = child_navigable.ptr()] {
                 // 1. Let incrementDestroyed be an algorithm step which increments numberDestroyed.
                 auto increment_destroyed = GC::create_function(heap, [destruction_state] { destruction_state->did_process_child(); });
 
                 // 2. Destroy a document and its descendants given childNavigable's active document and incrementDestroyed.
-                child_navigable->active_document()->destroy_a_document_and_its_descendants(increment_destroyed);
+                if (auto active_document = child_navigable->active_document())
+                    active_document->destroy_a_document_and_its_descendants(increment_destroyed);
+                else
+                    increment_destroyed->function()();
             }));
     }
 
