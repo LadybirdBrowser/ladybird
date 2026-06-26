@@ -38,6 +38,7 @@
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ResizeHandle.h>
+#include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/Scrollbar.h>
@@ -430,7 +431,16 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
                 if (!maybe_filter)
                     return;
                 if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
-                    result.svg_filter = filter_element->gfx_filter(layout_node);
+                    // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
+                    // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
+                    // filter can convert its lengths accordingly.
+                    auto device_pixels_per_css_pixel = paintable_box.document().page().client().device_pixels_per_css_pixel();
+                    auto filter_scale = Gfx::FloatPoint { device_pixels_per_css_pixel, device_pixels_per_css_pixel };
+                    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(paintable_box)) {
+                        auto svg_to_css_pixels = svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
+                        filter_scale.scale_by(svg_to_css_pixels.x_scale(), svg_to_css_pixels.y_scale());
+                    }
+                    result.svg_filter = filter_element->gfx_filter(layout_node, filter_scale);
                     auto bounds = paintable_box.absolute_border_box_rect();
                     if (bounds.is_empty()) {
                         if (auto svg_ancestor = paintable_box.first_ancestor_of_type<SVGSVGPaintable>())

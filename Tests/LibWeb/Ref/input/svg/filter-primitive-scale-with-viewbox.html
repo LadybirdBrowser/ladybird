@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-primitive-scale-with-viewbox-ref.html" />
+<svg width="100" height="100" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+    <filter id="offset" x="-50%" y="-50%" width="200%" height="200%">
+        <feOffset dx="10" dy="10" />
+    </filter>
+    <rect x="5" y="5" width="20" height="20" fill="blue" filter="url(#offset)" />
+</svg>
+<svg width="100" height="100" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="2" />
+    </filter>
+    <rect x="10" y="10" width="30" height="30" fill="green" filter="url(#blur)" />
+</svg>
