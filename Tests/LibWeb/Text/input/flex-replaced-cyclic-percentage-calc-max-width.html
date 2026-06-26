@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+#flex {
+    display: flex;
+    width: min-content;
+}
+
+canvas {
+    height: 20px;
+    max-width: calc(50% + 20px);
+    min-width: 0;
+    width: 100px;
+}
+</style>
+<div id="flex"><canvas id="canvas"></canvas></div>
+<script>
+test(() => {
+    const flexRect = document.getElementById("flex").getBoundingClientRect();
+    const canvasRect = document.getElementById("canvas").getBoundingClientRect();
+
+    println(`flex width: ${Math.round(flexRect.width)}`);
+    println(`canvas width: ${Math.round(canvasRect.width)}`);
+});
+</script>

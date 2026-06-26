@@ -488,6 +488,24 @@ CSSPixels FlexFormattingContext::specified_cross_max_size(FlexItem const& item) 
         : get_pixel_height(item, computed_cross_max_size(item.box));
 }
 
+CSSPixels FlexFormattingContext::specified_main_max_size_for_intrinsic_contribution(FlexItem const& item, AvailableSize const& available_size) const
+{
+    auto const& computed_max_size = computed_main_max_size(item.box);
+    if (should_treat_main_max_size_as_none(item.box))
+        return CSSPixels::max();
+
+    if (computed_max_size.contains_percentage()) {
+        // If the box is replaced, a cyclic percentage in the value of any max size property is resolved against
+        // zero when calculating the min-content contribution in the corresponding axis.
+        if (item.box.is_replaced_box() && available_size.is_min_content())
+            return 0;
+
+        return CSSPixels::max();
+    }
+
+    return specified_main_max_size(item);
+}
+
 bool FlexFormattingContext::is_cross_auto(Box const& box) const
 {
     auto& cross_length = computed_cross_size(box);
@@ -2018,10 +2036,10 @@ CSSPixels FlexFormattingContext::calculate_intrinsic_main_size_of_flex_container
                 auto result = item.flex_base_size + CSSPixels::nearest_value_for(product);
 
                 auto const& computed_min_size = this->computed_main_min_size(item.box);
-                auto const& computed_max_size = this->computed_main_max_size(item.box);
 
                 auto clamp_min = (!computed_min_size.is_auto() && !computed_min_size.contains_percentage()) ? specified_main_min_size(item) : automatic_minimum_size(item);
-                auto clamp_max = (!should_treat_main_max_size_as_none(item.box) && !computed_max_size.contains_percentage()) ? specified_main_max_size(item) : CSSPixels::max();
+                auto clamp_max = specified_main_max_size_for_intrinsic_contribution(
+                    item, m_available_space_for_items->main);
 
                 result = css_clamp(result, clamp_min, clamp_max);
 
@@ -2127,7 +2145,7 @@ CSSPixels FlexFormattingContext::calculate_main_min_content_contribution(FlexIte
     }();
 
     auto clamp_min = has_main_min_size(item.box) ? specified_main_min_size(item) : automatic_minimum_size(item);
-    auto clamp_max = has_main_max_size(item.box) ? specified_main_max_size(item) : CSSPixels::max();
+    auto clamp_max = specified_main_max_size_for_intrinsic_contribution(item, AvailableSize::make_min_content());
     auto clamped_inner_size = css_clamp(larger_size, clamp_min, clamp_max);
 
     return item.add_main_margin_box_sizes(clamped_inner_size);
@@ -2148,7 +2166,7 @@ CSSPixels FlexFormattingContext::calculate_main_max_content_contribution(FlexIte
     }();
 
     auto clamp_min = has_main_min_size(item.box) ? specified_main_min_size(item) : automatic_minimum_size(item);
-    auto clamp_max = has_main_max_size(item.box) ? specified_main_max_size(item) : CSSPixels::max();
+    auto clamp_max = specified_main_max_size_for_intrinsic_contribution(item, AvailableSize::make_max_content());
     auto clamped_inner_size = css_clamp(larger_size, clamp_min, clamp_max);
 
     return item.add_main_margin_box_sizes(clamped_inner_size);
