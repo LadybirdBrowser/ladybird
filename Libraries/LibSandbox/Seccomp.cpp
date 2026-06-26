@@ -92,6 +92,7 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_execveat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_exit(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_exit_group(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_fallocate(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fcntl(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fcntl64(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_fdatasync(if_defined, if_not_defined) if_defined
@@ -258,6 +259,10 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #ifndef __NR_execveat
 #    undef IF_DEFINED_execveat
 #    define IF_DEFINED_execveat(if_defined, if_not_defined) if_not_defined
+#endif
+#ifndef __NR_fallocate
+#    undef IF_DEFINED_fallocate
+#    define IF_DEFINED_fallocate(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_fcntl64
 #    undef IF_DEFINED_fcntl64
@@ -544,6 +549,9 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_faccessat2
         CASE_SYSCALL_NAME(faccessat2);
 #endif
+#ifdef __NR_fallocate
+        CASE_SYSCALL_NAME(fallocate);
+#endif
 #ifdef __NR_fcntl
         CASE_SYSCALL_NAME(fcntl);
 #endif
@@ -811,6 +819,7 @@ void SeccompPolicy::allow_filesystem_writes()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, rmdir);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fsync);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fdatasync);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fallocate);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, flock);
 
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
