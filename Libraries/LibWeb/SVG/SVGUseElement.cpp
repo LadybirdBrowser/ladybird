@@ -72,6 +72,24 @@ void SVGUseElement::adopted_from(DOM::Document& old_document)
 
     if (m_load_event_delayer.has_value())
         m_load_event_delayer.emplace(document());
+
+    m_document_observer->set_document(document());
+
+    auto href = href_value();
+    if (!href.has_value())
+        return;
+
+    m_href = document().url().complete_url(href.value());
+    if (!m_href.has_value())
+        return;
+
+    if (!is_referenced_element_same_document()) {
+        fetch_the_document(*m_href);
+        return;
+    }
+
+    if (auto to_clone = referenced_element())
+        clone_element_tree_as_our_shadow_tree(to_clone);
 }
 
 void SVGUseElement::inserted()
@@ -165,6 +183,13 @@ void SVGUseElement::attribute_changed(FlyString const& name, Optional<String> co
         // When the ‘href’ attribute is set (or, in the absence of an ‘href’ attribute, an ‘xlink:href’ attribute), the user agent must process the URL.
         process_the_url(value);
     }
+}
+
+Optional<String> SVGUseElement::href_value() const
+{
+    if (auto href = get_attribute_ns(OptionalNone {}, AttributeNames::href); href.has_value())
+        return href;
+    return get_attribute_ns(Namespace::XLink, AttributeNames::href);
 }
 
 // https://www.w3.org/TR/SVG2/linking.html#processingURL

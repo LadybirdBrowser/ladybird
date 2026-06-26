@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/use-href-resolves-after-fragment-parsing-ref.html" />
+<svg style="display: none">
+    <symbol id="green-top" viewBox="0 0 100 50"><rect width="100" height="50" fill="green"/></symbol>
+    <symbol id="green-bottom" viewBox="0 0 100 50"><rect width="100" height="50" fill="green"/></symbol>
+</svg>
+<div id="container"></div>
+<script>
+    document.getElementById("container").innerHTML =
+        '<svg width="100" height="50" style="display: block"><use xlink:href="#green-top"></use></svg>' +
+        '<svg width="100" height="50" style="display: block"><use href="#green-bottom"></use></svg>';
+</script>

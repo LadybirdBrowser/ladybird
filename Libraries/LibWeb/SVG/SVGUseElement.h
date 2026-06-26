@@ -59,6 +59,7 @@ private:
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
 
     void process_the_url(Optional<String> const& href);
+    Optional<String> href_value() const;
 
     static Optional<FlyString> parse_id_from_href(StringView);
 
