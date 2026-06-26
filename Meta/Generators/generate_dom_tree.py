@@ -57,12 +57,12 @@ def parse_html_attribute_header(path: str) -> Dict[str, str]:
 
 def parse_svg_tag_header(path: str) -> Dict[str, str]:
     result: Dict[str, str] = {}
-    pattern = re.compile(r"__ENUMERATE_SVG_TAG\(\s*(\w+)\s*\)")
+    pattern = re.compile(r'__ENUMERATE_SVG_TAG\(\s*(\w+)\s*,\s*"([^"]+)"\s*\)')
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             m = pattern.search(line)
             if m:
-                result[m.group(1).lower()] = m.group(1)
+                result[m.group(2).lower()] = m.group(1)
     return result
 
 
