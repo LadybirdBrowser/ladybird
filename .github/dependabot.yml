@@ -11,6 +11,9 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "CI:"
+    groups:
+      actions:
+        group-by: dependency-name
 
   - package-ecosystem: "rust-toolchain"
     directory: "/"
