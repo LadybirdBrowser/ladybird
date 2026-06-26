@@ -1057,6 +1057,7 @@ set(SOURCES
     SVG/SVGStopElement.cpp
     SVG/SVGStyleElement.cpp
     SVG/SVGSVGElement.cpp
+    SVG/SVGSwitchElement.cpp
     SVG/SVGSymbolElement.cpp
     SVG/SVGTextContentElement.cpp
     SVG/SVGTextElement.cpp

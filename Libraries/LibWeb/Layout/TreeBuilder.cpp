@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2025, Aziz B. Yesilyurt <abyesilyurt@gmail.com>
@@ -45,6 +45,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/SVG/SVGSwitchElement.h>
 
 namespace Web::Layout {
 
@@ -1074,9 +1075,13 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 shadow_root->set_child_needs_layout_tree_update(false);
                 shadow_root->set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
             } else if (should_layout_dom_children) {
-                // This is the same as as<DOM::ParentNode>(dom_node).for_each_child
-                for (auto* node = as<DOM::ParentNode>(dom_node).first_child(); node; node = node->next_sibling())
-                    update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
+                if (auto* switch_element = as_if<SVG::SVGSwitchElement>(dom_node)) {
+                    update_layout_tree_for_svg_switch_children(*switch_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
+                } else {
+                    // This is the same as as<DOM::ParentNode>(dom_node).for_each_child
+                    for (auto* node = as<DOM::ParentNode>(dom_node).first_child(); node; node = node->next_sibling())
+                        update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
+                }
             }
 
             if (dom_node.is_document()) {
@@ -1207,6 +1212,33 @@ void TreeBuilder::update_layout_tree_for_display_contents(DOM::Element& element,
 
     element.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
     element.set_child_needs_layout_tree_update(false);
+}
+
+void TreeBuilder::update_layout_tree_for_svg_switch_children(SVG::SVGSwitchElement& switch_element, Context& context, MustCreateSubtree must_create_subtree)
+{
+    // https://svgwg.org/svg2-draft/struct.html#SwitchElement
+    // The ‘switch’ element evaluates the ‘requiredExtensions’ and ‘systemLanguage’ attributes on its direct child
+    // elements in order, and then processes and renders the first child for which these attributes evaluate to true.
+    // All others will be bypassed and therefore not rendered. If the child element is a container element such as a
+    // ‘g’, then the entire subtree is either processed/rendered or bypassed/not rendered.
+
+    auto* rendered_child = [&] -> DOM::Node* {
+        for (auto* node = switch_element.first_child_of_type<SVG::SVGElement>(); node; node = node->next_sibling_of_type<SVG::SVGElement>()) {
+            // FIXME: Evaluate the requiredExtensions and systemLanguage attributes.
+            return node;
+        }
+        return nullptr;
+    }();
+
+    // NB: Clean up any stale children that should no longer be rendered.
+    switch_element.for_each_child([&](DOM::Node& child_node) {
+        if (&child_node != rendered_child)
+            clear_stale_layout_and_paint_node(child_node);
+        return IterationDecision::Continue;
+    });
+
+    if (rendered_child)
+        update_layout_tree(*rendered_child, context, must_create_subtree);
 }
 
 void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, Layout::Node& layout_node)

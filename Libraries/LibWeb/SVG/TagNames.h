@@ -53,6 +53,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(stop, "stop")                               \
     __ENUMERATE_SVG_TAG(style, "style")                             \
     __ENUMERATE_SVG_TAG(svg, "svg")                                 \
+    __ENUMERATE_SVG_TAG(switch_, "switch")                          \
     __ENUMERATE_SVG_TAG(symbol, "symbol")                           \
     __ENUMERATE_SVG_TAG(text, "text")                               \
     __ENUMERATE_SVG_TAG(textPath, "textPath")                       \

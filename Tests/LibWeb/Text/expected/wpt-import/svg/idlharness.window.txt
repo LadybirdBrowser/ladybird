@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1103 Pass
-677 Fail
+1116 Pass
+664 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -641,19 +641,19 @@ Fail	ShadowAnimation interface: existence and properties of interface prototype 
 Fail	ShadowAnimation interface: existence and properties of interface prototype object's "constructor" property
 Fail	ShadowAnimation interface: existence and properties of interface prototype object's @@unscopables property
 Fail	ShadowAnimation interface: attribute sourceAnimation
-Fail	SVGSwitchElement interface: existence and properties of interface object
-Fail	SVGSwitchElement interface object length
-Fail	SVGSwitchElement interface object name
-Fail	SVGSwitchElement interface: existence and properties of interface prototype object
-Fail	SVGSwitchElement interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGSwitchElement interface: existence and properties of interface prototype object's @@unscopables property
-Fail	SVGSwitchElement must be primary interface of objects.switch
-Fail	Stringification of objects.switch
-Fail	SVGGraphicsElement interface: objects.switch must inherit property "transform" with the proper type
-Fail	SVGGraphicsElement interface: objects.switch must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
-Fail	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.switch with too few arguments must throw TypeError
-Fail	SVGGraphicsElement interface: objects.switch must inherit property "getCTM()" with the proper type
-Fail	SVGGraphicsElement interface: objects.switch must inherit property "getScreenCTM()" with the proper type
+Pass	SVGSwitchElement interface: existence and properties of interface object
+Pass	SVGSwitchElement interface object length
+Pass	SVGSwitchElement interface object name
+Pass	SVGSwitchElement interface: existence and properties of interface prototype object
+Pass	SVGSwitchElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGSwitchElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGSwitchElement must be primary interface of objects.switch
+Pass	Stringification of objects.switch
+Pass	SVGGraphicsElement interface: objects.switch must inherit property "transform" with the proper type
+Pass	SVGGraphicsElement interface: objects.switch must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type
+Pass	SVGGraphicsElement interface: calling getBBox(optional SVGBoundingBoxOptions) on objects.switch with too few arguments must throw TypeError
+Pass	SVGGraphicsElement interface: objects.switch must inherit property "getCTM()" with the proper type
+Pass	SVGGraphicsElement interface: objects.switch must inherit property "getScreenCTM()" with the proper type
 Fail	SVGGraphicsElement interface: objects.switch must inherit property "requiredExtensions" with the proper type
 Fail	SVGGraphicsElement interface: objects.switch must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.switch must inherit property "className" with the proper type
