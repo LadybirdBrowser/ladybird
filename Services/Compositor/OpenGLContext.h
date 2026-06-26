@@ -66,8 +66,13 @@ private:
     void free_surface_resources();
 #if defined(AK_OS_MACOS)
     void allocate_iosurface_painting_surface();
-#elif defined(USE_VULKAN_DMABUF_IMAGES)
+#endif
+#if defined(USE_VULKAN_DMABUF_IMAGES)
     void allocate_vkimage_painting_surface();
+#endif
+#if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+    void allocate_cpu_painting_surface();
+    void copy_default_framebuffer_to_cpu_painting_surface();
 #endif
 };
 

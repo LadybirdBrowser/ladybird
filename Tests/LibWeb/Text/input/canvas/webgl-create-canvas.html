@@ -2,8 +2,6 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        println("FIXME: This test relies on having a GPU backend enabled, which it is not in run-tests mode :(");
-
         let canvas = document.createElement("canvas");
         let context = canvas.getContext("webgl");
         println(`context instanceof WebGLRenderingContext: ${context instanceof WebGLRenderingContext}`);
