@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+    <filter id="offset" x="-50%" y="-50%" width="200%" height="200%">
+        <feOffset dx="20" dy="20" />
+    </filter>
+    <rect x="10" y="10" width="40" height="40" fill="blue" filter="url(#offset)" />
+</svg>
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="4" />
+    </filter>
+    <rect x="20" y="20" width="60" height="60" fill="green" filter="url(#blur)" />
+</svg>

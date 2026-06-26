@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <AK/StringConversions.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/SVGFilterElement.h>
@@ -69,8 +70,11 @@ void SVGFilterElement::attribute_changed(FlyString const& name, Optional<String>
 }
 
 // https://drafts.fxtf.org/filter-effects-1/#ColorInterpolationFiltersProperty
-Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& referenced_node)
+Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& referenced_node, Gfx::FloatPoint filter_scale)
 {
+    auto scale_x = filter_scale.x();
+    auto scale_y = filter_scale.y();
+
     struct FilterResult {
         Optional<Gfx::Filter> filter;
         Gfx::InterpolationColorSpace color_space { Gfx::InterpolationColorSpace::SRGB };
@@ -203,8 +207,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
         } else if (auto* blur_primitive = as_if<SVGFEGaussianBlurElement>(node)) {
             auto input = resolve_input_in_color_space(blur_primitive->in1()->base_val(), operating_space);
 
-            auto radius_x = blur_primitive->std_deviation_x()->base_val();
-            auto radius_y = blur_primitive->std_deviation_y()->base_val();
+            auto radius_x = blur_primitive->std_deviation_x()->base_val() * scale_x;
+            auto radius_y = blur_primitive->std_deviation_y()->base_val() * scale_y;
 
             root = { Gfx::Filter::blur(radius_x, radius_y, input), operating_space };
             update_result_map(*blur_primitive);
@@ -327,8 +331,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
         } else if (auto* morphology_primitive = as_if<SVGFEMorphologyElement>(node)) {
             auto input = resolve_input_in_color_space(morphology_primitive->in1()->base_val(), operating_space);
 
-            auto radius_x = morphology_primitive->radius_x()->base_val();
-            auto radius_y = morphology_primitive->radius_y()->base_val();
+            auto radius_x = morphology_primitive->radius_x()->base_val() * scale_x;
+            auto radius_y = morphology_primitive->radius_y()->base_val() * scale_y;
             auto morphology_operator = morphology_primitive->morphology_operator();
             switch (morphology_operator) {
             case Gfx::MorphologyOperator::Erode:
@@ -345,8 +349,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
         } else if (auto* offset_primitive = as_if<SVGFEOffsetElement>(node)) {
             auto input = resolve_input(offset_primitive->in1()->base_val());
 
-            auto dx = offset_primitive->dx()->base_val();
-            auto dy = offset_primitive->dy()->base_val();
+            auto dx = offset_primitive->dx()->base_val() * scale_x;
+            auto dy = offset_primitive->dy()->base_val() * scale_y;
 
             root = { Gfx::Filter::offset(dx, dy, input.filter), input.color_space };
             update_result_map(*offset_primitive);
@@ -364,16 +368,16 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
                 0, 0, 0, 1, 0
             };
             auto alpha_input = Gfx::Filter::color_matrix(alpha_matrix, input);
-            auto std_x = drop_shadow->std_deviation_x()->base_val();
-            auto std_y = drop_shadow->std_deviation_y()->base_val();
+            auto std_x = drop_shadow->std_deviation_x()->base_val() * scale_x;
+            auto std_y = drop_shadow->std_deviation_y()->base_val() * scale_y;
             auto blurred = Gfx::Filter::blur(std_x, std_y, alpha_input);
 
             // 2. Offset the result of step 1 by dx and dy as specified on the feDropShadow element, equivalent to
             //    applying an feOffset with these parameters:
             //
             // <feOffset dx="dx-of-feDropShadow" dy="dy-of-feDropShadow" result="offsetblur"/>
-            auto dx = drop_shadow->dx()->base_val();
-            auto dy = drop_shadow->dy()->base_val();
+            auto dx = drop_shadow->dx()->base_val() * scale_x;
+            auto dy = drop_shadow->dy()->base_val() * scale_y;
             auto offset_blur = Gfx::Filter::offset(dx, dy, blurred);
 
             // 3. Do processing as if an feFlood element with flood-color and flood-opacity as specified on the
@@ -398,8 +402,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
             root = { Gfx::Filter::merge({ colored_shadow, input }), operating_space };
             update_result_map(*drop_shadow);
         } else if (auto* turbulence = as_if<SVGFETurbulenceElement>(node)) {
-            auto base_frequency_x = turbulence->base_frequency_x()->base_val();
-            auto base_frequency_y = turbulence->base_frequency_y()->base_val();
+            auto base_frequency_x = turbulence->base_frequency_x()->base_val() / scale_x;
+            auto base_frequency_y = turbulence->base_frequency_y()->base_val() / scale_y;
             auto num_octaves = turbulence->num_octaves()->base_val();
             auto seed = turbulence->seed()->base_val();
 
@@ -415,12 +419,12 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
                 }
             }();
 
-            auto tile_stitch_size = [turbulence] {
+            auto tile_stitch_size = [turbulence, scale_x, scale_y] {
                 auto stitch_tiles = turbulence->stitch_tiles()->base_val();
                 switch (stitch_tiles) {
                 case to_underlying(SVGFETurbulenceElement::StitchType::Stitch):
                     // FIXME: Are these the correct width and height?
-                    return Gfx::IntSize { turbulence->width()->base_val()->value(), turbulence->height()->base_val()->value() };
+                    return Gfx::IntSize { round_to<int>(turbulence->width()->base_val()->value() * scale_x), round_to<int>(turbulence->height()->base_val()->value() * scale_y) };
                 case to_underlying(SVGFETurbulenceElement::StitchType::NoStitch):
                     return Gfx::IntSize {};
                 default:
@@ -433,7 +437,9 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
         } else if (auto* displacement_map = as_if<SVGFEDisplacementMapElement>(node)) {
             auto color = resolve_input(displacement_map->in1()->base_val());
             auto displacement = resolve_input_in_color_space(displacement_map->in2()->base_val(), operating_space);
-            auto scale = displacement_map->scale()->base_val();
+            // FIXME: Skia's displacement map takes a single scale factor, so we ignore the vertical scale here,
+            //        applying the horizontal scale only.
+            auto scale = displacement_map->scale()->base_val() * scale_x;
 
             auto convert_channel_selector = [](u16 channel_selector) {
                 switch (channel_selector) {
