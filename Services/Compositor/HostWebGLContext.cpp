@@ -27,7 +27,7 @@ HostWebGLContext::HostWebGLContext(NonnullOwnPtr<OpenGLContext> gl_context)
 {
 }
 
-OwnPtr<HostWebGLContext> HostWebGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, OpenGLContext::WebGLVersion version, OpenGLContext::DrawingBufferOptions options, Gfx::IntSize initial_size)
+OwnPtr<HostWebGLContext> HostWebGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, OpenGLContext::WebGLVersion version, OpenGLContext::DrawingBufferOptions options, Gfx::IntSize initial_size)
 {
     if (initial_size.width() < 1 || initial_size.width() > max_webgl_drawing_buffer_dimension
         || initial_size.height() < 1 || initial_size.height() > max_webgl_drawing_buffer_dimension)

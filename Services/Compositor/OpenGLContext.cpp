@@ -59,7 +59,7 @@ struct OpenGLContext::Impl {
 #endif
 };
 
-OpenGLContext::OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, Impl impl, WebGLVersion webgl_version, DrawingBufferOptions drawing_buffer_options)
+OpenGLContext::OpenGLContext(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Impl impl, WebGLVersion webgl_version, DrawingBufferOptions drawing_buffer_options)
     : m_skia_backend_context(move(skia_backend_context))
     , m_impl(make<Impl>(impl))
     , m_webgl_version(webgl_version)
@@ -138,9 +138,12 @@ static EGLConfig get_egl_config(EGLDisplay display)
 }
 #endif
 
-OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version, [[maybe_unused]] DrawingBufferOptions drawing_buffer_options)
+OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version, [[maybe_unused]] DrawingBufferOptions drawing_buffer_options)
 {
 #ifdef ENABLE_WEBGL
+    if (!skia_backend_context)
+        return {};
+
     EGLAttrib display_attributes[] = {
         EGL_PLATFORM_ANGLE_TYPE_ANGLE,
 #    if defined(AK_OS_MACOS)
@@ -294,7 +297,7 @@ void OpenGLContext::clear_buffer_to_default_values()
 void OpenGLContext::allocate_iosurface_painting_surface()
 {
     m_shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(m_size));
-    m_painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*m_shared_image_buffer, m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
+    m_painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*m_shared_image_buffer, *m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLint const surface_attributes[] = {
         EGL_WIDTH,
@@ -357,7 +360,7 @@ void OpenGLContext::allocate_vkimage_painting_surface()
     }
 
     auto vulkan_image = MUST(Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), m_size.width(), m_size.height(), vulkan_format, renderable_modifiers));
-    m_painting_surface = Gfx::PaintingSurface::create_from_vkimage(m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
+    m_painting_surface = Gfx::PaintingSurface::create_from_vkimage(*m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLAttrib attribs[] = {
         EGL_WIDTH,
