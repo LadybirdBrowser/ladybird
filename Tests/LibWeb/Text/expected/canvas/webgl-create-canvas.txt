@@ -1,6 +1,5 @@
-FIXME: This test relies on having a GPU backend enabled, which it is not in run-tests mode :(
-context instanceof WebGLRenderingContext: false
-context is null: true
+context instanceof WebGLRenderingContext: true
+context is null: false
 typeof WebGL2RenderingContext.prototype.texImage2D: function
-context2 instanceof WebGL2RenderingContext: false
-context2 is null: true
+context2 instanceof WebGL2RenderingContext: true
+context2 is null: false

@@ -23,6 +23,7 @@ extern "C" {
 #include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImageBuffer.h>
 #ifdef USE_VULKAN_DMABUF_IMAGES
@@ -30,8 +31,9 @@ extern "C" {
 #endif
 #include <Compositor/OpenGLContext.h>
 
-// Enable WebGL if we're on MacOS and can use Metal or if we can use shareable Vulkan images
-#if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
+// Enable WebGL if we're on macOS and can use Metal, if Linux can use ANGLE's
+// OpenGL backend for CPU-painting tests, or if we can use shareable Vulkan images.
+#if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(USE_VULKAN_DMABUF_IMAGES)
 #    define ENABLE_WEBGL 1
 #endif
 
@@ -49,6 +51,7 @@ struct OpenGLContext::Impl {
     GLuint color_buffer { 0 };
     GLuint depth_buffer { 0 };
     EGLint texture_target { 0 };
+    bool uses_cpu_painting_surface { false };
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
     EGLImage egl_image { EGL_NO_IMAGE };
@@ -141,14 +144,27 @@ static EGLConfig get_egl_config(EGLDisplay display)
 OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, WebGLVersion webgl_version, [[maybe_unused]] DrawingBufferOptions drawing_buffer_options)
 {
 #ifdef ENABLE_WEBGL
-    if (!skia_backend_context)
+#    if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+    bool use_cpu_painting_surface = !skia_backend_context;
+#    else
+    bool use_cpu_painting_surface = false;
+#    endif
+
+#    if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
+    if (!use_cpu_painting_surface && !skia_backend_context)
         return {};
+#    endif
+
+#    if !defined(AK_OS_MACOS) && !defined(USE_VULKAN_DMABUF_IMAGES)
+    if (!use_cpu_painting_surface)
+        return {};
+#    endif
 
     EGLAttrib display_attributes[] = {
         EGL_PLATFORM_ANGLE_TYPE_ANGLE,
 #    if defined(AK_OS_MACOS)
         EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
-#    elif defined(USE_VULKAN_DMABUF_IMAGES)
+#    elif defined(USE_VULKAN_DMABUF_IMAGES) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
         EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE,
         EGL_PLATFORM_ANGLE_NATIVE_PLATFORM_TYPE_ANGLE,
         EGL_PLATFORM_SURFACELESS_MESA,
@@ -176,9 +192,13 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
 
     EGLint texture_target;
 #    if defined(AK_OS_MACOS)
-    eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target);
-    VERIFY(texture_target == EGL_TEXTURE_RECTANGLE_ANGLE || texture_target == EGL_TEXTURE_2D);
-#    elif defined(USE_VULKAN_DMABUF_IMAGES)
+    if (use_cpu_painting_surface) {
+        texture_target = EGL_TEXTURE_2D;
+    } else {
+        eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target);
+        VERIFY(texture_target == EGL_TEXTURE_RECTANGLE_ANGLE || texture_target == EGL_TEXTURE_2D);
+    }
+#    else
     texture_target = EGL_TEXTURE_2D;
 #    endif
 
@@ -206,16 +226,21 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
     }
 
 #    ifdef USE_VULKAN_DMABUF_IMAGES
-    auto pfn_egl_query_dma_buf_formats_ext = reinterpret_cast<PFNEGLQUERYDMABUFFORMATSEXTPROC>(eglGetProcAddress("eglQueryDmaBufFormatsEXT"));
-    if (!pfn_egl_query_dma_buf_formats_ext) {
-        dbgln("eglQueryDmaBufFormatsEXT unavailable");
-        return {};
-    }
+    PFNEGLQUERYDMABUFFORMATSEXTPROC pfn_egl_query_dma_buf_formats_ext = nullptr;
+    PFNEGLQUERYDMABUFMODIFIERSEXTPROC pfn_egl_query_dma_buf_modifiers_ext = nullptr;
 
-    auto pfn_egl_query_dma_buf_modifiers_ext = reinterpret_cast<PFNEGLQUERYDMABUFMODIFIERSEXTPROC>(eglGetProcAddress("eglQueryDmaBufModifiersEXT"));
-    if (!pfn_egl_query_dma_buf_modifiers_ext) {
-        dbgln("eglQueryDmaBufModifiersEXT unavailable");
-        return {};
+    if (!use_cpu_painting_surface) {
+        pfn_egl_query_dma_buf_formats_ext = reinterpret_cast<PFNEGLQUERYDMABUFFORMATSEXTPROC>(eglGetProcAddress("eglQueryDmaBufFormatsEXT"));
+        if (!pfn_egl_query_dma_buf_formats_ext) {
+            dbgln("eglQueryDmaBufFormatsEXT unavailable");
+            return {};
+        }
+
+        pfn_egl_query_dma_buf_modifiers_ext = reinterpret_cast<PFNEGLQUERYDMABUFMODIFIERSEXTPROC>(eglGetProcAddress("eglQueryDmaBufModifiersEXT"));
+        if (!pfn_egl_query_dma_buf_modifiers_ext) {
+            dbgln("eglQueryDmaBufModifiersEXT unavailable");
+            return {};
+        }
     }
 #    endif
 
@@ -224,6 +249,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
                                                          .config = config,
                                                          .context = context,
                                                          .texture_target = texture_target,
+                                                         .uses_cpu_painting_surface = use_cpu_painting_surface,
 #    ifdef USE_VULKAN_DMABUF_IMAGES
                                                          .ext_procs = {
                                                              .query_dma_buf_formats = pfn_egl_query_dma_buf_formats_ext,
@@ -242,6 +268,8 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
 void OpenGLContext::notify_content_will_change()
 {
 #ifdef ENABLE_WEBGL
+    if (m_impl->uses_cpu_painting_surface)
+        return;
     m_painting_surface->notify_content_will_change();
 #endif
 }
@@ -333,6 +361,8 @@ void OpenGLContext::allocate_iosurface_painting_surface()
 #ifdef USE_VULKAN_DMABUF_IMAGES
 void OpenGLContext::allocate_vkimage_painting_surface()
 {
+    VERIFY(m_skia_backend_context);
+
     VkFormat vulkan_format = VK_FORMAT_B8G8R8A8_UNORM;
     uint32_t drm_format = Gfx::vk_format_to_drm_format(vulkan_format);
 
@@ -395,6 +425,100 @@ void OpenGLContext::allocate_vkimage_painting_surface()
 }
 #endif
 
+#if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+void OpenGLContext::allocate_cpu_painting_surface()
+{
+    m_painting_surface = Gfx::PaintingSurface::create_with_size(
+        m_size,
+        Gfx::BitmapFormat::BGRA8888,
+        Gfx::AlphaType::Premultiplied);
+
+    m_impl->surface = EGL_NO_SURFACE;
+    eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+
+    glGenTextures(1, &m_impl->color_buffer);
+    glBindTexture(GL_TEXTURE_2D, m_impl->color_buffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    GLint original_pixel_unpack_buffer = 0;
+    if (m_webgl_version == WebGLVersion::WebGL2) {
+        glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &original_pixel_unpack_buffer);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    }
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_size.width(), m_size.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    if (m_webgl_version == WebGLVersion::WebGL2)
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, original_pixel_unpack_buffer);
+
+    glViewport(0, 0, m_size.width(), m_size.height());
+}
+
+void OpenGLContext::copy_default_framebuffer_to_cpu_painting_surface()
+{
+    VERIFY(m_impl->uses_cpu_painting_surface);
+    VERIFY(m_painting_surface);
+
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, m_size));
+
+    GLenum framebuffer_target = GL_FRAMEBUFFER;
+    GLenum framebuffer_binding = GL_FRAMEBUFFER_BINDING;
+    if (m_webgl_version == WebGLVersion::WebGL2) {
+        framebuffer_target = GL_READ_FRAMEBUFFER;
+        framebuffer_binding = GL_READ_FRAMEBUFFER_BINDING;
+    }
+
+    GLint original_framebuffer;
+    glGetIntegerv(framebuffer_binding, &original_framebuffer);
+
+    GLint original_read_buffer = GL_COLOR_ATTACHMENT0;
+    if (m_webgl_version == WebGLVersion::WebGL2)
+        glGetIntegerv(GL_READ_BUFFER, &original_read_buffer);
+
+    glBindFramebuffer(framebuffer_target, default_framebuffer());
+    if (m_webgl_version == WebGLVersion::WebGL2)
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+    GLint original_pack_alignment;
+    glGetIntegerv(GL_PACK_ALIGNMENT, &original_pack_alignment);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+
+    GLint original_pixel_pack_buffer = 0;
+    GLint original_pack_row_length = 0;
+    GLint original_pack_skip_pixels = 0;
+    GLint original_pack_skip_rows = 0;
+    if (m_webgl_version == WebGLVersion::WebGL2) {
+        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &original_pixel_pack_buffer);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+        glGetIntegerv(GL_PACK_ROW_LENGTH, &original_pack_row_length);
+        glGetIntegerv(GL_PACK_SKIP_PIXELS, &original_pack_skip_pixels);
+        glGetIntegerv(GL_PACK_SKIP_ROWS, &original_pack_skip_rows);
+        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+        glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+        glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+    }
+
+    for (int source_y = 0; source_y < m_size.height(); ++source_y)
+        glReadPixels(0, source_y, m_size.width(), 1, GL_RGBA, GL_UNSIGNED_BYTE, bitmap->scanline_u8(m_size.height() - source_y - 1));
+
+    if (m_webgl_version == WebGLVersion::WebGL2) {
+        glPixelStorei(GL_PACK_ROW_LENGTH, original_pack_row_length);
+        glPixelStorei(GL_PACK_SKIP_PIXELS, original_pack_skip_pixels);
+        glPixelStorei(GL_PACK_SKIP_ROWS, original_pack_skip_rows);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, original_pixel_pack_buffer);
+    }
+    glPixelStorei(GL_PACK_ALIGNMENT, original_pack_alignment);
+
+    glBindFramebuffer(framebuffer_target, original_framebuffer);
+    if (m_webgl_version == WebGLVersion::WebGL2)
+        glReadBuffer(original_read_buffer);
+
+    m_painting_surface->write_from_bitmap(*bitmap);
+}
+#endif
+
 void OpenGLContext::allocate_painting_surface_if_needed()
 {
 #ifdef ENABLE_WEBGL
@@ -406,9 +530,22 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     VERIFY(!m_size.is_empty());
 
 #    if defined(AK_OS_MACOS)
-    allocate_iosurface_painting_surface();
+    if (m_impl->uses_cpu_painting_surface) {
+        allocate_cpu_painting_surface();
+    } else {
+        allocate_iosurface_painting_surface();
+    }
 #    elif defined(USE_VULKAN_DMABUF_IMAGES)
-    allocate_vkimage_painting_surface();
+#        if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+    if (m_impl->uses_cpu_painting_surface) {
+        allocate_cpu_painting_surface();
+    } else
+#        endif
+    {
+        allocate_vkimage_painting_surface();
+    }
+#    elif defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+    allocate_cpu_painting_surface();
 #    endif
     VERIFY(m_painting_surface);
     VERIFY(eglGetCurrentContext() == m_impl->context);
@@ -464,10 +601,20 @@ void OpenGLContext::present(bool preserve_drawing_buffer)
     // eglWaitUntilWorkScheduledANGLE flushes the command buffer, and waits until it has been scheduled, hence the name.
     // eglWaitUntilWorkScheduledANGLE only has an effect on CGL and Metal backends, so we only use it on macOS.
 #    if defined(AK_OS_MACOS)
-    eglWaitUntilWorkScheduledANGLE(m_impl->display);
+    if (m_impl->uses_cpu_painting_surface)
+        glFinish();
+    else
+        eglWaitUntilWorkScheduledANGLE(m_impl->display);
 #    elif defined(USE_VULKAN_DMABUF_IMAGES)
     // FIXME: CPU sync for now, but it would be better to export a fence and have Skia wait for it before reading from the surface
     glFinish();
+#    elif defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+    glFinish();
+#    endif
+
+#    if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+    if (m_impl->uses_cpu_painting_surface)
+        copy_default_framebuffer_to_cpu_painting_surface();
 #    endif
 
     // "By default, after compositing the contents of the drawing buffer shall be cleared to their default values, as shown in the table above.
@@ -507,16 +654,16 @@ Vector<String> OpenGLContext::get_supported_opengl_extensions()
 
     Vector<String> extensions;
 
-    auto const* extensions_string = reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS));
-    StringView extensions_view(extensions_string, strlen(extensions_string));
-    for (auto extension : extensions_view.split_view(' ')) {
-        extensions.append(MUST(String::from_utf8(extension)));
+    if (auto const* extensions_string = reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS))) {
+        StringView extensions_view(extensions_string, strlen(extensions_string));
+        for (auto extension : extensions_view.split_view(' '))
+            extensions.append(MUST(String::from_utf8(extension)));
     }
 
-    auto const* requestable_extensions_string = reinterpret_cast<char const*>(glGetString(GL_REQUESTABLE_EXTENSIONS_ANGLE));
-    StringView requestable_extensions_view(requestable_extensions_string, strlen(requestable_extensions_string));
-    for (auto extension : requestable_extensions_view.split_view(' ')) {
-        extensions.append(MUST(String::from_utf8(extension)));
+    if (auto const* requestable_extensions_string = reinterpret_cast<char const*>(glGetString(GL_REQUESTABLE_EXTENSIONS_ANGLE))) {
+        StringView requestable_extensions_view(requestable_extensions_string, strlen(requestable_extensions_string));
+        for (auto extension : requestable_extensions_view.split_view(' '))
+            extensions.append(MUST(String::from_utf8(extension)));
     }
 
     // We must cache this, because once extensions have been requested, they're no longer requestable extensions and would
