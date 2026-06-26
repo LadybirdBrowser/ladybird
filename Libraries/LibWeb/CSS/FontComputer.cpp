@@ -364,18 +364,20 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
             matching_family_fonts.last().width = font_width_bucket_from_percentage(map_key.width);
         }
     }
-    Gfx::FontDatabase::the().for_each_typeface_with_family_name(family_name, [&](Gfx::Typeface const& typeface) {
-        matching_family_fonts.append({
-            .key = {
-                .family_name = typeface.family(),
-                // FIXME: Support system fonts that have a range of weights, etc.
-                .weight = { static_cast<int>(typeface.weight()), static_cast<int>(typeface.weight()) },
-                .slope = typeface.slope(),
-            },
-            .width = typeface.width(),
-            .system_typeface = &typeface,
+    if (matching_family_fonts.is_empty()) {
+        Gfx::FontDatabase::the().for_each_typeface_with_family_name(family_name, [&](Gfx::Typeface const& typeface) {
+            matching_family_fonts.append({
+                .key = {
+                    .family_name = typeface.family(),
+                    // FIXME: Support system fonts that have a range of weights, etc.
+                    .weight = { static_cast<int>(typeface.weight()), static_cast<int>(typeface.weight()) },
+                    .slope = typeface.slope(),
+                },
+                .width = typeface.width(),
+                .system_typeface = &typeface,
+            });
         });
-    });
+    }
 
     if (matching_family_fonts.is_empty())
         return {};
