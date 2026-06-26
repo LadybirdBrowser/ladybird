@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.grid {
+    display: grid;
+    gap: 25px;
+    grid-template-columns: repeat(4, 1fr);
+    width: 652px;
+}
+
+.grid > a {
+    display: flex;
+    justify-content: center;
+}
+
+.grid img {
+    display: block;
+    height: 56px;
+    max-width: 100%;
+    width: 165px;
+}
+</style>
+<div class="grid">
+    <a><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='165' height='56'%3E%3C/svg%3E"></a>
+    <a><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='165' height='56'%3E%3C/svg%3E"></a>
+    <a><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='165' height='56'%3E%3C/svg%3E"></a>
+    <a><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='165' height='56'%3E%3C/svg%3E"></a>
+</div>
+<script>
+test(() => {
+    let grid = document.querySelector(".grid");
+    let last_item = grid.lastElementChild;
+    println(`grid-template-columns: ${getComputedStyle(grid).gridTemplateColumns}`);
+    println(`last item right: ${last_item.getBoundingClientRect().right}`);
+});
+</script>
