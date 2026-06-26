@@ -747,7 +747,7 @@ void LocalNavigable::set_current_session_history_entry(RefPtr<SessionHistoryEntr
 void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document)
 {
     static int next_id = 0;
-    m_id = String::number(next_id++);
+    set_id(String::number(next_id++));
 
     // 1. Assert: documentState's document is non-null.
     // NOTE: DocumentState no longer owns the document; it is passed separately and owned by the LocalNavigable.
