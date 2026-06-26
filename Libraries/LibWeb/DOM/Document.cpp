@@ -543,32 +543,18 @@ GC::Ref<Document> Document::create(JS::Realm& realm, URL::URL const& url)
     return realm.create<Document>(realm, url);
 }
 
-GC::Ref<Document> Document::create_for_fragment_parsing(JS::Realm& realm)
-{
-    return realm.create<Document>(realm, URL::about_blank(), TemporaryDocumentForFragmentParsing::Yes);
-}
-
-Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
+Document::Document(JS::Realm& realm, URL::URL const& url)
     : ParentNode(realm, *this, NodeType::DOCUMENT_NODE)
     , m_page(Bindings::principal_host_defined_page(realm))
     , m_style_computer(realm.heap().allocate<CSS::StyleComputer>(*this))
     , m_font_computer(realm.heap().allocate<CSS::FontComputer>(*this))
     , m_url(url)
     , m_fonts(CSS::FontFaceSet::create(realm))
-    , m_temporary_document_for_fragment_parsing(temporary_document_for_fragment_parsing)
     , m_editing_host_manager(EditingHostManager::create(realm, *this))
     , m_dynamic_view_transition_style_sheet(parse_css_stylesheet(CSS::Parser::ParsingParams(realm), ""sv, {}))
     , m_style_invalidator(realm.heap().allocate<CSS::Invalidation::StyleInvalidator>())
     , m_style_scope(*this)
 {
-    // https://html.spec.whatwg.org/multipage/parsing.html#html-fragment-parsing-algorithm
-    // AD-HOC: The HTML fragment parsing algorithm stages nodes in a temporary document before returning them.
-    // Treat that document as disconnected so post-connection steps happen only after the fragment is inserted
-    // into the context document.
-    // Spec issue: https://github.com/whatwg/html/issues/11023
-    if (is_temporary_document_for_fragment_parsing())
-        set_is_connected(false);
-
     m_legacy_platform_object_flags = PlatformObject::LegacyPlatformObjectFlags {
         .supports_named_properties = true,
         .has_legacy_override_built_ins_interface_extended_attribute = true,
@@ -597,6 +583,17 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
 }
 
 Document::~Document() = default;
+
+void Document::set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParser>)
+{
+    // https://html.spec.whatwg.org/multipage/parsing.html#html-fragment-parsing-algorithm
+    // AD-HOC: The HTML fragment parsing algorithm stages nodes in a temporary document before returning them.
+    // Treat that document as disconnected so post-connection steps happen only after the fragment is inserted
+    // into the context document.
+    // Spec issue: https://github.com/whatwg/html/issues/11023
+    m_temporary_document_for_fragment_parsing = true;
+    set_is_connected(false);
+}
 
 void Document::set_style_invalidation_counter_dump_interval(Optional<u64> interval)
 {
@@ -8354,7 +8351,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
         TrustedTypes::Script.to_string()));
 
     // 2. Let document be a new Document, whose content type is "text/html".
-    auto document = Document::create_for_fragment_parsing(realm);
+    auto document = Document::create(realm);
     document->set_content_type("text/html"_string);
 
     // 3. Set document's allow declarative shadow roots to true.
