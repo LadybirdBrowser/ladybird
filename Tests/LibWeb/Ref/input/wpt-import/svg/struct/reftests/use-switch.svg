@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>Testing that 'use' can target 'switch' elements</title>
+  <h:link rel="match" href="../../../../../expected/wpt-import/svg/struct/reftests/reference/green-100x100.svg"/>
+  <defs>
+    <switch id="s">
+      <rect width="100" height="100" fill="green"/>
+    </switch>
+  </defs>
+  <rect x="10" y="10" width="80" height="80" fill="red"/>
+
+  <use href="#s"/>
+</svg>

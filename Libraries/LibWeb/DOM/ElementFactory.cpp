@@ -135,6 +135,7 @@
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/SVGStopElement.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
+#include <LibWeb/SVG/SVGSwitchElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGTSpanElement.h>
 #include <LibWeb/SVG/SVGTextElement.h>
@@ -484,6 +485,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(Document& document, Qualified
 
     if (local_name == SVG::TagNames::svg)
         return realm.create<SVG::SVGSVGElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::a)
+        return realm.create<SVG::SVGAElement>(document, move(qualified_name));
     // FIXME: Support SVG's mixedCase tag names properly.
     if (local_name.equals_ignoring_ascii_case(SVG::TagNames::clipPath))
         return realm.create<SVG::SVGClipPathElement>(document, move(qualified_name));
@@ -535,6 +538,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(Document& document, Qualified
         return realm.create<SVG::SVGFilterElement>(document, move(qualified_name));
     if (local_name.equals_ignoring_ascii_case(SVG::TagNames::foreignObject))
         return realm.create<SVG::SVGForeignObjectElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::image)
+        return realm.create<SVG::SVGImageElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::line)
         return realm.create<SVG::SVGLineElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::linearGradient)
@@ -561,6 +566,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(Document& document, Qualified
         return realm.create<SVG::SVGStopElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::style)
         return realm.create<SVG::SVGStyleElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::switch_)
+        return realm.create<SVG::SVGSwitchElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::symbol)
         return realm.create<SVG::SVGSymbolElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::text)
@@ -577,10 +584,6 @@ static GC::Ref<SVG::SVGElement> create_svg_element(Document& document, Qualified
         return realm.create<SVG::SVGScriptElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::view)
         return realm.create<SVG::SVGViewElement>(document, move(qualified_name));
-    if (local_name == SVG::TagNames::a)
-        return realm.create<SVG::SVGAElement>(document, move(qualified_name));
-    if (local_name == SVG::TagNames::image)
-        return realm.create<SVG::SVGImageElement>(document, move(qualified_name));
 
     // https://svgwg.org/svg2-draft/types.html#ElementsInTheSVGDOM
     // Elements in the SVG namespace whose local name does not match an element defined in any

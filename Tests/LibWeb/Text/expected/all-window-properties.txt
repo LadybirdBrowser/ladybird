@@ -449,6 +449,7 @@ SVGSVGElement
 SVGScriptElement
 SVGStopElement
 SVGStyleElement
+SVGSwitchElement
 SVGSymbolElement
 SVGTSpanElement
 SVGTextContentElement

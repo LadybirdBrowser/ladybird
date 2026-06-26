@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2023, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
@@ -33,6 +33,7 @@
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/SVGSwitchElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
 
@@ -161,21 +162,33 @@ static ViewBoxTransform scale_and_align_viewbox_content(SVG::PreserveAspectRatio
     return viewbox_transform;
 }
 
+// https://svgwg.org/svg2-draft/struct.html#GroupsOverview
 static bool is_container_element(Node const& node)
 {
-    // https://svgwg.org/svg2-draft/struct.html#GroupsOverview
+    // container element
+    // An element which can have graphics elements and other container elements as child elements.
+    // Specifically: ‘a’, ‘clipPath’, ‘defs’, ‘g’, ‘marker’, ‘mask’, ‘pattern’, ‘svg’, ‘switch’ and ‘symbol’.
     auto* dom_node = node.dom_node();
     if (!dom_node)
         return false;
     if (is<SVG::SVGAElement>(dom_node))
         return true;
-    if (is<SVG::SVGUseElement>(dom_node))
+    // FIXME: clipPath
+    // FIXME: defs
+    if (is<SVG::SVGGElement>(dom_node))
+        return true;
+    // FIXME: marker
+    if (is<SVG::SVGMaskElement>(dom_node))
+        return true;
+    // FIXME: pattern
+    if (is<SVG::SVGSVGElement>(dom_node))
+        return true;
+    if (is<SVG::SVGSwitchElement>(dom_node))
         return true;
     if (is<SVG::SVGSymbolElement>(dom_node))
         return true;
-    if (is<SVG::SVGGElement>(dom_node))
-        return true;
-    if (is<SVG::SVGMaskElement>(dom_node))
+    // AD-HOC: Do we need `use` to be here?
+    if (is<SVG::SVGUseElement>(dom_node))
         return true;
     return false;
 }
