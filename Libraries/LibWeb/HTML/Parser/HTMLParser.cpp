@@ -900,8 +900,10 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
 
     // 2. Let document be a Document node whose type is "html".
-    auto temp_document = DOM::Document::create_for_fragment_parsing(context_element.realm());
+    auto temp_document = DOM::Document::create(context_element.realm());
     temp_document->set_document_type(DOM::Document::Type::HTML);
+
+    temp_document->set_temporary_document_for_fragment_parsing({});
 
     // AD-HOC: We set the about base URL of the document to the same as the context element's document.
     //         This is required for Document::parse_url() to work inside iframe srcdoc documents.

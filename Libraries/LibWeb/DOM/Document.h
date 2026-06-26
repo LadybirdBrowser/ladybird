@@ -219,15 +219,9 @@ public:
         HTML
     };
 
-    enum class TemporaryDocumentForFragmentParsing {
-        No,
-        Yes,
-    };
-
     static WebIDL::ExceptionOr<GC::Ref<Document>> create_and_initialize(Type, String content_type, HTML::NavigationParams const&);
 
     [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, URL::URL const& url = URL::about_blank());
-    [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(JS::Realm&);
     static GC::Ref<Document> construct_impl(JS::Realm&);
     virtual ~Document() override;
 
@@ -656,7 +650,8 @@ public:
     void detach_parser();
     GC::Ptr<HTML::HTMLParser> parser() const { return m_parser; }
 
-    [[nodiscard]] bool is_temporary_document_for_fragment_parsing() const { return m_temporary_document_for_fragment_parsing == TemporaryDocumentForFragmentParsing::Yes; }
+    void set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParser>);
+    [[nodiscard]] bool is_temporary_document_for_fragment_parsing() const { return m_temporary_document_for_fragment_parsing; }
 
     static bool is_valid_name(String const&);
 
@@ -1168,7 +1163,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Document(JS::Realm&, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
+    Document(JS::Realm&, URL::URL const&);
 
 private:
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
@@ -1489,7 +1484,7 @@ private:
 
     RefPtr<Core::Timer> m_active_refresh_timer;
 
-    TemporaryDocumentForFragmentParsing m_temporary_document_for_fragment_parsing { TemporaryDocumentForFragmentParsing::No };
+    bool m_temporary_document_for_fragment_parsing { false };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#latest-entry
     RefPtr<HTML::SessionHistoryEntry> m_latest_entry;
