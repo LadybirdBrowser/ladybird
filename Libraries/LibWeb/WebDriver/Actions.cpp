@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -128,9 +129,14 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
     auto parent_navigable = navigable->parent();
 
     // 4. If parent navigable is not null:
-    if (parent_navigable && parent_navigable->active_document() && parent_navigable->active_document()->browsing_context()) {
+    if (parent_navigable) {
+        auto& local_parent_navigable = as<HTML::LocalNavigable>(*parent_navigable);
+        auto parent_document = local_parent_navigable.active_document();
+        if (!parent_document || !parent_document->browsing_context())
+            return offset;
+
         // 1. Let parent context be parent navigable's document's browsing context.
-        auto parent_context = parent_navigable->active_document()->browsing_context();
+        auto parent_context = parent_document->browsing_context();
 
         // 2. Let (parentOffsetLeft, parentOffsetTop) be result of get parent offset of parent context.
         auto parent_offset = get_parent_offset(*parent_context);
@@ -140,7 +146,7 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
         offset.translate_by(parent_offset);
 
         // 5. Let containerElement be an element which navigable container presents parent navigable.
-        auto container_element = parent_navigable->container();
+        auto container_element = local_parent_navigable.container();
         if (!container_element)
             return offset;
 

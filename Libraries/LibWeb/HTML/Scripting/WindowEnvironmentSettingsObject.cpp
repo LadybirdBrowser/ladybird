@@ -112,7 +112,7 @@ bool WindowEnvironmentSettingsObject::has_cross_site_ancestor() const
         return false;
 
     // 2. Let parentDocument be window's navigable's parent's active document.
-    auto parent_document = m_window->navigable()->parent()->active_document();
+    auto parent_document = as<LocalNavigable>(*m_window->navigable()->parent()).active_document();
 
     // 3. If parentDocument's relevant settings object's has cross-site ancestor is true, then return true.
     if (parent_document->relevant_settings_object().has_cross_site_ancestor())

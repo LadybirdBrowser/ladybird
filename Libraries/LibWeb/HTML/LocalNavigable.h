@@ -81,9 +81,6 @@ public:
 
     virtual bool is_traversable() const { return false; }
 
-    GC::Ptr<LocalNavigable> parent() const { return m_parent; }
-    bool is_ancestor_of(GC::Ref<LocalNavigable>) const;
-
     bool is_closing() const { return m_closing; }
     void set_closing(bool value) { m_closing = value; }
     bool is_script_closable();
@@ -329,9 +326,6 @@ private:
     void schedule_hover_update_after_async_scroll();
     void update_hover_after_async_scroll_stops();
     void cancel_hover_update_after_async_scroll();
-
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-parent
-    GC::Ptr<LocalNavigable> m_parent;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-current-history-entry
     RefPtr<SessionHistoryEntry> m_current_session_history_entry;
