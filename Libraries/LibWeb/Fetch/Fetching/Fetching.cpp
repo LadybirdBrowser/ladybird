@@ -2247,7 +2247,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
     stream->set_up_with_byte_reading_support(pull_algorithm, cancel_algorithm);
 
-    auto on_headers_received = GC::create_function(vm.heap(), [&vm, pending_response, stream, request, fetched_data_receiver](HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key) {
+    auto on_headers_received = GC::create_function(vm.heap(), [&vm, pending_response, stream, request, fetched_data_receiver](Requests::Request* request_server_request, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key) {
         if (pending_response->is_resolved()) {
             // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
             // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2261,6 +2261,13 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             response->set_status_message(reason_phrase->to_byte_string());
         response->set_javascript_bytecode_cache(move(javascript_bytecode));
         response->set_javascript_bytecode_cache_vary_key(javascript_bytecode_cache_vary_key);
+        if (request_server_request) {
+            response->set_request_server_request({
+                .client_id = request_server_request->request_server_client_id(),
+                .request_id = request_server_request->id(),
+                .request = request_server_request,
+            });
+        }
 
         (void)request;
         if constexpr (WEB_FETCH_DEBUG) {
@@ -2314,7 +2321,12 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         }
     });
 
-    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete);
+    auto keep_alive_for_transfer = request->destination() == Infrastructure::Request::Destination::Document
+        ? Requests::RequestClient::KeepAliveForTransfer::Yes
+        : Requests::RequestClient::KeepAliveForTransfer::No;
+    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete, keep_alive_for_transfer);
+    if (network_request && request->destination() == Infrastructure::Request::Destination::Document)
+        network_request->set_body_delivery_paused(true);
     fetch_params.controller()->set_pending_request(network_request);
 
     return pending_response;

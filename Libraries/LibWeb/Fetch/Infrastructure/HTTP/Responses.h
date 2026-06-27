@@ -17,6 +17,8 @@
 #include <LibHTTP/HeaderList.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibRequests/Forward.h>
+#include <LibRequests/Request.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
@@ -57,6 +59,12 @@ public:
         String content_type {};
 
         bool operator==(BodyInfo const&) const = default;
+    };
+
+    struct RequestServerRequest {
+        int client_id { -1 };
+        u64 request_id { 0 };
+        RefPtr<Requests::Request> request;
     };
 
     [[nodiscard]] static GC::Ref<Response> create(JS::VM&);
@@ -132,6 +140,11 @@ public:
     // Non-standard
     [[nodiscard]] Optional<String> const& network_error_message() const { return m_network_error_message; }
     MonotonicTime monotonic_response_time() const { return m_monotonic_response_time; }
+    [[nodiscard]] virtual Optional<RequestServerRequest> const& request_server_request() const { return m_request_server_request; }
+    virtual void set_request_server_request(RequestServerRequest request) { m_request_server_request = move(request); }
+    virtual void release_request_for_transfer() const;
+    virtual void resume_body_delivery() const;
+    virtual void resume_body_delivery_up_to(size_t) const;
 
 protected:
     explicit Response(NonnullRefPtr<HTTP::HeaderList>);
@@ -206,6 +219,7 @@ private:
     Optional<Core::ImmutableBytes> m_javascript_bytecode_cache;
     Optional<u64> m_javascript_bytecode_cache_vary_key;
     Optional<NonnullRefPtr<HTTP::HeaderList>> m_javascript_bytecode_cache_memory_cache_request_headers;
+    Optional<RequestServerRequest> m_request_server_request;
 
 public:
     [[nodiscard]] ByteString const& method() const { return m_method; }
@@ -258,6 +272,11 @@ public:
 
     [[nodiscard]] virtual BodyInfo const& body_info() const override { return m_internal_response->body_info(); }
     virtual void set_body_info(BodyInfo body_info) override { m_internal_response->set_body_info(move(body_info)); }
+    [[nodiscard]] virtual Optional<RequestServerRequest> const& request_server_request() const override { return m_internal_response->request_server_request(); }
+    virtual void set_request_server_request(RequestServerRequest request) override { m_internal_response->set_request_server_request(move(request)); }
+    virtual void release_request_for_transfer() const override { m_internal_response->release_request_for_transfer(); }
+    virtual void resume_body_delivery() const override { m_internal_response->resume_body_delivery(); }
+    virtual void resume_body_delivery_up_to(size_t byte_count) const override { m_internal_response->resume_body_delivery_up_to(byte_count); }
 
     [[nodiscard]] GC::Ref<Response> internal_response() const { return m_internal_response; }
 

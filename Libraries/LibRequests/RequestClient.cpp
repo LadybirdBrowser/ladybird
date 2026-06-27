@@ -37,6 +37,7 @@ static Optional<Core::ImmutableBytes> map_javascript_bytecode_file(int fd, u64 s
 RequestClient::RequestClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport))
 {
+    m_request_server_client_id = send_sync<Messages::RequestServer::GetClientId>()->client_id();
 }
 
 RequestClient::~RequestClient() = default;
@@ -76,12 +77,22 @@ void RequestClient::die()
     }
 }
 
-RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData const& proxy_data)
+RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData const& proxy_data, KeepAliveForTransfer keep_alive_for_transfer)
 {
     auto request_id = m_next_request_id++;
     auto headers = request_headers.map([](auto const& headers) { return headers.headers().span(); }).value_or({});
 
-    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials, proxy_data);
+    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials, proxy_data, keep_alive_for_transfer == KeepAliveForTransfer::Yes);
+    auto request = Request::create_from_id({}, *this, request_id);
+    m_requests.set(request_id, request);
+    return request;
+}
+
+RefPtr<Request> RequestClient::adopt_request(int source_client_id, u64 source_request_id)
+{
+    auto request_id = m_next_request_id++;
+
+    IPCProxy::async_adopt_request(source_client_id, source_request_id, request_id);
     auto request = Request::create_from_id({}, *this, request_id);
     m_requests.set(request_id, request);
     return request;
@@ -109,9 +120,17 @@ ErrorOr<bool> RequestClient::create_synthetic_cache_entry(URL::URL const& url, B
 
 bool RequestClient::stop_request(Badge<Request>, Request& request)
 {
-    if (!m_requests.contains(request.id()))
+    auto stopped_request = m_requests.take(request.id());
+    if (!stopped_request.has_value())
         return false;
-    return IPCProxy::stop_request(request.id());
+
+    (void)IPCProxy::stop_request(request.id());
+    return true;
+}
+
+void RequestClient::release_request_for_transfer(Badge<Request>, Request& request)
+{
+    async_release_request_for_transfer(request.id());
 }
 
 void RequestClient::ensure_connection(URL::URL const& url, RequestServer::CacheLevel cache_level)
@@ -199,6 +218,15 @@ void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header
         (*request)->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key);
     else
         warnln("Received headers for non-existent request {}", request_id);
+}
+
+void RequestClient::request_transferred(u64 request_id)
+{
+    auto request = m_requests.take(request_id);
+    if (!request.has_value())
+        return;
+
+    (*request)->did_transfer({});
 }
 
 void RequestClient::retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, URL::URL url)

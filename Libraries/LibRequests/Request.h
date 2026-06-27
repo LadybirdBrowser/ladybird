@@ -85,9 +85,16 @@ public:
         return adopt_ref(*new Request(client, request_id));
     }
 
+    ~Request();
+
     u64 id() const { return m_request_id; }
+    int request_server_client_id() const;
     int fd() const { return m_fd; }
     bool stop();
+    void set_body_delivery_paused(bool);
+    void resume_body_delivery();
+    void resume_body_delivery_up_to(size_t);
+    void release_for_transfer();
 
     using BufferedRequestFinished = Function<void(u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Core::ImmutableBytes payload)>;
 
@@ -99,16 +106,19 @@ public:
     using DataReceived = Function<void(ResponseData data)>;
     using CachedBodyAvailable = Function<void(Core::ImmutableBytes data)>;
     using RequestFinished = Function<void(u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> network_error)>;
+    using RequestStopped = Function<void()>;
 
     // Configure the request such that the response data is provided unbuffered as it is received. Using this method is
     // mutually exclusive with `set_buffered_request_finished_callback`.
     void set_unbuffered_request_callbacks(HeadersReceived, DataReceived, CachedBodyAvailable, RequestFinished);
+    void set_stop_callback(RequestStopped);
 
     Function<CertificateAndKey()> on_certificate_requested;
 
     void did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error);
     void did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key);
     void did_request_certificates(Badge<RequestClient>);
+    void did_transfer(Badge<RequestClient>);
 
     RefPtr<Core::Notifier>& write_notifier(Badge<RequestClient>) { return m_write_notifier; }
     void set_request_fd(Badge<RequestClient>, int fd);
@@ -118,12 +128,14 @@ public:
 private:
     Request(RequestClient&, u64 request_id);
 
+    void attach_read_stream();
     void set_up_internal_stream_data(DataReceived on_data_available);
 
     WeakPtr<RequestClient> m_client;
     u64 m_request_id { 0 };
     RefPtr<Core::Notifier> m_write_notifier;
     int m_fd { -1 };
+    bool m_fd_is_owned_by_read_stream { false };
 
     enum class Mode {
         Buffered,
@@ -134,6 +146,7 @@ private:
 
     HeadersReceived on_headers_received;
     RequestFinished on_finish;
+    RequestStopped m_on_stop;
 
     struct InternalBufferedData {
         InternalBufferedData();
@@ -153,6 +166,7 @@ private:
         OwnPtr<ReadStream> read_stream;
         RefPtr<Core::Notifier> read_notifier;
         u64 total_size { 0 };
+        u64 delivered_size { 0 };
         Optional<NetworkError> network_error;
         bool request_done { false };
         RequestTimingInfo timing_info;
@@ -162,11 +176,13 @@ private:
         bool user_finish_called { false };
         Optional<Core::ImmutableBytes> file_backed_payload;
         Optional<Core::ImmutableBytes> cached_payload;
+        Optional<size_t> body_delivery_remaining_byte_count;
     };
 
     OwnPtr<InternalBufferedData> m_internal_buffered_data;
     OwnPtr<InternalStreamData> m_internal_stream_data;
     Optional<NetworkError> m_body_delivery_error;
+    bool m_body_delivery_paused { false };
 };
 
 }

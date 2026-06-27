@@ -37,6 +37,8 @@ RequestPipe& RequestPipe::operator=(RequestPipe&& other)
 
 RequestPipe::~RequestPipe()
 {
+    if (m_reader_fd != -1)
+        MUST(Core::System::close(m_reader_fd));
     if (m_writer_fd != -1)
         MUST(Core::System::close(m_writer_fd));
 }

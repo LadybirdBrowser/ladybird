@@ -409,6 +409,7 @@ public:
 
     LocalNavigable::NavigationParamsVariant navigation_params { LocalNavigable::NullOrError {} };
     bool save_extra_document_state = true;
+    bool download_handled = false;
 
     Optional<URL::URL> redirected_url;
     Optional<SerializationRecord> classic_history_api_state;

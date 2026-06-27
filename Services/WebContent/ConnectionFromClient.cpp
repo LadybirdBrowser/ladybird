@@ -306,6 +306,12 @@ void ConnectionFromClient::reload(u64 page_id)
         page->page().reload();
 }
 
+void ConnectionFromClient::cancel_download(u64 page_id, u64 download_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->cancel_download(download_id);
+}
+
 void ConnectionFromClient::traverse_the_history_by_delta(u64 page_id, i32 delta)
 {
     if (auto page = this->page(page_id); page.has_value())

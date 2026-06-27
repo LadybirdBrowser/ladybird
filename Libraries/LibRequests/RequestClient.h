@@ -32,12 +32,20 @@ class RequestClient final
 public:
     using InitTransport = Messages::RequestServer::InitTransport;
 
+    enum class KeepAliveForTransfer : u8 {
+        No,
+        Yes,
+    };
+
     explicit RequestClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~RequestClient() override;
 
-    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, Core::ProxyData const& = {});
+    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, Core::ProxyData const& = {}, KeepAliveForTransfer = KeepAliveForTransfer::No);
+    RefPtr<Request> adopt_request(int source_client_id, u64 source_request_id);
     bool stop_request(Badge<Request>, Request&);
+    void release_request_for_transfer(Badge<Request>, Request&);
     void ensure_connection(URL::URL const&, RequestServer::CacheLevel);
+    int request_server_client_id() const { return m_request_server_client_id; }
 
     bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
 
@@ -59,6 +67,7 @@ private:
     virtual void request_cached_body_file_available(u64 request_id, IPC::File, u64 offset, u64 size) override;
     virtual void request_finished(u64 request_id, u64, RequestTimingInfo, Optional<NetworkError>) override;
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, Optional<IPC::File>, u64 javascript_bytecode_size, Optional<u64>) override;
+    virtual void request_transferred(u64 request_id) override;
 
     virtual void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, URL::URL url) override;
 
@@ -76,6 +85,7 @@ private:
 
     HashMap<u64, RefPtr<Request>> m_requests;
     u64 m_next_request_id { 0 };
+    int m_request_server_client_id { -1 };
 
     HashMap<u64, NonnullRefPtr<WebSocket>> m_websockets;
     u64 m_next_websocket_id { 0 };
