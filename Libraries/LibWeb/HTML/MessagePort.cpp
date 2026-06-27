@@ -299,7 +299,15 @@ WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(GC::Ptr<M
     }
 
     // 7. Add a task that runs the following steps to the port message queue of targetPort:
-    post_port_message(serialize_with_transfer_result);
+    if (m_remote_port && !m_has_been_shipped) {
+        m_remote_port->m_pending_incoming_messages.append(move(serialize_with_transfer_result));
+        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*m_remote_port), GC::create_function(heap(), [target = GC::make_root(m_remote_port)] {
+            if (target->m_enabled)
+                target->dispatch_pending_messages();
+        }));
+    } else {
+        post_port_message(serialize_with_transfer_result);
+    }
 
     return {};
 }
