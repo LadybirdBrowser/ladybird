@@ -2586,12 +2586,20 @@ impl TreeBuilder {
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inforeign
     fn process_using_the_rules_for_foreign_content(&mut self, token: Token) {
         if token.token_type == TokenType::Character {
+            // -> A character token that is U+0000 NULL
             if token.code_point == 0 {
                 // Parse error. Insert a U+FFFD REPLACEMENT CHARACTER character.
                 self.parse_error("U+0000 character token in foreign content");
                 self.insert_character(0xfffd);
                 return;
             }
+
+            // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+            //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+            //        Insert the token's character.
+            // -> Any other character token
+            //        Insert the token's character.
+            //        Set the frameset-ok flag to "not ok".
             self.insert_character(token.code_point);
             if !token.is_parser_whitespace() {
                 self.frameset_ok = false;
@@ -2599,20 +2607,32 @@ impl TreeBuilder {
             return;
         }
 
+        // -> A comment token
         if token.token_type == TokenType::Comment {
+            // Insert a comment.
             self.insert_comment(token.comment_data());
             return;
         }
 
+        // FIXME: -> A processing instruction token
+
+        // -> A DOCTYPE token
         if token.token_type == TokenType::Doctype {
             // Parse error. Ignore the token.
             self.parse_error("DOCTYPE token in foreign content");
             return;
         }
 
+        // -> A start tag whose tag name is one of: "b", "big", "blockquote", "body", "br", "center", "code", "dd", "div",
+        //    "dl", "dt", "em", "embed", "h1", "h2", "h3", "h4", "h5", "h6", "head", "hr", "i", "img", "li", "listing",
+        //    "menu", "meta", "nobr", "ol", "p", "pre", "ruby", "s", "small", "span", "strong", "strike", "sub", "sup",
+        //    "table", "tt", "u", "ul", "var".
         if is_foreign_content_breakout_token(&token) {
             // Parse error.
             self.parse_error("HTML breakout token in foreign content");
+
+            // While the current node is not a MathML text integration point, an HTML integration point, or an element in
+            // the HTML namespace, pop elements from the stack of open elements.
             while self.stack_of_open_elements.last().is_some_and(|node| {
                 node.namespace_ != RustFfiHtmlNamespace::Html
                     && !is_mathml_text_integration_point(node)
@@ -2620,17 +2640,46 @@ impl TreeBuilder {
             }) {
                 self.pop_current_node();
             }
+            // Reprocess the token according to the rules given in the section corresponding to the current insertion
+            // mode in HTML content.
             self.process_using_the_rules_for(self.insertion_mode, token);
             return;
         }
 
+        // FIXME: -> A start tag whose tag name is "font", if the token has any attributes named "color", "face", or "size"
+        // FIXME: -> An end tag whose tag name is "br", "p"
+
+        // -> Any other start tag
         if token.is_start_tag() {
+            // FIXME: If the adjusted current node is an element in the MathML namespace, adjust MathML attributes for the token.
+            // (This fixes the case of MathML attributes that are not all lowercase.)
+
+            // FIXME: If the adjusted current node is an element in the SVG namespace, and the token's tag name is one of
+            // the ones in the first column of the following table, change the tag name to the name given in the
+            // corresponding cell in the second column. (This fixes the case of SVG elements that are not all lowercase.)
+
+            // FIXME: If the adjusted current node is an element in the SVG namespace, adjust SVG attributes for the token.
+            // (This fixes the case of SVG attributes that are not all lowercase.)
+
+            // FIXME: Adjust foreign attributes for the token. (This fixes the use of namespaced attributes, in particular
+            // XLink in SVG.)
             let namespace_ = self
                 .adjusted_current_node()
                 .map(|node| node.namespace_)
                 .unwrap_or(RustFfiHtmlNamespace::Html);
+
+            // Insert a foreign element for the token, with the adjusted current node's namespace and false.
+            // FIXME: And false.
             let element = self.insert_foreign_element_for(&token, namespace_);
+
+            // If the token has its self-closing flag set, then run the appropriate steps from the following list:
             if token.is_self_closing() {
+                // -> If the token's tag name is "script", and the new current node is in the SVG namespace
+                //        Acknowledge the token's self-closing flag, and then act as described in the steps for a
+                //        "script" end tag below.
+                // -> Otherwise
+                //        Pop the current node off the stack of open elements and acknowledge the token's self-closing flag.
+                // FIXME: This is not equivalent to acting as described as steps for "script" end tag below.
                 self.pop_current_node();
                 if namespace_ == RustFfiHtmlNamespace::Svg && token.tag_name() == "script" {
                     self.process_svg_script(element);
@@ -2639,6 +2688,7 @@ impl TreeBuilder {
             return;
         }
 
+        // -> An end tag whose tag name is "script", if the current node is an SVG script element
         if token.is_end_tag_named("script")
             && self
                 .stack_of_open_elements
@@ -2647,22 +2697,29 @@ impl TreeBuilder {
         {
             self.flush_character_insertions();
             let script = self.current_node_handle();
+
+            // Pop the current node off the stack of open elements.
             self.pop_current_node();
             self.process_svg_script(script);
             return;
         }
 
+        // -> Any other end tag
         if token.is_end_tag() {
-            if self.stack_of_open_elements.is_empty() {
-                return;
-            }
-
+            // 1. Initialize node to be the current node (the bottommost node of the stack).
+            assert!(!self.stack_of_open_elements.is_empty());
             let mut index = self.stack_of_open_elements.len() - 1;
+
+            // FIXME: 2. If node's tag name, converted to ASCII lowercase, is not the same as the tag name of the token, then this is a parse error.
+
+            // 3. Loop: If node is the topmost element in the stack of open elements, then return. (fragment case)
             loop {
                 if index == 0 {
                     return;
                 }
 
+                // 4. If node's tag name, converted to ASCII lowercase, is the same as the tag name of the token, pop
+                //    elements from the stack of open elements until node has been popped from the stack, and then return.
                 if self.stack_of_open_elements[index]
                     .local_name
                     .eq_ignore_ascii_case(token.tag_name())
@@ -2674,11 +2731,16 @@ impl TreeBuilder {
                     return;
                 }
 
+                // 5. Set node to the previous entry in the stack of open elements.
                 index -= 1;
+
+                // 6. If node is not an element in the HTML namespace, return to the step labeled loop.
                 if self.stack_of_open_elements[index].namespace_ != RustFfiHtmlNamespace::Html {
                     continue;
                 }
 
+                // 7. Otherwise, process the token according to the rules given in the section corresponding to the
+                //    current insertion mode in HTML content.
                 self.process_using_the_rules_for(self.insertion_mode, token);
                 return;
             }
