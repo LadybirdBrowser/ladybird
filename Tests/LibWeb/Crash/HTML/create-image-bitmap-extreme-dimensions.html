@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<script>
+    // createImageBitmap with extreme crop/resize values overflowed i32 arithmetic: negating a -2^31 sw/sh, and
+    // multiplying a near-INT_MAX extent by a resize dimension. Each case must reject (or resolve) without crashing.
+    async function runCase(sx, sy, sw, sh, options) {
+        try {
+            const bitmap = await createImageBitmap(new ImageData(1, 1), sx, sy, sw, sh, options);
+            bitmap.close();
+        } catch (e) {
+        }
+    }
+    (async () => {
+        await runCase(0, 0, -2147483648, 1);
+        await runCase(0, 0, 1, -2147483648);
+        await runCase(0, 0, 2147483647, 1, { resizeHeight: 2 });
+        await runCase(0, 0, 1, 2147483647, { resizeWidth: 2 });
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</html>
