@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script>
+    // Passing the minimum i64 value (-2^63) as a BigInt to a Wasm function with an i64 parameter. Converting the BigInt
+    // to a Wasm i64 negates a magnitude that lands on INT64_MIN, and doing that with signed arithmetic is overflow UB.
+    const bytes = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // magic + version
+        0x01, 0x05, 0x01, 0x60, 0x01, 0x7e, 0x00,       // type: (func (param i64))
+        0x03, 0x02, 0x01, 0x00,                         // function: 1 func of type 0
+        0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00,       // export: "f" -> func 0
+        0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b,             // code: empty body
+    ]);
+
+    const module = new WebAssembly.Module(bytes);
+    const instance = new WebAssembly.Instance(module);
+    instance.exports.f(-9223372036854775808n);
+</script>
