@@ -2544,27 +2544,41 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#the-after-after-frameset-insertion-mode
     fn handle_after_after_frameset(&mut self, token: Token) {
+        // -> A comment token
         if token.token_type == TokenType::Comment {
+            // Insert a comment as the last child of the Document object.
             let document = self.document_node();
             self.append_comment_to_node(document, token.comment_data());
             return;
         }
 
+        // FIXME: -> A processing instruction token
+
+        // -> A DOCTYPE token
+        // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+        //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+        // -> A start tag whose tag name is "html"
         if token.token_type == TokenType::Doctype || token.is_parser_whitespace() || token.is_start_tag_named("html") {
+            // Process the token using the rules for the "in body" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InBody, token);
             return;
         }
 
+        // -> An end-of-file token
         if token.token_type == TokenType::EndOfFile {
+            // Stop parsing.
             self.stop_parsing();
             return;
         }
 
+        // -> A start tag whose tag name is "noframes"
         if token.is_start_tag_named("noframes") {
+            // Process the token using the rules for the "in head" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InHead, token);
             return;
         }
 
+        // -> Anything else
         // Parse error. Ignore the token.
         self.parse_error("unexpected token in after after frameset insertion mode");
     }
