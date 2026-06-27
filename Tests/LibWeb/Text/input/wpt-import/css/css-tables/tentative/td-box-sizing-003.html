@@ -1,0 +1,148 @@
+<!doctype html>
+<title>TD box sizing</title>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<link rel='stylesheet' href='../support/base.css' />
+<link rel='stylesheet' href='../../../fonts/ahem.css' />
+<link rel="author" title="Aleks Totic" href="atotic@chromium.org" />
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#computing-cell-measures" />
+<style>
+  main table {
+    border-spacing: 0;
+  }
+  main td {
+    background: gray;
+    width:100px;
+    padding: 0;
+  }
+  .bb {
+    box-sizing: border-box;
+  }
+</style>
+<main>
+<p>Tests of intrinsic cell sizing wrt border/padding, and box-sizing.</p>
+<p>box-sizing: content-box; border px; padding px.
+<table>
+  <tbody>
+  <tr>
+      <td data-expected-width="100">
+        <div style="width:50px;height:50px;background:yellow">0,0</div>
+      </td>
+  </tr>
+  </tbody>
+</table>
+<table>
+  <tbody>
+  <tr data-expected-width="120">
+      <td data-expected-width="120" style="border:10px solid black">
+        <div style="height:50px;background:yellow">0,0</div>
+      </td>
+  </tr>
+  </tbody>
+</table>
+<table>
+  <tbody>
+  <tr data-expected-width="140">
+      <td data-expected-width="140" style="border:10px solid black;padding: 10px">
+        <div style="height:50px;background:yellow">0,0</div>
+      </td>
+  </tr>
+  </tbody>
+</table>
+<p>box-sizing: border-box, border px, padding px.
+<table>
+  <tbody>
+  <tr>
+      <td data-expected-width="100" class="bb">
+        <div style="height:50px;background:yellow">0,0</div>
+      </td>
+  </tr>
+  </tbody>
+</table>
+<table>
+  <tbody>
+  <tr>
+      <td data-expected-width="100" class="bb" style="border:10px solid black" >
+        <div style="height:50px;background:yellow">0,0</div>
+      </td>
+  </tr>
+  </tbody>
+</table>
+<table>
+  <tbody>
+  <tr>
+      <td data-expected-width="100" class="bb" style="border:10px solid black;padding: 10px">
+        <div style="height:50px;background:yellow">0,0</div>
+      </td>
+  </tr>
+  </tbody>
+</table>
+
+<p>box-sizing: border-box;padding: px, width px</p>
+<li>td's intrinsic width must be >= border + padding</li>
+
+<table style="width:300px;table-layout:fixed">
+  <tbody>
+    <tr>
+      <td style="box-sizing:border-box;padding-left:50px;padding-right:50px;width:30px" data-expected-width=100></td>
+      <td>auto</td>
+      <td>auto</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>box-sizing: border-box; border px; padding %.</p>
+<li>intrinsic size of % padding is 0.
+<li>final size of % padding is computed against table's width.
+<table data-expected-width="240">
+  <tbody>
+  <tr>
+      <td data-expected-width="120" style="border:10px solid black;padding: 30%">
+        <div data-offset-x="72" data-offset-y="72" style="width:50px;height:50px;background:yellow">0,0</div>
+      </td>
+      <td style="border:10px solid black;padding: 30%">
+        <div style="width:50px;height:50px;background:yellow">0,0</div>
+      </td>
+  </tr>
+  </tbody>
+</table>
+<table data-expected-width="300">
+  <caption><div style="width:300px;background:#ddd">300px caption</div></caption>
+  <tbody>
+  <tr>
+      <td data-expected-width="150" style="border:10px solid black;padding: 30%">
+        <div data-offset-x="90" data-offset-y="90" style="width:50px;height:50px;background:yellow">0,0</div>
+      </td>
+      <td style="border:10px solid black;padding: 30%">
+        <div style="width:50px;height:50px;background:yellow">0,0</div>
+      </td>
+  </tr>
+  </tbody>
+</table>
+
+<p>Block percentage resolution of TD children + row fixed height during intrinsic pass</p>
+<li>Chrome Legacy/Edge/Safari do not use row fixed height for percetage block size resolution.</li>
+<li>FF uses row height as %ge resolution size.</li>
+<li>Proposal: file an issue on what is the right thing to do.</li>
+<table>
+  <tr>
+    <td style="height:100px;font: 50px/1 Ahem;" id="cell" data-expected-height="100">
+      y<div style="display:inline-block;height:100%;width:50px;background:yellow"
+      data-expected-height="100"></div>
+    </td>
+  </tr>
+</table>
+<table>
+  <tr style="height:100px">
+    <td style="font: 50px/1 Ahem;" id="cell" data-expected-height="100">
+      y<div style="display:inline-block;height:100%;width:50px;background:yellow" data-expected-height="0"></div>
+    </td>
+  </tr>
+</table>
+
+
+</main>
+<script>
+  checkLayout("table");
+</script>

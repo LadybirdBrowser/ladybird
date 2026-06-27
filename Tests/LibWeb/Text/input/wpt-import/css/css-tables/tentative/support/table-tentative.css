@@ -1,0 +1,34 @@
+/*
+Tables-ng test styling.
+
+Usage:
+
+<link rel="stylesheet" type="text/css" href="./support/table-tentative.css">
+<p class="testdesc">Short description here
+  Analysis
+<p class="error">Current disagreements between browsers</p>
+*/
+main td {
+  padding: 0;
+}
+.error {
+  color: #b70000;
+}
+p {
+  margin-top:4px;
+  margin-bottom:4px;
+}
+body {
+  counter-reset: testid;
+}
+.testdesc {
+  white-space: pre-line;
+  margin-top: 16px;
+}
+.testdesc:before {
+  content: counter(testid) ". ";
+  counter-increment: testid;
+}
+.testdesc:first-line {
+  font-family: monospace;
+}

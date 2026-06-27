@@ -1,0 +1,60 @@
+<!doctype html>
+<title>Auto table layout should honor max-width on table cells</title>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#computing-column-measures" />
+<style>
+table { border-collapse: collapse; }
+td { padding: 0; }
+</style>
+
+<table style="width:100px; height:20px" id="basic">
+  <tr>
+    <td id="basic-auto">&nbsp;</td>
+    <td id="basic-clamped" style="width:50px; max-width:1px; background:blue;">&nbsp;</td>
+  </tr>
+</table>
+
+<table style="width:100px; height:20px" id="larger-max">
+  <tr>
+    <td>&nbsp;</td>
+    <td id="larger-max-cell" style="width:50px; max-width:100px; background:blue;">&nbsp;</td>
+  </tr>
+</table>
+
+<table style="width:100px; height:20px" id="equal-max">
+  <tr>
+    <td>&nbsp;</td>
+    <td id="equal-max-cell" style="width:50px; max-width:50px; background:blue;">&nbsp;</td>
+  </tr>
+</table>
+
+<table style="width:100px; height:20px" id="no-max">
+  <tr>
+    <td>&nbsp;</td>
+    <td id="no-max-cell" style="width:50px; background:blue;">&nbsp;</td>
+  </tr>
+</table>
+
+<script>
+test(() => {
+  assert_equals(document.getElementById('basic-clamped').offsetWidth, 1,
+    'max-width:1px should clamp width:50px to 1px');
+}, 'Cell with max-width smaller than width is clamped');
+
+test(() => {
+  assert_equals(document.getElementById('larger-max-cell').offsetWidth, 50,
+    'max-width:100px should not reduce width:50px');
+}, 'Cell with max-width larger than width is not affected');
+
+test(() => {
+  assert_equals(document.getElementById('equal-max-cell').offsetWidth, 50,
+    'max-width:50px equal to width:50px should not change width');
+}, 'Cell with max-width equal to width is not affected');
+
+test(() => {
+  assert_equals(document.getElementById('no-max-cell').offsetWidth, 50,
+    'Cell with width:50px and no max-width should remain 50px');
+}, 'Cell without max-width is not affected');
+</script>
+</html>

@@ -1,0 +1,197 @@
+<!doctype html>
+<title>TD box sizing</title>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<link rel="stylesheet" type="text/css" href="./support/table-tentative.css">
+<link rel="author" title="Aleks Totic" href="atotic@chromium.org" />
+<link rel="help" href="https://www.w3.org/TR/css-tables-3/" />
+<style>
+  main table {
+    background: gray;
+    border-spacing: 10px 10px;
+    table-layout: auto;
+  }
+  main td {
+    padding: 20px;
+    background: #BFB;
+    font-size: 10px;
+    box-sizing: border-box;
+  }
+  main td > div {
+    display: inline-block;
+    background: rgba(56,162,56,0.3);
+  }
+</style>
+<main>
+<h1>TD and box sizing</h1>
+
+<p>TD defaults to box-sizing: content-box. How does box-sizing affect final TD size?</p>
+<ol>
+  <li>Auto table layout</li>
+  <ol>
+    <li>Percent cells ignore box-sizing, it is always border-box.</li>
+    <li>Fixed cells respect box-sizing.</li>
+  </ol>
+  <li>Fixed table layout</li>
+  <ol>
+    <li>Percent cells respect box sizing when computing cell width from assignable width.</li>
+    <li>Percent cells ignore box sizing when computing grid max from cell width.</li>
+  </ol>
+</ol>
+<h2>Table-layout: auto</h2>
+<h4>TD width:%</h4>
+<p class="testdesc">content-box, C0:50%/100 C1:Auto
+Percent gets resolved to compute grid max size.
+C0 max_width is max_width + 2 padding = 100 + 2*20 = 140
+Table width is 1/50%*140 + 3*padding = 280+30 = 310
+<table data-expected-width=310>
+  <tr>
+    <td style="width:50%;box-sizing:content-box" data-expected-width=140>
+      <div style="width:100px">50%/100</td>
+    <td data-expected-width=140>Auto</td>
+  </tr>
+</table>
+<p class="testdesc">border-box, C0:50%/100 C1:Auto
+Same test as above, but box-sizing is border-box.
+<table data-expected-width=310>
+  <tr>
+    <td style="width:50%;box-sizing:border-box" data-expected-width=140>
+      <div style="width:100px">50%/100</td>
+    <td data-expected-width=140>Auto</td>
+  </tr>
+</table>
+<p class="testdesc">content-box, C0:80%/100 C1:Auto
+Percent gets resolved to compute final cell size from assignable width.
+C0 border box width is 500 * 80%
+<table style="width:530px" data-expected-width=530>
+  <tr>
+    <td style="width:80%;box-sizing:content-box" data-expected-width=400>
+      <div style="width:100px">80%/100</td>
+    <td data-expected-width=100>Auto</td>
+  </tr>
+</table>
+
+<p class="testdesc">border-box, C0:80%/100 C1:Auto
+Same as above, but border-box
+<table style="width:530px" data-expected-width=530>
+  <tr>
+    <td style="width:80%;box-sizing:border-box" data-expected-width=400>
+      <div style="width:100px">80%/100</td>
+    <td data-expected-width=100>Auto</td>
+  </tr>
+</table>
+
+
+<h4>TD width:fixed</h4>
+
+<p class="testdesc">content-box, C0:100/Auto C1:100/Auto
+Tests whether box-sizing affects how percentages are computed.
+C0 max_width is max_width + 2 padding = 100 + 2*20 = 140
+Table width is 1/50%*140 + 3*padding = 280+30 = 310
+<table data-expected-width=310>
+  <tr>
+    <td style="width:100px;box-sizing:content-box" data-expected-width=140>100</td>
+    <td style="width:100px;box-sizing:content-box">100</td>
+  </tr>
+</table>
+
+<p class="testdesc">border-box, C0:100/Auto C1:100/Auto
+Same test as above, but box-sizing is border-box.
+<table data-expected-width=230>
+  <tr>
+    <td style="width:100px;box-sizing:border-box" data-expected-width=100>100</td>
+    <td style="width:100px;box-sizing:border-box" data-expected-width=100>100</td>
+  </tr>
+</table>
+
+<h4>TD height: fixed</h4>
+
+<p class="testdesc">content-box, C0 height:100px
+<table data-expected-height=160>
+  <tr>
+    <td style="height:100px;box-sizing:content-box" data-expected-height=140>100 height</td>
+  </tr>
+</table>
+
+<p class="testdesc">border-box, C0 height:100px
+<table data-expected-height=120>
+  <tr>
+    <td style="height:100px;box-sizing:border-box" data-expected-height=100>100 height</td>
+  </tr>
+</table>
+
+<h2>Table-layout: fixed</h2>
+
+<h4>TD width:%</h4>
+
+<p class="testdesc">content-box, C0:50%/100 C1:Auto
+Percent gets resolved to compute grid max size.
+C0 max_width is max_width + 2 padding = 100 + 2*20 = 140
+Table width is 1/50%*140 + 3*padding = 280+30 = 310
+<table style="table-layout:fixed" data-expected-width=310>
+  <tr>
+    <td style="width:50%;box-sizing:content-box" data-expected-width=140>
+      <div style="width:100px">50%/100</td>
+    <td data-expected-width=140>Auto</td>
+  </tr>
+</table>
+
+<p class="testdesc">border-box, C0:50%/100 C1:Auto
+Same test as above, but box-sizing is border-box.
+<table  style="table-layout:fixed" data-expected-width=310>
+  <tr>
+    <td style="width:50%;box-sizing:border-box" data-expected-width=140>
+      <div style="width:100px">50%/100</td>
+    <td data-expected-width=140>Auto</td>
+  </tr>
+</table>
+
+<p class="testdesc">content-box, C0:60%/100 C1:Auto
+Percent gets resolved to compute final cell size from assignable width.
+Assignable width is 530 - 3*10 = 500
+C0 content box width is 500 * 60% + 40px padding = 340
+C1 is 500 - 340 = 160
+<p class="error">Legacy/Edge treat %ge TD as border box, and end up with 300px</p>
+<table  style="table-layout:fixed;width:530px" data-expected-width=530>
+  <tr>
+    <td style="width:60%;box-sizing:content-box" data-expected-width=340>
+      <div style="width:100px">60%/100</td>
+    <td data-expected-width=160>Auto</td>
+  </tr>
+</table>
+
+<p class="testdesc">border-box, C0:60%/100 C1:Auto
+Same as above, but border-box
+<table  style="table-layout:fixed;width:530px" data-expected-width=530>
+  <tr>
+    <td style="width:60%;box-sizing:border-box" data-expected-width=300>
+      <div style="width:100px">80%/100</td>
+    <td data-expected-width=200>Auto</td>
+  </tr>
+</table>
+
+
+<h4>TD width:fixed</h4>
+<p class="testdesc">content-box, C0:100/Auto C1:100/Auto
+Tests whether box-sizing affects how percentages are computed.
+C0 max_width is max_width + 2 padding = 100 + 2*20 = 140
+Table width is 1/50%*140 + 3*padding = 280+30 = 310
+<table  style="table-layout:fixed" data-expected-width=310>
+  <tr>
+    <td style="width:100px;box-sizing:content-box" data-expected-width=140>100</td>
+    <td style="width:100px;box-sizing:content-box">100</td>
+  </tr>
+</table>
+<p class="testdesc">border-box, C0:100/Auto C1:100/Auto
+Same test as above, but box-sizing is border-box.
+<table  style="table-layout:fixed" data-expected-width=230>
+  <tr>
+    <td style="width:100px;box-sizing:border-box" data-expected-width=100>100</td>
+    <td style="width:100px;box-sizing:border-box" data-expected-width=100>100</td>
+  </tr>
+</table>
+</main>
+<script>
+  checkLayout("table");
+</script>

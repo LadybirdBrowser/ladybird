@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<title>table-layout:fixed with various widths</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#in-fixed-mode">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/10937">
+<meta name="assert" content="Fixed table layout is triggered except when inline-size is auto or max-content.">
+<link rel="stylesheet" href="./support/base.css">
+
+<style>
+.wrapper {
+  width: 0;
+}
+x-table {
+  table-layout: fixed;
+  border-spacing: 0px;
+}
+x-td:first-child {
+  padding: 0;
+  background: cyan;
+  width: 50px;
+  height: 50px;
+}
+x-td + x-td {
+  padding: 0;
+  height: 50px;
+}
+x-td > div {
+  width: 100px;
+}
+</style>
+
+<main id="main">
+  <h1>Fixed Layout</h1>
+  <p>Checks whether fixed layout is implemented properly</p>
+</main>
+
+<template id="template">
+  <hr>
+  <p></p>
+  <p></p>
+  <div class="wrapper">
+    <x-table>
+      <x-tr>
+        <x-td>
+          <div></div>
+        </x-td>
+        <x-td></x-td>
+      </x-tr>
+    </x-table>
+  </div>
+</template>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+let sizes = [
+  "10px",
+  "100%",
+  "calc(10px + 100%)",
+  "auto",
+  "min-content",
+  "max-content",
+  "fit-content",
+  "calc-size(any, 10px + 100%)",
+  "fit-content(0)",
+  "stretch",
+  "contain",
+
+  // These are non-standard sizes.
+  "-moz-available",
+  "-webkit-fill-available",
+  "intrinsic",
+  "min-intrinsic",
+];
+
+function checkSize(size, allowsFixed) {
+  let fragment = template.content.cloneNode(true);
+  if (allowsFixed) {
+    fragment.querySelector("p").textContent = "This should be a 50x50 cyan square:";
+    fragment.querySelector("p + p").textContent = "Table-layout:fixed does apply to width:" + size + " tables";
+  } else {
+    fragment.querySelector("p").textContent = "This should be a 100x50 cyan rectangle:";
+    fragment.querySelector("p + p").textContent = "Table-layout:fixed does NOT apply to width:" + size + " tables";
+  }
+  let table = fragment.querySelector("x-table");
+  table.style.width = size;
+  table.querySelector("div").textContent = size;
+  main.appendChild(fragment);
+
+  test(() => {
+    assert_equals(
+      getComputedStyle(table).tableLayout,
+      "fixed",
+      "The computed value is 'fixed' regardless of whether it applies"
+    );
+    if (allowsFixed) {
+      assert_equals(table.offsetWidth, 50, "Table is in fixed mode");
+    } else {
+      assert_equals(table.offsetWidth, 100, "Table is NOT in fixed mode");
+    }
+  }, size);
+}
+
+for (let size of sizes) {
+  if (CSS.supports("width", size)) {
+    let allowsFixed = size !== "auto" && size !== "max-content";
+    checkSize(size, allowsFixed);
+
+    // calc-size() should trigger fixed table layout.
+    // https://drafts.csswg.org/css-values-5/#calc-size
+    let calcSize = "calc-size(" + size + ", size)";
+    if (CSS.supports("width", calcSize)) {
+      checkSize(calcSize, true);
+    }
+  }
+}
+</script>
