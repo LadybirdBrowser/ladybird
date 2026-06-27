@@ -163,6 +163,8 @@ public:
             Application::the().open_file();
         });
 
+        file_menu->addAction(create_application_action(*file_menu, application.open_downloads_page_action(), IncludeActionIcon::No));
+
         auto* open_location_action = add_application_menu_action(*file_menu, "Open &Location", { QKeySequence("Ctrl+L"), QKeySequence("Alt+D") });
         QObject::connect(open_location_action, &QAction::triggered, this, [] {
             Application::the().focus_location_editor();
@@ -461,6 +463,16 @@ void Application::display_download_confirmation_dialog(StringView download_name,
 void Application::display_error_dialog(StringView error_message) const
 {
     QMessageBox::warning(active_tab(), "Ladybird", qstring_from_ak_string(error_message));
+}
+
+void Application::open_download(WebView::FileDownloader::Download const& download) const
+{
+    QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(download.destination.string())));
+}
+
+void Application::show_download_in_folder(WebView::FileDownloader::Download const& download) const
+{
+    QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(download.destination.dirname())));
 }
 
 static QClipboard::Mode clipboard_mode(QClipboard const& clipboard, Application::ClipboardType type)

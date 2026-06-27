@@ -14,6 +14,7 @@ namespace URL {
 
 #define ENUMERATE_INTERNAL_URLS \
     __URL_ENUMERATE(bookmarks)  \
+    __URL_ENUMERATE(downloads)  \
     __URL_ENUMERATE(history)    \
     __URL_ENUMERATE(newtab)     \
     __URL_ENUMERATE(processes)  \

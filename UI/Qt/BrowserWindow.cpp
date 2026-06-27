@@ -291,6 +291,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     m_hamburger_menu->addAction(open_file_action);
     file_menu->addAction(open_file_action);
 
+    m_hamburger_menu->addAction(create_application_action(*this, application.open_downloads_page_action(), IncludeActionIcon::No));
+    file_menu->addAction(create_application_action(*this, application.open_downloads_page_action(), IncludeActionIcon::No));
+
     m_hamburger_menu->addSeparator();
 
     auto* edit_menu = m_hamburger_menu->addMenu("&Edit");
