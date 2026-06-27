@@ -333,62 +333,70 @@ void LineBuilder::update_last_line()
     CSSPixels uppermost_box_top = strut_top;
     CSSPixels lowermost_box_bottom = strut_bottom;
 
+    struct VerticalAlignMetrics {
+        CSSPixels baseline { 0 };
+        CSSPixels height { 0 };
+        CSSPixels effective_box_top_offset { 0 };
+        CSSPixels effective_box_bottom_offset { 0 };
+        CSSPixels line_height { 0 };
+    };
+
+    auto block_offset_value_for_alignment = [&](Variant<CSS::VerticalAlign, CSS::LengthPercentage> const& vertical_align, VerticalAlignMetrics const& metrics) -> CSSPixels {
+        auto alphabetic_baseline = m_current_block_offset + line_box_baseline - metrics.baseline + metrics.effective_box_top_offset;
+
+        if (auto const* length_percentage = vertical_align.get_pointer<CSS::LengthPercentage>())
+            return alphabetic_baseline - length_percentage->to_px(metrics.line_height);
+
+        switch (vertical_align.get<CSS::VerticalAlign>()) {
+        case CSS::VerticalAlign::Baseline:
+            return alphabetic_baseline;
+        case CSS::VerticalAlign::Top:
+            return m_current_block_offset + metrics.effective_box_top_offset;
+        case CSS::VerticalAlign::Middle: {
+            // Align the vertical midpoint of the box with the baseline of the parent box
+            // plus half the x-height of the parent.
+            // FIXME: Per CSS2 §10.8.1 this should use the parent inline box's x-height, not the containing block's.
+            auto const x_height = CSSPixels::nearest_value_for(m_context.containing_block().first_available_font().pixel_metrics().x_height);
+            return m_current_block_offset + line_box_baseline + ((metrics.effective_box_top_offset - metrics.effective_box_bottom_offset - x_height - metrics.height) / 2);
+        }
+        case CSS::VerticalAlign::Sub:
+            // https://drafts.csswg.org/css-inline/#valdef-baseline-shift-sub
+            // Lower by the offset appropriate for subscripts of the parent’s box.
+            // The UA may use the parent’s font metrics to find this offset; otherwise it defaults to dropping by one fifth of the parent’s used font-size.
+            // FIXME: Use font metrics to find a more appropriate offset, if possible
+            return alphabetic_baseline + m_context.containing_block().computed_values().font_size() / 5;
+        case CSS::VerticalAlign::Super:
+            // https://drafts.csswg.org/css-inline/#valdef-baseline-shift-super
+            // Raise by the offset appropriate for superscripts of the parent’s box.
+            // The UA may use the parent’s font metrics to find this offset; otherwise it defaults to raising by one third of the parent’s used font-size.
+            // FIXME: Use font metrics to find a more appropriate offset, if possible
+            return alphabetic_baseline - m_context.containing_block().computed_values().font_size() / 3;
+        case CSS::VerticalAlign::Bottom:
+        case CSS::VerticalAlign::TextBottom:
+        case CSS::VerticalAlign::TextTop:
+            // FIXME: These are all 'baseline'
+            return alphabetic_baseline;
+        }
+        VERIFY_NOT_REACHED();
+    };
+
     for (auto& fragment : line_box.fragments()) {
         CSSPixels new_fragment_inline_offset = inline_offset + fragment.inline_offset();
-        CSSPixels new_fragment_block_offset = 0;
 
-        auto block_offset_value_for_alignment = [&](CSS::VerticalAlign vertical_align) {
-            CSSPixels effective_box_top_offset = fragment.border_box_top();
-            CSSPixels effective_box_bottom_offset = fragment.border_box_top();
-            if (fragment.is_atomic_inline()) {
-                auto const& fragment_box_state = m_layout_state.get(static_cast<Box const&>(fragment.layout_node()));
-                effective_box_top_offset = fragment_box_state.margin_box_top();
-                effective_box_bottom_offset = fragment_box_state.margin_box_bottom();
-            }
-
-            auto alphabetic_baseline = m_current_block_offset + line_box_baseline - fragment.baseline() + effective_box_top_offset;
-
-            switch (vertical_align) {
-            case CSS::VerticalAlign::Baseline:
-                return alphabetic_baseline;
-            case CSS::VerticalAlign::Top:
-                return m_current_block_offset + effective_box_top_offset;
-            case CSS::VerticalAlign::Middle: {
-                // Align the vertical midpoint of the box with the baseline of the parent box
-                // plus half the x-height of the parent.
-                auto const x_height = CSSPixels::nearest_value_for(m_context.containing_block().first_available_font().pixel_metrics().x_height);
-                return m_current_block_offset + line_box_baseline + ((effective_box_top_offset - effective_box_bottom_offset - x_height - fragment.height()) / 2);
-            }
-            case CSS::VerticalAlign::Sub:
-                // https://drafts.csswg.org/css-inline/#valdef-baseline-shift-sub
-                // Lower by the offset appropriate for subscripts of the parent’s box.
-                // The UA may use the parent’s font metrics to find this offset; otherwise it defaults to dropping by one fifth of the parent’s used font-size.
-                // FIXME: Use font metrics to find a more appropriate offset, if possible
-                return alphabetic_baseline + m_context.containing_block().computed_values().font_size() / 5;
-            case CSS::VerticalAlign::Super:
-                // https://drafts.csswg.org/css-inline/#valdef-baseline-shift-super
-                // Raise by the offset appropriate for superscripts of the parent’s box.
-                // The UA may use the parent’s font metrics to find this offset; otherwise it defaults to raising by one third of the parent’s used font-size.
-                // FIXME: Use font metrics to find a more appropriate offset, if possible
-                return alphabetic_baseline - m_context.containing_block().computed_values().font_size() / 3;
-            case CSS::VerticalAlign::Bottom:
-            case CSS::VerticalAlign::TextBottom:
-            case CSS::VerticalAlign::TextTop:
-                // FIXME: These are all 'baseline'
-                return alphabetic_baseline;
-            }
-            VERIFY_NOT_REACHED();
+        VerticalAlignMetrics fragment_metrics {
+            .baseline = fragment.baseline(),
+            .height = fragment.height(),
+            .effective_box_top_offset = fragment.border_box_top(),
+            .effective_box_bottom_offset = fragment.border_box_top(),
+            .line_height = fragment.layout_node().computed_values().line_height(),
         };
-
-        auto const& vertical_align = fragment.layout_node().computed_values().vertical_align();
-        if (vertical_align.has<CSS::VerticalAlign>()) {
-            new_fragment_block_offset = block_offset_value_for_alignment(vertical_align.get<CSS::VerticalAlign>());
-        } else {
-            if (auto const* length_percentage = vertical_align.get_pointer<CSS::LengthPercentage>()) {
-                auto vertical_align_amount = length_percentage->to_px(fragment.layout_node().computed_values().line_height());
-                new_fragment_block_offset = block_offset_value_for_alignment(CSS::VerticalAlign::Baseline) - vertical_align_amount;
-            }
+        if (fragment.is_atomic_inline()) {
+            auto const& fragment_box_state = m_layout_state.get(static_cast<Box const&>(fragment.layout_node()));
+            fragment_metrics.effective_box_top_offset = fragment_box_state.margin_box_top();
+            fragment_metrics.effective_box_bottom_offset = fragment_box_state.margin_box_bottom();
         }
+
+        CSSPixels new_fragment_block_offset = block_offset_value_for_alignment(fragment.layout_node().computed_values().vertical_align(), fragment_metrics);
 
         fragment.set_inline_offset(new_fragment_inline_offset);
         fragment.set_block_offset(floor(new_fragment_block_offset) + block_offset);
