@@ -180,7 +180,7 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return static_cast<WebView::ViewImplementation&>(tab.view());
 }
 
-Optional<ByteString> Application::ask_user_for_download_path(StringView file) const
+Optional<ByteString> Application::ask_user_for_download_path(ByteString const& file) const
 {
     if (!m_active_window)
         return {};
@@ -193,7 +193,7 @@ Optional<ByteString> Application::ask_user_for_download_path(StringView file) co
         GObjectPtr initial_folder { g_file_new_for_path(downloads_dir) };
         gtk_file_dialog_set_initial_folder(GTK_FILE_DIALOG(dialog.ptr()), G_FILE(initial_folder.ptr()));
     }
-    gtk_file_dialog_set_initial_name(GTK_FILE_DIALOG(dialog.ptr()), ByteString(file).characters());
+    gtk_file_dialog_set_initial_name(GTK_FILE_DIALOG(dialog.ptr()), file.characters());
 
     struct FileDialogSaveResult {
         bool done { false };

@@ -68,7 +68,7 @@ void BookmarksUI::export_bookmarks(JsonValue const& data)
     if (!data.is_string())
         return;
 
-    auto destination = Application::the().path_for_downloaded_file("bookmarks.html"sv);
+    auto destination = Application::the().path_for_downloaded_file(ByteString { "bookmarks.html" });
     if (destination.is_error())
         return;
 
