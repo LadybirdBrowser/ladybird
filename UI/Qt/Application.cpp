@@ -425,14 +425,14 @@ void Application::open_url_in_new_window(URL::URL const& url)
     this->new_window({ url });
 }
 
-Optional<ByteString> Application::ask_user_for_download_path(StringView file) const
+Optional<ByteString> Application::ask_user_for_download_path(ByteString const& file) const
 {
     auto default_path = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
 
     if (default_path.isNull() || default_path.isEmpty())
-        default_path = qstring_from_ak_string(file);
+        default_path = qstring_from_ak_string(file.view());
     else
-        default_path = QDir { default_path }.filePath(qstring_from_ak_string(file));
+        default_path = QDir { default_path }.filePath(qstring_from_ak_string(file.view()));
 
     auto path = QFileDialog::getSaveFileName(nullptr, "Select save location", default_path);
     if (path.isNull())

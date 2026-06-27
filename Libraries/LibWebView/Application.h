@@ -132,7 +132,7 @@ public:
 
     virtual bool should_capture_web_content_output() const { return false; }
 
-    ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
+    ErrorOr<LexicalPath> path_for_downloaded_file(ByteString const& file) const;
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
@@ -223,7 +223,7 @@ protected:
     virtual void create_platform_options(BrowserOptions&, RequestServerOptions&, WebContentOptions&) { }
     virtual Core::EventLoop& create_platform_event_loop();
 
-    virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] StringView file) const { return {}; }
+    virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] ByteString const& file) const { return {}; }
 
     virtual void update_tabs_display() const { }
 

@@ -1209,7 +1209,7 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
     }
 }
 
-ErrorOr<LexicalPath> Application::path_for_downloaded_file(StringView file) const
+ErrorOr<LexicalPath> Application::path_for_downloaded_file(ByteString const& file) const
 {
     if (browser_options().headless_mode.has_value()) {
         auto downloads_directory = Core::StandardPaths::downloads_directory();
@@ -1219,7 +1219,7 @@ ErrorOr<LexicalPath> Application::path_for_downloaded_file(StringView file) cons
             return Error::from_errno(ENOENT);
         }
 
-        return LexicalPath::join(downloads_directory, file);
+        return LexicalPath::join(downloads_directory, file.view());
     }
 
     auto download_path = ask_user_for_download_path(file);
