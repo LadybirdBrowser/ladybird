@@ -1,0 +1,60 @@
+<!doctype html>
+<title>Auto table layout should honor min-width on table cells</title>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/#computing-column-measures" />
+<style>
+table { border-collapse: collapse; }
+td { padding: 0; }
+</style>
+
+<table style="width:400px; height:20px" id="basic">
+  <tr>
+    <td>&nbsp;</td>
+    <td id="basic-clamped" style="width:50px; min-width:150px; background:blue;">&nbsp;</td>
+  </tr>
+</table>
+
+<table style="width:400px; height:20px" id="smaller-min">
+  <tr>
+    <td>&nbsp;</td>
+    <td id="smaller-min-cell" style="width:150px; min-width:50px; background:blue;">&nbsp;</td>
+  </tr>
+</table>
+
+<table style="width:400px; height:20px" id="equal-min">
+  <tr>
+    <td>&nbsp;</td>
+    <td id="equal-min-cell" style="width:100px; min-width:100px; background:blue;">&nbsp;</td>
+  </tr>
+</table>
+
+<table style="width:400px; height:20px" id="min-wins">
+  <tr>
+    <td>&nbsp;</td>
+    <td id="min-wins-cell" style="width:200px; min-width:150px; max-width:100px; background:blue;">&nbsp;</td>
+  </tr>
+</table>
+
+<script>
+test(() => {
+  assert_equals(document.getElementById('basic-clamped').offsetWidth, 150,
+    'min-width:150px should override width:50px');
+}, 'Cell with min-width larger than width is expanded');
+
+test(() => {
+  assert_equals(document.getElementById('smaller-min-cell').offsetWidth, 150,
+    'min-width:50px should not increase width:150px');
+}, 'Cell with min-width smaller than width is not affected');
+
+test(() => {
+  assert_equals(document.getElementById('equal-min-cell').offsetWidth, 100,
+    'min-width:100px equal to width:100px should not change width');
+}, 'Cell with min-width equal to width is not affected');
+
+test(() => {
+  assert_equals(document.getElementById('min-wins-cell').offsetWidth, 150,
+    'min-width:150px should win over max-width:100px');
+}, 'Cell with min-width larger than max-width uses min-width');
+</script>
+</html>

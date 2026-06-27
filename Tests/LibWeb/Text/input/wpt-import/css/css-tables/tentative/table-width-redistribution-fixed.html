@@ -1,0 +1,374 @@
+<!doctype html>
+<title>Fixed table final assignable  distribution</title>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<link rel="stylesheet" type="text/css" href="./support/table-tentative.css">
+<link rel="author" title="Aleks Totic" href="atotic@chromium.org" />
+<link rel="help" href="https://www.w3.org/TR/css-tables-3/#distributing-width-to-columns" />
+<style>
+  main table {
+    background: gray;
+    border-spacing: 8px 8px;
+    table-layout: fixed;
+  }
+  main table:hover { table-layout: auto; } /* useful for comparisons */
+  main td {
+    background: #BFB;
+    font-size: 10px;
+  }
+  main td > div {
+    display: inline-block;
+    background: rgba(56,162,56,0.3);
+    height:10px;
+  }
+</style>
+<main>
+ <h1>Fixed tables: Compute column computed widths from assignable table width</h1>
+<ul>
+  <li>auto columns have a min width of 0. Max width still gets computed.</li>
+  <li>percent columns have a min width of 0.</li>
+  <li>fixed column.min_width is css width. It never changes.</li>
+  <li>fixed column.max_width is max(cells.max_width, css width).</li>
+  <li>colspan header cells distribute
+    <ul>
+      <li>max_width evenly between columns.</li>
+      <li>do not distribute min width</li>
+      <li>percentage evenly between columns</li>
+    </ul>
+  </li>
+</ul>
+
+<h2>Is table treated as fixed?</h2>
+<p class="testdesc">table width:auto is not treated as fixed.</p>
+<table style="table-layout:fixed; width:auto" data-expected-width=324>
+  <tr>
+    <td style="width:200px">200</td>
+    <td><div style="width:100px">min</div></td>
+  </tr>
+</table>
+<p class="testdesc">table width:px is treated as fixed.</p>
+<table style="table-layout:fixed; width:224px" data-expected-width=224>
+  <tr>
+    <td style="width:200px">200</td>
+    <td><div style="width:100px">min</div></td>
+  </tr>
+</table>
+<p class="testdesc">table width:min-content is treated as fixed.</p>
+<table style="table-layout:fixed; width:min-content" data-expected-width=224>
+  <tr>
+    <td style="width:200px">200</td>
+    <td><div style="width:100px">min</div></td>
+  </tr>
+</table>
+
+<h2>Fixed only</h2>
+
+<p class="testdesc">Table: 50px; C0:100/50/100 C1:100/50/75
+When table.css_width is &lt; columns.css_width, how is the conflict resolved?
+columns.css_width wins</p>
+<table style="width:50px" data-expected-width=224>
+  <tr>
+    <td style="width:100px" data-expected-width=100>
+      <div style="width:50px">50</div><div style="width:50px">50</div></td>
+    <td style="width:100px" data-expected-width=100>
+      <div style="width:50px">50</div><div style="width:25px">25</div></td>
+  </tr>
+</table>
+
+<p class="testdesc">Table: 300px; C0:100/100/200 C1:100/90/115
+When table.css_width is > columns.css_width , how is the conflict resolved?
+table.css_width wins</p>
+<table style="width:300px" data-expected-width=300>
+  <tr>
+    <td style="width:100px" data-expected-width=138>
+      <div style="width:100px">100</div><div style="width:100px">100</div></td>
+    <td style="width:100px" data-expected-width=138>
+      <div style="width:90px">90</div><div style="width:25px">25</div></td>
+  </tr>
+</table>
+
+<p class="testdesc">Table: 300px; C0:100/50/50 C1:100/100/100
+Fixed cells must grow, but their min widths differ.
+Fixed cells grow in proportion to their css width.
+<table style="width:calc(300px + 24px)" data-expected-width=324>
+  <tr>
+    <td style="width:100px" data-expected-width=150>
+      <div style="width:50px">50</div></td>
+    <td style="width:100px" data-expected-width=150>
+      <div style="width:100px">100</div></td>
+  </tr>
+</table>
+
+<p class="testdesc">Table: 50px; C0:100/50/50 C1:100/100/100
+What happens when column.min_width > column.css_width
+column.css_width wins over column.min_width.
+<table style="width:100px" data-expected-width=224>
+  <tr>
+    <td style="width:100px" data-expected-width=100>
+      <div style="width:200px"></div></td>
+    <td style="width:100px" data-expected-width=100>
+      <div style="width:200px"></div></td>
+  </tr>
+</table>
+
+<p class="testdesc">Table: 1px.
+What happens to min_width when multiple cells specify css_width of the same column?
+1st cell wins.
+<table style="width:1px" data-expected-width=116>
+  <tr>
+    <td style="width:100px" data-expected-width=100>
+      <div style="width:200px">200</div></td>
+  </tr>
+      <td style="width:150px" data-expected-width=100>
+        <div style="width:150px">150</div></td>
+  </tr>
+</table>
+
+<h2>Auto only</h2>
+
+<p class="testdesc">Width is distributed evenly
+</p>
+<table style="width:548px">
+  <tr>
+    <td data-expected-width=100><div style="width:10px;height:30px"></div></td>
+    <td data-expected-width=100><div style="width:20px;height:30px"></div></td>
+    <td data-expected-width=100><div style="width:30px;height:30px"></div></td>
+    <td data-expected-width=100><div style="width:40px;height:30px"></div></td>
+    <td data-expected-width=100><div style="width:120px;height:30px"></div></td>
+  </tr>
+</table>
+
+<h2>Colspan distribution</h2>
+
+<p class="testdesc">Table: 1px
+Does column.min_width change with colspan distribution from later rows to first row?
+No
+<table style="width:1px" data-expected-width=74>
+  <tr>
+    <td data-expected-width=0>
+      <div style="width:50px"></div></td>
+    <td style="width:50px" data-expected-width=50>
+      <div style="width:50px"></div></td>
+  </tr>
+  <tr>
+    <td colspan=2 style="width:200px" data-expected-width=58>
+      <div style="width:200px"></div></td>
+  </tr>
+</table>
+
+<p class="testdesc">Table: 632px
+Does column.percent change with colspan distribution?
+No.
+<table style="width:632px" data-expected-width=632>
+  <tr>
+    <td data-expected-width=360>
+      <div style="width:50px"></div></td>
+    <td style="width:20%"  data-expected-width=120>
+      <div style="width:50px"></div></td>
+    <td style="width:20%" data-expected-width=120></td>
+  </tr>
+  <tr>
+    <td colspan="2" style="width:90%">
+      <div style="width:100px"></div></td>
+    <td>auto</td>
+  </tr>
+</table>
+
+<h2>Colspan header cells</h2>
+<section>
+<ol>
+  <li>Fixed/percentage colspan cells get distributed evenly.</li>
+  <li>Auto cells</li>
+</ol>
+
+<p class="testdesc">Assignable: 400px
+Fixed header cells with colspan.
+Columns divded evenly</p>
+<p class="error">Legacy Chrome is slightly off, something about spacing and wide cells.</p>
+<table style="width:calc(600px + 40px)" data-expected-width=640>
+  <tr>
+    <td colspan=2 style="width:108px" data-expected-width=208>108</td>
+    <td colspan=2 style="width:208px" data-expected-width=408>208</td>
+  </tr>
+  <tr>
+    <td data-expected-width=100>1</td>
+    <td>1</td>
+    <td data-expected-width=200>1</td>
+    <td>1</td>
+  </tr>
+</table>
+
+<p class="testdesc">Assignable: 400px, C0:40% C1:20% C2:40%
+Percentage header cells with colspan
+C0 splits into C0.0 and C0.1, 16px each with 20%
+C1 splits into C1.0 and C1.1, 6px each with 10%
+Assignable width is 400, everyone gets according to percent.
+80/80/40/40/160.</p>
+<p class="error">Firefox is slightly off, with C2 taking 6px more. Unknown what math is used to get this answer.</p>
+<table style="width:448px" data-expected-width=448>
+  <tr>
+    <td colspan=2 style="width:40%" data-expected-width=168><div style="width:40px"></div></td>
+    <td colspan=2 style="width:20%" data-expected-width=88><div style="width:160px"></div></td>
+    <td style="width:40%" data-expected-width=160><div style="width:40px"></div></td>
+  </tr>
+  <tr>
+    <td data-expected-width=80>Auto</td>
+    <td data-expected-width=80>Auto</td>
+    <td data-expected-width=40>Auto</td>
+    <td data-expected-width=40>Auto</td>
+    <td data-expected-width=160>Auto</td>
+  </tr>
+</table>
+
+<p class="testdesc">Assignable: 1px, C0 Auto/100 colspan=2 , C1 100/Auto
+Auto header cells with colspan, table is min width
+min_width does not get redistributed.
+</p>
+<table style="width:1px" data-expected-width=132>
+  <tr>
+    <td colspan=2 data-expected-width=8>
+      <div style="width:100px">100</div></td>
+    <td style="width:100px" data-expected-width=100>100</td>
+  </tr>
+  <tr>
+    <td data-expected-width=0>x</td>
+    <td data-expected-width=0>x</td>
+    <td data-expected-width=100>x</td>
+  </tr>
+</table>
+
+<p class="testdesc">Assignable: 200; C0: colspan:2 Auto C1:colspan 8 Auto
+Auto colspan cells, and nothing else. Tricky because this means that internally
+table has to represent 8 cells, and wide cells that span beyond table width
+are usually truncated.
+C0: 20*2+8=48, C1: 20*8 + 7*8=216</p>
+<table style="width:calc(200px + 88px)" data-expected-width=288>
+  <tr>
+    <td colspan=2 style="height:20px" data-expected-width=48></td>
+    <td colspan=8 style="height:20px" data-expected-width=216></td>
+  </tr>
+</table>
+
+<h2>Percentage only</h2>
+
+<p class="testdesc">Assignable: 100px;columns add to 100%, auto width
+Columns are exact percentage size.
+<table style="width:calc(100px + 32px)" data-expected-width=132>
+  <tr>
+    <td style="width:50%" data-expected-width=50>50%</td>
+    <td style="width:30%" data-expected-width=30>30%</td>
+    <td style="width:20%" data-expected-width=20>20%</td>
+  </tr>
+</table>
+
+<p class="testdesc">Assignable: 100px;columns add to 50%, auto width
+Columns grow proportional to percent.
+<table style="width:calc(100px + 32px)" data-expected-width=132>
+  <tr>
+    <td style="width:25%" data-expected-width=50>25%</td>
+    <td style="width:15%" data-expected-width=30>15%</td>
+    <td style="width:10%" data-expected-width=20>10%</td>
+  </tr>
+</table>
+
+
+<p class="testdesc">Assignable: 100px;columns add to 50%, with min width
+Min width is ignored.
+<table style="width:calc(100px + 32px)" data-expected-width=132>
+  <tr>
+    <td style="width:50%" data-expected-width=50><div style="width:50px">50</div></td>
+    <td style="width:30%" data-expected-width=30><div style="width:50px">50</div></td>
+    <td style="width:20%" data-expected-width=20><div style="width:50px">50</div></td>
+  </tr>
+</table>
+
+<p class="testdesc">Assignable: 100px;columns add to 1000%
+Columns are scaled so they add up to 100%
+<table style="width:calc(100px + 32px)" data-expected-width=132>
+  <tr>
+    <td style="width:200%" data-expected-width=20><div style="width:50px">50</div></td>
+    <td style="width:300%" data-expected-width=30><div style="width:50px">50</div></td>
+    <td style="width:500%" data-expected-width=50><div style="width:50px">50</div></td>
+  </tr>
+</table>
+
+
+
+<h2>Percentage/auto/fixed mix</h2>
+
+<p class="testdesc">Assignable: 100px;C0:50% C1:100px C2: Auto
+C0, C1 get assigned values, C2 fills the rest.
+<table style="width:calc(100px + 32px)" data-expected-width=132>
+  <tr>
+    <td style="width:50%" data-expected-width=50>50%</td>
+    <td style="width:30px" data-expected-width=30>30px</td>
+    <td data-expected-width=20></td>
+  </tr>
+</table>
+
+<p class="testdesc">Assignable: 100px;C0:50% C1:50px
+Clean split
+<table style="width:calc(100px + 24px)" data-expected-width=124>
+  <tr>
+    <td style="width:50%" data-expected-width=50>50%</td>
+    <td style="width:50px" data-expected-width=50>50px</td>
+  </tr>
+</table>
+
+<p class="testdesc">Assignable: 100px;C0:20% C1:60% C2:60px
+Overconstrained: widths add up to 140.
+Fixed widths get distributed first, percentage takes the rest.
+<table style="width:calc(100px + 32px)" data-expected-width=132>
+  <tr>
+    <td style="width:20%" data-expected-width=10>20%</td>
+    <td style="width:60%" data-expected-width=30>60%</td>
+    <td style="width:60px" data-expected-width=60>60px</td>
+  </tr>
+</table>
+
+<h2>Fixed 0-width columns</h2>
+<p>Fixed 0-width columns are an exception. They are treated as a mix of fixed and auto columns.</p>
+  <li>If there are only zero-width columns, width is distibuted evenly.</li>
+  <li>If there are any fixed,percentage, or auto columns,  0-width columns do not grow.</li>
+<p class="testdesc">Assignable: 100px;C0:0-width, C1:0-width
+  All 0-width columns grow.
+</p>
+<table style="width:calc(100px + 24px)" data-expected-width=124>
+  <tr>
+    <td style="width:0" data-expected-width=50>0</td>
+    <td style="width:0" data-expected-width=50>0</td>
+  </tr>
+</table>
+<p class="testdesc">Assignable: 100px;C0:0-width, C1:auto
+  0-width column does not grow.
+</p>
+<table style="width:calc(100px + 24px)" data-expected-width=124>
+  <tr>
+    <td style="width:0" data-expected-width=0>0</td>
+    <td style="width:auto" data-expected-width=100>0</td>
+  </tr>
+</table>
+<p class="testdesc">Assignable: 100px;C0:0-width, C1:50px
+  0-width column does not grow.
+</p>
+<table style="width:calc(100px + 24px)" data-expected-width=124>
+  <tr>
+    <td style="width:0" data-expected-width=0>0</td>
+    <td style="width:50px" data-expected-width=100>0</td>
+  </tr>
+</table>
+<p class="testdesc">Assignable: 100px;C0:0-width, C1:50%
+  0-width column does not grow.
+</p>
+<table style="width:calc(100px + 24px)" data-expected-width=124>
+  <tr>
+    <td style="width:0" data-expected-width=0>0</td>
+    <td style="width:50%" data-expected-width=100>0</td>
+  </tr>
+</table>
+
+</main>
+<script>
+  checkLayout("table");
+</script>
