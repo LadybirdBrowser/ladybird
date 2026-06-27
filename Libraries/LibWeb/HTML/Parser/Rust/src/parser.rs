@@ -2265,59 +2265,93 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intr
     fn handle_in_row(&mut self, token: Token) {
+        // -> A start tag whose tag name is one of: "th", "td"
         if token.is_start_tag_one_of(&["td", "th"]) {
+            // Clear the stack back to a table row context. (See below.)
             self.clear_the_stack_back_to_a_table_row_context();
+
+            // Insert an HTML element for the token, then switch the insertion mode to "in cell".
             self.insert_html_element_for(&token, self.current_insertion_parent_handle());
             self.insertion_mode = InsertionMode::InCell;
+
+            // Insert a marker at the end of the list of active formatting elements.
             self.insert_marker_at_the_end_of_the_list_of_active_formatting_elements();
             return;
         }
 
+        // -> An end tag whose tag name is "tr"
         if token.is_end_tag_named("tr") {
+            // If the stack of open elements does not have a tr element in table scope, this is a parse error; ignore the token.
             if !self.has_in_table_scope("tr") {
                 // Parse error. Ignore the token.
                 self.parse_error("tr end tag without tr element in table scope");
                 return;
             }
+            // Otherwise:
+            // 1. Clear the stack back to a table row context. (See below.)
             self.clear_the_stack_back_to_a_table_row_context();
+
+            // 2. Pop the current node (which will be a tr element) from the stack of open elements.
+            //    Switch the insertion mode to "in table body".
             self.pop_until_tag_name_has_been_popped("tr");
             self.insertion_mode = InsertionMode::InTableBody;
             return;
         }
 
+        // -> A start tag whose tag name is one of: "caption", "col", "colgroup", "tbody", "tfoot", "thead", "tr"
+        // -> An end tag whose tag name is "table"
         if token.is_start_tag_one_of(&["caption", "col", "colgroup", "tbody", "tfoot", "thead", "tr"])
             || token.is_end_tag_named("table")
         {
+            // If the stack of open elements does not have a tr element in table scope, this is a parse error; ignore the token.
             if !self.has_in_table_scope("tr") {
-                // Parse error. Ignore the token.
                 self.parse_error("table token in row insertion mode without tr element in table scope");
                 return;
             }
+
+            // Otherwise:
+            // 1. Clear the stack back to a table row context. (See below.)
+            // 2. Pop the current node (which will be a tr element) from the stack of open elements.
+            //    Switch the insertion mode to "in table body".
+            // 3. Reprocess the token.
             self.process_using_the_rules_for(InsertionMode::InRow, Token::synthetic_end_tag("tr"));
             self.process_using_the_rules_for(InsertionMode::InTableBody, token);
             return;
         }
 
+        // -> An end tag whose tag name is one of: "tbody", "tfoot", "thead"
         if token.is_end_tag_one_of(&["tbody", "tfoot", "thead"]) {
+            // If the stack of open elements does not have an element in table scope that is an HTML element with the same
+            // tag name as the token, this is a parse error; ignore the token.
             if !self.has_in_table_scope(token.tag_name()) {
-                // Parse error. Ignore the token.
                 self.parse_error("table body end tag in row insertion mode without matching element in table scope");
                 return;
             }
+
+            // If the stack of open elements does not have a tr element in table scope, ignore the token.
             if !self.has_in_table_scope("tr") {
                 return;
             }
+
+            // Otherwise:
+            // 1. Clear the stack back to a table row context. (See below.)
+            // 2. Pop the current node (which will be a tr element) from the stack of open elements.
+            //    Switch the insertion mode to "in table body".
+            // 3. Reprocess the token.
             self.process_using_the_rules_for(InsertionMode::InRow, Token::synthetic_end_tag("tr"));
             self.process_using_the_rules_for(InsertionMode::InTableBody, token);
             return;
         }
 
+        // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html", "td", "th"
         if token.is_end_tag_one_of(&["body", "caption", "col", "colgroup", "html", "td", "th"]) {
             // Parse error. Ignore the token.
             self.parse_error("unexpected end tag in in row insertion mode");
             return;
         }
 
+        // -> Anything else
+        // Process the token using the rules for the "in table" insertion mode.
         self.process_using_the_rules_for(InsertionMode::InTable, token);
     }
 
