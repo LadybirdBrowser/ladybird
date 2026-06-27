@@ -34,6 +34,7 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QMimeDatabase>
+#include <QPainter>
 #include <QResizeEvent>
 #include <QTimer>
 
@@ -73,6 +74,68 @@ private:
 
         menu->popup(QPoint { bottom_right.x() - menu_width, bottom_right.y() });
     }
+};
+
+class DownloadsButton final : public QToolButton {
+public:
+    using QToolButton::QToolButton;
+
+    void set_progress(Optional<double> progress)
+    {
+        m_progress = AK::move(progress);
+        update();
+    }
+
+protected:
+    virtual void paintEvent(QPaintEvent* event) override
+    {
+        QToolButton::paintEvent(event);
+
+        if (!m_progress.has_value())
+            return;
+
+        auto progress = *m_progress;
+        if (progress < 0.0)
+            progress = 0.0;
+        if (progress > 1.0)
+            progress = 1.0;
+
+        constexpr qreal bar_height = 3.0;
+        constexpr qreal bar_bottom_margin = 1.0;
+        auto const icon_size = this->iconSize();
+        auto icon_rect = QRectF {
+            (static_cast<qreal>(width()) - icon_size.width()) / 2.0,
+            (static_cast<qreal>(height()) - icon_size.height()) / 2.0,
+            static_cast<qreal>(icon_size.width()),
+            static_cast<qreal>(icon_size.height())
+        };
+        auto bar_rect = QRectF {
+            icon_rect.left(),
+            icon_rect.top() + icon_rect.height() - bar_bottom_margin - bar_height,
+            icon_rect.width(),
+            bar_height
+        };
+        auto fill_rect = bar_rect;
+        fill_rect.setWidth(bar_rect.width() * progress);
+
+        auto track_color = ChromeStyle::chrome_control_border(palette());
+        track_color.setAlpha(112);
+        auto fill_color = ChromeStyle::chrome_accent(palette());
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(track_color);
+        painter.drawRoundedRect(bar_rect, 1.5, 1.5);
+
+        if (fill_rect.width() > 0.0) {
+            painter.setBrush(fill_color);
+            painter.drawRoundedRect(fill_rect, 1.5, 1.5);
+        }
+    }
+
+private:
+    Optional<double> m_progress;
 };
 
 static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
@@ -134,6 +197,22 @@ static constexpr int TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP = 22;
 static constexpr int TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP = 8;
 static constexpr int TOOLBAR_LOCATION_EDIT_SIDE_GAP = 32;
 static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
+
+static QString download_count_text(size_t count, char const* singular, char const* plural)
+{
+    return QString("%1 %2").arg(count).arg(count == 1 ? singular : plural);
+}
+
+static QString download_percent_text(double progress)
+{
+    if (progress < 0.0)
+        progress = 0.0;
+    if (progress > 1.0)
+        progress = 1.0;
+
+    auto percent = static_cast<int>(progress * 100.0);
+    return QString("%1%").arg(percent);
+}
 
 Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
     : QWidget(window)
@@ -214,6 +293,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
     m_reload_action = create_application_action(*this, application.reload_action());
     m_toggle_vertical_tabs_expanded_action = create_application_action(*this, application.toggle_vertical_tabs_expanded_action());
+    m_open_downloads_page_action = create_application_action(*this, application.open_downloads_page_action());
 
     m_toolbar_window_controls_separator = new QWidget(m_toolbar);
     m_toolbar_window_controls_separator->setObjectName("LadybirdToolbarWindowControlsSeparator");
@@ -276,6 +356,14 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     toolbar_layout->addWidget(location_edit_container, 1);
     m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
     toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignTop);
+    m_downloads_button = new DownloadsButton(m_toolbar);
+    m_downloads_button->setDefaultAction(m_open_downloads_page_action);
+    m_downloads_button->setAutoRaise(true);
+    m_downloads_button->setFocusPolicy(Qt::NoFocus);
+    m_downloads_button->setIconSize({ 20, 20 });
+    m_downloads_button->setFixedSize(36, 36);
+    m_downloads_button->setVisible(m_open_downloads_page_action->isVisible());
+    toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignTop);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
     if (use_right_custom_window_controls()) {
         toolbar_layout->addWidget(m_toolbar_window_controls_separator, 0, Qt::AlignVCenter);
@@ -283,6 +371,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     }
 
     update_chrome_style();
+    update_downloads_button();
     set_toolbar_window_controls_visible(false);
 
     view().on_activate_tab = [this] {
@@ -871,6 +960,7 @@ void Tab::recreate_toolbar_icons()
     m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
     m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
+    update_downloads_button();
     m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
     update_window_control_icons();
 
@@ -878,6 +968,82 @@ void Tab::recreate_toolbar_icons()
         auto icon = view().toggle_bookmark_action().engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star;
         action->setIcon(create_chrome_icon(icon, palette()));
     }
+}
+
+void Tab::update_downloads_button()
+{
+    if (!m_downloads_button)
+        return;
+
+    auto downloads = WebView::Application::the().file_downloader().downloads();
+    using DownloadStatus = WebView::FileDownloader::DownloadStatus;
+
+    size_t active_download_count = 0;
+    size_t unknown_active_download_count = 0;
+    size_t failed_download_count = 0;
+    double known_downloaded_size = 0.0;
+    double known_total_size = 0.0;
+    for (auto const& download : downloads) {
+        switch (download.status) {
+        case DownloadStatus::InProgress:
+            ++active_download_count;
+            if (download.total_size.has_value() && *download.total_size > 0) {
+                known_downloaded_size += min(download.downloaded_size, *download.total_size);
+                known_total_size += *download.total_size;
+            } else {
+                ++unknown_active_download_count;
+            }
+            break;
+        case DownloadStatus::Completed:
+            break;
+        case DownloadStatus::Canceled:
+            break;
+        case DownloadStatus::Failed:
+            ++failed_download_count;
+            break;
+        }
+    }
+
+    m_downloads_button->setVisible(!downloads.is_empty());
+    m_open_downloads_page_action->setIcon(create_chrome_icon(active_download_count > 0 ? ChromeIcon::DownloadActive : ChromeIcon::Download, palette()));
+
+    Optional<double> active_download_progress;
+    if (known_total_size > 0.0)
+        active_download_progress = known_downloaded_size / known_total_size;
+    static_cast<DownloadsButton*>(m_downloads_button)->set_progress(active_download_count > 0 ? active_download_progress : Optional<double> {});
+
+    QString tooltip;
+    if (active_download_count > 0) {
+        if (active_download_progress.has_value() && unknown_active_download_count == 0) {
+            if (active_download_count == 1) {
+                tooltip = QString("Downloading - %1")
+                              .arg(download_percent_text(*active_download_progress));
+            } else {
+                tooltip = QString("%1 downloads - %2")
+                              .arg(active_download_count)
+                              .arg(download_percent_text(*active_download_progress));
+            }
+        } else {
+            tooltip = download_count_text(active_download_count, "download in progress", "downloads in progress");
+        }
+    } else if (failed_download_count > 0) {
+        tooltip = download_count_text(failed_download_count, "download failed", "downloads failed");
+    } else {
+        tooltip = "Downloads";
+    }
+
+    m_open_downloads_page_action->setToolTip(tooltip);
+    m_downloads_button->setToolTip(tooltip);
+}
+
+void Tab::download_added(WebView::FileDownloader::Download const&)
+{
+    update_downloads_button();
+}
+
+void Tab::download_updated(WebView::FileDownloader::Download const&)
+{
+    update_downloads_button();
 }
 
 void Tab::update_vertical_tabs_toolbar_button_placement()

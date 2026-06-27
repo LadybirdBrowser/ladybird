@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWebView/FileDownloader.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/FindInPageWidget.h>
@@ -49,6 +50,7 @@ signals:
 
 class Tab final
     : public QWidget
+    , public WebView::FileDownloaderObserver
     , public WebView::SettingsObserver {
     Q_OBJECT
 
@@ -115,9 +117,13 @@ private:
     void update_hamburger_menu();
     void update_chrome_style();
     void update_tab_title();
+    void update_downloads_button();
     void set_loading(bool);
     void update_tab_icon();
     int tab_index();
+
+    virtual void download_added(WebView::FileDownloader::Download const&) override;
+    virtual void download_updated(WebView::FileDownloader::Download const&) override;
 
     QWidget* m_toolbar_container { nullptr };
     QWidget* m_toolbar { nullptr };
@@ -132,6 +138,7 @@ private:
     WindowControlButton* m_close_window_button { nullptr };
     BookmarksBar* m_bookmarks_bar { nullptr };
     QToolButton* m_hamburger_button { nullptr };
+    QToolButton* m_downloads_button { nullptr };
     LocationEdit* m_location_edit { nullptr };
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };
@@ -157,6 +164,7 @@ private:
     QAction* m_navigate_back_action { nullptr };
     QAction* m_navigate_forward_action { nullptr };
     QAction* m_reload_action { nullptr };
+    QAction* m_open_downloads_page_action { nullptr };
 
     QPointer<QDialog> m_dialog;
 
