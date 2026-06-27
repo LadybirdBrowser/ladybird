@@ -35,7 +35,7 @@ public:
     GC::Ref<SVG::SVGAnimatedLength> width();
     GC::Ref<SVG::SVGAnimatedLength> height();
 
-    Gfx::FloatRect bounding_box() const;
+    Gfx::FloatRect bounding_box(CSSPixelSize viewport_size) const;
 
     // ^Layout::ImageProvider
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
@@ -56,10 +56,10 @@ private:
     virtual RefPtr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
     virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
 
-    GC::Ptr<SVG::SVGAnimatedLength> m_x;
-    GC::Ptr<SVG::SVGAnimatedLength> m_y;
-    GC::Ptr<SVG::SVGAnimatedLength> m_width;
-    GC::Ptr<SVG::SVGAnimatedLength> m_height;
+    Optional<NumberPercentage> m_x;
+    Optional<NumberPercentage> m_y;
+    Optional<NumberPercentage> m_width;
+    Optional<NumberPercentage> m_height;
 
     Optional<URL::URL> m_href;
 
