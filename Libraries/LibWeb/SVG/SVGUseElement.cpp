@@ -176,9 +176,9 @@ void SVGUseElement::attribute_changed(FlyString const& name, Optional<String> co
 
     // https://svgwg.org/svg2-draft/struct.html#UseLayout
     if (name == SVG::AttributeNames::x) {
-        m_x = AttributeParser::parse_coordinate(value.value_or(String {}));
+        m_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::y) {
-        m_y = AttributeParser::parse_coordinate(value.value_or(String {}));
+        m_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::href || name == "xlink:href"_fly_string) {
         // When the ‘href’ attribute is set (or, in the absence of an ‘href’ attribute, an ‘xlink:href’ attribute), the user agent must process the URL.
         process_the_url(value);
@@ -218,9 +218,20 @@ bool SVGUseElement::is_referenced_element_same_document() const
 
 Gfx::AffineTransform SVGUseElement::element_transform() const
 {
+    CSSPixelSize viewport_size;
+    if (auto* svg_svg_element = first_flat_tree_ancestor_of_type<SVGSVGElement>()) {
+        if (auto view_box = svg_svg_element->active_view_box(); view_box.has_value())
+            viewport_size = { CSSPixels::nearest_value_for(view_box->width), CSSPixels::nearest_value_for(view_box->height) };
+        else if (auto svg_svg_layout_node = svg_svg_element->unsafe_layout_node())
+            viewport_size = { svg_svg_layout_node->computed_values().width().to_px(0), svg_svg_layout_node->computed_values().height().to_px(0) };
+    }
+
+    auto x = m_x.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float());
+    auto y = m_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float());
+
     // The x and y properties define an additional transformation (translate(x,y), where x and y represent the computed value of the corresponding property)
     // to be applied to the ‘use’ element, after any transformations specified with other properties
-    return Base::element_transform().translate(m_x.value_or(0), m_y.value_or(0));
+    return Base::element_transform().translate(x, y);
 }
 
 void SVGUseElement::svg_element_changed(SVGElement& svg_element)
@@ -390,8 +401,9 @@ GC::Ref<SVGAnimatedLength> SVGUseElement::x() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_x.value_or(0), SVGLength::ReadOnly::Yes);
+    auto value = m_x.value_or(NumberPercentage::create_number(0)).value();
+    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
@@ -400,8 +412,9 @@ GC::Ref<SVGAnimatedLength> SVGUseElement::y() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_y.value_or(0), SVGLength::ReadOnly::Yes);
+    auto value = m_y.value_or(NumberPercentage::create_number(0)).value();
+    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
