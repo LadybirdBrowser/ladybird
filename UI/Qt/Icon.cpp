@@ -299,6 +299,23 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         painter.drawPath(path);
         break;
     }
+    case ChromeIcon::Download:
+    case ChromeIcon::DownloadActive: {
+        painter.setPen(chrome_icon_pen(color, 1.75));
+        painter.drawLine(QPointF(10.0, 3.4), QPointF(10.0, 12.0));
+        painter.drawLine(QPointF(6.6, 8.7), QPointF(10.0, 12.1));
+        painter.drawLine(QPointF(13.4, 8.7), QPointF(10.0, 12.1));
+
+        QPainterPath tray;
+        tray.moveTo(4.0, 13.4);
+        tray.lineTo(4.0, 15.7);
+        tray.quadTo(4.0, 16.6, 4.9, 16.6);
+        tray.lineTo(15.1, 16.6);
+        tray.quadTo(16.0, 16.6, 16.0, 15.7);
+        tray.lineTo(16.0, 13.4);
+        painter.drawPath(tray);
+        break;
+    }
     case ChromeIcon::Volume:
         draw_volume_icon(painter, color, false);
         break;
@@ -379,7 +396,10 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
 {
     auto normal = ChromeStyle::chrome_button_text(palette);
     auto normal_alpha = 216;
-    if (icon == ChromeIcon::Close || icon == ChromeIcon::TabClose)
+    if (icon == ChromeIcon::DownloadActive) {
+        normal = ChromeStyle::chrome_accent(palette);
+        normal_alpha = 244;
+    } else if (icon == ChromeIcon::Close || icon == ChromeIcon::TabClose)
         normal_alpha = 172;
     else if (icon == ChromeIcon::Star)
         normal_alpha = 204;
