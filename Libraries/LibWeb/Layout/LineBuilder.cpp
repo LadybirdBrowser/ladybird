@@ -380,6 +380,18 @@ void LineBuilder::update_last_line()
         VERIFY_NOT_REACHED();
     };
 
+    auto inline_box_alignment_metrics = [&](NodeWithStyle const& inline_box) {
+        auto const line_height = inline_box.computed_values().line_height();
+        auto const& used_values = m_layout_state.get(inline_box);
+        return VerticalAlignMetrics {
+            .baseline = baseline_for_font(inline_box.first_available_font().pixel_metrics(), line_height),
+            .height = line_height,
+            .effective_box_top_offset = used_values.border_box_top(),
+            .effective_box_bottom_offset = used_values.border_box_bottom(),
+            .line_height = line_height,
+        };
+    };
+
     for (auto& fragment : line_box.fragments()) {
         CSSPixels new_fragment_inline_offset = inline_offset + fragment.inline_offset();
 
@@ -396,7 +408,32 @@ void LineBuilder::update_last_line()
             fragment_metrics.effective_box_bottom_offset = fragment_box_state.margin_box_bottom();
         }
 
-        CSSPixels new_fragment_block_offset = block_offset_value_for_alignment(fragment.layout_node().computed_values().vertical_align(), fragment_metrics);
+        // Position the fragment according to the vertical-align of its own styled inline element.
+        auto const& own_vertical_align = fragment.layout_node().computed_values().vertical_align();
+        CSSPixels new_fragment_block_offset = block_offset_value_for_alignment(own_vertical_align, fragment_metrics);
+
+        // A 'top'- or 'bottom'-aligned box forms the root of its own aligned subtree and is positioned relative to the
+        // line box, so it must ignore the vertical-align of its ancestors.
+        auto* own_alignment = own_vertical_align.get_pointer<CSS::VerticalAlign>();
+        bool own_alignment_is_line_relative = own_alignment && first_is_one_of(*own_alignment, CSS::VerticalAlign::Top, CSS::VerticalAlign::Bottom);
+
+        auto const& node = fragment.layout_node().has_style()
+            ? static_cast<NodeWithStyle const&>(fragment.layout_node())
+            : *fragment.layout_node().parent();
+        for (auto const* ancestor = node.parent(); !own_alignment_is_line_relative && ancestor && ancestor->is_inline_node() && ancestor != &m_context.containing_block(); ancestor = ancestor->parent()) {
+            auto const& ancestor_vertical_align = ancestor->computed_values().vertical_align();
+            if (ancestor_vertical_align.has<CSS::VerticalAlign>()) {
+                auto keyword = ancestor_vertical_align.get<CSS::VerticalAlign>();
+                if (keyword == CSS::VerticalAlign::Baseline)
+                    continue;
+                // FIXME: Implement aligning a 'top'- or 'bottom'-aligned ancestor's aligned subtree to the line box
+                if (first_is_one_of(keyword, CSS::VerticalAlign::Top, CSS::VerticalAlign::Bottom))
+                    break;
+            }
+            auto ancestor_metrics = inline_box_alignment_metrics(*ancestor);
+            new_fragment_block_offset += block_offset_value_for_alignment(ancestor_vertical_align, ancestor_metrics)
+                - block_offset_value_for_alignment(CSS::VerticalAlign::Baseline, ancestor_metrics);
+        }
 
         fragment.set_inline_offset(new_fragment_inline_offset);
         fragment.set_block_offset(floor(new_fragment_block_offset) + block_offset);
