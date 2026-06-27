@@ -31,26 +31,26 @@ void SVGEllipseElement::attribute_changed(FlyString const& name, Optional<String
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == SVG::AttributeNames::cx) {
-        m_center_x = AttributeParser::parse_coordinate(value.value_or(String {}));
+        m_center_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::cy) {
-        m_center_y = AttributeParser::parse_coordinate(value.value_or(String {}));
+        m_center_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::rx) {
-        m_radius_x = AttributeParser::parse_positive_length(value.value_or(String {}));
+        m_radius_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::ry) {
-        m_radius_y = AttributeParser::parse_positive_length(value.value_or(String {}));
+        m_radius_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
     }
 }
 
-Gfx::Path SVGEllipseElement::get_path(CSSPixelSize)
+Gfx::Path SVGEllipseElement::get_path(CSSPixelSize viewport_size)
 {
-    float rx = m_radius_x.value_or(0);
-    float ry = m_radius_y.value_or(0);
-    float cx = m_center_x.value_or(0);
-    float cy = m_center_y.value_or(0);
+    float rx = m_radius_x.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float());
+    float ry = m_radius_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float());
+    float cx = m_center_x.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float());
+    float cy = m_center_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float());
     Gfx::Path path;
 
     // A computed value of zero for either dimension, or a computed value of auto for both dimensions, disables rendering of the element.
-    if (rx == 0 || ry == 0)
+    if (rx <= 0 || ry <= 0)
         return path;
 
     Gfx::FloatSize radii = { rx, ry };
@@ -81,8 +81,9 @@ GC::Ref<SVGAnimatedLength> SVGEllipseElement::cx() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_center_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_center_x.value_or(0), SVGLength::ReadOnly::Yes);
+    auto value = m_center_x.value_or(NumberPercentage::create_number(0)).value();
+    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
@@ -91,8 +92,9 @@ GC::Ref<SVGAnimatedLength> SVGEllipseElement::cy() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_center_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_center_y.value_or(0), SVGLength::ReadOnly::Yes);
+    auto value = m_center_y.value_or(NumberPercentage::create_number(0)).value();
+    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
@@ -101,8 +103,9 @@ GC::Ref<SVGAnimatedLength> SVGEllipseElement::rx() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::Yes);
+    auto value = m_radius_x.value_or(NumberPercentage::create_number(0)).value();
+    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
@@ -111,8 +114,9 @@ GC::Ref<SVGAnimatedLength> SVGEllipseElement::ry() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::Yes);
+    auto value = m_radius_y.value_or(NumberPercentage::create_number(0)).value();
+    auto base_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(realm(), 0, value, SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
