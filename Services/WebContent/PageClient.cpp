@@ -30,6 +30,8 @@
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeList.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
@@ -42,6 +44,7 @@
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/ViewImplementation.h>
@@ -58,6 +61,7 @@ namespace WebContent {
 static bool s_is_headless { false };
 static bool s_async_scrolling_enabled { false };
 static bool s_should_report_session_history_updates_in_test_mode { false };
+static constexpr size_t s_max_download_data_ipc_chunk_size = 16 * MiB;
 
 GC_DEFINE_ALLOCATOR(PageClient);
 
@@ -118,6 +122,10 @@ void PageClient::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_top_level_document_console_client);
     for (auto& promise : m_pending_delete_all_cookies_promises)
         visitor.visit(promise.value);
+    for (auto& controller : m_download_controllers)
+        visitor.visit(controller.value);
+    for (auto& reader : m_download_readers)
+        visitor.visit(reader.value);
     m_pending_dom_mutations.for_each([&](auto& pending_mutation) {
         visitor.visit(pending_mutation.target);
     });
@@ -519,6 +527,74 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
 void PageClient::page_did_finish_loading(URL::URL const& url)
 {
     client().async_did_finish_loading(m_id, url);
+}
+
+Optional<u64> PageClient::page_did_start_download(URL::URL const& url, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
+{
+    auto response = client().send_sync<Messages::WebContentClient::DidStartDownload>(m_id, url, suggested_filename, total_size, request_server_client_id, request_server_request_id, move(initial_data));
+    return response->download_id();
+}
+
+void PageClient::page_did_receive_download_data(u64 download_id, ByteBuffer data)
+{
+    if (m_canceled_downloads.contains(download_id))
+        return;
+
+    auto bytes = data.bytes();
+    for (size_t offset = 0; offset < bytes.size(); offset += s_max_download_data_ipc_chunk_size) {
+        auto chunk_size = min(bytes.size() - offset, s_max_download_data_ipc_chunk_size);
+        client().async_did_receive_download_data(m_id, download_id, bytes.slice(offset, chunk_size));
+    }
+}
+
+void PageClient::page_did_finish_download(u64 download_id)
+{
+    page_did_unregister_download(download_id);
+    client().async_did_finish_download(m_id, download_id);
+}
+
+void PageClient::page_did_fail_download(u64 download_id, String const& error)
+{
+    page_did_unregister_download(download_id);
+    client().async_did_fail_download(m_id, download_id, error);
+}
+
+void PageClient::page_did_register_download_controller(u64 download_id, GC::Ref<Web::Fetch::Infrastructure::FetchController> controller)
+{
+    m_download_controllers.set(download_id, controller);
+}
+
+void PageClient::page_did_register_download_reader(u64 download_id, GC::Ref<Web::Streams::ReadableStreamDefaultReader> reader)
+{
+    m_download_readers.set(download_id, reader);
+}
+
+void PageClient::page_did_unregister_download(u64 download_id)
+{
+    m_download_controllers.remove(download_id);
+    m_download_readers.remove(download_id);
+    m_canceled_downloads.remove(download_id);
+}
+
+bool PageClient::page_is_download_canceled(u64 download_id) const
+{
+    return m_canceled_downloads.contains(download_id);
+}
+
+void PageClient::cancel_download(u64 download_id)
+{
+    auto controller = m_download_controllers.take(download_id);
+    auto reader = m_download_readers.take(download_id);
+    if (!controller.has_value() && !reader.has_value())
+        return;
+
+    m_canceled_downloads.set(download_id);
+
+    if (controller.has_value())
+        controller.value()->stop_fetch();
+
+    if (reader.has_value())
+        Web::Fetch::Infrastructure::cancel_incremental_read(*reader.value());
 }
 
 void PageClient::wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)> on_complete)

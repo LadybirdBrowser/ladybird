@@ -1209,18 +1209,41 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
     }
 }
 
+static LexicalPath unique_download_path(ByteString const& downloads_directory, ByteString const& file)
+{
+    auto destination = LexicalPath::join(downloads_directory, file.view());
+    if (!FileSystem::exists(destination.string()))
+        return destination;
+
+    auto lexical_file = LexicalPath { file };
+    auto title = lexical_file.title();
+    auto extension = lexical_file.extension();
+    for (u64 index = 1;; ++index) {
+        auto candidate_filename = extension.is_empty()
+            ? ByteString::formatted("{} ({})", title, index)
+            : ByteString::formatted("{} ({}).{}", title, index, extension);
+        auto candidate = LexicalPath::join(downloads_directory, candidate_filename.view());
+        if (!FileSystem::exists(candidate.string()))
+            return candidate;
+    }
+}
+
+ErrorOr<LexicalPath> Application::default_path_for_downloaded_file(ByteString const& file) const
+{
+    auto downloads_directory = Core::StandardPaths::downloads_directory();
+
+    if (!FileSystem::is_directory(downloads_directory)) {
+        dbgln("Unable to find download folder, please ensure {} is a directory or use the XDG_DOWNLOAD_DIR environment variable to set a new download directory", downloads_directory);
+        return Error::from_errno(ENOENT);
+    }
+
+    return unique_download_path(downloads_directory, file);
+}
+
 ErrorOr<LexicalPath> Application::path_for_downloaded_file(ByteString const& file) const
 {
-    if (browser_options().headless_mode.has_value()) {
-        auto downloads_directory = Core::StandardPaths::downloads_directory();
-
-        if (!FileSystem::is_directory(downloads_directory)) {
-            dbgln("Unable to ask user for download folder in headless mode, please ensure {} is a directory or use the XDG_DOWNLOAD_DIR environment variable to set a new download directory", downloads_directory);
-            return Error::from_errno(ENOENT);
-        }
-
-        return LexicalPath::join(downloads_directory, file.view());
-    }
+    if (browser_options().headless_mode.has_value())
+        return default_path_for_downloaded_file(file);
 
     auto download_path = ask_user_for_download_path(file);
     if (!download_path.has_value())

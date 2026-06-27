@@ -383,7 +383,7 @@ void ResourceLoader::handle_resource_load_request(LoadRequest const& request, Re
     on_resource(load_result);
 }
 
-RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnCachedBodyAvailable> on_cached_body_available, GC::Root<OnComplete> on_complete)
+RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnCachedBodyAvailable> on_cached_body_available, GC::Root<OnComplete> on_complete, Requests::RequestClient::KeepAliveForTransfer keep_alive_for_transfer)
 {
     auto const& url = request.url().value();
 
@@ -400,7 +400,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
             request,
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete = move(on_complete), request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
                 log_success(request);
-                on_headers_received->function()(response_headers, {}, {}, {}, {});
+                on_headers_received->function()(nullptr, response_headers, {}, {}, {}, {});
                 on_data_received->function()(Requests::ResponseData::from_bytes(data));
                 on_complete->function()(true, timing_info, {});
             });
@@ -411,7 +411,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         handle_resource_load_request(
             request,
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
-                on_headers_received->function()(load_result.response_headers, {}, {}, {}, {});
+                on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, {}, {});
                 on_data_received->function()(Requests::ResponseData::from_bytes(load_result.data));
                 on_complete->function()(true, load_result.timing_info, {});
             },
@@ -427,7 +427,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
             request,
             [request, on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
                 log_success(request);
-                on_headers_received->function()(load_result.response_headers, {}, {}, {}, {});
+                on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, {}, {});
                 on_data_received->function()(Requests::ResponseData::from_bytes(load_result.data));
                 on_complete->function()(true, load_result.timing_info, {});
             },
@@ -446,19 +446,19 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         return nullptr;
     }
 
-    auto protocol_request = start_network_request(request);
+    auto protocol_request = start_network_request(request, keep_alive_for_transfer);
     if (!protocol_request) {
         on_complete->function()(false, {}, "Failed to start network request"sv);
         return nullptr;
     }
 
-    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request, request_id = protocol_request->id()](auto const& response_headers, auto status_code, auto const& reason_phrase, auto javascript_bytecode, auto javascript_bytecode_cache_vary_key) {
+    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request, &protocol_request = *protocol_request](auto const& response_headers, auto status_code, auto const& reason_phrase, auto javascript_bytecode, auto javascript_bytecode_cache_vary_key) {
         handle_network_response_headers(request, response_headers);
 
         if (auto page = request.page())
-            page->client().page_did_receive_network_response_headers(request_id, status_code.value_or(0), reason_phrase, response_headers->headers());
+            page->client().page_did_receive_network_response_headers(protocol_request.id(), status_code.value_or(0), reason_phrase, response_headers->headers());
 
-        on_headers_received->function()(response_headers, move(status_code), reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key);
+        on_headers_received->function()(&protocol_request, response_headers, move(status_code), reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key);
     };
 
     auto protocol_data_received = [on_data_received = move(on_data_received), request, request_id = protocol_request->id()](auto data) {
@@ -490,10 +490,13 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
     };
 
     protocol_request->set_unbuffered_request_callbacks(move(protocol_headers_received), move(protocol_data_received), move(protocol_cached_body_available), move(protocol_complete));
+    protocol_request->set_stop_callback([this, &protocol_request = *protocol_request] {
+        finish_network_request(protocol_request);
+    });
     return protocol_request;
 }
 
-RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request)
+RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request, Requests::RequestClient::KeepAliveForTransfer keep_alive_for_transfer)
 {
     auto proxy = ProxyMappings::the().proxy_for_url(request.url().value());
 
@@ -503,7 +506,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         return nullptr;
     }
 
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), proxy);
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), proxy, keep_alive_for_transfer);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;

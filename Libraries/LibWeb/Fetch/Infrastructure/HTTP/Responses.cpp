@@ -9,6 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibRequests/Request.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -105,6 +106,29 @@ bool Response::is_network_error() const
     return true;
 }
 
+void Response::release_request_for_transfer() const
+{
+    if (m_request_server_request.has_value() && m_request_server_request->request)
+        m_request_server_request->request->release_for_transfer();
+}
+
+void Response::resume_body_delivery() const
+{
+    release_request_for_transfer();
+    if (m_request_server_request.has_value()) {
+        if (m_request_server_request->request)
+            m_request_server_request->request->resume_body_delivery();
+    }
+}
+
+void Response::resume_body_delivery_up_to(size_t byte_count) const
+{
+    if (m_request_server_request.has_value()) {
+        if (m_request_server_request->request)
+            m_request_server_request->request->resume_body_delivery_up_to(byte_count);
+    }
+}
+
 // https://fetch.spec.whatwg.org/#concept-response-url
 Optional<URL::URL const&> Response::url() const
 {
@@ -182,6 +206,8 @@ GC::Ref<Response> Response::clone(JS::Realm& realm) const
     new_response->set_body_info(m_body_info);
     new_response->set_javascript_bytecode_cache(m_javascript_bytecode_cache);
     new_response->set_javascript_bytecode_cache_vary_key(m_javascript_bytecode_cache_vary_key);
+    if (m_request_server_request.has_value())
+        new_response->set_request_server_request(*m_request_server_request);
     if (m_javascript_bytecode_cache_memory_cache_request_headers.has_value())
         new_response->set_javascript_bytecode_cache_memory_cache_request_headers(HTTP::HeaderList::create((*m_javascript_bytecode_cache_memory_cache_request_headers)->headers()));
     // FIXME: service worker timing info

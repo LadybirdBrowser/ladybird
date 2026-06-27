@@ -10,6 +10,7 @@
 #include <AK/ByteString.h>
 #include <AK/MemoryStream.h>
 #include <AK/Optional.h>
+#include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <LibCore/Proxy.h>
 #include <LibDNS/Resolver.h>
@@ -17,6 +18,7 @@
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/HeaderList.h>
+#include <LibIPC/File.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
@@ -44,7 +46,8 @@ public:
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
         ByteString alt_svc_cache_path,
-        Core::ProxyData proxy_data);
+        Core::ProxyData proxy_data,
+        bool keep_alive_for_transfer);
 
     static NonnullOwnPtr<Request> connect(
         u64 request_id,
@@ -73,6 +76,11 @@ public:
     u64 request_id() const { return m_request_id; }
     RequestType type() const { return m_type; }
     URL::URL const& url() const { return m_url; }
+    bool is_complete() const { return m_state == State::Complete || m_state == State::Error; }
+    bool keep_alive_for_transfer() const { return m_keep_alive_for_transfer; }
+
+    ErrorOr<void> transfer_to_client(ConnectionFromClient&, u64 request_id);
+    void release_for_transfer() { m_keep_alive_for_transfer = false; }
 
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
     void notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringView cookie);
@@ -136,7 +144,8 @@ private:
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
         ByteString alt_svc_cache_path,
-        Core::ProxyData proxy_data);
+        Core::ProxyData proxy_data,
+        bool keep_alive_for_transfer = false);
 
     Request(
         u64 request_id,
@@ -162,8 +171,11 @@ private:
     static size_t on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data);
     static size_t on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data);
 
+    ErrorOr<void> detach_curl_handle_from_multi();
     ErrorOr<void> inform_client_request_started();
+    ErrorOr<void> send_request_pipe_to_client();
     void transfer_headers_to_client_if_needed();
+    void send_headers_to_client(Optional<IPC::File> javascript_bytecode = {}, u64 javascript_bytecode_size = 0, Optional<u64> javascript_bytecode_cache_vary_key = {});
     ErrorOr<void> write_queued_bytes_without_blocking();
 
     virtual bool is_revalidation_request() const override;
@@ -180,10 +192,11 @@ private:
 
     Optional<HTTP::DiskCache&> m_disk_cache;
     HTTP::CacheMode m_cache_mode { HTTP::CacheMode::Default };
-    ConnectionFromClient& m_client;
+    ConnectionFromClient* m_client { nullptr };
 
     void* m_curl_multi_handle { nullptr };
     void* m_curl_easy_handle { nullptr };
+    bool m_curl_easy_handle_is_in_multi { false };
     Vector<curl_slist*> m_curl_string_lists;
     Optional<int> m_curl_result_code;
 
@@ -215,6 +228,8 @@ private:
     size_t m_bytes_transferred_to_client { 0 };
 
     Optional<Requests::NetworkError> m_network_error;
+    bool m_keep_alive_for_transfer { false };
+    RefPtr<ConnectionFromClient> m_network_connection_keep_alive;
 };
 
 }

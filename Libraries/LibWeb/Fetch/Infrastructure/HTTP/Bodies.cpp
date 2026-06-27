@@ -178,7 +178,7 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
 }
 
 // https://fetch.spec.whatwg.org/#body-incrementally-read
-void Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination)
+GC::Ref<Streams::ReadableStreamDefaultReader> Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination)
 {
     HTML::TemporaryExecutionContext const execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -193,6 +193,7 @@ void Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, Proce
     // 3. Perform the incrementally-read loop given reader, taskDestination, processBodyChunk, processEndOfBody, and processBodyError.
     VERIFY(!task_destination.has<Empty>());
     incrementally_read_loop(reader, task_destination.get<GC::Ref<JS::Object>>(), process_body_chunk, process_end_of_body, process_body_error);
+    return reader;
 }
 
 // https://fetch.spec.whatwg.org/#incrementally-read-loop
@@ -212,6 +213,11 @@ GC::Ref<Body> byte_sequence_as_body(JS::Realm& realm, ReadonlyBytes bytes)
     // To get a byte sequence bytes as a body, return the body of the result of safely extracting bytes.
     auto [body, _] = safely_extract_body(realm, bytes);
     return body;
+}
+
+void cancel_incremental_read(Streams::ReadableStreamDefaultReader& reader)
+{
+    reader.cancel({});
 }
 
 }

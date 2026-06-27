@@ -67,7 +67,7 @@ public:
     [[nodiscard]] GC::Ref<Body> clone(JS::Realm&);
 
     void fully_read(JS::Realm&, ProcessBodyCallback process_body, ProcessBodyErrorCallback process_body_error, TaskDestination) const;
-    void incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination);
+    GC::Ref<Streams::ReadableStreamDefaultReader> incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination);
     void incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader, TaskDestination, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -103,5 +103,6 @@ struct BodyWithType {
 };
 
 WEB_API GC::Ref<Body> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);
+WEB_API void cancel_incremental_read(Streams::ReadableStreamDefaultReader&);
 
 }

@@ -24,8 +24,11 @@ endpoint RequestServer
 
     // Test if a specific protocol is supported, e.g "http"
     is_supported_protocol(ByteString protocol) => (bool supported)
+    get_client_id() => (int client_id)
 
-    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data) =|
+    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data, bool keep_alive_for_transfer) =|
+    adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id) =|
+    release_request_for_transfer(u64 request_id) =|
     stop_request(u64 request_id) => (bool success)
     set_certificate(u64 request_id, ByteString certificate, ByteString key) => (bool success)
 

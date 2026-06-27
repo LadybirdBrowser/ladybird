@@ -10,6 +10,7 @@
 
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
@@ -130,6 +131,7 @@ public:
     void did_complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
     void run_iframe_load_event_steps(String const& frame_id);
     void set_remote_child_frame_compositor_context(String, Optional<Web::Compositor::CompositorContextId>);
+    void cancel_download(u64 download_id);
     void clear_pending_dom_mutations();
     void did_delete_all_cookies(u64 request_id);
 
@@ -189,6 +191,14 @@ private:
     virtual void page_did_create_new_document(Web::DOM::Document&) override;
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
     virtual void page_did_finish_loading(URL::URL const&) override;
+    virtual Optional<u64> page_did_start_download(URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
+    virtual void page_did_receive_download_data(u64 download_id, ByteBuffer data) override;
+    virtual void page_did_finish_download(u64 download_id) override;
+    virtual void page_did_fail_download(u64 download_id, String const& error) override;
+    virtual void page_did_register_download_controller(u64 download_id, GC::Ref<Web::Fetch::Infrastructure::FetchController>) override;
+    virtual void page_did_register_download_reader(u64 download_id, GC::Ref<Web::Streams::ReadableStreamDefaultReader>) override;
+    virtual void page_did_unregister_download(u64 download_id) override;
+    virtual bool page_is_download_canceled(u64 download_id) const override;
     virtual void page_did_request_alert(String const&) override;
     virtual void page_did_request_confirm(String const&) override;
     virtual void page_did_request_prompt(String const&, String const&) override;
@@ -273,6 +283,9 @@ private:
     u64 m_id { 0 };
     u64 m_next_delete_all_cookies_request_id { 1 };
     HashMap<u64, GC::Ref<Web::WebIDL::Promise>> m_pending_delete_all_cookies_promises;
+    HashMap<u64, GC::Ref<Web::Fetch::Infrastructure::FetchController>> m_download_controllers;
+    HashMap<u64, GC::Ref<Web::Streams::ReadableStreamDefaultReader>> m_download_readers;
+    HashTable<u64> m_canceled_downloads;
     bool m_has_focus { true };
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };

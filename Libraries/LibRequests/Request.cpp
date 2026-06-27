@@ -54,9 +54,22 @@ Request::Request(RequestClient& client, u64 request_id)
 {
 }
 
+Request::~Request()
+{
+    if (m_fd != -1 && !m_fd_is_owned_by_read_stream)
+        (void)Core::System::close(m_fd);
+}
+
+int Request::request_server_client_id() const
+{
+    return m_client->request_server_client_id();
+}
+
 bool Request::stop()
 {
-    auto did_stop_request = m_client->stop_request({}, *this);
+    RefPtr keep_alive = *this;
+    auto had_active_request = m_client->stop_request({}, *this);
+    auto on_stop = move(m_on_stop);
 
     on_headers_received = nullptr;
     on_finish = nullptr;
@@ -66,21 +79,61 @@ bool Request::stop()
     m_internal_stream_data = nullptr;
     m_mode = Mode::Unknown;
 
-    return did_stop_request;
+    if (had_active_request && on_stop)
+        on_stop();
+
+    return had_active_request;
+}
+
+void Request::set_body_delivery_paused(bool paused)
+{
+    m_body_delivery_paused = paused;
+    if (m_internal_stream_data && m_internal_stream_data->read_notifier)
+        m_internal_stream_data->read_notifier->set_enabled(!m_body_delivery_paused);
+}
+
+void Request::resume_body_delivery()
+{
+    if (m_internal_stream_data)
+        m_internal_stream_data->body_delivery_remaining_byte_count = {};
+    set_body_delivery_paused(false);
+}
+
+void Request::resume_body_delivery_up_to(size_t byte_count)
+{
+    if (!m_internal_stream_data)
+        return;
+
+    m_internal_stream_data->body_delivery_remaining_byte_count = byte_count;
+    set_body_delivery_paused(false);
+}
+
+void Request::release_for_transfer()
+{
+    if (auto client = m_client.strong_ref())
+        client->release_request_for_transfer({}, *this);
 }
 
 void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
 {
-    // If the request was stopped while this IPC was in-flight, just bail.
-    if (!m_internal_stream_data)
-        return;
-
     VERIFY(m_fd == -1);
     m_fd = fd;
 
-    auto read_stream = MUST(ReadStream::create(fd));
+    if (m_internal_stream_data)
+        attach_read_stream();
+}
+
+void Request::attach_read_stream()
+{
+    VERIFY(m_internal_stream_data);
+    if (m_fd == -1 || m_fd_is_owned_by_read_stream)
+        return;
+
+    auto read_stream = MUST(ReadStream::create(m_fd));
+    m_fd_is_owned_by_read_stream = true;
     auto notifier = read_stream->notifier();
     notifier->on_activation = move(m_internal_stream_data->read_notifier->on_activation);
+    notifier->set_enabled(!m_body_delivery_paused);
     m_internal_stream_data->read_notifier = notifier;
     m_internal_stream_data->read_stream = move(read_stream);
 }
@@ -104,8 +157,10 @@ void Request::set_request_body_file(Badge<Requests::RequestClient>, int fd, u64 
     }
 
     m_internal_stream_data->file_backed_payload = payload.release_value();
-    if (m_internal_stream_data->on_data_available)
+    if (m_internal_stream_data->on_data_available) {
+        m_internal_stream_data->delivered_size += m_internal_stream_data->file_backed_payload->size();
         m_internal_stream_data->on_data_available(ResponseData::from_immutable_bytes(*m_internal_stream_data->file_backed_payload));
+    }
 }
 
 void Request::set_request_cached_body_file(Badge<Requests::RequestClient>, int fd, u64 offset, u64 size)
@@ -183,6 +238,11 @@ void Request::set_unbuffered_request_callbacks(HeadersReceived on_headers_receiv
     m_internal_stream_data->on_cached_body_available = move(on_cached_body_available);
 }
 
+void Request::set_stop_callback(RequestStopped on_stop)
+{
+    m_on_stop = move(on_stop);
+}
+
 void Request::did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error)
 {
     auto effective_network_error = m_body_delivery_error.has_value() ? m_body_delivery_error : network_error;
@@ -206,6 +266,22 @@ void Request::did_request_certificates(Badge<RequestClient>)
     }
 }
 
+void Request::did_transfer(Badge<RequestClient>)
+{
+    auto on_stop = move(m_on_stop);
+
+    on_headers_received = nullptr;
+    on_finish = nullptr;
+    on_certificate_requested = nullptr;
+
+    m_internal_buffered_data = nullptr;
+    m_internal_stream_data = nullptr;
+    m_mode = Mode::Unknown;
+
+    if (on_stop)
+        on_stop();
+}
+
 void Request::set_up_internal_stream_data(DataReceived on_data_available)
 {
     VERIFY(!m_internal_stream_data);
@@ -213,8 +289,8 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
     m_internal_stream_data = make<InternalStreamData>();
     m_internal_stream_data->on_data_available = move(on_data_available);
     m_internal_stream_data->read_notifier = Core::Notifier::construct(fd(), Core::Notifier::Type::Read);
-    if (fd() != -1)
-        m_internal_stream_data->read_stream = MUST(ReadStream::create(fd()));
+    m_internal_stream_data->read_notifier->set_enabled(!m_body_delivery_paused);
+    attach_read_stream();
 
     auto user_on_finish = move(on_finish);
     on_finish = [this](auto total_size, auto const& timing_info, auto network_error) {
@@ -234,7 +310,8 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
         if (!m_internal_stream_data)
             return;
 
-        if (!m_internal_stream_data->user_finish_called && (!m_internal_stream_data->read_stream || m_internal_stream_data->read_stream->is_eof())) {
+        auto has_received_all_reported_bytes = m_internal_stream_data->request_done && m_internal_stream_data->delivered_size >= m_internal_stream_data->total_size;
+        if (!m_internal_stream_data->user_finish_called && (!m_internal_stream_data->read_stream || m_internal_stream_data->read_stream->is_eof() || has_received_all_reported_bytes)) {
             m_internal_stream_data->user_finish_called = true;
             user_on_finish(m_internal_stream_data->total_size, m_internal_stream_data->timing_info, m_internal_stream_data->network_error);
         }
@@ -249,7 +326,16 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             return;
 
         do {
-            auto result = m_internal_stream_data->read_stream->read_some({ buffer, buffer_size });
+            auto bytes_to_read = buffer_size;
+            if (m_internal_stream_data->body_delivery_remaining_byte_count.has_value()) {
+                if (*m_internal_stream_data->body_delivery_remaining_byte_count == 0) {
+                    set_body_delivery_paused(true);
+                    break;
+                }
+                bytes_to_read = min(bytes_to_read, *m_internal_stream_data->body_delivery_remaining_byte_count);
+            }
+
+            auto result = m_internal_stream_data->read_stream->read_some({ buffer, bytes_to_read });
             if (result.is_error() && (!result.error().is_errno() || (result.error().is_errno() && result.error().code() != EINTR)))
                 break;
             if (result.is_error())
@@ -259,7 +345,17 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             if (read_bytes.is_empty())
                 break;
 
+            m_internal_stream_data->delivered_size += read_bytes.size();
             m_internal_stream_data->on_data_available(ResponseData::from_bytes(read_bytes));
+
+            if (m_internal_stream_data->body_delivery_remaining_byte_count.has_value()) {
+                if (read_bytes.size() >= *m_internal_stream_data->body_delivery_remaining_byte_count) {
+                    m_internal_stream_data->body_delivery_remaining_byte_count = 0;
+                    set_body_delivery_paused(true);
+                    break;
+                }
+                *m_internal_stream_data->body_delivery_remaining_byte_count -= read_bytes.size();
+            }
         } while (true);
 
         if (m_internal_stream_data->read_stream->is_eof())

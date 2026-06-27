@@ -132,6 +132,7 @@ public:
 
     virtual bool should_capture_web_content_output() const { return false; }
 
+    ErrorOr<LexicalPath> default_path_for_downloaded_file(ByteString const& file) const;
     ErrorOr<LexicalPath> path_for_downloaded_file(ByteString const& file) const;
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;

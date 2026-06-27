@@ -511,8 +511,53 @@ void WebContentClient::did_cancel_loading(u64 page_id, URL::URL url)
 {
     m_history_recorded_urls_for_current_load.remove(page_id);
 
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_cancel_navigation(url);
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto cancel_was_handled = view->did_cancel_navigation(url);
+        if (!cancel_was_handled)
+            return;
+
+        auto const& client_url = view->url();
+        if (view->on_load_finish)
+            view->on_load_finish(client_url);
+
+        for (auto const& [id, listener] : view->m_navigation_listeners) {
+            if (listener.on_load_finish)
+                listener.on_load_finish(client_url);
+        }
+    }
+}
+
+Messages::WebContentClient::DidStartDownloadResponse WebContentClient::did_start_download(u64, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
+{
+    auto destination = Application::the().default_path_for_downloaded_file(suggested_filename);
+    if (destination.is_error()) {
+        if (!destination.error().is_errno() || destination.error().code() != ECANCELED)
+            Application::the().display_error_dialog(ByteString::formatted("Unable to download {}: {}", url, destination.error()));
+        return { Optional<u64> {} };
+    }
+
+    auto& file_downloader = Application::the().file_downloader();
+    auto download_id = file_downloader.adopt_download(url, destination.release_value(), total_size, request_server_client_id, request_server_request_id, initial_data.bytes());
+    auto download = file_downloader.download(download_id);
+    if (!download.has_value() || download->status != FileDownloader::DownloadStatus::InProgress)
+        return { Optional<u64> {} };
+
+    return { download_id };
+}
+
+void WebContentClient::did_receive_download_data(u64, u64 download_id, ByteBuffer data)
+{
+    Application::the().file_downloader().append_download_data(download_id, data.bytes());
+}
+
+void WebContentClient::did_finish_download(u64, u64 download_id)
+{
+    Application::the().file_downloader().finish_download(download_id);
+}
+
+void WebContentClient::did_fail_download(u64, u64 download_id, String error)
+{
+    Application::the().file_downloader().fail_download(download_id, move(error));
 }
 
 void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)

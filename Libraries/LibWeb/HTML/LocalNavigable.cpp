@@ -71,7 +71,10 @@
 #include <LibWeb/XHR/FormData.h>
 
 #include <AK/Debug.h>
+#include <AK/LexicalPath.h>
 #include <AK/StdLibExtras.h>
+#include <AK/StringBuilder.h>
+#include <LibHTTP/HTTP.h>
 
 namespace Web::HTML {
 
@@ -194,6 +197,204 @@ private:
 GC_DEFINE_ALLOCATOR(InternalNavigationResult);
 
 GC_DEFINE_ALLOCATOR(PopulateSessionHistoryEntryDocumentOutput);
+
+static Vector<StringView> split_content_disposition_parameters(StringView value)
+{
+    Vector<StringView> parameters;
+    bool in_quoted_string = false;
+    bool escaped = false;
+    size_t parameter_start = 0;
+
+    for (size_t i = 0; i < value.length(); ++i) {
+        auto ch = value[i];
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (in_quoted_string && ch == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (ch == '"') {
+            in_quoted_string = !in_quoted_string;
+            continue;
+        }
+
+        if (ch != ';' || in_quoted_string)
+            continue;
+
+        parameters.append(value.substring_view(parameter_start, i - parameter_start).trim(HTTP::HTTP_TAB_OR_SPACE, TrimMode::Both));
+        parameter_start = i + 1;
+    }
+
+    parameters.append(value.substring_view(parameter_start).trim(HTTP::HTTP_TAB_OR_SPACE, TrimMode::Both));
+    return parameters;
+}
+
+static ByteString parse_content_disposition_parameter_value(StringView value)
+{
+    value = value.trim(HTTP::HTTP_TAB_OR_SPACE, TrimMode::Both);
+    if (!value.starts_with('"'))
+        return value;
+
+    StringBuilder builder;
+    bool escaped = false;
+    for (size_t i = 1; i < value.length(); ++i) {
+        auto ch = value[i];
+        if (escaped) {
+            builder.append(ch);
+            escaped = false;
+            continue;
+        }
+
+        if (ch == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (ch == '"')
+            break;
+
+        builder.append(ch);
+    }
+    return builder.to_byte_string();
+}
+
+static Optional<ByteString> parse_content_disposition_extended_filename(StringView value)
+{
+    auto decoded_value = parse_content_disposition_parameter_value(value);
+    auto decoded_view = decoded_value.view();
+    auto first_separator = decoded_view.find('\'');
+    if (!first_separator.has_value())
+        return URL::percent_decode(decoded_view);
+
+    auto second_separator = decoded_view.find('\'', *first_separator + 1);
+    if (!second_separator.has_value())
+        return {};
+
+    return URL::percent_decode(decoded_view.substring_view(*second_separator + 1));
+}
+
+struct ContentDispositionInfo {
+    bool is_attachment { false };
+    Optional<ByteString> filename;
+};
+
+static ContentDispositionInfo parse_content_disposition(HTTP::HeaderList const& headers)
+{
+    auto header = headers.get("Content-Disposition"sv);
+    if (!header.has_value())
+        return {};
+
+    auto parameters = split_content_disposition_parameters(header->view());
+    if (parameters.is_empty())
+        return {};
+
+    ContentDispositionInfo info;
+    info.is_attachment = parameters.first().equals_ignoring_ascii_case("attachment"sv);
+
+    Optional<ByteString> filename;
+    Optional<ByteString> extended_filename;
+    for (size_t i = 1; i < parameters.size(); ++i) {
+        auto parameter = parameters[i];
+        auto equals_index = parameter.find('=');
+        if (!equals_index.has_value())
+            continue;
+
+        auto name = parameter.substring_view(0, *equals_index).trim(HTTP::HTTP_TAB_OR_SPACE, TrimMode::Both);
+        auto value = parameter.substring_view(*equals_index + 1);
+        if (name.equals_ignoring_ascii_case("filename*"sv))
+            extended_filename = parse_content_disposition_extended_filename(value);
+        else if (name.equals_ignoring_ascii_case("filename"sv))
+            filename = parse_content_disposition_parameter_value(value);
+    }
+
+    info.filename = extended_filename.has_value() ? move(extended_filename) : move(filename);
+    return info;
+}
+
+static ByteString sanitize_suggested_download_filename(ByteString filename)
+{
+    filename = LexicalPath::basename(move(filename));
+
+    StringBuilder builder;
+    for (auto byte : filename.bytes()) {
+        if (byte == '\0' || byte == '/' || byte == '\\')
+            builder.append('_');
+        else
+            builder.append(static_cast<char>(byte));
+    }
+
+    auto sanitized = builder.to_byte_string();
+    if (sanitized.is_empty() || sanitized == "."sv || sanitized == ".."sv)
+        return "download";
+    return sanitized;
+}
+
+static ByteString suggested_download_filename(URL::URL const& url, HTTP::HeaderList const& headers)
+{
+    auto content_disposition = parse_content_disposition(headers);
+    if (content_disposition.filename.has_value())
+        return sanitize_suggested_download_filename(content_disposition.filename.release_value());
+
+    return sanitize_suggested_download_filename(url.basename());
+}
+
+static Optional<u64> response_content_length(HTTP::HeaderList const& headers)
+{
+    auto extracted_length = headers.extract_length();
+    if (extracted_length.has<u64>())
+        return extracted_length.get<u64>();
+    return {};
+}
+
+static bool handle_navigation_response_as_download(JS::Realm& realm, GC::Ref<NavigationParams> navigation_params, GC::Ref<SourceSnapshotParams> source_snapshot_params, Optional<ReadonlyBytes> initial_data = {})
+{
+    auto response = navigation_params->response;
+    if (!response || !response->body())
+        return true;
+
+    if (!source_snapshot_params->allows_downloading) {
+        response->release_request_for_transfer();
+        if (navigation_params->fetch_controller)
+            navigation_params->fetch_controller->abort(realm, {});
+        return true;
+    }
+
+    VERIFY(navigation_params->navigable);
+    auto active_window = navigation_params->navigable->active_window();
+    if (!active_window) {
+        response->release_request_for_transfer();
+        return true;
+    }
+
+    auto download_url = response->url().value_or(navigation_params->request ? navigation_params->request->current_url() : URL::about_blank());
+    auto suggested_filename = suggested_download_filename(download_url, *response->header_list());
+    if (auto const& request_server_request = response->request_server_request(); request_server_request.has_value()) {
+        ByteBuffer initial_data_buffer;
+        if (initial_data.has_value() && !initial_data->is_empty())
+            initial_data_buffer = MUST(ByteBuffer::copy(*initial_data));
+
+        auto download_id = navigation_params->navigable->page().client().page_did_start_download(download_url, suggested_filename, response_content_length(*response->header_list()), request_server_request->client_id, request_server_request->request_id, move(initial_data_buffer));
+        if (!download_id.has_value()) {
+            if (navigation_params->fetch_controller)
+                navigation_params->fetch_controller->stop_fetch();
+            return true;
+        }
+
+        if (navigation_params->fetch_controller)
+            navigation_params->fetch_controller->terminate();
+
+        return true;
+    }
+
+    if (navigation_params->fetch_controller)
+        navigation_params->fetch_controller->stop_fetch();
+
+    return true;
+}
 
 void PopulateSessionHistoryEntryDocumentOutput::apply_to(NonnullRefPtr<SessionHistoryEntry> entry)
 {
@@ -1779,13 +1980,13 @@ void LocalNavigable::populate_session_history_entry_document(
     // 3. Let documentResource be entry's document state's resource.
     // NOTE: documentResource is passed as a parameter.
 
-    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, user_involvement, completion_steps, csp_navigation_type](GC::Ref<InternalNavigationResult> result) {
+    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params](GC::Ref<InternalNavigationResult> result) {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window())
             return;
 
         // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, result, navigation_id, user_involvement, completion_steps, csp_navigation_type]() mutable {
+        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, result, navigation_id, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params]() mutable {
             auto& navigation_params = result->navigation_params;
 
             // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
@@ -1874,9 +2075,12 @@ void LocalNavigable::populate_session_history_entry_document(
                 }
             }
 
-            // FIXME: 5. Otherwise, if navigationParams's response has a `Content-Disposition` header specifying the attachment
+            // 5. Otherwise, if navigationParams's response has a `Content-Disposition` header specifying the attachment
             //    disposition type, then:
-            else if (false) {
+            else if (auto nav_params = navigation_params.get<GC::Ref<NavigationParams>>();
+                parse_content_disposition(*nav_params->response->header_list()).is_attachment) {
+                output->download_handled = handle_navigation_response_as_download(active_window()->realm(), nav_params, source_snapshot_params);
+                output->save_extra_document_state = false;
             }
 
             // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's document state's document to the result of
@@ -1890,12 +2094,22 @@ void LocalNavigable::populate_session_history_entry_document(
                 auto sniff_bytes = body ? body->sniff_bytes_if_available() : Optional<ReadonlyBytes> { ReadonlyBytes {} };
                 if (!sniff_bytes.has_value()) {
                     // Async path: bytes not yet available, wait for them
+                    nav_params->response->resume_body_delivery_up_to(Fetch::Infrastructure::MAX_SNIFF_BYTES);
                     body->wait_for_sniff_bytes(GC::create_function(heap(),
-                        [output, nav_params, navigation_params, completion_steps](ReadonlyBytes sniff_bytes) {
+                        [output, nav_params, navigation_params, completion_steps, source_snapshot_params](ReadonlyBytes sniff_bytes) {
                             // AD-HOC: The document may have been destroyed between when the fetch started and when the
                             //         bytes arrived.
-                            if (nav_params->navigable->active_browsing_context())
+                            if (nav_params->navigable->active_browsing_context()) {
                                 output->document = load_document(nav_params, sniff_bytes);
+                                if (!output->document) {
+                                    output->download_handled = handle_navigation_response_as_download(nav_params->navigable->active_window()->realm(), nav_params, source_snapshot_params, sniff_bytes);
+                                    output->save_extra_document_state = false;
+                                } else {
+                                    nav_params->response->resume_body_delivery();
+                                }
+                            } else {
+                                nav_params->response->release_request_for_transfer();
+                            }
                             output->navigation_params = navigation_params;
                             if (completion_steps)
                                 completion_steps->function()(output);
@@ -1905,6 +2119,15 @@ void LocalNavigable::populate_session_history_entry_document(
 
                 // Sync path: bytes available immediately
                 output->document = load_document(nav_params, sniff_bytes.value());
+                if (!output->document) {
+                    output->download_handled = handle_navigation_response_as_download(active_window()->realm(), nav_params, source_snapshot_params, sniff_bytes.value());
+                    output->save_extra_document_state = false;
+                } else {
+                    nav_params->response->resume_body_delivery();
+                }
+            } else {
+                auto nav_params = navigation_params.get<GC::Ref<NavigationParams>>();
+                nav_params->response->release_request_for_transfer();
             }
 
             output->navigation_params = navigation_params;
@@ -2488,6 +2711,14 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                     history_entry->document_state()->reload_pending(),
                     history_entry->document_state()->ever_populated(),
                     source_snapshot_params, target_snapshot_params, user_involvement, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
+                        if (output && output->download_handled) {
+                            if (is_top_level_traversable())
+                                active_browsing_context()->page().client().page_did_cancel_loading(history_entry->url());
+                            set_ongoing_navigation({});
+                            set_delaying_load_events(false);
+                            return;
+                        }
+
                         if (output)
                             output->apply_to(*history_entry);
                         auto pending_document = output ? output->document : GC::Ptr<DOM::Document> {};

@@ -1642,11 +1642,11 @@ void ViewImplementation::did_start_navigation(URL::URL const& url, Variant<Empty
     dump_session_history("did-start-navigation"sv);
 }
 
-void ViewImplementation::did_cancel_navigation(URL::URL const& url)
+bool ViewImplementation::did_cancel_navigation(URL::URL const& url)
 {
     if (m_pending_session_history_navigation.has_value() && m_pending_session_history_navigation->url == url) {
         restore_pending_session_history_navigation("did-cancel-navigation"sv);
-        return;
+        return true;
     }
 
     if (m_session_history_entry_url_loading_from_ui_process.has_value() && *m_session_history_entry_url_loading_from_ui_process == url) {
@@ -1656,7 +1656,7 @@ void ViewImplementation::did_cancel_navigation(URL::URL const& url)
         m_session_history.forget_web_content_state();
         update_navigation_action_state();
         dump_session_history("did-cancel-ui-history-load"sv);
-        return;
+        return true;
     }
 
     if (m_webdriver_pending_navigation_url.has_value()) {
@@ -1664,9 +1664,11 @@ void ViewImplementation::did_cancel_navigation(URL::URL const& url)
         m_webdriver_pending_navigation_url = m_url;
         m_webdriver_pending_navigation_completes_with_session_history_update = false;
         complete_webdriver_pending_navigation_if_url_matches(m_url);
+        return true;
     }
 
     dump_session_history("did-cancel-navigation-ignored"sv);
+    return false;
 }
 
 void ViewImplementation::did_finish_navigation(URL::URL const& url)

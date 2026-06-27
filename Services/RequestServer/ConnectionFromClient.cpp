@@ -14,6 +14,7 @@
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibRequests/NetworkError.h>
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
@@ -136,6 +137,9 @@ Optional<ConnectionFromClient&> ConnectionFromClient::primary_connection()
 
 void ConnectionFromClient::request_complete(Badge<Request>, Request const& request)
 {
+    if (request.keep_alive_for_transfer())
+        return;
+
     Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id = request.request_id(), type = request.type()] {
         if (auto self = weak_self.strong_ref()) {
             if (type == RequestType::BackgroundRevalidation)
@@ -219,6 +223,11 @@ Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_su
     return protocol == "http"sv || protocol == "https"sv;
 }
 
+Messages::RequestServer::GetClientIdResponse ConnectionFromClient::get_client_id()
+{
+    return client_id();
+}
+
 void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally)
 {
     auto& dns_info = DNSInfo::the();
@@ -258,7 +267,7 @@ void ConnectionFromClient::set_use_system_dns()
     m_resolver->dns.reset_connection();
 }
 
-void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data)
+void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data, bool keep_alive_for_transfer)
 {
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
@@ -277,8 +286,55 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
         }
     }
 
-    auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data);
+    auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data, keep_alive_for_transfer);
     m_active_requests.set(request_id, move(request));
+}
+
+void ConnectionFromClient::adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id)
+{
+    auto source_connection = m_connections.get(source_client_id);
+    if (!source_connection.has_value()) {
+        async_request_finished(target_request_id, 0, {}, Requests::NetworkError::Unknown);
+        return;
+    }
+
+    auto request = (*source_connection)->m_active_requests.take(source_request_id);
+    if (!request.has_value()) {
+        async_request_finished(target_request_id, 0, {}, Requests::NetworkError::Unknown);
+        return;
+    }
+
+    auto transfer_result = (*request)->transfer_to_client(*this, target_request_id);
+    if (transfer_result.is_error()) {
+        dbgln("RequestServer: Failed to transfer request {} from client {} to client {}: {}", source_request_id, source_client_id, client_id(), transfer_result.error());
+        (*source_connection)->m_active_requests.set(source_request_id, request.release_value());
+        async_request_finished(target_request_id, 0, {}, Requests::NetworkError::Unknown);
+        return;
+    }
+
+    auto should_remove_after_transfer = (*request)->is_complete();
+    m_active_requests.set(target_request_id, request.release_value());
+    if (should_remove_after_transfer) {
+        Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), target_request_id] {
+            if (auto self = weak_self.strong_ref())
+                self->m_active_requests.remove(target_request_id);
+        });
+    }
+}
+
+void ConnectionFromClient::release_request_for_transfer(u64 request_id)
+{
+    auto request = m_active_requests.get(request_id);
+    if (!request.has_value())
+        return;
+
+    (*request)->release_for_transfer();
+    if ((*request)->is_complete()) {
+        Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id] {
+            if (auto self = weak_self.strong_ref())
+                self->m_active_requests.remove(request_id);
+        });
+    }
 }
 
 void ConnectionFromClient::start_revalidation_request(Badge<Request>, ByteString method, URL::URL url, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data)
