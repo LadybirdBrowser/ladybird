@@ -3564,62 +3564,99 @@ impl TreeBuilder {
         self.insertion_mode = InsertionMode::InRow;
     }
 
-    fn foster_parenting_location(&self) -> (usize, usize) {
-        if let Some(table_index) = self
-            .stack_of_open_elements
-            .iter()
-            .rposition(|node| node.local_name == "table" && node.namespace_ == RustFfiHtmlNamespace::Html)
-            && table_index > 0
-        {
-            let table = self.stack_of_open_elements[table_index].handle;
-            let parent = self.parent_node(table);
-            if parent != 0 {
-                return (parent, table);
-            }
-
-            let parent_node = &self.stack_of_open_elements[table_index - 1];
-            let parent = parent_node.template_content.unwrap_or(parent_node.handle);
-            return (parent, 0);
-        }
-        (
-            self.stack_of_open_elements.first().map(|node| node.handle).unwrap_or(0),
-            0,
-        )
-    }
-
     // https://html.spec.whatwg.org/multipage/parsing.html#appropriate-place-for-inserting-a-node
     fn appropriate_place_for_inserting_node(&self, target: usize) -> (usize, usize) {
+        // 1. If there was an override target specified, then let target be the override target.
+        //    Otherwise, let target be the current node.
         let Some(target_node) = self.stack_of_open_elements.iter().find(|node| node.handle == target) else {
             return (target, 0);
         };
 
-        if !self.foster_parenting_enabled
-            || target_node.namespace_ != RustFfiHtmlNamespace::Html
-            || !matches!(
+        // 2. Determine the adjusted insertion location using the first matching steps from the following list:
+        let mut adjusted_insertion_location;
+
+        //   -> If foster parenting is enabled and target is a table, tbody, tfoot, thead, or tr element
+        //  NOTE: Foster parenting happens when content is misnested in tables.
+        if self.foster_parenting_enabled
+            && target_node.namespace_ == RustFfiHtmlNamespace::Html
+            && matches!(
                 target_node.local_name.as_str(),
                 "table" | "tbody" | "tfoot" | "thead" | "tr"
             )
         {
-            return (target_node.template_content.unwrap_or(target_node.handle), 0);
+            // 1. Let last template be the last template element in the stack of open elements, if any.
+            let last_template_index = self
+                .stack_of_open_elements
+                .iter()
+                .rposition(|node| node.local_name == "template" && node.namespace_ == RustFfiHtmlNamespace::Html);
+
+            // 2. Let last table be the last table element in the stack of open elements, if any.
+            let last_table_index = self
+                .stack_of_open_elements
+                .iter()
+                .rposition(|node| node.local_name == "table" && node.namespace_ == RustFfiHtmlNamespace::Html);
+
+            // 3. If there is a last template and either there is no last table, or there is one, but last template is
+            //    lower (more recently added) than last table in the stack of open elements, then let adjusted insertion
+            //    location be inside last template's template contents, after its last child (if any), and abort these steps.
+            if let Some(template_index) = last_template_index
+                && last_table_index.is_none_or(|table_index| template_index > table_index)
+            {
+                let template = &self.stack_of_open_elements[template_index];
+                adjusted_insertion_location = (template.handle, 0);
+            } else {
+                match last_table_index {
+                    // 4. If there is no last table, then let adjusted insertion location be inside the first element in
+                    //    the stack of open elements (the html element), after its last child (if any), and abort these
+                    //    steps. (fragment case)
+                    None => {
+                        adjusted_insertion_location = (
+                            self.stack_of_open_elements.first().map(|node| node.handle).unwrap_or(0),
+                            0,
+                        );
+                    }
+                    Some(table_index) => {
+                        let table = self.stack_of_open_elements[table_index].handle;
+                        let parent = self.parent_node(table);
+                        // 5. If last table has a parent node, then let adjusted insertion location be inside last table's
+                        //    parent node, immediately before last table, and abort these steps.
+                        if parent != 0 {
+                            adjusted_insertion_location = (parent, table);
+                        } else {
+                            // 6. Let previous element be the element immediately above last table in the stack of open
+                            //    elements.
+                            let previous_element = &self.stack_of_open_elements[table_index - 1];
+
+                            // 7. Let adjusted insertion location be inside previous element, after its last child (if any).
+                            adjusted_insertion_location = (previous_element.handle, 0);
+                        }
+                    }
+                }
+            }
+
+            // NOTE: These steps are involved in part because it's possible for elements, the table element in this case
+            //       in particular, to have been moved by a script around in the DOM, or indeed removed from the DOM entirely,
+            //       after the element was inserted by the parser.
+        }
+        //   -> Otherwise
+        else {
+            // Let adjusted insertion location be inside target, after its last child (if any).
+            adjusted_insertion_location = (target_node.handle, 0);
         }
 
-        let last_template_index = self
+        // 3. If the adjusted insertion location is inside a template element, let it instead be inside the template
+        //    element's template contents, after its last child (if any).
+        if let Some(node) = self
             .stack_of_open_elements
             .iter()
-            .rposition(|node| node.local_name == "template" && node.namespace_ == RustFfiHtmlNamespace::Html);
-        let last_table_index = self
-            .stack_of_open_elements
-            .iter()
-            .rposition(|node| node.local_name == "table" && node.namespace_ == RustFfiHtmlNamespace::Html);
-
-        if let Some(template_index) = last_template_index
-            && last_table_index.is_none_or(|table_index| template_index > table_index)
+            .find(|node: &&StackNode| node.handle == adjusted_insertion_location.0)
+            && let Some(template_content) = node.template_content
         {
-            let template = &self.stack_of_open_elements[template_index];
-            return (template.template_content.unwrap_or(template.handle), 0);
+            adjusted_insertion_location.0 = template_content;
         }
 
-        self.foster_parenting_location()
+        // 4. Return the adjusted insertion location.
+        adjusted_insertion_location
     }
 
     fn insert_marker_at_the_end_of_the_list_of_active_formatting_elements(&mut self) {
