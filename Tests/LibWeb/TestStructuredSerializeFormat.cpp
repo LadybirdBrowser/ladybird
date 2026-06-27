@@ -6,6 +6,7 @@
 
 #include "StructuredSerializeTestHelpers.h"
 #include <AK/NumericLimits.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Crypto/CryptoKeySerializationTags.h>
@@ -472,6 +473,30 @@ TEST_CASE(realm_helpers_share_vm_initialization)
 
     while (vm.execution_context_stack().size() > depth)
         vm.pop_execution_context();
+}
+
+TEST_CASE(duplicate_typed_array_reference_resolves_back_to_the_view)
+{
+    // A held view must resolve back to the view, not its earlier-serialized buffer.
+    auto& realm = test_realm();
+
+    auto view = MUST(JS::Uint8Array::create(realm, 4));
+    JS::Value view_value { view };
+    JS::Value elements[] { view_value, view_value };
+    auto array = JS::Array::create_from(realm, elements);
+
+    auto decoded = MUST(storage_deserialize(storage_serialize(array)));
+    EXPECT(decoded.is_object());
+    auto& decoded_array = as<JS::Array>(decoded.as_object());
+
+    auto first = MUST(decoded_array.get(0u));
+    auto second = MUST(decoded_array.get(1u));
+    EXPECT(first.is_object());
+    EXPECT(second.is_object());
+
+    EXPECT(is<JS::Uint8Array>(first.as_object()));
+    EXPECT(is<JS::Uint8Array>(second.as_object()));
+    EXPECT_EQ(&first.as_object(), &second.as_object());
 }
 
 // Changing a storage golden is a wire-layout change.
