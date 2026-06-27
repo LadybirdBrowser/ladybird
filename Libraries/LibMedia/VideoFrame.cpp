@@ -35,6 +35,13 @@ PooledVideoFrameSlot const* VideoFrame::pool_slot() const
     return m_backing_storage.get<NonnullRefPtr<PooledVideoFrameSlot>>().ptr();
 }
 
+ResolvedVideoFrameSlot const* VideoFrame::resolved_slot() const
+{
+    if (auto const* resolved = m_backing_storage.get_pointer<NonnullRefPtr<ResolvedVideoFrameSlot>>())
+        return resolved->ptr();
+    return nullptr;
+}
+
 bool VideoFrame::revalidate_backing() const
 {
     if (auto const* resolved_slot = m_backing_storage.get_pointer<NonnullRefPtr<ResolvedVideoFrameSlot>>())

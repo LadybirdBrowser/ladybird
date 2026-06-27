@@ -141,6 +141,11 @@ private:
     Function<void()> m_on_release;
 };
 
+// Resolves a frame handle against the slot framebuffer it refers to, validating the slot's acquisition ID against the
+// handle's. The resolved frame revalidates it again after its pixels are consumed, seqlock-style, discarding reads of
+// recycled slots.
+MEDIA_API ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot_buffer(Core::AnonymousBuffer const& slot_buffer, VideoFrameHandle const&, Function<void()> on_release);
+
 // Tracks all the active slot framebuffers from a VideoFramePool via announcement and retirement notifications. Used to
 // resolve frames on a remote process. Resolved frames' lifetimes are guaranteed until they are released.
 class MEDIA_API VideoFrameSlotDirectory : public AtomicRefCounted<VideoFrameSlotDirectory> {

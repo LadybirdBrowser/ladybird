@@ -1,4 +1,3 @@
-#include <LibMedia/VideoFrameHandle.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Page/InputEvent.h>
 
@@ -8,6 +7,5 @@ endpoint CompositorWebContentClient
     request_rendering_update() =|
     did_complete_screenshot(Web::Compositor::ScreenshotRequestId request_id) =|
     did_fail_screenshot(Web::Compositor::ScreenshotRequestId request_id) =|
-    release_video_frame(Media::VideoFramePoolID pool_id, u32 slot_index) =|
     did_lose_compositor() =|
 }

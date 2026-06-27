@@ -18,42 +18,6 @@
 
 namespace {
 
-class ScriptedVideoProducer final : public Media::VideoProducer {
-public:
-    static NonnullRefPtr<ScriptedVideoProducer> create()
-    {
-        return adopt_ref(*new ScriptedVideoProducer());
-    }
-
-    void append_output(RefPtr<Media::VideoFrame> frame, Media::PipelineStatus status)
-    {
-        m_outputs.append({ move(frame), status });
-    }
-
-    void wake()
-    {
-        if (m_wake_handler)
-            m_wake_handler();
-    }
-
-    virtual void start() override { }
-    virtual Media::VideoProducerOutput peek() override
-    {
-        if (m_outputs.is_empty())
-            return { nullptr, Media::PipelineStatus::Pending };
-        return m_outputs.first();
-    }
-    virtual void consume() override { m_outputs.take_first(); }
-    virtual void set_wake_handler(Media::PipelineWakeHandler handler) override { m_wake_handler = move(handler); }
-    virtual void seek(AK::Duration) override { }
-
-private:
-    ScriptedVideoProducer() = default;
-
-    Vector<Media::VideoProducerOutput> m_outputs;
-    Media::PipelineWakeHandler m_wake_handler;
-};
-
 NonnullRefPtr<Media::VideoFrame> create_test_frame(Media::VideoFramePool& pool, AK::Duration timestamp, AK::Duration duration)
 {
     static constexpr Gfx::IntSize frame_size { 2, 2 };
@@ -91,7 +55,7 @@ TEST_CASE(seek_resolving_frame_is_presented_even_when_stale)
     producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(900), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
 
     auto result = sink->update(MonotonicTime::now());
-    EXPECT_EQ(result, Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable);
+    EXPECT(result.new_frame_available);
 
     auto current_frame = sink->current_frame();
     EXPECT(current_frame != nullptr);
@@ -115,7 +79,7 @@ TEST_CASE(suspension_wake_releases_the_prefetched_frame)
     producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
     producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1033), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
     auto result = sink->update(MonotonicTime::now());
-    EXPECT_EQ(result, Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable);
+    EXPECT(result.new_frame_available);
     EXPECT_EQ(freed_slots, 0u);
 
     // The suspension wake must release the prefetched frame's slot while keeping the displayed frame.
@@ -126,8 +90,38 @@ TEST_CASE(suspension_wake_releases_the_prefetched_frame)
     // Ticking past the prefetched frame's timestamp must not present it after the suspension.
     clock->seek(AK::Duration::from_milliseconds(1040));
     result = sink->update(MonotonicTime::now());
-    EXPECT_EQ(result, Media::DisplayingVideoSinkUpdateResult::NoChange);
+    EXPECT(!result.new_frame_available);
     auto current_frame = sink->current_frame();
     EXPECT(current_frame != nullptr);
     EXPECT_EQ(current_frame->timestamp(), AK::Duration::from_milliseconds(1000));
+}
+
+TEST_CASE(updates_are_required_until_the_clock_stops_and_frames_are_presented)
+{
+    never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    // A seek in flight keeps updates required while the clock is stopped.
+    sink->seek(AK::Duration::from_milliseconds(1000));
+    EXPECT(sink->update(MonotonicTime::now()).may_require_updates);
+
+    // Resolving the seek with a presentable frame leaves nothing due at the stopped clock.
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
+    auto result = sink->update(MonotonicTime::now());
+    EXPECT(result.new_frame_available);
+    EXPECT(!result.may_require_updates);
+
+    // A running clock requires updates regardless of pending frames.
+    clock->resume();
+    EXPECT(sink->update(MonotonicTime::now()).may_require_updates);
+
+    clock->pause();
+    EXPECT(!sink->update(MonotonicTime::now()).may_require_updates);
 }

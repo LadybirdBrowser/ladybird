@@ -67,25 +67,17 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     };
 
     auto paint_video_frame = [&]() {
-        RefPtr<Media::VideoFrame> current;
-        if (auto const& sink = video_element.selected_video_track_sink())
-            current = sink->current_frame();
-
-        Gfx::IntSize src_size;
-        if (current)
-            src_size = current->size().to_type<int>();
-        else if (video_element.natural_media_size().has_value())
-            src_size = video_element.natural_media_size()->to_type<int>();
-        else
+        auto sink_handle = video_element.video_sink_handle();
+        if (!sink_handle.has_value() || !video_element.natural_media_size().has_value())
             return;
+        auto src_size = video_element.natural_media_size()->to_type<int>();
 
         auto dst_rect = get_replaced_box_painting_area(*this, context, computed_values().object_fit(), to_css_pixel_size(src_size));
         if (dst_rect.is_empty())
             return;
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), src_size, dst_rect.size());
-        RefPtr<Media::VideoFrame const> frame = current;
-        auto frame_id = const_cast<HTML::HTMLVideoElement&>(video_element).ensure_video_frame_resource_id();
-        context.display_list_recorder().draw_video_frame(dst_rect, frame_id, move(frame), video_element.video_frame_content_generation(), scaling_mode);
+        auto video_sink_id = video_element.video_sink_resource_id().value();
+        context.display_list_recorder().draw_video_frame(dst_rect, video_sink_id, *sink_handle, scaling_mode);
     };
 
     auto paint_transparent_black = [&]() {

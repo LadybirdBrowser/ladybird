@@ -217,14 +217,9 @@ void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scro
     }
 }
 
-void ContextState::update_video_frame(Web::Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)
+void ContextState::set_video_sink(Web::Painting::VideoSinkResourceId frame_id, RefPtr<Media::VideoSink> sink)
 {
-    m_display_list_resource_storage.update_video_frame(frame_id, move(frame));
-}
-
-void ContextState::clear_video_frame(Web::Painting::VideoFrameResourceId frame_id)
-{
-    m_display_list_resource_storage.clear_video_frame(frame_id);
+    m_display_list_resource_storage.set_video_sink(frame_id, move(sink));
 }
 
 void ContextState::invalidate_wheel_event_listener_state(u64 generation)
@@ -702,6 +697,18 @@ Optional<Gfx::IntRect> ContextState::current_frame_rect_to_present() const
     if (!m_presented_frame.has_value())
         return {};
     return m_presented_frame;
+}
+
+Optional<Gfx::IntRect> ContextState::video_present_rect() const
+{
+    // The viewport to present a hosted video frame into. Unlike current_frame_rect_to_present this is not gated on a
+    // present already being in flight: a new frame must always (re)queue a present so the latest frame lands once the
+    // outstanding one completes.
+    if (m_presented_frame.has_value())
+        return m_presented_frame;
+    if (!m_viewport_size.is_empty())
+        return Gfx::IntRect { {}, m_viewport_size };
+    return {};
 }
 
 Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Web::Painting::DisplayListPlayerSkia& display_list_player, PendingFrame pending_frame, CompositedContextResolver const* composited_context_resolver)

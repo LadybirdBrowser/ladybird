@@ -14,14 +14,14 @@ namespace Web::Painting {
 
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, FontResourceId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, ImageFrameResourceId);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, VideoFrameResourceId);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, VideoSinkResourceId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, DisplayListResourceId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, CanvasId);
 
-inline VideoFrameResourceId allocate_video_frame_resource_id()
+inline VideoSinkResourceId allocate_video_sink_resource_id()
 {
     static Atomic<u64> s_next_id { 1 };
-    return VideoFrameResourceId { s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed) };
+    return VideoSinkResourceId { s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed) };
 }
 
 }

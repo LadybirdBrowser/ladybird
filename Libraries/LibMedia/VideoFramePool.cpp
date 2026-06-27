@@ -220,8 +220,11 @@ bool ResolvedVideoFrameSlot::revalidate() const
     return slot_header(m_slot_buffer).slot_acquisition_id.load() == m_slot_acquisition_id;
 }
 
-static ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot_buffer(Core::AnonymousBuffer const& slot_buffer, VideoFrameHandle const& handle, Function<void()> on_release)
+ErrorOr<NonnullRefPtr<VideoFrame>> resolve_frame_from_slot_buffer(Core::AnonymousBuffer const& slot_buffer, VideoFrameHandle const& handle, Function<void()> on_release)
 {
+    if (!slot_buffer.is_valid() || slot_buffer.size() <= slot_data_offset())
+        return Error::from_string_literal("Invalid video frame slot buffer");
+
     auto layout = TRY(frame_plane_layout(handle.size, handle.bit_depth, handle.subsampling));
     auto capacity = slot_buffer.size() - slot_data_offset();
     if (layout.total_byte_count > capacity)

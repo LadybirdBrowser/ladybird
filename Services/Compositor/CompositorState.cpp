@@ -9,6 +9,7 @@
 #include <Compositor/CompositorState.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
+#include <LibMedia/Sinks/DisplayingVideoSink.h>
 
 namespace Compositor {
 
@@ -62,8 +63,7 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
         destroy_context(context_id);
     }
 
-    if (auto pools = m_video_frame_pools_by_client.take(&client); pools.has_value())
-        (*pools)->client = nullptr;
+    m_video_sink_states.remove(&client);
 }
 
 void CompositorState::create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client)
@@ -94,6 +94,7 @@ void CompositorState::destroy_context(Web::Compositor::CompositorContextId conte
             possible_child_context.set_parent_context({});
     }
     m_contexts.remove(context_id);
+    update_video_sink_ticking_states();
 }
 
 void CompositorState::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
@@ -145,18 +146,10 @@ void CompositorState::update_display_list(Web::Compositor::CompositorContextId c
         return;
     }
 
-    for (auto& video_frame_resource : resource_transaction.video_frames) {
-        auto const* frame_handle = video_frame_resource.frame.get_pointer<Media::VideoFrameHandle>();
-        if (frame_handle == nullptr)
-            continue;
-        if (auto frame = resolve_video_frame(context->web_content_client(), *frame_handle))
-            video_frame_resource.frame = frame.release_nonnull();
-        else
-            video_frame_resource.frame = Empty {};
-    }
-
     context->apply_display_list_resource_transaction(move(resource_transaction));
     context->install_display_list_update(move(display_list), move(visual_context_tree), move(scroll_state_snapshot));
+    resolve_video_sinks(*context);
+    update_video_sink_ticking_states();
 }
 
 void CompositorState::update_image_frame_resources(Web::Compositor::CompositorContextId context_id, Vector<Web::Painting::DisplayListImageFrameResource> image_frames)
@@ -182,54 +175,189 @@ void CompositorState::update_scroll_state(Web::Compositor::CompositorContextId c
     context->update_scroll_state(move(scroll_state_snapshot));
 }
 
-void CompositorState::announce_video_frame_slot(CompositorStateWebContentClient& client, Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer)
+CompositorState::VideoSinkState* CompositorState::video_sink_state(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
 {
-    auto& pools = m_video_frame_pools_by_client.ensure(&client, [&] {
-        auto pools = make_ref_counted<ClientVideoFramePools>();
-        pools->client = &client;
-        return pools;
-    });
-    pools->directory->notify_slot_announced(pool_id, slot_index, move(slot_buffer));
-}
-
-void CompositorState::retire_video_frame_pool(CompositorStateWebContentClient& client, Media::VideoFramePoolID pool_id)
-{
-    auto pools_it = m_video_frame_pools_by_client.find(&client);
-    if (pools_it == m_video_frame_pools_by_client.end())
-        return;
-    pools_it->value->directory->notify_pool_retired(pool_id);
-}
-
-RefPtr<Media::VideoFrame const> CompositorState::resolve_video_frame(CompositorStateWebContentClient& client, Media::VideoFrameHandle const& handle)
-{
-    auto pools_it = m_video_frame_pools_by_client.find(&client);
-    if (pools_it == m_video_frame_pools_by_client.end())
+    auto client_sinks = m_video_sink_states.get(&client);
+    if (!client_sinks.has_value())
         return nullptr;
-
-    // A recycled slot resolves to nothing, meaning a newer frame has already superseded this handle.
-    return pools_it->value->directory->resolve_frame(handle, [pools = pools_it->value, pool_id = handle.pool_id, slot_index = handle.slot_index] {
-        if (pools->client != nullptr)
-            pools->client->release_video_frame(pool_id, slot_index);
-    });
+    auto sink_state = client_sinks->get(handle);
+    if (!sink_state.has_value())
+        return nullptr;
+    return &sink_state.value();
 }
 
-void CompositorState::update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, Media::VideoFrameHandle const& frame_handle)
+void CompositorState::add_video_sink(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
 {
-    auto* context = context_if_present(context_id);
-    VERIFY(context);
-    auto frame = resolve_video_frame(context->web_content_client(), frame_handle);
-    if (frame == nullptr)
+    auto& sinks = m_video_sink_states.ensure(&client, [] { return HashMap<Media::VideoSinkHandle, VideoSinkState> {}; });
+    if (sinks.contains(handle))
         return;
-    context->update_video_frame(frame_id, frame.release_nonnull());
-    present_current_frame(context_id, *context);
+    sinks.set(handle, VideoSinkState {});
+    client.create_video_edge(handle);
 }
 
-void CompositorState::clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id)
+void CompositorState::remove_video_sink(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
 {
-    auto* context = context_if_present(context_id);
-    VERIFY(context);
-    context->clear_video_frame(frame_id);
-    present_current_frame(context_id, *context);
+    if (auto client_sinks = m_video_sink_states.get(&client); client_sinks.has_value())
+        client_sinks->remove(handle);
+    client.release_video_edge(handle);
+}
+
+void CompositorState::set_video_update_flags(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle, Web::Compositor::VideoUpdateFlags update_flags)
+{
+    auto* sink_state = video_sink_state(client, handle);
+    if (!sink_state)
+        return;
+    sink_state->update_flags = update_flags;
+    if (update_flags != Web::Compositor::VideoUpdateFlags::None && sink_state->sink)
+        present_contexts_drawing_video_sink(client, handle);
+    update_video_sink_ticking_states();
+}
+
+bool CompositorState::video_sink_updates_are_admitted(VideoSinkState const& sink_state, bool painted)
+{
+    if (sink_state.sink == nullptr)
+        return false;
+    if (has_flag(sink_state.update_flags, Web::Compositor::VideoUpdateFlags::Captured))
+        return true;
+    return has_flag(sink_state.update_flags, Web::Compositor::VideoUpdateFlags::Visible) && painted;
+}
+
+void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle, NonnullRefPtr<Media::DisplayingVideoSink> const& sink)
+{
+    auto* sink_state = video_sink_state(client, handle);
+    if (!sink_state)
+        return;
+    sink_state->sink = sink;
+    sink->set_on_present_needed([this, &client, handle] {
+        present_contexts_drawing_video_sink(client, handle);
+    });
+    for (auto& context_entry : m_contexts) {
+        if (&context_entry.value->web_content_client() == &client)
+            resolve_video_sinks(*context_entry.value);
+    }
+    present_contexts_drawing_video_sink(client, handle);
+    update_video_sink_ticking_states();
+}
+
+void CompositorState::update_video_sink_ticking_states()
+{
+    auto const& painted_by_client = painted_video_sink_handles_by_client();
+    auto any_unpainted_sink_admits_updates = false;
+    for (auto& client_entry : m_video_sink_states) {
+        auto client_painted = painted_by_client.get(client_entry.key);
+        for (auto& sink_entry : client_entry.value) {
+            auto& sink_state = sink_entry.value;
+            auto is_painted = client_painted.has_value() && client_painted->contains(sink_entry.key);
+            auto ticking = video_sink_updates_are_admitted(sink_state, is_painted);
+            any_unpainted_sink_admits_updates |= ticking && !is_painted;
+            if (ticking == sink_state.ticking)
+                continue;
+            sink_state.ticking = ticking;
+            client_entry.key->set_video_sink_ticking(sink_entry.key, ticking);
+        }
+    }
+    if (any_unpainted_sink_admits_updates)
+        schedule_unpainted_video_updates();
+}
+
+void CompositorState::present_contexts_drawing_video_sink(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
+{
+    for (auto& context_entry : m_contexts) {
+        auto& context = *context_entry.value;
+        if (&context.web_content_client() != &client)
+            continue;
+        for (auto const& resource_entry : context.video_sink_handles()) {
+            if (resource_entry.value == handle) {
+                if (auto rect = context.video_present_rect(); rect.has_value())
+                    schedule_present_frame(context_entry.key, context, *rect);
+                break;
+            }
+        }
+    }
+}
+
+void CompositorState::resolve_video_sinks(ContextState& context)
+{
+    auto& client = context.web_content_client();
+    for (auto const& resource_entry : context.video_sink_handles()) {
+        auto* sink_state = video_sink_state(client, resource_entry.value);
+        context.set_video_sink(Web::Painting::VideoSinkResourceId { resource_entry.key }, sink_state ? sink_state->sink : nullptr);
+    }
+}
+
+HashMap<CompositorStateWebContentClient*, HashTable<Media::VideoSinkHandle>> const& CompositorState::painted_video_sink_handles_by_client() const
+{
+    m_painted_video_sink_handles_by_client.clear_with_capacity();
+    for (auto const& context_entry : m_contexts) {
+        auto& context = *context_entry.value;
+        auto& handles = m_painted_video_sink_handles_by_client.ensure(&context.web_content_client());
+        for (auto const& resource_entry : context.video_sink_handles())
+            handles.set(resource_entry.value);
+    }
+    return m_painted_video_sink_handles_by_client;
+}
+
+int CompositorState::unpainted_video_update_interval_ms() const
+{
+    auto max_refresh_rate = 60.0;
+    for (auto const& context_entry : m_contexts)
+        max_refresh_rate = max(max_refresh_rate, context_entry.value->display_refresh_rate());
+    return max(1, static_cast<int>(1000.0 / max_refresh_rate));
+}
+
+void CompositorState::schedule_unpainted_video_updates()
+{
+    if (!m_unpainted_video_update_timer) {
+        m_unpainted_video_update_timer = Core::Timer::create_repeating(unpainted_video_update_interval_ms(), [this] {
+            update_unpainted_video_sinks();
+        });
+    }
+    if (!m_unpainted_video_update_timer->is_active())
+        m_unpainted_video_update_timer->start();
+}
+
+void CompositorState::update_unpainted_video_sinks()
+{
+    if (update_all_video_sinks() == VideoSinkUpdateResult::NoUnpaintedSinkRequiresUpdates && m_unpainted_video_update_timer)
+        m_unpainted_video_update_timer->stop();
+}
+
+CompositorState::VideoSinkUpdateResult CompositorState::update_all_video_sinks()
+{
+    auto now = MonotonicTime::now();
+    auto const& painted_by_client = painted_video_sink_handles_by_client();
+    auto result = VideoSinkUpdateResult::NoUnpaintedSinkRequiresUpdates;
+    for (auto& client_entry : m_video_sink_states) {
+        auto client_painted = painted_by_client.get(client_entry.key);
+        for (auto& sink_entry : client_entry.value) {
+            auto& sink_state = sink_entry.value;
+            auto is_painted = client_painted.has_value() && client_painted->contains(sink_entry.key);
+            sink_state.requires_updates = video_sink_updates_are_admitted(sink_state, is_painted)
+                && sink_state.sink->update(now).may_require_updates;
+            if (!is_painted && sink_state.requires_updates)
+                result = VideoSinkUpdateResult::UnpaintedSinkRequiresUpdates;
+        }
+    }
+    return result;
+}
+
+void CompositorState::update_video_sinks_for_display(Optional<u64> display_id)
+{
+    update_all_video_sinks();
+
+    // Keep this display's vsync ticking while any sink painted on it may require updates.
+    for (auto& context_entry : m_contexts) {
+        auto& context = *context_entry.value;
+        if (context.display_id() != display_id)
+            continue;
+        for (auto const& resource_entry : context.video_sink_handles()) {
+            auto* sink_state = video_sink_state(context.web_content_client(), resource_entry.value);
+            if (sink_state != nullptr && sink_state->requires_updates) {
+                vsync_scheduler_for_display(display_id).schedule(context.display_refresh_rate());
+                break;
+            }
+        }
+    }
 }
 
 void CompositorState::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)
@@ -345,8 +473,11 @@ void CompositorState::set_display_metadata(Web::Compositor::CompositorContextId 
     VERIFY(refresh_rate > 0);
     VERIFY(refresh_rate < AK::Infinity<double>);
 
-    if (context->set_display_metadata(display_id, refresh_rate))
+    if (context->set_display_metadata(display_id, refresh_rate)) {
         schedule_pending_present_frame(context_id, *context);
+        if (m_unpainted_video_update_timer)
+            m_unpainted_video_update_timer->set_interval(unpainted_video_update_interval_ms());
+    }
 }
 
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect)
@@ -447,6 +578,8 @@ VSyncScheduler& CompositorState::vsync_scheduler_for_display(Optional<u64> displ
 
 void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
 {
+    update_video_sinks_for_display(display_id);
+
     auto now = MonotonicTime::now();
     for (auto& context_entry : m_contexts) {
         auto context_id = context_entry.key;

@@ -20,6 +20,7 @@
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/DecodedAudioProducer.h>
+#include <LibMedia/Producers/VideoProducer.h>
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibTest/TestCase.h>
@@ -149,3 +150,44 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     VERIFY(reached_end);
     EXPECT_EQ(frame_count, expected_frame_count);
 }
+
+class ScriptedVideoProducer final : public Media::VideoProducer {
+public:
+    static NonnullRefPtr<ScriptedVideoProducer> create()
+    {
+        return adopt_ref(*new ScriptedVideoProducer());
+    }
+
+    void append_frame(NonnullRefPtr<Media::VideoFrame> frame)
+    {
+        append_output(move(frame), Media::PipelineStatus::HaveData);
+    }
+
+    void append_output(RefPtr<Media::VideoFrame> frame, Media::PipelineStatus status)
+    {
+        m_outputs.append({ move(frame), status });
+    }
+
+    void wake()
+    {
+        if (m_wake_handler)
+            m_wake_handler();
+    }
+
+    virtual void start() override { }
+    virtual Media::VideoProducerOutput peek() override
+    {
+        if (m_outputs.is_empty())
+            return { nullptr, Media::PipelineStatus::Pending };
+        return m_outputs.first();
+    }
+    virtual void consume() override { (void)m_outputs.take_first(); }
+    virtual void set_wake_handler(Media::PipelineWakeHandler handler) override { m_wake_handler = move(handler); }
+    virtual void seek(AK::Duration) override { }
+
+private:
+    ScriptedVideoProducer() = default;
+
+    Vector<Media::VideoProducerOutput> m_outputs;
+    Media::PipelineWakeHandler m_wake_handler;
+};

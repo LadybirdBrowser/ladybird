@@ -8,6 +8,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/DistinctNumeric.h>
+#include <AK/EnumBits.h>
 #include <AK/Optional.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
@@ -35,6 +36,18 @@ enum class PagePresentationRegistration {
     No,
     Yes,
 };
+
+// Facts about a video element that the compositor combines with its own paint knowledge to
+// decide when its sink is updated: a visible sink updates while painted, a captured one updates
+// regardless of paint, and a time-stopped one updates only until everything due at the settled
+// position has been presented. Every flag change wakes the sink's update scheduling.
+enum class VideoUpdateFlags : u8 {
+    None = 0,
+    Visible = 1 << 0,
+    Captured = 1 << 1,
+    TimeStopped = 1 << 2,
+};
+AK_ENUM_BITWISE_OPERATORS(VideoUpdateFlags);
 
 struct PendingAsyncScrollUpdates {
     Vector<AsyncScrollOffset> scroll_offsets;

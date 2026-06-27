@@ -146,19 +146,6 @@ u32 HTMLVideoElement::video_height() const
     return 0;
 }
 
-void HTMLVideoElement::update_intrinsic_video_dimensions()
-{
-    Optional<Gfx::Size<u32>> dimensions = {};
-
-    if (selected_video_track_sink() != nullptr) {
-        auto current_frame = selected_video_track_sink()->current_frame();
-        if (current_frame != nullptr)
-            dimensions = current_frame->size();
-    }
-
-    set_intrinsic_video_dimensions(dimensions);
-}
-
 void HTMLVideoElement::update_natural_dimensions()
 {
     // https://html.spec.whatwg.org/multipage/media.html#concept-video-intrinsic-width
@@ -345,10 +332,7 @@ HTMLVideoElement::Representation HTMLVideoElement::current_representation() cons
 
 Optional<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame() const
 {
-    auto const& sink = selected_video_track_sink();
-    if (sink == nullptr)
-        return {};
-    auto current_frame = sink->current_frame();
+    auto current_frame = current_presented_frame();
     if (!current_frame)
         return {};
     auto bitmap_or_error = current_frame->yuv_data().to_bitmap();

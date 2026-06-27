@@ -40,13 +40,27 @@ ErrorOr<FramePlaneLayout> frame_plane_layout(Gfx::IntSize size, u8 bit_depth, Su
 
 VideoFrameHandle VideoFrameHandle::for_frame(VideoFrame const& frame)
 {
-    auto const* pool_slot = frame.pool_slot();
-    VERIFY(pool_slot != nullptr);
+    // Owner-backed (a held pool slot) or consumer-backed (resolved from a handle); both carry the slot identity.
+    VideoFramePoolID pool_id { 0 };
+    u32 slot_index = 0;
+    u64 slot_acquisition_id = 0;
+    if (auto const* pool_slot = frame.pool_slot()) {
+        pool_id = pool_slot->pool().id();
+        slot_index = pool_slot->slot_index();
+        slot_acquisition_id = pool_slot->slot_acquisition_id();
+    } else {
+        auto const* resolved_slot = frame.resolved_slot();
+        VERIFY(resolved_slot != nullptr);
+        pool_id = resolved_slot->pool_id();
+        slot_index = resolved_slot->slot_index();
+        slot_acquisition_id = resolved_slot->slot_acquisition_id();
+    }
+
     auto const& yuv_data = frame.yuv_data();
     return VideoFrameHandle {
-        .pool_id = pool_slot->pool().id(),
-        .slot_index = pool_slot->slot_index(),
-        .slot_acquisition_id = pool_slot->slot_acquisition_id(),
+        .pool_id = pool_id,
+        .slot_index = slot_index,
+        .slot_acquisition_id = slot_acquisition_id,
         .timestamp = frame.timestamp(),
         .duration = frame.duration(),
         .size = yuv_data.size(),

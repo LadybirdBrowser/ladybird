@@ -46,6 +46,7 @@ public:
     Gfx::YUVData const& yuv_data() const { return m_yuv_data; }
 
     PooledVideoFrameSlot const* pool_slot() const;
+    ResolvedVideoFrameSlot const* resolved_slot() const;
 
     // Confirms the viewed pixels were not recycled while being consumed. Only frames resolved
     // from a VideoFrameHandle can fail this.

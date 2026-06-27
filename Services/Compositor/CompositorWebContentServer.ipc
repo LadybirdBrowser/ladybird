@@ -7,8 +7,8 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
-#include <LibMedia/VideoFrameHandle.h>
-#include <LibMedia/VideoFramePool.h>
+#include <LibIPC/TransportHandle.h>
+#include <LibMedia/VideoSinkHandle.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -22,6 +22,12 @@ endpoint CompositorWebContentServer
 {
     init_transport(int peer_pid) => (int compositor_pid)
 
+    offer_video_presentation_channel(IPC::TransportHandle handle) =|
+
+    add_video_sink(Media::VideoSinkHandle video_sink_handle) =|
+    remove_video_sink(Media::VideoSinkHandle video_sink_handle) =|
+    set_video_update_flags(Media::VideoSinkHandle video_sink_handle, Web::Compositor::VideoUpdateFlags flags) =|
+
     set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id) =|
     stop_presenting_to_client(Web::Compositor::CompositorContextId context_id) =|
     destroy_context(Web::Compositor::CompositorContextId context_id) =|
@@ -30,11 +36,6 @@ endpoint CompositorWebContentServer
     update_image_frame_resources(Web::Compositor::CompositorContextId context_id, Vector<Web::Painting::DisplayListImageFrameResource> image_frames) =|
     update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree) =|
     update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot scroll_state_snapshot) =|
-
-    announce_video_frame_slot(Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer) =|
-    retire_video_frame_pool(Media::VideoFramePoolID pool_id) =|
-    update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, Media::VideoFrameHandle frame_handle) =|
-    clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id) =|
 
     create_canvas_2d_context(Gfx::IntSize size, bool alpha) => (bool success, Web::Painting::CanvasId canvas_id)
     update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> segments) =|
