@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
-Fail	Cell with max-width smaller than width is clamped
+4 Pass
+Pass	Cell with max-width smaller than width is clamped
 Pass	Cell with max-width larger than width is not affected
 Pass	Cell with max-width equal to width is not affected
 Pass	Cell without max-width is not affected
