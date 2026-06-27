@@ -213,8 +213,11 @@ void TableFormattingContext::compute_cell_measures(RowMeasurement row_measuremen
         if (m_columns[cell.column_index].is_constrained) {
             // The outer max-content width of a table-cell in a constrained column is
             // max(min-width, width, min-content width, min(max-width, width)) adjusted by the cell intrinsic offsets.
-            // NB: min(max-width, width) doesn't have any effect here, we can simplify the expression to max(min-width, width, min-content width).
-            cell.outer_max_width = max(min_width, max(width, min_content_width)) + cell_intrinsic_width_offsets;
+
+            // AD-HOC: The formula defined by the spec doesn't respect max-width. We use a different formula that
+            //         matches the behavior that is expected by WPT and is implemented by other browsers.
+            // FIXME: Open a spec issue about this.
+            cell.outer_max_width = max(min_width, min(max_width, max(width, min_content_width))) + cell_intrinsic_width_offsets;
         } else {
             // The outer max-content width of a table-cell in a non-constrained column is
             // max(min-width, width, min-content width, min(max-width, max-content width)) adjusted by the cell intrinsic offsets.
