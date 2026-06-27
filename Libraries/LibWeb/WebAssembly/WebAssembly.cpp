@@ -791,9 +791,8 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
         auto bigint = TRY(value.to_bigint(vm));
         auto value = bigint->big_integer().divided_by(two_64).remainder;
         VERIFY(value.unsigned_value().byte_length() <= sizeof(i64));
-        i64 integer = static_cast<i64>(value.unsigned_value().to_u64());
-        if (value.is_negative())
-            integer = -integer;
+        auto magnitude = value.unsigned_value().to_u64();
+        i64 integer = static_cast<i64>(value.is_negative() ? 0 - magnitude : magnitude);
         return Wasm::Value { integer };
     }
     case Wasm::ValueType::I32: {
