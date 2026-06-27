@@ -273,32 +273,27 @@ void LineBuilder::update_last_line()
         }
     }
 
+    auto baseline_for_font = [](Gfx::FontPixelMetrics const& font_metrics, CSSPixels line_height) {
+        auto const typographic_height = CSSPixels::nearest_value_for(font_metrics.ascent + font_metrics.descent);
+        auto const half_leading = (line_height - typographic_height) / 2;
+        return CSSPixels::nearest_value_for(font_metrics.ascent) + half_leading;
+    };
+
     auto strut_baseline = [&] {
         auto& font = m_context.containing_block().first_available_font();
         auto const line_height = m_context.containing_block().computed_values().line_height();
-        auto const font_metrics = font.pixel_metrics();
-        auto const typographic_height = CSSPixels::nearest_value_for(font_metrics.ascent + font_metrics.descent);
-        auto const leading = line_height - typographic_height;
-        auto const half_leading = leading / 2;
-        return CSSPixels::nearest_value_for(font_metrics.ascent) + half_leading;
+        return baseline_for_font(font.pixel_metrics(), line_height);
     }();
 
     bool should_align_strut_to_line_box_baseline = false;
     auto line_box_baseline = [&] {
         CSSPixels line_box_baseline = strut_baseline;
         for (auto& fragment : line_box.fragments()) {
-            auto const& font = fragment.layout_node().first_available_font();
             auto const line_height = fragment.layout_node().computed_values().line_height();
-            auto const font_metrics = font.pixel_metrics();
-            auto const typographic_height = CSSPixels::nearest_value_for(font_metrics.ascent + font_metrics.descent);
-            auto const leading = line_height - typographic_height;
-            auto const half_leading = leading / 2;
-
-            // The CSS specification calls this AD (A+D, Ascent + Descent).
 
             CSSPixels fragment_baseline = 0;
             if (fragment.layout_node().is_text_node()) {
-                fragment_baseline = CSSPixels::nearest_value_for(font_metrics.ascent) + half_leading;
+                fragment_baseline = baseline_for_font(fragment.layout_node().first_available_font().pixel_metrics(), line_height);
             } else {
                 auto const& box = as<Layout::Box>(fragment.layout_node());
                 fragment_baseline = m_context.box_baseline(box, FormattingContext::BaselineSet::Last);
