@@ -137,6 +137,8 @@ public:
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
+    virtual void open_download(FileDownloader::Download const&) const;
+    virtual void show_download_in_folder(FileDownloader::Download const&) const;
 
     // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
     enum class ClipboardType : u8 {
@@ -179,6 +181,7 @@ public:
     Action& select_all_action() { return *m_select_all_action; }
 
     Action& open_about_page_action() { return *m_open_about_page_action; }
+    Action& open_downloads_page_action() { return *m_open_downloads_page_action; }
     Action& open_settings_page_action() { return *m_open_settings_page_action; }
 
     Menu& zoom_menu() { return *m_zoom_menu; }
@@ -394,6 +397,7 @@ private:
     RefPtr<Action> m_select_all_action;
 
     RefPtr<Action> m_open_about_page_action;
+    RefPtr<Action> m_open_downloads_page_action;
     RefPtr<Action> m_open_settings_page_action;
 
     RefPtr<Menu> m_zoom_menu;

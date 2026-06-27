@@ -9,6 +9,7 @@
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI.h>
 #include <LibWebView/WebUI/BookmarksUI.h>
+#include <LibWebView/WebUI/DownloadsUI.h>
 #include <LibWebView/WebUI/HistoryUI.h>
 #include <LibWebView/WebUI/ProcessesUI.h>
 #include <LibWebView/WebUI/SettingsUI.h>
@@ -36,6 +37,8 @@ ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, u64 page_id, Stri
 
     if (host == "bookmarks"sv)
         web_ui = TRY(create_web_ui<BookmarksUI>(client, page_id, move(host)));
+    else if (host == "downloads"sv)
+        web_ui = TRY(create_web_ui<DownloadsUI>(client, page_id, move(host)));
     else if (host == "history"sv)
         web_ui = TRY(create_web_ui<HistoryUI>(client, page_id, move(host)));
     else if (host == "processes"sv)

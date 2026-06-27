@@ -1262,6 +1262,16 @@ void Application::display_error_dialog(StringView error_message) const
     warnln("{}", error_message);
 }
 
+void Application::open_download(FileDownloader::Download const& download) const
+{
+    outln("Open downloaded file: {}", download.destination);
+}
+
+void Application::show_download_in_folder(FileDownloader::Download const& download) const
+{
+    outln("Show downloaded file in folder: {}", download.destination);
+}
+
 bool Application::supports_clipboard_type(ClipboardType type) const
 {
     return type == ClipboardType::Text;
@@ -1414,6 +1424,10 @@ void Application::initialize_actions()
 
     m_open_about_page_action = Action::create("About Ladybird"sv, ActionID::OpenAboutPage, [this]() {
         open_url_in_new_tab(URL::about_version(), Web::HTML::ActivateTab::Yes);
+    });
+    m_open_downloads_page_action = Action::create("Downloads"sv, ActionID::ViewDownloads, [this]() {
+        if (!activate_tab_with_url(URL::about_downloads()))
+            open_url_in_new_tab(URL::about_downloads(), Web::HTML::ActivateTab::Yes);
     });
     m_open_settings_page_action = Action::create("Settings"sv, ActionID::OpenSettingsPage, [this]() {
         open_url_in_new_tab(URL::about_settings(), Web::HTML::ActivateTab::Yes);

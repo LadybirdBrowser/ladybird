@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>Downloads</title>
+        <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
+        <style>
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --download-progress-color: #5c8ecc;
+                    --download-progress-track-color: #dde4ec;
+                    --download-status-completed-color: #1f7a3f;
+                    --download-status-failed-color: #b33232;
+                }
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --download-progress-color: #77a1d1;
+                    --download-progress-track-color: #323841;
+                    --download-status-completed-color: #7bd493;
+                    --download-status-failed-color: #ff8585;
+                }
+            }
+
+            .downloads-content {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .downloads-status,
+            .downloads-empty {
+                color: var(--secondary-text-color);
+                font-size: 13px;
+            }
+
+            .downloads-empty {
+                padding: 36px 12px;
+                text-align: center;
+                font-size: 14px;
+            }
+
+            .downloads-list {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .download-entry {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 14px;
+
+                border-top: 1px solid var(--separator-color);
+                padding-top: 16px;
+            }
+
+            .download-entry:first-child {
+                border-top: none;
+                padding-top: 0;
+            }
+
+            .download-main {
+                min-width: 0;
+            }
+
+            .download-title {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+
+                font-size: 14px;
+                font-weight: 600;
+            }
+
+            .download-url,
+            .download-destination,
+            .download-detail {
+                color: var(--secondary-text-color);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+
+                font-size: 13px;
+                margin-top: 4px;
+            }
+
+            .download-state {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                margin-top: 10px;
+            }
+
+            .download-state progress {
+                appearance: none;
+                width: 150px;
+                height: 8px;
+            }
+
+            .download-state progress::-webkit-progress-bar {
+                background-color: var(--download-progress-track-color);
+                border-radius: 999px;
+            }
+
+            .download-state progress::-webkit-progress-value {
+                background-color: var(--download-progress-color);
+                border-radius: 999px;
+            }
+
+            .download-status {
+                font-size: 13px;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+
+            .download-status.completed {
+                color: var(--download-status-completed-color);
+            }
+
+            .download-status.failed {
+                color: var(--download-status-failed-color);
+            }
+
+            .download-status.canceled {
+                color: var(--secondary-text-color);
+            }
+
+            .download-actions {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .download-actions button {
+                white-space: nowrap;
+            }
+
+            @media (max-width: 640px) {
+                .download-entry {
+                    grid-template-columns: 1fr;
+                }
+
+                .download-actions {
+                    flex-wrap: wrap;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <picture>
+                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                <img src="resource://icons/128x128/app-browser-dark.png" />
+            </picture>
+            <h1>Downloads</h1>
+        </header>
+
+        <div class="card">
+            <div class="card-body downloads-content">
+                <div id="downloads-status" class="downloads-status">Loading downloads...</div>
+                <div id="downloads-empty" class="downloads-empty hidden"></div>
+                <div id="downloads-list" class="downloads-list"></div>
+            </div>
+        </div>
+
+        <script type="module">
+            const downloadsStatus = document.querySelector("#downloads-status");
+            const downloadsEmpty = document.querySelector("#downloads-empty");
+            const downloadsList = document.querySelector("#downloads-list");
+
+            const sizeFormatter = new Intl.NumberFormat([], {
+                maximumFractionDigits: 1,
+            });
+
+            let downloads = [];
+            const downloadRows = new Map();
+
+            function createElement(tagName, properties = {}, children = []) {
+                const element = document.createElement(tagName);
+                Object.assign(element, properties);
+                element.append(...children);
+                return element;
+            }
+
+            function pluralize(count, singular, plural = `${singular}s`) {
+                return `${count} ${count === 1 ? singular : plural}`;
+            }
+
+            function formatSize(size) {
+                if (size < 1024) return `${size} B`;
+
+                const units = ["KiB", "MiB", "GiB", "TiB"];
+                let value = size / 1024;
+                let unitIndex = 0;
+                while (value >= 1024 && unitIndex < units.length - 1) {
+                    value /= 1024;
+                    unitIndex++;
+                }
+
+                return `${sizeFormatter.format(value)} ${units[unitIndex]}`;
+            }
+
+            function statusLabel(download) {
+                if (download.status === "completed") return "Completed";
+                if (download.status === "canceled") return "Canceled";
+                if (download.status === "failed") return "Failed";
+                return "Downloading";
+            }
+
+            function detailLabel(download) {
+                if (download.status === "canceled") return "Partial file removed.";
+                if (download.status === "failed") return download.error || "The download failed.";
+                if (download.totalSize !== null && download.totalSize !== undefined)
+                    return `${formatSize(download.downloadedSize)} of ${formatSize(download.totalSize)}`;
+                return formatSize(download.downloadedSize);
+            }
+
+            function createActionButton(className, textContent, message, downloadId) {
+                return createElement("button", {
+                    className,
+                    textContent,
+                    onclick: () => ladybird.sendMessage(message, { id: downloadId }),
+                });
+            }
+
+            function updateActions(actions, download) {
+                if (actions.dataset.downloadId === `${download.id}` && actions.dataset.status === download.status)
+                    return;
+
+                actions.dataset.downloadId = download.id;
+                actions.dataset.status = download.status;
+
+                if (download.status === "in-progress") {
+                    actions.replaceChildren(
+                        createActionButton("secondary-button", "Cancel", "cancelDownload", download.id)
+                    );
+                    return;
+                }
+
+                if (download.status !== "completed") {
+                    actions.replaceChildren();
+                    return;
+                }
+
+                actions.replaceChildren(
+                    createActionButton("primary-button", "Open", "openDownload", download.id),
+                    createActionButton("secondary-button", "Show in folder", "showDownloadInFolder", download.id)
+                );
+            }
+
+            function createDownloadRow(download) {
+                const row = createElement("div", { className: "download-entry" }, [
+                    createElement("div", { className: "download-main" }, [
+                        createElement("div", {
+                            className: "download-title",
+                        }),
+                        createElement("div", {
+                            className: "download-url",
+                        }),
+                        createElement("div", {
+                            className: "download-destination",
+                        }),
+                        createElement("div", { className: "download-state" }, [
+                            createElement("progress"),
+                            createElement("span", {
+                                className: "download-status",
+                            }),
+                            createElement("span", {
+                                className: "download-detail",
+                            }),
+                        ]),
+                    ]),
+                    createElement("div", { className: "download-actions" }),
+                ]);
+
+                updateDownloadRow(row, download);
+                return row;
+            }
+
+            function updateDownloadRow(row, download) {
+                const title = row.querySelector(".download-title");
+                title.textContent = download.fileName;
+                title.title = download.fileName;
+
+                const url = row.querySelector(".download-url");
+                url.textContent = download.url;
+                url.title = download.url;
+
+                const destination = row.querySelector(".download-destination");
+                destination.textContent = download.destination;
+                destination.title = download.destination;
+
+                const progress = row.querySelector("progress");
+                const showProgress =
+                    download.status === "in-progress" &&
+                    download.totalSize !== null &&
+                    download.totalSize !== undefined &&
+                    download.totalSize !== 0;
+                progress.hidden = !showProgress;
+                if (showProgress) {
+                    progress.max = download.totalSize;
+                    progress.value = Math.min(download.downloadedSize, download.totalSize);
+                }
+
+                const status = row.querySelector(".download-status");
+                status.className = `download-status ${download.status}`;
+                status.textContent = statusLabel(download);
+
+                row.querySelector(".download-detail").textContent = detailLabel(download);
+                updateActions(row.querySelector(".download-actions"), download);
+            }
+
+            function updateDownloadList(sortedDownloads) {
+                const downloadIds = new Set(sortedDownloads.map(download => download.id));
+                for (const [id] of downloadRows) {
+                    if (!downloadIds.has(id)) downloadRows.delete(id);
+                }
+
+                const rows = sortedDownloads.map(download => {
+                    let row = downloadRows.get(download.id);
+                    if (!row) {
+                        row = createDownloadRow(download);
+                        downloadRows.set(download.id, row);
+                    } else {
+                        updateDownloadRow(row, download);
+                    }
+                    return row;
+                });
+
+                rows.forEach((row, index) => {
+                    if (downloadsList.children[index] !== row)
+                        downloadsList.insertBefore(row, downloadsList.children[index] || null);
+                });
+
+                while (downloadsList.children.length > rows.length) downloadsList.lastChild.remove();
+            }
+
+            function render() {
+                const sortedDownloads = [...downloads].sort((a, b) => b.id - a.id);
+                const activeCount = downloads.filter(download => download.status === "in-progress").length;
+
+                updateDownloadList(sortedDownloads);
+
+                const isEmpty = downloads.length === 0;
+                downloadsEmpty.classList.toggle("hidden", !isEmpty);
+                downloadsEmpty.textContent = "Files you download in this session will show up here.";
+
+                if (isEmpty) {
+                    downloadsStatus.textContent = "No downloads yet.";
+                } else if (activeCount > 0) {
+                    downloadsStatus.textContent = `${pluralize(activeCount, "active download")} - ${pluralize(downloads.length, "item")} total.`;
+                } else {
+                    downloadsStatus.textContent = `${pluralize(downloads.length, "download")} in this session.`;
+                }
+            }
+
+            function updateDownload(download) {
+                const index = downloads.findIndex(candidate => candidate.id === download.id);
+                if (index === -1) {
+                    downloads.push(download);
+                } else {
+                    downloads[index] = download;
+                }
+                render();
+            }
+
+            document.addEventListener("WebUILoaded", () => {
+                ladybird.sendMessage("loadDownloads");
+            });
+
+            document.addEventListener("WebUIMessage", event => {
+                const { name, data } = event.detail;
+                if (name === "loadDownloads") {
+                    downloads = data;
+                    render();
+                } else if (name === "downloadAdded" || name === "downloadUpdated") {
+                    updateDownload(data);
+                }
+            });
+        </script>
+    </body>
+</html>

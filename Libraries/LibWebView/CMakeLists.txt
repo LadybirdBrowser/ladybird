@@ -36,6 +36,7 @@ set(SOURCES
     WorkerProcessManager.cpp
     WebUI.cpp
     WebUI/BookmarksUI.cpp
+    WebUI/DownloadsUI.cpp
     WebUI/HistoryUI.cpp
     WebUI/ProcessesUI.cpp
     WebUI/SettingsUI.cpp
