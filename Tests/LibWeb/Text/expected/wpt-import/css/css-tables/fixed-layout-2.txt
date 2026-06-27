@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-2 Pass
-6 Fail
-Fail	10px
-Fail	100%
+7 Pass
+1 Fail
+Pass	10px
+Pass	100%
 Fail	calc(10px + 100%)
 Pass	auto
-Fail	min-content
+Pass	min-content
 Pass	max-content
-Fail	fit-content
-Fail	fit-content(0)
+Pass	fit-content
+Pass	fit-content(0)
