@@ -564,7 +564,7 @@ void SVGFormattingContext::layout_image_element(SVGImageBox const& image_box)
     auto to_css_pixels_transform = Gfx::AffineTransform {}
                                        .multiply(m_current_viewbox_transform)
                                        .multiply(box_state.computed_svg_transforms()->svg_transform());
-    auto bounding_box = to_css_pixels_transform.map(image_box.dom_node().bounding_box()).to_type<CSSPixels>();
+    auto bounding_box = to_css_pixels_transform.map(image_box.dom_node().bounding_box(m_viewport_size)).to_type<CSSPixels>();
 
     box_state.set_content_x(bounding_box.x());
     box_state.set_content_y(bounding_box.y());
