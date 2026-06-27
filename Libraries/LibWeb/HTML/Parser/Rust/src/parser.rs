@@ -1825,42 +1825,59 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterframeset
     fn handle_after_frameset(&mut self, token: Token) {
+        // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+        //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
+            // Insert the character.
             self.insert_character(token.code_point);
             return;
         }
 
+        // -> A comment token
         if token.token_type == TokenType::Comment {
+            // Insert a comment.
             self.insert_comment(token.comment_data());
             return;
         }
 
+        // FIXME: -> A processing instruction token
+
+        // -> A DOCTYPE token
         if token.token_type == TokenType::Doctype {
             // Parse error. Ignore the token.
             self.parse_error("DOCTYPE token in after frameset insertion mode");
             return;
         }
 
+        // -> A start tag whose tag name is "html"
         if token.is_start_tag_named("html") {
+            // Process the token using the rules for the "in body" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InBody, token);
             return;
         }
 
+        // An end tag whose tag name is "html"
         if token.is_end_tag_named("html") {
+            // Switch the insertion mode to "after after frameset".
             self.insertion_mode = InsertionMode::AfterAfterFrameset;
             return;
         }
 
+        // -> A start tag whose tag name is "noframes"
         if token.is_start_tag_named("noframes") {
+            // Process the token using the rules for the "in head" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InHead, token);
             return;
         }
 
+        // -> An end-of-file token
         if token.token_type == TokenType::EndOfFile {
+            // Stop parsing.
             self.stop_parsing();
             return;
         }
 
+        // -> Anything else
         // Parse error. Ignore the token.
         self.parse_error("unexpected token in after frameset insertion mode");
     }
