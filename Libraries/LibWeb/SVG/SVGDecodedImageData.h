@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibGC/Weak.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
@@ -45,6 +46,8 @@ private:
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
     Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const;
     void prune_cached_display_list_resources() const;
+    void did_request_frame();
+    void invalidate_cached_rendering();
 
     // FIXME: Remove this once everything is using surfaces instead.
     mutable HashMap<Gfx::IntSize, Gfx::DecodedImageFrame> m_cached_rendered_frames;
@@ -62,6 +65,8 @@ private:
 
     GC::Ref<DOM::Document> m_document;
     GC::Ref<SVG::SVGSVGElement> m_root_element;
+
+    mutable bool m_is_recording_display_list { false };
 };
 
 class SVGDecodedImageData::SVGPageClient final : public PageClient {
@@ -78,6 +83,7 @@ public:
 
     GC::Ref<Page> m_host_page;
     GC::Ptr<Page> m_svg_page;
+    GC::Weak<SVGDecodedImageData> m_svg_image_data;
 
     virtual u64 id() const override { VERIFY_NOT_REACHED(); }
     virtual Page& page() override { return *m_svg_page; }
@@ -95,7 +101,7 @@ public:
     virtual void request_file(FileRequest) override { }
     virtual Queue<QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
     virtual void report_finished_handling_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] EventResult event_was_handled) override { }
-    virtual void request_frame() override { }
+    virtual void request_frame() override;
 
     virtual bool is_headless() const override { return m_host_page->client().is_headless(); }
 

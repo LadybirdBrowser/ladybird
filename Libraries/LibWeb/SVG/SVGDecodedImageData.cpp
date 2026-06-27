@@ -6,6 +6,7 @@
 
 #include <AK/Checked.h>
 #include <AK/NumericLimits.h>
+#include <AK/ScopeGuard.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PaintingSurface.h>
@@ -88,7 +89,9 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
         dbgln("SVGDecodedImageData: Invalid SVG input (no SVGSVGElement found)");
         return Error::from_string_literal("SVGDecodedImageData: Invalid SVG input");
     }
-    return realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
+    auto svg_image_data = realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
+    page_client->m_svg_image_data = svg_image_data;
+    return svg_image_data;
 }
 
 SVGDecodedImageData::SVGDecodedImageData(GC::Ref<Page> page, GC::Ref<SVGPageClient> page_client, GC::Ref<DOM::Document> document, GC::Ref<SVG::SVGSVGElement> root_element)
@@ -174,6 +177,11 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
         m_cached_display_lists.remove(m_cached_display_lists.begin());
         prune_cached_display_list_resources();
     }
+
+    m_is_recording_display_list = true;
+    ScopeGuard clear_recording_flag = [&] {
+        m_is_recording_display_list = false;
+    };
 
     m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
@@ -298,6 +306,32 @@ void SVGDecodedImageData::SVGPageClient::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_host_page);
     visitor.visit(m_svg_page);
+}
+
+void SVGDecodedImageData::SVGPageClient::request_frame()
+{
+    if (auto svg_image_data = m_svg_image_data.ptr())
+        svg_image_data->did_request_frame();
+}
+
+void SVGDecodedImageData::did_request_frame()
+{
+    // Recording the SVG image can itself schedule a frame request through the
+    // inner document. Ignore those requests so we do not invalidate caches while
+    // populating them.
+    if (m_is_recording_display_list)
+        return;
+
+    invalidate_cached_rendering();
+    notify_clients_did_update();
+}
+
+void SVGDecodedImageData::invalidate_cached_rendering()
+{
+    m_cached_rendered_frames.clear();
+    m_cached_rendered_surfaces.clear();
+    m_cached_display_lists.clear();
+    prune_cached_display_list_resources();
 }
 
 void SVGDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::IntRect dst_rect, CSS::ImageRendering) const
