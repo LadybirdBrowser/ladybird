@@ -114,6 +114,11 @@ runs:
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: dtolnay/rust-toolchain@stable
 
+    - name: 'Warm up the Rust toolchain'
+      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
+      shell: bash
+      run: rustup toolchain install
+
     - name: 'Resolve wasm-tools release'
       id: 'wasm-tools'
       if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
