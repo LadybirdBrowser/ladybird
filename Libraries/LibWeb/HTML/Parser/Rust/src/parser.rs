@@ -2853,6 +2853,9 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#adjusted-current-node
     fn adjusted_current_node(&self) -> Option<&StackNode> {
+        // The adjusted current node is the context element if the parser was created as part of the HTML fragment parsing
+        // algorithm and the stack of open elements has only one element in it (fragment case); otherwise, the adjusted
+        // current node is the current node.
         if self.parsing_fragment && self.stack_of_open_elements.len() == 1 {
             return self.context_element.as_ref();
         }
