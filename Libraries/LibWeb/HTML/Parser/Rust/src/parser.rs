@@ -2414,22 +2414,30 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intemplate
     fn handle_in_template(&mut self, token: Token) {
+        // -> A character token
+        // -> A comment token
+        // -> A DOCTYPE token
         if token.token_type == TokenType::Character
             || token.token_type == TokenType::Comment
             || token.token_type == TokenType::Doctype
         {
+            // Process the token using the rules for the "in body" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InBody, token);
             return;
         }
 
+        // -> A start tag whose tag name is one of: "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "template", "title"
+        // -> An end tag whose tag name is "template"
         if token.is_start_tag_one_of(&[
             "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "template", "title",
         ]) || token.is_end_tag_named("template")
         {
+            // Process the token using the rules for the "in head" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InHead, token);
             return;
         }
 
+        // -> A start tag whose tag name is one of: "caption", "colgroup", "tbody", "tfoot", "thead"
         if token.is_start_tag_one_of(&["caption", "colgroup", "tbody", "tfoot", "thead"]) {
             // Pop the current template insertion mode off the stack of template insertion modes.
             self.stack_of_template_insertion_modes.pop();
@@ -2441,6 +2449,7 @@ impl TreeBuilder {
             return;
         }
 
+        // -> A start tag whose tag name is "col"
         if token.is_start_tag_named("col") {
             // Pop the current template insertion mode off the stack of template insertion modes.
             self.stack_of_template_insertion_modes.pop();
@@ -2453,6 +2462,7 @@ impl TreeBuilder {
             return;
         }
 
+        // -> A start tag whose tag name is "tr"
         if token.is_start_tag_named("tr") {
             // Pop the current template insertion mode off the stack of template insertion modes.
             self.stack_of_template_insertion_modes.pop();
@@ -2464,6 +2474,7 @@ impl TreeBuilder {
             return;
         }
 
+        // -> A start tag whose tag name is one of: "td", "th"
         if token.is_start_tag_one_of(&["td", "th"]) {
             // Pop the current template insertion mode off the stack of template insertion modes.
             self.stack_of_template_insertion_modes.pop();
@@ -2475,6 +2486,7 @@ impl TreeBuilder {
             return;
         }
 
+        // -> Any other start tag
         if token.is_start_tag() {
             // Pop the current template insertion mode off the stack of template insertion modes.
             self.stack_of_template_insertion_modes.pop();
@@ -2486,24 +2498,37 @@ impl TreeBuilder {
             return;
         }
 
+        // -> Any other end tag
         if token.is_end_tag() {
             // Parse error. Ignore the token.
             self.parse_error("unexpected end tag in in template insertion mode");
             return;
         }
 
+        // -> An end-of-file token
         if token.token_type == TokenType::EndOfFile {
+            // If there is no template element on the stack of open elements, then stop parsing. (fragment case)
             if !self.has_template_element_on_stack_of_open_elements() {
                 self.stop_parsing();
                 return;
             }
 
-            // Parse error.
+            // Otherwise, this is a parse error.
             self.parse_error("end of file in in template insertion mode");
+
+            // Pop elements from the stack of open elements until a template element has been popped from the stack.
             self.pop_until_tag_name_has_been_popped("template");
+
+            // Clear the list of active formatting elements up to the last marker.
             self.clear_the_list_of_active_formatting_elements_up_to_the_last_marker();
+
+            // Pop the current template insertion mode off the stack of template insertion modes.
             self.stack_of_template_insertion_modes.pop();
+
+            // Reset the insertion mode appropriately.
             self.reset_the_insertion_mode_appropriately();
+
+            // Reprocess the token.
             self.process_using_the_rules_for(self.insertion_mode, token);
         }
     }
