@@ -2192,6 +2192,8 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
         if (auto const& max_width = box.computed_values().max_width(); max_width.is_percentage())
             return max_width.to_px(0);
     }
+    if (auto transferred_width = calculate_transferred_width_for_replaced_element(box); transferred_width.has_value())
+        return transferred_width.value();
     if (auto auto_size = box.auto_content_box_size(); auto_size.has_width())
         return auto_size.width.value();
 
@@ -2224,9 +2226,37 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
     return min_content_width;
 }
 
+// https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
+// "size constraints in the opposite dimension will transfer through and can affect the auto size in the considered one"
+Optional<CSSPixels> FormattingContext::calculate_transferred_width_for_replaced_element(Layout::Box const& box) const
+{
+    if (!box.is_replaced_box() || !box.has_preferred_aspect_ratio())
+        return {};
+
+    // https://drafts.csswg.org/css2/#inline-replaced-width
+    // "'width' has a computed value of 'auto', 'height' has some other computed value, and the element does have an intrinsic ratio"
+    if (!box.computed_values().width().is_auto())
+        return {};
+
+    auto const& computed_height = box.computed_values().height();
+    if (computed_height.is_auto() || computed_height.is_intrinsic_sizing_constraint())
+        return {};
+
+    auto available_space = m_state.get(box).available_inner_space_or_constraints_from(
+        AvailableSpace(AvailableSize::make_max_content(), AvailableSize::make_indefinite()));
+    if (should_treat_height_as_auto(box, available_space))
+        return {};
+
+    // https://drafts.csswg.org/css2/#inline-replaced-width
+    // "(used height) * (intrinsic ratio)"
+    return compute_width_for_replaced_element(box, available_space);
+}
+
 CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box) const
 {
     auto auto_size = box.auto_content_box_size();
+    if (auto transferred_width = calculate_transferred_width_for_replaced_element(box); transferred_width.has_value())
+        return transferred_width.value();
     if (!auto_size.has_width()) {
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
         // "If the box is non-replaced, then the entire value of any max size property or preferred size property
