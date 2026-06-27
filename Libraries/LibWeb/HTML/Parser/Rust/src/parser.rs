@@ -1761,64 +1761,94 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inframeset
     fn handle_in_frameset(&mut self, token: Token) {
+        // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+        //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
+            // Insert the character.
             self.insert_character(token.code_point);
             return;
         }
 
+        // -> A comment token
         if token.token_type == TokenType::Comment {
+            // Insert a comment.
             self.insert_comment(token.comment_data());
             return;
         }
 
+        // FIXME: -> A processing instruction token
+
+        // -> A DOCTYPE token
         if token.token_type == TokenType::Doctype {
             // Parse error. Ignore the token.
             self.parse_error("DOCTYPE token in in frameset insertion mode");
             return;
         }
 
+        // -> A start tag whose tag name is "html"
         if token.is_start_tag_named("html") {
+            // Process the token using the rules for the "in body" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InBody, token);
             return;
         }
 
+        // -> A start tag whose tag name is "frameset"
         if token.is_start_tag_named("frameset") {
+            // Insert an HTML element for the token.
             self.insert_html_element_for(&token, self.current_insertion_parent_handle());
             return;
         }
 
+        // -> An end tag whose tag name is "frameset"
         if token.is_end_tag_named("frameset") {
+            // If the current node is the root html element, then this is a parse error; ignore the token. (fragment case)
             if self.stack_of_open_elements.len() == 1 {
-                // Parse error. Ignore the token.
                 self.parse_error("frameset end tag with only root element on stack");
                 return;
             }
+
+            // Otherwise, pop the current node from the stack of open elements.
             self.pop_current_node();
+
+            // If the parser was not created as part of the HTML fragment parsing algorithm (fragment case), and the
+            // current node is no longer a frameset element, then switch the insertion mode to "after frameset".
             if !self.parsing_fragment && !self.current_node_named("frameset") {
                 self.insertion_mode = InsertionMode::AfterFrameset;
             }
             return;
         }
 
+        // -> A start tag whose tag name is "frame"
         if token.is_start_tag_named("frame") {
+            // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
             self.insert_html_element_for(&token, self.current_insertion_parent_handle());
             self.pop_current_node();
+
+            // FIXME: Acknowledge the token's self-closing flag, if it is set.
             return;
         }
 
+        // -> A start tag whose tag name is "noframes"
         if token.is_start_tag_named("noframes") {
+            // Process the token using the rules for the "in head" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InHead, token);
             return;
         }
 
+        // -> An end-of-file token
         if token.token_type == TokenType::EndOfFile {
+            // If the current node is not the root html element, then this is a parse error.
+            // NOTE: The current node can only be the root html element in the fragment case.
             if !self.current_node_named("html") {
                 self.parse_error("end of file in in frameset insertion mode with non-root current node");
             }
+
+            // Stop parsing.
             self.stop_parsing();
             return;
         }
 
+        // -> Anything else
         // Parse error. Ignore the token.
         self.parse_error("unexpected token in in frameset insertion mode");
     }
